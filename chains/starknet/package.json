@@ -1,0 +1,22 @@
+{
+  "name": "trion-starknet",
+  "version": "0.1.0",
+  "description": "TRION Protocol StarkNet Sepolia integration — indexer + real-tx signer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "indexer": "tsx indexer.ts",
+    "execute": "tsx execute.ts",
+    "fund-check": "tsx src/fund-check.ts"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "dotenv": "^16.4.5",
+    "starknet": "^9.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

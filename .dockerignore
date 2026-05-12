@@ -1,0 +1,13 @@
+.git
+.github
+target
+**/target
+node_modules
+**/node_modules
+hardhat/cache
+hardhat/artifacts
+.env
+.env.*
+!.env.example
+*.md
+!README.md

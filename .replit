@@ -1,0 +1,148 @@
+modules = ["python-3.11", "rust-stable", "nodejs-18", "web"]
+[agent]
+expertMode = true
+stack = "FLASK_VANILLA_JS"
+
+[nix]
+channel = "stable-25_05"
+packages = ["glibcLocales", "libxcrypt", "openssl", "postgresql"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=5000 uv run python3 serve.py"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "FAISS ANIMA"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 PORT=8000 FAISS_PORT=8000 uv run python3 akashic/faiss_service.py"
+waitForPort = 8000
+
+[[workflows.workflow]]
+name = "Native VM Indexers"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash supervisors/native_vm_indexers.sh"
+
+[[workflows.workflow]]
+name = "EVM Extras Indexer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash supervisors/evm_extras_indexers.sh"
+
+[[workflows.workflow]]
+name = "Native VM Relayer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node native-relayer/native_relayer.js"
+
+[[workflows.workflow]]
+name = "Extended VM Indexers"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash supervisors/extended_vm_indexers.sh"
+
+[[workflows.workflow]]
+name = "Extended Chain Relayer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" EXTENDED_POLL_INTERVAL_MS=90000 node extended_chain_relayer.js"
+
+[[workflows.workflow]]
+name = "TRION Relayer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xDB5910Dc6CfD219D00F64be1F23DA0289901356d\" ZG_POLL_INTERVAL_MS=120000 bash supervisors/trion_and_zg_relayer.sh"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "FAISS ANIMA"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Rust Indexers"
+
+[[workflows.workflow]]
+name = "Rust Indexers"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "FAISS_SERVICE_URL=\"http://127.0.0.1:8000\" bash supervisors/rust_indexers.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+
+[userenv]
+
+[userenv.shared]
+TIMESCALEDB_URL = "$DATABASE_URL"

@@ -1,0 +1,16 @@
+[package]
+name    = "trion-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+sha3         = { workspace = true }
+hex          = { workspace = true }
+tracing      = { workspace = true }
+anyhow       = { workspace = true }
+thiserror    = { workspace = true }
+async-trait  = { workspace = true }

@@ -1,0 +1,20 @@
+[package]
+name    = "trion-pvm"
+version = "0.1.0"
+edition = "2021"
+description = "TRION Polkadot (PVM) behavioral indexer — extrinsics via HTTP REST"
+
+[[bin]]
+name = "trion-pvm"
+path = "src/main.rs"
+
+[dependencies]
+trion-common = { path = "../trion-common" }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow       = { workspace = true }
+async-trait  = "0.1"
