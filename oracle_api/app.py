@@ -26,6 +26,16 @@ except ImportError:
     def get_relay():
         return None
 
+# ── Register 0G integration routes ───────────────────────────────────────────
+try:
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from zg_api_routes import zg_bp
+    app.register_blueprint(zg_bp)
+    _zg_available = True
+except Exception as _zg_err:
+    _zg_available = False
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)
