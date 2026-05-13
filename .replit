@@ -119,6 +119,14 @@ args = "FAISS ANIMA"
 task = "workflow.run"
 args = "Rust Indexers"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "0G Sync Daemon"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "0G DA Streamer"
+
 [[workflows.workflow]]
 name = "Rust Indexers"
 author = "agent"
@@ -126,6 +134,28 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "FAISS_SERVICE_URL=\"http://127.0.0.1:8000\" bash supervisors/rust_indexers.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "0G Sync Daemon"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 zg_sync_daemon.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "0G DA Streamer"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 zg_da_streamer.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
@@ -146,3 +176,4 @@ run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [userenv.shared]
 TIMESCALEDB_URL = "$DATABASE_URL"
+ZG_AKASHIC_CONTRACT = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
