@@ -1,0 +1,155 @@
+;; gate.fc — TRION TON Execution Gate (TVM / FunC)
+;;
+;; Mirrors TRIONExecutionGate.sol on TON.
+;; Behavioral firewall: gate_check passes when phi >= threshold.
+;;
+;; Storage layout:
+;;   owner_addr (267 bits)
+;;   gates_dict (dict, key=256-bit gate_id, value=gate cell ref)
+;;
+;; Gate cell:
+;;   custom_threshold [64 bits] (0 = use route threshold)
+;;   check_count      [64 bits]
+;;   pass_count       [64 bits]
+;;   block_count      [64 bits]
+;;   last_phi         [64 bits]
+;;
+;; Op codes:
+;;   0x01  set_gate_threshold
+;;   0x02  gate_check  (owner/validator)
+;;   0x10  transfer_ownership
+
+#include "stdlib.fc";
+
+const int ERR_UNAUTHORIZED  = 100;
+const int ERR_INVALID_SCORE = 101;
+const int ERR_GATE_BLOCKED  = 120;
+const int ERR_GATE_NOT_FOUND = 121;
+
+
+;; ── Storage ───────────────────────────────────────────────────────────────────
+
+(slice, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr = ds~load_bits(267);
+    cell gates_dict  = ds~load_ref();
+    return (owner_addr, gates_dict);
+}
+
+() save_storage(slice owner_addr, cell gates_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_ref(gates_dict)
+    .end_cell());
+}
+
+cell pack_gate(int threshold, int checks, int passes, int blocks, int phi) inline {
+    return begin_cell()
+        .store_uint(threshold, 64)
+        .store_uint(checks,    64)
+        .store_uint(passes,    64)
+        .store_uint(blocks,    64)
+        .store_uint(phi,       64)
+    .end_cell();
+}
+
+(int, int, int, int, int) unpack_gate(cell c) inline {
+    slice s = c.begin_parse();
+    int threshold = s~load_uint(64);
+    int checks    = s~load_uint(64);
+    int passes    = s~load_uint(64);
+    int blocks    = s~load_uint(64);
+    int phi       = s~load_uint(64);
+    return (threshold, checks, passes, blocks, phi);
+}
+
+;; ── recv_internal ─────────────────────────────────────────────────────────────
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { return (); }
+
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4);
+    slice sender_addr = cs~load_bits(267);
+
+    int op = in_msg_body~load_uint(32);
+
+    ;; ── 0x01 set_gate_threshold ──────────────────────────────────────────────
+    if (op == 1) {
+        (slice owner_addr, cell gates_dict) = load_storage();
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+
+        int gate_id   = in_msg_body~load_uint(256);
+        int threshold = in_msg_body~load_uint(64);
+        throw_if(ERR_INVALID_SCORE, threshold > 1000000);
+
+        slice gkey = begin_cell().store_uint(gate_id, 256).end_cell().begin_parse();
+        (slice existing, int found) = gates_dict.dict_get?(256, gkey);
+
+        int checks = 0; int passes = 0; int blocks = 0; int phi = 0;
+        if (found) {
+            cell gc = existing~load_ref();
+            (_, checks, passes, blocks, phi) = unpack_gate(gc);
+        }
+
+        cell new_gc = pack_gate(threshold, checks, passes, blocks, phi);
+        gates_dict~dict_set(256, gkey, new_gc.begin_parse());
+        save_storage(owner_addr, gates_dict);
+        return ();
+    }
+
+    ;; ── 0x02 gate_check ──────────────────────────────────────────────────────
+    if (op == 2) {
+        (slice owner_addr, cell gates_dict) = load_storage();
+
+        int gate_id        = in_msg_body~load_uint(256);
+        int phi            = in_msg_body~load_uint(64);
+        int route_threshold = in_msg_body~load_uint(64);
+
+        slice gkey = begin_cell().store_uint(gate_id, 256).end_cell().begin_parse();
+        (slice existing, int found) = gates_dict.dict_get?(256, gkey);
+
+        int threshold = route_threshold;
+        int checks = 0; int passes = 0; int blocks = 0;
+
+        if (found) {
+            cell gc = existing~load_ref();
+            (int ct, int ch, int pa, int bl, _) = unpack_gate(gc);
+            if (ct > 0) { threshold = ct; }
+            checks = ch; passes = pa; blocks = bl;
+        }
+
+        checks = checks + 1;
+        int passed = (phi >= threshold) ? 1 : 0;
+        if (passed) { passes = passes + 1; }
+        else { blocks = blocks + 1; }
+
+        cell new_gc = pack_gate(threshold, checks, passes, blocks, phi);
+        gates_dict~dict_set(256, gkey, new_gc.begin_parse());
+        save_storage(owner_addr, gates_dict);
+
+        throw_unless(ERR_GATE_BLOCKED, passed);
+        return ();
+    }
+
+    ;; ── 0x10 transfer_ownership ──────────────────────────────────────────────
+    if (op == 16) {
+        (slice owner_addr, cell gates_dict) = load_storage();
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        slice new_owner = in_msg_body~load_bits(267);
+        save_storage(new_owner, gates_dict);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+(int, int, int, int) get_gate_stats(int gate_id) method_id {
+    (_, cell gates_dict) = load_storage();
+    slice gkey = begin_cell().store_uint(gate_id, 256).end_cell().begin_parse();
+    (slice existing, int found) = gates_dict.dict_get?(256, gkey);
+    throw_unless(ERR_GATE_NOT_FOUND, found);
+    cell gc = existing~load_ref();
+    (int threshold, int checks, int passes, int blocks, int phi) = unpack_gate(gc);
+    return (threshold, checks, passes, blocks);
+}

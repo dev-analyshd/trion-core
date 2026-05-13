@@ -1,0 +1,33 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "apscheduler>=3.11.2",
+    "bit>=0.8.0",
+    "bitcoinlib>=0.7.8",
+    "cosmpy>=0.11.2",
+    "email-validator>=2.3.0",
+    "faiss-cpu>=1.13.2",
+    "fastapi>=0.136.1",
+    "feedparser>=6.0.12",
+    "flask>=3.1.3",
+    "flask-sqlalchemy>=3.1.1",
+    "gunicorn>=25.3.0",
+    "hdwallet>=3.6.1",
+    "httpx>=0.28.1",
+    "langdetect>=1.0.9",
+    "mnemonic>=0.21",
+    "numpy>=2.4.4",
+    "psycopg2-binary>=2.9.12",
+    "pydantic>=2.13.3",
+    "pytest>=9.0.3",
+    "requests>=2.33.1",
+    "scikit-learn>=1.8.0",
+    "stellar-sdk>=13.2.1",
+    "tronpy>=0.6.2",
+    "uvicorn>=0.46.0",
+    "vadersentiment>=3.3.2",
+    "web3>=7.15.0",
+]

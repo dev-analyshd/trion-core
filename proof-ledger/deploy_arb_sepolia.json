@@ -1,0 +1,12 @@
+{
+  "name": "ARB Sepolia",
+  "chainId": 421614,
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "timestamp": "2026-04-15T11:23:04.248Z",
+  "TRIONOracleV3": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+  "TRIONOracleV4": "0x4b4C232f6E5B3c21deC1d424e0920fBB2302C05D",
+  "note": "V3 oracle (original relay target) + V4 oracle. BTCP infrastructure in btcp_infrastructure_deployments.json",
+  "BTCPSimpleEscrow": "0xA4FCF1f348f91A287De3C736c1Ed477Ae8dbA369",
+  "BTCPEscrow": "0xA4FCF1f348f91A287De3C736c1Ed477Ae8dbA369",
+  "escrow_tx": "0x44c9bcd691bf1ac97b9ab42bdcd80e0bf306e420eedddc1fb499fcd3bbb66573"
+}

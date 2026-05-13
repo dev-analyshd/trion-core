@@ -1,0 +1,164 @@
+# =============================================================================
+# TRION Protocol — Render Production Dockerfile  (v3.0)
+# =============================================================================
+#
+# Multi-stage build:
+#   Stage 1: rust-builder  — compiles akashic-oracle + trion-l0 (release)
+#   Stage 2: runtime       — Python 3.11 + Node.js 20 + compiled binaries
+#
+# Services launched inside the container (render-entrypoint.sh):
+#   1.  FAISS ANIMA Engine         Python  port 8000
+#   2.  L0 EVM Indexer             Rust    background
+#   3.  SVM Solana Indexer         Python  background
+#   4.  EVM Extras Indexer         Node    supervisor  BNB/Base/HashKey
+#   5.  Native VM Indexers         Node    supervisor  NEAR/TON/PVM/StarkNet
+#   6.  Extended VM Indexers       Node    supervisor  UTXO/COSMOS/MOVE/SUI/TRON/PI
+#   7.  EVM Relayer                Node    background  7 EVM chains
+#   8.  Native VM Relayer          Node    background
+#   9.  Extended Chain Relayer     Node    background  15 non-EVM chains
+#  10.  Akashic Oracle             Rust    foreground  PID 1, port $PORT
+#
+# Build time: ~15 min on Render free tier (Rust compile).
+# Subsequent builds use Docker layer cache — only changed layers rebuild.
+# =============================================================================
+
+# ─── Stage 1: Rust builder ───────────────────────────────────────────────────
+FROM rust:1.78-slim AS rust-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev libpq-dev clang cmake git curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy workspace root manifests first for better caching
+COPY Cargo.toml ./
+COPY Cargo.lock* ./
+
+# Copy per-crate manifests + stub main files to cache dep resolution
+COPY akashic-oracle/Cargo.toml ./akashic-oracle/Cargo.toml
+COPY trion-l0/Cargo.toml       ./trion-l0/Cargo.toml
+
+RUN mkdir -p akashic-oracle/src trion-l0/src && \
+    echo "fn main(){}" > akashic-oracle/src/main.rs && \
+    echo "fn main(){}" > trion-l0/src/main.rs
+
+# Fetch and build dependencies (this layer is cached unless Cargo.lock changes)
+RUN cargo build --release --bin akashic-oracle --bin trion-l0 2>/dev/null || true
+
+# Copy full Rust source and do final compile
+COPY akashic-oracle/ ./akashic-oracle/
+COPY trion-l0/       ./trion-l0/
+
+RUN touch akashic-oracle/src/main.rs trion-l0/src/main.rs && \
+    cargo build --release --bin akashic-oracle --bin trion-l0
+
+# ─── Stage 2: Runtime ────────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+LABEL maintainer="Hudu Yusuf (Analys)"
+LABEL description="TRION Protocol — Multi-Chain Behavioral Truth Oracle (10 services)"
+LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
+LABEL version="3.0.0"
+
+# ── System deps: curl + tini + Node.js 20 LTS ────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl bash tini ca-certificates gnupg libssl3 libpq5 \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+       | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] \
+       https://deb.nodesource.com/node_20.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g tsx typescript --silent \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Rust binaries ─────────────────────────────────────────────────────────────
+COPY --from=rust-builder \
+    /build/target/release/akashic-oracle \
+    /build/target/release/trion-l0 \
+    /app/bin/
+RUN chmod +x /app/bin/akashic-oracle /app/bin/trion-l0
+
+WORKDIR /app
+
+# ── Python: FAISS ANIMA + SVM ─────────────────────────────────────────────────
+COPY akashic/requirements.txt ./akashic-req.txt
+RUN pip install --no-cache-dir -r akashic-req.txt
+
+COPY trion-svm/requirements.txt ./svm-req.txt 2>/dev/null || true
+RUN pip install --no-cache-dir -r svm-req.txt 2>/dev/null || true
+
+# ── Node.js: install deps before copying source (better cache hits) ───────────
+COPY trion-utxo/package*.json   ./trion-utxo/
+COPY trion-cosmos/package*.json ./trion-cosmos/
+COPY trion-aptos/package*.json  ./trion-aptos/
+COPY trion-sui/package*.json    ./trion-sui/
+COPY trion-tron/package*.json   ./trion-tron/
+COPY trion-pi/package*.json     ./trion-pi/
+COPY relayer/package*.json      ./relayer/
+COPY native-relayer/package*.json ./native-relayer/
+
+RUN for d in trion-utxo trion-cosmos trion-aptos trion-sui trion-tron trion-pi relayer native-relayer; do \
+      cd /app/$d && npm install --omit=dev --prefer-offline --silent && cd /app; \
+    done
+
+# Handle optional evm/native indexer packages
+COPY trion-evm/package*.json    ./trion-evm/    2>/dev/null || true
+COPY trion-native/package*.json ./trion-native/ 2>/dev/null || true
+RUN for d in trion-evm trion-native; do \
+      [ -d /app/$d ] && cd /app/$d && npm install --omit=dev --prefer-offline --silent && cd /app || true; \
+    done
+
+# ── Copy full source ──────────────────────────────────────────────────────────
+COPY akashic/        ./akashic/
+COPY trion-svm/      ./trion-svm/
+COPY trion-utxo/     ./trion-utxo/
+COPY trion-cosmos/   ./trion-cosmos/
+COPY trion-aptos/    ./trion-aptos/
+COPY trion-sui/      ./trion-sui/
+COPY trion-tron/     ./trion-tron/
+COPY trion-pi/       ./trion-pi/
+COPY trion-evm/      ./trion-evm/    2>/dev/null || true
+COPY trion-native/   ./trion-native/ 2>/dev/null || true
+COPY relayer/        ./relayer/
+COPY native-relayer/ ./native-relayer/
+COPY src/            ./src/
+COPY supervisors/    ./supervisors/
+COPY config/         ./config/
+
+# Oracle static files
+COPY akashic-oracle/public/ ./akashic-oracle/public/ 2>/dev/null || true
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+COPY render-entrypoint.sh ./render-entrypoint.sh
+RUN chmod +x ./render-entrypoint.sh && \
+    chmod +x ./supervisors/*.sh 2>/dev/null || true
+
+# ── Environment defaults (all overridable via Render env vars) ────────────────
+ENV PORT=10000 \
+    FAISS_PORT=8000 \
+    FAISS_SERVICE_URL=http://127.0.0.1:8000 \
+    FAISS_URL=http://127.0.0.1:8000 \
+    ORACLE_API_URL=http://127.0.0.1:10000 \
+    ORACLE_PUBLIC_DIR=/app/akashic-oracle/public \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    TRION_ENABLE_FAISS=1 \
+    TRION_ENABLE_L0=1 \
+    TRION_ENABLE_SVM=1 \
+    TRION_ENABLE_EXTRAS=1 \
+    TRION_ENABLE_NATIVE=1 \
+    TRION_ENABLE_EXTENDED=1 \
+    TRION_ENABLE_RELAYER=1 \
+    TRION_ENABLE_EXT_RELAYER=1
+
+EXPOSE 10000 8000
+
+HEALTHCHECK --interval=20s --timeout=8s --start-period=120s --retries=6 \
+    CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/render-entrypoint.sh"]

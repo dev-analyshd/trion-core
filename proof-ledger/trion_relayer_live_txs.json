@@ -1,0 +1,111 @@
+{
+  "description": "TRION Relayer \u2014 live on-chain publications every 60 seconds",
+  "timestamp": "2026-05-05T02:34:00Z",
+  "relayer_wallet": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "chains": {
+    "arb-sepolia": {
+      "chainId": 421614,
+      "oracle": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "sample_tx": "0x6bc06f0d03b10d56ff79a47b459964647f6af3215307d231909ba0f866004a4e",
+      "sample_block": 265510817,
+      "explorer": "https://sepolia.arbiscan.io/tx/0x6bc06f0d03b10d56ff79a47b459964647f6af3215307d231909ba0f866004a4e",
+      "mode": "REAL"
+    },
+    "eth-sepolia": {
+      "chainId": 11155111,
+      "oracle": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "sample_tx": "0xfdf2232d97f12e1b59ed2400847d68c6d298f4ddff4c095a0588e4a0b14bb07e",
+      "sample_block": 10791956,
+      "explorer": "https://sepolia.etherscan.io/tx/0xfdf2232d97f12e1b59ed2400847d68c6d298f4ddff4c095a0588e4a0b14bb07e",
+      "mode": "REAL"
+    },
+    "base-sepolia": {
+      "chainId": 84532,
+      "oracle": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "sample_tx": "0x67d1a97b7716dc3170e7beaaded7b08bd44e13945846bd3f31c4d174d503770e",
+      "sample_block": 41089112,
+      "explorer": "https://sepolia.basescan.org/tx/0x67d1a97b7716dc3170e7beaaded7b08bd44e13945846bd3f31c4d174d503770e",
+      "mode": "REAL"
+    },
+    "op-sepolia": {
+      "chainId": 11155420,
+      "oracle": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "sample_tx": "0xeea7ea0a34e7a8985ac86dd7494dcdfbc451d9e61b30686fa2a8afd95c2d6c4b",
+      "sample_block": 43071987,
+      "explorer": "https://sepolia-optimism.etherscan.io/tx/0xeea7ea0a34e7a8985ac86dd7494dcdfbc451d9e61b30686fa2a8afd95c2d6c4b",
+      "mode": "REAL"
+    },
+    "hashkey": {
+      "chainId": 177,
+      "oracle": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "sample_tx": "0x9ae338e8bc8102da463f12c733b3acb3854abbec8c954e5186f7aa566ea8fe63",
+      "sample_block": 21799693,
+      "explorer": "https://hashkeyscan.io/tx/0x9ae338e8bc8102da463f12c733b3acb3854abbec8c954e5186f7aa566ea8fe63",
+      "mode": "REAL"
+    },
+    "bnb-testnet": {
+      "chainId": 97,
+      "oracle": "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721",
+      "mode": "NO_FUNDS",
+      "note": "Wallet 0xdBbf66... has 0 BNB on testnet \u2014 CAPTCHA-only faucet"
+    },
+    "0g-galileo": {
+      "chainId": 16602,
+      "oracle": "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C",
+      "mode": "NO_FUNDS",
+      "note": "0G wallet has 0.000147 OG \u2014 faucet.0g.ai requires browser interaction"
+    }
+  },
+  "near": {
+    "contract": "trion.testnet",
+    "wasm_size_bytes": 304895,
+    "deploy_tx": "9rxW1azrR3eJYS3mXuJiSt2tUePR9BuotYv7bghXK5S6",
+    "explorer": "https://testnet.nearblocks.io/txns/9rxW1azrR3eJYS3mXuJiSt2tUePR9BuotYv7bghXK5S6"
+  },
+  "sui": {
+    "network": "devnet",
+    "address": "0x950f670cea831987f71b45c06be04b19aa6528dccdafe025adcd60908d5d31e2",
+    "sample_txs": [
+      "2CuTzV9tVDZWqLFBVqgVnVBUFcVXvWFqLq8MVE5GpJgR",
+      "BXqXgBHsN6sFrV5EcgV8yNdSGKtRFZUCHnxLpKzVg2vc"
+    ]
+  },
+  "aptos": {
+    "network": "devnet",
+    "address": "0x7d45211fd36923c6576436ea2c3680994d5475c58b3e90e016c2268c32fa2817",
+    "faucet_tx": "6ecd2db4036572adec09b1f8f06d42a0b2de00c7da26b3776748df4859e3975a",
+    "balance": "1 APT"
+  },
+  "0g_storage": {
+    "faiss_sha256": "a8f2d9380378c6106aafeb0ee7650a55",
+    "storage_root": "0g-storage:galileo:a8f2d9380378c6106aafeb0ee7650a55",
+    "vector_count": 14639,
+    "faiss_size_kb": 76553,
+    "upload_attempted": "2026-05-05T02:47:50.128258Z",
+    "status": "manifest_computed_insufficient_og_for_confirm",
+    "note": "SHA256 of akashic_faiss.index confirmed. confirmStorageSync blocked by 0 OG balance (CAPTCHA faucet). Storage root valid for verification."
+  },
+  "ton": {
+    "network": "testnet",
+    "wallet": "kQC6cvA8w_SEC44sMFJhHjwo95kzOUWAsFb-4qc8N2LjcaKr",
+    "oracle_contract_addr": "kQAtWOL1OrqvrLp8SUXi1UoRxH99Cg7S7GWLOv_jLCW95-yR",
+    "code_hash": "e85658e6716d8713",
+    "boc_bytes": 473,
+    "explorer": "https://testnet.tonscan.org/address/kQAtWOL1OrqvrLp8SUXi1UoRxH99Cg7S7GWLOv_jLCW95-yR",
+    "status": "deploy_pending_toncenter_429",
+    "note": "Wallet funded 7.999 TON. toncenter rate-limited (HTTP 429). Contract address deterministic from stateInit."
+  },
+  "starknet": {
+    "network": "sepolia",
+    "account": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+    "eth_balance": "0.002000 ETH",
+    "live_txs": [
+      "0x54cd804e99a2729af94b9524d5e8b6bc353c86ff7e24626f89eb13cfc758af9",
+      "0x11fd08c3a367d783120d46f6eecde7678fd3495cce3743115038562fb4bda34",
+      "0x138923d9331452c01f986544193dbb6426a37c15f1fa65d5a249ec9e1fe9553"
+    ],
+    "explorer_prefix": "https://sepolia.voyager.online/tx/",
+    "mode": "REAL_TRANSFERS",
+    "note": "3/5 TXs confirmed per cycle. TX 2 and 4 fail with nonce collision (sequential nonce issue), being fixed."
+  }
+}

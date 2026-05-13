@@ -1,0 +1,54 @@
+# =============================================================================
+# trion-core — Local development compose
+#
+# Two target images:
+#
+#   Dockerfile        — minimal dev image (Oracle API + FAISS only, fast build)
+#   Dockerfile.render — full production image (all 9 services + Rust compile)
+#
+# Quick start (dev — Oracle API + FAISS only):
+#   cp .env.example .env        # set PRIVATE_KEY / ORACLE_ADDRESS at minimum
+#   docker compose up --build
+#
+# Full production parity (all services, ~15 min Rust compile):
+#   docker compose -f docker-compose.yml -f docker-compose.render.override.yml up --build
+#   # or: docker build -f Dockerfile.render -t trion-core . && docker run -p 10000:10000 trion-core
+#
+# Endpoints (dev image):
+#   http://localhost:5000/api/v1/health    Oracle API
+#   http://localhost:5000/                 Dashboard
+#   http://localhost:8000/healthz          FAISS ANIMA Engine
+#
+# =============================================================================
+
+services:
+
+  trion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trion-core-dev
+    ports:
+      - "${PORT:-5000}:5000"
+      - "${FAISS_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      PORT: "5000"
+      FAISS_PORT: "8000"
+      FAISS_SERVICE_URL: http://127.0.0.1:8000
+      FAISS_URL: http://127.0.0.1:8000
+      ORACLE_API_URL: http://127.0.0.1:5000
+    volumes:
+      - faiss-data:/app/akashic/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  faiss-data:
+    driver: local
