@@ -37,23 +37,23 @@ run_test "L0 Rust: BehavioralHash + Physical (15 tests)" \
     "$ROOT/trion-protocol"
 
 # ── Python src/ modules (main repo) ─────────────────────────────────────────
-run_test "L1 Python: Feature Extractor (9 Shannon features)" \
+run_test "L1 Python: phi_engine — 9 Shannon entropy features (src/planes/physical/phi_engine.py)" \
     "python3 tests/trion_protocol/test_feature_extractor.py" \
     "$ROOT"
 
-run_test "L2 Python: Archetype Engine (genesis + trajectory)" \
+run_test "L2 Python: archetypes — 12 Akashic archetypes + match_archetype (src/akashic/archetypes.py)" \
     "python3 tests/trion_protocol/test_archetype_engine.py" \
     "$ROOT"
 
-run_test "L3 Python: Conformal Predictor (CI_95 invariants)" \
+run_test "L3 Python: m_engine — M(t) prediction interval + observer effect (src/planes/mental/m_engine.py)" \
     "python3 tests/trion_protocol/test_conformal_predictor.py" \
     "$ROOT"
 
-run_test "L4 Python: BFT Consensus (sigma + HHI + slashing)" \
+run_test "L4 Python: sigma_engine — Σ diversity-weighted BFT + HHI (src/planes/spiritual/sigma_engine.py)" \
     "python3 tests/trion_protocol/test_consensus_bft.py" \
     "$ROOT"
 
-run_test "L9 Python: Five-Plane C(t) + Emergence + Conservation" \
+run_test "L5 Python: coherence_engine — C(t) master equation + moat (src/core/coherence_engine.py)" \
     "python3 tests/trion_protocol/test_five_plane_c.py" \
     "$ROOT"
 

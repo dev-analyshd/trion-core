@@ -197,7 +197,7 @@ TRION is a multi-chain behavioral truth oracle implementing all 55 whitepaper ph
 - **MF engine whitepaper-exact (L2.1)**: All 5 manipulation formulas aligned: WASH_TRADING=`0.70×cyclic_flow_ratio` (threshold>0.60 AND cp<5), SYBIL=`0.60×funding_concentration`, GOVERNANCE_CAPTURE=`0.50×(HHI-2500)/7500`, MEV=`0.40×(rate-0.005)/0.045`, COORDINATED_PUMP=`0.85×sync_buy_ratio`, FAKE_VOLUME=`0.80×(1-vol_entropy/H_baseline)`.
 - **TRIONSignal 34-field schema complete**: `signal_factory.py` now includes `genomic_signature` (SHA3-256 sense+antisense dual strand, 128 hex chars), `immune_clearance`, `security_generation`, `validator_count`, `validator_hhi`, `reflexivity_flag`, `OE_factor`, `temporal_coherence`, computed `conf_genesis` = `1-e^(-0.001·D)`.
 - **Coherence trend fixed**: `coherence_engine.py` replaces static `"STABLE"` with actual slope-based trend from rolling 20-value C(t) history (RISING/FALLING/STABLE ±0.02 slope threshold).
-- **L8.1 SBA Engine**: `src/governance/sba_engine.py` — `SBA = 0.25·E + 0.25·I + 0.20·S + 0.15·G + 0.15·C` with full component breakdowns.
+- **L8.1 SBA Engine**: `src/governance/sba_engine.py` — `SBA = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C` with full component breakdowns (weights corrected to match whitepaper scaffold in current session).
 - **L9.1 XSL Engine**: `src/planes/physical/xsl_engine.py` — `XSL = TV·FS·RR/(1+TP)` with KEYSTONE/BRIDGE/ISOLATED tiers.
 - **Falsifiability Registry (F1–F15)**: `src/governance/falsifiability_registry.py` — all 15 conditions with status, test metrics, thresholds.
 - **AWA + Gratitude + Bootstrap**: `src/governance/awa_state.py` — full AWA state machine (4 conditions), Gratitude Protocol (0.95/week decay), Bootstrap Protocol (`e^(-0.0001·D)`).
