@@ -17,7 +17,7 @@ Components:
       alignment between stated monetary policy and onchain FX/stablecoin flows
 
 Weights (whitepaper L8.1):
-  w_E=0.25, w_I=0.25, w_S=0.20, w_G=0.15, w_C=0.15   (sum=1.00)
+  w_E=0.30, w_I=0.25, w_S=0.20, w_G=0.15, w_C=0.10   (sum=1.00)
 
 SBA ∈ [0, 1]
   ≥ 0.75  HIGH_CREDIBILITY
@@ -35,11 +35,11 @@ import math
 from dataclasses import dataclass
 from typing import List, Optional
 
-W_E = 0.25
+W_E = 0.30
 W_I = 0.25
 W_S = 0.20
 W_G = 0.15
-W_C = 0.15
+W_C = 0.10
 
 assert abs(W_E + W_I + W_S + W_G + W_C - 1.0) < 1e-9, "SBA weights must sum to 1.0"
 
