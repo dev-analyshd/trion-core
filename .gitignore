@@ -1,0 +1,87 @@
+# Environment — NEVER COMMIT
+.env
+.env.*
+!.env.example
+
+# Keys / secrets
+*.pem
+*.key
+keystore/
+secrets/
+
+# Build artifacts
+target/
+trion-protocol/target/
+dist/
+build/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+
+# Data
+data/*.index
+data/*.bin
+*.log
+
+# Runtime binary state — regenerated at startup, too large for git
+akashic/akashic_faiss.index
+akashic/akashic_state.db
+akashic/akashic_state.db.bak
+akashic/akashic_state.db-shm
+akashic/akashic_state.db-wal
+akashic/bibl_patterns.db
+trion-l0/gk_state.json
+bh_ledger.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Hardhat
+cache/
+artifacts/
+typechain-types/
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Testnet credentials
+.env.testnet
+*.env.local
+.env.local
+.env.*.local
+
+# TRION multi-chain runtime status files (contain testnet addresses)
+btc_testnet_addresses.json
+utxo_chain_status.json
+tron_status.json
+cosmos_chains_status.json
+move_chains_status.json
+sui_status.json
+starknet_status.json
+pi_status.json
+
+# Wallet files — NEVER COMMIT
+*.wif
+wallets*.json
+funded_wallets.json
+*_escrows.json
+
+# Attack simulation output
+attack_simulation_results.json
+
+# FAISS index files
+faiss_index/
+*.index
+*.bin
+
+bh_ledger.db
+bh_ledger.db
+bh_ledger.db
+bh_ledger.db

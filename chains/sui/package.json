@@ -1,0 +1,13 @@
+{
+  "name": "trion-sui",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx indexer.ts"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.45.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.5"
+  }
+}

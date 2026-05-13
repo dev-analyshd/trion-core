@@ -1,0 +1,169 @@
+# TRION Protocol — Configuration
+# All values can be overridden via environment variables.
+
+oracle:
+  port: 5000
+  public_dir: ./akashic-oracle/public
+  log_level: info
+  max_connections: 100
+
+faiss:
+  port: 8000
+  service_url: http://127.0.0.1:8000
+  index_dim: 128
+  n_list: 64
+  index_path: ./akashic/akashic_faiss.index
+  state_db: ./akashic/akashic_state.db
+
+planes:
+  weights:
+    default:
+      alpha: 0.25     # Physical Φ
+      beta: 0.30      # Mental M
+      gamma: 0.25     # Spiritual Σ
+      delta: 0.10     # Conscious K
+      epsilon: 0.10   # ANIMA A
+
+    new_token:
+      alpha: 0.40
+      beta: 0.15
+      gamma: 0.30
+      delta: 0.10
+      epsilon: 0.05
+
+    mature_protocol:
+      alpha: 0.20
+      beta: 0.30
+      gamma: 0.20
+      delta: 0.15
+      epsilon: 0.15
+
+    stablecoin:
+      alpha: 0.25
+      beta: 0.35
+      gamma: 0.25
+      delta: 0.05
+      epsilon: 0.10
+
+    governance_token:
+      alpha: 0.15
+      beta: 0.20
+      gamma: 0.25
+      delta: 0.25
+      epsilon: 0.15
+
+    bridge_asset:
+      alpha: 0.30
+      beta: 0.25
+      gamma: 0.30
+      delta: 0.05
+      epsilon: 0.10
+
+    wrapped_asset:
+      alpha: 0.20
+      beta: 0.25
+      gamma: 0.35
+      delta: 0.05
+      epsilon: 0.15
+
+  bootstrap:
+    sigma_bootstrap: 0.25
+    k_bootstrap: 0.10
+    anima_bootstrap: 0.10
+    d_minimum: 10000
+
+  threshold:
+    theta_min: 0.55
+    theta_max: 0.92
+
+manipulation:
+  thresholds:
+    oracle_attack: 0.15        # spot_deviation_pct > this
+    wash_trading: 0.60         # cyclic_flow_ratio > this
+    coordinated_pump: 0.80     # sync_buy_ratio > this
+    sybil_liquidity: 0.80      # top5_lp_share > this
+    governance_capture: 4000   # vote_HHI > this
+    mev_extraction: 0.005      # 0.5% sustained 7 days
+    fake_volume_spike: 10.0    # 10x baseline
+
+liquidity:
+  nl_alert_threshold: 0.30     # NL < this → DO_NOT_ROUTE signal
+  nl_caution_threshold: 0.50
+
+timeouts:
+  faiss_call_ms: 2000          # Per-call FAISS timeout
+  oracle_total_ms: 4000        # Max oracle response time
+  fire_and_forget_ms: 10       # Reflexivity publish
+
+indexers:
+  evm:
+    arbitrum_rpc: https://arb1.arbitrum.io/rpc
+    chain_id: 42161
+    poll_sleep_ms: 500
+
+  svm:
+    solana_rpc: https://api.devnet.solana.com
+    chain_id: 103
+    label: SOLANA_DEVNET
+    poll_sleep_ms: 1500
+
+relayer:
+  poll_interval_ms: 60000
+  oracle_api_url: http://127.0.0.1:5000
+  chains:
+    - name: arbitrum_sepolia
+      chain_id: 421614
+      oracle: "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3"
+    - name: eth_sepolia
+      chain_id: 11155111
+      oracle: "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39"
+    - name: base_sepolia
+      chain_id: 84532
+      oracle: "0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C"
+    - name: optimism_sepolia
+      chain_id: 11155420
+      oracle: "0x708193f93Fb897fbeA72e7e7D19237770F19E969"
+    - name: bnb_testnet
+      chain_id: 97
+      oracle: "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721"
+    - name: zg_galileo
+      chain_id: 16602
+      oracle: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"
+    - name: hashkey_mainnet
+      chain_id: 177
+      oracle: "0x708193f93Fb897fbeA72e7e7D19237770F19E969"
+
+security:
+  living:
+    d_minimum: 10000
+    crispr_library_size: 4
+    gk_evolution_interval: 100  # blocks between GK evolutions
+  chameleon:
+    noise_sigma_base: 0.002
+    noise_sigma_probe: 0.025
+    probe_detection_threshold: 1.8
+
+anima:
+  bootstrap_value: 0.10
+  d_minimum: 10000
+  pcr_threshold: 0.60
+  ha_min: 0.60
+  ha_flag: 0.70
+  credibility_alpha_decay: 0.99
+  credibility_beta_update: 0.10
+
+brt:
+  circadian_period: 86400
+  ultradian_period: 5400
+  lunar_period: 2551442
+  seasonal_period: 31557600
+
+btcp:
+  weights:
+    nl: 0.25
+    gas: 0.20
+    finality: 0.20
+    cc_coherence: 0.15
+    beo_continuity: 0.20
+  safe_threshold: 0.50
+  nl_minimum: 0.30

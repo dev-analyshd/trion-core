@@ -1,0 +1,20 @@
+[package]
+name    = "trion-svm"
+version = "0.1.0"
+edition = "2021"
+description = "TRION Solana (SVM) behavioral indexer — slots via JSON-RPC"
+
+[[bin]]
+name = "trion-svm"
+path = "src/main.rs"
+
+[dependencies]
+trion-common = { path = "../trion-common" }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow       = { workspace = true }
+async-trait  = "0.1"
