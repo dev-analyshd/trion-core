@@ -147,30 +147,45 @@ class BehavioralHash:
     chain_id:     int
     payload_bytes: int
     valid:        bool
+    complement_invariant_hex: str = ""   # NOT(anti_raw) — stored separately for tamper detection
     raw:          Dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: Dict) -> "BehavioralHash":
         return cls(
-            entity_id     = str(d.get("entity_id", "")),
-            sense_hex     = str(d.get("sense_hex", "")),
-            antisense_hex = str(d.get("antisense_hex", "")),
-            event_type    = str(d.get("event_type", "TRANSFER")),
-            magnitude_norm= float(d.get("magnitude_norm", 0)),
-            chain_id      = int(d.get("chain_id", 0)),
-            payload_bytes = int(d.get("payload_bytes", 93)),
-            valid         = bool(d.get("valid", False)),
-            raw           = d,
+            entity_id                = str(d.get("entity_id", "")),
+            sense_hex                = str(d.get("sense_hex", "")),
+            antisense_hex            = str(d.get("antisense_hex", "")),
+            event_type               = str(d.get("event_type", "TRANSFER")),
+            magnitude_norm           = float(d.get("magnitude_norm", 0)),
+            chain_id                 = int(d.get("chain_id", 0)),
+            payload_bytes            = int(d.get("payload_bytes", 93)),
+            valid                    = bool(d.get("valid", False)),
+            complement_invariant_hex = str(d.get("complement_invariant_hex", "")),
+            raw                      = d,
         )
 
     def verify(self) -> bool:
+        """
+        Local tamper-detection verification.
+        If complement_invariant_hex is present: checks sense XOR antisense == stored invariant.
+        Falls back to structural check (32 bytes + API valid flag) if invariant not returned.
+        """
         if not (self.sense_hex and self.antisense_hex):
             return False
-        sense_bytes     = bytes.fromhex(self.sense_hex)
-        antisense_bytes = bytes.fromhex(self.antisense_hex)
-        complement      = bytes(b ^ 0xFF for b in sense_bytes)
-        inner           = bytes(a ^ b for a, b in zip(antisense_bytes, complement))
-        return len(inner) == 32 and self.valid
+        try:
+            sense_bytes     = bytes.fromhex(self.sense_hex)
+            antisense_bytes = bytes.fromhex(self.antisense_hex)
+            if len(sense_bytes) != 32 or len(antisense_bytes) != 32:
+                return False
+            if self.complement_invariant_hex:
+                stored   = bytes.fromhex(self.complement_invariant_hex)
+                xor_pair = bytes(s ^ a for s, a in zip(sense_bytes, antisense_bytes))
+                return xor_pair == stored
+            # Structural fallback: API asserts validity
+            return self.valid
+        except Exception:
+            return False
 
 
 @dataclass

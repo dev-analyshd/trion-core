@@ -11,6 +11,7 @@ secrets/
 
 # Build artifacts
 target/
+trion-protocol/target/
 dist/
 build/
 node_modules/
