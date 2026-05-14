@@ -3654,18 +3654,48 @@ def bh_ledger_get(entity_id: str):
 def bh_ledger_stats():
     """
     L0.1 — Global BH ledger statistics: total per-transaction BHs, chains, event types.
+    Reads directly from bh_ledger.db (WAL mode) to avoid FAISS write-lock contention.
     """
-    import requests as _req
-    faiss_url = "http://127.0.0.1:8000"
+    import sqlite3 as _sq
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "..", "bh_ledger.db")
+    db_path = os.path.normpath(db_path)
     try:
-        r = _req.get(f"{faiss_url}/bh/stats", timeout=5)
-        return jsonify(r.json()), r.status_code
-    except Exception as e:
-        return jsonify({
-            "error":       str(e),
-            "total_tx_bhs": 0,
-            "whitepaper":  "L0.1",
-        }), 503
+        conn = _sq.connect(db_path, timeout=4.0)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA query_only=1")
+        total  = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
+        chains = conn.execute(
+            "SELECT chain_label, COUNT(*) FROM bh_ledger "
+            "GROUP BY chain_label ORDER BY COUNT(*) DESC"
+        ).fetchall()
+        events = conn.execute(
+            "SELECT event_type_name, COUNT(*) FROM bh_ledger "
+            "GROUP BY event_type_name ORDER BY COUNT(*) DESC"
+        ).fetchall()
+        recent = conn.execute(
+            "SELECT tx_hash, chain_label, event_type_name, sense_hex, ts "
+            "FROM bh_ledger ORDER BY ts DESC LIMIT 5"
+        ).fetchall()
+        conn.close()
+    except Exception as exc:
+        return jsonify({"error": str(exc), "total_tx_bhs": 0,
+                        "whitepaper": "L0.1"}), 503
+
+    return jsonify({
+        "total_tx_bhs":  total,
+        "chains_with_data": len(chains),
+        "per_chain":     {r[0]: r[1] for r in chains},
+        "per_event_type": {r[0]: r[1] for r in events},
+        "recent": [
+            {"tx_hash": r[0], "chain": r[1], "event_type": r[2],
+             "sense_hex": r[3][:16] + "...", "ts": r[4]}
+            for r in recent
+        ],
+        "whitepaper": "L0.1 — per-transaction canonical BH dual-strand",
+        "payload_bytes": 93,
+        "formula": "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
+    })
 
 
 @app.route("/api/v1/bh", methods=["POST"])
