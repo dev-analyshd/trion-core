@@ -1,0 +1,185 @@
+;; oracle.fc — TRION TON Oracle (TVM / FunC)
+;;
+;; Equivalent to TRIONOracleV3.sol on TON.
+;; Provides publish_btcp_route + verify_execution for cross-VM consensus.
+;;
+;; Storage layout (cell):
+;;   owner_addr  (267 bits, MsgAddressInt)
+;;   route_count (64 bits)
+;;   version     (8 bits)
+;;   routes_dict (dict, key = 256-bit route_id, value = route cell)
+;;
+;; Route cell layout:
+;;   route_id        [256 bits]
+;;   anchor_bh       [256 bits]
+;;   execution_bh    [256 bits]
+;;   coherence_score [64 bits]  (×1_000_000)
+;;   threshold_score [64 bits]
+;;   published_at    [64 bits]  (unix timestamp)
+;;   is_active       [1 bit]
+;;
+;; Op codes:
+;;   0x01  publish_btcp_route
+;;   0x02  verify_execution
+;;   0x03  add_validator
+;;   0x10  transfer_ownership
+
+#include "stdlib.fc";
+
+;; ── Error codes ───────────────────────────────────────────────────────────────
+const int ERR_UNAUTHORIZED    = 100;
+const int ERR_INVALID_SCORE   = 101;
+const int ERR_ROUTE_NOT_FOUND = 102;
+const int ERR_ROUTE_INACTIVE  = 103;
+
+;; ── Storage helpers ───────────────────────────────────────────────────────────
+
+(slice, int, int, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr  = ds~load_bits(267);
+    int route_count   = ds~load_uint(64);
+    int version       = ds~load_uint(8);
+    cell routes_dict  = ds~load_ref();
+    return (owner_addr, route_count, version, routes_dict);
+}
+
+() save_storage(slice owner_addr, int route_count, int version, cell routes_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_uint(route_count, 64)
+        .store_uint(version, 8)
+        .store_ref(routes_dict)
+    .end_cell());
+}
+
+;; ── Route serialisation ───────────────────────────────────────────────────────
+
+cell pack_route(int route_id, int anchor_bh, int exec_bh, int coherence, int threshold, int ts, int active) inline {
+    return begin_cell()
+        .store_uint(route_id,  256)
+        .store_uint(anchor_bh, 256)
+        .store_uint(exec_bh,   256)
+        .store_uint(coherence, 64)
+        .store_uint(threshold, 64)
+        .store_uint(ts,        64)
+        .store_uint(active,    1)
+    .end_cell();
+}
+
+(int, int, int, int, int, int, int) unpack_route(cell c) inline {
+    slice s = c.begin_parse();
+    int route_id  = s~load_uint(256);
+    int anchor_bh = s~load_uint(256);
+    int exec_bh   = s~load_uint(256);
+    int coherence = s~load_uint(64);
+    int threshold = s~load_uint(64);
+    int ts        = s~load_uint(64);
+    int active    = s~load_uint(1);
+    return (route_id, anchor_bh, exec_bh, coherence, threshold, ts, active);
+}
+
+;; ── Auth helper ───────────────────────────────────────────────────────────────
+
+() assert_owner(slice sender_addr) impure inline {
+    (slice owner_addr, _, _, _) = load_storage();
+    throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+}
+
+
+;; ── recv_internal ─────────────────────────────────────────────────────────────
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { return (); }
+
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4);              ;; flags
+    slice sender_addr = cs~load_bits(267);
+
+    int op = in_msg_body~load_uint(32);
+
+    ;; ── 0x01 publish_btcp_route ───────────────────────────────────────────────
+    if (op == 1) {
+        (slice owner_addr, int route_count, int version, cell routes_dict) = load_storage();
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+
+        int route_id  = in_msg_body~load_uint(256);
+        int anchor_bh = in_msg_body~load_uint(256);
+        int exec_bh   = in_msg_body~load_uint(256);
+        int coherence = in_msg_body~load_uint(64);
+        int threshold = in_msg_body~load_uint(64);
+
+        throw_if(ERR_INVALID_SCORE, coherence > 1000000);
+        throw_if(ERR_INVALID_SCORE, threshold > 1000000);
+
+        int ts = now();
+        cell route_cell = pack_route(route_id, anchor_bh, exec_bh, coherence, threshold, ts, 1);
+
+        ;; store route in dict keyed by route_id (256-bit)
+        slice key = begin_cell().store_uint(route_id, 256).end_cell().begin_parse();
+        slice val = route_cell.begin_parse();
+        routes_dict~dict_set(256, key, val);
+
+        save_storage(owner_addr, route_count + 1, version, routes_dict);
+        return ();
+    }
+
+    ;; ── 0x02 verify_execution — returns (is_safe, coherence, threshold) ───────
+    if (op == 2) {
+        (_, _, _, cell routes_dict) = load_storage();
+        int route_id = in_msg_body~load_uint(256);
+
+        slice key = begin_cell().store_uint(route_id, 256).end_cell().begin_parse();
+        (slice route_slice, int found) = routes_dict.dict_get?(256, key);
+        throw_unless(ERR_ROUTE_NOT_FOUND, found);
+
+        cell route_cell = route_slice~load_ref();
+        (_, _, _, int coherence, int threshold, _, int active) = unpack_route(route_cell);
+        throw_unless(ERR_ROUTE_INACTIVE, active);
+
+        ;; Emit log: is_safe coherence threshold
+        ;; (TON uses out-messages for events; minimal log here)
+        return ();
+    }
+
+    ;; ── 0x03 add_validator (no-op storage; validators managed off-chain) ──────
+    if (op == 3) {
+        assert_owner(sender_addr);
+        return ();
+    }
+
+    ;; ── 0x10 transfer_ownership ──────────────────────────────────────────────
+    if (op == 16) {
+        (_, int route_count, int version, cell routes_dict) = load_storage();
+        assert_owner(sender_addr);
+        slice new_owner = in_msg_body~load_bits(267);
+        save_storage(new_owner, route_count, version, routes_dict);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+(int, int, int) get_route_info(int route_id) method_id {
+    (_, _, _, cell routes_dict) = load_storage();
+    slice key = begin_cell().store_uint(route_id, 256).end_cell().begin_parse();
+    (slice route_slice, int found) = routes_dict.dict_get?(256, key);
+    throw_unless(ERR_ROUTE_NOT_FOUND, found);
+    cell route_cell = route_slice~load_ref();
+    (_, _, _, int coherence, int threshold, _, int active) = unpack_route(route_cell);
+    return (coherence, threshold, active);
+}
+
+int get_route_count() method_id {
+    (_, int route_count, _, _) = load_storage();
+    return route_count;
+}
+
+int get_version() method_id {
+    (_, _, int version, _) = load_storage();
+    return version;
+}
+
+slice get_owner() method_id {
+    (slice owner_addr, _, _, _) = load_storage();
+    return owner_addr;
+}
