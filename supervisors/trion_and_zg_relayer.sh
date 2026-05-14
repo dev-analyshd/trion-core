@@ -31,9 +31,10 @@ echo ""
 run_trion_relayer() {
   while true; do
     echo "[TRION-RELAYER] Starting ..."
-    ORACLE_API_URL="$ORACLE_API_URL" \
-    POLL_INTERVAL_MS="$POLL_INTERVAL_MS" \
-      node relayer/relayer.js 2>&1 | sed 's/^/[trion] /' || true
+    ( cd "$ROOT/relayer" && \
+      ORACLE_API_URL="$ORACLE_API_URL" \
+      POLL_INTERVAL_MS="$POLL_INTERVAL_MS" \
+        node relayer.js 2>&1 ) | sed 's/^/[trion] /' || true
     echo "[TRION-RELAYER] Exited — restarting in 10s ..."
     sleep 10
   done
@@ -45,12 +46,13 @@ run_trion_relayer() {
 run_zg_relayer() {
   while true; do
     echo "[0G-GATE-RELAYER] Starting ..."
-    ZG_EXECUTION_GATE_ADDR="$ZG_EXECUTION_GATE_ADDR" \
-    ORACLE_API_URL="$ORACLE_API_URL" \
-    ZG_POLL_INTERVAL_MS="$ZG_POLL_INTERVAL_MS" \
-    ZG_CHAIN_ID="$ZG_CHAIN_ID" \
-    ZERO_G_RPC="$ZERO_G_RPC" \
-      node relayer/zg_execution_gate_relayer.js 2>&1 | sed 's/^/[0g-gate] /' || true
+    ( cd "$ROOT/relayer" && \
+      ZG_EXECUTION_GATE_ADDR="$ZG_EXECUTION_GATE_ADDR" \
+      ORACLE_API_URL="$ORACLE_API_URL" \
+      ZG_POLL_INTERVAL_MS="$ZG_POLL_INTERVAL_MS" \
+      ZG_CHAIN_ID="$ZG_CHAIN_ID" \
+      ZERO_G_RPC="$ZERO_G_RPC" \
+        node zg_execution_gate_relayer.js 2>&1 ) | sed 's/^/[0g-gate] /' || true
     echo "[0G-GATE-RELAYER] Exited — restarting in 10s ..."
     sleep 10
   done
