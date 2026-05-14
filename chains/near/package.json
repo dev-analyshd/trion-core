@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/trion-near",
+  "version": "1.0.0",
+  "description": "TRION NEAR — NEAR Protocol behavioral indexer",
+  "type": "module",
+  "scripts": {
+    "indexer": "tsx indexer.ts",
+    "dev": "tsx --watch indexer.ts",
+    "build:contract": "cd contract && cargo build --release --target wasm32-unknown-unknown 2>&1",
+    "check:contract": "cd contract && cargo check 2>&1",
+    "test:contract": "cd contract && cargo test 2>&1"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0",
+    "node-fetch": "^3.3.2",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5"
+  }
+}

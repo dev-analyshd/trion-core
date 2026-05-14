@@ -1,0 +1,29 @@
+{
+  "name": "@workspace/trion-pvm",
+  "version": "1.0.0",
+  "description": "TRION PVM — Polkadot/Substrate behavioral indexer + ink! oracle client",
+  "type": "module",
+  "scripts": {
+    "indexer": "tsx indexer.ts",
+    "client": "tsx client.ts",
+    "dev": "tsx --watch indexer.ts",
+    "build:oracle": "cd contract && cargo build --release 2>&1",
+    "check:oracle": "cd contract && cargo check 2>&1",
+    "test:oracle": "cd contract && cargo test 2>&1",
+    "build:contracts": "cd contracts && cargo build --release 2>&1",
+    "check:contracts": "cd contracts && cargo check 2>&1",
+    "test:contracts": "cd contracts && cargo test 2>&1"
+  },
+  "dependencies": {
+    "@polkadot/api": "^14.3.1",
+    "@polkadot/keyring": "^13.2.3",
+    "@polkadot/util": "^13.2.3",
+    "@polkadot/util-crypto": "^13.2.3",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "tsx": "^4.11.0",
+    "@types/node": "^20.12.7"
+  }
+}

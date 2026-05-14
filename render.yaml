@@ -1,0 +1,162 @@
+services:
+  - type: web
+    name: trion-protocol
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: standard          # free works; standard recommended for 10 concurrent services
+    region: oregon
+    branch: main
+    repo: https://github.com/dev-analyshd/trion-core
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+
+    envVars:
+
+      # ── Internal ports & routing ───────────────────────────────────────────
+      - key: PORT
+        value: "10000"
+      - key: FAISS_PORT
+        value: "8000"
+      - key: FAISS_SERVICE_URL
+        value: "http://127.0.0.1:8000"
+      - key: FAISS_URL
+        value: "http://127.0.0.1:8000"
+      - key: ORACLE_API_URL
+        value: "http://127.0.0.1:10000"
+      - key: ORACLE_PUBLIC_DIR
+        value: "/app/akashic-oracle/public"
+
+      # ── Service enable toggles (set to "0" to disable a subsystem) ─────────
+      - key: TRION_ENABLE_FAISS
+        value: "1"
+      - key: TRION_ENABLE_L0
+        value: "1"
+      - key: TRION_ENABLE_SVM
+        value: "1"
+      - key: TRION_ENABLE_EXTRAS
+        value: "1"
+      - key: TRION_ENABLE_NATIVE
+        value: "1"
+      - key: TRION_ENABLE_EXTENDED
+        value: "1"
+      - key: TRION_ENABLE_RELAYER
+        value: "1"
+      - key: TRION_ENABLE_EXT_RELAYER
+        value: "1"
+
+      # ── Database (auto-populated by Render when trion-db is attached) ───────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trion-db
+          property: connectionString
+      - key: TIMESCALEDB_URL
+        fromDatabase:
+          name: trion-db
+          property: connectionString
+
+      # ── EVM: Arbitrum L0 Indexer ───────────────────────────────────────────
+      - key: ARBITRUM_RPC_URL
+        value: "https://arb1.arbitrum.io/rpc"
+      - key: CHAIN_ID
+        value: "42161"
+
+      # ── SVM: Solana Indexer ────────────────────────────────────────────────
+      - key: SOLANA_RPC_URL
+        value: "https://api.devnet.solana.com"
+      - key: SOLANA_CHAIN_ID
+        value: "103"
+      - key: SOLANA_LABEL
+        value: "SOLANA_DEVNET"
+      - key: POLL_SLEEP_MS
+        value: "1500"
+
+      # ── Relayer poll intervals ─────────────────────────────────────────────
+      - key: POLL_INTERVAL_MS
+        value: "60000"
+      - key: EXTENDED_POLL_INTERVAL_MS
+        value: "90000"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # SECRETS — Render will NOT sync these; enter values in the dashboard
+      # or via the Render CLI: render env set KEY=value
+      # ═════════════════════════════════════════════════════════════════════
+
+      # ── EVM relayer key (signs txs on 7 EVM chains) ───────────────────────
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+
+      # ── SVM: Solana signing key ────────────────────────────────────────────
+      - key: SVM_PRIVATE_KEY_B58
+        sync: false
+
+      # ── Native VM signing keys ─────────────────────────────────────────────
+      - key: NEAR_PRIVATE_KEY
+        sync: false
+      - key: TON_PRIVATE_KEY_HEX
+        sync: false
+      - key: DOT_MNEMONIC
+        sync: false
+      - key: STARKNET_PRIVATE_KEY
+        sync: false
+
+      # ── UTXO signing keys ──────────────────────────────────────────────────
+      - key: BTC_TAPROOT_WIF
+        sync: false
+      - key: BTC_SEGWIT_NATIVE_WIF
+        sync: false
+      - key: BTC_SEGWIT_NESTED_WIF
+        sync: false
+      - key: BTC_LEGACY_WIF
+        sync: false
+      - key: LITECOIN_PRIVATE_KEY
+        sync: false
+      - key: DOGE_PRIVATE_KEY
+        sync: false
+      - key: DASH_PRIVATE_KEY
+        sync: false
+
+      # ── Cosmos SDK signing keys ────────────────────────────────────────────
+      - key: COSMOS_PRIVATE_KEY
+        sync: false
+      - key: KAVA_PRIVATE_KEY
+        sync: false
+      - key: INJECTIVE_PRIVATE_KEY
+        sync: false
+      - key: SEI_PRIVATE_KEY
+        sync: false
+      - key: DYDX_PRIVATE_KEY
+        sync: false
+      - key: INITIA_PRIVATE_KEY
+        sync: false
+
+      # ── MOVE VM signing keys ───────────────────────────────────────────────
+      - key: APTOS_PRIVATE_KEY
+        sync: false
+      - key: MOVEMENT_PRIVATE_KEY
+        sync: false
+
+      # ── SUI signing key ────────────────────────────────────────────────────
+      - key: SUI_PRIVATE_KEY
+        sync: false
+
+      # ── TRON signing key + optional API key ───────────────────────────────
+      - key: TRON_PRIVATE_KEY
+        sync: false
+      - key: TRON_API_KEY
+        sync: false
+
+      # ── Pi Network signing key (Stellar S... secret key) ──────────────────
+      - key: PI_SECRET_KEY
+        sync: false
+
+      # ── GitHub auto-push token ────────────────────────────────────────────
+      - key: GITHUB_PERSONAL_ACCESS_TOKEN
+        sync: false
+
+databases:
+  - name: trion-db
+    databaseName: trion
+    user: trion
+    plan: free
+    region: oregon

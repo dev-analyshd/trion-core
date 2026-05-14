@@ -1,0 +1,22 @@
+{
+  "network": "0G Galileo Testnet",
+  "chainId": 16602,
+  "explorer": "https://chainscan-galileo.0g.ai",
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "rpc": "https://evmrpc-testnet.0g.ai",
+  "timestamp": "2026-05-03T06:46:50.843Z",
+  "balance_before": "0.451017915914806353",
+  "TRIONOracleV3": "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C",
+  "oracle_tx": "0x8bd350bce0a9520f5656a1157d065f70fabace1b50a5df29c7e0340d7b3d5921",
+  "LiquidityOcean": "0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7",
+  "ocean_tx": "0x095a63bea38a612505d960e820721686f05f1a688afac6146a11318dc29f700a",
+  "TravelRuleCompliance": "0x5e7DBE6cc90d6260be2781dc312812834715EBaB",
+  "travel_tx": "0x93765bc823cb7864bc90f6d4438247352eb617a2c97f636fb879e8ea01c1261d",
+  "BTCPSimpleEscrow": "0x388f98831c749D7Acad2046329c9CeC94A8b248d",
+  "escrow_tx": "0x6912a80a469fd8658ff469e9ab7c5301fed1039ca5a3370c47d30daad1567647",
+  "BTCPEscrow": "0x388f98831c749D7Acad2046329c9CeC94A8b248d",
+  "balance_after": "0.431492063880636112",
+  "status": "live",
+  "TRIONExecutionGate": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+  "execution_gate_tx": "0xfd6fbb2696a00f4275025cb4e6c6f8c1f6fdac13f6c50b2f0b3ce5e32c8ba183"
+}
