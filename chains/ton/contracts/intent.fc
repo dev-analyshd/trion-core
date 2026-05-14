@@ -1,0 +1,175 @@
+;; intent.fc — TRION TON Intent Registry (TVM / FunC)
+;;
+;; Mirrors BTCPIntent.sol on TON.
+;; Intent actions: 0=SWAP 1=TRANSFER 2=LIQUIDITY 3=STAKE 4=BORROW
+;; Intent statuses: 0=PENDING 1=ROUTING 2=EXECUTING 3=COMPLETED 4=FAILED 5=EXPIRED 6=RESURRECTED
+;;
+;; Storage layout:
+;;   owner_addr  (267 bits)
+;;   intent_count (64 bits)
+;;   intents_dict (dict, key=256-bit intent_hash, value=intent cell ref)
+;;
+;; Intent cell layout:
+;;   intent_hash  [256 bits]
+;;   entity_id    [256 bits]
+;;   action       [8 bits]
+;;   asset_in     [256 bits]
+;;   asset_out    [256 bits]
+;;   magnitude    [64 bits]
+;;   source_chain [64 bits]
+;;   deadline     [64 bits]
+;;   status       [8 bits]
+;;   created_at   [64 bits]
+;;
+;; Op codes:
+;;   0x01  register_intent
+;;   0x02  update_intent_status
+;;   0x03  get_intent (get method preferred)
+
+#include "stdlib.fc";
+
+const int ERR_UNAUTHORIZED           = 100;
+const int ERR_INTENT_EXISTS          = 110;
+const int ERR_INTENT_NOT_FOUND       = 111;
+const int ERR_INVALID_ACTION         = 112;
+const int ERR_ZERO_MAGNITUDE         = 113;
+const int ERR_INVALID_TRANSITION     = 114;
+
+
+;; ── Storage ───────────────────────────────────────────────────────────────────
+
+(slice, int, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr  = ds~load_bits(267);
+    int intent_count  = ds~load_uint(64);
+    cell intents_dict = ds~load_ref();
+    return (owner_addr, intent_count, intents_dict);
+}
+
+() save_storage(slice owner_addr, int intent_count, cell intents_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_uint(intent_count, 64)
+        .store_ref(intents_dict)
+    .end_cell());
+}
+
+;; ── Intent packing ────────────────────────────────────────────────────────────
+
+cell pack_intent(int hash, int entity, int action, int ain, int aout, int mag, int chain, int dl, int status, int ts) inline {
+    return begin_cell()
+        .store_uint(hash,   256).store_uint(entity,  256)
+        .store_uint(action,  8) .store_uint(ain,     256)
+        .store_uint(aout,   256).store_uint(mag,      64)
+        .store_uint(chain,   64).store_uint(dl,        64)
+        .store_uint(status,   8).store_uint(ts,        64)
+    .end_cell();
+}
+
+;; ── Status transition validator ───────────────────────────────────────────────
+
+int valid_transition(int from, int to) inline {
+    ;; PENDING→ROUTING|FAILED|EXPIRED  ROUTING→EXECUTING|FAILED|EXPIRED
+    ;; EXECUTING→COMPLETED|FAILED  FAILED→RESURRECTED
+    if ((from == 0) & ((to == 1) | (to == 4) | (to == 5))) { return 1; }
+    if ((from == 1) & ((to == 2) | (to == 4) | (to == 5))) { return 1; }
+    if ((from == 2) & ((to == 3) | (to == 4)))              { return 1; }
+    if ((from == 4) & (to == 6))                            { return 1; }
+    return 0;
+}
+
+;; ── recv_internal ─────────────────────────────────────────────────────────────
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { return (); }
+
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4);
+    slice sender_addr = cs~load_bits(267);
+
+    int op = in_msg_body~load_uint(32);
+
+    ;; ── 0x01 register_intent ─────────────────────────────────────────────────
+    if (op == 1) {
+        (slice owner_addr, int intent_count, cell intents_dict) = load_storage();
+
+        int hash   = in_msg_body~load_uint(256);
+        int entity = in_msg_body~load_uint(256);
+        int action = in_msg_body~load_uint(8);
+        int ain    = in_msg_body~load_uint(256);
+        int aout   = in_msg_body~load_uint(256);
+        int mag    = in_msg_body~load_uint(64);
+        int chain  = in_msg_body~load_uint(64);
+        int dl     = in_msg_body~load_uint(64);
+
+        throw_if(ERR_INVALID_ACTION, action > 4);
+        throw_if(ERR_ZERO_MAGNITUDE, mag == 0);
+
+        slice key = begin_cell().store_uint(hash, 256).end_cell().begin_parse();
+        (_, int found) = intents_dict.dict_get?(256, key);
+        throw_if(ERR_INTENT_EXISTS, found);
+
+        int ts = now();
+        cell ic = pack_intent(hash, entity, action, ain, aout, mag, chain, dl, 0, ts);
+        slice val = ic.begin_parse();
+        intents_dict~dict_set(256, key, val);
+        save_storage(owner_addr, intent_count + 1, intents_dict);
+        return ();
+    }
+
+    ;; ── 0x02 update_intent_status ────────────────────────────────────────────
+    if (op == 2) {
+        (slice owner_addr, int intent_count, cell intents_dict) = load_storage();
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+
+        int hash       = in_msg_body~load_uint(256);
+        int new_status = in_msg_body~load_uint(8);
+
+        slice key = begin_cell().store_uint(hash, 256).end_cell().begin_parse();
+        (slice rec_slice, int found) = intents_dict.dict_get?(256, key);
+        throw_unless(ERR_INTENT_NOT_FOUND, found);
+
+        ;; read current status from the cell
+        cell rec_cell = rec_slice~load_ref();
+        slice rs = rec_cell.begin_parse();
+        rs~skip_bits(256 + 256 + 8 + 256 + 256 + 64 + 64 + 64); ;; skip to status
+        int cur_status = rs~load_uint(8);
+
+        throw_unless(ERR_INVALID_TRANSITION, valid_transition(cur_status, new_status));
+
+        ;; re-read full record to rebuild
+        slice rs2 = rec_cell.begin_parse();
+        int h  = rs2~load_uint(256); int e  = rs2~load_uint(256);
+        int a  = rs2~load_uint(8);   int ai = rs2~load_uint(256);
+        int ao = rs2~load_uint(256); int m  = rs2~load_uint(64);
+        int sc = rs2~load_uint(64);  int d  = rs2~load_uint(64);
+        rs2~load_uint(8); ;; old status
+        int ts = rs2~load_uint(64);
+
+        cell new_cell = pack_intent(h, e, a, ai, ao, m, sc, d, new_status, ts);
+        slice new_val = new_cell.begin_parse();
+        intents_dict~dict_set(256, key, new_val);
+        save_storage(owner_addr, intent_count, intents_dict);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+(int, int, int) get_intent(int hash) method_id {
+    (_, _, cell intents_dict) = load_storage();
+    slice key = begin_cell().store_uint(hash, 256).end_cell().begin_parse();
+    (slice rec_slice, int found) = intents_dict.dict_get?(256, key);
+    throw_unless(ERR_INTENT_NOT_FOUND, found);
+    cell rc = rec_slice~load_ref();
+    slice s = rc.begin_parse();
+    s~skip_bits(256 + 256);  int action = s~load_uint(8);
+    s~skip_bits(256 + 256);  int mag    = s~load_uint(64);
+    s~skip_bits(64 + 64);    int status = s~load_uint(8);
+    return (action, mag, status);
+}
+
+int get_intent_count() method_id {
+    (_, int c, _) = load_storage();
+    return c;
+}

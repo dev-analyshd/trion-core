@@ -1,0 +1,10 @@
+# TRION Protocol — Code Ownership
+# All changes require review from TRION core team
+
+* @dev-analyshd
+
+# Whitepaper-critical modules
+src/core/coherence_engine.py   @dev-analyshd
+src/core/behavioral_hash.py    @dev-analyshd
+src/manipulation/             @dev-analyshd
+contracts/                    @dev-analyshd

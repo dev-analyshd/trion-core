@@ -1,0 +1,96 @@
+# =============================================================================
+# TRION Protocol — Fly.io Deployment Configuration
+#
+# Deploy to Fly.io:
+#   1. Install flyctl: curl -L https://fly.io/install.sh | sh
+#   2. fly auth login
+#   3. fly launch --no-deploy    (first time — sets up app)
+#   4. fly secrets set RELAYER_PRIVATE_KEY=0x... NEAR_PRIVATE_KEY=ed25519:... \
+#          TON_PRIVATE_KEY_HEX=... DOT_MNEMONIC="..." \
+#          STARKNET_PRIVATE_KEY=... BTC_TAPROOT_WIF=... \
+#          (... all signing keys from .env.example)
+#   5. fly deploy
+#
+# Machine sizing: shared-cpu-4x/8192MB minimum recommended
+# (FAISS + 13 Rust indexers + relayers need ~4–6 GB RAM)
+# =============================================================================
+
+app = "trion-protocol"
+primary_region = "ord"      # Chicago — lowest latency to Arbitrum RPCs
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile.render"
+
+[env]
+  PORT                    = "8080"
+  FAISS_PORT              = "8000"
+  FAISS_SERVICE_URL       = "http://127.0.0.1:8000"
+  FAISS_URL               = "http://127.0.0.1:8000"
+  ORACLE_API_URL          = "http://127.0.0.1:8080"
+
+  # ── Service toggles ────────────────────────────────────────────────────────
+  TRION_ENABLE_FAISS          = "1"
+  TRION_ENABLE_RUST           = "1"
+  TRION_ENABLE_EXTRAS         = "1"
+  TRION_ENABLE_NATIVE         = "1"
+  TRION_ENABLE_EXTENDED       = "1"
+  TRION_ENABLE_RELAYER        = "1"
+  TRION_ENABLE_NATIVE_RELAYER = "1"
+  TRION_ENABLE_EXT_RELAYER    = "1"
+  TRION_ENABLE_ZG_SYNC        = "1"
+  TRION_ENABLE_ZG_DA          = "1"
+
+  # ── Chain defaults ─────────────────────────────────────────────────────────
+  ARBITRUM_RPC_URL          = "https://arb1.arbitrum.io/rpc"
+  CHAIN_ID                  = "42161"
+  SOLANA_RPC_URL            = "https://api.devnet.solana.com"
+  POLL_INTERVAL_MS          = "60000"
+  EXTENDED_POLL_INTERVAL_MS = "90000"
+  ZG_POLL_INTERVAL_MS       = "120000"
+  ZG_EXECUTION_GATE_ADDR    = "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d"
+  ZG_AKASHIC_CONTRACT       = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
+  ZG_CHAIN_ID               = "16602"
+  ZERO_G_RPC                = "https://evmrpc-testnet.0g.ai"
+  GUNICORN_WORKERS          = "2"
+  GUNICORN_THREADS          = "4"
+  GUNICORN_TIMEOUT          = "120"
+  PYTHONUNBUFFERED          = "1"
+
+[[services]]
+  protocol    = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[services.http_checks]]
+    interval    = "15s"
+    timeout     = "10s"
+    grace_period = "120s"
+    method      = "GET"
+    path        = "/api/v1/health"
+    protocol    = "http"
+    restart_limit = 3
+
+[[vm]]
+  memory = "8gb"
+  cpu_kind = "shared"
+  cpus = 4
+
+[mounts]
+  source = "trion_data"
+  destination = "/app/0g-state"
+  initial_size = "10gb"

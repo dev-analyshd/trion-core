@@ -1,0 +1,36 @@
+{
+  "Base Sepolia": {
+    "network": "Base Sepolia",
+    "chainId": 84532,
+    "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+    "timestamp": "2026-04-14T01:38:37.163Z",
+    "TRIONOracleV3": "0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C",
+    "oracle_tx": "0xa665137b541b782733c7edb5203472d4a94e81b277715b0e00f82c53d8aa08be",
+    "BTCPIntent": "0xc8AB8943D7120d869a63d4C0CaF28d9f485761ae",
+    "intent_tx": "0xfe548ff9d49f53825ef78dede29739997e57c858319fa8179715f27ae3170e0e"
+  },
+  "BNB Testnet": {
+    "network": "BNB Testnet",
+    "chainId": 97,
+    "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+    "timestamp": "2026-04-14T01:38:48.214Z",
+    "TRIONOracleV3": "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721",
+    "oracle_tx": "0xf19e4f4a45e851c5efd9f089be0bd802f41614226a012ed1e4417cad906c9c1c",
+    "BTCPIntent": "0x61798066D42DDA998c3e83451bD4defEcacFf71e",
+    "intent_tx": "0xe51c9778fa7b1c7d20a7dbe02878d5e0494239f5acac055df92fa4fbf71b0c59"
+  },
+  "HashKey Testnet": {
+    "network": "HashKey Testnet",
+    "chainId": 133,
+    "error": "All RPCs failed",
+    "timestamp": "2026-04-14T06:05:21.176Z"
+  },
+  "0G Galileo": {
+    "network": "0G Galileo",
+    "chainId": 16602,
+    "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+    "TRIONOracleV3": "0x9999A2A945A233dF3248a635265CF8953e356d40",
+    "oracle_tx": "0xb12659b50611c181f08c3a8bf13222b5957db0b9f073e9576daffb0012a89f21",
+    "timestamp": "2026-04-14T01:41:15.221Z"
+  }
+}

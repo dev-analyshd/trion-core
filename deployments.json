@@ -1,0 +1,13 @@
+{
+  "network": "arbitrum-sepolia",
+  "chainId": 421614,
+  "TRIONSensingOracle": "0x1d129D34279d1246aB08a41dfE610EaF8D794237",
+  "TRIONOracleV3": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+  "MockTRIONToken": "0x8F21dB06b3e08D8724Ea34465fCe2fAC8cCfEA8D",
+  "ConfidentialCoherenceVault": "0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d",
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "deployedAt": "2026-05-01T17:47:00.148Z",
+  "arbiscan_oracle": "https://sepolia.arbiscan.io/address/0x1d129D34279d1246aB08a41dfE610EaF8D794237",
+  "arbiscan_vault": "https://sepolia.arbiscan.io/address/0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d",
+  "arbiscan_token": "https://sepolia.arbiscan.io/address/0x8F21dB06b3e08D8724Ea34465fCe2fAC8cCfEA8D"
+}

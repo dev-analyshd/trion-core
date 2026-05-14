@@ -1,0 +1,10 @@
+{
+  "name": "HashKey Chain Mainnet",
+  "chainId": 177,
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "timestamp": "2026-04-14T00:00:00.000Z",
+  "TRIONOracleV3": "0x708193f93Fb897fbeA72e7e7D19237770F19E969",
+  "note": "Oracle deployed on HashKey Mainnet (chain 177, not testnet 133). Testnet RPCs failed.",
+  "BTCPEscrow": null,
+  "BTCPIntent": null
+}

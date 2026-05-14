@@ -1,0 +1,20 @@
+[package]
+name    = "trion-cosmos"
+version = "0.1.0"
+edition = "2021"
+description = "TRION Cosmos SDK behavioral indexer — 6 chains via LCD REST"
+
+[[bin]]
+name = "trion-cosmos"
+path = "src/main.rs"
+
+[dependencies]
+trion-common = { path = "../trion-common" }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow       = { workspace = true }
+async-trait  = "0.1"

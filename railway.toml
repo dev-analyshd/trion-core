@@ -1,0 +1,87 @@
+# =============================================================================
+# TRION Protocol — Railway Deployment Configuration
+#
+# Deploy to Railway:
+#   1. Install Railway CLI: npm i -g @railway/cli
+#   2. railway login
+#   3. railway init
+#   4. railway up
+#
+# Or connect your GitHub repo at railway.app and Railway will auto-detect
+# this file and the Dockerfile.render.
+#
+# Set secrets in Railway dashboard (Project → Variables):
+#   RELAYER_PRIVATE_KEY, NEAR_PRIVATE_KEY, TON_PRIVATE_KEY_HEX,
+#   DOT_MNEMONIC, STARKNET_PRIVATE_KEY, BTC_TAPROOT_WIF,
+#   BTC_LEGACY_WIF, LITECOIN_PRIVATE_KEY, DOGE_PRIVATE_KEY,
+#   DASH_PRIVATE_KEY, COSMOS_PRIVATE_KEY, KAVA_PRIVATE_KEY,
+#   INJECTIVE_PRIVATE_KEY, SEI_PRIVATE_KEY, DYDX_PRIVATE_KEY,
+#   INITIA_PRIVATE_KEY, APTOS_PRIVATE_KEY, MOVEMENT_PRIVATE_KEY,
+#   SUI_PRIVATE_KEY, TRON_PRIVATE_KEY, PI_SECRET_KEY,
+#   SOLANA_RELAYER_PRIVATE_KEY, ZG_PRIVATE_KEY,
+#   GITHUB_PERSONAL_ACCESS_TOKEN (optional, for auto-sync)
+# =============================================================================
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.render"
+buildCommand = ""
+
+[deploy]
+startCommand = "/app/render-entrypoint.sh"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+[[services]]
+name = "trion-protocol"
+
+[services.variables]
+
+# ── Ports & routing ───────────────────────────────────────────────────────────
+PORT               = "8080"
+FAISS_PORT         = "8000"
+FAISS_SERVICE_URL  = "http://127.0.0.1:8000"
+FAISS_URL          = "http://127.0.0.1:8000"
+ORACLE_API_URL     = "http://127.0.0.1:8080"
+
+# ── Service enable flags (set to "0" to disable a subsystem) ─────────────────
+TRION_ENABLE_FAISS          = "1"
+TRION_ENABLE_RUST           = "1"
+TRION_ENABLE_EXTRAS         = "1"
+TRION_ENABLE_NATIVE         = "1"
+TRION_ENABLE_EXTENDED       = "1"
+TRION_ENABLE_RELAYER        = "1"
+TRION_ENABLE_NATIVE_RELAYER = "1"
+TRION_ENABLE_EXT_RELAYER    = "1"
+TRION_ENABLE_ZG_SYNC        = "1"
+TRION_ENABLE_ZG_DA          = "1"
+
+# ── Chain config ──────────────────────────────────────────────────────────────
+ARBITRUM_RPC_URL  = "https://arb1.arbitrum.io/rpc"
+CHAIN_ID          = "42161"
+SOLANA_RPC_URL    = "https://api.devnet.solana.com"
+SOLANA_CHAIN_ID   = "103"
+SOLANA_LABEL      = "SOLANA_DEVNET"
+POLL_SLEEP_MS     = "1500"
+
+# ── Relayer intervals ─────────────────────────────────────────────────────────
+POLL_INTERVAL_MS          = "60000"
+EXTENDED_POLL_INTERVAL_MS = "90000"
+ZG_POLL_INTERVAL_MS       = "120000"
+
+# ── 0G contracts ──────────────────────────────────────────────────────────────
+ZG_EXECUTION_GATE_ADDR = "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d"
+ZG_AKASHIC_CONTRACT    = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
+ZG_CHAIN_ID            = "16602"
+ZERO_G_RPC             = "https://evmrpc-testnet.0g.ai"
+
+# ── gunicorn ──────────────────────────────────────────────────────────────────
+GUNICORN_WORKERS = "2"
+GUNICORN_THREADS = "4"
+GUNICORN_TIMEOUT = "120"
+
+# ── Python ────────────────────────────────────────────────────────────────────
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"

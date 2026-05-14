@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-05-11T23:42:50.107Z",
+  "chain_id": 16602,
+  "gate_address": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+  "storage_root": "0g-storage:galileo:d0a37a3d447a0dbc30671bfe134a1945",
+  "merkle_root": "d0a37a3d447a0dbc30671bfe134a19450c16c27b9cf01bf4582e45ecd6be3bcc",
+  "sha256": "d801fd1ee3a5617a317536c28bed9caad2c11c9a28113b45d172dfdb3ad0cd83",
+  "vector_count": 169427,
+  "uploaded_to_0g": false,
+  "tx_hash": "0x32aea00f8d9a7c819a1baa52086829962a24f8d0a5c3bbaf525fb76ece7c1430",
+  "block": 32828601,
+  "explorer": "https://chainscan-galileo.0g.ai/tx/0x32aea00f8d9a7c819a1baa52086829962a24f8d0a5c3bbaf525fb76ece7c1430"
+}

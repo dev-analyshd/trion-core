@@ -1,0 +1,9 @@
+{
+  "name": "ETH Sepolia",
+  "chainId": 11155111,
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "timestamp": "2026-04-13T05:42:03.317Z",
+  "TRIONOracleV3": "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39",
+  "note": "V4 oracle. BTCP infrastructure in btcp_infrastructure_deployments.json",
+  "balance_error": "Insufficient: 0.000174501824926933 ETH"
+}
