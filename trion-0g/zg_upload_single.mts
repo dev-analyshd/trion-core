@@ -2,13 +2,13 @@
 import { ZgFile, Indexer } from '@0glabs/0g-ts-sdk';
 import { ethers } from 'ethers';
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1778741409.json');
+const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1778761203.json');
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
 const rootHash = tree.rootHash();
 const provider = new ethers.JsonRpcProvider('https://evmrpc-testnet.0g.ai');
-const signer   = new ethers.Wallet('0x93fd4461112f6e7a0cb14f6a71d8953f1351d76c71ee4026710ecb5399469a9d', provider);
+const signer   = new ethers.Wallet('', provider);
 const indexer  = new Indexer('https://indexer-storage-testnet-turbo.0g.ai');
 
 const [tx, e2] = await indexer.upload(file, 'https://evmrpc-testnet.0g.ai', signer);
