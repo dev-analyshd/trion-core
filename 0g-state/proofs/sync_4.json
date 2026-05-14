@@ -1,0 +1,11 @@
+{
+  "sync_count": 4,
+  "timestamp": "2026-05-14T06:50:10.879168+00:00",
+  "root_hashes": {
+    "faiss_delta_4": "0xaf59412fa5ce90c8f01408220d0fab33de326606e0289b2403bb3ecdf723b996",
+    "bh_sqlite_delta_4": "0xce624e4759905e61a18abbe25a6086a0433baf667cf0100dfe51e027ab27b25d"
+  },
+  "onchain": false,
+  "reason": "insufficient_funds: balance=0.000320 ETH need=0.001200 ETH",
+  "wallet": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20"
+}
