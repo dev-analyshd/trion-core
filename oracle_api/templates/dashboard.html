@@ -154,7 +154,7 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
   </div>
   <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
     <span class="badge-live">⬤ 9 Workflows Live</span>
-    <span class="badge-zg">⬡ 0G Galileo Active</span>
+    <span class="badge-zg" style="background:linear-gradient(135deg,#7c3aed,#1d4ed8)">⬡ 0G Mainnet Live</span>
     <span class="badge-live" id="vector-badge">⬤ FAISS Loading…</span>
     <span style="font-size:.7rem;color:var(--text-dim)" id="last-refresh"></span>
   </div>
@@ -210,18 +210,21 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
 
   <!-- ─── 0G INTEGRATION BANNER ─── -->
   <div class="mb-4">
-    <div class="section-title"><i data-feather="zap" style="width:12px;height:12px"></i> 0G Chain Integration — Galileo Testnet (Chain ID 16602)</div>
+    <div class="section-title"><i data-feather="zap" style="width:12px;height:12px"></i> 0G Chain Integration — <span style="color:#a78bfa">Mainnet LIVE</span> (Chain ID 16661) + Galileo Testnet (16602)</div>
     <div class="row g-3">
       <div class="col-md-5">
-        <div class="zg-card">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">TRIONExecutionGate</div>
-          <div class="zg-addr mb-2">0xDB5910Dc6CfD219D00F64be1F23DA0289901356d</div>
-          <a class="zg-link" href="https://chainscan-galileo.0g.ai/address/0xDB5910Dc6CfD219D00F64be1F23DA0289901356d" target="_blank">→ View on 0G Explorer ↗</a>
-          <hr style="border-color:var(--border);margin:12px 0">
-          <div class="metric-row"><span class="metric-key">TRIONOracleV3</span><span class="metric-val" style="font-size:.65rem;font-family:monospace">0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</span></div>
-          <div class="metric-row"><span class="metric-key">LiquidityOcean</span><span class="metric-val" style="font-size:.65rem;font-family:monospace">0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7</span></div>
-          <div class="metric-row"><span class="metric-key">BTCPSimpleEscrow</span><span class="metric-val" style="font-size:.65rem;font-family:monospace">0x388f98831c749D7Acad2046329c9CeC94A8b248d</span></div>
-          <div class="metric-row"><span class="metric-key">TravelRuleCompliance</span><span class="metric-val" style="font-size:.65rem;font-family:monospace">0x5e7DBE6cc90d6260be2781dc312812834715EBaB</span></div>
+        <div class="zg-card" style="border-color:#7c3aed;box-shadow:0 0 18px rgba(124,58,237,.25)">
+          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">TRIONExecutionGate — <span style="color:#4ade80">✓ MAINNET</span></div>
+          <div style="font-size:.55rem;color:var(--text-dim);margin-bottom:4px">0G Mainnet · Chain 16661 · Block 33,234,152 · 2026-05-14</div>
+          <div class="zg-addr mb-1" style="font-size:.72rem">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</div>
+          <a class="zg-link" href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">→ View on 0G Mainnet Explorer ↗</a>
+          <a class="zg-link" style="margin-left:10px;font-size:.65rem;color:#6b7280" href="https://chainscan.0g.ai/tx/0xb83aa8ce2a285bdafc20be6c8ad96d967622678a0f4ad0e27016d8952c055e74" target="_blank">→ Deploy Tx ↗</a>
+          <hr style="border-color:var(--border);margin:10px 0">
+          <div style="font-size:.6rem;color:#6b7280;margin-bottom:6px;letter-spacing:1px">GALILEO TESTNET (16602) — supplementary contracts</div>
+          <div class="metric-row"><span class="metric-key">TRIONOracleV3</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</span></div>
+          <div class="metric-row"><span class="metric-key">LiquidityOcean</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7</span></div>
+          <div class="metric-row"><span class="metric-key">BTCPSimpleEscrow</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x388f98831c749D7Acad2046329c9CeC94A8b248d</span></div>
+          <div class="metric-row"><span class="metric-key">TravelRuleCompliance</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x5e7DBE6cc90d6260be2781dc312812834715EBaB</span></div>
         </div>
       </div>
       <div class="col-md-4">
@@ -373,15 +376,15 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
       <!-- 0G CHAIN -->
       <div class="col-md-3">
         <div class="zg-card h-100" style="border-color:#a78bfa55">
-          <div style="font-size:.65rem;letter-spacing:2px;color:#a78bfa;margin-bottom:8px;font-weight:700">0G CHAIN ✓ LIVE</div>
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">5 contracts on Galileo (16602)</div>
+          <div style="font-size:.65rem;letter-spacing:2px;color:#a78bfa;margin-bottom:8px;font-weight:700">0G CHAIN ✓ MAINNET LIVE</div>
+          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">ExecutionGate on Mainnet 16661 + Galileo 16602</div>
           <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Signals Published</span><span class="metric-val status-safe" id="zgc-published">…</span></div>
           <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Anomalies Sealed</span><span class="metric-val" style="color:var(--red)" id="zgc-anomalies">…</span></div>
           <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Block Height</span><span class="metric-val" id="zgc-block">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">ExecutionGate</span><span style="font-size:.6rem;font-family:monospace;color:var(--accent)">0xDB5910Dc…</span></div>
+          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">ExecutionGate (Mainnet)</span><span style="font-size:.6rem;font-family:monospace;color:var(--accent)">0xA85B49C7…</span></div>
           <div style="margin-top:10px">
             <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/chain/status" target="_blank">→ Chain Status JSON ↗</a><br>
-            <a class="zg-link" style="font-size:.6rem" href="https://chainscan-galileo.0g.ai/address/0xDB5910Dc6CfD219D00F64be1F23DA0289901356d" target="_blank">→ Explorer ↗</a>
+            <a class="zg-link" style="font-size:.6rem" href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">→ Mainnet Explorer ↗</a>
           </div>
         </div>
       </div>
