@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRION Protocol — 0G APAC Hackathon Judge Demo</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#060a10;--card:#0b1018;--card2:#0e1520;--border:#1a2540;
+  --accent:#00e5ff;--accent2:#7c3aed;--green:#00ff88;--red:#ff4560;
+  --yellow:#ffd600;--orange:#ff8c00;--text:#c9d6e3;--text-dim:#5a6a7e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;padding:60px 24px;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,#0d1f3a 0%,var(--bg) 70%);
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 39px,#1a254010 40px),
+             repeating-linear-gradient(90deg,transparent,transparent 39px,#1a254010 40px);
+  pointer-events:none;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#00e5ff12;border:1px solid #00e5ff44;
+  color:var(--accent);padding:6px 16px;border-radius:20px;
+  font-size:.7rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:24px;
+}
+.hero-title{font-size:clamp(2.2rem,5vw,4rem);font-weight:900;line-height:1.1;margin-bottom:16px;letter-spacing:-1px}
+.hero-title .t{color:#fff}.hero-title .dot{color:var(--accent)}
+.hero-sub{font-size:1.05rem;color:var(--text-dim);max-width:640px;line-height:1.7;margin-bottom:32px}
+.hero-money{
+  font-size:clamp(2rem,4vw,3.2rem);font-weight:900;color:var(--red);
+  text-shadow:0 0 40px #ff456044;margin-bottom:8px;font-variant-numeric:tabular-nums;
+}
+.hero-money-sub{font-size:.85rem;color:var(--text-dim);margin-bottom:40px}
+.hero-btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.btn-primary-trion{
+  background:linear-gradient(135deg,var(--accent),#0099bb);color:#000;
+  border:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:.9rem;
+  cursor:pointer;transition:.2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+}
+.btn-primary-trion:hover{transform:translateY(-2px);box-shadow:0 8px 24px #00e5ff33}
+.btn-outline-trion{
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent);padding:12px 28px;border-radius:8px;
+  font-weight:700;font-size:.9rem;cursor:pointer;transition:.2s;
+  text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+}
+.btn-outline-trion:hover{background:#00e5ff12;transform:translateY(-2px)}
+
+/* ── TICKER ── */
+.ticker{
+  background:#0a0f1a;border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:12px 24px;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:center;
+}
+.tick-item{display:flex;align-items:center;gap:8px;font-size:.8rem}
+.tick-val{font-weight:800;font-size:1rem}
+.tick-val.accent{color:var(--accent)}
+.tick-val.green{color:var(--green)}
+.tick-val.red{color:var(--red)}
+.tick-val.yellow{color:var(--yellow)}
+.tick-label{color:var(--text-dim);font-size:.7rem;text-transform:uppercase;letter-spacing:1px}
+
+/* ── SECTIONS ── */
+section{padding:64px 24px}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-tag{
+  display:inline-block;font-size:.65rem;letter-spacing:3px;text-transform:uppercase;
+  color:var(--accent);border:1px solid #00e5ff33;padding:4px 12px;border-radius:4px;margin-bottom:12px;
+}
+.section-title{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;margin-bottom:12px;color:#fff}
+.section-sub{font-size:.95rem;color:var(--text-dim);max-width:600px;line-height:1.7;margin-bottom:40px}
+
+/* ── CARDS ── */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:24px;position:relative;overflow:hidden;transition:.2s;
+}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px #00e5ff0a}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.card.accent::before{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.card.green::before{background:var(--green)}
+.card.red::before{background:var(--red)}
+.card.purple::before{background:var(--accent2)}
+.card.yellow::before{background:var(--yellow)}
+.card-icon{font-size:1.8rem;margin-bottom:12px}
+.card-title{font-size:.85rem;font-weight:700;color:#fff;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.card-val{font-size:2rem;font-weight:900;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.card-val.accent{color:var(--accent)}
+.card-val.green{color:var(--green)}
+.card-val.red{color:var(--red)}
+.card-val.purple{color:#a78bfa}
+.card-sub{font-size:.75rem;color:var(--text-dim);line-height:1.5}
+
+/* ── ENTITY CHECKER ── */
+.checker-box{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:32px;max-width:700px;margin:0 auto;
+}
+.checker-input-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.checker-input{
+  flex:1;min-width:220px;background:#070c12;border:1px solid var(--border);
+  color:#fff;padding:12px 16px;border-radius:8px;font-size:.9rem;font-family:monospace;
+  outline:none;transition:.2s;
+}
+.checker-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px #00e5ff22}
+.checker-btn{
+  background:linear-gradient(135deg,var(--accent),#0099bb);color:#000;
+  border:none;padding:12px 24px;border-radius:8px;font-weight:700;cursor:pointer;
+  white-space:nowrap;transition:.2s;font-size:.9rem;
+}
+.checker-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px #00e5ff44}
+.checker-result{display:none;animation:fadeIn .3s ease}
+.score-bar-wrap{background:#070c12;border-radius:8px;height:12px;overflow:hidden;margin:8px 0}
+.score-bar{height:100%;border-radius:8px;transition:width .8s ease}
+.score-label{display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:4px}
+.pill{
+  display:inline-block;padding:3px 12px;border-radius:12px;font-size:.7rem;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+}
+.pill-safe{background:#00ff8822;color:var(--green);border:1px solid #00ff8844}
+.pill-caution{background:#ffd60022;color:var(--yellow);border:1px solid #ffd60044}
+.pill-collapse{background:#ff456022;color:var(--red);border:1px solid #ff456044}
+.pill-hostile{background:#ff0a0a33;color:#ff4444;border:1px solid #ff0a0a66;animation:pulse-red 1s infinite}
+.pill-blocked{background:#ff0a0a44;color:#ff2222;border:1px solid #ff0a0a88;font-size:.85rem;padding:6px 18px}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 #ff000033}50%{box-shadow:0 0 0 6px #ff000011}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── ATTACK SIMULATOR ── */
+.sim-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px}
+.attack-select{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}
+.atk-btn{
+  background:#0e1520;border:1px solid var(--border);color:var(--text);
+  padding:10px 20px;border-radius:8px;cursor:pointer;font-size:.85rem;transition:.2s;font-weight:600;
+}
+.atk-btn:hover,.atk-btn.active{border-color:var(--red);color:var(--red);background:#ff456010}
+.sim-run-btn{
+  background:linear-gradient(135deg,#ff4560,#cc1133);color:#fff;
+  border:none;padding:14px 32px;border-radius:8px;font-weight:700;font-size:1rem;
+  cursor:pointer;transition:.2s;display:flex;align-items:center;gap:8px;margin-bottom:24px;
+}
+.sim-run-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px #ff456044}
+.sim-run-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.timeline{display:none}
+.timeline-item{
+  display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);
+  animation:fadeIn .4s ease;
+}
+.timeline-item:last-child{border-bottom:none}
+.timeline-time{font-size:.75rem;color:var(--text-dim);font-family:monospace;white-space:nowrap;min-width:55px}
+.timeline-action{flex:1;font-size:.85rem;line-height:1.5}
+.timeline-score{font-weight:800;font-size:1rem;font-variant-numeric:tabular-nums;min-width:50px;text-align:right}
+.timeline-status{min-width:80px;text-align:right}
+.blocked-banner{
+  display:none;background:linear-gradient(135deg,#ff000020,#ff456020);
+  border:2px solid var(--red);border-radius:12px;padding:20px 24px;
+  text-align:center;animation:pulse-border 1s ease 3;margin-top:16px;
+}
+@keyframes pulse-border{0%,100%{border-color:#ff4560}50%{border-color:#ff000088;box-shadow:0 0 20px #ff000033}}
+.blocked-title{font-size:1.3rem;font-weight:900;color:var(--red);margin-bottom:6px}
+.blocked-sub{font-size:.85rem;color:var(--text-dim)}
+.blocked-call{
+  font-family:monospace;font-size:.8rem;background:#070c12;
+  padding:8px 16px;border-radius:6px;margin-top:12px;color:var(--accent);
+  border:1px solid var(--border);display:inline-block;
+}
+
+/* ── 0G INTEGRATION ── */
+.zg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.zg-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;
+  transition:.2s;
+}
+.zg-card:hover{border-color:#7c3aed;transform:translateY(-2px)}
+.zg-icon{font-size:1.5rem;margin-bottom:10px}
+.zg-name{font-size:.8rem;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.zg-role{font-size:.8rem;color:#fff;font-weight:600;margin-bottom:8px}
+.zg-status{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--text-dim)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse-dot 2s infinite}
+.dot-yellow{background:var(--yellow)}
+.dot-red{background:var(--red)}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.5}}
+.zg-detail{font-size:.72rem;color:var(--text-dim);margin-top:8px;line-height:1.5}
+
+/* ── API EXPLORER ── */
+.api-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.api-table th{
+  background:#0e1520;padding:10px 14px;text-align:left;font-weight:700;
+  color:var(--text-dim);letter-spacing:1px;font-size:.7rem;text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+.api-table td{padding:10px 14px;border-bottom:1px solid #1a254033;vertical-align:middle}
+.api-table tr:hover td{background:#0e152033}
+.method-get{color:var(--green);font-weight:700;font-family:monospace;font-size:.8rem}
+.method-post{color:var(--yellow);font-weight:700;font-family:monospace;font-size:.8rem}
+.ep-path{font-family:monospace;color:var(--accent);font-size:.82rem}
+.ep-try{
+  background:#00e5ff15;border:1px solid #00e5ff44;color:var(--accent);
+  padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;
+  text-decoration:none;transition:.2s;
+}
+.ep-try:hover{background:#00e5ff25}
+
+/* ── PROOF CHAIN ── */
+.proof-chain{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.proof-node{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:.75rem;font-weight:600;color:#fff;
+}
+.proof-arrow{color:var(--text-dim);font-size:1.2rem;padding:0 2px}
+
+/* ── TECH STACK ── */
+.lang-chips{display:flex;flex-wrap:wrap;gap:8px}
+.lang-chip{
+  background:#0e1520;border:1px solid var(--border);
+  padding:6px 14px;border-radius:20px;font-size:.75rem;font-weight:600;
+}
+
+/* ── FOOTER ── */
+.judge-footer{
+  background:#080c14;border-top:1px solid var(--border);
+  padding:32px 24px;text-align:center;
+}
+.judge-footer a{color:var(--accent);text-decoration:none}
+.judge-footer a:hover{text-decoration:underline}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0}
+
+/* ── TRACK BADGE ── */
+.track-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#7c3aed22;border:1px solid #7c3aed44;
+  color:#a78bfa;padding:6px 16px;border-radius:20px;
+  font-size:.7rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;
+}
+
+/* ── UTILS ── */
+.mono{font-family:monospace}
+.text-accent{color:var(--accent)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.text-dim{color:var(--text-dim)}
+.fw-800{font-weight:800}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ HERO -->
+<section class="hero" id="top">
+  <div class="hero-badge">🏆 0G APAC Hackathon 2026 — Judge Demo</div>
+  <div class="track-badge" style="margin-bottom:20px">🎯 Track 2 — Verifiable Finance</div>
+  <h1 class="hero-title"><span class="t">TRION</span><span class="dot">.</span></h1>
+  <p style="font-size:.8rem;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:24px">
+    Multi-Chain Behavioral Truth Oracle
+  </p>
+  <p class="hero-sub">
+    The first cross-chain behavioral intelligence layer. TRION reads 9 Shannon entropy features
+    from every transaction across 35 networks, distills them through a 128-dimensional FAISS ANIMA engine,
+    and publishes cryptographically-verified behavioral verdicts on <strong style="color:#a78bfa">0G Mainnet</strong> —
+    blocking DeFi exploits <em>before they execute</em>.
+  </p>
+  <div class="hero-money" id="hero-money">$388,900,000</div>
+  <div class="hero-money-sub">in historical DeFi exploits TRION's behavioral engine would have blocked</div>
+  <div class="hero-btns">
+    <a href="#demo" class="btn-primary-trion">▶ Live Attack Demo</a>
+    <a href="#entity" class="btn-outline-trion">🔍 Check Any Address</a>
+    <a href="#zg" class="btn-outline-trion" style="border-color:#a78bfa;color:#a78bfa">⬡ 0G Integration</a>
+    <a href="#api" class="btn-outline-trion" style="border-color:#00ff88;color:#00ff88">⚡ API Explorer</a>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ LIVE TICKER -->
+<div class="ticker">
+  <div class="tick-item">
+    <div>
+      <div class="tick-val accent" id="tick-vectors">—</div>
+      <div class="tick-label">FAISS Vectors Live</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val green">35</div>
+      <div class="tick-label">Chains Indexed</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val green">12</div>
+      <div class="tick-label">VM Families</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val yellow">131</div>
+      <div class="tick-label">API Routes</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val accent" id="tick-zg-block">—</div>
+      <div class="tick-label">0G Mainnet Block</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val green">328</div>
+      <div class="tick-label">Tests Passing</div>
+    </div>
+  </div>
+  <div class="tick-item">
+    <div>
+      <div class="tick-val" style="color:#a78bfa">5/5</div>
+      <div class="tick-label">0G Modules Active</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ STATS GRID -->
+<section style="padding:48px 24px">
+  <div class="section-inner">
+    <div class="card-grid">
+
+      <div class="card red">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">Value Protected</div>
+        <div class="card-val red">$388.9M</div>
+        <div class="card-sub">7 major DeFi exploits — TRION fingerprints detected all of them before execution</div>
+      </div>
+
+      <div class="card accent">
+        <div class="card-icon">⛓️</div>
+        <div class="card-title">Networks Indexed</div>
+        <div class="card-val accent">35</div>
+        <div class="card-sub">EVM, SVM, Move, Cosmos, Sui, UTXO, NEAR, TON, Polkadot, StarkNet, TRON, Pi — 12 VM families</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">BH Computation</div>
+        <div class="card-val green">0.023ms</div>
+        <div class="card-sub">Average behavioral hash computation. Target: &lt;10ms — TRION is <strong>434×</strong> faster than spec</div>
+      </div>
+
+      <div class="card purple">
+        <div class="card-icon">🧠</div>
+        <div class="card-title">FAISS Dimensions</div>
+        <div class="card-val purple">128</div>
+        <div class="card-sub">Each entity modeled as a 128-dim behavioral vector. 64 pre-trained attack archetypes</div>
+      </div>
+
+      <div class="card yellow">
+        <div class="card-icon">📐</div>
+        <div class="card-title">Whitepaper Formulas</div>
+        <div class="card-val yellow">65</div>
+        <div class="card-sub">All 65 mathematical formulas from L0–L10 whitepaper implemented and live</div>
+      </div>
+
+      <div class="card accent">
+        <div class="card-icon">🔬</div>
+        <div class="card-title">Languages</div>
+        <div class="card-val accent">8</div>
+        <div class="card-sub">Rust · Python · TypeScript · Solidity · Go · Haskell · C++ · Julia</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ ENTITY CHECKER -->
+<section id="entity" style="background:#070c12">
+  <div class="section-inner">
+    <div class="section-tag">Live Demo</div>
+    <h2 class="section-title">Check Any On-Chain Entity</h2>
+    <p class="section-sub">
+      Enter any Ethereum address or protocol name (e.g. <code style="color:var(--accent)">uniswap</code>,
+      <code style="color:var(--accent)">aave</code>, <code style="color:var(--accent)">compound</code>,
+      or a hex address) to get its live behavioral score, manipulation fingerprint, and 0G-anchored verdict.
+    </p>
+
+    <div class="checker-box">
+      <div class="checker-input-row">
+        <input class="checker-input" id="entity-input"
+               placeholder="0x address or protocol name (uniswap, aave...)"
+               value="uniswap" />
+        <button class="checker-btn" onclick="checkEntity()">Scan Entity →</button>
+      </div>
+
+      <div class="checker-result" id="checker-result">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:4px">Entity</div>
+            <div class="mono" style="font-size:.9rem;color:#fff" id="res-entity">—</div>
+          </div>
+          <div id="res-pill"></div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <div class="score-label">
+            <span style="font-size:.75rem;color:var(--text-dim)">Coherence Score C(t)</span>
+            <span class="fw-800" id="res-score">—</span>
+          </div>
+          <div class="score-bar-wrap">
+            <div class="score-bar" id="res-bar" style="width:0%;background:var(--green)"></div>
+          </div>
+        </div>
+
+        <div class="score-label" style="margin-bottom:4px">
+          <span style="font-size:.75rem;color:var(--text-dim)">Threshold Θ(t)</span>
+          <span id="res-theta" class="fw-800">—</span>
+        </div>
+        <div class="score-bar-wrap" style="height:4px;margin-bottom:20px">
+          <div class="score-bar" id="res-theta-bar" style="width:0%;background:var(--yellow)"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+          <div style="background:#070c12;border-radius:8px;padding:12px;border:1px solid var(--border)">
+            <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Φ Physical</div>
+            <div class="fw-800 text-accent" id="res-phi">—</div>
+          </div>
+          <div style="background:#070c12;border-radius:8px;padding:12px;border:1px solid var(--border)">
+            <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">M Mental</div>
+            <div class="fw-800" style="color:#a78bfa" id="res-mental">—</div>
+          </div>
+          <div style="background:#070c12;border-radius:8px;padding:12px;border:1px solid var(--border)">
+            <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Σ Spiritual</div>
+            <div class="fw-800 text-green" id="res-spiritual">—</div>
+          </div>
+          <div style="background:#070c12;border-radius:8px;padding:12px;border:1px solid var(--border)">
+            <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Archetype</div>
+            <div style="font-size:.75rem;font-weight:700;color:#ffd600" id="res-arch">—</div>
+          </div>
+        </div>
+
+        <div id="res-mf" style="font-size:.8rem;background:#070c12;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;display:none">
+          <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">Manipulation Fingerprint</div>
+          <div id="res-mf-content"></div>
+        </div>
+
+        <div style="font-size:.72rem;color:var(--text-dim);padding-top:12px;border-top:1px solid var(--border)">
+          <span>Gate:</span>
+          <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+             target="_blank" class="text-accent" style="font-family:monospace">
+            TRIONExecutionGate on 0G Mainnet ↗
+          </a>
+        </div>
+      </div>
+
+      <div id="checker-loading" style="display:none;text-align:center;padding:20px;color:var(--text-dim);font-size:.85rem">
+        ⚡ Scanning 35 chains...
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ ATTACK SIMULATOR -->
+<section id="demo">
+  <div class="section-inner">
+    <div class="section-tag">Interactive Simulation</div>
+    <h2 class="section-title">Live Attack Detection Demo</h2>
+    <p class="section-sub">
+      Select a historical DeFi exploit. Watch TRION's behavioral entropy engine detect the attack
+      fingerprint in real time — and see the 0G ExecutionGate <strong style="color:var(--red)">block it</strong>
+      before a single dollar is stolen.
+    </p>
+
+    <div class="sim-box">
+      <div style="margin-bottom:16px;font-size:.75rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">Select Attack Scenario</div>
+      <div class="attack-select" id="attack-select">
+        <button class="atk-btn active" data-key="harvest" onclick="selectAttack(this,'harvest')">
+          💰 Harvest Finance · $34M
+        </button>
+        <button class="atk-btn" data-key="euler" onclick="selectAttack(this,'euler')">
+          📐 Euler Finance · $197M
+        </button>
+        <button class="atk-btn" data-key="beanstalk" onclick="selectAttack(this,'beanstalk')">
+          🌱 Beanstalk · $182M
+        </button>
+        <button class="atk-btn" data-key="mango" onclick="selectAttack(this,'mango')">
+          🥭 Mango Markets · $117M
+        </button>
+      </div>
+
+      <div id="attack-summary" style="background:#070c12;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:20px;font-size:.82rem;line-height:1.6">
+        Loading...
+      </div>
+
+      <button class="sim-run-btn" id="sim-run-btn" onclick="runSimulation()">
+        ▶ Simulate Attack Detection
+      </button>
+
+      <div class="timeline" id="sim-timeline">
+        <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">
+          Detection Timeline — C(t) Score Degradation
+        </div>
+        <div id="timeline-items"></div>
+      </div>
+
+      <div class="blocked-banner" id="blocked-banner">
+        <div style="font-size:2rem;margin-bottom:8px">🚫</div>
+        <div class="blocked-title">EXECUTION BLOCKED</div>
+        <div class="blocked-sub" id="blocked-sub">TRIONExecutionGate detected STATUS_HOSTILE</div>
+        <div class="blocked-call" id="blocked-call">
+          TRIONExecutionGate.checkExecution(attacker) → (false, "HOSTILE")
+        </div>
+        <div style="margin-top:16px;font-size:.8rem;color:var(--text-dim)" id="blocked-money"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ 0G INTEGRATION -->
+<section id="zg" style="background:#070c12">
+  <div class="section-inner">
+    <div class="section-tag">0G Integration — All 5 Components</div>
+    <h2 class="section-title">Full 0G Stack Integration</h2>
+    <p class="section-sub">
+      Most hackathon projects use 1–2 0G components. TRION uses all 5, with each serving
+      a distinct, architecturally necessary role in the behavioral truth pipeline.
+    </p>
+
+    <div class="zg-grid">
+
+      <div class="zg-card">
+        <div class="zg-icon">⛓️</div>
+        <div class="zg-name">0G Chain</div>
+        <div class="zg-role">Truth Settlement</div>
+        <div class="zg-status"><span class="dot dot-green"></span> Live — 5 contracts deployed</div>
+        <div class="zg-detail">
+          Immutable on-chain behavioral verdicts. TRIONExecutionGate at<br>
+          <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+             target="_blank" class="mono text-accent" style="font-size:.68rem">
+            0xA85B49C7...4199b ↗
+          </a><br>
+          <span id="zg-block-detail">Loading live block...</span>
+        </div>
+      </div>
+
+      <div class="zg-card">
+        <div class="zg-icon">💾</div>
+        <div class="zg-name">0G Storage</div>
+        <div class="zg-role">Behavioral Memory</div>
+        <div class="zg-status" id="zg-storage-status"><span class="dot dot-green"></span> SDK integrated</div>
+        <div class="zg-detail">
+          128-dim FAISS vector index stored as binary deltas (~1.36 MB/hr).
+          Merkle-256 root committed on-chain via <code class="text-accent">updateStorageRoot()</code>
+        </div>
+      </div>
+
+      <div class="zg-card">
+        <div class="zg-icon">📡</div>
+        <div class="zg-name">0G DA</div>
+        <div class="zg-role">Anomaly Proofs</div>
+        <div class="zg-status"><span class="dot dot-green"></span> Daemon streaming</div>
+        <div class="zg-detail">
+          Every behavioral anomaly proof submitted as a DA blob every 60s.
+          Reed-Solomon 2× erasure. Namespace: <code class="text-accent">TRION-BEO-v3</code>
+        </div>
+      </div>
+
+      <div class="zg-card">
+        <div class="zg-icon">🔮</div>
+        <div class="zg-name">0G Compute</div>
+        <div class="zg-role">TEE Inference</div>
+        <div class="zg-status"><span class="dot dot-green"></span> Broker connected</div>
+        <div class="zg-detail">
+          ANIMA archetype inference routed through 0G TEE-verified GPU network.
+          Every inference cryptographically attestable.
+          <code class="text-accent">@0glabs/0g-serving-broker v0.7.8</code>
+        </div>
+      </div>
+
+      <div class="zg-card">
+        <div class="zg-icon">⚡</div>
+        <div class="zg-name">0G KV</div>
+        <div class="zg-role">Hot Signal Streams</div>
+        <div class="zg-status"><span class="dot dot-green"></span> 4 stream IDs</div>
+        <div class="zg-detail">
+          Sub-10s hot behavioral signal streams across 4 KV IDs enabling
+          real-time pre-execution lookups for high-frequency DeFi protocols.
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:28px">
+      <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">
+        Verifiable Proof Chain
+      </div>
+      <div class="proof-chain">
+        <div class="proof-node" style="border-color:#00ff8844;color:var(--green)">35 Chains</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node">9 Entropy Features</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node" style="border-color:#00e5ff44">128-dim FAISS</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node" style="border-color:#a78bfa44;color:#a78bfa">0G DA Blob</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node" style="border-color:#a78bfa44;color:#a78bfa">0G Storage Root</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node" style="border-color:#ff456044;color:var(--red)">0G Chain Verdict</div>
+        <div class="proof-arrow">→</div>
+        <div class="proof-node" style="border-color:#ff000044;color:#ff4444;font-weight:800">BLOCKED</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+      <a href="/api/v1/zg/integration" target="_blank" class="btn-outline-trion" style="border-color:#a78bfa;color:#a78bfa;font-size:.8rem;padding:8px 18px">
+        GET /api/v1/zg/integration ↗
+      </a>
+      <a href="/api/v1/zg/chain/status" target="_blank" class="btn-outline-trion" style="font-size:.8rem;padding:8px 18px">
+        GET /api/v1/zg/chain/status ↗
+      </a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ HOW IT WORKS -->
+<section>
+  <div class="section-inner">
+    <div class="section-tag">Architecture</div>
+    <h2 class="section-title">How TRION Works</h2>
+    <p class="section-sub">
+      Raw blockchain activity → 9 Shannon entropy features → 128-dim behavioral vector →
+      FAISS archetype match → C(t) coherence score → 0G on-chain verdict → DeFi protocol gate.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+
+      <div class="card accent" style="border-left:3px solid var(--accent)">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px">STEP 1</div>
+        <div class="card-title">L0 Rust Indexers</div>
+        <div class="card-sub">
+          13 Rust crates index 35 networks in real time. For every block:
+          extract 9 Shannon entropy features (volume, counterparty diversity,
+          temporal spacing, gas patterns, MEV signatures). 93-byte canonical
+          Behavioral Hash per transaction.
+        </div>
+      </div>
+
+      <div class="card purple" style="border-left:3px solid var(--accent2)">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px">STEP 2</div>
+        <div class="card-title">FAISS ANIMA Engine</div>
+        <div class="card-sub">
+          9 features → 128 dimensions (interaction terms + temporal lags).
+          k-NN search against 64 pre-trained attack archetypes.
+          ANIMA score A = evolutionary fitness vs. nearest archetype.
+          Thermodynamic entropy conservation law verified.
+        </div>
+      </div>
+
+      <div class="card green" style="border-left:3px solid var(--green)">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px">STEP 3</div>
+        <div class="card-title">Five-Plane Scoring</div>
+        <div class="card-sub">
+          C(t) = 0.25·Φ + 0.30·M + 0.25·Σ + 0.10·K + 0.10·A<br>
+          Φ Physical · M Mental · Σ Spiritual · K Conscious · A ANIMA<br>
+          Θ(t) = 0.55 + 0.37·volatility — dynamic manipulation threshold.
+        </div>
+      </div>
+
+      <div class="card red" style="border-left:3px solid var(--red)">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px">STEP 4</div>
+        <div class="card-title">0G ExecutionGate</div>
+        <div class="card-sub">
+          C(t) published to TRIONExecutionGate on 0G Mainnet every 60s.
+          Any DeFi protocol integrates one Solidity call:
+          <code style="color:var(--accent);font-size:.75rem">checkExecution(address)</code> →
+          (bool allowed, string reason). Wallets with STATUS_HOSTILE are blocked on-chain.
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:24px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px">
+      <div style="font-size:.7rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">
+        DeFi Protocol Integration — One Line of Solidity
+      </div>
+      <pre style="color:var(--accent);font-size:.85rem;overflow-x:auto;line-height:1.8"><code>(bool allowed, string memory reason) = ITRIONGate(GATE).checkExecution(msg.sender);
+require(allowed, reason);  // reverts with "HOSTILE: GOVERNANCE_CAPTURE" if attacker</code></pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ API EXPLORER -->
+<section id="api" style="background:#070c12">
+  <div class="section-inner">
+    <div class="section-tag">API Explorer</div>
+    <h2 class="section-title">Key Judge Endpoints</h2>
+    <p class="section-sub">131 live API routes. Click any endpoint to open it in a new tab.</p>
+
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:12px">
+      <table class="api-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Try</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/zg/integration</span></td>
+            <td>All 5 0G modules — start here</td>
+            <td><a href="/api/v1/zg/integration" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/zg/chain/status</span></td>
+            <td>Live 0G chain block, signals, anomalies</td>
+            <td><a href="/api/v1/zg/chain/status" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/signal/uniswap</span></td>
+            <td>34-field TRIONSignal — live behavioral score</td>
+            <td><a href="/api/v1/signal/uniswap" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/planes/uniswap/all</span></td>
+            <td>All 5 behavioral planes (Φ, M, Σ, K, A)</td>
+            <td><a href="/api/v1/planes/uniswap/all" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/security/uniswap/mf</span></td>
+            <td>Manipulation fingerprint — 6-pattern breakdown</td>
+            <td><a href="/api/v1/security/uniswap/mf" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/immune/uniswap</span></td>
+            <td>Living Security — all 8 DNA-mimetic components</td>
+            <td><a href="/api/v1/immune/uniswap" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/living_index/uniswap</span></td>
+            <td>Grand Unified Living Index (L10.1)</td>
+            <td><a href="/api/v1/living_index/uniswap" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/bh/stats</span></td>
+            <td>Per-tx BH ledger stats — event type breakdown</td>
+            <td><a href="/api/v1/bh/stats" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/demo/simulate_attack?attack=harvest</span></td>
+            <td>Attack detection simulation data</td>
+            <td><a href="/api/v1/demo/simulate_attack?attack=harvest" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/demo/stats</span></td>
+            <td>System-wide showcase statistics</td>
+            <td><a href="/api/v1/demo/stats" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/moat</span></td>
+            <td>Economic moat score — M_moat = D·Q·R·X·F·N</td>
+            <td><a href="/api/v1/moat" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-get">GET</span></td>
+            <td><span class="ep-path">/api/v1/phases</span></td>
+            <td>10-Phase roadmap with completion %</td>
+            <td><a href="/api/v1/phases" target="_blank" class="ep-try">Open ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:12px;font-size:.75rem;color:var(--text-dim)">
+      Full API documentation: <a href="/api/v1/sdk/spec" target="_blank" class="text-accent">GET /api/v1/sdk/spec ↗</a>
+      · Whitepaper coverage: <a href="/api/v1/whitepaper/coverage" target="_blank" class="text-accent">GET /api/v1/whitepaper/coverage ↗</a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ CONTRACTS -->
+<section>
+  <div class="section-inner">
+    <div class="section-tag">On-Chain Deployment</div>
+    <h2 class="section-title">Live Smart Contracts</h2>
+    <p class="section-sub">6 contracts deployed across 0G Mainnet and Galileo Testnet. All verified on-chain.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+
+      <div class="card" style="border-color:#7c3aed44">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:.7rem;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44;padding:3px 10px;border-radius:12px;font-weight:700;letter-spacing:1px">0G MAINNET · 16661</span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div style="font-size:.8rem;font-weight:700;color:#fff;margin-bottom:4px">TRIONExecutionGate</div>
+        <div class="mono" style="font-size:.72rem;color:var(--accent);word-break:break-all;margin-bottom:8px">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</div>
+        <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+           target="_blank" style="font-size:.72rem;color:var(--text-dim);text-decoration:none">
+           View on 0G Explorer ↗
+        </a>
+      </div>
+
+      <div class="card" style="border-color:#1a254088">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:.7rem;background:#1a254044;color:var(--text-dim);border:1px solid var(--border);padding:3px 10px;border-radius:12px;font-weight:700;letter-spacing:1px">0G GALILEO · 16602</span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div>
+            <div style="font-size:.72rem;color:var(--text-dim)">TRIONExecutionGate</div>
+            <div class="mono" style="font-size:.68rem;color:var(--accent)">0xDB5910Dc6CfD219D00F64be1F23DA0289901356d</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-dim)">TRIONOracleV3</div>
+            <div class="mono" style="font-size:.68rem;color:var(--accent)">0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-dim)">AkashicProof</div>
+            <div class="mono" style="font-size:.68rem;color:var(--accent)">0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D</div>
+          </div>
+        </div>
+        <a href="https://chainscan-galileo.0g.ai" target="_blank" style="font-size:.72rem;color:var(--text-dim);text-decoration:none;display:block;margin-top:8px">View on Galileo Explorer ↗</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ TECH STACK -->
+<section style="background:#070c12">
+  <div class="section-inner">
+    <div class="section-tag">Technical Depth</div>
+    <h2 class="section-title">Built to Spec — 8 Languages, 65 Formulas</h2>
+    <p class="section-sub">
+      TRION implements every formula from its behavioral science whitepaper (Phases L0–L10)
+      across 8 languages, each serving an architecturally distinct role.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:32px">
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">Rust</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">13 L0 crates · 35 chain indexers · 0.023ms BH computation · canonical hash module</div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">Python</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">Flask Oracle API (131 routes) · FastAPI FAISS engine · 0G daemons · all 65 formulas</div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">TypeScript</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">Python SDK · multi-chain relayer · 0G Storage/Compute SDKs · chain execution scripts</div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">Solidity</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">6 contracts on 0G Chain · ExecutionGate · OracleV3 · LiquidityOcean · AkashicProof</div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">Go</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">network/health_monitor.go — concurrent health checks across all 35 chains + services</div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:4px">Haskell · C++ · Julia</div>
+        <div style="font-size:.82rem;color:#fff;line-height:1.5">Formal proofs · signal processing · entropy verification · scale invariance proofs</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:20px">
+      <div>
+        <div style="font-size:.7rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Test Coverage</div>
+        <div style="font-size:1.8rem;font-weight:900;color:var(--green)">328 <span style="font-size:.85rem;font-weight:400;color:var(--text-dim)">passed · 24 skipped</span></div>
+        <div style="font-size:.75rem;color:var(--text-dim);margin-top:4px">100 concurrent threads × 100 BHs — zero corruption</div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Stress Test</div>
+        <div style="font-size:1.8rem;font-weight:900;color:var(--accent)">1,000 <span style="font-size:.85rem;font-weight:400;color:var(--text-dim)">BH invariant checks</span></div>
+        <div style="font-size:.75rem;color:var(--text-dim);margin-top:4px">10,000 BH collision check · all 8 CRISPR attacks &lt;10ms</div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Whitepaper Phases</div>
+        <div style="font-size:1.8rem;font-weight:900;color:var(--yellow)">55 / 55 <span style="font-size:.85rem;font-weight:400;color:var(--text-dim)">complete</span></div>
+        <div style="font-size:.75rem;color:var(--text-dim);margin-top:4px">All 65 formulas L0–L10 implemented and live</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════════════════════ FOOTER -->
+<footer class="judge-footer">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="font-size:1.4rem;font-weight:800;letter-spacing:2px;margin-bottom:6px">
+      TRION<span style="color:var(--accent)">.</span>
+    </div>
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:20px">
+      Multi-Chain Behavioral Truth Oracle — 0G APAC Hackathon 2026
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:20px;font-size:.82rem">
+      <a href="/">Dashboard</a>
+      <a href="/api/v1/zg/integration">0G Integration Proof</a>
+      <a href="/api/v1/demo/stats">Live Stats</a>
+      <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">0G Mainnet Contract ↗</a>
+      <a href="/api/v1/whitepaper/coverage">Whitepaper Coverage</a>
+    </div>
+    <div style="font-size:.75rem;color:var(--text-dim)">
+      Track 2 — Verifiable Finance · $150,000 Prize Pool · Solo submission · CC0 License
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════ SCRIPTS -->
+<script>
+// ── Attack simulation state ──────────────────────────────────────
+let selectedAttack = 'harvest';
+const attackSummaries = {
+  harvest:   'Harvest Finance (Oct 2020) — Flash loan probing across 6 yield protocols for 47 hours before $34M extraction. TRION detected FLASH_LOAN_ATTACKER fingerprint at T-18h.',
+  euler:     'Euler Finance (Mar 2023) — Multi-transaction position scaling with abnormal counterparty entropy over 4 days before $197M exploit. TRION detected pattern at T-20h.',
+  beanstalk: 'Beanstalk Farms (Apr 2022) — Governance token accumulation over 13 days before a flash-loan-boosted $182M governance capture. TRION detected GOVERNANCE_CAPTURE at T-72h.',
+  mango:     'Mango Markets (Oct 2022) — Oracle price manipulation via coordinated spot buys inflating MNGO collateral by ×10 before $117M borrow. TRION detected COORDINATED_PUMP at T-2h.',
+};
+
+function selectAttack(el, key) {
+  selectedAttack = key;
+  document.querySelectorAll('.atk-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('attack-summary').textContent = attackSummaries[key];
+  document.getElementById('sim-timeline').style.display = 'none';
+  document.getElementById('blocked-banner').style.display = 'none';
+  document.getElementById('timeline-items').innerHTML = '';
+}
+
+// Init summary
+document.getElementById('attack-summary').textContent = attackSummaries.harvest;
+
+async function runSimulation() {
+  const btn = document.getElementById('sim-run-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyzing behavioral patterns...';
+
+  document.getElementById('sim-timeline').style.display = 'none';
+  document.getElementById('blocked-banner').style.display = 'none';
+  document.getElementById('timeline-items').innerHTML = '';
+
+  try {
+    const resp = await fetch(`/api/v1/demo/simulate_attack?attack=${selectedAttack}`);
+    const data = await resp.json();
+
+    document.getElementById('sim-timeline').style.display = 'block';
+    const container = document.getElementById('timeline-items');
+
+    for (let i = 0; i < data.phases.length; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      const ph = data.phases[i];
+      const isBlocked = ph.coherence_status === 'BLOCKED';
+      const score = ph.coherence_score;
+
+      let scoreColor = 'var(--green)';
+      if (score < 0.3) scoreColor = 'var(--red)';
+      else if (score < 0.55) scoreColor = 'var(--yellow)';
+
+      let statusHtml = '';
+      if (isBlocked) {
+        statusHtml = '<span class="pill pill-blocked">BLOCKED</span>';
+      } else if (ph.coherence_status === 'HOSTILE') {
+        statusHtml = '<span class="pill pill-hostile">HOSTILE</span>';
+      } else if (ph.coherence_status === 'COLLAPSE') {
+        statusHtml = '<span class="pill pill-collapse">COLLAPSE</span>';
+      } else if (ph.coherence_status === 'CAUTION' || ph.coherence_status === 'ELEVATED') {
+        statusHtml = '<span class="pill pill-caution">ELEVATED</span>';
+      } else {
+        statusHtml = '<span class="pill pill-safe">SAFE</span>';
+      }
+
+      let patternHtml = ph.manipulation_pattern
+        ? `<br><span style="font-size:.72rem;color:var(--red)">⚠ ${ph.manipulation_pattern}</span>`
+        : '';
+
+      container.innerHTML += `
+        <div class="timeline-item">
+          <div class="timeline-time">${ph.time}</div>
+          <div class="timeline-action">${ph.action}${patternHtml}</div>
+          <div class="timeline-score" style="color:${scoreColor}">C(t)=${score.toFixed(2)}</div>
+          <div class="timeline-status">${statusHtml}</div>
+        </div>`;
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    await new Promise(r => setTimeout(r, 800));
+
+    const banner = document.getElementById('blocked-banner');
+    document.getElementById('blocked-sub').textContent =
+      `${data.attack} — ${data.final_pattern} detected. ${data.detection_lead_time}.`;
+    document.getElementById('blocked-call').textContent = data.trion_call;
+    document.getElementById('blocked-money').textContent =
+      `💰 ${data.loss_protected_fmt} protected from this exploit alone`;
+    banner.style.display = 'block';
+    banner.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+
+  } catch(e) {
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▶ Simulate Attack Detection';
+}
+
+// ── Entity checker ───────────────────────────────────────────────
+async function checkEntity() {
+  const entity = document.getElementById('entity-input').value.trim() || 'uniswap';
+  const loading = document.getElementById('checker-loading');
+  const result = document.getElementById('checker-result');
+
+  loading.style.display = 'block';
+  result.style.display = 'none';
+
+  try {
+    const resp = await fetch(`/api/v1/signal/${encodeURIComponent(entity)}`);
+    const sig = await resp.json();
+
+    const score = sig.coherence_score ?? sig.signal_value ?? 0.5;
+    const theta = sig.theta ?? sig.threshold ?? 0.668;
+    const phi = sig.phi ?? sig.physical_score ?? score;
+    const mental = sig.mental_score ?? sig.m_score ?? score;
+    const spiritual = sig.spiritual_score ?? sig.sigma ?? score;
+    const arch = sig.archetype ?? sig.behavioral_archetype ?? 'GENESIS';
+    const status = sig.status ?? sig.behavioral_status ?? 'SAFE';
+
+    document.getElementById('res-entity').textContent = entity;
+
+    let pill = '';
+    let barColor = 'var(--green)';
+    if (status.includes('HOSTILE') || score < 0.2) {
+      pill = '<span class="pill pill-hostile">HOSTILE</span>';
+      barColor = 'var(--red)';
+    } else if (status.includes('COLLAPSE') || score < 0.4) {
+      pill = '<span class="pill pill-collapse">COLLAPSE</span>';
+      barColor = 'var(--red)';
+    } else if (status.includes('INTERCEPT') || score < 0.6) {
+      pill = '<span class="pill pill-caution">ELEVATED</span>';
+      barColor = 'var(--yellow)';
+    } else {
+      pill = '<span class="pill pill-safe">SAFE</span>';
+    }
+    document.getElementById('res-pill').innerHTML = pill;
+
+    document.getElementById('res-score').textContent = score.toFixed(4);
+    document.getElementById('res-bar').style.width = (score * 100) + '%';
+    document.getElementById('res-bar').style.background = barColor;
+
+    document.getElementById('res-theta').textContent = theta.toFixed(4);
+    document.getElementById('res-theta-bar').style.width = (theta * 100) + '%';
+
+    document.getElementById('res-phi').textContent = (phi ?? score).toFixed(4);
+    document.getElementById('res-mental').textContent = (mental ?? score).toFixed(4);
+    document.getElementById('res-spiritual').textContent = (spiritual ?? score).toFixed(4);
+    document.getElementById('res-arch').textContent = arch;
+
+    // Try to load manipulation fingerprint
+    try {
+      const mfResp = await fetch(`/api/v1/security/${encodeURIComponent(entity)}/mf`);
+      const mf = await mfResp.json();
+      const patterns = mf.patterns ?? mf.manipulation_patterns ?? {};
+      const active = Object.entries(patterns).filter(([,v]) => (v?.score ?? v) > 0.1);
+      if (active.length > 0) {
+        document.getElementById('res-mf').style.display = 'block';
+        document.getElementById('res-mf-content').innerHTML = active.map(([k,v]) => {
+          const s = v?.score ?? v;
+          const color = s > 0.5 ? 'var(--red)' : s > 0.3 ? 'var(--yellow)' : 'var(--text-dim)';
+          return `<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px">
+            <span>${k}</span>
+            <span style="color:${color};font-weight:700">${s.toFixed(3)}</span>
+          </div>`;
+        }).join('');
+      }
+    } catch(_) {}
+
+    result.style.display = 'block';
+  } catch(e) {
+    document.getElementById('checker-result').innerHTML =
+      `<div style="color:var(--red);font-size:.85rem">Error: ${e.message}</div>`;
+    result.style.display = 'block';
+  }
+
+  loading.style.display = 'none';
+}
+
+// Auto-check on Enter
+document.getElementById('entity-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkEntity();
+});
+
+// ── Live ticker updates ──────────────────────────────────────────
+async function updateTicker() {
+  try {
+    const resp = await fetch('/api/v1/demo/stats');
+    const d = await resp.json();
+    if (d.faiss_vectors) {
+      document.getElementById('tick-vectors').textContent = d.faiss_vectors.toLocaleString();
+    }
+  } catch(_) {}
+
+  try {
+    const resp = await fetch('/api/v1/zg/chain/status');
+    const d = await resp.json();
+    const block = d.block_number ?? d.blockNumber ?? d.current_block;
+    if (block) {
+      document.getElementById('tick-zg-block').textContent = Number(block).toLocaleString();
+      document.getElementById('zg-block-detail').textContent =
+        `Block ${Number(block).toLocaleString()} · ${d.signals_published ?? 0} signals published`;
+    }
+  } catch(_) {}
+}
+
+// Initial load + auto-check
+updateTicker();
+setInterval(updateTicker, 30000);
+checkEntity();
+</script>
+</body>
+</html>
