@@ -71,6 +71,8 @@ const CHAINS = [
   { key: "op-sepolia",   name: "Optimism Sepolia",  chainId: 11155420, rpcEnv: "OP_SEPOLIA_RPC_URL",       rpcDefault: "https://sepolia.optimism.io",                 addrEnv: "OPTIMISM_ORACLE_ADDR",     addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
   // BNB Smart Chain Testnet — TRIONOracleV3
   { key: "bnb-testnet",  name: "BNB Testnet",       chainId: 97,       rpcEnv: "BNB_TESTNET_RPC_URL",      rpcDefault: "https://bsc-testnet-rpc.publicnode.com",      addrEnv: "BNB_ORACLE_ADDR",          addrDefault: "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721" },
+  // 0G Newton Mainnet — TRIONOracleV3 (primary hackathon target)
+  { key: "0g-newton",    name: "0G Newton Mainnet", chainId: 16600,    rpcEnv: "ZG_NEWTON_RPC",            rpcDefault: "https://evmrpc-mainnet.0g.ai",                addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
   // 0G Galileo testnet — TRIONOracleV3
   { key: "0g-galileo",   name: "0G Galileo",        chainId: 16602,    rpcEnv: "ZERO_G_RPC",               rpcDefault: "https://evmrpc-testnet.0g.ai",                addrEnv: "ZG_ORACLE_ADDR",           addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
   // HashKey Chain Mainnet — TRIONOracleV3

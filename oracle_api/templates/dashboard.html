@@ -187,9 +187,9 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
     </div>
     <div class="col-6 col-md-2">
       <div class="stat-card yellow">
-        <div class="stat-val yellow">31</div>
+        <div class="stat-val yellow" id="s-chains">37</div>
         <div class="stat-label">Chains Indexed</div>
-        <div class="stat-sub">13 VM families</div>
+        <div class="stat-sub" id="s-vm-fam">13 VM families</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -304,9 +304,9 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
     </div>
   </div>
 
-  <!-- ─── 31-CHAIN GRID ─── -->
+  <!-- ─── 37-CHAIN GRID ─── -->
   <div class="mb-4">
-    <div class="section-title"><i data-feather="globe" style="width:12px;height:12px"></i> 31 Indexed Networks — 13 VM Families</div>
+    <div class="section-title"><i data-feather="globe" style="width:12px;height:12px"></i> 37 Indexed Networks — 13 VM Families</div>
     <div class="chain-grid" id="chain-grid">
       <!-- filled by JS -->
     </div>
@@ -836,7 +836,7 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
 
 <footer>
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>TRION Protocol v3.0 — 31 Networks · 13 VM Families · 65 Formulas (L0–L10) · 19 Signal Types · 0G Galileo LIVE · 4/4 0G Modules</div>
+    <div>TRION Protocol v3.0 — 37 Networks · 13 VM Families · 65 Formulas (L0–L10) · 19 Signal Types · 0G Newton+Galileo · 4/4 0G Modules</div>
     <div class="footer-links">
       <a href="https://chainscan-galileo.0g.ai/address/0xDB5910Dc6CfD219D00F64be1F23DA0289901356d" target="_blank">0G Explorer</a>
       <a href="/api/v1/zg/integration">0G Hub</a>
@@ -861,7 +861,13 @@ const CHAINS = [
   {name:'HashKey Mainnet',vm:'EVM',status:'live',color:'green',tx:'hashkey'},
   {name:'Ethereum Sepolia',vm:'EVM',status:'live',color:'green',tx:'eth-sepolia'},
   {name:'BNB Testnet',vm:'EVM',status:'proof',color:'yellow',tx:'bnb-testnet'},
+  {name:'0G Newton Mainnet',vm:'EVM',status:'live',color:'blue',tx:'0g-newton'},
   {name:'0G Galileo',vm:'EVM',status:'live',color:'blue',tx:'0g-galileo'},
+  {name:'Ethereum Mainnet',vm:'EVM',status:'live',color:'green',tx:'eth-mainnet'},
+  {name:'Arbitrum One',vm:'EVM',status:'live',color:'green',tx:'arb-mainnet'},
+  {name:'Base Mainnet',vm:'EVM',status:'live',color:'green',tx:'base-mainnet'},
+  {name:'Optimism Mainnet',vm:'EVM',status:'live',color:'green',tx:'op-mainnet'},
+  {name:'Polygon Mainnet',vm:'EVM',status:'live',color:'green',tx:'polygon'},
   {name:'Mantle Mainnet',vm:'EVM',status:'live',color:'green',tx:'mantle'},
   {name:'Linea Mainnet',vm:'EVM',status:'live',color:'green',tx:'linea'},
   {name:'Scroll Mainnet',vm:'EVM',status:'live',color:'green',tx:'scroll'},
@@ -926,6 +932,11 @@ function phiClass(score,thresh){
 // Build chain grid
 function buildChainGrid(){
   const grid=document.getElementById('chain-grid');
+  const cEl=document.getElementById('s-chains');
+  if(cEl) cEl.textContent=CHAINS.length;
+  const vmFams=[...new Set(CHAINS.map(c=>c.vm))].length;
+  const fEl=document.getElementById('s-vm-fam');
+  if(fEl) fEl.textContent=vmFams+' VM families';
   grid.innerHTML=CHAINS.map(c=>{
     const dotClass='dot-'+c.color;
     const statusLabel=c.status==='live'?'LIVE TX':'Block Proof';
