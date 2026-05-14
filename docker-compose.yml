@@ -1,23 +1,30 @@
 # =============================================================================
-# TRION Protocol — Docker Compose
+# TRION Protocol — Docker Compose  (v4.1)
 #
 # Profiles:
 #   dev  (default) — Oracle API + FAISS ANIMA only. Fast build, no Rust.
 #   full           — All 11 services, production parity (slow Rust build).
 #
 # Quick start (dev):
-#   cp .env.example .env
+#   cp .env.example .env          # set RELAYER_PRIVATE_KEY, DEPLOY_0G_PRIVATE
 #   docker compose up --build
 #
 # Full production parity:
 #   docker compose --profile full up --build
 #   # or: docker build -f Dockerfile.render -t trion-core . && docker run -p 10000:10000 trion-core
 #
-# Endpoints:
-#   http://localhost:5000/              Dashboard
-#   http://localhost:5000/api/v1/health Oracle API
-#   http://localhost:5000/api/v1/zg/integration  0G integration status
-#   http://localhost:8000/health        FAISS ANIMA Engine
+# Key endpoints:
+#   http://localhost:5000/                        Dashboard
+#   http://localhost:5000/api/v1/health           Oracle API health
+#   http://localhost:5000/api/v1/zg               0G Mainnet ExecutionGate stats
+#   http://localhost:5000/api/v1/zg/proof         DA + Storage proof (mainnet)
+#   http://localhost:5000/api/v1/zg/integration   All 5 0G modules combined
+#   http://localhost:8000/health                  FAISS ANIMA Engine
+#
+# 0G Mainnet:
+#   TRIONExecutionGate: 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b
+#   Chain ID: 16661  |  RPC: https://evmrpc.0g.ai
+#   Explorer: https://chainscan.0g.ai
 # =============================================================================
 
 services:
@@ -42,8 +49,13 @@ services:
       FAISS_URL: "http://127.0.0.1:8000"
       ORACLE_API_URL: "http://127.0.0.1:5000"
       PYTHONUNBUFFERED: "1"
+      # 0G Mainnet — TRIONExecutionGate deployed 2026-05-14 block 33234152
+      ZG_NETWORK: "mainnet"
+      ZG_CHAIN_ID: "16661"
+      ZERO_G_RPC: "https://evmrpc.0g.ai"
+      ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
     volumes:
-      - faiss-data:/app/akashic/data
+      - faiss-data:/app/akashic       # FAISS index + SQLite BH ledger — persists across restarts
       - zg-state:/app/0g-state
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:5000/api/v1/health"]
@@ -78,6 +90,11 @@ services:
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"
       ORACLE_API_URL: "http://127.0.0.1:10000"
+      # 0G Mainnet — TRIONExecutionGate deployed 2026-05-14 block 33234152
+      ZG_NETWORK: "mainnet"
+      ZG_CHAIN_ID: "16661"
+      ZERO_G_RPC: "https://evmrpc.0g.ai"
+      ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
       # Toggle subsystems (set to "0" to disable)
       TRION_ENABLE_FAISS: "1"
       TRION_ENABLE_RUST: "1"
@@ -90,7 +107,7 @@ services:
       TRION_ENABLE_ZG_SYNC: "1"
       TRION_ENABLE_ZG_DA: "1"
     volumes:
-      - faiss-data:/app/akashic/data
+      - faiss-data:/app/akashic       # FAISS index + SQLite BH ledger — persists across restarts
       - zg-state:/app/0g-state
       - rust-logs:/tmp/trion-rust-logs
     healthcheck:
