@@ -1,0 +1,13 @@
+{
+  "contractAddress": "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D",
+  "deployerAddress": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "txHash": "5b364fe4ba9f6324fe0d304fb59edbff7aed1f29b3797f2de7eb2d97a557ff04",
+  "chainId": 16600,
+  "network": "testnet",
+  "rpc": "https://evmrpc-testnet.0g.ai",
+  "deployedAt": "2026-05-13T23:06:07Z",
+  "blockNumber": 33176739,
+  "gasUsed": 2400000,
+  "explorerUrl": "https://chainscan-newton.0g.ai/address/0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D",
+  "abiPath": "artifacts/contracts/AkashicProof.sol/AkashicProof.json"
+}
