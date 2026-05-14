@@ -1,54 +1,118 @@
 # =============================================================================
-# trion-core — Local development compose
+# TRION Protocol — Docker Compose
 #
-# Two target images:
+# Profiles:
+#   dev  (default) — Oracle API + FAISS ANIMA only. Fast build, no Rust.
+#   full           — All 11 services, production parity (slow Rust build).
 #
-#   Dockerfile        — minimal dev image (Oracle API + FAISS only, fast build)
-#   Dockerfile.render — full production image (all 9 services + Rust compile)
-#
-# Quick start (dev — Oracle API + FAISS only):
-#   cp .env.example .env        # set PRIVATE_KEY / ORACLE_ADDRESS at minimum
+# Quick start (dev):
+#   cp .env.example .env
 #   docker compose up --build
 #
-# Full production parity (all services, ~15 min Rust compile):
-#   docker compose -f docker-compose.yml -f docker-compose.render.override.yml up --build
+# Full production parity:
+#   docker compose --profile full up --build
 #   # or: docker build -f Dockerfile.render -t trion-core . && docker run -p 10000:10000 trion-core
 #
-# Endpoints (dev image):
-#   http://localhost:5000/api/v1/health    Oracle API
-#   http://localhost:5000/                 Dashboard
-#   http://localhost:8000/healthz          FAISS ANIMA Engine
-#
+# Endpoints:
+#   http://localhost:5000/              Dashboard
+#   http://localhost:5000/api/v1/health Oracle API
+#   http://localhost:5000/api/v1/zg/integration  0G integration status
+#   http://localhost:8000/health        FAISS ANIMA Engine
 # =============================================================================
 
 services:
 
+  # ── Dev: Oracle API + FAISS ANIMA ─────────────────────────────────────────
   trion:
     build:
       context: .
       dockerfile: Dockerfile
-    image: trion-core-dev
+    image: trion-core:dev
+    profiles: ["dev", ""]
     ports:
       - "${PORT:-5000}:5000"
       - "${FAISS_PORT:-8000}:8000"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      PORT: "5000"
+      PORT: "${PORT:-5000}"
       FAISS_PORT: "8000"
-      FAISS_SERVICE_URL: http://127.0.0.1:8000
-      FAISS_URL: http://127.0.0.1:8000
-      ORACLE_API_URL: http://127.0.0.1:5000
+      FAISS_SERVICE_URL: "http://127.0.0.1:8000"
+      FAISS_URL: "http://127.0.0.1:8000"
+      ORACLE_API_URL: "http://127.0.0.1:5000"
+      PYTHONUNBUFFERED: "1"
     volumes:
       - faiss-data:/app/akashic/data
+      - zg-state:/app/0g-state
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:5000/api/v1/health"]
       interval: 15s
       timeout: 5s
-      start_period: 30s
+      start_period: 45s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+  # ── Full production parity (all 11 services) ───────────────────────────────
+  trion-full:
+    build:
+      context: .
+      dockerfile: Dockerfile.render
+    image: trion-core:full
+    profiles: ["full"]
+    ports:
+      - "${PORT:-10000}:10000"
+      - "${FAISS_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "${PORT:-10000}"
+      FAISS_PORT: "8000"
+      FAISS_SERVICE_URL: "http://127.0.0.1:8000"
+      FAISS_URL: "http://127.0.0.1:8000"
+      ORACLE_API_URL: "http://127.0.0.1:10000"
+      # Toggle subsystems (set to "0" to disable)
+      TRION_ENABLE_FAISS: "1"
+      TRION_ENABLE_RUST: "1"
+      TRION_ENABLE_EXTRAS: "1"
+      TRION_ENABLE_NATIVE: "1"
+      TRION_ENABLE_EXTENDED: "1"
+      TRION_ENABLE_RELAYER: "1"
+      TRION_ENABLE_NATIVE_RELAYER: "1"
+      TRION_ENABLE_EXT_RELAYER: "1"
+      TRION_ENABLE_ZG_SYNC: "1"
+      TRION_ENABLE_ZG_DA: "1"
+    volumes:
+      - faiss-data:/app/akashic/data
+      - zg-state:/app/0g-state
+      - rust-logs:/tmp/trion-rust-logs
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:10000/api/v1/health"]
+      interval: 20s
+      timeout: 8s
+      start_period: 180s
+      retries: 6
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+          cpus: "4"
+        reservations:
+          memory: 2g
+          cpus: "1"
 
 volumes:
   faiss-data:
+    driver: local
+  zg-state:
+    driver: local
+  rust-logs:
     driver: local
