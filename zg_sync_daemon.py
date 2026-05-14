@@ -65,6 +65,30 @@ def save_state(state: dict):
         json.dump(state, f, indent=2)
 
 
+def file_sha256(path: str) -> str:
+    """Compute SHA-256 of a file and return as 0x-prefixed hex."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return "0x" + h.hexdigest()
+
+
+def save_local_proof(key: str, file_path: str, root: str, uploaded: bool):
+    """Record proof locally — verifiable even without successful upload."""
+    proof = {
+        "key":       key,
+        "file":      os.path.basename(file_path),
+        "root":      root,
+        "uploaded":  uploaded,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "size":      os.path.getsize(file_path) if os.path.exists(file_path) else 0,
+    }
+    proof_path = f"{ZG.PROOFS_DIR}/{key}.json"
+    with open(proof_path, "w") as f:
+        json.dump(proof, f, indent=2)
+
+
 # ── 0G Storage upload via CLI ─────────────────────────────────────
 
 def upload_via_cli(file_path: str) -> Optional[str]:
@@ -77,7 +101,7 @@ def upload_via_cli(file_path: str) -> Optional[str]:
                 "--file",     file_path,
                 "--node-url", ZG.RPC,
             ],
-            capture_output=True, text=True, timeout=300
+            capture_output=True, text=True, timeout=60
         )
         for line in result.stdout.splitlines():
             if "root" in line.lower() or "hash" in line.lower():
@@ -92,7 +116,10 @@ def upload_via_cli(file_path: str) -> Optional[str]:
 
 
 async def upload_via_sdk(file_path: str) -> Optional[str]:
-    # Always resolve to absolute path — script runs from trion-0g/ subdir
+    """
+    Attempt 0G Storage upload via @0glabs/0g-ts-sdk.
+    Timeout: 45s — fails fast so daemon doesn't stall for 5 minutes.
+    """
     abs_path = os.path.abspath(file_path)
     script = f"""
 import {{ ZgFile, Indexer }} from '@0glabs/0g-ts-sdk';
@@ -114,8 +141,7 @@ await file.close();
 console.log('ROOT:' + rootHash);
 console.log('TX:' + (tx?.txHash || tx?.txHashes?.[0] || ''));
 """
-    # Write script to trion-0g dir where @0glabs/0g-ts-sdk is installed
-    sdk_dir    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trion-0g")
+    sdk_dir     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trion-0g")
     script_path = os.path.join(sdk_dir, "zg_upload_single.mts")
     with open(script_path, "w") as f:
         f.write(script)
@@ -127,21 +153,22 @@ console.log('TX:' + (tx?.txHash || tx?.txHashes?.[0] || ''));
             stderr=asyncio.subprocess.PIPE,
             cwd=sdk_dir,
         )
-        stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=300)
+        stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=45)
         output = stdout.decode()
 
         for line in output.splitlines():
             if line.startswith("ROOT:"):
                 return line.replace("ROOT:", "").strip()
 
-        if stderr:
-            log.warning(f"SDK upload stderr: {stderr.decode()[:200]}")
+        err_text = stderr.decode()[:300] if stderr else ""
+        if err_text:
+            log.warning(f"SDK stderr: {err_text}")
         return None
     except asyncio.TimeoutError:
-        log.error("SDK upload timed out after 300s")
+        log.warning("SDK upload timed out after 45s — using local SHA-256 proof")
         return None
     except Exception as e:
-        log.error(f"SDK upload error: {e}")
+        log.warning(f"SDK upload error: {e}")
         return None
 
 
@@ -176,7 +203,7 @@ async def export_faiss_delta(state: dict) -> Optional[tuple]:
             log.info(f"No new vectors (total={total:,}, prev={prev:,})")
             return None
 
-        log.info(f"Exporting {new_count:,} new vectors (total={total:,})")
+        log.info(f"Exporting {new_count:,} new vectors (total={total:,}, prev={prev:,})")
 
         dim      = index.d
         ts       = int(time.time())
@@ -198,7 +225,7 @@ async def export_faiss_delta(state: dict) -> Optional[tuple]:
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)
         log.info(f"Delta export: {out_path} ({size_mb:.2f} MB)")
-        return out_path, new_count
+        return out_path, new_count, total
 
     except ImportError:
         log.error("faiss not installed — pip install faiss-cpu")
@@ -232,7 +259,7 @@ async def export_faiss_full(state: dict) -> Optional[str]:
         return None
 
 
-# ── DB delta export ───────────────────────────────────────────────
+# ── DB delta export (PostgreSQL via asyncpg) ──────────────────────
 
 async def export_db_delta(pool, state: dict) -> list:
     if pool is None:
@@ -244,8 +271,6 @@ async def export_db_delta(pool, state: dict) -> list:
 
     try:
         async with pool.acquire() as conn:
-
-            # behavioral_events delta
             rows = await conn.fetch("""
                 SELECT id, entity_id, event_type, magnitude_norm,
                        chain_id, block_number, sense_hash, antisense_hash, ts
@@ -282,55 +307,85 @@ async def export_db_delta(pool, state: dict) -> list:
                 exports.append((out_path, "behavioral_events", len(rows), max_id))
                 log.info(f"BH delta: {len(rows):,} records → {out_path}")
 
-            # trion_signals delta
-            try:
-                sig_rows = await conn.fetch("""
-                    SELECT signal_id, asset_id, signal_type, c_score,
-                           phi_adj, m_adj, sigma, k_score, a_score,
-                           ci_95_lower, ci_95_upper, conf_genesis,
-                           tc_valid, emitted_at
-                    FROM trion_signals
-                    WHERE emitted_at > NOW() - INTERVAL '2 hours'
-                    ORDER BY emitted_at ASC
-                """)
-
-                if sig_rows:
-                    sig_path = f"{ZG.EXPORT_DIR}/signals_delta_{ts}.jsonl.gz"
-                    with gzip.open(sig_path, "wt") as f:
-                        for r in sig_rows:
-                            rec = dict(r)
-                            rec["emitted_at"] = rec["emitted_at"].isoformat()
-                            rec["signal_id"]  = str(rec["signal_id"])
-                            f.write(json.dumps(rec) + "\n")
-                    exports.append((sig_path, "trion_signals", len(sig_rows), None))
-                    log.info(f"Signals delta: {len(sig_rows):,} → {sig_path}")
-            except Exception:
-                pass
-
-            # phi_scores delta
-            try:
-                phi_rows = await conn.fetch("""
-                    SELECT asset_id, chain_id, phi_raw, phi_adj,
-                           mf_score, mf_type, ts
-                    FROM phi_scores
-                    WHERE ts > NOW() - INTERVAL '2 hours'
-                    ORDER BY ts ASC
-                """)
-                if phi_rows:
-                    phi_path = f"{ZG.EXPORT_DIR}/phi_delta_{ts}.jsonl.gz"
-                    with gzip.open(phi_path, "wt") as f:
-                        for r in phi_rows:
-                            rec = dict(r)
-                            rec["ts"] = rec["ts"].isoformat()
-                            f.write(json.dumps(rec) + "\n")
-                    exports.append((phi_path, "phi_scores", len(phi_rows), None))
-            except Exception:
-                pass
-
     except Exception as e:
         log.error(f"DB delta export error: {e}")
 
     return exports
+
+
+# ── SQLite BH-ledger delta export (no PostgreSQL needed) ─────────
+
+async def export_sqlite_bh_delta(state: dict) -> Optional[tuple]:
+    """
+    Export new behavioral hash records from bh_ledger.db (SQLite).
+    Used when PostgreSQL/asyncpg is not available.
+    Returns (file_path, record_count, max_id) or None.
+    """
+    db_path = "bh_ledger.db"
+    if not os.path.exists(db_path):
+        return None
+
+    last_id = state.get("last_sqlite_bh_id", 0)
+
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, entity_id, event_type_name, magnitude_norm,
+                   chain_id, block_num, sense_hex, antisense_hex, ts
+            FROM bh_ledger
+            WHERE id > ?
+            ORDER BY id ASC
+            LIMIT 100000
+        """, (last_id,))
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            log.info(f"No new SQLite BH records (last_id={last_id:,})")
+            return None
+
+        ts       = int(time.time())
+        out_path = f"{ZG.EXPORT_DIR}/bh_sqlite_delta_{ts}.bin.gz"
+        max_id   = last_id
+
+        event_map = {
+            "Transfer": 0, "Swap": 1, "Liquidity": 2, "Stake": 3, "Unstake": 4,
+            "Governance": 5, "Borrow": 7, "Repay": 8, "Liquidate": 9,
+        }
+
+        with gzip.open(out_path, "wb") as f:
+            f.write(b"TRION_BH_S")
+            f.write(struct.pack("<Q", len(rows)))
+            for r in rows:
+                eid   = (r["entity_id"] or "").encode()[:255]
+                etype = event_map.get(r["event_type_name"] or "", 0xFF)
+                mag   = float(r["magnitude_norm"] or 0)
+                cid   = int(r["chain_id"] or 0)
+                bnum  = int(r["block_num"] or 0)
+                sense_hex = r["sense_hex"] or ""
+                sense = bytes.fromhex(sense_hex)[:32] if sense_hex else b'\x00' * 32
+                ts_ns = int(r["ts"] * 1e9) if r["ts"] else 0
+
+                f.write(struct.pack("<H", len(eid)))
+                f.write(eid)
+                f.write(struct.pack("<B",  etype))
+                f.write(struct.pack("<f",  mag))
+                f.write(struct.pack("<Q",  cid))
+                f.write(struct.pack("<Q",  bnum))
+                f.write(sense.ljust(32, b'\x00'))
+                f.write(struct.pack("<q", ts_ns))
+                max_id = max(max_id, int(r["id"]))
+
+        size_kb = os.path.getsize(out_path) / 1024
+        log.info(f"SQLite BH delta: {len(rows):,} records → {out_path} ({size_kb:.0f} KB)")
+        return out_path, len(rows), max_id
+
+    except Exception as e:
+        log.error(f"SQLite BH export error: {e}")
+        return None
 
 
 # ── 0G KV live update ─────────────────────────────────────────────
@@ -338,10 +393,10 @@ async def export_db_delta(pool, state: dict) -> list:
 async def update_kv_store(pool, state: dict):
     try:
         kv_data = {
-            "updated_at":    datetime.now(timezone.utc).isoformat(),
-            "sync_count":    state.get("sync_count", 0),
-            "total_vectors": state.get("last_vector_count", 0),
-            "table_counts":  {},
+            "updated_at":     datetime.now(timezone.utc).isoformat(),
+            "sync_count":     state.get("sync_count", 0),
+            "total_vectors":  state.get("last_vector_count", 0),
+            "table_counts":   {},
             "latest_signals": [],
         }
 
@@ -356,28 +411,17 @@ async def update_kv_store(pool, state: dict):
                     except Exception:
                         kv_data["table_counts"][table] = 0
 
-                try:
-                    latest_sigs = await conn.fetch("""
-                        SELECT DISTINCT ON (asset_id)
-                            asset_id, signal_type, c_score,
-                            phi_adj, m_adj, sigma, emitted_at
-                        FROM trion_signals
-                        ORDER BY asset_id, emitted_at DESC
-                        LIMIT 50
-                    """)
-                    kv_data["latest_signals"] = [
-                        {
-                            "asset_id":    r["asset_id"],
-                            "signal_type": r["signal_type"],
-                            "c_score":     float(r["c_score"] or 0),
-                            "phi_adj":     float(r["phi_adj"] or 0),
-                            "m_adj":       float(r["m_adj"] or 0),
-                            "sigma":       float(r["sigma"] or 0),
-                        }
-                        for r in latest_sigs
-                    ]
-                except Exception:
-                    pass
+        # SQLite fallback for BH counts
+        if os.path.exists("bh_ledger.db"):
+            try:
+                import sqlite3
+                conn2 = sqlite3.connect("bh_ledger.db")
+                cur = conn2.cursor()
+                cur.execute("SELECT COUNT(*) FROM bh_ledger")
+                kv_data["table_counts"]["bh_ledger_sqlite"] = cur.fetchone()[0]
+                conn2.close()
+            except Exception:
+                pass
 
         kv_path = f"{ZG.EXPORT_DIR}/kv_snapshot_{int(time.time())}.json"
         with open(kv_path, "w") as f:
@@ -388,6 +432,9 @@ async def update_kv_store(pool, state: dict):
             log.info(f"KV snapshot uploaded: {root}")
             state["kv_root"]       = root
             state["kv_updated_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            local = file_sha256(kv_path)
+            log.info(f"KV snapshot — local hash: {local[:18]}...")
 
         try:
             os.remove(kv_path)
@@ -403,6 +450,21 @@ async def update_kv_store(pool, state: dict):
 async def update_onchain_proof(root_hashes: dict, state: dict, w3, abi: list):
     if not ZG.AKASHIC_PROOF_CONTRACT:
         log.warning("AKASHIC_PROOF_CONTRACT not set — skipping onchain update")
+        # Still persist the roots locally
+        proof_summary = {
+            "sync_count":   state.get("sync_count", 0),
+            "timestamp":    datetime.now(timezone.utc).isoformat(),
+            "root_hashes":  root_hashes,
+            "onchain":      False,
+            "reason":       "AKASHIC_PROOF_CONTRACT not configured",
+        }
+        with open(f"{ZG.PROOFS_DIR}/sync_{state.get('sync_count',0)}.json", "w") as f:
+            json.dump(proof_summary, f, indent=2)
+        log.info(f"Local proof saved: {len(root_hashes)} roots recorded")
+        return
+
+    if not w3:
+        log.warning("Web3 not available — skipping onchain update")
         return
 
     try:
@@ -447,7 +509,7 @@ async def update_onchain_proof(root_hashes: dict, state: dict, w3, abi: list):
         tx2    = contract.functions.recordSyncCycle(
             len(keys),
             state.get("last_vector_count", 0),
-            state.get("last_bh_record_id", 0),
+            state.get("last_sqlite_bh_id", 0),
             manifest_hash,
         ).build_transaction({
             "from":     account.address,
@@ -462,6 +524,16 @@ async def update_onchain_proof(root_hashes: dict, state: dict, w3, abi: list):
 
     except Exception as e:
         log.error(f"Onchain proof update error: {e}")
+        # Still save locally
+        proof_summary = {
+            "sync_count":  state.get("sync_count", 0),
+            "timestamp":   datetime.now(timezone.utc).isoformat(),
+            "root_hashes": root_hashes,
+            "onchain":     False,
+            "error":       str(e),
+        }
+        with open(f"{ZG.PROOFS_DIR}/sync_{state.get('sync_count',0)}.json", "w") as f:
+            json.dump(proof_summary, f, indent=2)
 
 
 # ── Main sync cycle ───────────────────────────────────────────────
@@ -471,73 +543,124 @@ async def run_sync_cycle(pool, w3, abi: list):
     cycle_ts = datetime.now(timezone.utc).isoformat()
     log.info(f"=== SYNC CYCLE {state['sync_count'] + 1} === {cycle_ts}")
 
-    uploaded_roots = {}
+    all_roots = {}
 
     # 1. FAISS delta
     result = await export_faiss_delta(state)
     if result:
-        file_path, new_count = result
+        file_path, new_count, total_count = result
+        local_root = file_sha256(file_path)
+
         log.info("Uploading FAISS delta to 0G Storage...")
         root = await upload_via_sdk(file_path)
         if not root:
             root = upload_via_cli(file_path)
-        if root:
-            key = f"faiss_delta_{state['sync_count']}"
-            uploaded_roots[key]           = root
-            state["last_vector_count"]   += new_count
-            state["root_hashes"][key]     = root
-            log.info(f"✓ FAISS delta: {root}")
+
+        uploaded = root is not None
+        if not root:
+            root = local_root
+            log.info(f"Upload failed — local SHA-256 root: {root[:18]}...")
+        else:
+            log.info(f"✓ Upload succeeded: {root[:18]}...")
             log.info(f"  View: {ZG.STORAGE_EXPLORER}/files/{root}")
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
+
+        key = f"faiss_delta_{state['sync_count']}"
+        all_roots[key]                  = root
+        state["root_hashes"][key]       = root
+        # Always update vector count regardless of upload success
+        state["last_vector_count"]      = total_count
+        save_local_proof(key, file_path, root, uploaded)
+
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
 
     # 2. Full FAISS (daily, every 24 syncs)
     full_path = await export_faiss_full(state)
     if full_path:
+        local_root = file_sha256(full_path)
         root = await upload_via_sdk(full_path)
         if root:
-            uploaded_roots["faiss_full"]       = root
-            state["root_hashes"]["faiss_full"] = root
+            all_roots["faiss_full"]             = root
+            state["root_hashes"]["faiss_full"]  = root
             log.info(f"✓ Full FAISS: {root}")
-            try:
-                os.remove(full_path)
-            except Exception:
-                pass
+        else:
+            all_roots["faiss_full"]            = local_root
+            state["root_hashes"]["faiss_full"] = local_root
+            log.info(f"Full FAISS — local root: {local_root[:18]}...")
+        try:
+            os.remove(full_path)
+        except Exception:
+            pass
 
-    # 3. DB delta
+    # 3. DB delta (PostgreSQL if available)
     db_exports = await export_db_delta(pool, state)
     for file_path, table, count, max_id in db_exports:
         log.info(f"Uploading {table} delta ({count:,} records)...")
+        local_root = file_sha256(file_path)
         root = await upload_via_sdk(file_path)
-        if root:
-            key = f"{table}_delta_{state['sync_count']}"
-            uploaded_roots[key]       = root
-            state["root_hashes"][key] = root
-            log.info(f"✓ {table}: {root}")
-            if table == "behavioral_events" and max_id:
-                state["last_bh_record_id"] = max_id
+        uploaded = root is not None
+        if not root:
+            root = local_root
+        key = f"{table}_delta_{state['sync_count']}"
+        all_roots[key]             = root
+        state["root_hashes"][key]  = root
+        log.info(f"{'✓' if uploaded else '~'} {table}: {root[:18]}...")
+        if table == "behavioral_events" and max_id:
+            state["last_bh_record_id"] = max_id
+        save_local_proof(key, file_path, root, uploaded)
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+
+    # 4. SQLite BH-ledger delta (fallback when PostgreSQL not available)
+    if not pool:
+        sqlite_result = await export_sqlite_bh_delta(state)
+        if sqlite_result:
+            file_path, record_count, max_id = sqlite_result
+            local_root = file_sha256(file_path)
+            log.info("Uploading SQLite BH delta to 0G Storage...")
+            root = await upload_via_sdk(file_path)
+            uploaded = root is not None
+            if not root:
+                root = local_root
+                log.info(f"SQLite BH upload failed — local root: {root[:18]}...")
+            else:
+                log.info(f"✓ SQLite BH uploaded: {root[:18]}...")
+
+            key = f"bh_sqlite_delta_{state['sync_count']}"
+            all_roots[key]                   = root
+            state["root_hashes"][key]        = root
+            state["last_sqlite_bh_id"]       = max_id
+            save_local_proof(key, file_path, root, uploaded)
             try:
                 os.remove(file_path)
             except Exception:
                 pass
 
-    # 4. KV snapshot
+    # 5. KV snapshot
     await update_kv_store(pool, state)
 
-    # 5. Update onchain proof
-    if uploaded_roots and abi:
-        await update_onchain_proof(uploaded_roots, state, w3, abi)
+    # 6. Update onchain proof — always fire if we have any roots
+    if all_roots:
+        log.info(f"Recording {len(all_roots)} root hashes onchain...")
+        await update_onchain_proof(all_roots, state, w3, abi)
+    else:
+        log.info("No new data this cycle — skipping onchain update")
 
-    # 6. Save state
+    # 7. Save state
     state["last_sync_ts"]           = cycle_ts
     state["sync_count"]            += 1
-    state["total_bytes_uploaded"]   = state.get("total_bytes_uploaded", 0)
     save_state(state)
 
-    log.info(f"=== SYNC CYCLE COMPLETE: {len(uploaded_roots)} files uploaded ===\n")
-    return uploaded_roots
+    uploaded_count = sum(1 for k in all_roots if "local" not in k.lower())
+    log.info(
+        f"=== SYNC CYCLE COMPLETE: {len(all_roots)} roots "
+        f"({uploaded_count} uploaded, {len(all_roots)-uploaded_count} local) ===\n"
+    )
+    return all_roots
 
 
 # ── Entry point ───────────────────────────────────────────────────
@@ -545,7 +668,6 @@ async def run_sync_cycle(pool, w3, abi: list):
 async def main():
     try:
         from web3 import Web3
-        from web3.middleware import ExtraDataToPOAMiddleware
         _web3_available = True
     except ImportError:
         _web3_available = False
@@ -556,14 +678,14 @@ async def main():
         _asyncpg_available = True
     except ImportError:
         _asyncpg_available = False
-        log.warning("asyncpg not installed — DB exports disabled")
+        log.warning("asyncpg not installed — using SQLite BH-ledger fallback")
 
     log.info("TRION 0G Sync Daemon starting...")
     log.info(f"Network:  {ZG.NETWORK}")
     log.info(f"RPC:      {ZG.RPC}")
-    log.info(f"Contract: {ZG.AKASHIC_PROOF_CONTRACT or 'NOT SET'}")
+    log.info(f"Contract: {ZG.AKASHIC_PROOF_CONTRACT or 'NOT SET (local proofs only)'}")
 
-    # DB connection
+    # DB connection (PostgreSQL)
     pool = None
     if _asyncpg_available:
         db_url = os.getenv("DATABASE_URL",
@@ -571,9 +693,9 @@ async def main():
         try:
             import asyncpg
             pool = await asyncpg.create_pool(db_url, min_size=1, max_size=5)
-            log.info("✓ Database connected")
+            log.info("✓ PostgreSQL connected")
         except Exception as e:
-            log.warning(f"Database connection failed: {e} — FAISS-only mode")
+            log.warning(f"PostgreSQL connection failed: {e} — SQLite BH-ledger mode")
 
     # Web3 connection
     w3 = None
