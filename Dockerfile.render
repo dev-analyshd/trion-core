@@ -74,9 +74,9 @@ RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/ton; do \
 FROM python:3.11-slim
 
 LABEL maintainer="TRION Protocol"
-LABEL description="TRION Protocol — Multi-Chain Behavioral Truth Oracle (11 services)"
+LABEL description="TRION Protocol — Multi-Chain Behavioral Truth Oracle (11 services, 0G Mainnet)"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
-LABEL version="4.0.0"
+LABEL version="4.1.0"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -132,8 +132,8 @@ COPY config/          ./config/
 COPY shared/          ./shared/
 COPY math/            ./math/
 COPY sdk/             ./sdk/
-COPY proof-ledger/    ./proof-ledger/
-COPY serve.py         ./serve.py
+COPY proof-ledger/       ./proof-ledger/
+COPY serve.py            ./serve.py
 COPY main.py          ./main.py
 COPY deployments.json ./deployments.json
 COPY zg_api_routes.py ./zg_api_routes.py
@@ -151,8 +151,8 @@ RUN ln -sf /app/chains/svm /app/trion-svm 2>/dev/null || true
 COPY render-entrypoint.sh ./render-entrypoint.sh
 RUN chmod +x ./render-entrypoint.sh ./supervisors/*.sh 2>/dev/null || true
 
-# Runtime dirs
-RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs /tmp/trion-rust-logs
+# Runtime dirs (akashic/data is the FAISS persistence volume mount point)
+RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs /tmp/trion-rust-logs akashic/data
 
 # ── Environment defaults ───────────────────────────────────────────────────────
 ENV PORT=10000 \
@@ -163,6 +163,10 @@ ENV PORT=10000 \
     RUST_BIN_DIR=/app/bin \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    ZG_NETWORK=mainnet \
+    ZG_CHAIN_ID=16661 \
+    ZERO_G_RPC=https://evmrpc.0g.ai \
+    ZG_EXECUTION_GATE_ADDR=0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b \
     TRION_ENABLE_FAISS=1 \
     TRION_ENABLE_RUST=1 \
     TRION_ENABLE_EXTRAS=1 \
