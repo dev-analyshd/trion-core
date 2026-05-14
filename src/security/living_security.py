@@ -174,31 +174,144 @@ class CRISPRDefense:
     Exact attack signatures — pattern library, adaptive response, permanent memory.
     Library never decays (whitepaper Part 6 §6.2 Component 3).
     """
+    # ── Full cross-chain attack signature library (CRISPR Defense)
+    # Organised by VM family. Each entry: (id, canonical_signature_bytes, description, pattern_type)
+    # Pattern types mirror the 6 MF engine patterns + extended attack taxonomy.
     KNOWN_ATTACKS = [
-        ("HARVEST_2020_FLASH",  b"HARVEST_FLASH_LOAN_ORACLE_MANIP",
+        # ── EVM / Ethereum L1 ────────────────────────────────────────────────
+        ("DAO_2016_REENTR",          b"DAO_RECURSIVE_REENTRANCY_SPLITDAO",
+         "The DAO reentrancy exploit (Jun 2016, $60M) — recursive call before state update",
+         "REENTRANCY"),
+        ("PARITY_2017_WALLETLIB",    b"PARITY_WALLETLIB_SELFDESTRUCT_UNINIT",
+         "Parity Wallet Library self-destruct (Nov 2017, $280M frozen) — uninitialised library",
+         "ACCESS_CONTROL"),
+        ("HARVEST_2020_FLASH",       b"HARVEST_FLASH_LOAN_ORACLE_MANIP",
          "Harvest Finance flash loan oracle manipulation (Oct 2020, $34M)",
-         "ORACLE_ATTACK_ATTEMPT"),
-        ("BEANSTALK_2022_GOV",  b"BEANSTALK_FLASH_GOVERNANCE_ATTACK",
+         "FLASH_LOAN"),
+        ("PICKLE_2020_EVIL_JAR",     b"PICKLE_EVIL_JAR_STRATEGY_SWAP",
+         "Pickle Finance evil jar exploit (Nov 2020, $20M) — malicious strategy contract",
+         "LOGIC_BUG"),
+        ("ALPHA_2021_FLASH",         b"ALPHA_HOMORA_IBETHALPHA_FLASH_COMPLEX",
+         "Alpha Finance flash loan multi-step exploit (Feb 2021, $37.5M)",
+         "FLASH_LOAN"),
+        ("CREAM_2021_FLASH",         b"CREAM_FINANCE_FLASH_PRICE_MANIP_LENDING",
+         "Cream Finance flash loan price manipulation (Oct 2021, $130M)",
+         "FLASH_LOAN"),
+        ("BADGER_2021_FRONTEND",     b"BADGER_DAO_CLOUDFLARE_WORKER_INJECT",
+         "BadgerDAO frontend injection via Cloudflare worker (Dec 2021, $120M)",
+         "ACCESS_CONTROL"),
+        ("POLY_2021_CROSSCHAIN",     b"POLYNETWORK_ETHCROSSCHAIN_KEEPER_BYPASS",
+         "Poly Network cross-chain keeper bypass (Aug 2021, $611M) — largest DeFi hack at time",
+         "BRIDGE_EXPLOIT"),
+        ("INDEXED_2021_AMM",         b"INDEXED_FINANCE_NDXCONTROLLER_GULP_PRICE",
+         "Indexed Finance AMM gulp price manipulation (Oct 2021, $16M)",
+         "AMM_MANIPULATION"),
+        ("WORMHOLE_2022_MINT",       b"WORMHOLE_GUARDIAN_SIGNATURE_BYPASS",
+         "Wormhole guardian signature bypass (Feb 2022, $325M) — ETH/SOL bridge",
+         "BRIDGE_EXPLOIT"),
+        ("BEANSTALK_2022_GOV",       b"BEANSTALK_FLASH_GOVERNANCE_ATTACK",
          "Beanstalk governance flash loan attack (Apr 2022, $182M)",
          "GOVERNANCE_CAPTURE"),
-        ("MANGO_2022_PUMP",     b"MANGO_COORDINATED_PRICE_PUMP",
-         "Mango Markets coordinated pump (Oct 2022, $114M)",
+        ("NOMAD_2022_LOGIC",         b"NOMAD_BRIDGE_REPLICA_PROCESS_ZEROROOT",
+         "Nomad bridge zero-root logic bug (Aug 2022, $190M) — permissionless replay",
+         "BRIDGE_EXPLOIT"),
+        ("WINTERMUTE_2022_KEY",      b"WINTERMUTE_PROFANITY_VANITY_ADDRESS_LEAK",
+         "Wintermute Profanity vanity address private key leak (Sep 2022, $160M)",
+         "PRIVATE_KEY_COMPROMISE"),
+        ("MANGO_2022_PUMP",          b"MANGO_COORDINATED_PRICE_PUMP",
+         "Mango Markets coordinated oracle pump (Oct 2022, $117M) — SVM",
          "COORDINATED_PUMP"),
-        ("JIMBOS_2023",         b"JIMBOS_FLASH_LOAN_SWAP_ATTACK",
-         "Jimbos Protocol flash loan attack (May 2023, $7.5M)",
-         "ORACLE_ATTACK_ATTEMPT"),
-        ("EULER_2023_FLASH",    b"EULER_DONATE_SELF_LIQUIDATION",
-         "Euler Finance flash loan self-liquidation (Mar 2023, $197M)",
+        ("EULER_2023_FLASH",         b"EULER_DONATE_SELF_LIQUIDATION",
+         "Euler Finance donate/self-liquidation loop (Mar 2023, $197M)",
          "FLASH_LOAN"),
-        ("CURVE_2023_REENTR",   b"CURVE_VYPER_REENTRANCY_LOCK",
-         "Curve Vyper reentrancy exploit (Jul 2023, $61M)",
-         "ORACLE_ATTACK_ATTEMPT"),
-        ("RONIN_2022_BRIDGE",   b"RONIN_BRIDGE_VALIDATOR_KEY_COMPROMISE",
-         "Ronin Network validator key compromise (Mar 2022, $625M)",
+        ("BONQ_2023_ORACLE",         b"BONQ_DAO_TELLOR_ORACLE_PRICE_MANIP",
+         "BonqDAO Tellor oracle price manipulation (Feb 2023, $120M) — Polygon",
+         "ORACLE_MANIPULATION"),
+        ("MULTICHAIN_2023_KEY",      b"MULTICHAIN_ANYSWAP_ROUTER_PRIVKEY_EXFIL",
+         "Multichain private key exfiltration (Jul 2023, $126M) — multi-chain bridge",
+         "PRIVATE_KEY_COMPROMISE"),
+        ("CURVE_2023_REENTR",        b"CURVE_VYPER_REENTRANCY_LOCK",
+         "Curve Finance Vyper reentrancy bug (Jul 2023, $61M) — compiler-level",
+         "REENTRANCY"),
+        ("KYBERSWAP_2023_TICK",      b"KYBERSWAP_ELASTIC_TICK_INTERVAL_MANIPUL",
+         "KyberSwap Elastic tick interval manipulation (Nov 2023, $46M)",
+         "AMM_MANIPULATION"),
+        ("RADIANT_2024_MULTISIG",    b"RADIANT_CAPITAL_MULTISIG_MALWARE_GNOSIS",
+         "Radiant Capital multi-sig malware compromise (Oct 2024, $50M) — ARB/BSC",
+         "PRIVATE_KEY_COMPROMISE"),
+        ("ORBIT_2024_MULTISIG",      b"ORBIT_CHAIN_MULTISIG_SWEEP_KLAYTN",
+         "Orbit Chain multi-sig sweep (Jan 2024, $82M) — Klaytn",
+         "PRIVATE_KEY_COMPROMISE"),
+        ("UWU_2024_ORACLE",          b"UWU_LEND_CURVE_PRICE_ORACLE_FLASH",
+         "UwU Lend Curve pool price oracle flash attack (Jun 2024, $19.4M)",
+         "ORACLE_MANIPULATION"),
+        ("PENPIE_2024_REENTR",       b"PENPIE_PENDLE_POOL_REENTRANCY_ARBITRUM",
+         "Penpie Pendle reentrancy exploit (Sep 2024, $27M) — Arbitrum",
+         "REENTRANCY"),
+        ("JIMBOS_2023",              b"JIMBOS_FLASH_LOAN_SWAP_ATTACK",
+         "Jimbos Protocol flash loan AMM swap (May 2023, $7.5M) — Arbitrum",
+         "FLASH_LOAN"),
+
+        # ── EVM / BSC (BNB Chain) ─────────────────────────────────────────────
+        ("PANCAKEBUNNY_2021_BSC",    b"PANCAKEBUNNY_BSC_FLASH_BUNNY_PRICE_DUMP",
+         "PancakeBunny flash loan BUNNY price dump (May 2021, $45M) — BSC",
+         "FLASH_LOAN"),
+        ("VENUS_BSC_2021",           b"VENUS_BSC_XVS_PRICE_ORACLE_COLLATERAL",
+         "Venus BSC XVS oracle collateral inflation (May 2021, $200M at risk)",
+         "ORACLE_MANIPULATION"),
+        ("QUBIT_BSC_2022",           b"QUBIT_BRIDGE_BSC_ETH_NULL_DEPOSIT_BYPASS",
+         "Qubit Finance BSC bridge null address deposit (Jan 2022, $80M)",
+         "BRIDGE_EXPLOIT"),
+
+        # ── EVM / Polygon ─────────────────────────────────────────────────────
+        ("METER_2022_BRIDGE",        b"METER_IO_BRIDGE_WRAPPED_NATIVE_BYPASS",
+         "Meter.io bridge wrapped native token bypass (Feb 2022, $4.4M) — Polygon",
+         "BRIDGE_EXPLOIT"),
+
+        # ── SVM / Solana ──────────────────────────────────────────────────────
+        ("CASHIO_2022_INFINITE",     b"CASHIO_SABER_INFINITE_MINT_FAKE_COLLAT",
+         "Cashio infinite mint via fake collateral account (Mar 2022, $52M) — Solana",
+         "INFINITE_MINT"),
+        ("CREMA_2022_TICK",          b"CREMA_FINANCE_SOL_TICK_FAKE_ACCOUNT",
+         "Crema Finance fake tick account injection (Jul 2022, $8.8M) — Solana",
+         "AMM_MANIPULATION"),
+        ("NIRVANA_2022_FLASH",       b"NIRVANA_SOL_ANA_FLASH_SWAP_ARMA",
+         "Nirvana Finance flash loan AMM price manipulation (Jul 2022, $3.5M) — Solana",
+         "FLASH_LOAN"),
+
+        # ── Cosmos SDK chains ─────────────────────────────────────────────────
+        ("OSMOSIS_2022_MULTIHOP",    b"OSMOSIS_GAMM_MULTIHOP_ARITHMETIC_BUG",
+         "Osmosis GAMM multi-hop arithmetic rounding bug (Jun 2022, $5M) — Cosmos",
+         "LOGIC_BUG"),
+        ("TERRA_2022_DEPEG",         b"TERRA_UST_LUNA_DEATH_SPIRAL_ANCHOR",
+         "Terra UST/LUNA algorithmic stablecoin death spiral (May 2022, $40B) — Cosmos",
          "COORDINATED_PUMP"),
-        ("WORMHOLE_2022_MINT",  b"WORMHOLE_GUARDIAN_SIGNATURE_BYPASS",
-         "Wormhole guardian signature bypass (Feb 2022, $320M)",
+
+        # ── Bridge / Cross-chain ──────────────────────────────────────────────
+        ("RONIN_2022_BRIDGE",        b"RONIN_BRIDGE_VALIDATOR_KEY_COMPROMISE",
+         "Ronin Network validator key compromise (Mar 2022, $625M) — Axie Infinity",
+         "BRIDGE_EXPLOIT"),
+        ("THORCHAIN_2021_BYPASS",    b"THORCHAIN_ROUTER_ETH_RETURN_BYPASS",
+         "THORChain router ETH return value bypass (Jul 2021, $8M)",
+         "BRIDGE_EXPLOIT"),
+        ("HORIZON_2022_KEY",         b"HARMONY_HORIZON_BRIDGE_MULTISIG_PRIVKEY",
+         "Harmony Horizon Bridge multi-sig key compromise (Jun 2022, $100M)",
+         "PRIVATE_KEY_COMPROMISE"),
+
+        # ── Near VM ───────────────────────────────────────────────────────────
+        ("AURORA_2022_NEAR",         b"AURORA_NEAR_FORCE_EXIT_INFINITE_ETH",
+         "Aurora Engine (NEAR EVM) force-exit bug (Apr 2022, $0 — whitehack) — NEAR",
+         "LOGIC_BUG"),
+
+        # ── Move VM / Aptos ───────────────────────────────────────────────────
+        ("THALA_2024_MOVE",          b"THALA_APTOS_MOVE_FARM_LP_FLASH_DRAIN",
+         "Thala Labs Move-based farm LP flash drain (Nov 2023, $25.5M) — Aptos",
          "FLASH_LOAN"),
+
+        # ── StarkNet / Cairo ──────────────────────────────────────────────────
+        ("NOSTRA_2024_CAIRO",        b"NOSTRA_STARKNET_CAIRO_PRICE_FEED_STALE",
+         "Nostra Finance StarkNet stale price feed (Oct 2024, $1.8M) — StarkNet",
+         "ORACLE_MANIPULATION"),
     ]
 
     def __init__(self):
@@ -732,13 +845,14 @@ if __name__ == "__main__":
 
     # 6. CRISPR immune system
     crispr = CRISPRDefense()
-    assert crispr.library_size() == 8
+    base_size = len(CRISPRDefense.KNOWN_ATTACKS)
+    assert crispr.library_size() == base_size, f"Expected {base_size}, got {crispr.library_size()}"
     result = crispr.innate_check(b"prefix_HARVEST_FLASH_LOAN_ORACLE_MANIP_suffix")
     assert result and result["matched"]
     assert crispr.innate_check(b"clean_transaction_data") is None
     new_id = crispr.adaptive_response(b"novel_2026_attack", "FLASH_LOAN")
-    assert crispr.library_size() == 9
-    print(f"[PASS] Components 3+8: CRISPR library={crispr.library_size()}, adaptive learned.")
+    assert crispr.library_size() == base_size + 1
+    print(f"[PASS] Components 3+8: CRISPR library={crispr.library_size()} ({base_size} known + 1 adaptive learned).")
 
     # 7. Mitochondrial core
     mito = MitochondrialCore(3, 31)
