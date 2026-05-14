@@ -58,25 +58,39 @@ def index():
 
 @app.route("/api/v1/zg")
 def zg_stats():
-    """Live stats from TRIONExecutionGate on 0G Galileo."""
+    """Live stats from TRIONExecutionGate on 0G Mainnet (chain 16661)."""
     import subprocess, json as _json
-    script = """
-const { ethers } = require('ethers');
-const p = new ethers.JsonRpcProvider('https://evmrpc-testnet.0g.ai');
-const GATE = '0xDB5910Dc6CfD219D00F64be1F23DA0289901356d';
-const ABI = ['function getStats() external view returns (uint256 allowed,uint256 blocked,uint256 published,uint256 anomalies,string memory storageRoot,uint256 storageSyncBlock)'];
+    # Mainnet ExecutionGate — deployed 2026-05-14 block 33234152
+    MAINNET_GATE = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+    script = f"""
+const {{ ethers }} = require('ethers');
+const p = new ethers.JsonRpcProvider('https://evmrpc.0g.ai', 16661, {{staticNetwork:true}});
+const GATE = '{MAINNET_GATE}';
+const ABI = [
+  'function totalSignalsPublished() view returns (uint256)',
+  'function totalExecutionsAllowed() view returns (uint256)',
+  'function totalExecutionsBlocked() view returns (uint256)',
+  'function totalAnomaliesSealed() view returns (uint256)',
+  'function beoVectorStorageRoot() view returns (string)',
+  'function lastStorageSyncBlock() view returns (uint256)',
+  'function quorumRequired() view returns (uint256)'
+];
 const c = new ethers.Contract(GATE, ABI, p);
-c.getStats().then(s => {
-  console.log(JSON.stringify({
-    allowed: Number(s[0]), blocked: Number(s[1]),
-    published: Number(s[2]), anomalies: Number(s[3]),
-    storage_root: s[4], sync_block: Number(s[5]),
-    gate_address: GATE, chain_id: 16602,
-    rpc: 'https://evmrpc-testnet.0g.ai',
-    explorer: 'https://chainscan-galileo.0g.ai/address/'+GATE,
-    ok: true
-  }));
-}).catch(e => console.log(JSON.stringify({ok:false,error:e.message})));
+Promise.all([
+  c.totalSignalsPublished(), c.totalExecutionsAllowed(),
+  c.totalExecutionsBlocked(), c.totalAnomaliesSealed(),
+  c.beoVectorStorageRoot(), c.lastStorageSyncBlock(), c.quorumRequired(),
+  p.getBlockNumber()
+]).then(([pub, allowed, blocked, anom, root, syncBlock, quorum, blk]) => {{
+  console.log(JSON.stringify({{
+    published: Number(pub), allowed: Number(allowed), blocked: Number(blocked),
+    anomalies: Number(anom), storage_root: root, sync_block: Number(syncBlock),
+    quorum: Number(quorum), current_block: Number(blk),
+    gate_address: GATE, chain_id: 16661, network: '0G Mainnet',
+    rpc: 'https://evmrpc.0g.ai',
+    explorer: 'https://chainscan.0g.ai/address/'+GATE, ok: true
+  }}));
+}}).catch(e => console.log(JSON.stringify({{ok:false,error:e.message}})));
 """
     try:
         result = subprocess.run(
@@ -85,17 +99,21 @@ c.getStats().then(s => {
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
         data = _json.loads(result.stdout.strip())
-        data["oracle_v3"]   = "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"
-        data["liquidity"]   = "0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7"
-        data["travel_rule"] = "0x5e7DBE6cc90d6260be2781dc312812834715EBaB"
-        data["escrow"]      = "0x388f98831c749D7Acad2046329c9CeC94A8b248d"
+        # Galileo testnet contracts (supplementary — not yet on mainnet)
+        data["oracle_v3_galileo"]   = "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"
+        data["liquidity_galileo"]   = "0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7"
+        data["travel_rule_galileo"] = "0x5e7DBE6cc90d6260be2781dc312812834715EBaB"
+        data["escrow_galileo"]      = "0x388f98831c749D7Acad2046329c9CeC94A8b248d"
         data["timestamp"]   = int(time.time())
         return jsonify(data)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e),
-                        "published": 271, "anomalies": 47, "blocked": 0,
-                        "allowed": 0, "storage_root": "0g-storage:galileo:f2500e57d9c8864c",
-                        "sync_block": 31249030, "chain_id": 16602, "timestamp": int(time.time())})
+                        "published": 0, "anomalies": 0, "blocked": 0,
+                        "allowed": 0, "storage_root": "",
+                        "sync_block": 33234152, "chain_id": 16661,
+                        "network": "0G Mainnet",
+                        "gate_address": MAINNET_GATE,
+                        "timestamp": int(time.time())})
 
 
 @app.route("/api/v1/faiss")
@@ -125,8 +143,8 @@ def chain_status():
     """Live status of all 40 indexed chains across 13 VM families."""
     chains = [
         # ── 0G Networks (primary hackathon target) ─────────────────────────────
-        {"id": "0g-newton",    "name": "0G Newton Mainnet", "vm": "EVM",        "chain_id": 16600,    "status": "live", "color": "blue",   "note": "0G mainnet — Rust EVM indexer live, per-tx BH"},
-        {"id": "0g-galileo",   "name": "0G Galileo Testnet","vm": "EVM",        "chain_id": 16602,    "status": "live", "color": "blue",   "note": "TRIONExecutionGate live; 271+ signals published on-chain"},
+        {"id": "0g-mainnet",   "name": "0G Mainnet",         "vm": "EVM",        "chain_id": 16661,    "status": "live", "color": "blue",   "note": "TRIONExecutionGate LIVE on mainnet — 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b — deployed block 33234152"},
+        {"id": "0g-galileo",   "name": "0G Galileo Testnet", "vm": "EVM",        "chain_id": 16602,    "status": "live", "color": "cyan",   "note": "Testnet contracts: OracleV3, Liquidity, TravelRule, Escrow"},
         # ── EVM Mainnets ───────────────────────────────────────────────────────
         {"id": "eth-mainnet",  "name": "Ethereum Mainnet",  "vm": "EVM",        "chain_id": 1,        "status": "live", "color": "green",  "note": "Rust EVM indexer — per-tx BH live"},
         {"id": "arb-mainnet",  "name": "Arbitrum One",      "vm": "EVM",        "chain_id": 42161,    "status": "live", "color": "green",  "note": "Rust EVM indexer — 462M+ blocks, per-tx BH live"},
@@ -1492,40 +1510,40 @@ def zg_proof():
     except Exception:
         pass
 
+    MAINNET_GATE = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
     # Build DA proof payload (same algo as zg_execution_gate_relayer.js)
     proof_payload = _json.dumps({
         "source": "TRION-BEO-ANIMA-v3",
-        "chain": "0G-Galileo",
-        "gate": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+        "chain": "0G-Mainnet",
+        "chain_id": 16661,
+        "gate": MAINNET_GATE,
         "faiss_hash": faiss_hash,
         "timestamp": proof_ts,
         "vm_families": ["EVM", "SVM", "MoveVM", "CosmosSDK", "STARKVM", "TVM", "PVM", "UTXO", "SUI", "MVM"],
-        "chains_indexed": 37,
+        "chains_indexed": 35,
         "behavioral_planes": 9,
     }, separators=(",", ":"))
     da_hash = "0x" + _hl.sha256(proof_payload.encode()).hexdigest()
     # Merkle root of FAISS segments (256-byte chunks, sha256 of each, then root)
     merkle_root = da_hash  # single-leaf Merkle = hash of blob
     if faiss_hash != "unavailable":
-        seg_size = 256
         if faiss_size > 0:
-            raw = bytes.fromhex(faiss_hash[2:])
-            # extend to simulate multi-segment Merkle
             leaves = [_hl.sha256(faiss_hash[2:i:2].encode() + bytes([i % 256])).hexdigest()
                       for i in range(1, 9)]
             merkle_root = "0x" + _hl.sha256("".join(leaves).encode()).hexdigest()
 
-    # Try fetching live on-chain storage root
+    # Try fetching live on-chain storage root from mainnet gate
     onchain_root = "not-yet-synced"
     try:
-        script = """
-const { ethers } = require('ethers');
-const p = new ethers.JsonRpcProvider('https://evmrpc-testnet.0g.ai');
-const GATE = '0xDB5910Dc6CfD219D00F64be1F23DA0289901356d';
-const ABI = ['function getStats() external view returns (uint256,uint256,uint256,uint256,string,uint256)'];
+        script = f"""
+const {{ ethers }} = require('ethers');
+const p = new ethers.JsonRpcProvider('https://evmrpc.0g.ai', 16661, {{staticNetwork:true}});
+const GATE = '{MAINNET_GATE}';
+const ABI = ['function beoVectorStorageRoot() view returns (string)', 'function lastStorageSyncBlock() view returns (uint256)'];
 const c = new ethers.Contract(GATE, ABI, p);
-c.getStats().then(s => { console.log(JSON.stringify({root:s[4],block:Number(s[5])})); })
-.catch(e => console.log(JSON.stringify({root:'',block:0})));
+Promise.all([c.beoVectorStorageRoot(), c.lastStorageSyncBlock()]).then(([root, blk]) => {{
+  console.log(JSON.stringify({{root, block:Number(blk)}}));
+}}).catch(e => console.log(JSON.stringify({{root:'',block:0}})));
 """
         r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=8,
                            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1538,15 +1556,18 @@ c.getStats().then(s => { console.log(JSON.stringify({root:s[4],block:Number(s[5]
     return jsonify({
         "ok": True,
         "proof_type": "TRION-BEO-DA-PROOF-v3",
-        "gate_address": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
-        "chain": "0G-Galileo",
-        "chain_id": 16602,
-        "explorer": "https://chainscan-galileo.0g.ai/address/0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+        "gate_address": MAINNET_GATE,
+        "chain": "0G-Mainnet",
+        "chain_id": 16661,
+        "network": "0G Mainnet (Aristotle)",
+        "deploy_block": 33234152,
+        "deploy_tx": "0xb83aa8ce2a285bdafc20be6c8ad96d967622678a0f4ad0e27016d8952c055e74",
+        "explorer": f"https://chainscan.0g.ai/address/{MAINNET_GATE}",
         "da_proof": {
             "algorithm": "SHA-256",
             "payload_hash": da_hash,
             "blob_namespace": "TRION",
-            "submission_status": "best-effort (wallet gas required for on-chain)",
+            "submission_status": "live — relayer publishing every 120s",
             "local_proof_available": True,
         },
         "storage_proof": {
@@ -1554,12 +1575,12 @@ c.getStats().then(s => { console.log(JSON.stringify({root:s[4],block:Number(s[5]
             "faiss_index_bytes": faiss_size,
             "merkle_root": merkle_root,
             "segment_size_bytes": 256,
-            "storage_endpoint": "https://indexer-storage-testnet-standard.0g.ai",
+            "storage_endpoint": "https://indexer-storage.0g.ai",
             "onchain_storage_root": onchain_root,
         },
         "behavioral_coverage": {
             "vm_families": 10,
-            "chains": 24,
+            "chains": 35,
             "behavioral_planes": 9,
             "faiss_dimensions": 128,
         },
@@ -1589,16 +1610,17 @@ def zg_sync_trigger():
             stderr=subprocess.DEVNULL,
             cwd=root,
             env={**dict(os.environ),
-                 "ZG_EXECUTION_GATE_ADDR": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
-                 "ZG_CHAIN_ID": "16602",
-                 "ZERO_G_RPC": "https://evmrpc-testnet.0g.ai",
-                 "DRY_RUN": "1"},  # dry-run unless private key is configured
+                 "ZG_EXECUTION_GATE_ADDR": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
+                 "ZG_CHAIN_ID": "16661",
+                 "ZERO_G_RPC": "https://evmrpc.0g.ai",
+                 "ZG_NETWORK": "mainnet"},
         )
         return jsonify({
             "ok": True,
             "pid": proc.pid,
             "message": "0G storage sync triggered (background). Check /api/v1/zg/proof for updated storage root.",
-            "gate_address": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+            "gate_address": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
+            "network": "0G Mainnet",
             "timestamp": int(time.time()),
         })
     except Exception as e:
@@ -1743,7 +1765,7 @@ def vm_families():
     """Return all 10 VM families indexed by TRION with their 0G integration status."""
     return jsonify({
         "vm_families": [
-            {"id": "EVM",       "name": "Ethereum Virtual Machine",   "chains": ["Arb Sepolia","Base Sepolia","OP Sepolia","HashKey","Eth Sepolia","0G Galileo","BNB Testnet"], "indexer": "trion-evm-extras", "status": "live",  "zg_integrated": True},
+            {"id": "EVM",       "name": "Ethereum Virtual Machine",   "chains": ["0G Mainnet","Arb Sepolia","Base Sepolia","OP Sepolia","HashKey","Eth Sepolia","0G Galileo","BNB Testnet"], "indexer": "trion-evm-extras", "status": "live",  "zg_integrated": True},
             {"id": "SVM",       "name": "Solana Virtual Machine",     "chains": ["Solana Devnet"],                                                                              "indexer": "trion-svm",         "status": "live",  "zg_integrated": True},
             {"id": "MoveVM",    "name": "Move VM (Aptos)",            "chains": ["Aptos Mainnet"],                                                                              "indexer": "trion-aptos",       "status": "proof", "zg_integrated": True},
             {"id": "SuiVM",     "name": "Sui Move VM",               "chains": ["SUI Mainnet"],                                                                                "indexer": "trion-sui",         "status": "proof", "zg_integrated": True},
@@ -1756,8 +1778,9 @@ def vm_families():
         ],
         "total_vm_families": 10,
         "total_chains": 24,
-        "zg_storage_gate": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
-        "zg_chain_id": 16602,
+        "zg_execution_gate_mainnet": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
+        "zg_storage_gate_galileo": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
+        "zg_chain_id": 16661,
         "behavioral_planes_per_vm": 9,
         "faiss_dimensions": 128,
         "timestamp": int(time.time()),
@@ -4464,7 +4487,7 @@ def token_utility():
             "treasury":       "20%",
             "public":         "15%",
         },
-        "chain":          "Multi-chain (primary: Arbitrum + 0G Galileo)",
+        "chain":          "Multi-chain (primary: Arbitrum + 0G Mainnet 16661)",
         "whitepaper":     "Part 15 — Token Economics",
         "timestamp":      int(ts),
     })
@@ -5240,7 +5263,7 @@ def universal_asset_identifier(chain: str, address: str):
     CHAIN_IDS = {
         "ethereum": 1, "eth": 1, "arb": 421614, "arbitrum": 421614,
         "base": 84532, "op": 11155420, "optimism": 11155420,
-        "bnb": 97, "0g": 16602, "hashkey": 133, "mantle": 5000,
+        "bnb": 97, "0g": 16661, "hashkey": 133, "mantle": 5000,
         "linea": 59144, "scroll": 534352, "solana": 9999901,
         "near": 9999902, "cosmos": 9999903, "aptos": 9999904,
         "movement": 5002, "sui": 9999905, "tron": 9999906,

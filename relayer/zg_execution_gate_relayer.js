@@ -46,9 +46,9 @@ const POLL_MS          = parseInt(process.env.ZG_POLL_INTERVAL_MS || "60000", 10
 const PRIVATE_KEY      = process.env.RELAYER_PRIVATE_KEY || null;
 const DRY_RUN          = !PRIVATE_KEY;
 
-const ZG_RPC           = process.env.ZERO_G_RPC     || "https://evmrpc-testnet.0g.ai";
-const ZG_CHAIN_ID      = parseInt(process.env.ZG_CHAIN_ID || "16602", 10);
-const ZG_EXPLORER      = ZG_CHAIN_ID === 16601
+const ZG_RPC           = process.env.ZERO_G_RPC     || "https://evmrpc.0g.ai";
+const ZG_CHAIN_ID      = parseInt(process.env.ZG_CHAIN_ID || "16661", 10);
+const ZG_EXPLORER      = ZG_CHAIN_ID === 16661
   ? "https://chainscan.0g.ai"
   : "https://chainscan-galileo.0g.ai";
 

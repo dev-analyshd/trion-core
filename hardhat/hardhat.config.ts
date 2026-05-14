@@ -10,6 +10,10 @@ if (!RELAYER_PRIVATE_KEY) {
   );
 }
 
+// DEPLOY_0G_PRIVATE is the dedicated mainnet deployer key for 0G Aristotle.
+// Falls back to RELAYER_PRIVATE_KEY for testnet networks.
+const DEPLOY_0G_PRIVATE = process.env["DEPLOY_0G_PRIVATE"] || RELAYER_PRIVATE_KEY;
+
 const ARB_SEPOLIA_RPC =
   process.env["ARBITRUM_SEPOLIA_RPC"] ??
   process.env["ARBITRUM_SEPOLIA_RPC_URL"] ??
@@ -101,8 +105,8 @@ const config: HardhatUserConfig = {
     },
     zeroGMainnet: {
       url: ZERO_G_MAINNET_RPC,
-      accounts: [RELAYER_PRIVATE_KEY],
-      chainId: 16661,
+      accounts: [DEPLOY_0G_PRIVATE],
+      chainId: 16601,
       gasPrice: "auto",
     },
     bnbTestnet: {
