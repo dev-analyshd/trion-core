@@ -154,10 +154,13 @@ def test_p_break_monotone_100_generations():
 
 
 def test_crispr_all_known_attacks():
-    """Verify all 8 seeded attack signatures are detected in <10ms each."""
+    """Verify all seeded attack signatures are detected in <10ms each."""
     crispr = CRISPRDefense()
-    assert crispr.library_size() == 8, f"Expected 8 seeded attacks, got {crispr.library_size()}"
+    expected = len(CRISPRDefense.KNOWN_ATTACKS)
+    assert crispr.library_size() == expected, \
+        f"Expected {expected} seeded attacks, got {crispr.library_size()}"
 
+    # Core subset that must always match — representative across all VM families
     known_sigs = [
         b"HARVEST_FLASH_LOAN_ORACLE_MANIP",
         b"BEANSTALK_FLASH_GOVERNANCE_ATTACK",
@@ -167,16 +170,19 @@ def test_crispr_all_known_attacks():
         b"CURVE_VYPER_REENTRANCY_LOCK",
         b"RONIN_BRIDGE_VALIDATOR_KEY_COMPROMISE",
         b"WORMHOLE_GUARDIAN_SIGNATURE_BYPASS",
+        b"CASHIO_SABER_INFINITE_MINT_FAKE_COLLAT",
+        b"TERRA_UST_LUNA_DEATH_SPIRAL_ANCHOR",
+        b"THALA_APTOS_MOVE_FARM_LP_FLASH_DRAIN",
     ]
 
     for sig in known_sigs:
         start = time.perf_counter()
         result = crispr.innate_check(b"prefix_" + sig + b"_suffix")
         elapsed_ms = (time.perf_counter() - start) * 1000
-        assert result is not None, f"Known attack not detected: {sig[:20]}"
+        assert result is not None, f"Known attack not detected: {sig[:30]}"
         assert result["matched"] is True
         assert elapsed_ms < 10.0, f"CRISPR check too slow: {elapsed_ms:.2f}ms (target <10ms)"
-    RESULTS["crispr_8_attacks_detected"] = "PASS"
+    RESULTS[f"crispr_{expected}_attacks_detected"] = "PASS"
 
 
 def test_epigenetic_all_state_transitions():
