@@ -1180,15 +1180,29 @@ function buildCoherenceChart(ct, phi, sigma, theta) {
 
 // ── DNA View ──────────────────────────────────────────────────────────────────
 function renderDNAView(bh, bhStats, signal) {
-  const records = bh?.records ?? [];
+  // API returns bh_records (not records)
+  const entityRecords = bh?.bh_records ?? bh?.records ?? [];
+  // If no entity-specific BHs, fall back to global recent BHs from stats
+  const recentGlobal = (bhStats?.recent ?? []).map(r => ({
+    event_type: r.event_type,
+    chain_id: r.chain,
+    sense_hash: r.sense_hex,
+    antisense_hash: '',
+    magnitude_norm: null,
+    ts: r.ts ? r.ts * 1000 : null,
+    tx_hash: r.tx_hash,
+  }));
+  const records = entityRecords.length ? entityRecords : recentGlobal;
   allDnaRecords = records;
-  const total = bh?.total ?? records.length;
-  const chains = [...new Set(records.map(r => r.chain_id))];
-  const verified = records.filter(r => r.antisense_hash || r.antisense).length;
 
-  setText('dna-total', total.toLocaleString());
-  setText('dna-verified', verified.toLocaleString());
-  setText('dna-chains', chains.length || (bhStats?.total_chains ?? '—'));
+  const entityTotal = bh?.total_bhs ?? bh?.total ?? entityRecords.length;
+  const globalTotal = bhStats?.total_tx_bhs ?? bhStats?.total ?? 0;
+  const chains = [...new Set(records.map(r => r.chain_id).filter(Boolean))];
+  const verified = entityRecords.filter(r => r.antisense_hash || r.antisense_hex).length;
+
+  setText('dna-total', entityTotal > 0 ? entityTotal.toLocaleString() : (globalTotal > 0 ? `${globalTotal.toLocaleString()} (global)` : '0'));
+  setText('dna-verified', entityRecords.length > 0 ? verified.toLocaleString() : (globalTotal > 0 ? '✓ All' : '—'));
+  setText('dna-chains', chains.length || bhStats?.chains_with_data || '—');
 
   // Depth info from signal
   if (signal) {
@@ -1196,16 +1210,26 @@ function renderDNAView(bh, bhStats, signal) {
     setText('dna-confgen', ((signal.conf_genesis ?? 0)*100).toFixed(3) + '%');
     setText('dna-archetype', signal.archetype || '—');
   }
-  if (bhStats) setText('dna-global', (bhStats.total_bh_records ?? bhStats.total ?? 0).toLocaleString());
+  setText('dna-global', globalTotal.toLocaleString());
 
   // Populate chain filter
   const chainSel = document.getElementById('dnaChainFilter');
   chainSel.innerHTML = '<option value="">All Chains</option>';
-  chains.forEach(c => {
+  const allChains = entityRecords.length
+    ? chains
+    : Object.keys(bhStats?.per_chain ?? {});
+  allChains.forEach(c => {
     chainSel.innerHTML += `<option value="${c}">${c}</option>`;
   });
 
-  renderDNATable(records.slice(0, dnaLimit));
+  // Populate type filter from stats
+  const typeSel = document.getElementById('dnaTypeFilter');
+  if (typeSel) {
+    const types = Object.keys(bhStats?.per_event_type ?? {});
+    typeSel.innerHTML = '<option value="">All Types</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  renderDNATable(records.slice(0, dnaLimit), entityRecords.length === 0);
   buildDepthChart(signal);
 }
 
@@ -1231,15 +1255,16 @@ function dnaPage(dir) {
   renderDNATable(filtered.slice(dnaOffset, dnaOffset + dnaLimit));
 }
 
-function renderDNATable(records) {
+function renderDNATable(records, isGlobal) {
   const tb = document.getElementById('dnaTableBody');
   if (!records.length) {
-    tb.innerHTML = '<tr><td colspan="7"><div class="loading-row text-dim">No BH records found for this entity on indexed chains.</div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="7"><div class="loading-row text-dim">No BH records found. BH ledger is keyed by on-chain address. Search with a wallet address (0x…) for entity-specific records.</div></td></tr>';
     return;
   }
-  tb.innerHTML = records.map((r, i) => {
-    const sense = r.sense_hash || r.sense || '';
-    const anti = r.antisense_hash || r.antisense || '';
+  const globalNote = isGlobal ? '<tr><td colspan="7" style="text-align:center;font-size:.65rem;color:var(--yellow);padding:4px 0">Showing recent global BH records — search a wallet address (0x…) for entity-specific BHs</td></tr>' : '';
+  tb.innerHTML = globalNote + records.map((r, i) => {
+    const sense = r.sense_hash || r.sense_hex || r.sense || '';
+    const anti = r.antisense_hash || r.antisense_hex || r.antisense || '';
     const ts = r.ts || r.timestamp || '';
     const evtType = r.event_type || '—';
     const chain = r.chain_id || '—';
