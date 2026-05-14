@@ -1,7 +1,7 @@
 [project]
-name = "repl-nix-workspace"
-version = "0.1.0"
-description = "Add your description here"
+name = "trion-core"
+version = "1.0.0"
+description = "TRION Protocol — Multi-Chain Behavioral Truth Oracle"
 requires-python = ">=3.11"
 dependencies = [
     "apscheduler>=3.11.2",

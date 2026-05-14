@@ -81,17 +81,6 @@ task = "shell.exec"
 args = "bash supervisors/extended_vm_indexers.sh"
 
 [[workflows.workflow]]
-name = "Extended Chain Relayer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" EXTENDED_POLL_INTERVAL_MS=90000 node extended_chain_relayer.js"
-
-[[workflows.workflow]]
 name = "TRION Relayer"
 author = "agent"
 
@@ -119,14 +108,6 @@ args = "FAISS ANIMA"
 task = "workflow.run"
 args = "Rust Indexers"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "0G Sync Daemon"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "0G DA Streamer"
-
 [[workflows.workflow]]
 name = "Rust Indexers"
 author = "agent"
@@ -134,28 +115,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "FAISS_SERVICE_URL=\"http://127.0.0.1:8000\" bash supervisors/rust_indexers.sh"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "0G Sync Daemon"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 zg_sync_daemon.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "0G DA Streamer"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 zg_da_streamer.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
