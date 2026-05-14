@@ -1,13 +1,23 @@
+# =============================================================================
+# TRION Protocol — .gitignore
+# =============================================================================
+
 # Environment — NEVER COMMIT
 .env
 .env.*
 !.env.example
+envfile.env
+envfile.env.*
 
 # Keys / secrets
 *.pem
 *.key
 keystore/
 secrets/
+funded_wallets.json
+*_escrows.json
+wallets*.json
+*.wif
 
 # Build artifacts
 target/
@@ -21,33 +31,65 @@ __pycache__/
 .pytest_cache/
 venv/
 .venv/
+.pythonlibs/
 
-# Data
-data/*.index
-data/*.bin
-*.log
+# Python package management
+uv.lock
+.uv/
 
-# Runtime binary state — regenerated at startup, too large for git
+# Hardhat / Foundry compiled artifacts
+artifacts/
+cache/
+typechain-types/
+out/
+
+# FAISS / numpy binary state — regenerated at startup
+*.index
+*.npy
 akashic/akashic_faiss.index
 akashic/akashic_state.db
-akashic/akashic_state.db.bak
 akashic/akashic_state.db-shm
 akashic/akashic_state.db-wal
-akashic/bibl_patterns.db
-trion-l0/gk_state.json
+akashic_faiss.index
+akashic_state.db
+akashic_state.db-shm
+akashic_state.db-wal
+
+# Runtime databases
+*.db
 bh_ledger.db
 
-# IDE
+# 0G DA binary exports & runtime state
+0g-state/exports/
+0g-state/logs/
+0g-state/sync_state.json
+
+# Indexed binary blobs
+*.bin
+*.bin.gz
+data/*.bin
+faiss_index/
+
+# Runtime log files
+*.log
+/tmp/
+
+# TRION multi-chain runtime status files
+btc_testnet_addresses.json
+utxo_chain_status.json
+tron_status.json
+cosmos_chains_status.json
+move_chains_status.json
+sui_status.json
+starknet_status.json
+pi_status.json
+relayer_state.json
+attack_simulation_results.json
+
+# IDE / OS
 .idea/
 .vscode/
 *.swp
-
-# Hardhat
-cache/
-artifacts/
-typechain-types/
-
-# Misc
 .DS_Store
 Thumbs.db
 
@@ -57,31 +99,6 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# TRION multi-chain runtime status files (contain testnet addresses)
-btc_testnet_addresses.json
-utxo_chain_status.json
-tron_status.json
-cosmos_chains_status.json
-move_chains_status.json
-sui_status.json
-starknet_status.json
-pi_status.json
-
-# Wallet files — NEVER COMMIT
-*.wif
-wallets*.json
-funded_wallets.json
-*_escrows.json
-
-# Attack simulation output
-attack_simulation_results.json
-
-# FAISS index files
-faiss_index/
-*.index
-*.bin
-
-bh_ledger.db
-bh_ledger.db
-bh_ledger.db
-bh_ledger.db
+# Internal working files (not for public repo)
+attached_assets/
+.agents/
