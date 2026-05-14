@@ -35,8 +35,8 @@ const NETWORKS = {
     ledgerFile: "proof-ledger/deploy_zerog_galileo.json",
   },
   mainnet: {
-    name: "0G Aristotle Mainnet",
-    chainId: 16601,
+    name: "0G Mainnet",
+    chainId: 16661,
     rpc: process.env.ZG_MAINNET_RPC || "https://evmrpc.0g.ai",
     explorer: "https://chainscan.0g.ai",
     ledgerFile: "proof-ledger/deploy_zerog_mainnet.json",

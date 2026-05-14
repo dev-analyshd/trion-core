@@ -1,0 +1,10 @@
+{
+  "network": "0G Mainnet",
+  "chainId": 16661,
+  "explorer": "https://chainscan.0g.ai",
+  "deployer": "0xEB909B40ACddA731877d37AC6c408336898dc911",
+  "timestamp": "2026-05-14T14:43:12.788Z",
+  "TRIONExecutionGate": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
+  "execution_gate_tx": "0xb83aa8ce2a285bdafc20be6c8ad96d967622678a0f4ad0e27016d8952c055e74",
+  "status": "live"
+}

@@ -9471,6 +9471,71 @@ async def faiss_vision_status():
     }
 
 
+# ── Graceful shutdown — persist FAISS index + SQLite WAL to disk ───────────────
+# Runs on: SIGTERM (Replit workflow stop), atexit (normal exit), periodic 5-min thread.
+# Ensures vectors accumulated in memory are NEVER lost between sessions.
+
+import atexit
+import signal as _signal_mod
+
+_persist_shutdown_lock = threading.Lock()
+
+def _persist_all(reason: str = "shutdown") -> None:
+    """Save FAISS index to INDEX_PATH and checkpoint the SQLite WAL."""
+    global index
+    if not FAISS_AVAILABLE or index is None:
+        return
+    with _persist_shutdown_lock:
+        try:
+            faiss.write_index(index, INDEX_PATH)
+            logger.info(
+                "[persist] FAISS index saved → %s  (%d vectors)  reason=%s",
+                INDEX_PATH, index.ntotal, reason,
+            )
+        except Exception as _exc:
+            logger.error("[persist] FAISS save error: %s", _exc)
+        try:
+            _wal_conn = _db_conn()
+            _wal_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            _wal_conn.close()
+            logger.info("[persist] SQLite WAL checkpointed — reason=%s", reason)
+        except Exception as _exc:
+            logger.error("[persist] WAL checkpoint error: %s", _exc)
+
+
+def _sigterm_handler(signum, frame):
+    logger.info("[shutdown] SIGTERM received — persisting state before exit")
+    _persist_all("SIGTERM")
+    raise SystemExit(0)
+
+
+atexit.register(lambda: _persist_all("atexit"))
+_signal_mod.signal(_signal_mod.SIGTERM, _sigterm_handler)
+
+
+def _periodic_persist_loop() -> None:
+    """Background daemon: save FAISS index every 5 minutes."""
+    while True:
+        _time.sleep(300)
+        _persist_all("periodic-5min")
+
+
+_bg_persist_thread = threading.Thread(
+    target=_periodic_persist_loop, daemon=True, name="faiss-persist"
+)
+_bg_persist_thread.start()
+logger.info(
+    "[persist] Auto-save active — atexit + SIGTERM + 5min background thread | INDEX_PATH=%s",
+    INDEX_PATH,
+)
+
+
+@app.on_event("shutdown")
+async def _on_fastapi_shutdown():
+    """FastAPI/uvicorn lifecycle hook — final persist before process exit."""
+    _persist_all("fastapi-shutdown")
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

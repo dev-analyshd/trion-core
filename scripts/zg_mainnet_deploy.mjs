@@ -31,8 +31,8 @@ const ROOT = path.resolve(__dirname, "..");
 const PRIV_KEY    = process.env.DEPLOYER_PRIVATE_KEY || process.env.RELAYER_PRIVATE_KEY;
 const CONFIRM     = process.env.CONFIRM === "yes" || process.argv.includes("--yes");
 const ZG_MAINNET  = {
-  name:       "0G Aristotle Mainnet",
-  chainId:    16601,
+  name:       "0G Mainnet",
+  chainId:    16661,
   rpc:        process.env.ZG_MAINNET_RPC || "https://evmrpc.0g.ai",
   explorer:   "https://chainscan.0g.ai",
   ledgerFile: "proof-ledger/deploy_zerog_mainnet.json",
