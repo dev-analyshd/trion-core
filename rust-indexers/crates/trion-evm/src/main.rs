@@ -88,12 +88,20 @@ const CHAINS: &[EvmChain] = &[
         ],
     },
     EvmChain {
+        label: "ZG_NEWTON", chain_id: 16600,
+        rpcs: &[
+            "https://evmrpc-mainnet.0g.ai",
+            "https://0g-mainnet.g.alchemy.com/v2/demo",
+            "https://0g.rpc.thirdweb.com",
+        ],
+    },
+    EvmChain {
         label: "ETH_MAINNET", chain_id: 1,
         rpcs: &[
-            "https://eth.llamarpc.com",
-            "https://ethereum-mainnet.public.blastapi.io",
+            "https://ethereum.publicnode.com",
+            "https://cloudflare-eth.com",
             "https://rpc.ankr.com/eth",
-            "https://eth-mainnet.public.blastapi.io",
+            "https://eth.llamarpc.com",
         ],
     },
     EvmChain {
