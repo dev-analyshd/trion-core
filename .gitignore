@@ -63,6 +63,8 @@ bh_ledger.db
 0g-state/exports/
 0g-state/logs/
 0g-state/sync_state.json
+0g-state/da_state.json
+0g-state/proofs/
 
 # Indexed binary blobs
 *.bin
