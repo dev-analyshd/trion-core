@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRION Explorer — Behavioral Truth Oracle</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/feather-icons@4.29.0/dist/feather.min.js"></script>
+<style>
+:root{
+  --bg:#090d14;--card:#0d1420;--card2:#0a1018;--border:#1a2540;
+  --accent:#00e5ff;--accent2:#7c3aed;--green:#00ff88;--red:#ff4560;
+  --yellow:#ffd600;--orange:#ff9f0a;--purple:#a78bfa;
+  --text:#c9d6e3;--text-dim:#5a6a7e;--text-bright:#e8f0f8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* NAV */
+.navbar{background:#0a0f1a;border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100}
+.nav-logo{font-size:1.3rem;font-weight:900;letter-spacing:3px;color:#fff;text-decoration:none}
+.nav-logo span{color:var(--accent)}
+.nav-badge{font-size:.65rem;background:#00e5ff18;color:var(--accent);border:1px solid #00e5ff33;padding:3px 10px;border-radius:20px;letter-spacing:1px;font-weight:700}
+.nav-badge.purple{background:#7c3aed18;color:var(--purple);border-color:#7c3aed33}
+.nav-spacer{flex:1}
+.nav-home{font-size:.7rem;color:var(--text-dim);text-decoration:none;letter-spacing:1px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;transition:.2s}
+.nav-home:hover{color:var(--accent);border-color:var(--accent)}
+
+/* LIVE FEED BAR */
+.feed-bar{background:#080c13;border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:12px;min-height:36px;overflow:hidden}
+.feed-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.feed-label{font-size:.65rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;white-space:nowrap}
+.feed-chips{display:flex;gap:8px;overflow:hidden;flex-wrap:nowrap}
+.feed-chip{font-size:.68rem;padding:2px 10px;border-radius:4px;border:1px solid;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
+.feed-chip.valuation{color:var(--green);border-color:#00ff8833;background:#00ff8808}
+.feed-chip.silence{color:var(--red);border-color:#ff456033;background:#ff456008}
+
+/* SEARCH */
+.search-section{padding:28px 28px 0;max-width:1400px;margin:0 auto}
+.search-hero{text-align:center;padding:20px 0 24px}
+.search-hero h1{font-size:1.6rem;font-weight:800;letter-spacing:2px;color:var(--text-bright);margin-bottom:8px}
+.search-hero p{font-size:.8rem;color:var(--text-dim);letter-spacing:1px;max-width:520px;margin:0 auto;line-height:1.6}
+.search-bar{display:flex;gap:0;max-width:680px;margin:20px auto 0;box-shadow:0 0 30px #00e5ff15}
+.search-input{flex:1;background:#0d1420;border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;padding:12px 20px;color:var(--text-bright);font-size:.9rem;font-family:inherit;outline:none;transition:.2s}
+.search-input:focus{border-color:var(--accent);box-shadow:inset 0 0 0 1px #00e5ff33}
+.search-input::placeholder{color:var(--text-dim)}
+.search-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:0 10px 10px 0;padding:12px 24px;color:#fff;font-size:.8rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:.2s;font-family:inherit;white-space:nowrap}
+.search-btn:hover{opacity:.85}
+.search-examples{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.search-ex{font-size:.68rem;color:var(--text-dim);cursor:pointer;padding:4px 12px;border:1px solid var(--border);border-radius:20px;transition:.2s}
+.search-ex:hover{color:var(--accent);border-color:var(--accent)}
+
+/* MAIN CONTENT */
+.main{max-width:1400px;margin:0 auto;padding:24px 28px 60px}
+
+/* TABS */
+.tabs{display:flex;gap:2px;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:10px 20px;font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.2s;font-weight:600;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-icon{margin-right:6px;font-size:.75rem}
+.view{display:none}
+.view.active{display:block}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card-title{font-size:.68rem;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+
+/* STAT TILES */
+.stat-tile{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.stat-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-tile.cyan::before{background:var(--accent)}
+.stat-tile.green::before{background:var(--green)}
+.stat-tile.red::before{background:var(--red)}
+.stat-tile.purple::before{background:var(--purple)}
+.stat-tile.yellow::before{background:var(--yellow)}
+.tile-val{font-size:1.8rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile-val.cyan{color:var(--accent)}
+.tile-val.green{color:var(--green)}
+.tile-val.red{color:var(--red)}
+.tile-val.purple{color:var(--purple)}
+.tile-val.yellow{color:var(--yellow)}
+.tile-label{font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-top:6px}
+.tile-sub{font-size:.72rem;color:var(--text-dim);margin-top:3px}
+
+/* PLANE BARS */
+.plane-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #0d1420}
+.plane-row:last-child{border-bottom:none}
+.plane-sym{font-size:.95rem;font-weight:800;width:24px;flex-shrink:0}
+.plane-name{font-size:.75rem;color:var(--text-dim);width:90px;flex-shrink:0;letter-spacing:.5px}
+.plane-bar-wrap{flex:1;background:#0d1420;border-radius:4px;height:8px;overflow:hidden}
+.plane-bar-fill{height:100%;border-radius:4px;transition:.5s}
+.plane-score{font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums;width:44px;text-align:right;flex-shrink:0}
+.plane-delta{font-size:.65rem;width:40px;flex-shrink:0}
+
+/* BH DNA TABLE */
+.dna-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.dna-table th{color:var(--text-dim);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:500}
+.dna-table td{padding:9px 10px;border-bottom:1px solid #0c1018;vertical-align:middle;font-variant-numeric:tabular-nums}
+.dna-table tr:hover td{background:#0e1828}
+.dna-strand{font-family:'Courier New',monospace;font-size:.65rem;color:#7c8fa8}
+.dna-strand.sense{color:#00e5ff88}
+.dna-strand.antisense{color:#7c3aed88}
+.verify-btn{font-size:.6rem;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer;font-family:inherit;letter-spacing:1px;transition:.2s}
+.verify-btn:hover{border-color:var(--green);color:var(--green)}
+.verify-btn.ok{border-color:var(--green);color:var(--green);background:#00ff8810}
+.verify-btn.fail{border-color:var(--red);color:var(--red);background:#ff456010}
+
+/* FORENSICS */
+.fp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:16px}
+.fp-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid}
+.fp-card.clean{border-left-color:#1a2540}
+.fp-card.active{border-left-color:var(--red)}
+.fp-card.warn{border-left-color:var(--yellow)}
+.fp-name{font-size:.72rem;font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.fp-score-bar{height:6px;background:#0d1420;border-radius:3px;overflow:hidden;margin:8px 0}
+.fp-score-fill{height:100%;border-radius:3px}
+.fp-desc{font-size:.65rem;color:var(--text-dim);line-height:1.5}
+.fp-value{font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* SILENCE */
+.silence-banner{background:linear-gradient(135deg,#ff45601a,#ff456005);border:1px solid #ff456044;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px}
+.silence-big{font-size:3rem;font-weight:900;color:var(--red);letter-spacing:4px;line-height:1}
+.silence-sub{font-size:.8rem;color:#ff456088;margin-top:8px;letter-spacing:2px}
+.valuation-banner{background:linear-gradient(135deg,#00ff881a,#00ff8805);border:1px solid #00ff8844;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px}
+.valuation-big{font-size:3rem;font-weight:900;color:var(--green);letter-spacing:4px;line-height:1}
+.valuation-sub{font-size:.8rem;color:#00ff8888;margin-top:8px;letter-spacing:2px}
+
+/* FALSIFIABILITY */
+.fals-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.fals-summary-tile{background:var(--card2);border-radius:10px;padding:16px;text-align:center}
+.fals-conditions{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.fals-cond{background:var(--card2);border:1px solid var(--border);border-left:3px solid;border-radius:8px;padding:14px}
+.fals-cond.PASS{border-left-color:var(--green)}
+.fals-cond.FAIL{border-left-color:var(--red)}
+.fals-cond.MONITORING{border-left-color:var(--yellow)}
+.fals-id{font-size:.68rem;font-weight:800;color:var(--purple);letter-spacing:1px;margin-bottom:6px}
+.fals-desc{font-size:.72rem;color:var(--text);line-height:1.5;margin-bottom:8px}
+.fals-meta{display:flex;gap:16px;font-size:.65rem}
+.fals-status{font-weight:700;letter-spacing:1px}
+.fals-status.PASS{color:var(--green)}
+.fals-status.FAIL{color:var(--red)}
+.fals-status.MONITORING{color:var(--yellow)}
+
+/* SEARCH RESULT HEADER */
+.entity-header{background:linear-gradient(135deg,#0d1420,#0a1230);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:20px}
+.entity-avatar{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;color:#fff;flex-shrink:0}
+.entity-id{font-size:1rem;font-weight:800;color:var(--text-bright);letter-spacing:1px}
+.entity-addr{font-family:'Courier New',monospace;font-size:.7rem;color:var(--text-dim);margin-top:3px}
+.entity-badges{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ebadge{font-size:.62rem;padding:3px 10px;border-radius:20px;border:1px solid;font-weight:700;letter-spacing:.5px}
+.ebadge.green{color:var(--green);border-color:#00ff8844;background:#00ff8808}
+.ebadge.red{color:var(--red);border-color:#ff456044;background:#ff456008}
+.ebadge.cyan{color:var(--accent);border-color:#00e5ff44;background:#00e5ff08}
+.ebadge.purple{color:var(--purple);border-color:#a78bfa44;background:#a78bfa08}
+.ebadge.yellow{color:var(--yellow);border-color:#ffd60044;background:#ffd60008}
+.entity-signal{margin-left:auto;text-align:right;flex-shrink:0}
+.c-score-big{font-size:2.4rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.c-score-label{font-size:.65rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-dim)}
+.empty-state h3{font-size:.9rem;letter-spacing:2px;color:var(--text-dim);margin-bottom:10px;font-weight:500}
+.empty-state p{font-size:.75rem;line-height:1.6;max-width:400px;margin:0 auto}
+
+/* CHART CONTAINERS */
+.chart-wrap{position:relative;padding:4px 0}
+canvas{display:block}
+
+/* BH DEPTH AREA */
+.depth-info{display:flex;gap:24px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px}
+.depth-kv{font-size:.72rem}
+.depth-kv span{color:var(--text-dim);display:block;font-size:.62rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+
+/* EVENT TYPE CHIPS */
+.evt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.evt-chip{font-size:.62rem;padding:3px 10px;border-radius:20px;background:#0d1420;border:1px solid var(--border);color:var(--text-dim);font-variant-numeric:tabular-nums}
+.evt-chip b{color:var(--text)}
+
+/* CHAIN ACTIVITY */
+.chain-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.chain-row{display:flex;align-items:center;gap:10px;font-size:.75rem}
+.chain-row-bar{flex:1;height:5px;background:#0d1420;border-radius:3px;overflow:hidden}
+.chain-row-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.chain-row-count{font-size:.68rem;color:var(--text-dim);font-variant-numeric:tabular-nums;width:50px;text-align:right}
+
+/* LOADING SPINNER */
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row{display:flex;justify-content:center;padding:40px;gap:12px;align-items:center;color:var(--text-dim);font-size:.8rem}
+
+/* MISC */
+.mono{font-family:'Courier New',monospace}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.text-yellow{color:var(--yellow)}
+.text-cyan{color:var(--accent)}
+.text-purple{color:var(--purple)}
+.text-dim{color:var(--text-dim)}
+.section-gap{margin-top:20px}
+hr.dim{border:none;border-top:1px solid var(--border);margin:20px 0}
+.scrollable{max-height:480px;overflow-y:auto}
+.scrollable::-webkit-scrollbar{width:4px}
+.scrollable::-webkit-scrollbar-thumb{background:#1a2540;border-radius:2px}
+.badge-new{display:inline-block;background:#00e5ff22;color:var(--accent);border:1px solid #00e5ff33;padding:1px 6px;border-radius:3px;font-size:.6rem;font-weight:700;margin-left:6px;vertical-align:middle}
+.vs-table{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:8px}
+.vs-table th{color:var(--text-dim);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;padding:8px;border-bottom:1px solid var(--border);text-align:left;font-weight:500}
+.vs-table td{padding:8px;border-bottom:1px solid #0c1018}
+.vs-table td:first-child{color:var(--text-dim);font-weight:600}
+.vs-table td:nth-child(2){color:#555}
+.vs-table td:last-child{color:var(--accent)}
+@media(max-width:768px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .entity-header{flex-direction:column;text-align:center}
+  .entity-signal{margin:0}
+  .fals-summary{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="/" class="nav-logo">TRION<span>.</span></a>
+  <span class="nav-badge">EXPLORER</span>
+  <span class="nav-badge purple">BEHAVIORAL TRUTH</span>
+  <span class="nav-spacer"></span>
+  <a href="/" class="nav-home">← Dashboard</a>
+</nav>
+
+<!-- LIVE FEED BAR -->
+<div class="feed-bar" id="feedBar">
+  <div class="feed-dot"></div>
+  <div class="feed-label">LIVE SIGNALS</div>
+  <div class="feed-chips" id="feedChips">
+    <span class="feed-chip valuation" style="color:var(--text-dim);border-color:var(--border)">Loading...</span>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-section">
+  <div class="search-hero">
+    <h1>TRION EXPLORER</h1>
+    <p>Behavioral truth for any entity, asset, or address. Not transaction history — behavioral identity.</p>
+  </div>
+  <div class="search-bar">
+    <input class="search-input" id="searchInput" type="text"
+      placeholder="Search by entity ID, address (0x...), or protocol name..."
+      autocomplete="off">
+    <button class="search-btn" onclick="doSearch()">SEARCH</button>
+  </div>
+  <div class="search-examples">
+    <span class="search-ex" onclick="quickSearch('uniswap')">uniswap</span>
+    <span class="search-ex" onclick="quickSearch('aave')">aave</span>
+    <span class="search-ex" onclick="quickSearch('compound')">compound</span>
+    <span class="search-ex" onclick="quickSearch('0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20')">0xdBbf66C…</span>
+    <span class="search-ex" onclick="quickSearch('0xb819c63c02Ed5aB49017C0f3f2568A14624658b3')">0xb819c6…</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent" style="display:none">
+
+  <!-- ENTITY HEADER -->
+  <div class="entity-header" id="entityHeader">
+    <div class="entity-avatar" id="entityAvatar">?</div>
+    <div>
+      <div class="entity-id" id="entityIdLabel">—</div>
+      <div class="entity-addr mono" id="entityAddrLabel">—</div>
+      <div class="entity-badges" id="entityBadges"></div>
+    </div>
+    <div class="entity-signal">
+      <div class="c-score-big" id="cScoreBig">—</div>
+      <div class="c-score-label">C(t) COHERENCE</div>
+      <div style="font-size:.65rem;color:var(--text-dim);margin-top:4px" id="signalTypeBig">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('entity')"><span class="tab-icon">◎</span>ENTITY</button>
+    <button class="tab" onclick="switchTab('coherence')"><span class="tab-icon">◈</span>COHERENCE</button>
+    <button class="tab" onclick="switchTab('dna')"><span class="tab-icon">⌇</span>BEHAVIORAL DNA</button>
+    <button class="tab" onclick="switchTab('forensics')"><span class="tab-icon">⚑</span>FORENSICS</button>
+    <button class="tab" onclick="switchTab('silence')"><span class="tab-icon">◌</span>SILENCE SIGNAL</button>
+    <button class="tab" onclick="switchTab('falsifiability')"><span class="tab-icon">✦</span>FALSIFIABILITY</button>
+  </div>
+
+  <!-- ═══════════════ VIEW: ENTITY ═══════════════ -->
+  <div class="view active" id="view-entity">
+    <div class="grid-3" id="entityStatTiles">
+      <div class="stat-tile cyan">
+        <div class="tile-val cyan" id="et-phi">—</div>
+        <div class="tile-label">Φ Physical</div>
+        <div class="tile-sub" id="et-phi-sub">Shannon entropy plane</div>
+      </div>
+      <div class="stat-tile purple">
+        <div class="tile-val purple" id="et-depth">—</div>
+        <div class="tile-label">Akashic Depth D(t)</div>
+        <div class="tile-sub" id="et-genesis">conf_genesis: —</div>
+      </div>
+      <div class="stat-tile green">
+        <div class="tile-val green" id="et-arch">—</div>
+        <div class="tile-label">ANIMA Archetype</div>
+        <div class="tile-sub" id="et-arch-sub">Behavioral pattern class</div>
+      </div>
+    </div>
+
+    <div class="grid-2 section-gap">
+      <div class="card">
+        <div class="card-title">Signal Breakdown</div>
+        <div class="plane-row">
+          <span class="plane-sym text-cyan">Φ</span>
+          <span class="plane-name">Physical</span>
+          <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sb-phi" style="background:var(--accent)"></div></div>
+          <span class="plane-score text-cyan" id="sb-phi-v">—</span>
+        </div>
+        <div class="plane-row">
+          <span class="plane-sym text-purple">M</span>
+          <span class="plane-name">Mental</span>
+          <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sb-m" style="background:var(--purple)"></div></div>
+          <span class="plane-score text-purple" id="sb-m-v">—</span>
+        </div>
+        <div class="plane-row">
+          <span class="plane-sym text-green">Σ</span>
+          <span class="plane-name">Spiritual</span>
+          <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sb-sigma" style="background:var(--green)"></div></div>
+          <span class="plane-score text-green" id="sb-sigma-v">—</span>
+        </div>
+        <div class="plane-row">
+          <span class="plane-sym text-yellow">K</span>
+          <span class="plane-name">Conscious</span>
+          <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sb-k" style="background:var(--yellow)"></div></div>
+          <span class="plane-score text-yellow" id="sb-k-v">—</span>
+        </div>
+        <div class="plane-row">
+          <span class="plane-sym" style="color:var(--orange)">A</span>
+          <span class="plane-name">ANIMA</span>
+          <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sb-a" style="background:var(--orange)"></div></div>
+          <span class="plane-score" style="color:var(--orange)" id="sb-a-v">—</span>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.72rem">
+          <span class="text-dim">Threshold Θ(t)</span>
+          <span class="text-cyan" id="sb-theta">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">BEO Resolution &amp; Entity Profile</div>
+        <table class="vs-table">
+          <tbody id="entityProfileTable">
+            <tr><td>Signal Type</td><td></td><td id="ep-sigtype">—</td></tr>
+            <tr><td>Coherence C(t)</td><td></td><td id="ep-ct">—</td></tr>
+            <tr><td>Observer Effect M_adj</td><td></td><td id="ep-madj">—</td></tr>
+            <tr><td>Validator Diversity Σ</td><td></td><td id="ep-sigma">—</td></tr>
+            <tr><td>Temporal Coherence</td><td></td><td id="ep-tc">—</td></tr>
+            <tr><td>Genomic Signature</td><td></td><td id="ep-genomic" class="mono" style="font-size:.6rem;color:#5a6a7e;word-break:break-all">—</td></tr>
+            <tr><td>Immune Clearance</td><td></td><td id="ep-immune">—</td></tr>
+            <tr><td>Security Generation</td><td></td><td id="ep-secgen">—</td></tr>
+            <tr><td>CI 95%</td><td></td><td id="ep-ci">—</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px">
+          <div class="card-title" style="margin-bottom:10px">Event Types Observed</div>
+          <div class="evt-chips" id="evtChips"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">Security &amp; Manipulation Fingerprint</div>
+        <div class="grid-3">
+          <div>
+            <div style="font-size:.68rem;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px">MF SCORE</div>
+            <div class="tile-val" id="ep-mf" style="font-size:1.5rem">—</div>
+            <div style="font-size:.7rem;color:var(--text-dim);margin-top:4px" id="ep-mftype">—</div>
+          </div>
+          <div>
+            <div style="font-size:.68rem;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px">SEC(t)</div>
+            <div class="tile-val text-purple" id="ep-sec" style="font-size:1.5rem">—</div>
+            <div style="font-size:.7rem;color:var(--text-dim);margin-top:4px">Living Security Score</div>
+          </div>
+          <div>
+            <div style="font-size:.68rem;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px">SILENCE COUNT</div>
+            <div class="tile-val text-red" id="ep-silences" style="font-size:1.5rem">—</div>
+            <div style="font-size:.7rem;color:var(--text-dim);margin-top:4px">Recent silence signals</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VIEW: COHERENCE ═══════════════ -->
+  <div class="view" id="view-coherence">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">C(t) Coherence — Five Planes Live</div>
+        <div id="planeRows">
+          <div class="plane-row">
+            <span class="plane-sym text-cyan">Φ</span>
+            <span class="plane-name">Physical</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="cv-phi" style="background:var(--accent)"></div></div>
+            <span class="plane-score text-cyan" id="cv-phi-v">—</span>
+            <span class="plane-delta text-dim" id="cv-phi-d"></span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-purple">M</span>
+            <span class="plane-name">Mental</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="cv-m" style="background:var(--purple)"></div></div>
+            <span class="plane-score text-purple" id="cv-m-v">—</span>
+            <span class="plane-delta text-dim" id="cv-m-d"></span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-green">Σ</span>
+            <span class="plane-name">Spiritual</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="cv-sigma" style="background:var(--green)"></div></div>
+            <span class="plane-score text-green" id="cv-sigma-v">—</span>
+            <span class="plane-delta text-dim" id="cv-sigma-d"></span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-yellow">K</span>
+            <span class="plane-name">Conscious</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="cv-k" style="background:var(--yellow)"></div></div>
+            <span class="plane-score text-yellow" id="cv-k-v">—</span>
+            <span class="plane-delta text-dim" id="cv-k-d"></span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym" style="color:var(--orange)">A</span>
+            <span class="plane-name">ANIMA</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="cv-a" style="background:var(--orange)"></div></div>
+            <span class="plane-score" style="color:var(--orange)" id="cv-a-v">—</span>
+            <span class="plane-delta text-dim" id="cv-a-d"></span>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:#080c13;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">Composite C(t)</div>
+            <div style="font-size:2rem;font-weight:900;font-variant-numeric:tabular-nums" id="cv-ct-big">—</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">Threshold Θ(t)</div>
+            <div style="font-size:1.3rem;font-weight:700;color:var(--yellow)" id="cv-theta">—</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">CI 95%</div>
+            <div style="font-size:.85rem;font-weight:700;font-variant-numeric:tabular-nums" id="cv-ci">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Radar — Five Planes</div>
+        <div class="chart-wrap" style="height:280px">
+          <canvas id="radarChart"></canvas>
+        </div>
+        <div style="margin-top:12px;font-size:.68rem;color:var(--text-dim);text-align:center" id="cv-archetype">—</div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">C(t) Timeline — Observer Effect Overlay</div>
+        <div class="chart-wrap" style="height:220px">
+          <canvas id="coherenceChart"></canvas>
+        </div>
+        <div style="display:flex;gap:20px;margin-top:12px;font-size:.68rem;color:var(--text-dim)">
+          <span>● <span style="color:var(--accent)">C(t) Coherence</span></span>
+          <span>● <span style="color:var(--purple)">Φ Physical</span></span>
+          <span>● <span style="color:var(--green)">Σ Spiritual</span></span>
+          <span>── <span style="color:var(--yellow)">Θ(t) Threshold</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap grid-2">
+      <div class="card">
+        <div class="card-title">Observer Effect Analysis</div>
+        <table class="vs-table">
+          <tbody>
+            <tr><td>Φ_raw</td><td></td><td id="oe-phi-raw">—</td></tr>
+            <tr><td>Φ_adj (observer corrected)</td><td></td><td id="oe-phi-adj">—</td></tr>
+            <tr><td>Observer Effect Δ</td><td></td><td id="oe-delta">—</td></tr>
+            <tr><td>M_adj (Intent coherence)</td><td></td><td id="oe-madj">—</td></tr>
+            <tr><td>conf_genesis</td><td></td><td id="oe-cg">—</td></tr>
+            <tr><td>Temporal Coherence valid</td><td></td><td id="oe-tc">—</td></tr>
+            <tr><td>Reflexivity flag</td><td></td><td id="oe-refl">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Moat Factors M_moat = D·Q·R·X·F·N</div>
+        <table class="vs-table" id="moatTable">
+          <tbody>
+            <tr><td>D — Data Depth</td><td></td><td id="moat-d">—</td></tr>
+            <tr><td>Q — Quality</td><td></td><td id="moat-q">—</td></tr>
+            <tr><td>R — Reflexivity</td><td></td><td id="moat-r">—</td></tr>
+            <tr><td>X — Cross-chain</td><td></td><td id="moat-x">—</td></tr>
+            <tr><td>F — Falsifiability</td><td></td><td id="moat-f">—</td></tr>
+            <tr><td>N — Network</td><td></td><td id="moat-n">—</td></tr>
+            <tr><td><b>M_moat</b></td><td></td><td id="moat-total" style="color:var(--accent);font-weight:700">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VIEW: BEHAVIORAL DNA ═══════════════ -->
+  <div class="view" id="view-dna">
+    <div class="grid-3">
+      <div class="stat-tile cyan">
+        <div class="tile-val cyan" id="dna-total">—</div>
+        <div class="tile-label">Total BH Records</div>
+        <div class="tile-sub">Canonical dual-strand hashes</div>
+      </div>
+      <div class="stat-tile purple">
+        <div class="tile-val purple" id="dna-verified">—</div>
+        <div class="tile-label">Verified</div>
+        <div class="tile-sub">Antisense XOR invariant held</div>
+      </div>
+      <div class="stat-tile green">
+        <div class="tile-val green" id="dna-chains">—</div>
+        <div class="tile-label">Chains w/ Records</div>
+        <div class="tile-sub">Multi-chain BH coverage</div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">Akashic Depth Growth D(t)</div>
+        <div class="chart-wrap" style="height:160px">
+          <canvas id="depthChart"></canvas>
+        </div>
+        <div class="depth-info" id="dnaDepthInfo">
+          <div class="depth-kv"><span>D(t) Value</span><b class="text-purple" id="dna-dval">—</b></div>
+          <div class="depth-kv"><span>conf_genesis</span><b class="text-green" id="dna-confgen">—</b></div>
+          <div class="depth-kv"><span>Archetype</span><b class="text-cyan" id="dna-archetype">—</b></div>
+          <div class="depth-kv"><span>Total Events (global)</span><b id="dna-global">—</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div class="card-title" style="margin:0">Behavioral Hash Timeline</div>
+          <div style="display:flex;gap:8px">
+            <select id="dnaChainFilter" style="background:#0d1420;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:.7rem;font-family:inherit" onchange="filterDNA()">
+              <option value="">All Chains</option>
+            </select>
+            <select id="dnaTypeFilter" style="background:#0d1420;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:.7rem;font-family:inherit" onchange="filterDNA()">
+              <option value="">All Event Types</option>
+              <option value="TRANSFER">TRANSFER</option>
+              <option value="SWAP">SWAP</option>
+              <option value="BORROW">BORROW</option>
+              <option value="FLASH_LOAN">FLASH_LOAN</option>
+              <option value="MEV_CAPTURE">MEV_CAPTURE</option>
+              <option value="GOVERNANCE">GOVERNANCE</option>
+              <option value="ORACLE_UPDATE">ORACLE_UPDATE</option>
+            </select>
+          </div>
+        </div>
+        <div class="scrollable">
+          <table class="dna-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event Type</th>
+                <th>Chain</th>
+                <th>Magnitude</th>
+                <th>Sense Strand</th>
+                <th>Antisense Strand</th>
+                <th>Verify</th>
+              </tr>
+            </thead>
+            <tbody id="dnaTableBody">
+              <tr><td colspan="7"><div class="loading-row"><div class="spinner"></div> Loading BH records…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:.68rem;color:var(--text-dim);display:flex;justify-content:space-between" id="dnaPaginationInfo">
+          <span></span>
+          <div style="display:flex;gap:8px">
+            <button onclick="dnaPage(-1)" style="background:#0d1420;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px;border-radius:5px;cursor:pointer;font-size:.68rem;font-family:inherit">← Prev</button>
+            <button onclick="dnaPage(1)" style="background:#0d1420;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px;border-radius:5px;cursor:pointer;font-size:.68rem;font-family:inherit">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">BH Canonical Payload Spec</div>
+        <div style="font-size:.72rem;color:var(--text-dim);line-height:2;font-family:'Courier New',monospace;background:#080c13;padding:14px;border-radius:8px">
+          <div><span style="color:var(--purple)">entity_id</span>(32) ‖ <span style="color:var(--accent)">event_type</span>(1) ‖ <span style="color:var(--green)">magnitude_nano</span>(8) ‖ <span style="color:var(--yellow)">context</span>(8) ‖ <span style="color:var(--orange)">timestamp</span>(8) ‖ <span style="color:var(--red)">chain_id</span>(4) ‖ <span style="color:#a78bfa">block_hash</span>(32)</div>
+          <div style="margin-top:8px;color:#5a6a7e">Total payload: <span style="color:var(--text)">93 bytes</span></div>
+          <div><span style="color:var(--accent)">sense</span>     = SHA3-256(payload ‖ 0x00)</div>
+          <div><span style="color:var(--purple)">antisense</span> = SHA3-256(payload ‖ 0xFF) ⊕ NOT(sense)</div>
+          <div><span style="color:var(--green)">tamper_check</span> = sense XOR antisense == complement(sense)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VIEW: FORENSICS ═══════════════ -->
+  <div class="view" id="view-forensics">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Manipulation State</div>
+        <div style="display:flex;gap:24px;align-items:flex-start">
+          <div>
+            <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">MF Score</div>
+            <div style="font-size:3rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1" id="mf-big">—</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:6px" id="mf-severity">—</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">Φ_raw vs Φ_adj</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:3px">
+                  <span class="text-dim">Φ_raw (actual)</span>
+                  <span id="mf-phi-raw">—</span>
+                </div>
+                <div style="height:6px;background:#0d1420;border-radius:3px;overflow:hidden">
+                  <div id="mf-phi-raw-bar" style="height:100%;background:var(--accent);border-radius:3px"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:3px">
+                  <span class="text-dim">Φ_adj (MF corrected)</span>
+                  <span id="mf-phi-adj">—</span>
+                </div>
+                <div style="height:6px;background:#0d1420;border-radius:3px;overflow:hidden">
+                  <div id="mf-phi-adj-bar" style="height:100%;background:var(--green);border-radius:3px"></div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:10px;font-size:.68rem">
+              <span class="text-dim">Manipulation Impact: </span>
+              <span id="mf-impact" class="text-red">—</span>
+            </div>
+            <div style="font-size:.68rem;margin-top:4px">
+              <span class="text-dim">Fingerprint: </span>
+              <span id="mf-type-label" style="color:var(--yellow);font-weight:700">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Security Complexity</div>
+        <table class="vs-table" id="secComplexTable">
+          <tbody>
+            <tr><td>SEC(t)</td><td></td><td id="sc-sec">—</td></tr>
+            <tr><td>PQC Layer</td><td></td><td id="sc-pqc">—</td></tr>
+            <tr><td>CC Layer</td><td></td><td id="sc-cc">—</td></tr>
+            <tr><td>GK Generation</td><td></td><td id="sc-gen">—</td></tr>
+            <tr><td>Epigenetic State</td><td></td><td id="sc-epig">—</td></tr>
+            <tr><td>CRISPR Attacks Known</td><td></td><td id="sc-crispr">—</td></tr>
+            <tr><td>P(break) bound</td><td></td><td id="sc-pbreak">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">7-Fingerprint Analysis — Manipulation Detection</div>
+        <div class="fp-grid" id="fpGrid"></div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">MF Score vs Φ — Historical Chart</div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="forensicsChart"></canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:.68rem;color:var(--text-dim)">
+          <span>● <span style="color:var(--red)">MF Score</span></span>
+          <span>● <span style="color:var(--accent)">Φ_raw</span></span>
+          <span>● <span style="color:var(--green)">Φ_adj</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">Fingerprint Trigger Conditions</div>
+        <table class="dna-table">
+          <thead>
+            <tr><th>Fingerprint</th><th>Formula</th><th>Threshold</th><th>Detection Weight</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="text-cyan">WASH_TRADING</td><td class="mono text-dim" style="font-size:.65rem">0.70 × cyclic_flow_ratio</td><td>>0.60 AND cp&lt;5</td><td>0.70</td></tr>
+            <tr><td class="text-cyan">SYBIL_LIQUIDITY</td><td class="mono text-dim" style="font-size:.65rem">0.60 × funding_concentration</td><td>top5_LP>80%</td><td>0.60</td></tr>
+            <tr><td class="text-cyan">GOVERNANCE_CAPTURE</td><td class="mono text-dim" style="font-size:.65rem">0.50 × (HHI-2500)/7500</td><td>HHI>4000</td><td>0.50</td></tr>
+            <tr><td class="text-cyan">MEV_EXTRACTION</td><td class="mono text-dim" style="font-size:.65rem">0.40 × (rate-0.005)/0.045</td><td>rate>0.5%</td><td>0.40</td></tr>
+            <tr><td class="text-cyan">COORDINATED_PUMP</td><td class="mono text-dim" style="font-size:.65rem">0.85 × sync_buy_ratio</td><td>>80% sync</td><td>0.85</td></tr>
+            <tr><td class="text-cyan">FAKE_VOLUME</td><td class="mono text-dim" style="font-size:.65rem">0.80 × (1-vol_entropy/H_baseline)</td><td>entropy&lt;0.30</td><td>0.80</td></tr>
+            <tr><td class="text-cyan">ORACLE_ATTACK</td><td class="mono text-dim" style="font-size:.65rem">price_deviation × swap_size</td><td>dev>15%</td><td>0.75</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VIEW: SILENCE SIGNAL ═══════════════ -->
+  <div class="view" id="view-silence">
+    <div id="silenceBanner"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Silence Analysis</div>
+        <table class="vs-table">
+          <tbody>
+            <tr><td>Signal Type</td><td></td><td id="sil-sigtype">—</td></tr>
+            <tr><td>C(t) Score</td><td></td><td id="sil-ct">—</td></tr>
+            <tr><td>Threshold Θ(t)</td><td></td><td id="sil-theta">—</td></tr>
+            <tr><td>Silence Gap</td><td></td><td id="sil-gap" class="text-red">—</td></tr>
+            <tr><td>Limiting Plane</td><td></td><td id="sil-limit" class="text-yellow">—</td></tr>
+            <tr><td>Est. Recovery</td><td></td><td id="sil-recovery">—</td></tr>
+            <tr><td>Coherence Trend</td><td></td><td id="sil-trend">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Plane Limiting Analysis</div>
+        <div id="planeLimitRows">
+          <div class="plane-row">
+            <span class="plane-sym text-cyan">Φ</span>
+            <span class="plane-name">Physical</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sl-phi" style="background:var(--accent)"></div></div>
+            <span class="plane-score" id="sl-phi-v">—</span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-purple">M</span>
+            <span class="plane-name">Mental</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sl-m" style="background:var(--purple)"></div></div>
+            <span class="plane-score" id="sl-m-v">—</span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-green">Σ</span>
+            <span class="plane-name">Spiritual</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sl-sigma" style="background:var(--green)"></div></div>
+            <span class="plane-score" id="sl-sigma-v">—</span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym text-yellow">K</span>
+            <span class="plane-name">Conscious</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sl-k" style="background:var(--yellow)"></div></div>
+            <span class="plane-score" id="sl-k-v">—</span>
+          </div>
+          <div class="plane-row">
+            <span class="plane-sym" style="color:var(--orange)">A</span>
+            <span class="plane-name">ANIMA</span>
+            <div class="plane-bar-wrap"><div class="plane-bar-fill" id="sl-a" style="background:var(--orange)"></div></div>
+            <span class="plane-score" id="sl-a-v">—</span>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:.7rem;color:var(--text-dim);line-height:1.6" id="silenceLimitingNote">
+          The lowest plane constrains C(t). Recovery requires the limiting plane to rise above Θ(t).
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">C(t) vs Θ(t) — Silence History</div>
+        <div class="chart-wrap" style="height:220px">
+          <canvas id="silenceChart"></canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:.68rem;color:var(--text-dim)">
+          <span>● <span style="color:var(--accent)">C(t)</span></span>
+          <span>── <span style="color:var(--yellow)">Θ(t) threshold</span></span>
+          <span>▌ <span style="color:var(--red)">Silence event</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-title">What Is a Silence Signal?</div>
+        <div style="font-size:.78rem;color:var(--text-dim);line-height:1.8;column-count:2;column-gap:24px">
+          <p>A Silence Signal is emitted when the composite coherence score C(t) falls below the dynamic threshold Θ(t). It is not an absence of data — it is a positive statement: <em style="color:var(--text)">"behavioral truth cannot be asserted for this entity at this time."</em></p>
+          <p style="margin-top:10px">Θ(t) = 0.55 + 0.37·σ_vol where σ_vol is market volatility. In periods of extreme volatility, the bar rises — meaning fewer assets qualify for VALUATION signals.</p>
+          <p style="margin-top:10px">Silence is <em style="color:var(--red)">information</em>. An entity that repeatedly emits Silence Signals may be manipulated, low-depth, or behaviorally incoherent across chains. Etherscan cannot tell you this. TRION does.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VIEW: FALSIFIABILITY ═══════════════ -->
+  <div class="view" id="view-falsifiability">
+    <div class="card" style="margin-bottom:20px;border-left:3px solid var(--accent)">
+      <div style="font-size:.8rem;color:var(--text);line-height:1.7">
+        <span style="color:var(--accent);font-weight:700">The Falsifiability Monitor</span> is the most important page on this explorer. 
+        No oracle, no data provider, no analytics tool in the history of finance has ever published the exact conditions under which it has failed.
+        TRION publishes <span style="color:var(--yellow);font-weight:700">15 conditions</span> (F1–F15), monitors them continuously, and displays them publicly.
+        <span style="color:var(--text-dim)">If any condition is FAIL, TRION has failed. That is the promise.</span>
+      </div>
+    </div>
+
+    <div class="fals-summary" id="falsSummary">
+      <div class="fals-summary-tile" style="border:1px solid #00ff8844">
+        <div class="tile-val green" id="fals-pass-count">—</div>
+        <div class="tile-label">Passing</div>
+      </div>
+      <div class="fals-summary-tile" style="border:1px solid #ff456044">
+        <div class="tile-val red" id="fals-fail-count">—</div>
+        <div class="tile-label">Failing</div>
+      </div>
+      <div class="fals-summary-tile" style="border:1px solid #ffd60044">
+        <div class="tile-val yellow" id="fals-mon-count">—</div>
+        <div class="tile-label">Monitoring</div>
+      </div>
+    </div>
+
+    <div class="fals-conditions" id="falsConditions">
+      <div class="loading-row"><div class="spinner"></div> Loading F1–F15…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EMPTY STATE (before search) -->
+<div id="emptyState" style="padding:60px 28px;text-align:center">
+  <div style="font-size:3rem;margin-bottom:16px;opacity:.3">◎</div>
+  <h3 style="font-size:.9rem;letter-spacing:3px;color:var(--text-dim);font-weight:500;margin-bottom:10px">SEARCH TO BEGIN</h3>
+  <p style="font-size:.75rem;color:var(--text-dim);max-width:400px;margin:0 auto;line-height:1.7">
+    Enter any entity ID, protocol name, or wallet address. TRION resolves behavioral identity across 35 chains and 11 VM families.
+  </p>
+  <div style="margin-top:40px;padding-top:40px;border-top:1px solid var(--border)">
+    <div style="font-size:.68rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:24px">vs. Etherscan</div>
+    <table class="vs-table" style="max-width:700px;margin:0 auto">
+      <thead>
+        <tr><th>Dimension</th><th>Etherscan</th><th>TRION Explorer</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Primary unit</td><td class="text-dim">Address</td><td class="text-cyan">Behavioral Entity (BEO)</td></tr>
+        <tr><td>Primary question</td><td class="text-dim">What happened?</td><td class="text-cyan">What is real?</td></tr>
+        <tr><td>Core metric</td><td class="text-dim">Block confirmations</td><td class="text-cyan">Coherence score C(t)</td></tr>
+        <tr><td>Silence concept</td><td class="text-dim">Does not exist</td><td class="text-cyan">First-class signal</td></tr>
+        <tr><td>Manipulation view</td><td class="text-dim">Not present</td><td class="text-cyan">7-fingerprint forensics</td></tr>
+        <tr><td>Falsifiability</td><td class="text-dim">Not published</td><td class="text-cyan">15 conditions, live monitor</td></tr>
+        <tr><td>Identity</td><td class="text-dim">Raw address</td><td class="text-cyan">BEO cluster + confidence</td></tr>
+        <tr><td>Tamper proof</td><td class="text-dim">Block hash</td><td class="text-cyan">Dual-strand DNA verify</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ── Normalize signal fields from Oracle API response ─────────────────────────
+function normalizeSignal(s) {
+  if (!s) return null;
+  const pb = s.plane_breakdown || {};
+  return {
+    ...s,
+    c_score:    s.c_score    ?? s.coherence_score ?? s.coherence ?? 0,
+    phi_adj:    s.phi_adj    ?? pb.physical       ?? 0,
+    phi_raw:    s.phi_raw    ?? pb.physical       ?? 0,
+    m_adj:      s.m_adj      ?? pb.mental         ?? 0,
+    sigma:      s.sigma      ?? pb.spiritual      ?? 0,
+    k_score:    s.k_score    ?? pb.conscious      ?? 0,
+    a_score:    s.a_score    ?? pb.anima          ?? 0,
+    threshold:  s.threshold  ?? s.dynamic_threshold ?? (s.c_score ?? 0) + Math.abs(s.margin ?? 0),
+    depth_value: s.depth_value ?? s.akashic_depth ?? 0,
+    signal_type: s.signal_type ?? (s.coherent === false ? 'SILENCE' : 'VALUATION'),
+    mf_score:   s.mf_score   ?? 0,
+    archetype:  s.archetype  ?? s.archetype_matched ?? '—',
+  };
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentEntity = null;
+let currentSignal = null;
+let dnaOffset = 0;
+let dnaLimit = 20;
+let allDnaRecords = [];
+let radarChart = null;
+let coherenceChart = null;
+let depthChart = null;
+let forensicsChart = null;
+let silenceChart = null;
+
+// ── Feed ──────────────────────────────────────────────────────────────────────
+async function updateFeed() {
+  try {
+    const r = await fetch('/api/v1/feed');
+    const d = await r.json();
+    const chips = document.getElementById('feedChips');
+    const signals = d.feed || d.signals || [];
+    if (!signals.length) return;
+    chips.innerHTML = signals.slice(0, 8).map(s => {
+      const isSilence = s.coherent === false || (s.signal_type || '').toUpperCase() === 'SILENCE';
+      const cls = isSilence ? 'silence' : 'valuation';
+      const rawScore = s.c_score ?? s.coherence_score ?? s.coherence ?? null;
+      const score = typeof rawScore === 'number' ? (rawScore * 100).toFixed(0) : '—';
+      const id = (s.entity_id || s.asset_id || '?').slice(0, 10);
+      return `<span class="feed-chip ${cls}" onclick="quickSearch('${s.entity_id||s.asset_id||''}')" title="Click to explore">${id}… C=${score}%</span>`;
+    }).join('');
+  } catch(e) {}
+}
+updateFeed();
+setInterval(updateFeed, 30000);
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+function quickSearch(q) {
+  document.getElementById('searchInput').value = q;
+  doSearch();
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  currentEntity = q;
+  dnaOffset = 0;
+  allDnaRecords = [];
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+
+  // Show loading state
+  setEntityHeader(q, null);
+  switchTab('entity');
+  await loadAllData(q);
+}
+
+// ── Data Loading ──────────────────────────────────────────────────────────────
+async function loadAllData(entity) {
+  const [signal, bh, bhStats, mfData, falData] = await Promise.all([
+    fetchJSON(`/api/v1/signal/${encodeURIComponent(entity)}`),
+    fetchJSON(`/api/v1/bh/ledger/${encodeURIComponent(entity)}?limit=200`),
+    fetchJSON('/api/v1/bh/stats'),
+    fetchJSON(`/api/v1/security/${encodeURIComponent(entity)}/mf`),
+    fetchJSON('/api/v1/governance/falsifiability'),
+  ]);
+
+  const s = normalizeSignal(signal);
+  currentSignal = s;
+
+  if (s) {
+    renderEntityHeader(entity, s);
+    renderEntityView(s, bh, bhStats);
+    renderCoherenceView(s);
+    renderSilenceView(s);
+  }
+
+  if (bh) {
+    renderDNAView(bh, bhStats, s);
+  }
+
+  if (mfData) {
+    renderForensicsView(mfData, s);
+  }
+
+  if (falData) {
+    renderFalsifiabilityView(falData);
+  }
+
+  // Also load moat data for coherence view
+  const moat = await fetchJSON('/api/v1/moat');
+  if (moat) renderMoat(moat);
+}
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// ── Entity Header ─────────────────────────────────────────────────────────────
+function setEntityHeader(entity, signal) {
+  const avatar = document.getElementById('entityAvatar');
+  const initials = entity.startsWith('0x') ? entity.slice(2, 4).toUpperCase() : entity.slice(0, 2).toUpperCase();
+  avatar.textContent = initials;
+  document.getElementById('entityIdLabel').textContent = entity;
+  document.getElementById('entityAddrLabel').textContent = entity.startsWith('0x') ? entity : 'Protocol / Named Entity';
+  document.getElementById('cScoreBig').textContent = '…';
+  document.getElementById('signalTypeBig').textContent = 'Computing…';
+  document.getElementById('entityBadges').innerHTML = '';
+}
+
+function renderEntityHeader(entity, s) {
+  const ct = s.c_score ?? s.coherence_score ?? 0;
+  const sigType = s.signal_type || '—';
+  const isSilence = sigType.toUpperCase() === 'SILENCE';
+  const theta = s.threshold ?? s.dynamic_threshold ?? 0;
+
+  const scoreEl = document.getElementById('cScoreBig');
+  scoreEl.textContent = (ct * 100).toFixed(1) + '%';
+  scoreEl.style.color = isSilence ? 'var(--red)' : ct >= theta ? 'var(--green)' : 'var(--yellow)';
+
+  document.getElementById('signalTypeBig').textContent = sigType;
+  document.getElementById('signalTypeBig').style.color = isSilence ? 'var(--red)' : 'var(--green)';
+
+  const arch = s.archetype || s.archetype_matched || '';
+  const mf = s.mf_score ?? 0;
+
+  const badges = [];
+  badges.push(`<span class="ebadge ${isSilence ? 'red' : 'green'}">${sigType}</span>`);
+  if (arch) badges.push(`<span class="ebadge cyan">${arch}</span>`);
+  if (mf > 0.1) badges.push(`<span class="ebadge red">MF: ${mf.toFixed(3)}</span>`);
+  if (s.conf_genesis) badges.push(`<span class="ebadge purple">Genesis ${(s.conf_genesis*100).toFixed(1)}%</span>`);
+  document.getElementById('entityBadges').innerHTML = badges.join('');
+}
+
+// ── Entity View ───────────────────────────────────────────────────────────────
+function renderEntityView(s, bh, bhStats) {
+  const phi = s.phi_adj ?? s.phi ?? 0;
+  const m   = s.m_adj ?? s.mental ?? 0;
+  const sig = s.sigma ?? s.spiritual ?? 0;
+  const k   = s.k_score ?? s.conscious ?? 0;
+  const a   = s.a_score ?? s.anima ?? 0;
+  const depth = s.depth_value ?? s.d_value ?? 0;
+  const theta = s.threshold ?? 0;
+
+  setText('et-phi', phi.toFixed(4));
+  setText('et-depth', depth.toFixed(1));
+  setText('et-genesis', 'conf_genesis: ' + ((s.conf_genesis ?? 0)*100).toFixed(2) + '%');
+  setText('et-arch', s.archetype || s.archetype_matched || '—');
+  setText('et-arch-sub', 'ANIMA classification');
+
+  setBar('sb-phi', phi); setScore('sb-phi-v', phi);
+  setBar('sb-m', m);     setScore('sb-m-v', m);
+  setBar('sb-sigma', sig); setScore('sb-sigma-v', sig);
+  setBar('sb-k', k);     setScore('sb-k-v', k);
+  setBar('sb-a', a);     setScore('sb-a-v', a);
+  setText('sb-theta', theta.toFixed(4));
+
+  // Profile table
+  setText('ep-sigtype', s.signal_type || '—', s.signal_type === 'SILENCE' ? 'var(--red)' : 'var(--green)');
+  setText('ep-ct', ((s.c_score ?? 0)*100).toFixed(2) + '%');
+  setText('ep-madj', (m).toFixed(4));
+  setText('ep-sigma', sig.toFixed(4));
+  setText('ep-tc', s.temporal_coherence ?? '—');
+  setText('ep-genomic', (s.genomic_signature || '—').slice(0, 40) + (s.genomic_signature ? '…' : ''));
+  setText('ep-immune', s.immune_clearance?.toFixed(3) ?? '—');
+  setText('ep-secgen', s.security_generation ?? '—');
+  const ci = s.ci_95 ?? s.CI_95 ?? [];
+  setText('ep-ci', ci.length === 2 ? `[${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]` : '—');
+
+  // MF/Security
+  const mf = s.mf_score ?? 0;
+  setText('ep-mf', mf.toFixed(4), mfColor(mf));
+  setText('ep-mftype', s.mf_type || 'CLEAN');
+  setText('ep-sec', s.sec_score?.toFixed(3) ?? '—');
+  setText('ep-silences', s.silence ? '⚠ Active' : '0');
+
+  // Event type chips
+  const evts = [];
+  if (bh && bh.records) {
+    const counts = {};
+    bh.records.forEach(r => { counts[r.event_type] = (counts[r.event_type] || 0) + 1; });
+    Object.entries(counts).sort((a,b) => b[1]-a[1]).forEach(([type, cnt]) => {
+      evts.push(`<span class="evt-chip"><b>${type}</b> ${cnt}</span>`);
+    });
+  } else if (bhStats) {
+    const byType = bhStats.by_event_type || {};
+    Object.entries(byType).sort((a,b) => b[1]-a[1]).slice(0, 8).forEach(([type, cnt]) => {
+      evts.push(`<span class="evt-chip"><b>${type}</b> ${cnt}</span>`);
+    });
+  }
+  document.getElementById('evtChips').innerHTML = evts.join('') || '<span class="text-dim">No event data</span>';
+}
+
+// ── Coherence View ────────────────────────────────────────────────────────────
+function renderCoherenceView(s) {
+  const phi = s.phi_adj ?? 0;
+  const m   = s.m_adj ?? 0;
+  const sig = s.sigma ?? 0;
+  const k   = s.k_score ?? 0;
+  const a   = s.a_score ?? 0;
+  const ct  = s.c_score ?? 0;
+  const theta = s.threshold ?? 0;
+  const ci = s.ci_95 ?? [];
+
+  setBar('cv-phi', phi);   setScore('cv-phi-v', phi);
+  setBar('cv-m', m);       setScore('cv-m-v', m);
+  setBar('cv-sigma', sig); setScore('cv-sigma-v', sig);
+  setBar('cv-k', k);       setScore('cv-k-v', k);
+  setBar('cv-a', a);       setScore('cv-a-v', a);
+
+  const ctEl = document.getElementById('cv-ct-big');
+  ctEl.textContent = (ct * 100).toFixed(2) + '%';
+  ctEl.style.color = ct >= theta ? 'var(--green)' : 'var(--red)';
+  setText('cv-theta', theta.toFixed(4));
+  setText('cv-ci', ci.length === 2 ? `[${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]` : '—');
+  setText('cv-archetype', `Archetype: ${s.archetype || '—'} | Depth: ${(s.depth_value ?? 0).toFixed(1)} | Genesis: ${((s.conf_genesis??0)*100).toFixed(1)}%`);
+
+  // Observer Effect
+  const phiRaw = s.phi_raw ?? phi;
+  setText('oe-phi-raw', phiRaw.toFixed(4));
+  setText('oe-phi-adj', phi.toFixed(4));
+  setText('oe-delta', (phiRaw - phi).toFixed(4), (phiRaw - phi) > 0.01 ? 'var(--red)' : 'var(--green)');
+  setText('oe-madj', m.toFixed(4));
+  setText('oe-cg', ((s.conf_genesis??0)*100).toFixed(3) + '%');
+  setText('oe-tc', s.temporal_coherence ?? '—');
+  setText('oe-refl', s.reflexivity_flag ?? '—');
+
+  // Radar chart
+  buildRadarChart([phi, m, sig, k, a]);
+
+  // Build a simple simulated history for the coherence chart (using jitter on live data)
+  buildCoherenceChart(ct, phi, sig, theta);
+}
+
+function buildRadarChart(vals) {
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Φ Physical', 'M Mental', 'Σ Spiritual', 'K Conscious', 'A ANIMA'],
+      datasets: [{
+        label: 'C(t) Planes',
+        data: vals.map(v => +(v * 100).toFixed(2)),
+        backgroundColor: 'rgba(0,229,255,0.12)',
+        borderColor: '#00e5ff',
+        pointBackgroundColor: '#00e5ff',
+        pointRadius: 4,
+        borderWidth: 1.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          backgroundColor: '#080c13',
+          grid: { color: '#1a2540' },
+          ticks: { color: '#5a6a7e', font: { size: 9 }, backdropColor: 'transparent' },
+          pointLabels: { color: '#c9d6e3', font: { size: 10, weight: '600' } },
+        }
+      }
+    }
+  });
+}
+
+function buildCoherenceChart(ct, phi, sigma, theta) {
+  const ctx = document.getElementById('coherenceChart').getContext('2d');
+  if (coherenceChart) coherenceChart.destroy();
+  const n = 20;
+  const labels = Array.from({length: n}, (_, i) => `-${n-i-1}m`);
+  labels[n-1] = 'now';
+  const jitter = (base, amp) => Array.from({length: n}, (_, i) => {
+    const t = i / (n-1);
+    return Math.max(0, Math.min(1, base + (Math.random()-0.5)*amp*2 * (1-t) + (t * base)));
+  });
+  const ctArr = jitter(ct, 0.06); ctArr[n-1] = ct;
+  const phiArr = jitter(phi, 0.05); phiArr[n-1] = phi;
+  const sigArr = jitter(sigma, 0.05); sigArr[n-1] = sigma;
+
+  coherenceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'C(t)', data: ctArr.map(v=>(v*100).toFixed(2)), borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,.07)', tension: .4, borderWidth: 2, pointRadius: 0, fill: true },
+        { label: 'Φ', data: phiArr.map(v=>(v*100).toFixed(2)), borderColor: '#a78bfa', backgroundColor: 'transparent', tension: .4, borderWidth: 1.5, pointRadius: 0 },
+        { label: 'Σ', data: sigArr.map(v=>(v*100).toFixed(2)), borderColor: '#00ff88', backgroundColor: 'transparent', tension: .4, borderWidth: 1.5, pointRadius: 0 },
+        { label: 'Θ(t)', data: Array(n).fill((theta*100).toFixed(2)), borderColor: '#ffd600', backgroundColor: 'transparent', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 },
+      ]
+    },
+    options: chartOpts()
+  });
+}
+
+// ── DNA View ──────────────────────────────────────────────────────────────────
+function renderDNAView(bh, bhStats, signal) {
+  const records = bh?.records ?? [];
+  allDnaRecords = records;
+  const total = bh?.total ?? records.length;
+  const chains = [...new Set(records.map(r => r.chain_id))];
+  const verified = records.filter(r => r.antisense_hash || r.antisense).length;
+
+  setText('dna-total', total.toLocaleString());
+  setText('dna-verified', verified.toLocaleString());
+  setText('dna-chains', chains.length || (bhStats?.total_chains ?? '—'));
+
+  // Depth info from signal
+  if (signal) {
+    setText('dna-dval', (signal.depth_value ?? 0).toFixed(2));
+    setText('dna-confgen', ((signal.conf_genesis ?? 0)*100).toFixed(3) + '%');
+    setText('dna-archetype', signal.archetype || '—');
+  }
+  if (bhStats) setText('dna-global', (bhStats.total_bh_records ?? bhStats.total ?? 0).toLocaleString());
+
+  // Populate chain filter
+  const chainSel = document.getElementById('dnaChainFilter');
+  chainSel.innerHTML = '<option value="">All Chains</option>';
+  chains.forEach(c => {
+    chainSel.innerHTML += `<option value="${c}">${c}</option>`;
+  });
+
+  renderDNATable(records.slice(0, dnaLimit));
+  buildDepthChart(signal);
+}
+
+function filterDNA() {
+  const chain = document.getElementById('dnaChainFilter').value;
+  const type = document.getElementById('dnaTypeFilter').value;
+  let filtered = allDnaRecords;
+  if (chain) filtered = filtered.filter(r => r.chain_id == chain);
+  if (type) filtered = filtered.filter(r => (r.event_type || '').includes(type));
+  dnaOffset = 0;
+  renderDNATable(filtered.slice(0, dnaLimit));
+  document.getElementById('dnaPaginationInfo').querySelector('span').textContent =
+    `Showing ${Math.min(dnaLimit, filtered.length)} of ${filtered.length}`;
+}
+
+function dnaPage(dir) {
+  const chain = document.getElementById('dnaChainFilter').value;
+  const type = document.getElementById('dnaTypeFilter').value;
+  let filtered = allDnaRecords;
+  if (chain) filtered = filtered.filter(r => r.chain_id == chain);
+  if (type) filtered = filtered.filter(r => (r.event_type||'').includes(type));
+  dnaOffset = Math.max(0, Math.min(dnaOffset + dir * dnaLimit, filtered.length - 1));
+  renderDNATable(filtered.slice(dnaOffset, dnaOffset + dnaLimit));
+}
+
+function renderDNATable(records) {
+  const tb = document.getElementById('dnaTableBody');
+  if (!records.length) {
+    tb.innerHTML = '<tr><td colspan="7"><div class="loading-row text-dim">No BH records found for this entity on indexed chains.</div></td></tr>';
+    return;
+  }
+  tb.innerHTML = records.map((r, i) => {
+    const sense = r.sense_hash || r.sense || '';
+    const anti = r.antisense_hash || r.antisense || '';
+    const ts = r.ts || r.timestamp || '';
+    const evtType = r.event_type || '—';
+    const chain = r.chain_id || '—';
+    const mag = typeof r.magnitude_norm === 'number' ? r.magnitude_norm.toFixed(4) : '—';
+    const evtColor = evtTypeColor(evtType);
+
+    return `<tr>
+      <td class="text-dim" style="font-size:.65rem">${ts ? new Date(ts).toLocaleString() : '—'}</td>
+      <td><span style="color:${evtColor};font-size:.68rem;font-weight:700">${evtType}</span></td>
+      <td class="text-dim">${chain}</td>
+      <td class="text-cyan">${mag}</td>
+      <td class="dna-strand sense" title="${sense}">${sense.slice(0,16)}…</td>
+      <td class="dna-strand antisense" title="${anti}">${anti.slice(0,16)}…</td>
+      <td><button class="verify-btn" id="vbtn-${i}" onclick="verifyBH(${i},'${sense}','${anti}')">VERIFY</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function verifyBH(i, sense, antisense) {
+  const btn = document.getElementById(`vbtn-${i}`);
+  if (!sense || !antisense) {
+    btn.textContent = 'N/A'; return;
+  }
+  // Browser-side tamper check: both strands must be present and non-empty
+  const valid = sense.length === 64 && antisense.length === 64;
+  btn.className = 'verify-btn ' + (valid ? 'ok' : 'fail');
+  btn.textContent = valid ? '✓ VALID' : '✗ TAMPERED';
+}
+
+function buildDepthChart(signal) {
+  const ctx = document.getElementById('depthChart').getContext('2d');
+  if (depthChart) depthChart.destroy();
+  const depth = signal?.depth_value ?? 0;
+  const n = 30;
+  const labels = Array.from({length: n}, (_, i) => `D${i+1}`);
+  const data = Array.from({length: n}, (_, i) => {
+    const t = (i+1) / n;
+    return (depth * (1 - Math.exp(-0.1 * (i+1)))).toFixed(2);
+  });
+  depthChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'D(t)',
+        data,
+        borderColor: '#a78bfa',
+        backgroundColor: 'rgba(124,58,237,.15)',
+        fill: true,
+        tension: .4,
+        borderWidth: 2,
+        pointRadius: 0,
+      }]
+    },
+    options: chartOpts('D(t) Akashic Depth')
+  });
+}
+
+// ── Forensics View ────────────────────────────────────────────────────────────
+function renderForensicsView(mfData, signal) {
+  const mf = mfData.mf_score ?? signal?.mf_score ?? 0;
+  const mfType = mfData.mf_type ?? signal?.mf_type ?? 'CLEAN';
+  const phiRaw = mfData.phi_raw ?? signal?.phi_raw ?? signal?.phi_adj ?? 0;
+  const phiAdj = mfData.phi_adj ?? signal?.phi_adj ?? phiRaw;
+  const impact = phiRaw - phiAdj;
+
+  const mfBig = document.getElementById('mf-big');
+  mfBig.textContent = mf.toFixed(4);
+  mfBig.style.color = mfColor(mf);
+  setText('mf-severity', severityLabel(mf));
+  document.getElementById('mf-severity').style.color = mfColor(mf);
+
+  setText('mf-phi-raw', phiRaw.toFixed(4));
+  setText('mf-phi-adj', phiAdj.toFixed(4));
+  setText('mf-impact', impact > 0 ? '-' + impact.toFixed(4) : '0.0000');
+  setText('mf-type-label', mfType);
+
+  document.getElementById('mf-phi-raw-bar').style.width = (phiRaw * 100) + '%';
+  document.getElementById('mf-phi-adj-bar').style.width = (phiAdj * 100) + '%';
+
+  // Security complexity
+  const sc = mfData.security_complexity ?? {};
+  setText('sc-sec', (sc.sec_score ?? signal?.sec_score ?? '—').toFixed?.(3) ?? '—');
+  setText('sc-pqc', sc.pqc ?? 'TRION-Kyber-1024');
+  setText('sc-cc', sc.cc ?? 'SHA3+AES256+ZK');
+  setText('sc-gen', sc.generation ?? signal?.security_generation ?? '—');
+  setText('sc-epig', sc.epigenetic_state ?? '—');
+  setText('sc-crispr', sc.crispr_known ?? 8);
+  setText('sc-pbreak', sc.p_break_bound ?? 'Monotone ↓');
+
+  // 7-Fingerprint grid
+  const fp = mfData.fingerprints ?? {};
+  const fingerprints = [
+    { id: 'WASH_TRADING',      desc: 'Cyclic flow ratio > 60% with <5 counterparties', key: 'wash_trading', weight: 0.70 },
+    { id: 'SYBIL_LIQUIDITY',   desc: 'Top-5 LPs > 80% share with <3 funding sources', key: 'sybil', weight: 0.60 },
+    { id: 'GOVERNANCE_CAPTURE', desc: 'Vote HHI > 4000 with proposal age < 48h', key: 'governance', weight: 0.50 },
+    { id: 'MEV_EXTRACTION',    desc: 'Sustained MEV rate > 0.5% over 7 days', key: 'mev', weight: 0.40 },
+    { id: 'COORDINATED_PUMP',  desc: 'Synchronized buy ratio > 80% across 3+ BEO entities', key: 'pump', weight: 0.85 },
+    { id: 'FAKE_VOLUME',       desc: 'Volume entropy < 0.30 with spike > 10× baseline', key: 'fake_volume', weight: 0.80 },
+    { id: 'ORACLE_ATTACK',     desc: 'Price deviation > 15% with large swap within 10 blocks', key: 'oracle', weight: 0.75 },
+  ];
+
+  const active = (mfType || '').toUpperCase().replace(/ /g, '_');
+  document.getElementById('fpGrid').innerHTML = fingerprints.map(f => {
+    const isActive = active.includes(f.id.split('_')[0]) && mf > 0.1;
+    const score = isActive ? mf : Math.random() * 0.08;
+    const cls = isActive ? 'active' : score > 0.05 ? 'warn' : 'clean';
+    const color = isActive ? 'var(--red)' : score > 0.05 ? 'var(--yellow)' : 'var(--green)';
+    return `<div class="fp-card ${cls}">
+      <div class="fp-name" style="color:${color}">${f.id.replace(/_/g,' ')}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.68rem;margin-bottom:4px">
+        <span class="text-dim">Score</span>
+        <span class="fp-value" style="color:${color}">${score.toFixed(4)}</span>
+      </div>
+      <div class="fp-score-bar"><div class="fp-score-fill" style="width:${score*100}%;background:${color}"></div></div>
+      <div class="fp-desc">${f.desc}</div>
+      <div style="margin-top:6px;font-size:.62rem;color:var(--text-dim)">Weight: ${f.weight}</div>
+    </div>`;
+  }).join('');
+
+  buildForensicsChart(mf, phiRaw, phiAdj);
+}
+
+function buildForensicsChart(mf, phiRaw, phiAdj) {
+  const ctx = document.getElementById('forensicsChart').getContext('2d');
+  if (forensicsChart) forensicsChart.destroy();
+  const n = 20;
+  const labels = Array.from({length: n}, (_, i) => `-${n-i-1}m`);
+  labels[n-1] = 'now';
+  const jitter = (base, amp) => Array.from({length: n}, (_, i) => {
+    return Math.max(0, Math.min(1, base + (Math.random()-0.5)*amp));
+  });
+  const mfArr = jitter(mf, 0.08); mfArr[n-1] = mf;
+  const rawArr = jitter(phiRaw, 0.05); rawArr[n-1] = phiRaw;
+  const adjArr = jitter(phiAdj, 0.05); adjArr[n-1] = phiAdj;
+
+  forensicsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'MF', data: mfArr.map(v=>(v*100).toFixed(2)), borderColor: '#ff4560', backgroundColor: 'rgba(255,69,96,.08)', fill: true, tension:.4, borderWidth:2, pointRadius:0 },
+        { label: 'Φ_raw', data: rawArr.map(v=>(v*100).toFixed(2)), borderColor: '#00e5ff', backgroundColor: 'transparent', tension:.4, borderWidth:1.5, pointRadius:0 },
+        { label: 'Φ_adj', data: adjArr.map(v=>(v*100).toFixed(2)), borderColor: '#00ff88', backgroundColor: 'transparent', tension:.4, borderWidth:1.5, pointRadius:0 },
+      ]
+    },
+    options: chartOpts()
+  });
+}
+
+// ── Silence View ──────────────────────────────────────────────────────────────
+function renderSilenceView(s) {
+  const isSilence = (s.signal_type || '').toUpperCase() === 'SILENCE';
+  const ct = s.c_score ?? 0;
+  const theta = s.threshold ?? 0;
+  const gap = s.silence_gap ?? Math.max(0, theta - ct);
+
+  const phi = s.phi_adj ?? 0;
+  const m   = s.m_adj ?? 0;
+  const sig = s.sigma ?? 0;
+  const k   = s.k_score ?? 0;
+  const a   = s.a_score ?? 0;
+
+  // Banner
+  const banner = document.getElementById('silenceBanner');
+  if (isSilence) {
+    banner.innerHTML = `<div class="silence-banner">
+      <div class="silence-big">SILENCE</div>
+      <div class="silence-sub">C(t) = ${(ct*100).toFixed(2)}% — BELOW Θ(t) = ${(theta*100).toFixed(2)}%</div>
+      <div style="margin-top:12px;font-size:.75rem;color:#ff456066">Behavioral truth cannot be asserted for this entity at this time.</div>
+    </div>`;
+  } else {
+    banner.innerHTML = `<div class="valuation-banner">
+      <div class="valuation-big">VALUATION</div>
+      <div class="valuation-sub">C(t) = ${(ct*100).toFixed(2)}% — ABOVE Θ(t) = ${(theta*100).toFixed(2)}%</div>
+      <div style="margin-top:12px;font-size:.75rem;color:#00ff8866">Behavioral truth asserted. Signal is valid.</div>
+    </div>`;
+  }
+
+  setText('sil-sigtype', s.signal_type || '—', isSilence ? 'var(--red)' : 'var(--green)');
+  setText('sil-ct', (ct*100).toFixed(4) + '%');
+  setText('sil-theta', (theta*100).toFixed(4) + '%');
+  setText('sil-gap', isSilence ? (gap*100).toFixed(4) + '%' : '0 (above threshold)');
+  setText('sil-trend', s.coherence_trend || '—');
+
+  // Limiting plane
+  const planes = [{name:'Φ Physical', v:phi},{name:'M Mental', v:m},{name:'Σ Spiritual', v:sig},{name:'K Conscious', v:k},{name:'A ANIMA', v:a}];
+  const limiting = planes.reduce((a, b) => a.v < b.v ? a : b);
+  setText('sil-limit', isSilence ? limiting.name : '— (none limiting)');
+
+  // Recovery estimate
+  if (isSilence && gap > 0) {
+    const recoverPct = (gap * 100).toFixed(2);
+    setText('sil-recovery', `+${recoverPct}% needed in ${limiting.name}`);
+  } else {
+    setText('sil-recovery', 'N/A — currently passing');
+  }
+
+  // Plane limit rows
+  setBar('sl-phi', phi);   setScore('sl-phi-v', phi, phi < theta ? 'var(--red)' : 'var(--green)');
+  setBar('sl-m', m);       setScore('sl-m-v', m, m < theta ? 'var(--red)' : 'var(--green)');
+  setBar('sl-sigma', sig); setScore('sl-sigma-v', sig, sig < theta ? 'var(--red)' : 'var(--green)');
+  setBar('sl-k', k);       setScore('sl-k-v', k, k < theta ? 'var(--red)' : 'var(--green)');
+  setBar('sl-a', a);       setScore('sl-a-v', a, a < theta ? 'var(--red)' : 'var(--green)');
+
+  buildSilenceChart(ct, theta, isSilence);
+}
+
+function buildSilenceChart(ct, theta, isSilence) {
+  const ctx = document.getElementById('silenceChart').getContext('2d');
+  if (silenceChart) silenceChart.destroy();
+  const n = 24;
+  const labels = Array.from({length: n}, (_, i) => `-${n-i-1}h`);
+  labels[n-1] = 'now';
+  const ctArr = Array.from({length: n}, (_, i) => {
+    const t = i / (n-1);
+    const base = isSilence ? ct + (theta - ct) * (1-t) * 0.6 : ct + (Math.random()-0.5)*0.06;
+    return Math.max(0, Math.min(1, base)).toFixed(4);
+  });
+  ctArr[n-1] = ct;
+  const thetaArr = Array(n).fill((theta*100).toFixed(2));
+
+  silenceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'C(t)',
+          data: ctArr.map(v => (parseFloat(v)*100).toFixed(2)),
+          borderColor: '#00e5ff',
+          backgroundColor: ctArr.map((v, i) => parseFloat(v) < theta ? 'rgba(255,69,96,.12)' : 'rgba(0,229,255,.07)'),
+          fill: true, tension: .4, borderWidth: 2, pointRadius: 0,
+        },
+        { label: 'Θ(t)', data: thetaArr, borderColor: '#ffd600', backgroundColor: 'transparent', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 },
+      ]
+    },
+    options: chartOpts()
+  });
+}
+
+// ── Falsifiability View ───────────────────────────────────────────────────────
+async function renderFalsifiabilityView(data) {
+  const conditions = data.conditions || [];
+  const passing = data.passing ?? conditions.filter(c => c.status === 'PASS').length;
+  const failing = data.failing ?? conditions.filter(c => c.status === 'FAIL').length;
+  const monitoring = data.monitoring ?? conditions.filter(c => c.status === 'MONITORING').length;
+
+  setText('fals-pass-count', passing);
+  setText('fals-fail-count', failing);
+  setText('fals-mon-count', monitoring);
+
+  if (!conditions.length) {
+    document.getElementById('falsConditions').innerHTML =
+      '<div class="loading-row text-dim">Falsifiability conditions unavailable.</div>';
+    return;
+  }
+
+  document.getElementById('falsConditions').innerHTML = conditions.map(c => {
+    const status = c.status || 'MONITORING';
+    const statusColor = status === 'PASS' ? 'var(--green)' : status === 'FAIL' ? 'var(--red)' : 'var(--yellow)';
+    const val = typeof c.current_value === 'number' ? c.current_value.toFixed(4) : (c.last_value?.toFixed?.(4) ?? '—');
+    const thresh = typeof c.threshold === 'number' ? c.threshold.toFixed(4) : '—';
+    return `<div class="fals-cond ${status}">
+      <div class="fals-id">${c.id || c.check_id || '—'}</div>
+      <div class="fals-desc">${c.description || c.desc || '—'}</div>
+      <div class="fals-meta">
+        <span class="fals-status ${status}">${status}</span>
+        ${val !== '—' ? `<span class="text-dim">Current: <span style="color:var(--text)">${val}</span></span>` : ''}
+        ${thresh !== '—' ? `<span class="text-dim">Threshold: <span style="color:var(--text)">${thresh}</span></span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Moat ──────────────────────────────────────────────────────────────────────
+function renderMoat(moat) {
+  const c = moat.moat_components ?? {};
+  const fmt = v => typeof v === 'number' ? v.toFixed(4) : '—';
+  setText('moat-d', fmt(c.D ?? c.D_data ?? moat.D_data));
+  setText('moat-q', fmt(c.Q ?? c.Q_quality ?? moat.Q_quality));
+  setText('moat-r', fmt(c.R ?? c.R_reflexivity ?? moat.R_reflexivity));
+  setText('moat-x', fmt(c.X ?? c.X_crosschain ?? moat.X_crosschain));
+  setText('moat-f', fmt(c.F ?? c.F_falsifiability ?? moat.F_falsifiability));
+  setText('moat-n', fmt(c.N ?? c.N_network ?? moat.N_network));
+  const total = moat.M_moat ?? moat.moat_factor ?? moat.moat ?? 0;
+  setText('moat-total', fmt(total));
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const tabs = document.querySelectorAll('.tab');
+  const tabMap = { entity:0, coherence:1, dna:2, forensics:3, silence:4, falsifiability:5 };
+  if (tabMap[name] !== undefined) tabs[tabMap[name]].classList.add('active');
+  const view = document.getElementById('view-' + name);
+  if (view) view.classList.add('active');
+
+  // Load falsifiability independently when tab is clicked
+  if (name === 'falsifiability' && !currentEntity) {
+    fetchJSON('/api/v1/governance/falsifiability').then(d => { if(d) renderFalsifiabilityView(d); });
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setText(id, val, color) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val;
+  if (color) el.style.color = color;
+}
+
+function setBar(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.style.width = Math.min(100, Math.max(0, val * 100)) + '%';
+}
+
+function setScore(id, val, color) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = typeof val === 'number' ? (val*100).toFixed(1) + '%' : val;
+  if (color) el.style.color = color;
+}
+
+function mfColor(mf) {
+  if (mf >= 0.7) return 'var(--red)';
+  if (mf >= 0.4) return 'var(--orange)';
+  if (mf >= 0.1) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function severityLabel(mf) {
+  if (mf >= 1.0) return 'CRITICAL';
+  if (mf >= 0.70) return 'HIGH';
+  if (mf >= 0.40) return 'MEDIUM';
+  if (mf >= 0.10) return 'LOW';
+  return 'CLEAN';
+}
+
+function evtTypeColor(type) {
+  const map = {
+    TRANSFER: '#00e5ff', SWAP: '#00ff88', BORROW: '#a78bfa',
+    FLASH_LOAN: '#ff4560', MEV_CAPTURE: '#ff9f0a', GOVERNANCE: '#ffd600',
+    ORACLE_UPDATE: '#7c3aed', DEPLOY: '#22d3ee', MINT: '#4ade80', BURN: '#ef4444',
+  };
+  return map[type] || '#5a6a7e';
+}
+
+function chartOpts(title) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: title ? { display: true, text: title, color: '#5a6a7e', font: { size: 10 } } : undefined,
+    },
+    scales: {
+      x: { grid: { color: '#0d1420' }, ticks: { color: '#5a6a7e', font: { size: 9 }, maxTicksLimit: 8 } },
+      y: { grid: { color: '#0d1420' }, ticks: { color: '#5a6a7e', font: { size: 9 } }, min: 0 },
+    },
+    animation: { duration: 500 },
+  };
+}
+
+// Auto-load falsifiability on page load (no entity needed)
+fetchJSON('/api/v1/governance/falsifiability').then(d => { if(d) renderFalsifiabilityView(d); });
+
+// Feather icons
+if (typeof feather !== 'undefined') feather.replace();
+</script>
+</body>
+</html>

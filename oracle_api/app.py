@@ -56,6 +56,11 @@ def index():
     return render_template("dashboard.html")
 
 
+@app.route("/explorer")
+def explorer():
+    return render_template("explorer.html")
+
+
 @app.route("/api/v1/zg")
 def zg_stats():
     """Live stats from TRIONExecutionGate on 0G Mainnet (chain 16661)."""
