@@ -100,10 +100,10 @@ const ABI = [
 //   - daProofHash: deterministic 0G DA content hash for anomaly proof
 //   - storageRoot: 0G Storage merkle root for FAISS behavioral index
 const ZG_GATE_ADDR = process.env.ZG_EXECUTION_GATE_ADDR
-  || "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d";
-const ZG_GATE_RPC  = process.env.ZERO_G_RPC || "https://evmrpc-testnet.0g.ai";
-const ZG_GATE_CHAIN = 16602;
-const ZG_GATE_EXPLORER = "https://chainscan-galileo.0g.ai";
+  || "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"; // 0G Mainnet
+const ZG_GATE_RPC  = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
+const ZG_GATE_CHAIN = 16661; // 0G Mainnet (was 16602 Galileo testnet)
+const ZG_GATE_EXPLORER = "https://chainscan.0g.ai";
 
 const ZG_GATE_ABI = [
   "function publishSignal(bytes32 entityId, uint256 packedData, bytes32 beoHash, bytes32 daProofHash, string calldata storageRoot) external",
