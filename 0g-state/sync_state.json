@@ -1,9 +1,9 @@
 {
-  "last_sync_ts": "2026-05-14T16:03:47.575977+00:00",
+  "last_sync_ts": "2026-05-14T16:34:40.342086+00:00",
   "last_vector_count": 23100,
   "last_bh_record_id": 0,
   "last_signal_id": null,
-  "sync_count": 12,
+  "sync_count": 14,
   "root_hashes": {
     "faiss_delta_3": "0xc326fe295e3a292bd96e1db3a61243c98e861b4b996f43a8e08675b43e41b3cd",
     "bh_sqlite_delta_3": "0x2c8b43e0be958b6110bc42bf687f22186c203e8723df3a2db3e9baf07579fd6f",
