@@ -6,6 +6,18 @@
 
 TRION is the first cross-chain **behavioral truth oracle** — integrating all 5 components of the 0G stack (Chain, Storage, DA, Compute, KV) to publish cryptographically-verified behavioral scores for any on-chain entity across 35 networks, enabling DeFi protocols and AI agents to block manipulation *before it executes*.
 
+## Live Stats (as of May 14, 2026)
+
+| Metric | Value |
+|--------|-------|
+| BH ledger records | **83,057** across 13 chains |
+| 0G Mainnet block | **~33,246,828** (live) |
+| Total attacks in library | **32** across 7 VM families |
+| Total value protected | **$43.6B+** (incl. Terra $40B) |
+| CRISPR signatures | **39** adaptive attack patterns |
+| API routes | **135** (all returning 200 OK) |
+| FAISS vectors indexed | live via `/api/v1/faiss` |
+
 ---
 
 ## The Problem — and Why It Costs Billions
