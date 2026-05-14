@@ -482,14 +482,39 @@ async def update_onchain_proof(root_hashes: dict, state: dict, w3, abi: list):
         if not keys:
             return
 
+        # ── Balance check before attempting tx ────────────────────
+        gas_limit  = 300_000
+        gas_price  = w3.eth.gas_price
+        est_cost   = gas_limit * gas_price
+        balance    = w3.eth.get_balance(account.address)
+        if balance < est_cost:
+            log.warning(
+                f"Deployer wallet insufficient funds for onchain proof\n"
+                f"  Address:  {account.address}\n"
+                f"  Balance:  {balance/1e18:.6f} ETH\n"
+                f"  Est cost: {est_cost/1e18:.6f} ETH\n"
+                f"  Roots saved locally in {ZG.PROOFS_DIR}/ — top up wallet to enable onchain proofs"
+            )
+            proof_summary = {
+                "sync_count":  state.get("sync_count", 0),
+                "timestamp":   datetime.now(timezone.utc).isoformat(),
+                "root_hashes": root_hashes,
+                "onchain":     False,
+                "reason":      f"insufficient_funds: balance={balance/1e18:.6f} ETH need={est_cost/1e18:.6f} ETH",
+                "wallet":      account.address,
+            }
+            with open(f"{ZG.PROOFS_DIR}/sync_{state.get('sync_count',0)}.json", "w") as f:
+                json.dump(proof_summary, f, indent=2)
+            return
+
         nonce = w3.eth.get_transaction_count(account.address)
         tx    = contract.functions.batchUpdateCommitments(
             keys, roots, tx_hashes, sizes
         ).build_transaction({
             "from":     account.address,
             "nonce":    nonce,
-            "gas":      500_000,
-            "gasPrice": w3.eth.gas_price,
+            "gas":      gas_limit,
+            "gasPrice": gas_price,
         })
 
         signed  = account.sign_transaction(tx)
