@@ -126,7 +126,7 @@ export function getDAStatus() {
     use_case:            "Every TRION behavioral signal and anomaly proof submitted as DA blob",
     commitment_algo:     "SHA256(namespace || blob_sha256 || erasure_sha256)",
     sdk_note:            "Native gRPC DA client (port 51001) + HTTP-compatible REST bridge",
-    chains_covered:      30,
+    chains_covered:      35,
     timestamp:           ts,
   };
 }
