@@ -1,7 +1,8 @@
 /*!
  * TRION TON Behavioral Indexer — Rust
  * =====================================
- * Polls TON masterchain blocks via HTTP API and pushes 128-dim vectors.
+ * Polls TON masterchain blocks via HTTP API and pushes 128-dim vectors
+ * AND per-tx canonical BH (L0.1 ledger).
  *
  * TON behavioral dimensions (9 Shannon entropy features):
  *   f1 — Op-code diversity     H(op_code distribution)
@@ -17,12 +18,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 fn base_url() -> String {
@@ -56,36 +59,28 @@ async fn ton_get(client: &reqwest::Client, method: &str, params: &[(&str, String
 fn extract_features(txs: &[Value]) -> [f64; 9] {
     if txs.is_empty() { return [0.5f64; 9]; }
 
-    let mut op_codes:     Vec<String> = Vec::new();
-    let mut sources:      Vec<String> = Vec::new();
-    let mut values:       Vec<f64>    = Vec::new();
-    let mut dests:        Vec<String> = Vec::new();
-    let mut msg_counts:   Vec<f64>    = Vec::new();
-    let mut fees:         Vec<f64>    = Vec::new();
+    let mut op_codes:      Vec<String> = Vec::new();
+    let mut sources:       Vec<String> = Vec::new();
+    let mut values:        Vec<f64>    = Vec::new();
+    let mut dests:         Vec<String> = Vec::new();
+    let mut msg_counts:    Vec<f64>    = Vec::new();
+    let mut fees:          Vec<f64>    = Vec::new();
     let (mut bounce, mut no_bounce) = (0u64, 0u64);
-    let mut workchains:   Vec<String> = Vec::new();
+    let mut workchains:    Vec<String> = Vec::new();
 
     for tx in txs {
-        let in_msg = &tx["in_msg"];
+        let in_msg  = &tx["in_msg"];
         let out_msgs = tx["out_msgs"].as_array().cloned().unwrap_or_default();
-
-        if let Some(src) = in_msg["source"].as_str() { sources.push(src.to_string()); }
+        if let Some(src) = in_msg["source"].as_str()      { sources.push(src.to_string()); }
         if let Some(dst) = in_msg["destination"].as_str() { dests.push(dst.to_string()); }
-
         let val = in_msg["value"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         values.push(val);
-
         let op = in_msg["op_code"].as_str().unwrap_or("0x0").to_string();
         op_codes.push(op);
-
         if in_msg["bounce"].as_bool().unwrap_or(false) { bounce += 1; } else { no_bounce += 1; }
-
         msg_counts.push(out_msgs.len() as f64 + 1.0);
-
         let fee = tx["total_fees"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         fees.push(fee);
-
-        // workchain from address format
         let wc = if sources.last().map(|s| s.starts_with('-')).unwrap_or(false) { "-1" } else { "0" };
         workchains.push(wc.to_string());
     }
@@ -98,9 +93,79 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
         histogram_entropy(&msg_counts, 8),
         histogram_entropy(&fees, 8),
         ratio_entropy(bounce, bounce + no_bounce),
-        ratio_entropy(bounce, bounce + no_bounce), // proxy for account state entropy
+        ratio_entropy(bounce, bounce + no_bounce),
         freq_entropy(&workchains),
     ]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_NANO: AtomicU64 = AtomicU64::new(1_000_000_000); // 1 TON in nanoTON
+
+fn ton_magnitude(nano: u64) -> f64 {
+    let old = MAX_NANO.load(Ordering::Relaxed);
+    if nano > old { MAX_NANO.store(nano, Ordering::Relaxed); }
+    let max = MAX_NANO.load(Ordering::Relaxed).max(1) as f64;
+    let v   = nano as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+/// Classify TON event from op_code and message properties.
+/// TON uses op codes in the first 32 bits of message body.
+fn classify_ton_event(in_msg: &Value) -> u8 {
+    let op = in_msg["op_code"].as_str().unwrap_or("0x0");
+    // Well-known TON DeFi op codes
+    match op {
+        "0x7362d09c" | "0xf8a7ea5"  => 0,   // token transfer / transfer notification
+        "0x595f07bc" | "0xad3029e3" => 1,   // DEX swap (TON jetton AMM ops)
+        "0x47d54391" | "0x7bdd97de" => 2,   // add/remove liquidity
+        "0x47d54391"                 => 8,   // stake
+        "0xa7fb58f8"                 => 9,   // unstake
+        "0xb5de5f9e" | "0x42a0fb43" => 6,   // governance / voting
+        "0x00000000"                 => {
+            // op_code 0 = simple transfer
+            let val = in_msg["value"].as_str().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+            if val > 0 { 0 } else { 0 } // TRANSFER
+        }
+        _                            => {
+            // Any op_code present → likely smart contract call
+            let val = in_msg["value"].as_str().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+            if op != "0x0" && op != "0x00000000" { 1 } // SWAP (generic contract call)
+            else if val > 0 { 0 } // TRANSFER
+            else { 0 }
+        }
+    }
+}
+
+fn ton_bh_batch(txs: &[Value], chain_id: u64, label: &str, seqno: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for tx in txs {
+        let tx_hash = tx["transaction_id"]["hash"].as_str()
+            .or_else(|| tx["hash"].as_str())
+            .unwrap_or("").to_string();
+        if tx_hash.is_empty() { continue; }
+
+        let in_msg  = &tx["in_msg"];
+        let sender  = in_msg["source"].as_str().unwrap_or("unknown").to_string();
+        let dest    = in_msg["destination"].as_str().unwrap_or("").to_string();
+        let nano    = in_msg["value"].as_str().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+        let et      = classify_ton_event(in_msg);
+        let mag     = ton_magnitude(nano);
+        let eid     = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash, from_addr: sender, to_addr: dest,
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: nano.to_string(),
+            selector: in_msg["op_code"].as_str().unwrap_or("0x0").to_string(),
+            timestamp: ts, chain_id, chain_label: label.to_string(), block_num: seqno,
+            block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id, chain_label: label.to_string(), block_num: seqno, block_hash: block_hash.to_string(), timestamp: ts, entries }
 }
 
 #[tokio::main]
@@ -138,9 +203,9 @@ async fn main() -> Result<()> {
             let tx_ids = txs_resp["transactions"].as_array().cloned().unwrap_or_default();
             let mut txs: Vec<Value> = Vec::new();
             for tid in &tx_ids[..tx_ids.len().min(20)] {
-                let addr  = tid["account"].as_str().unwrap_or("");
-                let lt    = tid["lt"].as_str().unwrap_or("0");
-                let hash  = tid["hash"].as_str().unwrap_or("");
+                let addr = tid["account"].as_str().unwrap_or("");
+                let lt   = tid["lt"].as_str().unwrap_or("0");
+                let hash = tid["hash"].as_str().unwrap_or("");
                 if let Ok(tx) = ton_get(&client, "getTransactions",
                     &[("address", addr.into()), ("limit", "1".into()), ("lt", lt.into()), ("hash", hash.into())]
                 ).await {
@@ -148,12 +213,14 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let features = extract_features(&txs);
-            let phi      = features.iter().sum::<f64>() / 9.0;
-            let eid      = block_entity_id(label, seqno);
-            let bh       = bh_id(&eid);
-            let vector   = build_vector(&features, &format!("{}:{}", label, seqno));
-            let ts       = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let features  = extract_features(&txs);
+            let phi       = features.iter().sum::<f64>() / 9.0;
+            let eid       = block_entity_id(label, seqno);
+            let bh        = bh_id(&eid);
+            let vector    = build_vector(&features, &format!("{}:{}", label, seqno));
+            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let ts_u64    = ts as u64;
+            let block_hash = bh_id(&format!("ton_block:{}:{}", label, seqno));
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
@@ -166,8 +233,12 @@ async fn main() -> Result<()> {
             };
 
             match faiss.add_batch(&payload).await {
-                Ok(added) => info!("[{}] seqno={} φ={:.4} added={}", label, seqno, phi, added),
-                Err(e)    => warn!("[{}] FAISS failed: {}", label, e),
+                Ok(added) => {
+                    let tx_batch = ton_bh_batch(&txs, chain_id, label, seqno, &block_hash, ts_u64);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] seqno={} φ={:.4} added={} bh_stored={}", label, seqno, phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS failed: {}", label, e),
             }
             state.save(seqno).ok();
         }

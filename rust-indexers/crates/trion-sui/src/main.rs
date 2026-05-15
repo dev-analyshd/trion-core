@@ -1,7 +1,8 @@
 /*!
  * TRION Sui Behavioral Indexer
  * ============================
- * Polls Sui checkpoints via JSON-RPC and pushes 128-dim vectors to FAISS.
+ * Polls Sui checkpoints via JSON-RPC and pushes 128-dim vectors
+ * AND per-tx canonical BH (L0.1 ledger).
  *
  * Sui behavioral dimensions (9 Shannon entropy features):
  *   f1 — Command type entropy     H(MoveCall/Transfer/Publish/Upgrade/Split/Merge)
@@ -17,12 +18,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{error, info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    shannon_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry, with_retry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    shannon_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry, with_retry,
 };
 
 const CHAIN_ID:  u64 = 6001;
@@ -39,9 +42,7 @@ async fn sui_rpc(client: &reqwest::Client, rpc: &str, method: &str, params: Valu
     let body = serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params });
     let resp = client.post(rpc).json(&body).send().await?;
     let json: Value = resp.json().await?;
-    if let Some(e) = json.get("error") {
-        anyhow::bail!("Sui RPC error: {}", e);
-    }
+    if let Some(e) = json.get("error") { anyhow::bail!("Sui RPC error: {}", e); }
     Ok(json["result"].clone())
 }
 
@@ -60,63 +61,109 @@ fn extract_features(cp: &Value) -> [f64; 9] {
     };
     if txs.is_empty() { return [0.5f64; 9]; }
 
-    let mut command_types:  Vec<String> = Vec::new();
-    let mut senders:        Vec<String> = Vec::new();
-    let mut gas_costs:      Vec<f64>    = Vec::new();
-    let mut mutated_counts: Vec<f64>    = Vec::new();
-    let mut move_calls:     Vec<String> = Vec::new();
-    let mut transfer_counts:Vec<f64>    = Vec::new();
-    let mut shared_ratios:  Vec<f64>    = Vec::new();
-    let mut event_counts:   Vec<f64>    = Vec::new();
-    let mut epochs:         Vec<String> = Vec::new();
+    let mut command_types:   Vec<String> = Vec::new();
+    let mut senders:         Vec<String> = Vec::new();
+    let mut gas_costs:       Vec<f64>    = Vec::new();
+    let mut mutated_counts:  Vec<f64>    = Vec::new();
+    let mut move_calls:      Vec<String> = Vec::new();
+    let mut transfer_counts: Vec<f64>    = Vec::new();
+    let mut shared_ratios:   Vec<f64>    = Vec::new();
+    let mut event_counts:    Vec<f64>    = Vec::new();
+    let mut epochs:          Vec<String> = Vec::new();
 
     for tx in txs {
         let digest = tx.as_str().unwrap_or("unknown");
-
-        // Sender from checkpoint data (digest as proxy for sender entropy)
         senders.push(digest[..digest.len().min(8)].to_string());
-
-        // Epoch from checkpoint
         if let Some(ep) = cp["epoch"].as_str() {
             epochs.push(ep.to_string());
         } else if let Some(ep) = cp["epoch"].as_u64() {
             epochs.push(ep.to_string());
         }
-
-        // We can't fetch full tx details without additional RPC per tx —
-        // use digest entropy as proxy for command type and move call diversity
         command_types.push(digest[..digest.len().min(4)].to_string());
         move_calls.push(digest[..digest.len().min(6)].to_string());
     }
 
-    // Aggregate-level stats from checkpoint object
     let epoch_rolling = cp["epochRollingGasCostSummary"].clone();
     if !epoch_rolling.is_null() {
         let comp = epoch_rolling["computationCost"].as_str()
             .and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         gas_costs.push(comp);
-
         let storage = epoch_rolling["storageCost"].as_str()
             .and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         transfer_counts.push(storage / 1e9 + 1.0);
     }
 
-    let tx_count  = txs.len() as f64;
+    let tx_count = txs.len() as f64;
     mutated_counts.push(tx_count);
     event_counts.push(tx_count * 0.5);
     shared_ratios.push(0.5);
 
-    let f1 = freq_entropy(&command_types);
-    let f2 = freq_entropy(&senders);
-    let f3 = histogram_entropy(&gas_costs, 8);
-    let f4 = histogram_entropy(&mutated_counts, 8);
-    let f5 = freq_entropy(&move_calls);
-    let f6 = histogram_entropy(&transfer_counts, 8);
-    let f7 = histogram_entropy(&shared_ratios, 4);
-    let f8 = histogram_entropy(&event_counts, 8);
-    let f9 = freq_entropy(&epochs);
+    [
+        freq_entropy(&command_types),
+        freq_entropy(&senders),
+        histogram_entropy(&gas_costs, 8),
+        histogram_entropy(&mutated_counts, 8),
+        freq_entropy(&move_calls),
+        histogram_entropy(&transfer_counts, 8),
+        histogram_entropy(&shared_ratios, 4),
+        histogram_entropy(&event_counts, 8),
+        freq_entropy(&epochs),
+    ]
+}
 
-    [f1, f2, f3, f4, f5, f6, f7, f8, f9]
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_MIST: AtomicU64 = AtomicU64::new(1_000_000_000); // 1 SUI in MIST
+
+fn sui_magnitude(mist: u64) -> f64 {
+    let old = MAX_MIST.load(Ordering::Relaxed);
+    if mist > old { MAX_MIST.store(mist, Ordering::Relaxed); }
+    let max = MAX_MIST.load(Ordering::Relaxed).max(1) as f64;
+    let v   = mist as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+/// For Sui checkpoints we only have tx digests — classify based on gas cost proxy:
+/// high gas → likely MoveCall (SWAP); normal → TRANSFER.
+fn classify_sui_tx(gas_mist: u64) -> u8 {
+    if gas_mist > 5_000_000 { 1 } else { 0 } // SWAP vs TRANSFER
+}
+
+fn sui_bh_batch(cp: &Value, seq: u64, chain_id: u64, label: &str, cp_hash: &str, ts: u64) -> TxBhBatch {
+    let txs = match cp["transactions"].as_array() {
+        Some(a) => a,
+        None    => return TxBhBatch { chain_id, chain_label: label.to_string(), block_num: seq, block_hash: cp_hash.to_string(), timestamp: ts, entries: vec![] },
+    };
+
+    let epoch_rolling = &cp["epochRollingGasCostSummary"];
+    let total_gas: u64 = epoch_rolling["computationCost"].as_str()
+        .and_then(|s| s.parse().ok()).unwrap_or(0);
+    let per_tx_gas = if txs.is_empty() { 0 } else { total_gas / txs.len().max(1) as u64 };
+
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for tx in txs {
+        let digest = tx.as_str().unwrap_or("").to_string();
+        if digest.is_empty() { continue; }
+
+        let et  = classify_sui_tx(per_tx_gas);
+        let mag = sui_magnitude(per_tx_gas);
+        // Use digest prefix as entity ID proxy (no sender available from checkpoint)
+        let eid = bh_id(&digest);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, cp_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash: digest.clone(), from_addr: digest[..digest.len().min(8)].to_string(),
+            to_addr: String::new(),
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: per_tx_gas.to_string(),
+            selector: String::new(), timestamp: ts, chain_id,
+            chain_label: label.to_string(), block_num: seq,
+            block_hash: cp_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id, chain_label: label.to_string(), block_num: seq, block_hash: cp_hash.to_string(), timestamp: ts, entries }
 }
 
 #[tokio::main]
@@ -126,13 +173,11 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
 
-    let faiss  = FaissClient::new(&faiss_url)?;
+    let faiss     = FaissClient::new(&faiss_url)?;
     let mut state = IndexerState::new("sui");
     let mut rpc_idx = 0usize;
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(12))
-        .build()?;
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
 
     info!("TRION Sui Rust Indexer — chain={} poll={}ms faiss={}", CHAIN_ID, poll_ms, faiss_url);
 
@@ -143,7 +188,7 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        let rpc = RPCS[rpc_idx % RPCS.len()];
+        let rpc    = RPCS[rpc_idx % RPCS.len()];
         let latest = match get_latest_checkpoint(&client, rpc).await {
             Ok(n)  => n,
             Err(e) => { warn!("Sui RPC error ({}): {} — rotating", rpc, e); rpc_idx += 1; sleep(Duration::from_millis(poll_ms)).await; continue; }
@@ -158,12 +203,16 @@ async fn main() -> Result<()> {
                 Err(e) => { warn!("[{}] checkpoint {} error: {}", CHAIN_LBL, seq, e); rpc_idx += 1; continue; }
             };
 
-            let features   = extract_features(&cp);
-            let phi        = features.iter().sum::<f64>() / 9.0;
-            let entity_id  = block_entity_id(CHAIN_LBL, seq);
-            let bh         = bh_id(&entity_id);
-            let vector     = build_vector(&features, &format!("{}:{}", CHAIN_LBL, seq));
-            let ts         = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let features  = extract_features(&cp);
+            let phi       = features.iter().sum::<f64>() / 9.0;
+            let entity_id = block_entity_id(CHAIN_LBL, seq);
+            let bh        = bh_id(&entity_id);
+            let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, seq));
+            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let ts_u64    = ts as u64;
+            let cp_hash   = cp["digest"].as_str()
+                .map(|h| h.to_string())
+                .unwrap_or_else(|| bh_id(&format!("sui_cp:{}:{}", CHAIN_LBL, seq)));
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
@@ -177,8 +226,12 @@ async fn main() -> Result<()> {
             };
 
             match faiss.add_batch(&payload).await {
-                Ok(added) => info!("[{}] checkpoint={} φ={:.4} added={}", CHAIN_LBL, seq, phi, added),
-                Err(e)    => warn!("[{}] FAISS ingest failed seq {}: {}", CHAIN_LBL, seq, e),
+                Ok(added) => {
+                    let tx_batch = sui_bh_batch(&cp, seq, CHAIN_ID, CHAIN_LBL, &cp_hash, ts_u64);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] checkpoint={} φ={:.4} added={} bh_stored={}", CHAIN_LBL, seq, phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS ingest failed seq {}: {}", CHAIN_LBL, seq, e),
             }
             state.save(seq).ok();
         }

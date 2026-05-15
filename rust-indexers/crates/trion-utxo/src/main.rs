@@ -2,6 +2,7 @@
  * TRION UTXO Behavioral Indexer — Rust
  * =====================================
  * Indexes BTC, LTC, DOGE, DASH via BlockCypher REST API.
+ * Produces 128-dim vectors AND per-tx canonical BH (L0.1 ledger).
  *
  * UTXO behavioral dimensions (9 Shannon entropy features):
  *   f1 — Input count entropy        H(inputs_per_tx bins)
@@ -17,12 +18,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 #[derive(Clone)]
@@ -41,12 +44,8 @@ const CHAINS: &[UtxoChain] = &[
 
 async fn bc_get(client: &reqwest::Client, url: &str) -> Result<Value> {
     let resp = client.get(url).send().await?;
-    if resp.status() == 429 {
-        anyhow::bail!("BlockCypher rate limited");
-    }
-    if !resp.status().is_success() {
-        anyhow::bail!("BlockCypher HTTP {}", resp.status());
-    }
+    if resp.status() == 429 { anyhow::bail!("BlockCypher rate limited"); }
+    if !resp.status().is_success() { anyhow::bail!("BlockCypher HTTP {}", resp.status()); }
     Ok(resp.json().await?)
 }
 
@@ -59,8 +58,8 @@ async fn get_block(client: &reqwest::Client, base: &str, height: u64) -> Result<
     bc_get(client, &format!("{}/blocks/{}", base, height)).await
 }
 
-async fn get_block_txs(client: &reqwest::Client, base: &str, block_hash: &str) -> Result<Value> {
-    bc_get(client, &format!("{}/blocks/{}?txstart=0&limit=100", base, block_hash)).await
+async fn get_block_full(client: &reqwest::Client, base: &str, block_hash: &str) -> Result<Value> {
+    bc_get(client, &format!("{}/blocks/{}?txstart=0&limit=50&includeHex=false", base, block_hash)).await
 }
 
 fn extract_features(block_detail: &Value) -> [f64; 9] {
@@ -69,13 +68,11 @@ fn extract_features(block_detail: &Value) -> [f64; 9] {
     };
     if txs.is_empty() { return [0.5f64; 9]; }
 
-    // From block-level stats (BlockCypher block endpoint)
-    let n_tx     = txs.len() as f64;
-    let total    = block_detail["total"].as_u64().unwrap_or(0) as f64;
-    let fees     = block_detail["fees"].as_u64().unwrap_or(0) as f64;
-    let size     = block_detail["size"].as_u64().unwrap_or(1) as f64;
+    let n_tx    = txs.len() as f64;
+    let total   = block_detail["total"].as_u64().unwrap_or(0) as f64;
+    let fees    = block_detail["fees"].as_u64().unwrap_or(0) as f64;
+    let size    = block_detail["size"].as_u64().unwrap_or(1) as f64;
 
-    // Derived UTXO entropy proxies
     let fee_per_byte = fees / size.max(1.0);
     let avg_value    = total / n_tx.max(1.0);
 
@@ -83,18 +80,87 @@ fn extract_features(block_detail: &Value) -> [f64; 9] {
     let val_bins:  Vec<f64> = vec![avg_value];
     let size_bins: Vec<f64> = vec![size];
 
-    // Without full tx detail, use aggregate proxies
-    let f1 = histogram_entropy(&[n_tx / 10.0, n_tx / 5.0], 4);  // input count proxy
-    let f2 = histogram_entropy(&[n_tx / 8.0, n_tx / 4.0], 4);   // output count proxy
+    let f1 = histogram_entropy(&[n_tx / 10.0, n_tx / 5.0], 4);
+    let f2 = histogram_entropy(&[n_tx / 8.0, n_tx / 4.0], 4);
     let f3 = histogram_entropy(&fee_bins, 4);
     let f4 = histogram_entropy(&val_bins, 8);
-    let f5 = 0.7f64; // script type — uniform approximation without full UTXO detail
-    let f6 = 0.05f64; // OP_RETURN density — low by default
+    let f5 = 0.7f64;
+    let f6 = 0.05f64;
     let f7 = histogram_entropy(&size_bins, 8);
-    let f8 = ratio_entropy(1, 2); // locktime entropy — assume 50/50
-    let f9 = 0.5f64; // consolidation ratio
+    let f8 = ratio_entropy(1, 2);
+    let f9 = 0.5f64;
 
     [f1, f2, f3, f4, f5, f6, f7, f8, f9]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_SAT: AtomicU64 = AtomicU64::new(100_000_000); // 1 BTC in satoshi
+
+fn utxo_magnitude(sats: u64) -> f64 {
+    let old = MAX_SAT.load(Ordering::Relaxed);
+    if sats > old { MAX_SAT.store(sats, Ordering::Relaxed); }
+    let max = MAX_SAT.load(Ordering::Relaxed).max(1) as f64;
+    let v   = sats as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn utxo_bh_batch(block: &Value, chain: &UtxoChain, block_hash: &str, ts: u64) -> TxBhBatch {
+    let height = block["height"].as_u64().unwrap_or(0);
+    let txs    = match block["txs"].as_array() {
+        Some(a) => a,
+        None    => {
+            // No full tx data — fallback: emit one BH per block (coinbase marker)
+            let eid = bh_id(&format!("{}:coinbase:{}", chain.label, height));
+            let (sense_hex, antisense_hex) = canonical_bh(&eid, 13, 0.0, 0, ts, chain.chain_id, block_hash);
+            let entry = TxBhEntry {
+                tx_hash: block_hash[..block_hash.len().min(32)].to_string(),
+                from_addr: "coinbase".to_string(), to_addr: String::new(),
+                event_type: 13, event_type_name: "MINT".to_string(),
+                entity_id: eid, magnitude_norm: 0.0, value_wei: "0".to_string(),
+                selector: String::new(), timestamp: ts, chain_id: chain.chain_id,
+                chain_label: chain.label.to_string(), block_num: height,
+                block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+            };
+            return TxBhBatch { chain_id: chain.chain_id, chain_label: chain.label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries: vec![entry] };
+        }
+    };
+
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for (i, tx) in txs.iter().enumerate() {
+        let tx_hash = tx["hash"].as_str().unwrap_or("").to_string();
+        if tx_hash.is_empty() { continue; }
+
+        // Coinbase tx (first tx in block) → MINT; others → TRANSFER
+        let et = if i == 0 { 13u8 } else { 0u8 }; // MINT or TRANSFER
+
+        let total_out = tx["outputs"].as_array()
+            .map(|outs| outs.iter().map(|o| o["value"].as_u64().unwrap_or(0)).sum::<u64>())
+            .unwrap_or(0);
+
+        let sender = tx["inputs"].as_array()
+            .and_then(|ins| ins.first())
+            .and_then(|i| i["addresses"].as_array())
+            .and_then(|a| a.first())
+            .and_then(|a| a.as_str())
+            .unwrap_or("coinbase").to_string();
+
+        let mag = utxo_magnitude(total_out);
+        let eid = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain.chain_id, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash, from_addr: sender, to_addr: String::new(),
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: total_out.to_string(),
+            selector: String::new(), timestamp: ts, chain_id: chain.chain_id,
+            chain_label: chain.label.to_string(), block_num: height,
+            block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id: chain.chain_id, chain_label: chain.label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries }
 }
 
 async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut IndexerState, client: &reqwest::Client) -> Result<()> {
@@ -103,10 +169,8 @@ async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut Indexer
         Err(e) => { warn!("[{}] chain height error: {}", chain.label, e); return Ok(()); }
     };
 
-    let last = state.last_block();
-    let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
-
-    // UTXO chains are slow — only fetch 1 block per poll to respect rate limits
+    let last   = state.last_block();
+    let from   = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
     let target = from.min(latest);
     if target > latest { return Ok(()); }
 
@@ -115,12 +179,16 @@ async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut Indexer
         Err(e) => { warn!("[{}] block {} error: {}", chain.label, target, e); return Ok(()); }
     };
 
-    let features = extract_features(&block);
-    let phi      = features.iter().sum::<f64>() / 9.0;
-    let eid      = block_entity_id(chain.label, target);
-    let bh       = bh_id(&eid);
-    let vector   = build_vector(&features, &format!("{}:{}", chain.label, target));
-    let ts       = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+    let features  = extract_features(&block);
+    let phi       = features.iter().sum::<f64>() / 9.0;
+    let eid       = block_entity_id(chain.label, target);
+    let bh        = bh_id(&eid);
+    let vector    = build_vector(&features, &format!("{}:{}", chain.label, target));
+    let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+    let ts_u64    = ts as u64;
+    let block_hash = block["hash"].as_str()
+        .map(|h| h.to_string())
+        .unwrap_or_else(|| bh_id(&format!("utxo_block:{}:{}", chain.label, target)));
 
     let payload = BatchPayload {
         vectors: vec![VectorEntry {
@@ -134,8 +202,14 @@ async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut Indexer
     };
 
     match faiss.add_batch(&payload).await {
-        Ok(added) => info!("[{}] block={} φ={:.4} added={}", chain.label, target, phi, added),
-        Err(e)    => warn!("[{}] FAISS failed: {}", chain.label, e),
+        Ok(added) => {
+            // Try to get full block with txs for BH pipeline
+            let full_block = get_block_full(client, chain.api_base, &block_hash).await.unwrap_or(block);
+            let tx_batch   = utxo_bh_batch(&full_block, chain, &block_hash, ts_u64);
+            let bh_stored  = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+            info!("[{}] block={} φ={:.4} added={} bh_stored={}", chain.label, target, phi, added, bh_stored);
+        }
+        Err(e) => warn!("[{}] FAISS failed: {}", chain.label, e),
     }
     state.save(target).ok();
     Ok(())
@@ -158,12 +232,10 @@ async fn main() -> Result<()> {
 
     loop {
         if !faiss.is_healthy().await { sleep(Duration::from_secs(5)).await; continue; }
-
         for (chain, state) in CHAINS.iter().zip(states.iter_mut()) {
             if let Err(e) = index_chain(chain, &faiss, state, &client).await {
                 warn!("[{}] error: {}", chain.label, e);
             }
-            // Respect BlockCypher rate limit: max 3 req/s for free tier
             sleep(Duration::from_millis(1000)).await;
         }
         sleep(Duration::from_millis(poll_ms)).await;
