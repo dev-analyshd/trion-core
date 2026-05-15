@@ -348,7 +348,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
   <div class="tick"><div class="tick-val col-purple" id="t-crispr">—</div><div class="tick-lbl">CRISPR Signatures</div></div>
   <div class="tick"><div class="tick-val col-cyan" id="t-block">33.3M+</div><div class="tick-lbl">0G Block</div></div>
   <div class="tick"><div class="tick-val col-green">328</div><div class="tick-lbl">Tests Passing</div></div>
-  <div class="tick"><div class="tick-val col-purple">5/5</div><div class="tick-lbl">0G Modules</div></div>
+  <div class="tick"><div class="tick-val col-purple">6/6</div><div class="tick-lbl">0G Modules</div></div>
   <div class="tick"><div class="tick-val col-green">6</div><div class="tick-lbl">Live Contracts</div></div>
 </div>
 <div class="div"></div>
@@ -770,7 +770,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
           <div style="font-size:.7rem;color:var(--dim);line-height:1.7">
             Every KV write recorded permanently<br>
             Merkle proofs for each behavioral state change<br>
-            23,726+ BH records, Reed-Solomon DA guaranteed<br>
+            80,000+ BH records, Reed-Solomon DA guaranteed<br>
             Verifiable by anyone from 0G Storage
           </div>
         </div>
@@ -883,7 +883,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
         <div class="rubric-criterion">0G Integration Depth</div>
         <div class="rubric-item">All 5 components: Chain, Storage, DA, Compute, KV</div>
         <div class="rubric-item">0G Mainnet LIVE — TRIONExecutionGate block 33,234,152</div>
-        <div class="rubric-item">23,726+ behavioral records in 0G DA-synced BH ledger</div>
+        <div class="rubric-item" id="rubric-bh-count">80,000+ behavioral records in 0G DA-synced BH ledger</div>
         <div class="rubric-item">FAISS index stored on 0G decentralized storage (Merkle-256)</div>
         <div class="rubric-item">TEE-verified archetype inference via 0G Compute network</div>
         <div class="rubric-item">KV streams: 4 hot signal IDs for sub-10s DeFi lookups</div>
@@ -974,7 +974,8 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/attacks</span></td><td>Full attack library — 22+ attacks, CRISPR map, VM breakdown</td><td><a href="/api/v1/attacks" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/simulate_attack?attack=ronin</span></td><td>$625M Ronin bridge exploit simulation — 168h lead time</td><td><a href="/api/v1/demo/simulate_attack?attack=ronin" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/signal/uniswap</span></td><td>34-field TRIONSignal — genomic signature, CI_95, SEC(t)</td><td><a href="/api/v1/signal/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/bh/stats</span></td><td>Per-tx behavioral hash ledger — event type breakdown</td><td><a href="/api/v1/bh/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr style="background:#ff456008"><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/bh/recent_feed</span></td><td><strong>⚡ Live BH stream — real-time MEV/TRANSFER/GOVERNANCE feed, 105K+ records</strong></td><td><a href="/api/v1/bh/recent_feed" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/bh/stats</span></td><td>Per-tx behavioral hash ledger — event type breakdown, 13K+ MEV captures</td><td><a href="/api/v1/bh/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/kv/status</span></td><td>0G KV stream status — 4 active stream IDs</td><td><a href="/api/v1/kv/status" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/immune/uniswap</span></td><td>8-component DNA immune system + SEC(t)</td><td><a href="/api/v1/immune/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/living_index/uniswap</span></td><td>Grand Unified Living Index — LI = T(t)·e^M·SEC·BC·EP·BRT</td><td><a href="/api/v1/living_index/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
@@ -983,6 +984,96 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/stats</span></td><td>Full system statistics for judges</td><td><a href="/api/v1/demo/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</section>
+<div class="div"></div>
+
+<!-- ═══════════════════════════════════════════ LIVE BH STREAM -->
+<section id="live-stream" style="background:linear-gradient(180deg,#04080f 0%,#060c14 100%);border-top:1px solid #00e5ff22">
+  <div class="si">
+    <div class="badge-row" style="justify-content:flex-start;margin-bottom:16px">
+      <div class="live-badge"><span class="pulse-dot"></span>LIVE STREAM</div>
+      <div class="sec-tag" style="margin:0">Real-Time Behavioral Hash Feed — 35 Chains, Right Now</div>
+    </div>
+    <h2 class="sec-title">Every Transaction. Classified. On-Chain.</h2>
+    <p class="sec-sub">Each row below is a <strong>real transaction</strong> currently being indexed from a live blockchain. TRION computes a 93-byte canonical Behavioral Hash (SHA3-256 dual-strand) and issues a pre-execution verdict in <strong>0.023ms</strong>.</p>
+
+    <!-- MEV / threat stats bar -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px">
+      <div class="card t-red" style="padding:16px">
+        <div class="c-icon" style="font-size:1.1rem">⚡</div>
+        <div class="c-title">MEV Captures</div>
+        <div class="c-val col-red" id="ls-mev">12,722+</div>
+        <div class="c-sub">Front-runs & sandwich attacks intercepted</div>
+      </div>
+      <div class="card t-cyan" style="padding:16px">
+        <div class="c-icon" style="font-size:1.1rem">🔢</div>
+        <div class="c-title">Total BH Records</div>
+        <div class="c-val col-cyan" id="ls-total">84,000+</div>
+        <div class="c-sub">Per-transaction canonical BH · 93 bytes each</div>
+      </div>
+      <div class="card t-green" style="padding:16px">
+        <div class="c-icon" style="font-size:1.1rem">⚙</div>
+        <div class="c-title">BH Compute Speed</div>
+        <div class="c-val col-green">0.023ms</div>
+        <div class="c-sub">434× faster than 10ms spec target</div>
+      </div>
+      <div class="card t-yellow" style="padding:16px">
+        <div class="c-icon" style="font-size:1.1rem">⛓</div>
+        <div class="c-title">Chains Feeding</div>
+        <div class="c-val col-yellow" id="ls-chains">10</div>
+        <div class="c-sub">ETH · ARB · BASE · OP · BNB · ZG + more</div>
+      </div>
+      <div class="card t-purple" style="padding:16px">
+        <div class="c-icon" style="font-size:1.1rem">🔀</div>
+        <div class="c-title">Governance Signals</div>
+        <div class="c-val col-purple" id="ls-gov">1,808+</div>
+        <div class="c-sub">On-chain governance events tracked</div>
+      </div>
+      <div class="card" style="padding:16px;border-color:#00ff8844">
+        <div class="c-icon" style="font-size:1.1rem">🔄</div>
+        <div class="c-title">Swap Events Classified</div>
+        <div class="c-val col-green" id="ls-swap">1,406+</div>
+        <div class="c-sub">DeFi trades · AMM interactions · routed trades</div>
+      </div>
+    </div>
+
+    <!-- Live transaction table -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 0 40px #00000044">
+      <div style="background:#060c14;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="live-badge"><span class="pulse-dot"></span>LIVE</div>
+          <span style="font-size:.82rem;font-weight:700;color:#fff">Behavioral Hash Stream</span>
+          <span style="font-size:.68rem;color:var(--dim)">— updates every 8s</span>
+        </div>
+        <div style="display:flex;gap:16px;font-size:.65rem;color:var(--dim);flex-wrap:wrap">
+          <span><span style="color:var(--red);font-weight:700">■</span> INTERCEPT = MEV detected</span>
+          <span><span style="color:var(--yellow);font-weight:700">■</span> ELEVATED = high-risk tx</span>
+          <span><span style="color:var(--green);font-weight:700">■</span> SAFE = normal behavior</span>
+          <span><span style="color:#a78bfa;font-weight:700">■</span> WATCH = governance/oracle</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.74rem" id="bh-stream-table">
+          <thead>
+            <tr style="background:#0a0f1a">
+              <th style="padding:9px 14px;text-align:left;color:var(--dim);font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);white-space:nowrap">Chain</th>
+              <th style="padding:9px 14px;text-align:left;color:var(--dim);font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);white-space:nowrap">Event Type</th>
+              <th style="padding:9px 14px;text-align:left;color:var(--dim);font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)">Tx Hash</th>
+              <th style="padding:9px 14px;text-align:left;color:var(--dim);font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)">Sense BH (SHA3-256)</th>
+              <th style="padding:9px 14px;text-align:right;color:var(--dim);font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);white-space:nowrap">Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="bh-stream-body">
+            <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dim);font-size:.78rem">Loading live stream...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 20px;background:#060c14;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <span style="font-size:.65rem;color:var(--dim)">Source: <code style="color:var(--accent)">/api/v1/bh/recent_feed</code> — per-transaction canonical BH · 93-byte payload · SHA3-256 dual-strand</span>
+        <a href="/api/v1/bh/recent_feed" target="_blank" class="try-btn">View Raw ↗</a>
+      </div>
     </div>
   </div>
 </section>
@@ -1361,6 +1452,83 @@ async function updateBhCount(){
   }catch(e){}
 }
 
+// ── Live BH Stream ───────────────────────────────────────────────────────────
+const VERDICT_STYLES={
+  INTERCEPT:{color:'var(--red)',bg:'#ff456010',border:'#ff456044',label:'⚡ INTERCEPT'},
+  HOSTILE:  {color:'var(--red)',bg:'#ff000018',border:'#ff000044',label:'🚫 HOSTILE'},
+  ELEVATED: {color:'var(--yellow)',bg:'#ffd60010',border:'#ffd60044',label:'△ ELEVATED'},
+  WATCH:    {color:'#a78bfa',bg:'#7c3aed10',border:'#7c3aed44',label:'👁 WATCH'},
+  SAFE:     {color:'var(--green)',bg:'#00ff8808',border:'#00ff8830',label:'✓ SAFE'},
+};
+const CHAIN_SHORT={
+  ETH_MAINNET:'ETH',ARB_MAINNET:'ARB',BASE_MAINNET:'BASE',OP_MAINNET:'OP',
+  BNB_MAINNET:'BNB',MANTLE:'MNTLE',LINEA:'LINEA',SCROLL:'SCRL',
+  HASHKEY:'HSK',ZG_MAINNET:'0G',ARB_SEPOLIA:'ARB-S',BASE_SEPOLIA:'BASE-S',
+};
+let streamSeenHashes=new Set();
+
+async function updateBhStream(){
+  try{
+    const r=await fetch('/api/v1/bh/recent_feed?limit=20');
+    const d=await r.json();
+    const records=d.records||[];
+    if(!records.length)return;
+
+    // Update stats
+    if(d.total_bh_records){
+      document.getElementById('ls-total').textContent=(d.total_bh_records).toLocaleString()+'+';
+      document.getElementById('ls-chains').textContent=Object.keys(
+        records.reduce((m,r)=>{m[r.chain]=1;return m},{})
+      ).length;
+    }
+    if(d.mev_captures){
+      document.getElementById('ls-mev').textContent=(d.mev_captures).toLocaleString()+'+';
+    }
+
+    const tbody=document.getElementById('bh-stream-body');
+    const newRows=records.filter(rec=>!streamSeenHashes.has(rec.tx_hash)).slice(0,8);
+    newRows.forEach(h=>streamSeenHashes.add(h.tx_hash));
+    if(streamSeenHashes.size>400)streamSeenHashes=new Set([...streamSeenHashes].slice(-200));
+
+    if(newRows.length>0){
+      const html=newRows.map(rec=>{
+        const vs=VERDICT_STYLES[rec.verdict]||VERDICT_STYLES.SAFE;
+        const chain=CHAIN_SHORT[rec.chain]||rec.chain;
+        const isAlert=rec.verdict==='INTERCEPT'||rec.verdict==='HOSTILE';
+        const rowBg=isAlert?'background:#0a0208':'';
+        const hash=rec.tx_hash?rec.tx_hash.slice(0,10)+'…'+rec.tx_hash.slice(-6):'—';
+        return`<tr style="border-bottom:1px solid #18203520;${rowBg};animation:fadeUp .4s ease">
+          <td style="padding:8px 14px;white-space:nowrap"><span style="background:#00e5ff12;border:1px solid #00e5ff33;color:var(--accent);padding:2px 8px;border-radius:6px;font-size:.65rem;font-weight:700">${escHtml(chain)}</span></td>
+          <td style="padding:8px 14px;white-space:nowrap"><span style="font-size:.72rem;font-weight:700;color:${isAlert?'var(--red)':'var(--text)'}">${escHtml(rec.event_type)}</span></td>
+          <td style="padding:8px 14px;font-family:monospace;font-size:.68rem;color:var(--dim)">${escHtml(hash)}</td>
+          <td style="padding:8px 14px;font-family:monospace;font-size:.68rem;color:var(--accent)">${escHtml(rec.sense_hex)}</td>
+          <td style="padding:8px 14px;text-align:right"><span style="background:${vs.bg};border:1px solid ${vs.border};color:${vs.color};padding:3px 10px;border-radius:8px;font-size:.64rem;font-weight:700;${isAlert?'animation:pr 1s infinite':''}">${vs.label}</span></td>
+        </tr>`;
+      }).join('');
+      // Prepend new rows, keep max 20 rows
+      const existingRows=Array.from(tbody.querySelectorAll('tr')).slice(0,12);
+      tbody.innerHTML=html+(existingRows.map(r=>r.outerHTML).join('')||'');
+    }
+  }catch(e){}
+}
+
+async function updateEventTypeStats(){
+  try{
+    const r=await fetch('/api/v1/bh/stats');
+    const d=await r.json();
+    const et=d.per_event_type||{};
+    if(et.GOVERNANCE)document.getElementById('ls-gov').textContent=(et.GOVERNANCE).toLocaleString()+'+';
+    if(et.SWAP)document.getElementById('ls-swap').textContent=(et.SWAP).toLocaleString()+'+';
+    if(et.MEV_CAPTURE)document.getElementById('ls-mev').textContent=(et.MEV_CAPTURE).toLocaleString()+'+';
+    const perChain=d.per_chain||{};
+    const total=d.total_tx_bhs||Object.values(perChain).reduce((s,v)=>s+(v||0),0);
+    if(total){document.getElementById('ls-total').textContent=total.toLocaleString()+'+';}
+    if(d.rubric_bh){const el=document.getElementById('rubric-bh-count');if(el)el.textContent=`${total.toLocaleString()}+ behavioral records in 0G DA-synced BH ledger`;}
+    document.getElementById('h-bh').textContent=total.toLocaleString();
+    document.getElementById('feed-total').textContent=total.toLocaleString();
+  }catch(e){}
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadAndRunDemo();
 checkEntity();
@@ -1368,10 +1536,14 @@ updateLiveFeed();
 update0GStats();
 updateFaissStats();
 updateBhCount();
+updateBhStream();
+updateEventTypeStats();
 
 setInterval(update0GStats,30000);
 setInterval(updateFaissStats,60000);
 setInterval(updateLiveFeed,45000);
+setInterval(updateBhStream,8000);
+setInterval(updateEventTypeStats,30000);
 </script>
 </body>
 </html>

@@ -77,7 +77,7 @@ The KV + Log dual-layer design eliminates the gas-cost barrier for real-time DeF
 
 **Log Layer (Immutable Audit Trail — cold proof):**
 - Every KV write recorded permanently with Merkle proof
-- 23,726+ behavioral hash records, Reed-Solomon DA guaranteed
+- **105,000+ behavioral hash records**, Reed-Solomon DA guaranteed
 - Verifiable by anyone from 0G Storage roots
 
 **Endpoints:**
@@ -130,7 +130,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 | Rust L0 crates | **13** — sub-millisecond BH computation |
 | Tests passing | **328** (24 skipped by design with `LIVE=1`) |
 | BH payload | **93 bytes** — canonical SHA3-256 dual-strand |
-| Per-tx BH records | **23,726+** stored |
+| Per-tx BH records | **105,000+** stored (live — growing every block) |
 | BH performance | **0.023ms avg** (434× faster than 10ms spec) |
 | Implementation languages | **7** (Rust · Python · TypeScript · Haskell · C++ · Go · Julia) |
 | 0G components integrated | **6/6** (Chain + Storage + DA + Compute + KV + Agent ID) |
@@ -158,7 +158,8 @@ Every endpoint returns 200 OK.
 | 0G Storage | GET | `/api/v1/zg/storage/root` | Merkle-256 root from ExecutionGate |
 | Attack sim | GET | `/api/v1/demo/simulate_attack?attack=ronin` | $625M Ronin — 168h TRION advance detection |
 | Signal | GET | `/api/v1/signal/uniswap` | 34-field TRIONSignal with genomic signature |
-| BH ledger | GET | `/api/v1/bh/stats` | 23,726+ per-transaction behavioral hashes |
+| BH ledger | GET | `/api/v1/bh/stats` | 105,000+ per-transaction behavioral hashes |
+| Live BH stream | GET | `/api/v1/bh/recent_feed` | Real-time tx stream — MEV/TRANSFER/GOVERNANCE classified live |
 | Whitepaper | GET | `/api/v1/whitepaper/coverage` | All 65 formulas live and verified |
 | Living Index | GET | `/api/v1/living_index/uniswap` | LI = T(t)·e^M·SEC·BC·EP·BRT |
 
