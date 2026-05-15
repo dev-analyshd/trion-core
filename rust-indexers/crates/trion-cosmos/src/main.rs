@@ -2,6 +2,7 @@
  * TRION Cosmos SDK Behavioral Indexer — Rust
  * ===========================================
  * Indexes 6 Cosmos SDK chains simultaneously via public LCD REST APIs.
+ * Produces 128-dim vectors AND per-tx canonical BH (L0.1 ledger).
  *
  * Cosmos behavioral dimensions (9 Shannon entropy features):
  *   f1 — Message type diversity  H(msg_type distribution)
@@ -17,12 +18,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 #[derive(Clone)]
@@ -34,34 +37,31 @@ struct CosmosChain {
 }
 
 const CHAINS: &[CosmosChain] = &[
-    CosmosChain { label: "COSMOS_HUB",  chain_id: 4001, denom: "uatom",
+    CosmosChain { label: "COSMOS_HUB", chain_id: 4001, denom: "uatom",
         lcds: &["https://cosmos-rest.publicnode.com", "https://rest.cosmos.directory/cosmoshub"] },
-    CosmosChain { label: "KAVA",        chain_id: 4002, denom: "ukava",
-        lcds: &["https://kava-api.publicnode.com", "https://rest.cosmos.directory/kava"] },
-    CosmosChain { label: "INJECTIVE",   chain_id: 4003, denom: "inj",
+    CosmosChain { label: "KAVA",       chain_id: 4002, denom: "ukava",
+        lcds: &["https://kava-api.publicnode.com",    "https://rest.cosmos.directory/kava"] },
+    CosmosChain { label: "INJECTIVE",  chain_id: 4003, denom: "inj",
         lcds: &["https://injective-rest.publicnode.com", "https://rest.cosmos.directory/injective"] },
-    CosmosChain { label: "SEI",         chain_id: 4004, denom: "usei",
-        lcds: &["https://sei-api.polkachu.com", "https://rest.cosmos.directory/sei"] },
-    CosmosChain { label: "DYDX",        chain_id: 4005, denom: "adydx",
-        lcds: &["https://dydx-rest.publicnode.com", "https://rest.cosmos.directory/dydx"] },
-    CosmosChain { label: "INITIA",      chain_id: 4006, denom: "uinit",
-        lcds: &["https://rest.initia.xyz", "https://initia-api.polkachu.com"] },
+    CosmosChain { label: "SEI",        chain_id: 4004, denom: "usei",
+        lcds: &["https://sei-api.polkachu.com",       "https://rest.cosmos.directory/sei"] },
+    CosmosChain { label: "DYDX",       chain_id: 4005, denom: "adydx",
+        lcds: &["https://dydx-rest.publicnode.com",   "https://rest.cosmos.directory/dydx"] },
+    CosmosChain { label: "INITIA",     chain_id: 4006, denom: "uinit",
+        lcds: &["https://rest.initia.xyz",            "https://initia-api.polkachu.com"] },
 ];
 
 async fn lcd_get(client: &reqwest::Client, lcd: &str, path: &str) -> Result<Value> {
     let url = format!("{}{}", lcd.trim_end_matches('/'), path);
     let resp = client.get(&url).send().await?;
-    if !resp.status().is_success() {
-        anyhow::bail!("LCD HTTP {} for {}", resp.status(), path);
-    }
+    if !resp.status().is_success() { anyhow::bail!("LCD HTTP {} for {}", resp.status(), path); }
     Ok(resp.json().await?)
 }
 
 async fn get_latest_height(client: &reqwest::Client, lcd: &str) -> Result<u64> {
     let data = lcd_get(client, lcd, "/cosmos/base/tendermint/v1beta1/blocks/latest").await?;
     let h = data["block"]["header"]["height"].as_str()
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(0);
+        .and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
     Ok(h)
 }
 
@@ -91,51 +91,34 @@ fn extract_features(block: &Value, txs_resp: &Value) -> [f64; 9] {
     for tx_resp in txs {
         let code = tx_resp["code"].as_u64().unwrap_or(0);
         if code == 0 { success += 1; } else { failed += 1; }
-
-        if let Some(gu) = tx_resp["gas_used"].as_str().and_then(|s| s.parse::<f64>().ok()) {
-            gas_used.push(gu);
-        }
-
+        if let Some(gu) = tx_resp["gas_used"].as_str().and_then(|s| s.parse::<f64>().ok()) { gas_used.push(gu); }
         let tx = &tx_resp["tx"];
         if let Some(msgs) = tx["body"]["messages"].as_array() {
             for msg in msgs {
                 let type_url = msg["@type"].as_str().unwrap_or("/unknown").to_string();
                 msg_types.push(type_url.clone());
-
-                // Sender
                 let sender = msg["from_address"].as_str()
                     .or_else(|| msg["delegator_address"].as_str())
                     .or_else(|| msg["sender"].as_str())
                     .unwrap_or("").to_string();
                 if !sender.is_empty() { senders.push(sender); }
-
-                // Amount
                 if let Some(amt) = msg["amount"].as_array().and_then(|a| a.first()) {
                     let v = amt["amount"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
                     amounts.push(v);
                 }
-
-                // IBC
                 if type_url.contains("ibc") {
-                    let ch = msg["source_channel"].as_str().unwrap_or("unknown").to_string();
-                    ibc_channels.push(ch);
+                    ibc_channels.push(msg["source_channel"].as_str().unwrap_or("unknown").to_string());
                 }
-
-                // Staking
                 if type_url.contains("Delegate") || type_url.contains("Undelegate") || type_url.contains("Redelegate") {
                     staking_types.push(type_url.clone());
                 }
-
-                // Contract
                 if type_url.contains("MsgExecuteContract") {
-                    let addr = msg["contract"].as_str().unwrap_or("").to_string();
-                    contracts.push(addr);
+                    contracts.push(msg["contract"].as_str().unwrap_or("").to_string());
                 }
             }
         }
     }
 
-    // Proposer from block header
     let proposer = block["block"]["header"]["proposer_address"].as_str().unwrap_or("").to_string();
     let proposers = if proposer.is_empty() { vec![] } else { vec![proposer] };
 
@@ -152,11 +135,93 @@ fn extract_features(block: &Value, txs_resp: &Value) -> [f64; 9] {
     ]
 }
 
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_UATOM: AtomicU64 = AtomicU64::new(1_000_000_000); // 1000 ATOM in uatom
+
+fn cosmos_magnitude(uatom: u64) -> f64 {
+    let old = MAX_UATOM.load(Ordering::Relaxed);
+    if uatom > old { MAX_UATOM.store(uatom, Ordering::Relaxed); }
+    let max = MAX_UATOM.load(Ordering::Relaxed).max(1) as f64;
+    let v   = uatom as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn classify_cosmos_msg(type_url: &str) -> u8 {
+    match true {
+        _ if type_url.contains("MsgSend") || type_url.contains("MultiSend")             => 0,  // TRANSFER
+        _ if type_url.contains("MsgTransfer") && type_url.contains("ibc")               => 0,  // BRIDGE/TRANSFER
+        _ if type_url.contains("MsgDelegate") || type_url.contains("MsgCreateValidator")=> 8,  // STAKE
+        _ if type_url.contains("MsgUndelegate") || type_url.contains("MsgBeginRedelegate")=>9, // UNSTAKE
+        _ if type_url.contains("MsgVote") || type_url.contains("MsgSubmitProposal")
+          || type_url.contains("MsgDeposit") && type_url.contains("gov")                => 6,  // GOVERNANCE
+        _ if type_url.contains("MsgExecuteContract")                                     => 1,  // SWAP (CosmWasm DeFi)
+        _ if type_url.contains("MsgInstantiateContract")                                 => 11, // DEPLOY
+        _ if type_url.contains("MsgCreateDenom") || type_url.contains("MsgMint")        => 13, // MINT
+        _ if type_url.contains("MsgBurn")                                                => 14, // BURN
+        _ if type_url.contains("MsgWithdrawDelegator") || type_url.contains("MsgClaim") => 19, // CLAIM
+        _ => 0, // TRANSFER
+    }
+}
+
+fn cosmos_bh_batch(txs_resp: &Value, chain: &CosmosChain, height: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let txs = match txs_resp["tx_responses"].as_array() {
+        Some(a) => a,
+        None    => return TxBhBatch { chain_id: chain.chain_id, chain_label: chain.label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries: vec![] },
+    };
+
+    let mut entries: Vec<TxBhEntry> = Vec::with_capacity(txs.len());
+
+    for tx_resp in txs {
+        let txhash = tx_resp["txhash"].as_str().unwrap_or("").to_string();
+        if txhash.is_empty() { continue; }
+        let code = tx_resp["code"].as_u64().unwrap_or(0);
+        if code != 0 { continue; } // skip failed txs
+
+        let tx = &tx_resp["tx"];
+        let msgs = match tx["body"]["messages"].as_array() {
+            Some(m) if !m.is_empty() => m,
+            _ => continue,
+        };
+
+        // Use first message for event classification
+        let first_msg  = &msgs[0];
+        let type_url   = first_msg["@type"].as_str().unwrap_or("/unknown");
+        let et         = classify_cosmos_msg(type_url);
+
+        let sender = first_msg["from_address"].as_str()
+            .or_else(|| first_msg["delegator_address"].as_str())
+            .or_else(|| first_msg["sender"].as_str())
+            .unwrap_or("unknown").to_string();
+
+        // Extract amount from first message
+        let uatom = first_msg["amount"].as_array()
+            .and_then(|a| a.first())
+            .and_then(|a| a["amount"].as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+
+        let mag = cosmos_magnitude(uatom);
+        let eid = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain.chain_id, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash: txhash, from_addr: sender, to_addr: String::new(),
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: uatom.to_string(),
+            selector: String::new(), timestamp: ts, chain_id: chain.chain_id,
+            chain_label: chain.label.to_string(), block_num: height,
+            block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id: chain.chain_id, chain_label: chain.label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries }
+}
+
 async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut IndexerState, client: &reqwest::Client) -> Result<()> {
     let mut lcd_idx = 0usize;
-    let lcd = chain.lcds[lcd_idx % chain.lcds.len()];
-
-    let latest = match get_latest_height(client, lcd).await {
+    let lcd     = chain.lcds[lcd_idx % chain.lcds.len()];
+    let latest  = match get_latest_height(client, lcd).await {
         Ok(h)  => h,
         Err(e) => { warn!("[{}] latest height error: {}", chain.label, e); return Ok(()); }
     };
@@ -174,12 +239,16 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
             Err(e) => { warn!("[{}] txs {} error: {}", chain.label, height, e); serde_json::json!({}) }
         };
 
-        let features = extract_features(&block, &txs_resp);
-        let phi      = features.iter().sum::<f64>() / 9.0;
-        let eid      = block_entity_id(chain.label, height);
-        let bh       = bh_id(&eid);
-        let vector   = build_vector(&features, &format!("{}:{}", chain.label, height));
-        let ts       = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+        let features  = extract_features(&block, &txs_resp);
+        let phi       = features.iter().sum::<f64>() / 9.0;
+        let eid       = block_entity_id(chain.label, height);
+        let bh        = bh_id(&eid);
+        let vector    = build_vector(&features, &format!("{}:{}", chain.label, height));
+        let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+        let ts_u64    = ts as u64;
+        let block_hash = block["block_id"]["hash"].as_str()
+            .map(|h| h.to_string())
+            .unwrap_or_else(|| bh_id(&format!("cosmos_block:{}:{}", chain.label, height)));
 
         let payload = BatchPayload {
             vectors: vec![VectorEntry {
@@ -193,8 +262,12 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
         };
 
         match faiss.add_batch(&payload).await {
-            Ok(added) => info!("[{}] height={} φ={:.4} added={}", chain.label, height, phi, added),
-            Err(e)    => warn!("[{}] FAISS failed: {}", chain.label, e),
+            Ok(added) => {
+                let tx_batch = cosmos_bh_batch(&txs_resp, chain, height, &block_hash, ts_u64);
+                let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                info!("[{}] height={} φ={:.4} added={} bh_stored={}", chain.label, height, phi, added, bh_stored);
+            }
+            Err(e) => warn!("[{}] FAISS failed: {}", chain.label, e),
         }
         state.save(height).ok();
     }
@@ -218,12 +291,11 @@ async fn main() -> Result<()> {
 
     loop {
         if !faiss.is_healthy().await { sleep(Duration::from_secs(5)).await; continue; }
-
         for (chain, state) in CHAINS.iter().zip(states.iter_mut()) {
             if let Err(e) = index_one_chain(chain, &faiss, state, &client).await {
                 warn!("[{}] error: {}", chain.label, e);
             }
-            sleep(Duration::from_millis(500)).await; // rate-limit between chains
+            sleep(Duration::from_millis(500)).await;
         }
         sleep(Duration::from_millis(poll_ms)).await;
     }
