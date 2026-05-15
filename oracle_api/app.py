@@ -3579,6 +3579,12 @@ def convergence_theorem_legacy():
 
 
 # ── L0.1 Behavioral Hash (BH) — GET and POST ─────────────────────────────────
+@app.route("/api/v1/bh/chains")
+def bh_chains_alias():
+    """Alias for bh/chains — registered before wildcard to avoid Flask routing conflict."""
+    return bh_chains()
+
+
 @app.route("/api/v1/bh/<entity_id>")
 def behavioral_hash_get(entity_id: str):
     """
