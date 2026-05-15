@@ -1,29 +1,26 @@
 /**
  * TRION NEAR — Real Transaction Executor + BTCP Proof
  *
- * Fires 5 real NEAR transactions on testnet using the provided key,
+ * Fires 5 real NEAR transactions on mainnet using the provided key,
  * ingests behavioral vectors into FAISS, records proof.
  *
- * Usage:  NEAR_PRIVATE_KEY=ed25519:<key> NEAR_ACCOUNT_ID=<account.testnet> tsx execute.ts
+ * Usage:  NEAR_PRIVATE_KEY=ed25519:<key> NEAR_ACCOUNT_ID=<account.near> tsx execute.ts
  */
 
 import fetch from "node-fetch";
 import fs from "fs";
 
 const FAISS_URL    = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID     = 1201;
+const CHAIN_ID     = 1200;
 const VM_TYPE      = "NEAR";
-const ACCOUNT_ID   = process.env.NEAR_ACCOUNT_ID ?? "trion.testnet";
+const ACCOUNT_ID   = process.env.NEAR_ACCOUNT_ID ?? "trion.near";
 const NEAR_RPCS    = [
-  "https://rpc.testnet.fastnear.com",
-  "https://near-testnet.lava.build",
-  "https://test.rpc.fastnear.com",
-  "https://archival-rpc.testnet.near.org",
+  "https://rpc.mainnet.near.org",
+  "https://rpc.fastnear.com",
+  "https://near-mainnet.lava.build",
+  "https://archival-rpc.mainnet.near.org",
 ];
 const NEAR_RPC     = NEAR_RPCS[0];
-
-// NEAR ed25519 key handling — uses tweetnacl
-// We'll use the JSON-RPC broadcast_tx_async path with a manually signed transfer
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -105,35 +102,21 @@ async function ingestToFaiss(entityId: string, vector: number[], phi: number) {
 }
 
 async function signAndSendNearTx(nonce: number, blockHash: string, iteration: number): Promise<string | null> {
-  // Use NEAR JSON-RPC to build and broadcast a signed transfer
-  // We import tweetnacl dynamically for ed25519 signing
   const nacl = await import("tweetnacl");
   const bs58  = await import("bs58");
 
   const rawKey = process.env.NEAR_PRIVATE_KEY ?? "";
   if (!rawKey) throw new Error("NEAR_PRIVATE_KEY not set");
 
-  // Strip "ed25519:" prefix
   const keyB58   = rawKey.replace(/^ed25519:/, "");
-  const secretKey = bs58.default.decode(keyB58);  // 64-byte secret key
-
-  // NEAR transaction binary encoding (borsh)
-  // For a real transfer we need borsh encoding — use a simplified approach:
-  // Build raw transaction bytes manually
+  const secretKey = bs58.default.decode(keyB58);
 
   const { createHash } = await import("crypto");
 
-  // Get public key from secret key (last 32 bytes or derive)
   const keyPair = nacl.default.sign.keyPair.fromSecretKey(secretKey);
-  const publicKeyBytes = keyPair.publicKey; // 32 bytes
+  const publicKeyBytes = keyPair.publicKey;
 
-  // Encode block hash (base58 → bytes)
   const blockHashBytes = bs58.default.decode(blockHash);
-
-  // Borsh-encode a NEAR transaction for self-transfer of 1 yoctoNEAR
-  // NEAR transaction structure (simplified borsh):
-  // signer_id (string), public_key (enum+bytes), nonce (u64), receiver_id (string),
-  // block_hash (32 bytes), actions (vec of Action)
 
   function encodeString(s: string): Uint8Array {
     const encoded = new TextEncoder().encode(s);
@@ -169,14 +152,13 @@ async function signAndSendNearTx(nonce: number, blockHash: string, iteration: nu
     return result;
   }
 
-  // Build transaction body
   const signerIdBytes   = encodeString(ACCOUNT_ID);
-  const publicKeyEnum   = new Uint8Array([0]); // 0 = ED25519
+  const publicKeyEnum   = new Uint8Array([0]);
   const nonceBytes      = encodeU64(BigInt(nonce));
-  const receiverIdBytes = encodeString(ACCOUNT_ID); // self-transfer
-  const actionCount     = new Uint8Array([1, 0, 0, 0]); // 1 action
-  const transferEnum    = new Uint8Array([3]); // 3 = Transfer
-  const transferAmount  = encodeU128(BigInt(1 + iteration)); // 1+ yoctoNEAR
+  const receiverIdBytes = encodeString(ACCOUNT_ID);
+  const actionCount     = new Uint8Array([1, 0, 0, 0]);
+  const transferEnum    = new Uint8Array([3]);
+  const transferAmount  = encodeU128(BigInt(1 + iteration));
 
   const txBody = concat(
     signerIdBytes,
@@ -190,32 +172,26 @@ async function signAndSendNearTx(nonce: number, blockHash: string, iteration: nu
     transferAmount,
   );
 
-  // Sign
   const hash = createHash("sha256").update(txBody).digest();
   const signature = nacl.default.sign.detached(hash, secretKey);
 
-  // Build signed transaction
-  const signatureEnum   = new Uint8Array([0]); // 0 = ED25519
+  const signatureEnum   = new Uint8Array([0]);
   const signedTx = concat(txBody, signatureEnum, signature);
 
-  // Base64 encode for broadcast
   const signedTxB64 = Buffer.from(signedTx).toString("base64");
 
-  // Broadcast
   const broadcastResult = await nearRpc("broadcast_tx_async", [signedTxB64]);
-  // Returns tx hash string
   return broadcastResult as string;
 }
 
 async function main() {
   console.log("╔══════════════════════════════════════════════════════════════════╗");
-  console.log("║   TRION NEAR — Real Transaction Executor                        ║");
+  console.log("║   TRION NEAR — Real Transaction Executor (Mainnet)              ║");
   console.log("╚══════════════════════════════════════════════════════════════════╝\n");
 
   console.log(`  Account: ${ACCOUNT_ID}`);
   console.log(`  RPC:     ${NEAR_RPC}`);
 
-  // Check account exists
   const accountInfo = await getAccountInfo();
   if (accountInfo) {
     console.log(`  Amount:  ${(parseFloat(accountInfo.amount) / 1e24).toFixed(4)} NEAR`);
@@ -226,7 +202,6 @@ async function main() {
   const results: any[] = [];
   const NUM_TXS = 5;
 
-  // Get initial nonce
   let nonceBase = 0;
   try {
     const rawKey = (process.env.NEAR_PRIVATE_KEY ?? "").replace(/^ed25519:/, "");
@@ -234,7 +209,6 @@ async function main() {
     const nacl  = await import("tweetnacl");
     const secretKey = bs58.default.decode(rawKey);
     const keyPair = nacl.default.sign.keyPair.fromSecretKey(secretKey);
-    const pubKeyB58 = Buffer.from(keyPair.publicKey).toString("hex");
 
     const accessKeyResult = await nearRpc("query", {
       request_type: "view_access_key",
@@ -275,7 +249,7 @@ async function main() {
 
       results.push({
         tx_index:  i + 1,
-        chain:     "NEAR_TESTNET",
+        chain:     "NEAR_MAINNET",
         chain_id:  CHAIN_ID,
         vm_type:   VM_TYPE,
         tx_hash:   txHash,

@@ -72,7 +72,7 @@ restart_process "trion-ton" \
 pids+=($!)
 sleep 0.3
 
-# PVM (Polkadot Westend — only available testnet for Polkadot's substrate)
+# PVM (Polkadot Mainnet — chain_id 900)
 build_if_needed "trion-pvm"
 restart_process "trion-pvm" \
     env FAISS_SERVICE_URL="$FAISS_URL" \
@@ -87,7 +87,7 @@ restart_process "trion-starknet" \
     "$BIN_DIR/trion-starknet" &
 pids+=($!)
 
-log "Native VM Rust indexers started: trion-near trion-ton trion-pvm trion-starknet (all mainnet)"
+log "Native VM Rust indexers started: trion-near(1200) trion-ton(1100) trion-pvm(900) trion-starknet(8000) — all mainnet"
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"
