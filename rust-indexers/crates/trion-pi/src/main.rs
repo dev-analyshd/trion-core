@@ -31,7 +31,7 @@ const VM_TYPE:   &str = "MVM";
 
 const HORIZON_URLS: &[&str] = &[
     "https://horizon.stellar.org",
-    "https://horizon-testnet.stellar.org",
+    "https://horizon.stellar.lobstr.co",
 ];
 
 async fn horizon_get(client: &reqwest::Client, base: &str, path: &str) -> Result<Value> {

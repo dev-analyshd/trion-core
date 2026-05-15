@@ -25,15 +25,15 @@ use trion_common::{
     BatchPayload, FaissClient, IndexerState, VectorEntry, with_retry,
 };
 
-const CHAIN_ID:  u64  = 103;
+const CHAIN_ID:  u64  = 101;
 const VM_TYPE:   &str = "SVM";
 
 fn chain_label() -> String {
-    std::env::var("SOLANA_LABEL").unwrap_or_else(|_| "SOLANA_DEVNET".into())
+    std::env::var("SOLANA_LABEL").unwrap_or_else(|_| "SOLANA_MAINNET".into())
 }
 
 fn rpc_url() -> String {
-    std::env::var("SOLANA_RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".into())
+    std::env::var("SOLANA_RPC_URL").unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".into())
 }
 
 async fn sol_rpc(client: &reqwest::Client, method: &str, params: Value) -> Result<Value> {

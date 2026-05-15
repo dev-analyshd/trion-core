@@ -32,17 +32,13 @@ struct NearConfig {
 }
 
 fn config() -> NearConfig {
-    let mainnet = std::env::var("NEAR_MAINNET").as_deref() == Ok("true");
-    if mainnet {
-        NearConfig {
-            chain_id: 1200, label: "NEAR_MAINNET",
-            rpcs: vec!["https://rpc.mainnet.near.org", "https://rpc.fastnear.com"],
-        }
-    } else {
-        NearConfig {
-            chain_id: 1201, label: "NEAR_TESTNET",
-            rpcs: vec!["https://rpc.testnet.fastnear.com", "https://test.rpc.fastnear.com", "https://archival-rpc.testnet.near.org"],
-        }
+    NearConfig {
+        chain_id: 1200, label: "NEAR_MAINNET",
+        rpcs: vec![
+            "https://rpc.mainnet.near.org",
+            "https://rpc.fastnear.com",
+            "https://near.lava.build",
+        ],
     }
 }
 

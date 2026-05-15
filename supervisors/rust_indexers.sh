@@ -68,7 +68,7 @@ for indexer in "${INDEXERS[@]}"; do
     sleep 0.3
 done
 
-log "Core Rust indexers started (EVM×9 chains + SVM/Solana). PIDs: ${pids[*]}"
+log "Core Rust indexers started (EVM×12 mainnet chains + SVM/Solana mainnet). PIDs: ${pids[*]}"
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"
