@@ -1,8 +1,9 @@
 /*!
  * TRION EVM Behavioral Indexer — L0.1 Per-Transaction BH + Block-Level Vectors
  * =============================================================================
- * Covers: Arbitrum Sepolia, Base Sepolia, Optimism Sepolia, HashKey, BNB Testnet,
- *         0G Galileo, Mantle Mainnet, Linea Mainnet, Scroll Mainnet, Polygon Mainnet
+ * Covers: ETH Mainnet, ARB Mainnet, BASE Mainnet, OP Mainnet, BNB Mainnet,
+ *         HashKey Mainnet, Mantle Mainnet, Linea Mainnet, Scroll Mainnet,
+ *         Polygon Mainnet, 0G Mainnet, 0G Newton Mainnet
  *
  * Two outputs per block:
  *   1. Block-level 128-dim vector (φ) → POST /index/add_batch   (FAISS indexing)
@@ -43,58 +44,7 @@ struct EvmChain {
 }
 
 const CHAINS: &[EvmChain] = &[
-    EvmChain {
-        label: "ARB_SEPOLIA", chain_id: 421614,
-        rpcs: &["https://sepolia-rollup.arbitrum.io/rpc", "https://arb-sepolia.g.alchemy.com/v2/demo"],
-    },
-    EvmChain {
-        label: "BASE_SEPOLIA", chain_id: 84532,
-        rpcs: &["https://sepolia.base.org", "https://base-sepolia-rpc.publicnode.com"],
-    },
-    EvmChain {
-        label: "OP_SEPOLIA", chain_id: 11155420,
-        rpcs: &["https://sepolia.optimism.io", "https://optimism-sepolia-rpc.publicnode.com"],
-    },
-    EvmChain {
-        label: "HASHKEY", chain_id: 177,
-        rpcs: &["https://mainnet.hsk.xyz", "https://hashkey-mainnet-rpc.publicnode.com"],
-    },
-    EvmChain {
-        label: "BNB_TESTNET", chain_id: 97,
-        rpcs: &["https://bsc-testnet-rpc.publicnode.com", "https://data-seed-prebsc-1-s1.bnbchain.org:8545"],
-    },
-    EvmChain {
-        label: "ZG_GALILEO", chain_id: 16602,
-        rpcs: &["https://evmrpc-testnet.0g.ai"],
-    },
-    EvmChain {
-        label: "MANTLE", chain_id: 5000,
-        rpcs: &["https://rpc.mantle.xyz", "https://mantle-mainnet.public.blastapi.io"],
-    },
-    EvmChain {
-        label: "LINEA", chain_id: 59144,
-        rpcs: &["https://rpc.linea.build", "https://linea-mainnet.public.blastapi.io"],
-    },
-    EvmChain {
-        label: "SCROLL", chain_id: 534352,
-        rpcs: &["https://rpc.scroll.io", "https://scroll-mainnet.public.blastapi.io"],
-    },
-    EvmChain {
-        label: "POLYGON", chain_id: 137,
-        rpcs: &[
-            "https://polygon-rpc.com",
-            "https://rpc.ankr.com/polygon",
-            "https://polygon-mainnet.public.blastapi.io",
-        ],
-    },
-    EvmChain {
-        label: "ZG_NEWTON", chain_id: 16600,
-        rpcs: &[
-            "https://evmrpc-mainnet.0g.ai",
-            "https://0g-mainnet.g.alchemy.com/v2/demo",
-            "https://0g.rpc.thirdweb.com",
-        ],
-    },
+    // ── Ethereum ecosystem mainnets ───────────────────────────────────────────
     EvmChain {
         label: "ETH_MAINNET", chain_id: 1,
         rpcs: &[
@@ -126,6 +76,55 @@ const CHAINS: &[EvmChain] = &[
             "https://mainnet.optimism.io",
             "https://optimism-mainnet.public.blastapi.io",
             "https://rpc.ankr.com/optimism",
+        ],
+    },
+    EvmChain {
+        label: "POLYGON", chain_id: 137,
+        rpcs: &[
+            "https://polygon-rpc.com",
+            "https://rpc.ankr.com/polygon",
+            "https://polygon-mainnet.public.blastapi.io",
+        ],
+    },
+    EvmChain {
+        label: "BNB_MAINNET", chain_id: 56,
+        rpcs: &[
+            "https://bsc-dataseed.binance.org",
+            "https://bsc-dataseed1.defibit.io",
+            "https://bsc-dataseed1.ninicoin.io",
+            "https://bsc-mainnet.public.blastapi.io",
+        ],
+    },
+    EvmChain {
+        label: "MANTLE", chain_id: 5000,
+        rpcs: &["https://rpc.mantle.xyz", "https://mantle-mainnet.public.blastapi.io"],
+    },
+    EvmChain {
+        label: "LINEA", chain_id: 59144,
+        rpcs: &["https://rpc.linea.build", "https://linea-mainnet.public.blastapi.io"],
+    },
+    EvmChain {
+        label: "SCROLL", chain_id: 534352,
+        rpcs: &["https://rpc.scroll.io", "https://scroll-mainnet.public.blastapi.io"],
+    },
+    EvmChain {
+        label: "HASHKEY", chain_id: 177,
+        rpcs: &["https://mainnet.hsk.xyz", "https://hashkey-mainnet-rpc.publicnode.com"],
+    },
+    // ── 0G Networks ───────────────────────────────────────────────────────────
+    EvmChain {
+        label: "ZG_MAINNET", chain_id: 16661,
+        rpcs: &[
+            "https://evmrpc.0g.ai",
+            "https://rpc.0g.ai",
+        ],
+    },
+    EvmChain {
+        label: "ZG_NEWTON", chain_id: 16600,
+        rpcs: &[
+            "https://evmrpc-mainnet.0g.ai",
+            "https://0g-mainnet.g.alchemy.com/v2/demo",
+            "https://0g.rpc.thirdweb.com",
         ],
     },
 ];
