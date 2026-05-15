@@ -10,7 +10,7 @@
 
 ## What We Built
 
-TRION is a **multi-chain behavioral truth oracle** that reads transactions across 35 blockchain networks, distills them through a 128-dimensional FAISS behavioral engine, and publishes cryptographically-verified execution verdicts on 0G Mainnet via `TRIONExecutionGate.checkExecution()`.
+TRION is a **multi-chain behavioral truth oracle** that reads transactions across 37 blockchain networks, distills them through a 128-dimensional FAISS behavioral engine, and publishes cryptographically-verified execution verdicts on 0G Mainnet via `TRIONExecutionGate.checkExecution()`.
 
 Any DeFi protocol integrates TRION protection in under 5 minutes:
 
@@ -38,7 +38,7 @@ TRION uses every architectural layer of the 0G stack. Most hackathon projects us
 ### End-to-End Data Flow
 
 ```
-35 Chains (live BH stream)
+37 Chains (live BH stream)
   → 9 Shannon entropy features per block
     → 128-dim FAISS behavioral vector
       → 0G Compute TEE (sealed archetype match → 0G Agent ID)
@@ -130,7 +130,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 | Rust L0 crates | **13** — sub-millisecond BH computation |
 | Tests passing | **328** (24 skipped by design with `LIVE=1`) |
 | BH payload | **93 bytes** — canonical SHA3-256 dual-strand |
-| Per-tx BH records | **330,000+** stored (live — growing every block) |
+| Per-tx BH records | **75,000+** stored (live — growing every block, view at `/api/v1/bh/stats`) |
 | BH performance | **0.023ms avg** (434× faster than 10ms spec) |
 | Implementation languages | **7** (Rust · Python · TypeScript · Haskell · C++ · Go · Julia) |
 | 0G components integrated | **6/6** (Chain + Storage + DA + Compute + KV + Agent ID) |
@@ -152,14 +152,14 @@ Every endpoint returns 200 OK.
 | 0G Agent ID | GET | `/api/v1/agent_id/uniswap` | Behavioral archetype as on-chain agent identity |
 | 0G KV read | GET | `/api/v1/kv/signal/uniswap` | Hot verdict from trion-gate-v1 (<10ms) |
 | 0G KV status | GET | `/api/v1/kv/status` | 4 stream IDs, latency targets, update intervals |
-| 0G All-5 | GET | `/api/v1/zg/integration` | All 5 original 0G module responses |
+| 0G All-6 | GET | `/api/v1/zg/integration` | All 6 0G module responses combined |
 | 0G Chain | GET | `/api/v1/zg` | Live 0G Mainnet block + published signals |
 | 0G DA | GET | `/api/v1/zg/da/status` | Namespace, RS erasure spec, blob count |
 | 0G Compute | GET | `/api/v1/zg/compute/status` | TEE broker, verified providers |
 | 0G Storage | GET | `/api/v1/zg/storage/root` | Merkle-256 root from ExecutionGate |
 | Attack sim | GET | `/api/v1/demo/simulate_attack?attack=ronin` | $625M Ronin — 168h TRION advance detection |
 | Signal | GET | `/api/v1/signal/uniswap` | 34-field TRIONSignal with genomic signature |
-| BH ledger | GET | `/api/v1/bh/stats` | 330,000+ per-transaction behavioral hashes (growing) |
+| BH ledger | GET | `/api/v1/bh/stats` | 75,000+ per-transaction behavioral hashes (live, growing every block) |
 | Live BH stream | GET | `/api/v1/bh/recent_feed` | Real-time tx stream — MEV/TRANSFER/GOVERNANCE classified live |
 | Multi-VM ticker | GET | `/api/v1/bh/vm_feed` | EVM / SVM / 0G grouped BH stream for live cross-VM visualization |
 | Whitepaper | GET | `/api/v1/whitepaper/coverage` | All 65 formulas live and verified |
@@ -248,7 +248,7 @@ Built TRION — the first multi-chain behavioral truth oracle on @0G_labs 🔮
 ✅ 0G Agent ID: 10 behavioral archetypes as on-chain identities
 
 DeFi protocols: 1-line integration to block $600M exploits before execution
-168h advance detection. 37 chains. 23,726+ behavioral hash records.
+168h advance detection. 37 chains. 75,000+ behavioral hash records.
 
 Built for #0GAPACHackathon with @HackQuest_
 
