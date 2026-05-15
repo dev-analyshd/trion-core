@@ -1,7 +1,7 @@
 /*!
  * TRION Aptos (Move VM) Behavioral Indexer — Rust
  * =================================================
- * Polls Aptos REST API and pushes 128-dim vectors.
+ * Polls Aptos REST API and pushes 128-dim vectors AND per-tx canonical BH.
  *
  * Aptos behavioral dimensions (9 Shannon entropy features):
  *   f1 — Function call entropy   H(function_id distribution)
@@ -17,12 +17,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 const CHAIN_ID:  u64  = 5001;
@@ -59,48 +61,35 @@ fn extract_features(block: &Value) -> [f64; 9] {
     let user_txs: Vec<&Value> = txs.iter().filter(|t| t["type"].as_str() == Some("user_transaction")).collect();
     if user_txs.is_empty() { return [0.5f64; 9]; }
 
-    let mut functions:    Vec<String> = Vec::new();
-    let mut senders:      Vec<String> = Vec::new();
-    let mut gas_prices:   Vec<f64>    = Vec::new();
-    let mut resource_types:Vec<String>= Vec::new();
-    let mut event_types:  Vec<String> = Vec::new();
-    let mut modules:      Vec<String> = Vec::new();
+    let mut functions:     Vec<String> = Vec::new();
+    let mut senders:       Vec<String> = Vec::new();
+    let mut gas_prices:    Vec<f64>    = Vec::new();
+    let mut resource_types:Vec<String> = Vec::new();
+    let mut event_types:   Vec<String> = Vec::new();
+    let mut modules:       Vec<String> = Vec::new();
     let (mut success, mut failed) = (0u64, 0u64);
-    let mut payload_types:Vec<String> = Vec::new();
-    let mut seq_nums:     Vec<f64>    = Vec::new();
+    let mut payload_types: Vec<String> = Vec::new();
+    let mut seq_nums:      Vec<f64>    = Vec::new();
 
     for tx in &user_txs {
-        let sender = tx["sender"].as_str().unwrap_or("").to_string();
-        senders.push(sender);
-
-        let gas = tx["gas_unit_price"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-        gas_prices.push(gas);
-
-        let seq = tx["sequence_number"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-        seq_nums.push(seq);
-
+        senders.push(tx["sender"].as_str().unwrap_or("").to_string());
+        gas_prices.push(tx["gas_unit_price"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0));
+        seq_nums.push(tx["sequence_number"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0));
         let payload = &tx["payload"];
-        let ptype = payload["type"].as_str().unwrap_or("unknown").to_string();
+        let ptype   = payload["type"].as_str().unwrap_or("unknown").to_string();
         payload_types.push(ptype.clone());
-
         if ptype == "entry_function_payload" {
             let func = payload["function"].as_str().unwrap_or("").to_string();
             functions.push(func.clone());
-            // Module from function "0xaddr::module::func"
-            if let Some(module) = func.splitn(3, "::").nth(1) {
-                modules.push(module.to_string());
-            }
+            if let Some(module) = func.splitn(3, "::").nth(1) { modules.push(module.to_string()); }
         }
-
         if tx["success"].as_bool().unwrap_or(false) { success += 1; } else { failed += 1; }
-
         if let Some(changes) = tx["changes"].as_array() {
             for change in changes {
                 let rtype = change["data"]["type"].as_str().unwrap_or("").to_string();
                 if !rtype.is_empty() { resource_types.push(rtype); }
             }
         }
-
         if let Some(events) = tx["events"].as_array() {
             for evt in events {
                 let etype = evt["type"].as_str().unwrap_or("").to_string();
@@ -108,7 +97,6 @@ fn extract_features(block: &Value) -> [f64; 9] {
             }
         }
     }
-
     [
         freq_entropy(&functions),
         freq_entropy(&senders),
@@ -120,6 +108,82 @@ fn extract_features(block: &Value) -> [f64; 9] {
         freq_entropy(&payload_types),
         histogram_entropy(&seq_nums, 8),
     ]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_OCTA: AtomicU64 = AtomicU64::new(100_000_000); // 1 APT in octas
+
+fn aptos_magnitude(octas: u64) -> f64 {
+    let old = MAX_OCTA.load(Ordering::Relaxed);
+    if octas > old { MAX_OCTA.store(octas, Ordering::Relaxed); }
+    let max = MAX_OCTA.load(Ordering::Relaxed).max(1) as f64;
+    let v   = octas as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn classify_aptos_function(func: &str) -> u8 {
+    let f = func.to_lowercase();
+    let module = func.splitn(3, "::").nth(1).unwrap_or("").to_lowercase();
+    match true {
+        _ if f.contains("swap") || f.contains("exchange") || module.contains("swap") || module.contains("dex") => 1,  // SWAP
+        _ if f.contains("add_liquidity") || f.contains("add_pool") || module.contains("liquidity")              => 2,  // LIQUIDITY
+        _ if (f.contains("stake") || module.contains("staking")) && !f.contains("unstake")                      => 8,  // STAKE
+        _ if f.contains("unstake") || f.contains("unlock")                                                       => 9,  // UNSTAKE
+        _ if f.contains("borrow")                                                                                 => 3,  // BORROW
+        _ if f.contains("repay")                                                                                  => 4,  // REPAY
+        _ if f.contains("vote") || f.contains("proposal") || module.contains("governance")                      => 6,  // GOVERNANCE
+        _ if f.contains("flash")                                                                                   => 15, // FLASH_LOAN
+        _ if f.contains("oracle") || f.contains("price")                                                          => 16, // ORACLE_UPDATE
+        _ if f.contains("mint") && !f.contains("comment")                                                         => 13, // MINT
+        _ if f.contains("burn")                                                                                    => 14, // BURN
+        _ if f.contains("claim") || f.contains("harvest")                                                         => 19, // CLAIM
+        _ if f.contains("airdrop")                                                                                 => 18, // AIRDROP
+        _ if f.contains("transfer") || f.contains("send") || module == "coin" || module == "aptos_account"        => 0,  // TRANSFER
+        _ => 0, // TRANSFER
+    }
+}
+
+fn aptos_bh_batch(block: &Value, chain_id: u64, label: &str, height: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let txs = match block["transactions"].as_array() {
+        Some(a) => a,
+        None    => return TxBhBatch { chain_id, chain_label: label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries: vec![] },
+    };
+
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for tx in txs {
+        if tx["type"].as_str() != Some("user_transaction") { continue; }
+        let tx_hash = tx["hash"].as_str().unwrap_or("").to_string();
+        if tx_hash.is_empty() { continue; }
+
+        let sender  = tx["sender"].as_str().unwrap_or("unknown").to_string();
+        let payload = &tx["payload"];
+        let func    = payload["function"].as_str().unwrap_or("0x1::aptos_account::transfer");
+        let et      = classify_aptos_function(func);
+
+        // Extract APT amount from arguments (heuristic: last numeric arg)
+        let octas = payload["arguments"].as_array()
+            .and_then(|args| args.iter().rev()
+                .find_map(|a| a.as_str().and_then(|s| s.parse::<u64>().ok())
+                    .or_else(|| a.as_u64())))
+            .unwrap_or(0);
+
+        let mag = aptos_magnitude(octas);
+        let eid = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash, from_addr: sender, to_addr: String::new(),
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: octas.to_string(),
+            selector: func[..func.len().min(32)].to_string(),
+            timestamp: ts, chain_id, chain_label: label.to_string(), block_num: height,
+            block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id, chain_label: label.to_string(), block_num: height, block_hash: block_hash.to_string(), timestamp: ts, entries }
 }
 
 #[tokio::main]
@@ -151,12 +215,16 @@ async fn main() -> Result<()> {
                 Ok(b)  => b,
                 Err(e) => { warn!("[{}] block {} error: {}", CHAIN_LBL, height, e); rpc_idx += 1; continue; }
             };
-            let features = extract_features(&block);
-            let phi      = features.iter().sum::<f64>() / 9.0;
-            let eid      = block_entity_id(CHAIN_LBL, height);
-            let bh       = bh_id(&eid);
-            let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, height));
-            let ts       = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let features  = extract_features(&block);
+            let phi       = features.iter().sum::<f64>() / 9.0;
+            let eid       = block_entity_id(CHAIN_LBL, height);
+            let bh        = bh_id(&eid);
+            let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, height));
+            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let ts_u64    = ts as u64;
+            let block_hash = block["block_hash"].as_str()
+                .map(|h| h.to_string())
+                .unwrap_or_else(|| bh_id(&format!("aptos_block:{}:{}", CHAIN_LBL, height)));
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
@@ -169,8 +237,12 @@ async fn main() -> Result<()> {
             };
 
             match faiss.add_batch(&payload).await {
-                Ok(added) => info!("[{}] block={} φ={:.4} added={}", CHAIN_LBL, height, phi, added),
-                Err(e)    => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
+                Ok(added) => {
+                    let tx_batch = aptos_bh_batch(&block, CHAIN_ID, CHAIN_LBL, height, &block_hash, ts_u64);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] block={} φ={:.4} added={} bh_stored={}", CHAIN_LBL, height, phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
             }
             state.save(height).ok();
         }

@@ -1,7 +1,7 @@
 /*!
  * TRION NEAR Behavioral Indexer — Rust
  * =====================================
- * Polls NEAR blocks via JSON-RPC and pushes 128-dim vectors.
+ * Polls NEAR blocks via JSON-RPC, pushes 128-dim vectors AND per-tx canonical BH.
  *
  * NEAR behavioral dimensions (9 Shannon entropy features):
  *   f1 — Action type diversity   H(action_kind distribution)
@@ -17,12 +17,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 const VM_TYPE: &str = "NEAR";
@@ -68,10 +70,8 @@ fn extract_features(block: &Value, chunks: &[Value]) -> [f64; 9] {
         if let Some(txs) = chunk["transactions"].as_array() {
             tx_counts.push(txs.len() as f64);
             for tx in txs {
-                let signer = tx["signer_id"].as_str().unwrap_or("").to_string();
-                let receiver = tx["receiver_id"].as_str().unwrap_or("").to_string();
-                signers.push(signer);
-                receivers.push(receiver);
+                signers.push(tx["signer_id"].as_str().unwrap_or("").to_string());
+                receivers.push(tx["receiver_id"].as_str().unwrap_or("").to_string());
                 if let Some(actions) = tx["actions"].as_array() {
                     action_counts.push(actions.len() as f64);
                     for action in actions {
@@ -94,7 +94,7 @@ fn extract_features(block: &Value, chunks: &[Value]) -> [f64; 9] {
         }
         if let Some(gb) = chunk["gas_used"].as_u64() { gas_burts.push(gb as f64); }
     }
-
+    let _ = block;
     [
         freq_entropy(&action_kinds),
         freq_entropy(&signers),
@@ -106,6 +106,90 @@ fn extract_features(block: &Value, chunks: &[Value]) -> [f64; 9] {
         freq_entropy(&shard_ids),
         histogram_entropy(&tx_counts, 8),
     ]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_YOCTO: AtomicU64 = AtomicU64::new(1_000_000_000_000_000_000); // 1 NEAR
+
+fn near_magnitude(yocto: u64) -> f64 {
+    let old = MAX_YOCTO.load(Ordering::Relaxed);
+    if yocto > old { MAX_YOCTO.store(yocto, Ordering::Relaxed); }
+    let max = MAX_YOCTO.load(Ordering::Relaxed).max(1) as f64;
+    let v   = yocto as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn classify_near_event(actions: &[Value]) -> u8 {
+    for action in actions {
+        let kind = if action.is_string() {
+            action.as_str().unwrap_or("").to_string()
+        } else {
+            action.as_object().and_then(|o| o.keys().next().cloned()).unwrap_or_default()
+        };
+        match kind.as_str() {
+            "Transfer"       => return 0,   // TRANSFER
+            "DeployContract" => return 11,  // DEPLOY
+            "Stake"          => return 8,   // STAKE
+            "FunctionCall"   => {
+                let m = action["FunctionCall"]["method_name"]
+                    .as_str().unwrap_or("").to_lowercase();
+                if m.contains("swap") || m.contains("exchange")           { return 1;  } // SWAP
+                if m.contains("add_liquidity") || m.contains("add_pool")  { return 2;  } // LIQUIDITY
+                if m.contains("stake") && !m.contains("unstake")          { return 8;  } // STAKE
+                if m.contains("unstake") || m.contains("withdraw")        { return 9;  } // UNSTAKE
+                if m.contains("borrow")                                    { return 3;  } // BORROW
+                if m.contains("repay") || m.contains("return_loan")       { return 4;  } // REPAY
+                if m.contains("vote") || m.contains("proposal") || m.contains("governance") { return 6; } // GOVERNANCE
+                if m.contains("oracle") || m.contains("price_update")     { return 16; } // ORACLE_UPDATE
+                if m.contains("flash")                                     { return 15; } // FLASH_LOAN
+                if m.contains("mint")                                      { return 13; } // MINT
+                if m.contains("burn")                                      { return 14; } // BURN
+                if m.contains("claim")                                     { return 19; } // CLAIM
+                if m.contains("airdrop")                                   { return 18; } // AIRDROP
+                return 0; // TRANSFER
+            }
+            _ => {}
+        }
+    }
+    0
+}
+
+fn near_bh_batch(chunks: &[Value], chain_id: u64, label: &str, block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+    for chunk in chunks {
+        if let Some(txs) = chunk["transactions"].as_array() {
+            for tx in txs {
+                let tx_hash  = tx["hash"].as_str().unwrap_or("").to_string();
+                if tx_hash.is_empty() { continue; }
+                let sender   = tx["signer_id"].as_str().unwrap_or("unknown");
+                let receiver = tx["receiver_id"].as_str().unwrap_or("").to_string();
+                let actions: Vec<Value> = tx["actions"].as_array().cloned().unwrap_or_default();
+                let et = classify_near_event(&actions);
+                // Extract best available yocto NEAR value
+                let yocto = actions.iter()
+                    .flat_map(|a| [
+                        a["FunctionCall"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
+                        a["Transfer"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
+                    ])
+                    .flatten()
+                    .max()
+                    .unwrap_or(0);
+                let mag = near_magnitude(yocto);
+                let eid = bh_id(sender);
+                let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
+                entries.push(TxBhEntry {
+                    tx_hash, from_addr: sender.to_string(), to_addr: receiver,
+                    event_type: et, event_type_name: event_type_name(et).to_string(),
+                    entity_id: eid, magnitude_norm: mag, value_wei: yocto.to_string(),
+                    selector: String::new(), timestamp: ts, chain_id,
+                    chain_label: label.to_string(), block_num,
+                    block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+                });
+            }
+        }
+    }
+    TxBhBatch { chain_id, chain_label: label.to_string(), block_num, block_hash: block_hash.to_string(), timestamp: ts, entries }
 }
 
 #[tokio::main]
@@ -146,6 +230,11 @@ async fn main() -> Result<()> {
             let bh        = bh_id(&eid);
             let vector    = build_vector(&features, &format!("{}:{}", cfg.label, block_num));
             let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let ts_u64    = ts as u64;
+            // Use block hash from NEAR block data, or derive synthetic hash
+            let block_hash_hex = block["header"]["hash"].as_str()
+                .map(|h| h.to_string())
+                .unwrap_or_else(|| bh_id(&format!("near_block:{}:{}", cfg.label, block_num)));
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
@@ -159,8 +248,12 @@ async fn main() -> Result<()> {
             };
 
             match faiss.add_batch(&payload).await {
-                Ok(added) => info!("[{}] block={} φ={:.4} added={}", cfg.label, block_num, phi, added),
-                Err(e)    => warn!("[{}] FAISS failed: {}", cfg.label, e),
+                Ok(added) => {
+                    let tx_batch = near_bh_batch(&chunks, cfg.chain_id, cfg.label, block_num, &block_hash_hex, ts_u64);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] block={} φ={:.4} added={} bh_stored={}", cfg.label, block_num, phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS failed: {}", cfg.label, e),
             }
             state.save(block_num).ok();
         }

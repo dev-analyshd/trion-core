@@ -2,6 +2,7 @@
  * TRION StarkNet (Cairo VM) Behavioral Indexer — Rust
  * ====================================================
  * Polls StarkNet blocks via JSON-RPC (starknet_getBlockWithTxs).
+ * Produces 128-dim vectors AND per-tx canonical BH (L0.1 ledger).
  *
  * StarkNet behavioral dimensions (9 Shannon entropy features):
  *   f1 — Tx version entropy       H(version 0/1/2/3 distribution)
@@ -17,12 +18,14 @@
 
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
-    bh_id, block_entity_id, build_vector, freq_entropy, histogram_entropy,
-    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
+    bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 const CHAIN_ID:  u64  = 8000;
@@ -60,28 +63,23 @@ fn extract_features(block: &Value) -> [f64; 9] {
     };
     if txs.is_empty() { return [0.5f64; 9]; }
 
-    let mut versions:     Vec<String> = Vec::new();
-    let mut senders:      Vec<String> = Vec::new();
-    let mut calldata_lens:Vec<f64>    = Vec::new();
-    let mut fee_tokens:   Vec<String> = Vec::new();
-    let mut l1_gas_bounds:Vec<f64>    = Vec::new();
-    let mut call_counts:  Vec<f64>    = Vec::new();
+    let mut versions:      Vec<String> = Vec::new();
+    let mut senders:       Vec<String> = Vec::new();
+    let mut calldata_lens: Vec<f64>    = Vec::new();
+    let mut fee_tokens:    Vec<String> = Vec::new();
+    let mut l1_gas_bounds: Vec<f64>    = Vec::new();
+    let mut call_counts:   Vec<f64>    = Vec::new();
     let (mut succeeded, mut reverted) = (0u64, 0u64);
-    let mut event_counts: Vec<f64>    = Vec::new();
+    let mut event_counts:  Vec<f64>    = Vec::new();
 
     for tx in txs {
-        let ver = tx["version"].as_str().unwrap_or("0x0").to_string();
-        versions.push(ver.clone());
-
+        versions.push(tx["version"].as_str().unwrap_or("0x0").to_string());
         let sender = tx["sender_address"].as_str()
             .or_else(|| tx["contract_address"].as_str())
             .unwrap_or("").to_string();
         senders.push(sender);
-
         let calldata = tx["calldata"].as_array().map(|a| a.len()).unwrap_or(0) as f64;
         calldata_lens.push(calldata);
-
-        // Fee token: v3 uses resource_bounds, older use max_fee
         if tx["resource_bounds"].is_null() {
             fee_tokens.push("ETH".to_string());
         } else {
@@ -91,21 +89,16 @@ fn extract_features(block: &Value) -> [f64; 9] {
             l1_gas_bounds.push(l1_gas);
             fee_tokens.push("STRK".to_string());
         }
-
-        // For INVOKE, calldata encodes call array — first felt is call count
         if tx["type"].as_str() == Some("INVOKE") && calldata > 0.0 {
-            call_counts.push(calldata / 4.0); // rough: each call ~4 felts overhead
+            call_counts.push(calldata / 4.0);
         } else {
             call_counts.push(1.0);
         }
-
-        // Execution status from receipt — we don't have it in block, default SUCCEEDED
         succeeded += 1;
-        event_counts.push(0.0); // events not in block-level txs, use tx count proxy
+        event_counts.push(0.0);
     }
 
     let tx_count = txs.len() as f64;
-
     [
         freq_entropy(&versions),
         freq_entropy(&senders),
@@ -117,6 +110,72 @@ fn extract_features(block: &Value) -> [f64; 9] {
         histogram_entropy(&event_counts, 4),
         histogram_entropy(&[tx_count], 4),
     ]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_FEE: AtomicU64 = AtomicU64::new(1_000_000_000_000_000); // 0.001 ETH in wei
+
+fn snark_magnitude(max_fee: u64) -> f64 {
+    let old = MAX_FEE.load(Ordering::Relaxed);
+    if max_fee > old { MAX_FEE.store(max_fee, Ordering::Relaxed); }
+    let max = MAX_FEE.load(Ordering::Relaxed).max(1) as f64;
+    let v   = max_fee as f64;
+    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn classify_snark_tx(tx: &Value) -> u8 {
+    match tx["type"].as_str().unwrap_or("") {
+        "DECLARE"                     => 11, // DEPLOY (class declaration)
+        "DEPLOY_ACCOUNT"              => 11, // DEPLOY
+        "INVOKE" => {
+            let calldata_len = tx["calldata"].as_array().map(|a| a.len()).unwrap_or(0);
+            // Large calldata → likely multi-call or DEX swap
+            if calldata_len > 20 { 1 }   // SWAP
+            else if calldata_len > 8 { 2 } // LIQUIDITY
+            else { 0 } // TRANSFER
+        }
+        _ => 0, // TRANSFER
+    }
+}
+
+fn snark_bh_batch(block: &Value, chain_id: u64, label: &str, block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let txs = match block["transactions"].as_array() {
+        Some(a) => a,
+        None    => return TxBhBatch { chain_id, chain_label: label.to_string(), block_num, block_hash: block_hash.to_string(), timestamp: ts, entries: vec![] },
+    };
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for tx in txs {
+        let tx_hash = tx["transaction_hash"].as_str().unwrap_or("").to_string();
+        if tx_hash.is_empty() { continue; }
+
+        let sender = tx["sender_address"].as_str()
+            .or_else(|| tx["contract_address"].as_str())
+            .unwrap_or("unknown").to_string();
+
+        let et = classify_snark_tx(tx);
+
+        // Max fee as magnitude proxy (hex string → u64)
+        let max_fee = tx["max_fee"].as_str()
+            .and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok())
+            .unwrap_or(0);
+
+        let mag = snark_magnitude(max_fee);
+        let eid = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash, from_addr: sender, to_addr: String::new(),
+            event_type: et, event_type_name: event_type_name(et).to_string(),
+            entity_id: eid, magnitude_norm: mag, value_wei: max_fee.to_string(),
+            selector: tx["type"].as_str().unwrap_or("").to_string(),
+            timestamp: ts, chain_id, chain_label: label.to_string(), block_num,
+            block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+        });
+    }
+
+    TxBhBatch { chain_id, chain_label: label.to_string(), block_num, block_hash: block_hash.to_string(), timestamp: ts, entries }
 }
 
 #[tokio::main]
@@ -148,12 +207,16 @@ async fn main() -> Result<()> {
                 Ok(b)  => b,
                 Err(e) => { warn!("[{}] block {} error: {}", CHAIN_LBL, block_num, e); rpc_idx += 1; continue; }
             };
-            let features = extract_features(&block);
-            let phi      = features.iter().sum::<f64>() / 9.0;
-            let eid      = block_entity_id(CHAIN_LBL, block_num);
-            let bh       = bh_id(&eid);
-            let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, block_num));
-            let ts       = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let features  = extract_features(&block);
+            let phi       = features.iter().sum::<f64>() / 9.0;
+            let eid       = block_entity_id(CHAIN_LBL, block_num);
+            let bh        = bh_id(&eid);
+            let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, block_num));
+            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
+            let ts_u64    = ts as u64;
+            let block_hash = block["block_hash"].as_str()
+                .map(|h| h.to_string())
+                .unwrap_or_else(|| bh_id(&format!("snark_block:{}:{}", CHAIN_LBL, block_num)));
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
@@ -166,8 +229,12 @@ async fn main() -> Result<()> {
             };
 
             match faiss.add_batch(&payload).await {
-                Ok(added) => info!("[{}] block={} φ={:.4} added={}", CHAIN_LBL, block_num, phi, added),
-                Err(e)    => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
+                Ok(added) => {
+                    let tx_batch = snark_bh_batch(&block, CHAIN_ID, CHAIN_LBL, block_num, &block_hash, ts_u64);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] block={} φ={:.4} added={} bh_stored={}", CHAIN_LBL, block_num, phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
             }
             state.save(block_num).ok();
         }
