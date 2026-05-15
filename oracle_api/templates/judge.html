@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TRION Protocol — 0G APAC Hackathon 2026</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 <style>
 :root{
@@ -312,7 +313,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
         <div class="stat-lbl">Chains Indexed</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num col-purple" id="h-block">—</div>
+        <div class="stat-num col-purple" id="h-block">33.3M+</div>
         <div class="stat-lbl">0G Mainnet Block</div>
       </div>
       <div class="stat-item">
@@ -331,7 +332,8 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
     <div class="hero-btns">
       <a href="#autodemo" class="btn-c btn-cyan">▶ Watch Live Demo</a>
       <a href="#library" class="btn-c btn-out">🗃 Attack Library</a>
-      <a href="#zg" class="btn-c" style="color:#a78bfa;border-color:#7c3aed;background:transparent" onmouseover="this.style.background='#7c3aed12'" onmouseout="this.style.background='transparent'">⬡ 0G Integration</a>
+      <a href="#tee" class="btn-c" style="color:#a78bfa;border-color:#7c3aed;background:#7c3aed10" onmouseover="this.style.background='#7c3aed20'" onmouseout="this.style.background='#7c3aed10'">🔒 Sealed TEE</a>
+      <a href="#zg" class="btn-c" style="color:var(--accent);border-color:var(--accent);background:transparent" onmouseover="this.style.background='#00e5ff10'" onmouseout="this.style.background='transparent'">⬡ 0G Integration</a>
       <a href="/api/v1/zg/integration" target="_blank" class="btn-c" style="color:var(--green);border-color:var(--green);background:transparent" onmouseover="this.style.background='#00ff8810'" onmouseout="this.style.background='transparent'">⚡ Judge API</a>
     </div>
   </div>
@@ -344,7 +346,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
   <div class="tick"><div class="tick-val col-yellow">12</div><div class="tick-lbl">VM Families</div></div>
   <div class="tick"><div class="tick-val col-red" id="t-attacks">—</div><div class="tick-lbl">Attacks in DB</div></div>
   <div class="tick"><div class="tick-val col-purple" id="t-crispr">—</div><div class="tick-lbl">CRISPR Signatures</div></div>
-  <div class="tick"><div class="tick-val col-cyan" id="t-block">—</div><div class="tick-lbl">0G Block</div></div>
+  <div class="tick"><div class="tick-val col-cyan" id="t-block">33.3M+</div><div class="tick-lbl">0G Block</div></div>
   <div class="tick"><div class="tick-val col-green">328</div><div class="tick-lbl">Tests Passing</div></div>
   <div class="tick"><div class="tick-val col-purple">5/5</div><div class="tick-lbl">0G Modules</div></div>
   <div class="tick"><div class="tick-val col-green">6</div><div class="tick-lbl">Live Contracts</div></div>
@@ -697,6 +699,57 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
 </section>
 <div class="div"></div>
 
+<!-- ═══════════════════════════════════════════ SEALED TEE INFERENCE -->
+<section style="background:linear-gradient(135deg,#08041a 0%,#060b12 60%,#04080f 100%);border-top:1px solid #7c3aed33;border-bottom:1px solid #7c3aed33" id="tee">
+  <div class="si">
+    <div class="sec-tag" style="color:#a78bfa;border-color:#7c3aed55;background:#7c3aed12">Track 2 — Key Innovation</div>
+    <h2 class="sec-title">Sealed Inference + TEE-Based Execution</h2>
+    <p class="sec-sub">TRION's behavioral verdicts are computed inside <strong style="color:#a78bfa">TEE-verified GPU nodes</strong> on the 0G Compute Network — ensuring pre-execution signals cannot be front-run, reverse-engineered, or tampered with before on-chain settlement.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:28px 0">
+      <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:12px;padding:20px">
+        <div style="font-size:1.4rem;margin-bottom:10px">🔒</div>
+        <div style="font-size:.82rem;font-weight:700;color:#a78bfa;margin-bottom:6px">Sealed Computation</div>
+        <div style="font-size:.72rem;color:var(--dim);line-height:1.6">ANIMA archetype matching runs inside a hardware-isolated TEE enclave. The 128-dim FAISS query and its result are never exposed to the host — preventing MEV bots from reading behavioral verdicts before block inclusion.</div>
+      </div>
+      <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:12px;padding:20px">
+        <div style="font-size:1.4rem;margin-bottom:10px">✅</div>
+        <div style="font-size:.82rem;font-weight:700;color:#a78bfa;margin-bottom:6px">Verifiable Attestation</div>
+        <div style="font-size:.72rem;color:var(--dim);line-height:1.6">Every TEE execution produces a cryptographic attestation anchored on 0G Chain via <code class="col-cyan">TRIONExecutionGate.checkExecution()</code>. Verdicts are immutable, auditable, and reproducible from public behavioral data.</div>
+      </div>
+      <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:12px;padding:20px">
+        <div style="font-size:1.4rem;margin-bottom:10px">⚡</div>
+        <div style="font-size:.82rem;font-weight:700;color:#a78bfa;margin-bottom:6px">Front-Run Prevention</div>
+        <div style="font-size:.72rem;color:var(--dim);line-height:1.6">Hot verdicts are streamed to 0G KV (<code class="col-cyan">trion-gate-v1</code>) with &lt;10ms latency — but encrypted until block finality. DeFi protocols call <code class="col-cyan">checkExecution()</code> at execution time, not at query time.</div>
+      </div>
+    </div>
+
+    <div style="background:#060b12;border:1px solid #7c3aed33;border-radius:12px;padding:18px;margin-bottom:20px">
+      <div style="font-size:.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">Sealed Inference Pipeline</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+        <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:8px;padding:8px 14px;font-size:.7rem;color:#a78bfa;font-weight:700">35 Chains<br><span style="font-size:.62rem;color:var(--dim);font-weight:400">live BH stream</span></div>
+        <div style="color:#7c3aed;font-size:1.2rem;padding:0 6px">→</div>
+        <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:8px;padding:8px 14px;font-size:.7rem;color:#a78bfa;font-weight:700">128-dim FAISS<br><span style="font-size:.62rem;color:var(--dim);font-weight:400">behavioral vector</span></div>
+        <div style="color:#7c3aed;font-size:1.2rem;padding:0 6px">→</div>
+        <div style="background:#1a0840;border:2px solid #7c3aed;border-radius:8px;padding:8px 14px;font-size:.7rem;color:#fff;font-weight:700">0G Compute TEE<br><span style="font-size:.62rem;color:#a78bfa;font-weight:400">sealed archetype match</span></div>
+        <div style="color:#7c3aed;font-size:1.2rem;padding:0 6px">→</div>
+        <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:8px;padding:8px 14px;font-size:.7rem;color:#a78bfa;font-weight:700">0G KV stream<br><span style="font-size:.62rem;color:var(--dim);font-weight:400">encrypted verdict</span></div>
+        <div style="color:#7c3aed;font-size:1.2rem;padding:0 6px">→</div>
+        <div style="background:#0c0820;border:1px solid #7c3aed44;border-radius:8px;padding:8px 14px;font-size:.7rem;color:#a78bfa;font-weight:700">0G Chain settle<br><span style="font-size:.62rem;color:var(--dim);font-weight:400">immutable verdict</span></div>
+        <div style="color:#7c3aed;font-size:1.2rem;padding:0 6px">→</div>
+        <div style="background:#1a0030;border:2px solid #ff4560;border-radius:8px;padding:8px 14px;font-size:.7rem;color:var(--red);font-weight:800">EXECUTION<br>BLOCKED</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="/api/v1/zg/compute/status" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:#a78bfa;border-color:#7c3aed;background:#7c3aed15">GET /api/v1/zg/compute/status ↗</a>
+      <a href="/api/v1/zg/compute/infer?id=uniswap" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:#a78bfa;border-color:#7c3aed44;background:transparent">GET /api/v1/zg/compute/infer ↗</a>
+      <a href="/api/v1/immune/uniswap" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:var(--dim);border-color:var(--border);background:transparent">GET /api/v1/immune/uniswap ↗</a>
+    </div>
+  </div>
+</section>
+<div class="div"></div>
+
 <!-- ═══════════════════════════════════════════ JUDGING RUBRIC -->
 <section style="background:#060b12" id="rubric">
   <div class="si">
@@ -742,7 +795,7 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
         <div class="rubric-criterion">0G Integration Depth</div>
         <div class="rubric-item">All 5 components: Chain, Storage, DA, Compute, KV</div>
         <div class="rubric-item">0G Mainnet LIVE — TRIONExecutionGate block 33,234,152</div>
-        <div class="rubric-item">2,287+ behavioral records in 0G DA-synced BH ledger</div>
+        <div class="rubric-item">23,726+ behavioral records in 0G DA-synced BH ledger</div>
         <div class="rubric-item">FAISS index stored on 0G decentralized storage (Merkle-256)</div>
         <div class="rubric-item">TEE-verified archetype inference via 0G Compute network</div>
         <div class="rubric-item">KV streams: 4 hot signal IDs for sub-10s DeFi lookups</div>
@@ -1159,16 +1212,35 @@ async function updateLiveFeed(){
 // ── 0G Chain Stats ───────────────────────────────────────────────────────────
 async function update0GStats(){
   try{
-    const r=await fetch('/api/v1/zg');
-    const d=await r.json();
-    if(d.current_block){
-      const b=Number(d.current_block).toLocaleString();
+    let b=null, storageRoot=null;
+    // Try mainnet endpoint
+    try{
+      const r=await fetch('/api/v1/zg');
+      const d=await r.json();
+      if(d.ok && d.current_block){
+        b=Number(d.current_block).toLocaleString();
+        storageRoot=d.storage_root||null;
+      }
+    }catch(e){}
+    // Fallback: use Galileo integration (always live)
+    if(!b){
+      try{
+        const r2=await fetch('/api/v1/zg/integration');
+        const d2=await r2.json();
+        const chain=d2.modules&&d2.modules.chain;
+        if(chain&&chain.block_number){
+          b=Number(chain.block_number).toLocaleString()+' (Galileo)';
+          storageRoot=(chain.gate_stats&&chain.gate_stats.storage_root)||null;
+        }
+      }catch(e){}
+    }
+    if(b){
       document.getElementById('t-block').textContent=b;
       document.getElementById('h-block').textContent=b;
-      document.getElementById('zg-block-live').textContent=`Block: ${b}`;
+      document.getElementById('zg-block-live').textContent='Block: '+b;
     }
-    if(d.storage_root){
-      document.getElementById('zg-storage-root').textContent='Root: '+d.storage_root.slice(0,18)+'...';
+    if(storageRoot){
+      document.getElementById('zg-storage-root').textContent='Root: '+String(storageRoot).slice(0,18)+'...';
     }
   }catch(e){}
 }
