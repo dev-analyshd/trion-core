@@ -155,38 +155,49 @@ fn classify_near_event(actions: &[Value]) -> u8 {
     0
 }
 
-fn near_bh_batch(chunks: &[Value], chain_id: u64, label: &str, block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+// NEAR block RPC returns chunk HEADERS only. Transactions require a separate `chunk` RPC call.
+async fn near_bh_batch(client: &reqwest::Client, rpc: &str, chunk_headers: &[Value], chain_id: u64, label: &str, block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
     let mut entries: Vec<TxBhEntry> = Vec::new();
-    for chunk in chunks {
-        if let Some(txs) = chunk["transactions"].as_array() {
-            for tx in txs {
-                let tx_hash  = tx["hash"].as_str().unwrap_or("").to_string();
-                if tx_hash.is_empty() { continue; }
-                let sender   = tx["signer_id"].as_str().unwrap_or("unknown");
-                let receiver = tx["receiver_id"].as_str().unwrap_or("").to_string();
-                let actions: Vec<Value> = tx["actions"].as_array().cloned().unwrap_or_default();
-                let et = classify_near_event(&actions);
-                // Extract best available yocto NEAR value
-                let yocto = actions.iter()
-                    .flat_map(|a| [
-                        a["FunctionCall"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
-                        a["Transfer"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
-                    ])
-                    .flatten()
-                    .max()
-                    .unwrap_or(0);
-                let mag = near_magnitude(yocto);
-                let eid = bh_id(sender);
-                let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
-                entries.push(TxBhEntry {
-                    tx_hash, from_addr: sender.to_string(), to_addr: receiver,
-                    event_type: et, event_type_name: event_type_name(et).to_string(),
-                    entity_id: eid, magnitude_norm: mag, value_wei: yocto.to_string(),
-                    selector: String::new(), timestamp: ts, chain_id,
-                    chain_label: label.to_string(), block_num,
-                    block_hash: block_hash.to_string(), sense_hex, antisense_hex,
-                });
-            }
+    for chunk_hdr in chunk_headers {
+        let chunk_hash = match chunk_hdr["chunk_hash"].as_str() {
+            Some(h) => h,
+            None    => continue,
+        };
+        // Fetch full chunk to get transactions list
+        let chunk_data = match near_rpc(client, rpc, "chunk", serde_json::json!({ "chunk_id": chunk_hash })).await {
+            Ok(v)  => v,
+            Err(_) => continue,
+        };
+        let txs = match chunk_data["transactions"].as_array() {
+            Some(t) => t,
+            None    => continue,
+        };
+        for tx in txs {
+            let tx_hash  = tx["hash"].as_str().unwrap_or("").to_string();
+            if tx_hash.is_empty() { continue; }
+            let sender   = tx["signer_id"].as_str().unwrap_or("unknown");
+            let receiver = tx["receiver_id"].as_str().unwrap_or("").to_string();
+            let actions: Vec<Value> = tx["actions"].as_array().cloned().unwrap_or_default();
+            let et = classify_near_event(&actions);
+            let yocto = actions.iter()
+                .flat_map(|a| [
+                    a["FunctionCall"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
+                    a["Transfer"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
+                ])
+                .flatten()
+                .max()
+                .unwrap_or(0);
+            let mag = near_magnitude(yocto);
+            let eid = bh_id(sender);
+            let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, block_hash);
+            entries.push(TxBhEntry {
+                tx_hash, from_addr: sender.to_string(), to_addr: receiver,
+                event_type: et, event_type_name: event_type_name(et).to_string(),
+                entity_id: eid, magnitude_norm: mag, value_wei: yocto.to_string(),
+                selector: String::new(), timestamp: ts, chain_id,
+                chain_label: label.to_string(), block_num,
+                block_hash: block_hash.to_string(), sense_hex, antisense_hex,
+            });
         }
     }
     TxBhBatch { chain_id, chain_label: label.to_string(), block_num, block_hash: block_hash.to_string(), timestamp: ts, entries }
@@ -249,7 +260,7 @@ async fn main() -> Result<()> {
 
             match faiss.add_batch(&payload).await {
                 Ok(added) => {
-                    let tx_batch = near_bh_batch(&chunks, cfg.chain_id, cfg.label, block_num, &block_hash_hex, ts_u64);
+                    let tx_batch = near_bh_batch(&client, rpc, &chunks, cfg.chain_id, cfg.label, block_num, &block_hash_hex, ts_u64).await;
                     let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
                     info!("[{}] block={} φ={:.4} added={} bh_stored={}", cfg.label, block_num, phi, added, bh_stored);
                 }

@@ -36,7 +36,7 @@ use trion_common::{
     BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry, with_retry,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct EvmChain {
     label:    &'static str,
     chain_id: u64,
@@ -81,9 +81,11 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "POLYGON", chain_id: 137,
         rpcs: &[
+            "https://polygon.llamarpc.com",
+            "https://polygon-bor-rpc.publicnode.com",
+            "https://1rpc.io/matic",
             "https://polygon-rpc.com",
             "https://rpc.ankr.com/polygon",
-            "https://polygon-mainnet.public.blastapi.io",
         ],
     },
     EvmChain {
@@ -438,27 +440,35 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_INTERVAL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(15_000u64);
 
-    let faiss = FaissClient::new(&faiss_url)?;
-
-    let mut states: Vec<IndexerState> = CHAINS.iter()
-        .map(|c| IndexerState::new(&format!("evm_{}", c.label.to_lowercase())))
-        .collect();
-
-    info!("TRION EVM Rust Indexer — {} chains, poll={}ms, faiss={}", CHAINS.len(), poll_ms, faiss_url);
+    info!("TRION EVM Rust Indexer — {} chains (parallel), poll={}ms, faiss={}", CHAINS.len(), poll_ms, faiss_url);
     info!("L0.1 per-transaction BH: ENABLED — canonical 93-byte payload + dual-strand SHA3");
 
-    loop {
-        if !faiss.is_healthy().await {
-            warn!("FAISS not reachable — waiting 5s");
-            sleep(Duration::from_secs(5)).await;
-            continue;
-        }
-
-        for (chain, state) in CHAINS.iter().zip(states.iter_mut()) {
-            if let Err(e) = index_chain(chain, &faiss, state).await {
-                error!("[{}] indexer error: {}", chain.label, e);
+    // ── Spawn one independent tokio task per chain ────────────────────────────
+    // Each chain runs its own poll loop concurrently — no chain starves another.
+    let mut handles = Vec::new();
+    for chain in CHAINS {
+        let faiss = FaissClient::new(&faiss_url)?;
+        let mut state = IndexerState::new(&format!("evm_{}", chain.label.to_lowercase()));
+        let chain = *chain;
+        let handle = tokio::spawn(async move {
+            loop {
+                if !faiss.is_healthy().await {
+                    warn!("[{}] FAISS not reachable — waiting 5s", chain.label);
+                    sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+                if let Err(e) = index_chain(&chain, &faiss, &mut state).await {
+                    error!("[{}] indexer error: {}", chain.label, e);
+                }
+                sleep(Duration::from_millis(poll_ms)).await;
             }
-        }
-        sleep(Duration::from_millis(poll_ms)).await;
+        });
+        handles.push(handle);
     }
+
+    // Wait for all tasks (they loop forever — this blocks until process exits)
+    for h in handles {
+        let _ = h.await;
+    }
+    Ok(())
 }
