@@ -1,27 +1,19 @@
 import { constants } from 'starknet';
 
 export const STARKNET_CONFIG = {
-  chainId: constants.StarknetChainId.SN_SEPOLIA,
-  chainIdHex: '0x534e5f5345504f4c4941',
-  networkName: 'Starknet Sepolia Testnet',
+  chainId: constants.StarknetChainId.SN_MAIN,
+  chainIdHex: '0x534e5f4d41494e',
+  networkName: 'Starknet Mainnet',
 
-  // Order matters: getWorkingProvider() probes each in turn with both a chainId
-  // check and a real getBlockWithTxs call, picking the first that works.
-  // Verified 2026-04-30 from this Replit egress:
-  //   ✓ Alchemy demo (v0_8) — clean, fast
-  //   ✓ Cartridge — clean, fast
-  //   ✗ Nethermind free-rpc — fetch failed (network unreachable from here)
-  //   ✗ Blast public — discontinued (returns -32000 redirecting to Alchemy)
-  //   ✗ drpc.org — chainId works but getBlockWithTxs flips between -32601 and 200 (load-balanced)
   rpcEndpoints: [
-    process.env.STARKNET_RPC_URL ?? 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/demo',
-    'https://api.cartridge.gg/x/starknet/sepolia',
-    'https://free-rpc.nethermind.io/sepolia-juno/rpc/v0_8',
+    process.env.STARKNET_RPC_URL ?? 'https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_8/demo',
+    'https://api.cartridge.gg/x/starknet/mainnet',
+    'https://free-rpc.nethermind.io/mainnet-juno/rpc/v0_8',
   ],
 
   explorer: {
-    voyager: 'https://sepolia.voyager.online',
-    starkscan: 'https://sepolia.starkscan.co',
+    voyager: 'https://voyager.online',
+    starkscan: 'https://starkscan.co',
   },
 
   trion: {

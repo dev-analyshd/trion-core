@@ -35,8 +35,8 @@ const VM_TYPE:   &str = "MOVE";
 
 const MOVEMENT_RPCS: &[&str] = &[
     "https://mainnet.movementnetwork.xyz/v1",
-    "https://aptos.testnet.suzuka.movementlabs.xyz/v1",
     "https://seed-node2.movementlabs.xyz/v1",
+    "https://movement-mainnet.rpc.thirdweb.com",
 ];
 
 async fn movement_get(client: &reqwest::Client, rpc: &str, path: &str) -> Result<Value> {

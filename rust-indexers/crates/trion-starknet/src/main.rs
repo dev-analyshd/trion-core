@@ -25,15 +25,15 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 8001;
-const CHAIN_LBL: &str = "STARKNET_SEPOLIA";
+const CHAIN_ID:  u64  = 8000;
+const CHAIN_LBL: &str = "STARKNET_MAINNET";
 const VM_TYPE:   &str = "CAIROVM";
 
 const RPCS: &[&str] = &[
-    "https://free-rpc.nethermind.io/sepolia-juno",
-    "https://starknet-sepolia.rpc.thirdweb.com",
-    "https://api.cartridge.gg/x/starknet/sepolia",
-    "https://starknet-sepolia.public.blastapi.io/rpc/v0_7",
+    "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_8/demo",
+    "https://api.cartridge.gg/x/starknet/mainnet",
+    "https://free-rpc.nethermind.io/mainnet-juno",
+    "https://starknet-mainnet.public.blastapi.io/rpc/v0_7",
 ];
 
 async fn snrpc(client: &reqwest::Client, rpc: &str, method: &str, params: Value) -> Result<Value> {
@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(6_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("starknet_sepolia");
+    let mut state = IndexerState::new("starknet_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
     let mut rpc_idx = 0usize;
 
