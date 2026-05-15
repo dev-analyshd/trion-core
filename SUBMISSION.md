@@ -1,9 +1,9 @@
 # TRION Protocol — 0G APAC Hackathon 2026 Submission
 
 **Team:** TRION Protocol  
-**Track:** Track 2 — Verifiable On-Chain Trading  
+**Track:** Track 2 — Agentic Trading Arena (Verifiable Finance)  
 **Deadline:** May 16, 2026 · 23:59 UTC+8  
-**Judge Page:** `/judge` — all evidence in one URL  
+**Judge Page:** `/judge` — all evidence in one URL, live multi-VM BH ticker  
 **Primary Judge Endpoint:** `GET /api/v1/zg/full_stack`
 
 ---
@@ -123,14 +123,14 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 
 | Metric | Value |
 |---|---|
-| Chains indexed | **35** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
+| Chains indexed | **37** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
 | VM families | **13** |
-| API routes | **137** live, all returning 200 OK |
+| API routes | **139** live, all returning 200 OK |
 | Whitepaper formulas | **65/65** (L0–L10) — 100% coverage |
 | Rust L0 crates | **13** — sub-millisecond BH computation |
 | Tests passing | **328** (24 skipped by design with `LIVE=1`) |
 | BH payload | **93 bytes** — canonical SHA3-256 dual-strand |
-| Per-tx BH records | **105,000+** stored (live — growing every block) |
+| Per-tx BH records | **330,000+** stored (live — growing every block) |
 | BH performance | **0.023ms avg** (434× faster than 10ms spec) |
 | Implementation languages | **7** (Rust · Python · TypeScript · Haskell · C++ · Go · Julia) |
 | 0G components integrated | **6/6** (Chain + Storage + DA + Compute + KV + Agent ID) |
@@ -138,6 +138,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 | KV streams | **4** active |
 | Living Security components | **8/8** DNA-mimetic |
 | Smart contracts deployed | **6** (Mainnet + Galileo + 4 EVM testnets) |
+| Live VM ticker | **3-column** EVM / SVM / 0G real-time stream (4s refresh, MEV classified) |
 
 ---
 
@@ -158,8 +159,9 @@ Every endpoint returns 200 OK.
 | 0G Storage | GET | `/api/v1/zg/storage/root` | Merkle-256 root from ExecutionGate |
 | Attack sim | GET | `/api/v1/demo/simulate_attack?attack=ronin` | $625M Ronin — 168h TRION advance detection |
 | Signal | GET | `/api/v1/signal/uniswap` | 34-field TRIONSignal with genomic signature |
-| BH ledger | GET | `/api/v1/bh/stats` | 105,000+ per-transaction behavioral hashes |
+| BH ledger | GET | `/api/v1/bh/stats` | 330,000+ per-transaction behavioral hashes (growing) |
 | Live BH stream | GET | `/api/v1/bh/recent_feed` | Real-time tx stream — MEV/TRANSFER/GOVERNANCE classified live |
+| Multi-VM ticker | GET | `/api/v1/bh/vm_feed` | EVM / SVM / 0G grouped BH stream for live cross-VM visualization |
 | Whitepaper | GET | `/api/v1/whitepaper/coverage` | All 65 formulas live and verified |
 | Living Index | GET | `/api/v1/living_index/uniswap` | LI = T(t)·e^M·SEC·BC·EP·BRT |
 
@@ -212,7 +214,7 @@ TRION directly addresses the $7.8B lost to DeFi exploits since 2020:
 
 1. **Pre-execution hook** — verdicts run BEFORE the swap/borrow/bridge, not after  
 2. **168h advance detection** — behavioral patterns emerge days before exploits  
-3. **Cross-chain** — same attacker fingerprinted across 35 chains simultaneously  
+3. **Cross-chain** — same attacker fingerprinted across 37 chains simultaneously  
 4. **0G-settled** — verdicts on 0G Mainnet, not a centralized database  
 5. **Gas-efficient** — KV layer serves <10ms cached verdicts (~85% cheaper)  
 6. **Agent ID** — every entity carries a verifiable behavioral identity, enabling composable DeFi security
@@ -236,7 +238,7 @@ TRION directly addresses the $7.8B lost to DeFi exploits since 2020:
 ```
 Built TRION — the first multi-chain behavioral truth oracle on @0G_labs 🔮
 
-35 chains → 128-dim behavioral FAISS → 0G TEE execution gate
+37 chains → 128-dim behavioral FAISS → 0G TEE execution gate
 
 ✅ 0G Chain: TRIONExecutionGate live on Mainnet 16661
 ✅ 0G Storage: Merkle-256 behavioral vector index
@@ -246,7 +248,7 @@ Built TRION — the first multi-chain behavioral truth oracle on @0G_labs 🔮
 ✅ 0G Agent ID: 10 behavioral archetypes as on-chain identities
 
 DeFi protocols: 1-line integration to block $600M exploits before execution
-168h advance detection. 35 chains. 23,726+ behavioral hash records.
+168h advance detection. 37 chains. 23,726+ behavioral hash records.
 
 Built for #0GAPACHackathon with @HackQuest_
 
