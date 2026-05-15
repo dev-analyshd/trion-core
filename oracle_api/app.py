@@ -3780,6 +3780,129 @@ def bh_recent_feed():
     })
 
 
+@app.route("/api/v1/bh/vm_feed")
+def bh_vm_feed():
+    """
+    Multi-VM live BH feed: returns recent BHs grouped by VM family (EVM / SVM / 0G / NON_EVM).
+    Used by the real-time multi-column ticker on the dashboard and judge page.
+    """
+    import sqlite3 as _sq
+    limit_per_vm = min(request.args.get("limit", 40, type=int), 80)
+    db_path = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
+
+    EVM_CHAINS = {
+        "ETH_MAINNET","ARB_MAINNET","BASE_MAINNET","OP_MAINNET","BNB_MAINNET",
+        "LINEA_MAINNET","LINEA","MANTLE_MAINNET","MANTLE","SCROLL_MAINNET",
+        "SCROLL","HASHKEY_MAINNET","HASHKEY","ETH_SEPOLIA","ARB_SEPOLIA",
+        "BASE_SEPOLIA","OP_SEPOLIA","BNB_TESTNET","ZG_GALILEO",
+    }
+    SVM_CHAINS   = {"SOLANA_MAINNET","SOLANA_DEVNET"}
+    ZG_CHAINS    = {"ZG_MAINNET"}
+
+    VERDICT_MAP = {
+        "MEV_CAPTURE":"INTERCEPT","FLASH_LOAN":"HOSTILE","GOVERNANCE":"WATCH",
+        "ORACLE_UPDATE":"WATCH","DEPLOY":"WATCH","MINT":"WATCH",
+        "BORROW":"ELEVATED","TRANSFER":"SAFE","SWAP":"SAFE","STAKE":"SAFE",
+        "UNSTAKE":"SAFE","LIQUIDITY":"SAFE","BURN":"SAFE","CLAIM":"SAFE","AIRDROP":"SAFE",
+    }
+
+    def _make_in_clause(chains):
+        return "(" + ",".join("?" * len(chains)) + ")"
+
+    EVM_LIST    = sorted(EVM_CHAINS)
+    SVM_LIST    = sorted(SVM_CHAINS)
+    ZG_LIST     = sorted(ZG_CHAINS)
+    NONEVM_LIST = []  # filled dynamically from DB
+
+    def _fetch_vm(conn, chains_list, lim):
+        if not chains_list:
+            return []
+        sql = (
+            "SELECT tx_hash, chain_label, event_type_name, sense_hex, entity_id, ts "
+            "FROM bh_ledger WHERE chain_label IN " + _make_in_clause(chains_list) +
+            " ORDER BY ts DESC LIMIT ?"
+        )
+        return conn.execute(sql, chains_list + [lim]).fetchall()
+
+    try:
+        conn = _sq.connect(db_path, timeout=4.0)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA query_only=1")
+        total = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
+        per_chain_rows = conn.execute(
+            "SELECT chain_label, COUNT(*) FROM bh_ledger GROUP BY chain_label"
+        ).fetchall()
+        # Per-VM targeted queries — avoids Solana dominating the top-N slice
+        evm_rows    = _fetch_vm(conn, EVM_LIST, limit_per_vm)
+        svm_rows    = _fetch_vm(conn, SVM_LIST, limit_per_vm)
+        zg_rows     = _fetch_vm(conn, ZG_LIST,  limit_per_vm)
+        # Non-EVM: whatever chains exist in DB that aren't EVM/SVM/ZG
+        all_known   = set(EVM_CHAINS) | set(SVM_CHAINS) | set(ZG_CHAINS)
+        nonevm_chains = [r[0] for r in per_chain_rows if r[0] not in all_known]
+        nonevm_rows = _fetch_vm(conn, nonevm_chains, limit_per_vm) if nonevm_chains else []
+        conn.close()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    per_chain = {r[0]: r[1] for r in per_chain_rows}
+
+    def _to_records(rows):
+        out = []
+        for tx_hash, chain, event_type, sense_hex, entity_id, ts in rows:
+            out.append({
+                "tx_hash":    (tx_hash or "")[:18] + "..." if tx_hash and len(tx_hash) > 18 else tx_hash,
+                "chain":      chain,
+                "event_type": event_type,
+                "verdict":    VERDICT_MAP.get(event_type, "SAFE"),
+                "sense_hex":  (sense_hex or "")[:16] + "..." if sense_hex else "—",
+                "ts":         ts,
+            })
+        return out
+
+    evm_records    = _to_records(evm_rows)
+    svm_records    = _to_records(svm_rows)
+    zg_records     = _to_records(zg_rows)
+    nonevm_records = _to_records(nonevm_rows)
+
+    evm_total = sum(v for k, v in per_chain.items() if k in EVM_CHAINS)
+    svm_total = sum(v for k, v in per_chain.items() if k in SVM_CHAINS)
+    zg_total  = sum(v for k, v in per_chain.items() if k in ZG_CHAINS)
+    nonevm_total = total - evm_total - svm_total - zg_total
+
+    return jsonify({
+        "total_bh_records": total,
+        "vm_groups": {
+            "EVM": {
+                "label": "EVM",
+                "chains": ["ETH","ARB","BASE","OP","BNB","LINEA","MANTLE","SCROLL","HSK"],
+                "total":  evm_total,
+                "records": evm_records,
+            },
+            "SVM": {
+                "label": "SVM (Solana)",
+                "chains": ["SOLANA"],
+                "total":  svm_total,
+                "records": svm_records,
+            },
+            "ZG": {
+                "label": "0G Mainnet",
+                "chains": ["ZG"],
+                "total":  zg_total,
+                "records": zg_records,
+            },
+            "NON_EVM": {
+                "label": "Non-EVM",
+                "chains": ["NEAR","TON","SUI","APTOS","COSMOS","TRON","PI","STK"],
+                "total":  nonevm_total,
+                "records": nonevm_records,
+            },
+        },
+        "per_chain": per_chain,
+        "whitepaper": "L0.1 — per-transaction canonical BH dual-strand · 13 VM families",
+    })
+
+
 @app.route("/api/v1/bh", methods=["POST"])
 def behavioral_hash_compute():
     """
