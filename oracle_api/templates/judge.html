@@ -621,9 +621,10 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
         <div class="zg-role">Truth Settlement</div>
         <div class="zg-status"><span class="dot dg"></span><strong style="color:var(--green)">LIVE — Mainnet 16661</strong></div>
         <div class="zg-detail">
-          Immutable behavioral verdicts. TRIONExecutionGate deployed block 33,234,152.<br>
+          Immutable behavioral verdicts live on 0G Mainnet.<br>
           <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank" class="mono col-cyan" style="font-size:.66rem">0xA85B49C7...4199b ↗</a><br>
-          <span id="zg-block-live">Block: loading...</span>
+          <span id="zg-block-live">Block: loading...</span> · <span id="zg-published-count" class="col-green">— signals published</span><br>
+          <span style="font-size:.62rem;color:var(--dim)">Validator: 0xdBbf66... · quorum: 1</span>
         </div>
       </div>
       <div class="zg-card">
@@ -1212,17 +1213,16 @@ async function updateLiveFeed(){
 // ── 0G Chain Stats ───────────────────────────────────────────────────────────
 async function update0GStats(){
   try{
-    let b=null, storageRoot=null;
-    // Try mainnet endpoint
+    let b=null, storageRoot=null, published=null;
     try{
       const r=await fetch('/api/v1/zg');
       const d=await r.json();
-      if(d.ok && d.current_block){
+      if(d.current_block){
         b=Number(d.current_block).toLocaleString();
         storageRoot=d.storage_root||null;
+        published=d.published!=null?Number(d.published):null;
       }
     }catch(e){}
-    // Fallback: use Galileo integration (always live)
     if(!b){
       try{
         const r2=await fetch('/api/v1/zg/integration');
@@ -1238,6 +1238,10 @@ async function update0GStats(){
       document.getElementById('t-block').textContent=b;
       document.getElementById('h-block').textContent=b;
       document.getElementById('zg-block-live').textContent='Block: '+b;
+    }
+    if(published!=null){
+      const el=document.getElementById('zg-published-count');
+      if(el) el.textContent=published.toLocaleString()+' signals published';
     }
     if(storageRoot){
       document.getElementById('zg-storage-root').textContent='Root: '+String(storageRoot).slice(0,18)+'...';

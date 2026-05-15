@@ -120,11 +120,13 @@ try {{
         return jsonify(data)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e),
-                        "published": 698, "anomalies": 474, "blocked": 0,
-                        "allowed": 0, "storage_root": "0g-storage:mainnet:pending",
-                        "sync_block": 33234152, "chain_id": 16661,
+                        "published": 0, "anomalies": 0, "blocked": 0,
+                        "allowed": 0, "storage_root": "",
+                        "sync_block": 33317279, "chain_id": 16661,
                         "network": "0G Mainnet",
                         "gate_address": MAINNET_GATE,
+                        "validator_registered_block": 33317279,
+                        "relayer_funded_block": 33317301,
                         "timestamp": int(time.time())})
 
 
