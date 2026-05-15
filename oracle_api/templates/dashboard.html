@@ -484,6 +484,126 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
     </div>
   </div>
 
+  <!-- ─── BEHAVIORAL HASH LEDGER ─── -->
+  <div class="mb-4" id="bh-ledger-section">
+    <div class="section-title"><i data-feather="hash" style="width:12px;height:12px"></i> Behavioral Hash Ledger — Per-Transaction BH Across All VMs &amp; Chains <span style="color:var(--accent);font-size:.65rem;letter-spacing:1px">L0.1 LIVE</span></div>
+
+    <!-- BH Summary Stats -->
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="stat-card accent" style="padding:14px">
+          <div class="stat-val accent" id="bh-total" style="font-size:1.8rem">—</div>
+          <div class="stat-label">Total BH Records</div>
+          <div class="stat-sub">93-byte dual-strand</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card green" style="padding:14px">
+          <div class="stat-val green" id="bh-chains" style="font-size:1.8rem">—</div>
+          <div class="stat-label">Chains with Data</div>
+          <div class="stat-sub">EVM + SVM + 0G</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card red" style="padding:14px">
+          <div class="stat-val red" id="bh-mev" style="font-size:1.8rem">—</div>
+          <div class="stat-label">MEV Captures</div>
+          <div class="stat-sub">event_type=17</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card purple" style="padding:14px">
+          <div class="stat-val" style="font-size:1.8rem;color:#a78bfa" id="bh-0g">—</div>
+          <div class="stat-label">0G Mainnet BHs</div>
+          <div class="stat-sub">chain 16661</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-3">
+      <!-- Per-Chain Bar Chart -->
+      <div class="col-md-8">
+        <div class="stat-card" style="padding:16px;height:280px">
+          <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px">
+            <i data-feather="bar-chart-2" style="width:10px;height:10px"></i> BH Count by Chain / VM Family
+          </div>
+          <div style="position:relative;height:220px">
+            <canvas id="bh-chain-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Event Type Doughnut -->
+      <div class="col-md-4">
+        <div class="stat-card" style="padding:16px;height:280px">
+          <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px">
+            <i data-feather="pie-chart" style="width:10px;height:10px"></i> Event Type Breakdown
+          </div>
+          <div style="position:relative;height:200px">
+            <canvas id="bh-event-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VM Family Summary Chips -->
+    <div class="mb-3 d-flex flex-wrap gap-2" id="bh-vm-chips">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- 0G BH Highlight -->
+    <div class="stat-card mb-3" style="padding:14px;border-color:#7c3aed44;border-left:3px solid #a78bfa">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:#a78bfa;white-space:nowrap">
+          <i data-feather="zap" style="width:10px;height:10px"></i> 0G Mainnet BH Pipeline
+        </div>
+        <div style="font-size:.7rem;color:var(--text-dim)">chain_id=16661 · TRIONExecutionGate · per-tx canonical BH · DA-proof anchored</div>
+        <div class="ms-auto d-flex gap-3">
+          <div style="text-align:center">
+            <div style="font-size:1rem;font-weight:800;color:#a78bfa" id="bh-0g-count">—</div>
+            <div style="font-size:.6rem;color:var(--text-dim)">BHs stored</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:1rem;font-weight:800;color:var(--green)" id="bh-0g-last-type">—</div>
+            <div style="font-size:.6rem;color:var(--text-dim)">last event</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:.65rem;font-family:monospace;color:var(--accent)" id="bh-0g-sense">—</div>
+            <div style="font-size:.6rem;color:var(--text-dim)">latest sense_hex</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live BH Feed Table -->
+    <div class="stat-card" style="padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">
+          <i data-feather="activity" style="width:10px;height:10px"></i> Live BH Feed — Latest Per-Transaction Hashes
+        </div>
+        <div style="font-size:.6rem;color:var(--text-dim)" id="bh-feed-age"></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="signal-table" style="font-size:.68rem;width:100%">
+          <thead>
+            <tr>
+              <th>Chain</th>
+              <th>VM</th>
+              <th>Event Type</th>
+              <th>Verdict</th>
+              <th>sense_hex</th>
+              <th>tx_hash</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="bh-feed-tbody">
+            <tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:20px">Loading BH feed…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── OTHER CHAIN DEPLOYMENTS ─── -->
   <div class="mb-4">
     <div class="section-title"><i data-feather="layers" style="width:12px;height:12px"></i> EVM Contract Deployments</div>
@@ -1635,6 +1755,162 @@ async function loadL10(){
   }catch(e){console.warn('L10 load error',e);}
 }
 
+// ── BH LEDGER VISUALISATION ──────────────────────────────────────────────────
+const VM_FAMILY = {
+  ETH_MAINNET:'EVM',ARB_MAINNET:'EVM·L2',BASE_MAINNET:'EVM·L2',OP_MAINNET:'EVM·L2',
+  BNB_MAINNET:'EVM·BSC',LINEA:'EVM·L2',MANTLE:'EVM·L2',SCROLL:'EVM·L2',
+  HASHKEY:'EVM·HSK',SOLANA_MAINNET:'SVM',ZG_MAINNET:'0G·EVM',
+  NEAR_MAINNET:'NEAR',TON_MAINNET:'TVM',APTOS_MAINNET:'MoveVM',
+  SUI_MAINNET:'SuiVM',STARKNET_MAINNET:'StarkVM',TRON_MAINNET:'TVM',
+  COSMOS_HUB:'CosmosSDK',PI_MVM:'PiVM',BITCOIN:'UTXO',
+};
+const VERDICT_COLOR = {
+  SAFE:'var(--green)',ELEVATED:'var(--yellow)',WATCH:'var(--accent)',
+  INTERCEPT:'var(--red)',HOSTILE:'#ff0055',
+};
+const EVENT_COLORS = [
+  '#00e5ff','#ff4560','#00ff88','#ffd600','#a78bfa','#f59e0b',
+  '#34d399','#fb7185','#60a5fa','#c084fc','#4ade80','#f97316','#e879f9',
+];
+
+let _bhChainChart = null;
+let _bhEventChart = null;
+
+async function loadBHLedger() {
+  try {
+    const [stats, feed] = await Promise.all([
+      fetch('/api/v1/bh/stats').then(r=>r.json()),
+      fetch('/api/v1/bh/recent_feed?limit=20').then(r=>r.json()),
+    ]);
+
+    // ── Summary stat cards ────────────────────────────────────────────────────
+    const fmt = n => n >= 1e6 ? (n/1e6).toFixed(2)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : String(n);
+    const setEl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+    setEl('bh-total', fmt(stats.total_tx_bhs||0));
+    setEl('bh-chains', stats.chains_with_data||0);
+    setEl('bh-mev', fmt(feed.mev_captures||0));
+    const zgCount = (stats.per_chain||{}).ZG_MAINNET||0;
+    setEl('bh-0g', fmt(zgCount));
+    setEl('bh-0g-count', fmt(zgCount));
+
+    // ── VM Family chips ───────────────────────────────────────────────────────
+    const perChain = stats.per_chain || {};
+    const vmTotals = {};
+    Object.entries(perChain).forEach(([chain, cnt]) => {
+      const vm = VM_FAMILY[chain] || 'Other';
+      vmTotals[vm] = (vmTotals[vm]||0) + cnt;
+    });
+    const chipsEl = document.getElementById('bh-vm-chips');
+    if(chipsEl){
+      chipsEl.innerHTML = Object.entries(vmTotals)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([vm,cnt])=>`<span class="tag-chip" style="font-family:monospace;font-size:.65rem">
+          <span style="color:var(--accent)">${vm}</span>
+          <span style="color:var(--text-dim)"> · </span>
+          <strong style="color:#fff">${fmt(cnt)}</strong>
+        </span>`).join('');
+    }
+
+    // ── Per-chain bar chart ───────────────────────────────────────────────────
+    const chainLabels = Object.keys(perChain).map(c => c.replace('_MAINNET','').replace('_',' '));
+    const chainData   = Object.values(perChain);
+    const chainColors = chainLabels.map((_,i) => EVENT_COLORS[i % EVENT_COLORS.length]);
+    const ctx1 = document.getElementById('bh-chain-chart');
+    if(ctx1){
+      if(_bhChainChart){ _bhChainChart.destroy(); }
+      _bhChainChart = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: chainLabels,
+          datasets:[{
+            label: 'BH Records',
+            data: chainData,
+            backgroundColor: chainColors.map(c=>c+'bb'),
+            borderColor: chainColors,
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{
+            callbacks:{ label: ctx => ' '+ctx.parsed.y.toLocaleString()+' BHs' }
+          }},
+          scales:{
+            x:{ ticks:{color:'#5a6a7e',font:{size:9}}, grid:{color:'#1a2540'} },
+            y:{ ticks:{color:'#5a6a7e',font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}, grid:{color:'#1a2540'} }
+          }
+        }
+      });
+    }
+
+    // ── Event type doughnut ───────────────────────────────────────────────────
+    const perEvent = stats.per_event_type || {};
+    const evLabels = Object.keys(perEvent);
+    const evData   = Object.values(perEvent);
+    const ctx2 = document.getElementById('bh-event-chart');
+    if(ctx2){
+      if(_bhEventChart){ _bhEventChart.destroy(); }
+      _bhEventChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: evLabels,
+          datasets:[{
+            data: evData,
+            backgroundColor: evLabels.map((_,i)=>EVENT_COLORS[i%EVENT_COLORS.length]+'cc'),
+            borderColor: '#090d14',
+            borderWidth: 2,
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{
+            legend:{ position:'bottom', labels:{color:'#5a6a7e',font:{size:8},boxWidth:10,padding:6} },
+            tooltip:{ callbacks:{ label: ctx => ' '+ctx.label+': '+ctx.parsed.toLocaleString() } }
+          },
+          cutout:'65%',
+        }
+      });
+    }
+
+    // ── 0G BH highlight ───────────────────────────────────────────────────────
+    const zgRec = (feed.records||[]).find(r=>r.chain==='ZG_MAINNET');
+    if(zgRec){
+      setEl('bh-0g-last-type', zgRec.event_type||'—');
+      setEl('bh-0g-sense', (zgRec.sense_hex||'').slice(0,20)+'…');
+    }
+
+    // ── Live BH feed table ────────────────────────────────────────────────────
+    const tbody = document.getElementById('bh-feed-tbody');
+    const records = feed.records || [];
+    if(tbody && records.length){
+      tbody.innerHTML = records.map(r => {
+        const vm    = VM_FAMILY[r.chain] || 'Other';
+        const vCol  = VERDICT_COLOR[r.verdict] || 'var(--text)';
+        const txShort = (r.tx_hash||'').length > 16
+          ? r.tx_hash.slice(0,8)+'…'+r.tx_hash.slice(-6)
+          : r.tx_hash||'—';
+        const ago = r.ts ? Math.round(Date.now()/1000 - r.ts) : 0;
+        const agoStr = ago < 60 ? ago+'s ago' : Math.round(ago/60)+'m ago';
+        const chainShort = (r.chain||'').replace('_MAINNET','').replace('_',' ');
+        return `<tr>
+          <td style="font-weight:700;color:#fff;white-space:nowrap">${chainShort}</td>
+          <td><span style="font-size:.6rem;color:var(--accent);font-family:monospace">${vm}</span></td>
+          <td><span style="font-size:.65rem;color:var(--yellow)">${r.event_type||'—'}</span></td>
+          <td><span style="color:${vCol};font-weight:700;font-size:.65rem">${r.verdict||'—'}</span></td>
+          <td style="font-family:monospace;font-size:.58rem;color:var(--text-dim)">${(r.sense_hex||'').slice(0,18)}…</td>
+          <td style="font-family:monospace;font-size:.58rem;color:var(--text-dim)" title="${r.tx_hash||''}">${txShort}</td>
+          <td style="font-size:.6rem;color:var(--text-dim);white-space:nowrap">${agoStr}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    const ageEl = document.getElementById('bh-feed-age');
+    if(ageEl) ageEl.textContent = 'updated '+new Date().toLocaleTimeString();
+
+  } catch(e){ console.warn('BH ledger load error',e); }
+}
+
 async function init(){
   buildChainGrid();
   feather.replace();
@@ -1648,6 +1924,8 @@ async function init(){
   // 0G Hub: load all 4 module cards on startup
   updateZGHub();
   updateZGChainCard();
+  // BH Ledger
+  loadBHLedger();
   setInterval(refresh,8000);
   setInterval(()=>updateEntities(),30000);
   setInterval(refreshProof,60000);
@@ -1656,6 +1934,8 @@ async function init(){
   setInterval(()=>Promise.all([updateZGHub(), updateZGChainCard()]),45000);
   setInterval(()=>Promise.all([loadInvestSignals(),loadReputation(),loadAgents(),loadThermo()]),60000);
   setInterval(loadL10, 120000);
+  // BH ledger refreshes every 15 seconds
+  setInterval(loadBHLedger, 15000);
 }
 
 init();
