@@ -61,30 +61,21 @@ const DRY_RUN     = !PRIVATE_KEY;
 // manifests; override via *_ORACLE_ADDR secrets if you redeploy. Override
 // *_RPC_URL to use a private endpoint.
 const CHAINS = [
-  // Arbitrum Sepolia — TRIONOracleV3
-  { key: "arb-sepolia",  name: "Arbitrum Sepolia",  chainId: 421614,   rpcEnv: "ARBITRUM_SEPOLIA_RPC_URL", rpcDefault: "https://sepolia-rollup.arbitrum.io/rpc",      addrEnv: "ARBITRUM_ORACLE_ADDR",     addrDefault: "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3" },
-  // Ethereum Sepolia — TRIONOracleV3
-  { key: "eth-sepolia",  name: "Ethereum Sepolia",  chainId: 11155111, rpcEnv: "ETH_SEPOLIA_RPC_URL",      rpcDefault: "https://ethereum-sepolia.publicnode.com",     addrEnv: "ETH_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39" },
-  // Base Sepolia — TRIONOracleV3
-  { key: "base-sepolia", name: "Base Sepolia",      chainId: 84532,    rpcEnv: "BASE_SEPOLIA_RPC_URL",     rpcDefault: "https://sepolia.base.org",                    addrEnv: "BASE_ORACLE_ADDR",         addrDefault: "0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C" },
-  // Optimism Sepolia — TRIONOracleV3
-  { key: "op-sepolia",   name: "Optimism Sepolia",  chainId: 11155420, rpcEnv: "OP_SEPOLIA_RPC_URL",       rpcDefault: "https://sepolia.optimism.io",                 addrEnv: "OPTIMISM_ORACLE_ADDR",     addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
-  // BNB Smart Chain Testnet — TRIONOracleV3
-  { key: "bnb-testnet",  name: "BNB Testnet",       chainId: 97,       rpcEnv: "BNB_TESTNET_RPC_URL",      rpcDefault: "https://bsc-testnet-rpc.publicnode.com",      addrEnv: "BNB_ORACLE_ADDR",          addrDefault: "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721" },
-  // 0G Newton Mainnet — TRIONOracleV3 (primary hackathon target)
-  { key: "0g-newton",    name: "0G Newton Mainnet", chainId: 16600,    rpcEnv: "ZG_NEWTON_RPC",            rpcDefault: "https://evmrpc-mainnet.0g.ai",                addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
-  // 0G Galileo testnet — TRIONOracleV3
-  { key: "0g-galileo",   name: "0G Galileo",        chainId: 16602,    rpcEnv: "ZG_GALILEO_RPC",            rpcDefault: "https://evmrpc-testnet.0g.ai",                addrEnv: "ZG_ORACLE_ADDR",           addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
-  // HashKey Chain Mainnet — TRIONOracleV3
-  { key: "hashkey",      name: "HashKey Mainnet",   chainId: 177,      rpcEnv: "HSK_RPC_URL",              rpcDefault: "https://mainnet.hsk.xyz",                     addrEnv: "HSK_ORACLE_ADDR",          addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
-  // Mantle Mainnet — TRIONOracleV3 (deploy pending)
-  { key: "mantle",       name: "Mantle Mainnet",    chainId: 5000,     rpcEnv: "MANTLE_RPC_URL",           rpcDefault: "https://rpc.mantle.xyz",                      addrEnv: "MANTLE_ORACLE_ADDR",       addrDefault: null },
-  // Linea Mainnet — TRIONOracleV3 (deploy pending)
-  { key: "linea",        name: "Linea Mainnet",     chainId: 59144,    rpcEnv: "LINEA_RPC_URL",            rpcDefault: "https://rpc.linea.build",                     addrEnv: "LINEA_ORACLE_ADDR",        addrDefault: null },
-  // Scroll Mainnet — TRIONOracleV3 (deploy pending)
-  { key: "scroll",       name: "Scroll Mainnet",    chainId: 534352,   rpcEnv: "SCROLL_RPC_URL",           rpcDefault: "https://rpc.scroll.io",                       addrEnv: "SCROLL_ORACLE_ADDR",       addrDefault: null },
-  // Polygon Mainnet — TRIONOracleV3 (deploy pending)
-  { key: "polygon",      name: "Polygon Mainnet",   chainId: 137,      rpcEnv: "POLYGON_RPC_URL",          rpcDefault: "https://polygon-rpc.com",                     addrEnv: "POLYGON_ORACLE_ADDR",      addrDefault: null },
+  // ── Mainnet oracle targets (TRIONOracleV3 deployed) ──────────────────────
+  { key: "hashkey",  name: "HashKey Mainnet",  chainId: 177,    rpcEnv: "HSK_RPC_URL",     rpcDefault: "https://mainnet.hsk.xyz",         addrEnv: "HSK_ORACLE_ADDR",     addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
+  // ── Mainnet oracle targets (contract deploy pending — logs "no ADDR") ───
+  { key: "eth-mainnet",  name: "Ethereum Mainnet",  chainId: 1,      rpcEnv: "ETH_MAINNET_RPC_URL",  rpcDefault: "https://ethereum.publicnode.com",    addrEnv: "ETH_MAINNET_ORACLE_ADDR",  addrDefault: null },
+  { key: "arb-mainnet",  name: "Arbitrum One",       chainId: 42161,  rpcEnv: "ARB_MAINNET_RPC_URL",  rpcDefault: "https://arb1.arbitrum.io/rpc",        addrEnv: "ARB_MAINNET_ORACLE_ADDR",  addrDefault: null },
+  { key: "base-mainnet", name: "Base Mainnet",        chainId: 8453,   rpcEnv: "BASE_MAINNET_RPC_URL", rpcDefault: "https://mainnet.base.org",            addrEnv: "BASE_MAINNET_ORACLE_ADDR", addrDefault: null },
+  { key: "op-mainnet",   name: "Optimism Mainnet",    chainId: 10,     rpcEnv: "OP_MAINNET_RPC_URL",   rpcDefault: "https://mainnet.optimism.io",         addrEnv: "OP_MAINNET_ORACLE_ADDR",   addrDefault: null },
+  { key: "bnb-mainnet",  name: "BNB Smart Chain",     chainId: 56,     rpcEnv: "BNB_MAINNET_RPC_URL",  rpcDefault: "https://bsc-dataseed.binance.org",    addrEnv: "BNB_MAINNET_ORACLE_ADDR",  addrDefault: null },
+  { key: "polygon",      name: "Polygon Mainnet",     chainId: 137,    rpcEnv: "POLYGON_RPC_URL",      rpcDefault: "https://polygon-rpc.com",             addrEnv: "POLYGON_ORACLE_ADDR",      addrDefault: null },
+  { key: "mantle",       name: "Mantle Mainnet",      chainId: 5000,   rpcEnv: "MANTLE_RPC_URL",       rpcDefault: "https://rpc.mantle.xyz",              addrEnv: "MANTLE_ORACLE_ADDR",       addrDefault: null },
+  { key: "linea",        name: "Linea Mainnet",       chainId: 59144,  rpcEnv: "LINEA_RPC_URL",        rpcDefault: "https://rpc.linea.build",             addrEnv: "LINEA_ORACLE_ADDR",        addrDefault: null },
+  { key: "scroll",       name: "Scroll Mainnet",      chainId: 534352, rpcEnv: "SCROLL_RPC_URL",       rpcDefault: "https://rpc.scroll.io",               addrEnv: "SCROLL_ORACLE_ADDR",       addrDefault: null },
+  // ── 0G Networks ──────────────────────────────────────────────────────────
+  { key: "0g-mainnet",   name: "0G Mainnet",          chainId: 16661,  rpcEnv: "ZERO_G_RPC",           rpcDefault: "https://evmrpc.0g.ai",                addrEnv: "ZG_MAINNET_ORACLE_ADDR",   addrDefault: null },
+  { key: "0g-newton",    name: "0G Newton Mainnet",   chainId: 16600,  rpcEnv: "ZG_NEWTON_RPC",        rpcDefault: "https://evmrpc-mainnet.0g.ai",        addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
 ];
 
 const ABI = [
