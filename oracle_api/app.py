@@ -3674,14 +3674,32 @@ def bh_ledger_get(entity_id: str):
 def bh_ledger_stats():
     """
     L0.1 — Global BH ledger statistics: total per-transaction BHs, chains, event types.
-    Reads directly from bh_ledger.db (WAL mode) to avoid FAISS write-lock contention.
+    Reads directly from bh_ledger.db (WAL mode). Uses a rolling cache so a locked DB
+    never returns 0 — always serves the last known good count.
     """
     import sqlite3 as _sq
-    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "..", "bh_ledger.db")
-    db_path = os.path.normpath(db_path)
+    import threading as _th
+
+    db_path = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
+
+    # ── persistent in-process cache ──────────────────────────────────────────
+    _c = bh_ledger_stats
+    if not hasattr(_c, "_cache"):
+        _c._cache = {}
+        _c._lock  = _th.Lock()
+        _c._ts    = 0.0
+
+    import time as _time
+    now = _time.time()
+
+    # Return cached result if fresh (≤20s) — avoids hammering a busy WAL
+    with _c._lock:
+        if _c._cache and (now - _c._ts) < 20:
+            return jsonify(_c._cache)
+
     try:
-        conn = _sq.connect(db_path, timeout=4.0)
+        conn = _sq.connect(db_path, timeout=10.0)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA query_only=1")
         total  = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
@@ -3699,13 +3717,19 @@ def bh_ledger_stats():
         ).fetchall()
         conn.close()
     except Exception as exc:
+        # DB locked or busy — return last cached value rather than 0
+        with _c._lock:
+            if _c._cache:
+                cached = dict(_c._cache)
+                cached["_from_cache"] = True
+                return jsonify(cached)
         return jsonify({"error": str(exc), "total_tx_bhs": 0,
                         "whitepaper": "L0.1"}), 503
 
-    return jsonify({
-        "total_tx_bhs":  total,
+    result = {
+        "total_tx_bhs":   total,
         "chains_with_data": len(chains),
-        "per_chain":     {r[0]: r[1] for r in chains},
+        "per_chain":      {r[0]: r[1] for r in chains},
         "per_event_type": {r[0]: r[1] for r in events},
         "recent": [
             {"tx_hash": r[0], "chain": r[1], "event_type": r[2],
@@ -3715,7 +3739,13 @@ def bh_ledger_stats():
         "whitepaper": "L0.1 — per-transaction canonical BH dual-strand",
         "payload_bytes": 93,
         "formula": "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
-    })
+    }
+
+    with _c._lock:
+        _c._cache = result
+        _c._ts    = now
+
+    return jsonify(result)
 
 
 @app.route("/api/v1/bh/recent_feed")
