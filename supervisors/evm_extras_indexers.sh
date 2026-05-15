@@ -16,10 +16,9 @@ mkdir -p "$LOG_DIR"
 
 log()  { echo "[$(date -u +%H:%M:%S)] [EVM-EXTRAS] $*"; }
 
-log "EVM Extras chains (BNB/Base/HSK/Mantle/Linea/Scroll) are indexed"
+log "EVM Extras chains (POLYGON/BNB/MANTLE/LINEA/SCROLL/ZG) are indexed"
 log "by the trion-evm Rust binary in the Rust Indexers workflow."
-log "All 9 EVM chains covered: ARB_SEPOLIA BASE_SEPOLIA OP_SEPOLIA"
-log "HASHKEY BNB_TESTNET ZG_GALILEO ETH_SEPOLIA MANTLE LINEA SCROLL"
+log "All 12 EVM mainnet chains covered (see CHAINS array in trion-evm/src/main.rs)."
 
 # Build trion-evm if not already built
 if [[ ! -x "$BIN_DIR/trion-evm" ]]; then
@@ -31,12 +30,13 @@ fi
 log "trion-evm binary confirmed at $BIN_DIR/trion-evm"
 log "FAISS target: $FAISS_URL"
 log ""
-log "Chains verified in trion-evm/src/main.rs CHAINS array:"
-log "  ARB_SEPOLIA    (421614)  ETH_SEPOLIA (11155111)"
-log "  BASE_SEPOLIA   (84532)   OP_SEPOLIA  (11155420)"
-log "  HASHKEY        (177)     BNB_TESTNET (97)"
-log "  ZG_GALILEO     (16602)   MANTLE      (5000)"
+log "Chains verified in trion-evm/src/main.rs CHAINS array (all mainnet):"
+log "  ETH_MAINNET    (1)       ARB_MAINNET (42161)"
+log "  BASE_MAINNET   (8453)    OP_MAINNET  (10)"
+log "  POLYGON        (137)     BNB_MAINNET (56)"
+log "  HASHKEY        (177)     MANTLE      (5000)"
 log "  LINEA          (59144)   SCROLL      (534352)"
+log "  ZG_MAINNET     (16661)   ZG_NEWTON   (16600)"
 log ""
 log "Tailing EVM Rust indexer log..."
 

@@ -48,15 +48,15 @@ export async function getWorkingProvider(): Promise<RpcProvider> {
       // Probe getBlockWithTxs against latest block — must succeed.
       const latest = await provider.getBlockNumber();
       await provider.getBlockWithTxs(latest);
-      console.log(`✓ Connected to Starknet Sepolia via ${url}`);
-      console.log(`  Chain ID: ${chainId} (SN_SEPOLIA), latest block: ${latest}`);
+      console.log(`✓ Connected to Starknet Mainnet via ${url}`);
+      console.log(`  Chain ID: ${chainId} (SN_MAIN), latest block: ${latest}`);
       return provider;
     } catch (e: any) {
       const msg = e?.message ?? String(e);
       console.log(`  · RPC ${url} rejected: ${msg.slice(0, 120)}`);
     }
   }
-  throw new Error('All Starknet Sepolia RPC endpoints failed (none support getBlockWithTxs)');
+  throw new Error('All Starknet Mainnet RPC endpoints failed (none support getBlockWithTxs)');
 }
 
 // starknet.js v9 Account constructor requires an options object

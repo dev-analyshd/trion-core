@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-05-15T11:26:48.425Z",
+  "timestamp": "2026-05-15T12:07:37.024Z",
   "chain_id": 16661,
   "gate_address": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
-  "storage_root": "0g-storage:galileo:8b0138f3700046f5e8f8fa207078f859",
-  "merkle_root": "8b0138f3700046f5e8f8fa207078f859000ead2283f7de63f6b4c461424dc8fc",
-  "sha256": "ceb8889d4a19b65564846ee16ed4cab32b879cc59d9a1527ba9fac03dc4946a2",
+  "storage_root": "0g-storage:galileo:5b72f8fed3500713592e279add67fee1",
+  "merkle_root": "5b72f8fed3500713592e279add67fee1a1c0fb16ba6cb77dce19d7637574a159",
+  "sha256": "779ba6b9e84ec91f27b2b7e9fc6f02a7a6363a4d573b190fe58c562d19d00d22",
   "vector_count": 1000,
   "uploaded_to_0g": false,
-  "tx_hash": "0xd6bb851d937ac1dc42460661cd2949e40b9e141a56a729c87a5ed702b225267c",
-  "block": 33318114,
-  "explorer": "https://chainscan-galileo.0g.ai/tx/0xd6bb851d937ac1dc42460661cd2949e40b9e141a56a729c87a5ed702b225267c"
+  "tx_hash": "0x60180e6159fa57820d7386a000dfc67c30025fb01aa24380d204cf080ce6f3b6",
+  "block": 33320881,
+  "explorer": "https://chainscan-galileo.0g.ai/tx/0x60180e6159fa57820d7386a000dfc67c30025fb01aa24380d204cf080ce6f3b6"
 }
