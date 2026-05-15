@@ -53,12 +53,30 @@ Track 2 specifically calls for **Sealed Inference and TEE-based execution** to e
 
 ---
 
+## 0G Mainnet Publishing — LIVE (Confirmed May 15, 2026)
+
+TRIONExecutionGate is **actively publishing behavioral verdicts on 0G Mainnet** (chain 16661) every 60 seconds. Verified TX hashes on [chainscan.0g.ai](https://chainscan.0g.ai):
+
+| Block | TX Hash | Chainscan |
+|-------|---------|-----------|
+| 33,317,317 | `0x1842bf7b83b153a993d1e1d63282fd4e388d338815f683bccd92c873e0dbe9bf` | [↗](https://chainscan.0g.ai/tx/0x1842bf7b83b153a993d1e1d63282fd4e388d338815f683bccd92c873e0dbe9bf) |
+| 33,317,335 | `0x7b7352644dee75250557a41dbcf042fce7fa6e74e01f847bf60d96c02af3a0f3` | [↗](https://chainscan.0g.ai/tx/0x7b7352644dee75250557a41dbcf042fce7fa6e74e01f847bf60d96c02af3a0f3) |
+| 33,317,359 | `0x421ab712d50cd73c68d30616fe36438aa6ad99abd8b1d2012f8ca642ca461bf2` | [↗](https://chainscan.0g.ai/tx/0x421ab712d50cd73c68d30616fe36438aa6ad99abd8b1d2012f8ca642ca461bf2) |
+| 33,317,376 | `0x0fa6d1ea6644365b76cb3e8abaa1f5acc8ac3a942626f7b2ec42c0dbf9612716` | [↗](https://chainscan.0g.ai/tx/0x0fa6d1ea6644365b76cb3e8abaa1f5acc8ac3a942626f7b2ec42c0dbf9612716) |
+
+Gate address: [`0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b`](https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b) · chain 16661 · relayer funded 0.1 A0GI · validator registered block 33,317,279
+
+**Live stats:** `GET /api/v1/zg` — returns `published`, `anomalies`, `current_block` directly from on-chain `getStats()`.
+
+---
+
 ## Live Stats (as of May 15, 2026)
 
 | Metric | Value |
 |--------|-------|
+| **0G Mainnet signals published** | **6+** (live, growing every 60s) |
 | BH ledger records | **23,726+** across 13 chains |
-| 0G Mainnet block | **~33,438,000+** (live) |
+| 0G Mainnet block | **~33,317,000+** (live) |
 | Total attacks in library | **32** across 7 VM families |
 | Total value protected | **$43.6B+** (incl. Terra $40B) |
 | CRISPR signatures | **39** adaptive attack patterns |
