@@ -49,30 +49,45 @@ restart_process() {
 wait_faiss
 
 # ── Native VM Rust Indexers ──────────────────────────────────
-# NEAR Testnet      (chain_id 1201) — trion-near
-# TON Testnet       (chain_id 1101) — trion-ton
+# NEAR Mainnet      (chain_id 1200) — trion-near
+# TON Mainnet       (chain_id 1100) — trion-ton
 # Polkadot Westend  (chain_id 901)  — trion-pvm
-# StarkNet Sepolia  (chain_id 1300) — trion-starknet
-
-INDEXERS=(
-    "trion-near"
-    "trion-ton"
-    "trion-pvm"
-    "trion-starknet"
-)
+# StarkNet Mainnet  (chain_id 8000) — trion-starknet
 
 pids=()
 
-for indexer in "${INDEXERS[@]}"; do
-    build_if_needed "$indexer"
-    restart_process "$indexer" \
-        env FAISS_SERVICE_URL="$FAISS_URL" \
-        "$BIN_DIR/$indexer" &
-    pids+=($!)
-    sleep 0.3
-done
+# NEAR Mainnet
+build_if_needed "trion-near"
+restart_process "trion-near" \
+    env FAISS_SERVICE_URL="$FAISS_URL" \
+    "$BIN_DIR/trion-near" &
+pids+=($!)
+sleep 0.3
 
-log "Native VM Rust indexers started: ${INDEXERS[*]}"
+# TON Mainnet (TON_TESTNET not set → defaults to mainnet)
+build_if_needed "trion-ton"
+restart_process "trion-ton" \
+    env FAISS_SERVICE_URL="$FAISS_URL" \
+    "$BIN_DIR/trion-ton" &
+pids+=($!)
+sleep 0.3
+
+# PVM (Polkadot Westend — only available testnet for Polkadot's substrate)
+build_if_needed "trion-pvm"
+restart_process "trion-pvm" \
+    env FAISS_SERVICE_URL="$FAISS_URL" \
+    "$BIN_DIR/trion-pvm" &
+pids+=($!)
+sleep 0.3
+
+# StarkNet Mainnet
+build_if_needed "trion-starknet"
+restart_process "trion-starknet" \
+    env FAISS_SERVICE_URL="$FAISS_URL" \
+    "$BIN_DIR/trion-starknet" &
+pids+=($!)
+
+log "Native VM Rust indexers started: trion-near trion-ton trion-pvm trion-starknet (all mainnet)"
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"

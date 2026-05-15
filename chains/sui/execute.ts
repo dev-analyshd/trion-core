@@ -13,7 +13,7 @@ const _require = createRequire(import.meta.url);
 const FAISS_URL = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
 const CHAIN_ID  = 101;
 const VM_TYPE   = "SUI";
-const SUI_RPC   = "https://fullnode.devnet.sui.io/";
+const SUI_RPC   = "https://fullnode.mainnet.sui.io/";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
