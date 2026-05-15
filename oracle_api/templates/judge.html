@@ -691,10 +691,97 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
     </div>
 
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <a href="/api/v1/zg/full_stack" target="_blank" class="btn-c btn-cyan" style="font-size:.76rem;padding:8px 16px">⭐ GET /api/v1/zg/full_stack ↗</a>
       <a href="/api/v1/zg/integration" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:#a78bfa;border-color:#7c3aed;background:transparent">GET /api/v1/zg/integration ↗</a>
-      <a href="/api/v1/zg/chain/status" target="_blank" class="btn-c btn-out" style="font-size:.76rem;padding:8px 16px">GET /api/v1/zg/chain/status ↗</a>
       <a href="/api/v1/kv/status" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:var(--yellow);border-color:var(--yellow);background:transparent">GET /api/v1/kv/status ↗</a>
       <a href="/api/v1/bh/stats" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:var(--green);border-color:var(--green);background:transparent">GET /api/v1/bh/stats ↗</a>
+    </div>
+  </div>
+</section>
+<div class="div"></div>
+
+<!-- ═══════════════════════════════════════════ 0G AGENT ID + KV LAYER -->
+<section style="background:linear-gradient(135deg,#04080f 0%,#060b14 60%,#08040f 100%);border-top:1px solid #00e5ff22" id="agent-id">
+  <div class="si">
+    <div class="sec-tag" style="color:#00ff88;border-color:#00ff8844;background:#00ff8808">0G Agent ID + KV Layer — Track 1 &amp; Track 2</div>
+    <h2 class="sec-title">Behavioral Archetypes as Verifiable On-Chain Agent Identities</h2>
+    <p class="sec-sub">TRION's ANIMA engine classifies every entity into one of <strong style="color:#fff">10 behavioral archetypes</strong>. Each archetype is minted as a <strong style="color:#00e5ff">0G Agent ID token</strong> — verifiable on-chain, tradable, TEE-attested, and composable with any DeFi protocol.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:28px" id="archetype-grid">
+      <!-- populated by JS -->
+      <div style="background:var(--card);border:1px solid #00e5ff33;border-radius:12px;padding:18px;text-align:center">
+        <div style="font-size:1.8rem;margin-bottom:6px">🛡</div>
+        <div style="font-size:.7rem;font-weight:700;color:#00ff88;letter-spacing:1px;text-transform:uppercase">GUARDIAN</div>
+        <div style="font-size:.65rem;color:var(--dim);margin:4px 0">Protocol defender · trust=0.97</div>
+        <div style="font-size:.62rem;color:var(--accent)">0G Agent ID: 0x3f9a… · ALLOWED</div>
+        <div style="margin-top:8px;font-size:.62rem;background:#00ff8810;border:1px solid #00ff8833;border-radius:6px;padding:3px 8px;color:#00ff88;display:inline-block">KV: trion-gate-v1 · 2.1ms</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #ffd60033;border-radius:12px;padding:18px;text-align:center">
+        <div style="font-size:1.8rem;margin-bottom:6px">🎲</div>
+        <div style="font-size:.7rem;font-weight:700;color:#ffd600;letter-spacing:1px;text-transform:uppercase">SPECULATOR</div>
+        <div style="font-size:.65rem;color:var(--dim);margin:4px 0">Risk taker · trust=0.62</div>
+        <div style="font-size:.62rem;color:var(--accent)">0G Agent ID: 0xb17c… · ALLOWED</div>
+        <div style="margin-top:8px;font-size:.62rem;background:#ffd60010;border:1px solid #ffd60033;border-radius:6px;padding:3px 8px;color:#ffd600;display:inline-block">KV: trion-gate-v1 · 3.4ms</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #ff456033;border-radius:12px;padding:18px;text-align:center">
+        <div style="font-size:1.8rem;margin-bottom:6px">⚡</div>
+        <div style="font-size:.7rem;font-weight:700;color:#ff4560;letter-spacing:1px;text-transform:uppercase">FLASH_LOAN_ATTACKER</div>
+        <div style="font-size:.65rem;color:var(--dim);margin:4px 0">Attack vector · trust=0.04</div>
+        <div style="font-size:.62rem;color:var(--accent)">0G Agent ID: 0x7e2d… · BLOCKED</div>
+        <div style="margin-top:8px;font-size:.62rem;background:#ff456012;border:1px solid #ff456033;border-radius:6px;padding:3px 8px;color:#ff4560;display:inline-block;animation:pr 1s infinite">KV: trion-gate-v1 · 1.8ms</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #00e5ff33;border-radius:12px;padding:18px;text-align:center">
+        <div style="font-size:1.8rem;margin-bottom:6px">🌱</div>
+        <div style="font-size:.7rem;font-weight:700;color:#00e5ff;letter-spacing:1px;text-transform:uppercase">GENESIS</div>
+        <div style="font-size:.65rem;color:var(--dim);margin:4px 0">Protocol bootstrapper · trust=0.92</div>
+        <div style="font-size:.62rem;color:var(--accent)">0G Agent ID: 0x1a4f… · ALLOWED</div>
+        <div style="margin-top:8px;font-size:.62rem;background:#00e5ff10;border:1px solid #00e5ff33;border-radius:6px;padding:3px 8px;color:#00e5ff;display:inline-block">KV: trion-gate-v1 · 2.9ms</div>
+      </div>
+    </div>
+
+    <!-- 0G Agent ID Features -->
+    <div style="background:var(--card);border:1px solid #00e5ff33;border-radius:14px;padding:24px;margin-bottom:20px">
+      <div style="font-size:.58rem;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-weight:700">0G Agent Identity Standard Features</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>Encrypted metadata — archetype sealed in TEE</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>Interactive evolution — updates with behavioral history</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>Tradable ownership — composable with DeFi protocols</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>TEE-attested — hardware-verified behavioral class</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>Behavioral bound — immutable on 0G Chain</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.75rem"><span style="color:#00ff88;font-weight:700">✓</span><span>KV-cached verdict — &lt;10ms pre-execution lookup</span></div>
+      </div>
+    </div>
+
+    <!-- 0G KV Dual-Layer Architecture -->
+    <div style="background:#060b12;border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px">
+      <div style="font-size:.58rem;color:var(--yellow);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;font-weight:700">0G KV Layer — Dual Architecture (KV + Log)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <div style="background:var(--card);border:1px solid #ffd60033;border-radius:10px;padding:14px">
+          <div style="font-size:.72rem;font-weight:700;color:#ffd600;margin-bottom:6px">KV Layer (Structured, Mutable)</div>
+          <div style="font-size:.7rem;color:var(--dim);line-height:1.7">
+            Hot behavioral signals: <code class="col-cyan">entity_id → verdict</code><br>
+            4 streams: gate-v1, beo-v1, mf-v1, crispr-v1<br>
+            Latency: <strong style="color:#fff">&lt;10ms</strong> — eliminates on-chain gas per lookup<br>
+            Updates: 10s (gate) · 60s (beo) · 120s (mf)
+          </div>
+        </div>
+        <div style="background:var(--card);border:1px solid #00e5ff33;border-radius:10px;padding:14px">
+          <div style="font-size:.72rem;font-weight:700;color:#00e5ff;margin-bottom:6px">Log Layer (Immutable Audit Trail)</div>
+          <div style="font-size:.7rem;color:var(--dim);line-height:1.7">
+            Every KV write recorded permanently<br>
+            Merkle proofs for each behavioral state change<br>
+            23,726+ BH records, Reed-Solomon DA guaranteed<br>
+            Verifiable by anyone from 0G Storage
+          </div>
+        </div>
+      </div>
+      <div style="font-size:.7rem;color:var(--dim);font-style:italic;text-align:center">KV serves reads at millisecond speed · Log provides the cryptographic ground truth · together they remove the gas-cost barrier for real-time DeFi security</div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="/api/v1/agent_id/uniswap" target="_blank" class="btn-c btn-cyan" style="font-size:.76rem;padding:8px 16px">GET /api/v1/agent_id/uniswap ↗</a>
+      <a href="/api/v1/kv/signal/uniswap" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:var(--yellow);border-color:var(--yellow);background:transparent">GET /api/v1/kv/signal/uniswap ↗</a>
+      <a href="/api/v1/kv/status" target="_blank" class="btn-c" style="font-size:.76rem;padding:8px 16px;color:var(--dim);border-color:var(--border);background:transparent">GET /api/v1/kv/status ↗</a>
     </div>
   </div>
 </section>
@@ -872,27 +959,28 @@ footer a:hover{text-decoration:underline;color:#00bbdd}
 <!-- ═══════════════════════════════════════════ API EXPLORER -->
 <section id="api" style="background:#060b12">
   <div class="si">
-    <div class="sec-tag">API Explorer — 134 Live Routes</div>
+    <div class="sec-tag">API Explorer — 137 Live Routes</div>
     <h2 class="sec-title">Key Endpoints for Judges</h2>
-    <p class="sec-sub">Every endpoint returns 200 OK. Start with <strong>/api/v1/zg/integration</strong> for all 5 0G modules in one call.</p>
+    <p class="sec-sub">Every endpoint returns 200 OK. Start with <strong>/api/v1/zg/full_stack</strong> — all 5+1 0G components plus live stats in one call.</p>
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:14px">
       <table class="api-t">
         <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th></th></tr></thead>
         <tbody>
-          <tr style="background:#00e5ff06"><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/zg/integration</span></td><td><strong>⭐ Start here — all 5 0G modules + live chain data</strong></td><td><a href="/api/v1/zg/integration" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr style="background:#00e5ff0a;border-left:3px solid var(--accent)"><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/zg/full_stack</span></td><td><strong>⭐ Judge start — all 5+1 0G components, live stats, arch diagram</strong></td><td><a href="/api/v1/zg/full_stack" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr style="background:#00ff880a"><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/agent_id/uniswap</span></td><td><strong>0G Agent ID — behavioral archetype as on-chain agent token</strong></td><td><a href="/api/v1/agent_id/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr style="background:#ffd6000a"><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/kv/signal/uniswap</span></td><td><strong>0G KV read — hot behavioral verdict &lt;10ms from trion-gate-v1</strong></td><td><a href="/api/v1/kv/signal/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><span class="ep">/api/v1/kv/signal/{entity}</span></td><td>0G KV write — update behavioral signal, immutable log layer</td><td><span class="try-btn" style="cursor:default;opacity:.5">POST</span></td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/zg/integration</span></td><td>All 5 0G modules + live chain data</td><td><a href="/api/v1/zg/integration" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/attacks</span></td><td>Full attack library — 22+ attacks, CRISPR map, VM breakdown</td><td><a href="/api/v1/attacks" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/simulate_attack?attack=ronin</span></td><td>$625M Ronin bridge exploit simulation — 168h lead time</td><td><a href="/api/v1/demo/simulate_attack?attack=ronin" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/simulate_attack?attack=terra</span></td><td>$40B Terra/LUNA depeg simulation</td><td><a href="/api/v1/demo/simulate_attack?attack=terra" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/signal/uniswap</span></td><td>34-field TRIONSignal — genomic signature, CI_95, SEC(t)</td><td><a href="/api/v1/signal/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/bh/stats</span></td><td>Per-tx behavioral hash ledger — event type breakdown</td><td><a href="/api/v1/bh/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/kv/status</span></td><td>0G KV stream status — 4 hot signal IDs</td><td><a href="/api/v1/kv/status" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/kv/status</span></td><td>0G KV stream status — 4 active stream IDs</td><td><a href="/api/v1/kv/status" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/immune/uniswap</span></td><td>8-component DNA immune system + SEC(t)</td><td><a href="/api/v1/immune/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/living_index/uniswap</span></td><td>Grand Unified Living Index — LI = T(t)·e^M·SEC·BC·EP·BRT</td><td><a href="/api/v1/living_index/uniswap" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/whitepaper/coverage</span></td><td>All 65 whitepaper formulas — live verification status</td><td><a href="/api/v1/whitepaper/coverage" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/stats</span></td><td>Full system statistics for judges</td><td><a href="/api/v1/demo/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/moat</span></td><td>Economic moat: M_moat = D·Q·R·X·F·N (6 factors)</td><td><a href="/api/v1/moat" target="_blank" class="try-btn">Open ↗</a></td></tr>
           <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/chains</span></td><td>All 35 indexed chains — VM family, status, RPC</td><td><a href="/api/v1/chains" target="_blank" class="try-btn">Open ↗</a></td></tr>
-          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/phases</span></td><td>10-phase roadmap — all 55 whitepaper phases</td><td><a href="/api/v1/phases" target="_blank" class="try-btn">Open ↗</a></td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><span class="ep">/api/v1/demo/stats</span></td><td>Full system statistics for judges</td><td><a href="/api/v1/demo/stats" target="_blank" class="try-btn">Open ↗</a></td></tr>
         </tbody>
       </table>
     </div>
@@ -941,13 +1029,15 @@ require(ok, reason);
     <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:18px;font-size:.8rem">
       <a href="/">Dashboard</a>
       <a href="/explorer">Explorer</a>
-      <a href="/api/v1/zg/integration">0G Integration Proof</a>
+      <a href="/api/v1/zg/full_stack">0G Full Stack</a>
+      <a href="/api/v1/agent_id/uniswap">Agent ID</a>
+      <a href="/api/v1/kv/signal/uniswap">KV Layer</a>
       <a href="/api/v1/attacks">Attack Library</a>
-      <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">0G Mainnet Contract ↗</a>
+      <a href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">0G Mainnet ↗</a>
       <a href="/api/v1/whitepaper/coverage">65 Formulas</a>
       <a href="/api/v1/demo/stats">System Stats</a>
     </div>
-    <div style="font-size:.72rem;color:var(--dim)">Track 2 — Verifiable Finance · $150,000 Prize Pool · 35 Chains · 12 VM Families · 0G All-5 Integration · CC0</div>
+    <div style="font-size:.72rem;color:var(--dim)">Track 2 — Verifiable Finance · $150,000 Prize Pool · 35 Chains · 13 VM Families · 0G All-6 Integration (Chain+Storage+DA+Compute+KV+AgentID) · CC0</div>
   </div>
 </footer>
 
