@@ -1,7 +1,7 @@
 /**
  * TRION PVM — Real Transaction Executor + BTCP Proof
  *
- * Fires 5 real balance transfers on Polkadot Westend testnet,
+ * Fires 5 real balance transfers on Polkadot Mainnet,
  * ingests behavioral vectors into FAISS, records proof.
  *
  * Usage:  DOT_MNEMONIC="word1 word2 ..." tsx execute.ts
@@ -14,8 +14,8 @@ import fetch from "node-fetch";
 import fs from "fs";
 
 const FAISS_URL  = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const WS_RPC     = "wss://westend-rpc.polkadot.io";
-const CHAIN_ID   = 901;
+const WS_RPC     = process.env.DOT_WS_RPC ?? "wss://rpc.polkadot.io";
+const CHAIN_ID   = 900;
 const VM_TYPE    = "PVM";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
@@ -66,7 +66,7 @@ async function ingestToFaiss(entityId: string, vector: number[], phi: number) {
 
 async function main() {
   console.log("╔══════════════════════════════════════════════════════════════════╗");
-  console.log("║   TRION PVM — Real Transaction Executor (Polkadot Westend)      ║");
+  console.log("║   TRION PVM — Real Transaction Executor (Polkadot Mainnet)      ║");
   console.log("╚══════════════════════════════════════════════════════════════════╝\n");
 
   const rawMnemonic = process.env.DOT_MNEMONIC;
@@ -75,11 +75,11 @@ async function main() {
 
   await cryptoWaitReady();
 
-  const keyring = new Keyring({ type: "sr25519", ss58Format: 42 });
+  const keyring = new Keyring({ type: "sr25519", ss58Format: 0 });
   const signer  = keyring.addFromMnemonic(mnemonic);
   console.log(`  Signer: ${signer.address}`);
 
-  console.log(`  Connecting to Westend: ${WS_RPC}`);
+  console.log(`  Connecting to Polkadot Mainnet: ${WS_RPC}`);
   const provider = new WsProvider(WS_RPC);
   const api      = await ApiPromise.create({ provider });
   await api.isReady;
@@ -91,7 +91,7 @@ async function main() {
   console.log(`  Version: ${version}`);
 
   const { data: { free } } = await api.query.system.account(signer.address) as any;
-  console.log(`  Balance: ${(BigInt(free.toString()) / 1_000_000_000_000n).toString()} WND`);
+  console.log(`  Balance: ${(BigInt(free.toString()) / 10_000_000_000n).toString()} DOT`);
 
   const results: any[] = [];
   const NUM_TXS = 5;
@@ -140,7 +140,7 @@ async function main() {
 
       results.push({
         tx_index:     i + 1,
-        chain:        "DOT_WESTEND",
+        chain:        "DOT_MAINNET",
         chain_id:     CHAIN_ID,
         vm_type:      VM_TYPE,
         tx_hash:      txHash,
@@ -149,7 +149,7 @@ async function main() {
         signer:       signer.address,
         phi:          phi.toFixed(4),
         faiss_ok:     true,
-        note:         txOk ? undefined : "Wallet needs WND — block proof recorded",
+        note:         txOk ? undefined : "Wallet needs DOT — block proof recorded",
       });
 
       await sleep(3000);

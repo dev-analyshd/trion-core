@@ -3,7 +3,7 @@
  * TRION Native VM Relayer
  * =======================
  * Periodically fires real, signed transactions on each non-EVM chain
- * (Solana Devnet, NEAR Testnet, TON Testnet, Polkadot Westend) using the
+ * (Solana Mainnet, NEAR Mainnet, TON Mainnet, Polkadot Mainnet, StarkNet Mainnet) using the
  * keys stored as Replit Secrets. Each cycle invokes the upstream
  * `execute.ts` script for one VM, which fires 5 real transactions, ingests
  * behavioral vectors into FAISS, and exits.
@@ -15,7 +15,7 @@
  *   PVM_RELAYER_MNEMONIC        | DOT_MNEMONIC              -> DOT_MNEMONIC
  *   STARKNET_RELAYER_PRIVATE_KEY| STARKNET_PRIVATE_KEY      -> STARKNET_PRIVATE_KEY
  *
- * On testnet the same key signs both indexer ops and relayer ops, so the
+ * The same key signs both indexer ops and relayer ops, so the
  * canonical names are accepted as a fallback. If neither variant is set the
  * corresponding VM is skipped with a warning.
  */
@@ -55,8 +55,8 @@ function resolveTsx(cwd) {
 const FAISS_URL        = process.env.FAISS_URL        || "http://127.0.0.1:8000";
 const CYCLE_SLEEP_MS   = parseInt(process.env.NATIVE_CYCLE_SLEEP_MS || "600000", 10); // 10 min between cycles
 const PER_VM_SLEEP_MS  = parseInt(process.env.NATIVE_PER_VM_SLEEP_MS || "30000", 10); // 30 s between VMs
-const NEAR_ACCOUNT_ID  = process.env.NEAR_ACCOUNT_ID  || "trion.testnet";
-const SOLANA_RPC       = process.env.SOLANA_RPC       || "https://api.devnet.solana.com";
+const NEAR_ACCOUNT_ID  = process.env.NEAR_ACCOUNT_ID  || "trion.near";
+const SOLANA_RPC       = process.env.SOLANA_RPC       || "https://api.mainnet-beta.solana.com";
 
 // ── Key normalisation ────────────────────────────────────────────────────────
 function svmKeyToBase58(raw) {
@@ -103,7 +103,7 @@ function pvmMnemonic(raw) {
 // ── VM definitions ───────────────────────────────────────────────────────────
 const VMS = [
   {
-    label: "SVM (Solana Devnet)",
+    label: "SVM (Solana Mainnet)",
     cwd:   "chains/svm",
     cmd:   [resolveTsx("chains/svm"), "execute.ts"],
     envBuilder: () => {
@@ -113,7 +113,7 @@ const VMS = [
     },
   },
   {
-    label: "NEAR Testnet",
+    label: "NEAR Mainnet",
     cwd:   "chains/near",
     cmd:   [resolveTsx("chains/near"), "execute.ts"],
     envBuilder: () => {
@@ -123,17 +123,17 @@ const VMS = [
     },
   },
   {
-    label: "TON Testnet",
+    label: "TON Mainnet",
     cwd:   "chains/ton",
     cmd:   [resolveTsx("chains/ton"), "execute.ts"],
     envBuilder: () => {
       const k = tonKey(pickEnv("TON_RELAYER_PRIVATE_KEY", "TON_PRIVATE_KEY_HEX"));
       if (!k) return null;
-      return { TON_PRIVATE_KEY_HEX: k, TON_TESTNET: "true", FAISS_URL };
+      return { TON_PRIVATE_KEY_HEX: k, FAISS_URL };
     },
   },
   {
-    label: "PVM (Polkadot Westend)",
+    label: "PVM (Polkadot Mainnet)",
     cwd:   "chains/pvm",
     cmd:   [resolveTsx("chains/pvm"), "execute.ts"],
     envBuilder: () => {
@@ -143,7 +143,7 @@ const VMS = [
     },
   },
   {
-    label: "StarkNet Sepolia",
+    label: "StarkNet Mainnet",
     cwd:   "chains/starknet",
     cmd:   [resolveTsx("chains/starknet"), "execute.ts"],
     envBuilder: () => {

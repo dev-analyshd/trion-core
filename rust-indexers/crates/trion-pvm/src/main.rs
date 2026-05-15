@@ -25,15 +25,15 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 901;
-const CHAIN_LBL: &str = "DOT_WESTEND";
+const CHAIN_ID:  u64  = 900;
+const CHAIN_LBL: &str = "DOT_MAINNET";
 const VM_TYPE:   &str = "PVM";
 
 // Use Sidecar REST API (much easier than WS for pure-REST Rust)
 const SIDECAR_URLS: &[&str] = &[
-    "https://westend-api-sidecar.parity.io",
-    "https://westend-api.polkadot.io",
-    "https://westend.public.curie.radiumblock.co/http",
+    "https://polkadot-api-sidecar.parity.io",
+    "https://dot-api-sidecar.parity.io",
+    "https://polkadot.public.curie.radiumblock.co/http",
 ];
 
 async fn fetch_block(client: &reqwest::Client, sidecar: &str, block_num: u64) -> Result<Value> {
@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(12_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("pvm_dot_westend");
+    let mut state = IndexerState::new("pvm_dot_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
 
     info!("TRION PVM Rust Indexer — chain={} label={} poll={}ms", CHAIN_ID, CHAIN_LBL, poll_ms);
