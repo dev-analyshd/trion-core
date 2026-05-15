@@ -225,12 +225,12 @@ fn pvm_bh_batch_sidecar(block: &Value, chain_id: u64, label: &str, block_num: u6
         let tx_hash = ext["hash"].as_str().unwrap_or("").to_string();
         if tx_hash.is_empty() { continue; }
 
-        // Skip unsigned (inherent) extrinsics
-        if ext["signature"].is_null() { continue; }
+        // Include all extrinsics — inherent ones (unsigned) are classified as TRANSFER
 
-        let signer = ext["signature"]["signer"].as_str().unwrap_or(
-            ext["signature"]["signer"]["id"].as_str().unwrap_or("unknown")
-        ).to_string();
+        let signer = ext["signature"]["signer"].as_str()
+            .or_else(|| ext["signature"]["signer"]["id"].as_str())
+            .unwrap_or("inherent")
+            .to_string();
         let pallet = ext["method"]["pallet"].as_str().unwrap_or("unknown");
         let method = ext["method"]["method"].as_str().unwrap_or("unknown");
         let et     = classify_dot_extrinsic(pallet, method);
@@ -371,11 +371,27 @@ async fn main() -> Result<()> {
 
             match faiss.add_batch(&payload).await {
                 Ok(added) => {
-                    // Only emit per-tx BHs in sidecar mode (rich data)
                     let bh_stored = if mode_label == "sidecar" {
                         let tx_batch = pvm_bh_batch_sidecar(&block_data, CHAIN_ID, CHAIN_LBL, block_num, &block_hash, ts_u64);
                         faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0)
-                    } else { 0 };
+                    } else {
+                        // RPC mode: emit one block-level BH per block using the block hash as entity
+                        let rpc_exts = block_data["block"]["extrinsics"].as_array();
+                        let ext_count = rpc_exts.map(|a| a.len()).unwrap_or(1).max(1);
+                        let mag = ((ext_count as f64 + 1.0).log10() / (200.0_f64).log10()).clamp(0.0, 1.0);
+                        let eid = bh_id(&format!("{}:{}", CHAIN_LBL, block_num));
+                        let (sense_hex, antisense_hex) = canonical_bh(&eid, 0u8, mag, 0, ts_u64, CHAIN_ID, &block_hash);
+                        let entry = TxBhEntry {
+                            tx_hash: block_hash.clone(), from_addr: "inherent".into(), to_addr: String::new(),
+                            event_type: 0, event_type_name: "TRANSFER".into(),
+                            entity_id: eid, magnitude_norm: mag, value_wei: ext_count.to_string(),
+                            selector: "block".into(), timestamp: ts_u64, chain_id: CHAIN_ID,
+                            chain_label: CHAIN_LBL.into(), block_num,
+                            block_hash: block_hash.clone(), sense_hex, antisense_hex,
+                        };
+                        let batch = TxBhBatch { chain_id: CHAIN_ID, chain_label: CHAIN_LBL.into(), block_num, block_hash: block_hash.clone(), timestamp: ts_u64, entries: vec![entry] };
+                        faiss.add_tx_bh_batch(&batch).await.unwrap_or(0)
+                    };
                     info!("[{}] block={} φ={:.4} added={} bh_stored={} mode={}", CHAIN_LBL, block_num, phi, added, bh_stored, mode_label);
                 }
                 Err(e) => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
