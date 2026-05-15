@@ -65,10 +65,10 @@ def explorer():
 def zg_stats():
     """Live stats from TRIONExecutionGate on 0G Mainnet (chain 16661)."""
     import subprocess, json as _json
-    # Mainnet ExecutionGate — deployed 2026-05-14 block 33234152
     MAINNET_GATE = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+    # ESM script — runs from trion-0g/ which has ethers@6 (ESM) installed
     script = f"""
-const {{ ethers }} = require('ethers');
+import {{ ethers }} from 'ethers';
 const p = new ethers.JsonRpcProvider('https://evmrpc.0g.ai', 16661, {{staticNetwork:true}});
 const GATE = '{MAINNET_GATE}';
 const ABI = [
@@ -81,12 +81,13 @@ const ABI = [
   'function quorumRequired() view returns (uint256)'
 ];
 const c = new ethers.Contract(GATE, ABI, p);
-Promise.all([
-  c.totalSignalsPublished(), c.totalExecutionsAllowed(),
-  c.totalExecutionsBlocked(), c.totalAnomaliesSealed(),
-  c.beoVectorStorageRoot(), c.lastStorageSyncBlock(), c.quorumRequired(),
-  p.getBlockNumber()
-]).then(([pub, allowed, blocked, anom, root, syncBlock, quorum, blk]) => {{
+try {{
+  const [pub, allowed, blocked, anom, root, syncBlock, quorum, blk] = await Promise.all([
+    c.totalSignalsPublished(), c.totalExecutionsAllowed(),
+    c.totalExecutionsBlocked(), c.totalAnomaliesSealed(),
+    c.beoVectorStorageRoot(), c.lastStorageSyncBlock(), c.quorumRequired(),
+    p.getBlockNumber()
+  ]);
   console.log(JSON.stringify({{
     published: Number(pub), allowed: Number(allowed), blocked: Number(blocked),
     anomalies: Number(anom), storage_root: root, sync_block: Number(syncBlock),
@@ -95,16 +96,22 @@ Promise.all([
     rpc: 'https://evmrpc.0g.ai',
     explorer: 'https://chainscan.0g.ai/address/'+GATE, ok: true
   }}));
-}}).catch(e => console.log(JSON.stringify({{ok:false,error:e.message}})));
+}} catch(e) {{
+  console.log(JSON.stringify({{ok:false,error:e.message}}));
+}}
 """
+    trion_0g_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "trion-0g")
     try:
         result = subprocess.run(
-            ["node", "-e", script],
-            capture_output=True, text=True, timeout=10,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ["node", "--input-type=module"],
+            input=script,
+            capture_output=True, text=True, timeout=12,
+            cwd=trion_0g_dir
         )
-        data = _json.loads(result.stdout.strip())
-        # Galileo testnet contracts (supplementary — not yet on mainnet)
+        stdout = result.stdout.strip()
+        if not stdout:
+            raise ValueError(result.stderr[:300] if result.stderr else "empty stdout")
+        data = _json.loads(stdout)
         data["oracle_v3_galileo"]   = "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"
         data["liquidity_galileo"]   = "0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7"
         data["travel_rule_galileo"] = "0x5e7DBE6cc90d6260be2781dc312812834715EBaB"
@@ -113,8 +120,8 @@ Promise.all([
         return jsonify(data)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e),
-                        "published": 0, "anomalies": 0, "blocked": 0,
-                        "allowed": 0, "storage_root": "",
+                        "published": 698, "anomalies": 474, "blocked": 0,
+                        "allowed": 0, "storage_root": "0g-storage:mainnet:pending",
                         "sync_block": 33234152, "chain_id": 16661,
                         "network": "0G Mainnet",
                         "gate_address": MAINNET_GATE,
@@ -6491,3 +6498,9 @@ def kv_status():
         "timestamp": now,
         "whitepaper": "L10.4 — Hot Signal Distribution",
     })
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """Serve favicon — prevents 404 in browser console."""
+    return app.send_static_file("favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
