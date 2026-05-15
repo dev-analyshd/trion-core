@@ -3903,6 +3903,82 @@ def bh_vm_feed():
     })
 
 
+@app.route("/api/v1/bh/chains")
+def bh_chains():
+    """Per-chain BH breakdown: count, event mix, last-seen, VM family."""
+    import sqlite3 as _sq, time as _time
+    db_path = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
+    EVM_CHAINS = {
+        "ETH_MAINNET","ARB_MAINNET","BASE_MAINNET","OP_MAINNET","BNB_MAINNET",
+        "LINEA_MAINNET","LINEA","MANTLE_MAINNET","MANTLE","SCROLL_MAINNET",
+        "SCROLL","HASHKEY_MAINNET","HASHKEY","ETH_SEPOLIA","ARB_SEPOLIA",
+        "BASE_SEPOLIA","OP_SEPOLIA","BNB_TESTNET","ZG_GALILEO",
+    }
+    SVM_CHAINS = {"SOLANA_MAINNET","SOLANA_DEVNET"}
+    ZG_CHAINS  = {"ZG_MAINNET"}
+    try:
+        conn = _sq.connect(db_path, timeout=4.0)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA query_only=1")
+        rows = conn.execute("""
+            SELECT chain_label, chain_id, COUNT(*) as cnt,
+              SUM(CASE WHEN event_type_name='MEV_CAPTURE'   THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='LIQUIDATE'     THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='FLASH_LOAN'    THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='SWAP'          THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='TRANSFER'      THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='BRIDGE'        THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='GOVERNANCE'    THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='ORACLE_UPDATE' THEN 1 ELSE 0 END),
+              SUM(CASE WHEN event_type_name='BORROW'        THEN 1 ELSE 0 END),
+              MAX(ts), MIN(ts)
+            FROM bh_ledger GROUP BY chain_label ORDER BY cnt DESC
+        """).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
+        conn.close()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    now = _time.time()
+    max_cnt = max((r[2] for r in rows), default=1)
+    chains = []
+    for r in rows:
+        label, cid, cnt = r[0], r[1], r[2]
+        mev,liq,flash,swap,xfer,bridge,gov,oracle,borrow = r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10],r[11]
+        last_ts, first_ts = r[12], r[13]
+        if label in ZG_CHAINS:    vm = "0G"
+        elif label in SVM_CHAINS: vm = "SVM"
+        elif label in EVM_CHAINS: vm = "EVM"
+        else:                     vm = "NON-EVM"
+        age_s = int(now - (last_ts or 0))
+        chains.append({
+            "chain": label, "chain_id": cid, "vm": vm,
+            "count": cnt, "pct": round(cnt * 100 / total, 2),
+            "bar_pct": round(cnt * 100 / max_cnt, 1),
+            "mev": mev, "liq": liq, "flash": flash,
+            "swap": swap, "xfer": xfer, "bridge": bridge,
+            "gov": gov, "oracle": oracle, "borrow": borrow,
+            "last_seen_s": age_s,
+            "last_seen_label": (
+                f"{age_s}s ago" if age_s < 120 else
+                f"{age_s//60}m ago" if age_s < 7200 else
+                f"{age_s//3600}h ago"
+            ),
+            "live": age_s < 900,
+        })
+    return jsonify({
+        "total": total, "chains": chains,
+        "chain_count": len(chains),
+        "generated_at": now,
+    })
+
+
+@app.route("/chains")
+def chains_page():
+    return render_template("chains.html")
+
+
 @app.route("/api/v1/bh", methods=["POST"])
 def behavioral_hash_compute():
     """
