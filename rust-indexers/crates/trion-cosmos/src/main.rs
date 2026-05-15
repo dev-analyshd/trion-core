@@ -38,17 +38,23 @@ struct CosmosChain {
 
 const CHAINS: &[CosmosChain] = &[
     CosmosChain { label: "COSMOS_HUB", chain_id: 4001, denom: "uatom",
-        lcds: &["https://cosmos-rest.publicnode.com", "https://rest.cosmos.directory/cosmoshub"] },
+        lcds: &["https://cosmos-api.polkachu.com", "https://cosmos.api.kjnodes.com",
+                "https://cosmos-rest.publicnode.com", "https://rest.cosmos.directory/cosmoshub"] },
     CosmosChain { label: "KAVA",       chain_id: 4002, denom: "ukava",
-        lcds: &["https://kava-api.publicnode.com",    "https://rest.cosmos.directory/kava"] },
+        lcds: &["https://kava-api.polkachu.com", "https://kava.api.kjnodes.com",
+                "https://kava-api.publicnode.com", "https://rest.cosmos.directory/kava"] },
     CosmosChain { label: "INJECTIVE",  chain_id: 4003, denom: "inj",
-        lcds: &["https://injective-rest.publicnode.com", "https://rest.cosmos.directory/injective"] },
+        lcds: &["https://injective-api.polkachu.com", "https://injective.api.kjnodes.com",
+                "https://injective-rest.publicnode.com", "https://rest.cosmos.directory/injective"] },
     CosmosChain { label: "SEI",        chain_id: 4004, denom: "usei",
-        lcds: &["https://sei-api.polkachu.com",       "https://rest.cosmos.directory/sei"] },
+        lcds: &["https://sei-api.polkachu.com", "https://sei.api.kjnodes.com",
+                "https://rest.cosmos.directory/sei"] },
     CosmosChain { label: "DYDX",       chain_id: 4005, denom: "adydx",
-        lcds: &["https://dydx-rest.publicnode.com",   "https://rest.cosmos.directory/dydx"] },
+        lcds: &["https://dydx-api.polkachu.com", "https://dydx.api.kjnodes.com",
+                "https://dydx-rest.publicnode.com", "https://rest.cosmos.directory/dydx"] },
     CosmosChain { label: "INITIA",     chain_id: 4006, denom: "uinit",
-        lcds: &["https://rest.initia.xyz",            "https://initia-api.polkachu.com"] },
+        lcds: &["https://initia-api.polkachu.com", "https://initia.api.kjnodes.com",
+                "https://rest.initia.xyz"] },
 ];
 
 async fn lcd_get(client: &reqwest::Client, lcd: &str, path: &str) -> Result<Value> {
@@ -66,7 +72,12 @@ async fn get_latest_height(client: &reqwest::Client, lcd: &str) -> Result<u64> {
 }
 
 async fn get_block_txs(client: &reqwest::Client, lcd: &str, height: u64) -> Result<Value> {
-    lcd_get(client, lcd, &format!("/cosmos/tx/v1beta1/txs?events=tx.height%3D{}&pagination.limit=50", height)).await
+    // Try plain = first (most nodes); fall back to %3D encoding
+    let path1 = format!("/cosmos/tx/v1beta1/txs?events=tx.height={}&pagination.limit=50", height);
+    match lcd_get(client, lcd, &path1).await {
+        Ok(v) => Ok(v),
+        Err(_) => lcd_get(client, lcd, &format!("/cosmos/tx/v1beta1/txs?events=tx.height%3D{}&pagination.limit=50", height)).await,
+    }
 }
 
 async fn get_block(client: &reqwest::Client, lcd: &str, height: u64) -> Result<Value> {
@@ -263,7 +274,22 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
 
         match faiss.add_batch(&payload).await {
             Ok(added) => {
-                let tx_batch = cosmos_bh_batch(&txs_resp, chain, height, &block_hash, ts_u64);
+                let mut tx_batch = cosmos_bh_batch(&txs_resp, chain, height, &block_hash, ts_u64);
+                // Fallback: when txs endpoint fails (500/400), emit one block-level BH from proposer
+                if tx_batch.entries.is_empty() {
+                    let fallback_id = format!("{}:{}", chain.label, height);
+                    let proposer = block["block"]["header"]["proposer_address"].as_str().unwrap_or(&fallback_id);
+                    let eid = bh_id(proposer);
+                    let (sense_hex, antisense_hex) = canonical_bh(&eid, 6u8, 0.5, 0, ts_u64, chain.chain_id, &block_hash);
+                    tx_batch.entries.push(TxBhEntry {
+                        tx_hash: block_hash.clone(), from_addr: proposer.to_string(), to_addr: String::new(),
+                        event_type: 6, event_type_name: "GOVERNANCE".into(),
+                        entity_id: eid, magnitude_norm: 0.5, value_wei: "0".into(),
+                        selector: "block_proposer".into(), timestamp: ts_u64,
+                        chain_id: chain.chain_id, chain_label: chain.label.to_string(),
+                        block_num: height, block_hash: block_hash.clone(), sense_hex, antisense_hex,
+                    });
+                }
                 let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
                 info!("[{}] height={} φ={:.4} added={} bh_stored={}", chain.label, height, phi, added, bh_stored);
             }
