@@ -74,7 +74,7 @@ const CHAINS = [
   // 0G Newton Mainnet — TRIONOracleV3 (primary hackathon target)
   { key: "0g-newton",    name: "0G Newton Mainnet", chainId: 16600,    rpcEnv: "ZG_NEWTON_RPC",            rpcDefault: "https://evmrpc-mainnet.0g.ai",                addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
   // 0G Galileo testnet — TRIONOracleV3
-  { key: "0g-galileo",   name: "0G Galileo",        chainId: 16602,    rpcEnv: "ZERO_G_RPC",               rpcDefault: "https://evmrpc-testnet.0g.ai",                addrEnv: "ZG_ORACLE_ADDR",           addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
+  { key: "0g-galileo",   name: "0G Galileo",        chainId: 16602,    rpcEnv: "ZG_GALILEO_RPC",            rpcDefault: "https://evmrpc-testnet.0g.ai",                addrEnv: "ZG_ORACLE_ADDR",           addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
   // HashKey Chain Mainnet — TRIONOracleV3
   { key: "hashkey",      name: "HashKey Mainnet",   chainId: 177,      rpcEnv: "HSK_RPC_URL",              rpcDefault: "https://mainnet.hsk.xyz",                     addrEnv: "HSK_ORACLE_ADDR",          addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
   // Mantle Mainnet — TRIONOracleV3 (deploy pending)
