@@ -1,15 +1,16 @@
 # TRION Protocol — Multi-Chain Behavioral Truth Oracle
 
-> *Real-time behavioral intelligence across **35 indexed networks** · **12 VM families** · Five planes of existence · 131 API routes · A pre-execution firewall that would have blocked **$388.9M** in historical DeFi exploits · **TRIONExecutionGate live on 0G Mainnet (chain 16661)**.*
+> *Real-time behavioral intelligence across **37 indexed networks** · **13 VM families** · Five planes of existence · 139 API routes · A pre-execution firewall that would have blocked **$44B+** in historical DeFi exploits · **TRIONExecutionGate live on 0G Mainnet (chain 16661)**.*
 
 [![Tests](https://img.shields.io/badge/Tests-328%20passed%2C%2024%20skipped-brightgreen)](tests/)
 [![Attacks Blocked](https://img.shields.io/badge/Attacks%20Blocked-7%2F7-red)](simulate_attacks.py)
-[![FAISS Vectors](https://img.shields.io/badge/FAISS%20Vectors-Growing%20Live%20from%2035%20chains-blue)](#faiss-anima-service)
-[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-131-purple)](#oracle-api----port-5000)
-[![Workflows](https://img.shields.io/badge/Workflows-11%20Running-green)](#workflows)
-[![Chains](https://img.shields.io/badge/Chains-35%20Networks%20%7C%2012%20VM%20Families-orange)](#indexed-networks)
-[![0G Integration](https://img.shields.io/badge/0G-Mainnet%2016661%20%2B%20Storage%20%2B%20DA%20%2B%20Compute-blueviolet)](#0g-integration)
+[![FAISS Vectors](https://img.shields.io/badge/FAISS%20Vectors-Growing%20Live%20from%2037%20chains-blue)](#faiss-anima-service)
+[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-139-purple)](#oracle-api----port-5000)
+[![Workflows](https://img.shields.io/badge/Workflows-10%20Running-green)](#workflows)
+[![Chains](https://img.shields.io/badge/Chains-37%20Networks%20%7C%2013%20VM%20Families-orange)](#indexed-networks)
+[![0G Integration](https://img.shields.io/badge/0G-6%2F6%20Components%20%7C%20Mainnet%2016661-blueviolet)](#0g-integration)
 [![0G Mainnet](https://img.shields.io/badge/0G%20Mainnet-0xA85B49C7...4199b-purple)](https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b)
+[![TEE Sealed](https://img.shields.io/badge/TEE-Sealed%20Inference%20Anti--FrontRun-blueviolet)](#0g-compute--tee-sealed-inference)
 [![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey)](https://creativecommons.org/publicdomain/zero/1.0/)
 
 ---
@@ -32,7 +33,7 @@ Understanding TRION requires following data from raw blockchain activity to a fi
 
 ### Step 1 — Data Ingestion (14 Rust Indexers + 7 Node.js Supervisors)
 
-Every few seconds, TRION's indexers poll 35 networks across 12 VM families and extract **raw behavioral signals** from each new block.
+Every few seconds, TRION's indexers poll 37 networks across 13 VM families and extract **raw behavioral signals** from each new block.
 
 The Rust L0 indexers (`rust-indexers/crates/`) are the highest-performance layer. For each block on each chain, they extract 9 Shannon entropy features:
 
@@ -92,7 +93,7 @@ The FAISS index persists across restarts via a multi-layer save strategy: a SIGT
 
 ### Step 3 — Oracle API Scoring Engine (Python/Flask, port 5000)
 
-The Oracle API (`oracle_api/app.py`, 131 routes) is the integration point for everything. When any consumer calls `GET /api/v1/signal/{entity_id}`, the following pipeline executes:
+The Oracle API (`oracle_api/app.py`, 139 routes) is the integration point for everything. When any consumer calls `GET /api/v1/signal/{entity_id}`, the following pipeline executes:
 
 **3a. Physical Plane (Φ)**
 
@@ -328,7 +329,7 @@ Limiting plane = argmin(Φ_adj, M_adj, Σ, K, A)
 trion-core/
 ├── serve.py                    # Unified entry point → oracle_api/app.py (Flask, port 5000)
 ├── oracle_api/
-│   ├── app.py                  # 131 API routes — signal compute, on-chain publish, live feed
+│   ├── app.py                  # 139 API routes — signal compute, on-chain publish, live feed
 │   ├── blockchain.py           # web3 relay — TRIONSensingOracle on Arbitrum Sepolia
 │   ├── templates/dashboard.html  # Live dashboard UI
 │   └── requirements.txt        # flask, gunicorn, web3
@@ -432,7 +433,7 @@ All **11 workflows** run continuously in the Replit environment:
 
 | # | Workflow | Runtime | Purpose |
 |---|---------|---------|---------|
-| 1 | **Start application** | Python / Flask (uv) | Oracle API + Frontend on port 5000 — 131 routes, dashboard |
+| 1 | **Start application** | Python / Flask (uv) | Oracle API + Frontend on port 5000 — 139 routes, dashboard |
 | 2 | **FAISS ANIMA** | Python / FastAPI (uv) | 128-dim FAISS vector index + behavioral planes on port 8000 |
 | 3 | **Rust Indexers** | Rust (cargo) | L0 EVM (14 chains) + SVM/Solana — core behavioral indexing |
 | 4 | **EVM Extras Indexer** | Bash supervisor | BNB/Base/HashKey/Mantle/Linea/Scroll → FAISS |
@@ -583,7 +584,7 @@ fly deploy                # deploys from Dockerfile.render via fly.toml
 
 ## Indexed Networks
 
-**35 networks across 12 VM families** — all contributing live behavioral data:
+**37 networks across 13 VM families** — all contributing live behavioral data:
 
 ### EVM — Ethereum Virtual Machine
 
@@ -712,7 +713,7 @@ fly deploy                # deploys from Dockerfile.render via fly.toml
 
 ## Oracle API — Port 5000
 
-131 routes across 9 vision modules + 0G integration:
+139 routes across 9 vision modules + 0G integration:
 
 ### Core Signal Routes
 - `GET /api/v1/signal/{entity_id}` — full C(t) computation with all 5 planes
