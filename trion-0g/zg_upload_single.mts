@@ -2,7 +2,7 @@
 import { ZgFile, Indexer } from '@0glabs/0g-ts-sdk';
 import { ethers } from 'ethers';
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1778929384.json');
+const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1778933029.json');
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
