@@ -15,6 +15,8 @@
  */
 
 import { ethers } from "ethers";
+import { createRequire } from "module";
+const _require = createRequire(import.meta.url);
 
 export const ZG_RPC      = "https://evmrpc-testnet.0g.ai";
 export const ZG_CHAIN_ID = 16602;
@@ -48,7 +50,7 @@ export const KNOWN_PROVIDERS = [
 export async function initBroker(privateKey) {
   if (!privateKey) return null;
   try {
-    const { createZGComputeNetworkBroker } = await import("@0glabs/0g-serving-broker");
+    const { createZGComputeNetworkBroker } = _require("@0glabs/0g-serving-broker");
     const provider = new ethers.JsonRpcProvider(ZG_RPC);
     const signer   = new ethers.Wallet(privateKey, provider);
     const broker   = await createZGComputeNetworkBroker(signer);
@@ -86,7 +88,7 @@ export async function inferViaBroker(prompt, entityId, privateKey) {
   }
 
   try {
-    const { createZGComputeNetworkBroker } = await import("@0glabs/0g-serving-broker");
+    const { createZGComputeNetworkBroker } = _require("@0glabs/0g-serving-broker");
     const provider = new ethers.JsonRpcProvider(ZG_RPC);
     const signer   = new ethers.Wallet(privateKey, provider);
     const broker   = await createZGComputeNetworkBroker(signer);
@@ -163,7 +165,7 @@ export async function getComputeStatus(privateKey) {
   }
 
   try {
-    const { createZGComputeNetworkBroker } = await import("@0glabs/0g-serving-broker");
+    const { createZGComputeNetworkBroker } = _require("@0glabs/0g-serving-broker");
     const provider  = new ethers.JsonRpcProvider(ZG_RPC);
     const signer    = new ethers.Wallet(privateKey, provider);
     const broker    = await createZGComputeNetworkBroker(signer);

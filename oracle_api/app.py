@@ -1644,17 +1644,31 @@ def zg_sync_trigger():
 # ── 0G All-Module Integration Endpoints ───────────────────────────────────────
 
 def _run_zg_module(cmd, *args, timeout=18):
-    """Helper: call trion-0g/src/index.mjs and parse JSON output."""
+    """Helper: call trion-0g/src/index.mjs and parse JSON output.
+    The @0glabs SDK can emit debug lines to stdout before the JSON result,
+    so we scan backwards for the last line that is valid JSON.
+    """
     import subprocess, json as _j, os as _os
-    root   = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-    script = _os.path.join(root, "trion-0g", "src", "index.mjs")
-    argv   = ["node", "--experimental-vm-modules", script, cmd] + list(args)
-    env    = {**dict(os.environ), "NODE_OPTIONS": "--no-warnings"}
+    root      = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    zg_dir    = _os.path.join(root, "trion-0g")
+    script    = _os.path.join(zg_dir, "src", "index.mjs")
+    argv      = ["node", "--no-warnings", script, cmd] + list(args)
+    env       = {**dict(os.environ), "NODE_OPTIONS": "--no-warnings"}
     try:
         r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
-                           cwd=root, env=env)
-        raw = (r.stdout or "").strip()
-        return _j.loads(raw) if raw else {"ok": False, "error": r.stderr[:200]}
+                           cwd=zg_dir, env=env)
+        # The SDK sometimes prints debug info to stdout before the JSON result.
+        # Find the last line that is valid JSON.
+        lines = (r.stdout or "").strip().splitlines()
+        for line in reversed(lines):
+            line = line.strip()
+            if line.startswith("{") or line.startswith("["):
+                try:
+                    return _j.loads(line)
+                except _j.JSONDecodeError:
+                    continue
+        err = (r.stderr or "")[:300] or "no output"
+        return {"ok": False, "error": err}
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "timeout"}
     except Exception as e:

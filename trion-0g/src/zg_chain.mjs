@@ -79,24 +79,45 @@ export async function getChainStatus() {
  * checkExecution — call TRIONExecutionGate.checkExecution() for an address.
  */
 export async function checkExecution(entityAddress) {
+  const STATUS = { 0: "UNREGISTERED", 1: "SAFE", 2: "ELEVATED", 3: "COLLAPSE", 4: "HOSTILE" };
   try {
     const addr     = ethers.isAddress(entityAddress) ? entityAddress : ethers.ZeroAddress;
     const provider = new ethers.JsonRpcProvider(ZG_RPC);
     const gate     = new ethers.Contract(CONTRACTS.TRIONExecutionGate, GATE_ABI, provider);
     const result   = await gate.checkExecution(addr);
-    const STATUS   = { 1: "SAFE", 2: "ELEVATED", 3: "COLLAPSE", 4: "HOSTILE" };
+    const code     = Number(result[0]);
     return {
-      entity:      entityAddress,
-      status_code: Number(result[0]),
-      status:      STATUS[Number(result[0])] || "UNKNOWN",
-      phi_t:       Number(result[1]) / 1e6,
-      theta:       Number(result[2]) / 1e6,
-      drop_pct:    Number(result[3]) / 1e4,
-      block:       Number(result[4]),
-      execution_allowed: Number(result[0]) <= 2,
-      gate:        CONTRACTS.TRIONExecutionGate,
+      ok:                true,
+      entity:            entityAddress,
+      status_code:       code,
+      status:            STATUS[code] || "UNKNOWN",
+      phi_t:             Number(result[1]) / 1e6,
+      theta:             Number(result[2]) / 1e6,
+      drop_pct:          Number(result[3]) / 1e4,
+      block:             Number(result[4]),
+      execution_allowed: code <= 2,
+      gate:              CONTRACTS.TRIONExecutionGate,
+      explorer:          `${ZG_EXPLORER}/address/${CONTRACTS.TRIONExecutionGate}`,
     };
   } catch (e) {
-    return { ok: false, error: e.message?.slice(0, 100) };
+    const msg = e.message || "";
+    // Contract reverts when entity is not registered — treat as UNREGISTERED (not an error)
+    if (msg.includes("revert") || msg.includes("require(false)") || msg.includes("no data")) {
+      return {
+        ok:                true,
+        entity:            entityAddress,
+        status_code:       0,
+        status:            "UNREGISTERED",
+        phi_t:             0,
+        theta:             0,
+        drop_pct:          0,
+        block:             0,
+        execution_allowed: false,
+        note:              "Entity not registered in TRIONExecutionGate — no behavioral profile on-chain yet",
+        gate:              CONTRACTS.TRIONExecutionGate,
+        explorer:          `${ZG_EXPLORER}/address/${CONTRACTS.TRIONExecutionGate}`,
+      };
+    }
+    return { ok: false, error: msg.slice(0, 150) };
   }
 }
