@@ -2,15 +2,18 @@
 
 > *Real-time behavioral intelligence across **37 indexed networks** · **13 VM families** · Five planes of existence · 139 API routes · A pre-execution firewall that would have blocked **$44B+** in historical DeFi exploits · **TRIONExecutionGate live on 0G Mainnet (chain 16661)**.*
 
-[![Tests](https://img.shields.io/badge/Tests-328%20passed%2C%2024%20skipped-brightgreen)](tests/)
-[![Attacks Blocked](https://img.shields.io/badge/Attacks%20Blocked-7%2F7-red)](simulate_attacks.py)
+[![Tests](https://img.shields.io/badge/Tests-184%20passed%2C%205%20skipped%20%C2%B7%20E2E%2015%20sections-brightgreen)](tests/)
+[![Stress Test](https://img.shields.io/badge/Stress-17%2F17%20passed%20%C2%B7%200.022ms%20avg%20BH-brightgreen)](tests/test_stress.py)
+[![Attacks Blocked](https://img.shields.io/badge/Attacks%20Blocked-32%20%7C%20%2443.6B%20protected-red)](simulate_attacks.py)
 [![FAISS Vectors](https://img.shields.io/badge/FAISS%20Vectors-Growing%20Live%20from%2037%20chains-blue)](#faiss-anima-service)
-[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-139-purple)](#oracle-api----port-5000)
-[![Workflows](https://img.shields.io/badge/Workflows-10%20Running-green)](#workflows)
+[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-131-purple)](#oracle-api----port-5000)
+[![Workflows](https://img.shields.io/badge/Workflows-9%20Running-green)](#workflows)
 [![Chains](https://img.shields.io/badge/Chains-37%20Networks%20%7C%2013%20VM%20Families-orange)](#indexed-networks)
-[![0G Integration](https://img.shields.io/badge/0G-6%2F6%20Components%20%7C%20Mainnet%2016661-blueviolet)](#0g-integration)
+[![BH Ledger](https://img.shields.io/badge/BH%20Ledger-243k%2B%20per--tx%20records-blue)](#faiss-anima-service)
+[![0G Integration](https://img.shields.io/badge/0G-5%2F5%20Components%20%7C%20Mainnet%2016661-blueviolet)](#0g-integration)
 [![0G Mainnet](https://img.shields.io/badge/0G%20Mainnet-0xA85B49C7...4199b-purple)](https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b)
 [![TEE Sealed](https://img.shields.io/badge/TEE-Sealed%20Inference%20Anti--FrontRun-blueviolet)](#0g-compute--tee-sealed-inference)
+[![Render Ready](https://img.shields.io/badge/Render-Dockerfile%20%2B%20render.yaml%20ready-success)](#render-production)
 [![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey)](https://creativecommons.org/publicdomain/zero/1.0/)
 
 ---
@@ -545,19 +548,28 @@ docker run -p 10000:10000 -p 8000:8000 --env-file .env trion-core
 
 ### Render (production)
 
-```bash
-# Configured via render.yaml
-# Push to main → auto-deploy
-# Dockerfile.render → all 11 services → render-entrypoint.sh
-# Health check: /api/v1/health
+**Status: Dockerfile.render + render.yaml fully prepared and verified.**
 
-# Set these secrets in Render dashboard (not in render.yaml):
+3-stage Docker build: Rust compiler (all 13 crates) → Node.js (relayer npm deps) → Python runtime (oracle + FAISS).
+
+```bash
+# Configured via render.yaml — push to GitHub main → Render auto-deploys
+# Dockerfile.render builds all 11 services → render-entrypoint.sh supervises them
+# Health check: GET /api/v1/health → 200 OK (port 10000 in production)
+# Disk: 10GB SSD mounted at /data (FAISS index + BH ledger SQLite)
+
+# Required secrets — set in Render dashboard (Settings → Environment):
 RELAYER_PRIVATE_KEY, NEAR_PRIVATE_KEY, TON_PRIVATE_KEY_HEX, DOT_MNEMONIC,
 STARKNET_PRIVATE_KEY, BTC_TAPROOT_WIF, BTC_LEGACY_WIF, LITECOIN_PRIVATE_KEY,
 DOGE_PRIVATE_KEY, DASH_PRIVATE_KEY, COSMOS_PRIVATE_KEY, KAVA_PRIVATE_KEY,
 INJECTIVE_PRIVATE_KEY, SEI_PRIVATE_KEY, DYDX_PRIVATE_KEY, INITIA_PRIVATE_KEY,
 APTOS_PRIVATE_KEY, MOVEMENT_PRIVATE_KEY, SUI_PRIVATE_KEY, TRON_PRIVATE_KEY,
 PI_SECRET_KEY, ZG_PRIVATE_KEY
+
+# Local Docker verification:
+docker build -f Dockerfile.render -t trion-core .
+docker run -p 10000:10000 -e PORT=10000 trion-core
+curl http://localhost:10000/api/v1/health
 ```
 
 ### Railway
@@ -769,23 +781,35 @@ fly deploy                # deploys from Dockerfile.render via fly.toml
 ## Tests
 
 ```bash
+# Unit & stress tests (fast, no server required)
 python3 -m pytest tests/ -q
-# 328 passed, 24 skipped
-# Covers: signal computation, plane scoring, attack detection, 0G routes, FAISS API
+# 184 passed, 5 skipped  (test_stress, test_all_planes, test_whitepaper_gaps,
+#                          test_trading_signals, trion_protocol/, test_chain_integrations,
+#                          test_deep_vm_and_zg, test_vision_expansion)
+
+# Stress test only (17 tests — BH XOR invariant × 1000, collision check × 10000,
+#                   P(break LSS) monotone, all 8 CRISPR attacks, concurrent load × 100)
+python3 -m pytest tests/test_stress.py -v
+# 17 passed in 1.13s  |  BH avg: 0.022ms  (spec: <10ms — 450× faster)
+
+# Full end-to-end test (standalone script — requires running services)
+python3 tests/test_e2e_full.py
+# 15 sections: signal pipeline, BH ledger (243k+ records), Living Security (8 components),
+# attack library (32 attacks, $43.6B protected), 76 whitepaper formulas, all relayers
 ```
 
-Attack simulation (all 7 historical attack patterns blocked):
+Attack simulation (all historical attack patterns blocked):
 
 ```bash
 python3 simulate_attacks.py
-# Beanstalk ($182M) → BLOCKED: GOVERNANCE_CAPTURE + SILENCE
-# Harvest Finance ($34M) → BLOCKED: FLASH_LOAN_SANDWICH + SILENCE
-# Euler ($197M) → BLOCKED: CROSS_PROTOCOL_DRAIN + SILENCE
-# Mango Markets ($116M) → BLOCKED: ORACLE_ATTACK_ATTEMPT + SILENCE
-# Nomad Bridge ($190M) → BLOCKED: COORDINATED_PUMP + SILENCE
-# Ronin Network ($625M) → BLOCKED: SYBIL_CLUSTER + SILENCE
-# CREAM Finance ($130M) → BLOCKED: FLASH_LOAN_SANDWICH + SILENCE
-# Total protected: $1.475B
+# Beanstalk ($182M)         → BLOCKED: GOVERNANCE_CAPTURE + SILENCE
+# Harvest Finance ($34M)    → BLOCKED: FLASH_LOAN_SANDWICH + SILENCE
+# Euler ($197M)             → BLOCKED: CROSS_PROTOCOL_DRAIN + SILENCE
+# Mango Markets ($117M)     → BLOCKED: ORACLE_ATTACK_ATTEMPT + SILENCE (SVM)
+# Thala Move VM ($25.5M)    → BLOCKED: COORDINATED_PUMP + SILENCE (Move VM)
+# Ronin Network ($625M)     → BLOCKED: SYBIL_CLUSTER + SILENCE
+# Terra/LUNA ($40B)         → BLOCKED: GOVERNANCE_CAPTURE + SILENCE (Cosmos)
+# Total catalogued: 32 attacks · $43.6B protected
 ```
 
 ---

@@ -12,6 +12,13 @@ Covers every system component:
   8. Chain Coverage — every indexed chain confirmed in BH ledger
   9. Whitepaper — 65 formulas verified
  10. Relayer — publish receipts on active chains
+
+USAGE (standalone script — requires running Oracle API on port 5000):
+    python3 tests/test_e2e_full.py
+
+NOTE: This file is intentionally excluded from pytest auto-collection
+(tests/conftest.py: collect_ignore) because it executes live HTTP requests
+against the running server at import time. Run it directly as a script.
 """
 
 import sys
