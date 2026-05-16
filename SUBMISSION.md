@@ -247,8 +247,8 @@ Built TRION — the first multi-chain behavioral truth oracle on @0G_labs 🔮
 ✅ 0G KV: <10ms pre-execution verdict cache, 4 hot streams
 ✅ 0G Agent ID: 10 behavioral archetypes as on-chain identities
 
-DeFi protocols: 1-line integration to block $600M exploits before execution
-168h advance detection. 37 chains. 75,000+ behavioral hash records.
+DeFi protocols: 1-line integration to block $44B+ in known exploits before execution
+168h advance detection. 37 chains. 300,000+ behavioral hash records — growing live.
 
 Built for #0GAPACHackathon with @HackQuest_
 

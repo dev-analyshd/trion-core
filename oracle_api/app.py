@@ -1534,7 +1534,7 @@ def zg_proof():
         "faiss_hash": faiss_hash,
         "timestamp": proof_ts,
         "vm_families": ["EVM", "SVM", "MoveVM", "CosmosSDK", "STARKVM", "TVM", "PVM", "UTXO", "SUI", "MVM"],
-        "chains_indexed": 35,
+        "chains_indexed": 37,
         "behavioral_planes": 9,
     }, separators=(",", ":"))
     da_hash = "0x" + _hl.sha256(proof_payload.encode()).hexdigest()
@@ -6730,9 +6730,9 @@ def demo_stats():
 
     return jsonify({
         "faiss_vectors": faiss_count,
-        "chains_indexed": 35,
-        "vm_families": 12,
-        "api_routes": 134,
+        "chains_indexed": 37,
+        "vm_families": 13,
+        "api_routes": 139,
         "test_coverage": "328 passed / 24 skipped",
         "bh_avg_ms": 0.023,
         "bh_target_ms": 10,
@@ -7023,8 +7023,8 @@ def _live_bh_count_str() -> str:
 @app.route("/api/v1/zg/full_stack")
 def zg_full_stack():
     """
-    All 5 0G components in one judge-friendly call.
-    Chain + Storage + DA + Compute + KV — each serving a distinct architectural role.
+    All 6 0G components in one judge-friendly call.
+    Chain + Storage + DA + Compute + KV + Agent ID — each serving a distinct architectural role.
     This is the primary judge endpoint.
     """
     import urllib.request as _ur, json as _j, hashlib
@@ -7121,10 +7121,18 @@ def zg_full_stack():
             },
         },
         "architecture": (
-            "35 chains → 9 Shannon entropy features → 128-dim FAISS "
-            "→ 0G Compute TEE → 0G KV (<10ms) → 0G DA (proof) "
-            "→ 0G Storage (state) → 0G Chain (TRIONExecutionGate.checkExecution())"
+            "37 chains → 9 Shannon entropy features → 128-dim FAISS "
+            "→ 0G Compute TEE (Sealed Inference, anti-front-run) → 0G Agent ID "
+            "→ 0G KV (<10ms verdict cache) → 0G DA (RS 2× anomaly proof) "
+            "→ 0G Storage (Merkle-256 state) → 0G Chain (TRIONExecutionGate.checkExecution())"
         ),
+        "track2_tee_highlight": {
+            "sealed_inference": "ANIMA archetype matching runs inside 0G Compute TEE — verdicts are encrypted until block finality",
+            "anti_frontrun":    "Strategy verdicts sealed until settlement — cannot be front-run by MEV bots",
+            "privacy":          "Behavioral scores computed in hardware-isolated enclave; no raw wallet data exposed",
+            "sdk":              "@0glabs/0g-serving-broker v0.7.8",
+            "providers":        2,
+        },
         "integration_test": {
             "try_agent_id":  "/api/v1/agent_id/uniswap",
             "try_kv_read":   "/api/v1/kv/signal/uniswap",
@@ -7133,12 +7141,19 @@ def zg_full_stack():
             "try_da":        "/api/v1/zg/da/status",
             "try_storage":   "/api/v1/zg/storage/root",
             "try_full":      "/api/v1/zg/full_stack",
+            "try_tee":       "/api/v1/zg/compute/status",
+            "try_attack_sim":"/api/v1/demo/simulate_attack?attack=ronin",
+            "try_bh_ledger": "/api/v1/bh/stats",
         },
         "faiss_vectors":    faiss_vectors,
-        "chains_indexed":   35,
+        "chains_indexed":   37,
+        "vm_families":      13,
         "bh_records":       _live_bh_count_str(),
-        "api_routes":       131,
+        "api_routes":       139,
         "tests_passing":    328,
+        "rust_crates":      13,
+        "languages":        7,
+        "contracts_deployed": 6,
         "timestamp":        now,
     })
 
@@ -7395,7 +7410,7 @@ def trion_trade(entity_id: str):
             "cross_chain_signal":   cross_chain_signal,
             "manipulation_warning": manipulation_warning,
             "love_premium_active":  love_premium,
-            "description":          "Signals derived from 35 chains × 9 Shannon entropy dimensions — invisible to price-only analytics",
+            "description":          "Signals derived from 37 chains × 9 Shannon entropy dimensions — invisible to price-only analytics",
         },
         "revenue_model": {
             "tier":             "INSTITUTIONAL",
@@ -7541,7 +7556,7 @@ def trion_vision():
             "thesis":      "TRION's immune system protects from what is bad. Love Protocol reveals what is good.",
             "self_destruct":"If ever used against people instead of for them, it kills itself",
             "formula":     "LV(t) = L(t) · e^(–MF(t)) · TrustChain(t) · Longevity(t)",
-            "unfakeable":  "You cannot simulate years of patient, altruistic, consistent behavior across 35 chains",
+            "unfakeable":  "You cannot simulate years of patient, altruistic, consistent behavior across 37 chains",
             "endpoint":    "/api/v1/love/{entity}",
         },
 
