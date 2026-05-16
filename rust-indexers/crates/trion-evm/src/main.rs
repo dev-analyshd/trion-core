@@ -81,9 +81,9 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "POLYGON", chain_id: 137,
         rpcs: &[
-            "https://polygon.llamarpc.com",
             "https://polygon-bor-rpc.publicnode.com",
             "https://1rpc.io/matic",
+            "https://polygon.drpc.org",
             "https://polygon-rpc.com",
             "https://rpc.ankr.com/polygon",
         ],
@@ -319,15 +319,30 @@ async fn index_chain(chain: &EvmChain, faiss: &FaissClient, state: &mut IndexerS
 
     let mut rpc_idx = 0usize;
 
-    let rpc0 = chain.rpcs[rpc_idx % chain.rpcs.len()].to_string();
-    let latest_hex = with_retry(chain.label, 3, 1000, || {
-        let c = client.clone(); let r = rpc0.clone();
-        async move {
-            let v = eth_rpc(&c, &r, "eth_blockNumber", serde_json::json!([])).await?;
-            Ok(v.as_str().unwrap_or("0x0").to_string())
+    // ── Try each RPC in rotation for eth_blockNumber ──────────────────────────
+    let mut latest_opt: Option<u64> = None;
+    for (i, rpc) in chain.rpcs.iter().enumerate() {
+        let rpc_str = rpc.to_string();
+        let res = with_retry(chain.label, 2, 800, || {
+            let c = client.clone(); let r = rpc_str.clone();
+            async move {
+                let v = eth_rpc(&c, &r, "eth_blockNumber", serde_json::json!([])).await?;
+                Ok(v.as_str().unwrap_or("0x0").to_string())
+            }
+        }).await;
+        if let Ok(hex) = res {
+            let n = hex_to_u64(&hex);
+            if n > 0 {
+                latest_opt = Some(n);
+                rpc_idx = i;
+                break;
+            }
         }
-    }).await?;
-    let latest = hex_to_u64(&latest_hex);
+    }
+    let latest = match latest_opt {
+        Some(l) => l,
+        None => return Err(anyhow::anyhow!("[{}] all RPCs failed for eth_blockNumber", chain.label)),
+    };
 
     let last = state.last_block();
     let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
