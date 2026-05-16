@@ -83,7 +83,7 @@ async function run() {
         },
         summary: {
           contracts_deployed: 5,
-          chains_indexed:     30,
+          chains_indexed:     31,
           vm_families:        12,
           sdk_versions:       { storage: "0g-ts-sdk@0.3.3", compute: "0g-serving-broker@0.7.8" },
           all_modules_active: true,
