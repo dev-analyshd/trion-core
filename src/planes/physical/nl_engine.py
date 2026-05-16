@@ -39,10 +39,15 @@ def compute_lo(top5_lp_share: float, lp_count: int) -> float:
 def compute_lc(current_ld: float, baseline_ld_history: List[float]) -> float:
     if not baseline_ld_history:
         return 0.5
-    baseline_mean = np.mean(baseline_ld_history)
-    baseline_std  = np.std(baseline_ld_history)
-    if baseline_std == 0:
-        return 1.0 if abs(current_ld - baseline_mean) < 0.15 else 0.0
+    baseline_mean = float(np.mean(baseline_ld_history))
+    baseline_std  = float(np.std(baseline_ld_history))
+    if baseline_std < 1e-6:
+        deviation = abs(current_ld - baseline_mean)
+        if deviation < 0.05:
+            return 1.0
+        if deviation < 0.30:
+            return round(max(0.5, 1.0 - deviation * 1.5), 4)
+        return 0.5
     z = abs(current_ld - baseline_mean) / baseline_std
     return max(0.0, 1.0 - min(1.0, z / 3.0))
 
