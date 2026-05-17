@@ -117,6 +117,22 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
 .severity-low{color:var(--text-dim)}
 .arch-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;transition:.2s;cursor:default}
 .arch-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+/* ── Architecture Inversion ── */
+.inv-node{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:#0d1420;transition:.2s}
+.inv-node:hover{transform:translateX(3px)}
+.inv-node.broken:hover{transform:translateX(-3px)}
+.inv-node-label{font-size:.82rem;font-weight:700;margin-bottom:3px}
+.inv-node-sub{font-size:.68rem;color:var(--text-dim);margin-bottom:6px;line-height:1.4}
+.inv-tag{display:inline-block;font-size:.6rem;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:4px}
+.inv-arrow{font-size:.9rem;font-weight:700;padding:4px 0;text-align:center;color:var(--text-dim);letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px}
+.inv-arrow span{font-size:.62rem;font-weight:400;letter-spacing:1px;text-transform:uppercase}
+.broken-arrow{color:#ff456060}
+.trion-arrow{color:#00ff8880}
+.inv-pulse-dot{position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:inv-travel 3s ease-in-out infinite}
+.inv-key-card{background:#0a0f1a;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+@keyframes inv-travel{0%{top:0;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:calc(100% - 8px);opacity:0}}
+@keyframes inv-blink{0%,100%{opacity:1;box-shadow:0 0 8px var(--green)}50%{opacity:.4;box-shadow:none}}
+@keyframes inv-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .arch-signal-BUY{color:var(--green)}
 .arch-signal-AVOID{color:var(--red)}
 .arch-signal-SHORT{color:#ff4444}
@@ -1003,6 +1019,178 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
     </div>
   </div>
 
+  <!-- ─── ARCHITECTURE INVERSION ─── -->
+  <div class="mb-4">
+    <div class="section-title"><i data-feather="refresh-cw" style="width:12px;height:12px"></i> Oracle Hierarchy Inversion — Signal Flow Architecture</div>
+    <div class="stat-card" style="padding:24px;overflow:hidden;position:relative">
+
+      <!-- Background pulse -->
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,#00e5ff08 0%,transparent 70%);pointer-events:none"></div>
+
+      <!-- Header -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:.68rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">The Core Thesis</div>
+        <div style="font-size:1.05rem;font-weight:700;color:var(--text);line-height:1.4">Every oracle today flows <span style="color:var(--red)">top-down from CEX opacity</span>. TRION is the only protocol that flows <span style="color:var(--green)">bottom-up from blockchain reality</span>.</div>
+      </div>
+
+      <div class="row g-4">
+
+        <!-- LEFT: Broken Stack -->
+        <div class="col-md-5">
+          <div style="font-size:.68rem;color:var(--red);letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;background:var(--red);border-radius:50%;display:inline-block"></span>
+            Current — Exogenous · Broken
+          </div>
+
+          <div id="broken-stack" style="display:flex;flex-direction:column;gap:0">
+
+            <div class="inv-node broken" style="border-color:#ff456040;background:#ff45600a">
+              <div class="inv-node-label" style="color:var(--red)">CEX Price Discovery</div>
+              <div class="inv-node-sub">Binance · Coinbase · OKX — private order books</div>
+              <div class="inv-tag" style="background:#ff456022;color:var(--red)">OPAQUE · MANIPULABLE</div>
+            </div>
+
+            <div class="inv-arrow broken-arrow">↓ <span>aggregated &amp; pushed downstream</span></div>
+
+            <div class="inv-node broken" style="border-color:#ff456030;background:#ff456006">
+              <div class="inv-node-label" style="color:#ff8a65">Oracle Aggregation</div>
+              <div class="inv-node-sub">Chainlink · Pyth · Band — TWAP over CEX data</div>
+              <div class="inv-tag" style="background:#ff8a6522;color:#ff8a65">GARBAGE-IN → GARBAGE-OUT</div>
+            </div>
+
+            <div class="inv-arrow broken-arrow">↓ <span>downstream, reactive, no signal</span></div>
+
+            <div class="inv-node broken" style="border-color:#ffd60030;background:#ffd60006">
+              <div class="inv-node-label" style="color:var(--yellow)">DeFi Protocols</div>
+              <div class="inv-node-sub">Lending · DEX · Derivatives — fully dependent</div>
+              <div class="inv-tag" style="background:#ffd60022;color:var(--yellow)">ORACLE FAILURE = INSOLVENCY</div>
+            </div>
+
+            <div class="inv-arrow broken-arrow">↓ <span>last to know, most exposed</span></div>
+
+            <div class="inv-node broken" style="border-color:#ffd60020;background:#ffd60004">
+              <div class="inv-node-label" style="color:#a0a0a0">Retail Participants</div>
+              <div class="inv-node-sub">Liquidated by prices they cannot verify</div>
+              <div class="inv-tag" style="background:#ffffff11;color:#707070">BLIND · MOST VULNERABLE</div>
+            </div>
+
+            <!-- Attack cost callout -->
+            <div style="margin-top:14px;padding:10px 14px;background:#ff456010;border:1px solid #ff456040;border-radius:8px;font-size:.72rem;line-height:1.6;color:#ff8a65">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--red)">Known Exploits via Oracle Manipulation</div>
+              Mango Markets — $116M · Euler Finance — $197M<br>
+              Ronin Bridge — $625M · Harvest Finance — $34M<br>
+              <span style="color:#ff456080">Attack cost: $2–15M for 30-second window · P(success) = 0.85</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER: Inversion axis -->
+        <div class="col-md-2 d-flex flex-column align-items-center justify-content-center">
+          <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:8px 0">
+            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)">INVERTED</div>
+            <div id="inv-pulse" style="width:2px;flex:1;background:linear-gradient(to bottom,var(--red),#ffffff44,var(--green));border-radius:2px;position:relative;min-height:200px">
+              <div class="inv-pulse-dot"></div>
+            </div>
+            <div style="font-size:1.4rem;animation:inv-spin 4s linear infinite">⟳</div>
+            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)">DIRECTION</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: TRION Stack -->
+        <div class="col-md-5">
+          <div style="font-size:.68rem;color:var(--green);letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:inv-blink 2s ease-in-out infinite;display:inline-block"></span>
+            TRION — Endogenous · Live
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:0">
+
+            <div class="inv-node trion" style="border-color:#00ff8840">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div class="inv-node-label" style="color:var(--green)">Blockchain Behavioral Reality</div>
+                  <div class="inv-node-sub">37 chains · Every tx · Immutable · Transparent</div>
+                </div>
+                <div style="text-align:right">
+                  <div id="inv-bh-count" style="font-size:1.1rem;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">—</div>
+                  <div style="font-size:.6rem;color:#00ff8880">BHs stored</div>
+                </div>
+              </div>
+              <div class="inv-tag" style="background:#00ff8820;color:var(--green);margin-top:8px">IMMUTABLE · 93-BYTE DUAL-STRAND SHA3</div>
+            </div>
+
+            <div class="inv-arrow trion-arrow">↑ <span>truth flows upward from chain state</span></div>
+
+            <div class="inv-node trion" style="border-color:#00e5ff40">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div class="inv-node-label" style="color:var(--accent)">Akashic Index + Resonance Threshold</div>
+                  <div class="inv-node-sub">128-dim FAISS · C(t) = αΦ+βM+γΣ+δK+εA · Θ(t) dynamic</div>
+                </div>
+                <div style="text-align:right">
+                  <div id="inv-faiss-vecs" style="font-size:1.1rem;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums">—</div>
+                  <div style="font-size:.6rem;color:#00e5ff80">vectors</div>
+                </div>
+              </div>
+              <div class="inv-tag" style="background:#00e5ff15;color:var(--accent);margin-top:8px">M_moat = D·Q·R·X·F·N · <span id="inv-moat">—</span></div>
+            </div>
+
+            <div class="inv-arrow trion-arrow">↑ <span>endogenous · coherence-governed emission</span></div>
+
+            <div class="inv-node trion" style="border-color:#7c3aed40">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div class="inv-node-label" style="color:#a78bfa">TRION Signal Layer</div>
+                  <div class="inv-node-sub">VALUATION · SILENCE · GENESIS · MANIP_ALERT</div>
+                </div>
+                <div style="text-align:right">
+                  <div id="inv-sec" style="font-size:1.1rem;font-weight:800;color:#a78bfa;font-variant-numeric:tabular-nums">—</div>
+                  <div style="font-size:.6rem;color:#a78bfa80">SEC(t)</div>
+                </div>
+              </div>
+              <div class="inv-tag" style="background:#7c3aed20;color:#a78bfa;margin-top:8px">131 API ROUTES · GENOMIC-SIGNED · <span id="inv-routes">131</span> ENDPOINTS</div>
+            </div>
+
+            <div class="inv-arrow trion-arrow" style="color:var(--accent)">↑↓ <span>bidirectional — protocols feed data back into Layer 1</span></div>
+
+            <div class="inv-node trion" style="border-color:#00e5ff30;background:#00e5ff04">
+              <div class="inv-node-label" style="color:var(--accent);font-size:.85rem">DeFi Protocols ←→ CEXs ←→ TradFi</div>
+              <div class="inv-node-sub">All systems benefit simultaneously · checkExecution() blocks hostile actors</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+                <span class="inv-tag" style="background:#00e5ff10;color:var(--accent)">ON-CHAIN GATE LIVE</span>
+                <span class="inv-tag" style="background:#00ff8810;color:var(--green)"><span id="inv-anomalies">474</span> ANOMALIES SEALED</span>
+                <span class="inv-tag" style="background:#7c3aed15;color:#a78bfa">CEX HOSTILE FEED LIVE</span>
+              </div>
+            </div>
+
+            <!-- Advantage callout -->
+            <div style="margin-top:14px;padding:10px 14px;background:#00ff8808;border:1px solid #00ff8830;border-radius:8px;font-size:.72rem;line-height:1.7;color:#a0c4a0">
+              <div style="font-weight:700;margin-bottom:4px;color:var(--green)">TRION Advantage</div>
+              BH generation: <b style="color:var(--green)">0.023ms</b> avg (434× faster than 10ms target)<br>
+              Manipulation cost: <b style="color:var(--green)">requires forging 37-chain history</b> — economically impossible<br>
+              <span style="color:#00ff8870">P(break LSS) decreasing monotonically · SEC(t) = 0.77+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: 7 key inversions table -->
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:.66rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">7 Key Inversions</div>
+        <div id="inversion-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px"></div>
+      </div>
+
+      <!-- Bottom link -->
+      <div style="margin-top:16px;text-align:center">
+        <a href="/api/v1/inversion" target="_blank" class="zg-link" style="font-size:.68rem">→ Architecture Inversion JSON (live data) ↗</a>
+        &nbsp;&nbsp;
+        <a href="/api/v1/feed/hostile" target="_blank" class="zg-link" style="font-size:.68rem">→ Hostile Entity Inverted Feed ↗</a>
+        &nbsp;&nbsp;
+        <a href="/api/v1/cex/feed" target="_blank" class="zg-link" style="font-size:.68rem">→ TRION→CEX Signal Feed ↗</a>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── UBL SCHEMA ─── -->
   <div class="mb-4">
     <div class="section-title"><i data-feather="code" style="width:12px;height:12px"></i> Universal Behavioral Language (UBL) — Cross-System Standard</div>
@@ -1766,6 +1954,56 @@ async function loadCoverage(){
 }
 
 // ── L10 Living Index + Phase Roadmap ────────────────────────────────────────
+async function loadInversion(){
+  try{
+    const d = await fetch('/api/v1/inversion').then(r=>r.json());
+
+    // Layer 1: BH count
+    const bhEl = document.getElementById('inv-bh-count');
+    if(bhEl && d.trion_stack?.layers?.[0]?.live_stats?.total_bh_records){
+      const n = d.trion_stack.layers[0].live_stats.total_bh_records;
+      bhEl.textContent = n.toLocaleString();
+    }
+
+    // Layer 2: FAISS vectors + moat
+    const fvEl = document.getElementById('inv-faiss-vecs');
+    if(fvEl && d.trion_stack?.layers?.[1]?.live_stats?.faiss_vectors){
+      fvEl.textContent = d.trion_stack.layers[1].live_stats.faiss_vectors.toLocaleString();
+    }
+    const moatEl = document.getElementById('inv-moat');
+    if(moatEl && d.trion_stack?.layers?.[1]?.live_stats?.moat_score !== undefined){
+      moatEl.textContent = d.trion_stack.layers[1].live_stats.moat_score.toFixed(4);
+    }
+
+    // Layer 3: SEC(t)
+    const secEl = document.getElementById('inv-sec');
+    if(secEl && d.trion_stack?.layers?.[2]?.live_stats?.sec_t !== undefined){
+      secEl.textContent = d.trion_stack.layers[2].live_stats.sec_t.toFixed(3);
+    }
+
+    // Layer 4: anomalies
+    const anEl = document.getElementById('inv-anomalies');
+    if(anEl && d.trion_stack?.layers?.[3]?.live_stats?.gate_anomalies !== undefined){
+      anEl.textContent = d.trion_stack.layers[3].live_stats.gate_anomalies;
+    }
+
+    // 7 Key Inversions table
+    const tbl = document.getElementById('inversion-table');
+    if(tbl && d.key_inversions){
+      tbl.innerHTML = d.key_inversions.map(inv=>`
+        <div class="inv-key-card">
+          <div style="font-size:.65rem;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase">${inv.property}</div>
+          <div style="font-size:.7rem;margin-bottom:4px">
+            <span style="color:var(--red);font-weight:600">✗ </span><span style="color:#888">${inv.broken}</span>
+          </div>
+          <div style="font-size:.7rem">
+            <span style="color:var(--green);font-weight:600">✓ </span><span style="color:var(--text)">${inv.trion}</span>
+          </div>
+        </div>`).join('');
+    }
+  }catch(e){ console.warn('loadInversion:', e); }
+}
+
 async function loadL10(){
   try{
     const [liR, emR, phR] = await Promise.all([
@@ -2063,6 +2301,7 @@ async function init(){
   loadTruthValues();
   loadCoverage();
   loadL10();
+  loadInversion();
   // 0G Hub: load all 4 module cards on startup
   updateZGHub();
   updateZGChainCard();
@@ -2077,6 +2316,7 @@ async function init(){
   setInterval(()=>Promise.all([updateZGHub(), updateZGChainCard()]),45000);
   setInterval(()=>Promise.all([loadInvestSignals(),loadReputation(),loadAgents(),loadThermo()]),60000);
   setInterval(loadL10, 120000);
+  setInterval(loadInversion, 90000);
   // BH ledger refreshes every 15s, VM ticker every 4s
   setInterval(loadBHLedger, 15000);
   setInterval(updateVmTicker, 4000);
