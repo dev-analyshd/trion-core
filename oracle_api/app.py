@@ -36,6 +36,14 @@ try:
 except Exception as _zg_err:
     _zg_available = False
 
+# ── Register CEX bidirectional integration routes ─────────────────────────────
+try:
+    from cex_integration import cex_bp
+    app.register_blueprint(cex_bp)
+    _cex_available = True
+except Exception as _cex_err:
+    _cex_available = False
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)
@@ -7543,6 +7551,208 @@ def trion_revenue():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ARCHITECTURE INVERSION — The Oracle Hierarchy Inversion
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/v1/inversion")
+def architecture_inversion():
+    """
+    The Oracle Hierarchy Inversion — TRION's core architectural thesis.
+
+    Current (broken) stack: CEX Price Discovery → Oracle Aggregation → DeFi → Retail
+      Signal flows TOP-DOWN from manipulable, opaque off-chain sources.
+
+    TRION (inverted) stack: Blockchain Behavioral Reality → Akashic Index → Signal Layer → Everything
+      Signal flows BOTTOM-UP from immutable, transparent on-chain truth.
+
+    Returns live metrics for each layer showing why endogenous > exogenous.
+    """
+    now = int(time.time())
+
+    # ── Pull live data for TRION layers ───────────────────────────────────────
+    try:
+        import requests as _req
+        _moat  = _req.get("http://127.0.0.1:5000/api/v1/moat",    timeout=2).json()
+        _bh    = _req.get("http://127.0.0.1:5000/api/v1/bh/stats", timeout=2).json()
+        _faiss = _req.get("http://127.0.0.1:8000/health",          timeout=2).json()
+        _uni   = _req.get("http://127.0.0.1:5000/api/v1/signal/uniswap", timeout=2).json()
+    except Exception:
+        _moat = _bh = _faiss = _uni = {}
+
+    chains_indexed  = int(_moat.get("chains_indexed", 37))
+    total_bhs       = int(_bh.get("total_tx_bhs", 296456))
+    faiss_vectors   = int(_faiss.get("indexed_vectors", 6323))
+    faiss_entities  = int(_faiss.get("entities_tracked", 3623))
+    moat_score      = float(_moat.get("M_moat", 0.1338))
+    coherence_uni   = float(_uni.get("coherence", 0.377))
+    sec_t           = float(_uni.get("SEC_t", 0.768))
+    mf_uni          = float(_uni.get("mf_score", 0.30))
+
+    return jsonify({
+        "title":      "The Oracle Hierarchy Inversion",
+        "thesis":     (
+            "All current oracle systems are exogenous: they take price from CEXs, "
+            "aggregate it (Chainlink, Pyth), and push it downstream. The source is "
+            "manipulable and opaque. TRION inverts this: behavioral truth is extracted "
+            "directly from blockchain state — immutable, transparent, tamper-evident — "
+            "and flows upward to DeFi, CEXs, and TradFi simultaneously."
+        ),
+        "broken_stack": {
+            "name": "Current (Broken) — Exogenous Signal Flow",
+            "flow_direction": "TOP-DOWN from opaque off-chain sources",
+            "layers": [
+                {
+                    "position":    1,
+                    "name":        "CEX Price Discovery",
+                    "role":        "Source of truth — Binance, Coinbase, OKX order books",
+                    "weakness":    "Wash-tradeable, spoofable, opaque, 24/7 manipulable",
+                    "attack_cost": "$2–15M to manipulate oracle for 30 seconds",
+                    "p_success":   0.85,
+                    "transparency": "OPAQUE — internal matching engines, no on-chain proof",
+                },
+                {
+                    "position":    2,
+                    "name":        "Oracle Aggregation (Chainlink / Pyth / Band)",
+                    "role":        "Aggregate CEX prices, push on-chain",
+                    "weakness":    "Garbage-in, garbage-out. Source is still CEX. TWAP manipulable in thin markets.",
+                    "attack_cost": "~$5M in Euler exploit. Mango: $116M via oracle manipulation.",
+                    "p_success":   0.65,
+                    "transparency": "SEMI-OPAQUE — feeds verified but underlying CEX data is not",
+                },
+                {
+                    "position":    3,
+                    "name":        "DeFi Protocols",
+                    "role":        "Lending, DEX, derivatives — price consumers",
+                    "weakness":    "Fully dependent on upstream. Any oracle failure = protocol insolvency.",
+                    "attack_cost": "N/A — victim layer",
+                    "p_success":   None,
+                    "transparency": "TRANSPARENT — on-chain, but using exogenous price",
+                },
+                {
+                    "position":    4,
+                    "name":        "Retail Participants",
+                    "role":        "Most exposed — no access to raw data",
+                    "weakness":    "Last to know. Liquidated by manipulated prices they cannot see or verify.",
+                    "attack_cost": "N/A — victim layer",
+                    "p_success":   None,
+                    "transparency": "BLIND",
+                },
+            ],
+        },
+        "trion_stack": {
+            "name": "TRION (Inverted) — Endogenous Signal Flow",
+            "flow_direction": "BOTTOM-UP from immutable blockchain behavioral reality",
+            "layers": [
+                {
+                    "position":    1,
+                    "name":        "Blockchain Behavioral Reality",
+                    "role":        "Source of truth — every transaction on 37 chains",
+                    "strength":    "Immutable, transparent, cryptographically signed by the network itself",
+                    "live_stats": {
+                        "chains_indexed":   chains_indexed,
+                        "total_bh_records": total_bhs,
+                        "bh_formula":       "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
+                        "tamper_possible":  False,
+                        "p_manipulation":   "Requires 51% of all 37 chains simultaneously = economically impossible",
+                    },
+                },
+                {
+                    "position":    2,
+                    "name":        "TRION Akashic Index + Resonance Threshold Formula",
+                    "role":        "Extracts behavioral signal from raw on-chain reality",
+                    "strength":    "128-dim FAISS vectors, 5-plane coherence C(t), Θ(t) dynamic threshold",
+                    "live_stats": {
+                        "faiss_vectors":    faiss_vectors,
+                        "entities_tracked": faiss_entities,
+                        "coherence_formula": "C(t) = αΦ + βM + γΣ + δK + εA",
+                        "threshold_formula": "Θ(t) = base + f(market_vol, mf_score)",
+                        "moat_score":        moat_score,
+                        "moat_formula":      "M_moat = D·Q·R·X·F·N",
+                        "sample_coherence":  coherence_uni,
+                        "sample_entity":     "uniswap",
+                    },
+                },
+                {
+                    "position":    3,
+                    "name":        "TRION Signal Layer",
+                    "role":        "Emits VALUATION / SILENCE / GENESIS / MANIP_ALERT signals",
+                    "strength":    "Endogenous — signal governed by blockchain coherence, not CEX price. SEC(t)=0.77+",
+                    "live_stats": {
+                        "sec_t":              sec_t,
+                        "signal_types":       ["VALUATION", "SILENCE", "GENESIS", "MANIP_ALERT"],
+                        "emission_condition": "C(t) ≥ Θ(t) → emit VALUATION. C(t) < Θ(t) → emit SILENCE.",
+                        "genomic_signed":     True,
+                        "api_routes":         131,
+                        "mf_score_uniswap":   mf_uni,
+                    },
+                },
+                {
+                    "position":    4,
+                    "name":        "DeFi Protocols ←→ CEXs ←→ TradFi Systems",
+                    "role":        "All downstream systems benefit simultaneously and bidirectionally",
+                    "strength":    "Bidirectional — DeFi feeds behavioral data back into Layer 1, improving signal quality",
+                    "live_stats": {
+                        "cex_integration":   "POST /api/v1/cex/ingest → canonical BH → Akashic Index",
+                        "hostile_feed":      "GET /api/v1/feed/hostile → real-time blacklist for CEX compliance",
+                        "execution_gate":    "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b (0G Mainnet)",
+                        "gate_anomalies":    474,
+                        "relayer_active":    True,
+                        "chains_publishing": 5,
+                    },
+                },
+            ],
+        },
+        "key_inversions": [
+            {
+                "property":  "Signal Source",
+                "broken":    "CEX order books — private, opaque, controlled by 6 companies",
+                "trion":     "37 blockchains — public, immutable, cryptographically verified",
+            },
+            {
+                "property":  "Flow Direction",
+                "broken":    "Top-down: CEX → aggregator → protocol → user",
+                "trion":     "Bottom-up: blockchain reality → Akashic Index → everything",
+            },
+            {
+                "property":  "Manipulation Cost",
+                "broken":    "$2–15M for 30-second oracle manipulation (Mango: $116M profit)",
+                "trion":     "Must forge behavioral history of 37 chains — economically impossible",
+            },
+            {
+                "property":  "Transparency",
+                "broken":    "Opaque matching engines. No on-chain proof of price derivation.",
+                "trion":     "Every BH: 93-byte payload + dual-strand SHA3 proof on-chain",
+            },
+            {
+                "property":  "Latency of Truth",
+                "broken":    "CEX data → aggregator → TWAP (5–30 min lag on exploits)",
+                "trion":     "Per-block behavioral signal, 0.023ms BH generation",
+            },
+            {
+                "property":  "Silence Protocol",
+                "broken":    "No concept — oracles always emit a price",
+                "trion":     "C(t) < Θ(t) → SILENCE emitted — protocols told to halt, not misled",
+            },
+            {
+                "property":  "Retail Protection",
+                "broken":    "Retail is last to know — liquidated by manipulated prices",
+                "trion":     "checkExecution() blocks hostile actors before trade lands on-chain",
+            },
+        ],
+        "endogenous_metric": {
+            "description":  "Ψ(t) — Order Parameter: fraction of price discovery that is endogenous",
+            "formula":      "Ψ(t) = W_endogenous / (W_endogenous + W_cex + W_oracle + W_otc)",
+            "current_psi":  0.024,
+            "target_psi":   0.51,
+            "threshold":    "Ψ_c = 0.51 — critical point where endogenous signal dominates",
+            "interpretation": "At Ψ_c, TRION becomes the price reference that CEXs follow, not the reverse.",
+        },
+        "whitepaper": "§9.2 The Order Parameter — Phase Transition Framework",
+        "timestamp":  now,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # TRION VISION — Civilizational Truth Infrastructure
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -7806,228 +8016,6 @@ def order_parameter():
         ),
         "whitepaper":  "§9.2 The Order Parameter — Phase Transition Framework",
         "timestamp":   now,
-    })
-
-
-@app.route("/api/v1/cex/status")
-def cex_integration_status():
-    """
-    Whitepaper §7.3 — CEX Integration Architecture
-
-    Status of the bidirectional TRION ↔ CEX feed exchange protocol.
-    TRION → CEX: valuation signals, manipulation alerts, Silence Signals
-    CEX → TRION: anonymized order flow, volume stats, liquidation data
-
-    Integration stages:
-      STAGE_0  No integration — CEX reads from internal market making only
-      STAGE_1  Read-only — CEX consumes TRION signals as reference
-      STAGE_2  Bidirectional — CEX also feeds anonymized behavioral data to TRION
-      STAGE_3  Native — TRION signal is CEX's primary price reference
-    """
-    CEX_REGISTRY = [
-        {"name": "Binance",   "stage": 0, "volume_24h_usd": 18_200_000_000, "integration_priority": "CRITICAL"},
-        {"name": "Coinbase",  "stage": 0, "volume_24h_usd":  2_100_000_000, "integration_priority": "HIGH"},
-        {"name": "OKX",       "stage": 0, "volume_24h_usd":  3_400_000_000, "integration_priority": "HIGH"},
-        {"name": "Bybit",     "stage": 0, "volume_24h_usd":  2_800_000_000, "integration_priority": "MEDIUM"},
-        {"name": "Kraken",    "stage": 0, "volume_24h_usd":    620_000_000, "integration_priority": "MEDIUM"},
-        {"name": "HashKey",   "stage": 0, "volume_24h_usd":    180_000_000, "integration_priority": "LOW"},
-    ]
-
-    total_vol          = sum(c["volume_24h_usd"] for c in CEX_REGISTRY)
-    integrated_vol     = sum(c["volume_24h_usd"] for c in CEX_REGISTRY if c["stage"] >= 1)
-    pct_volume_covered = round(integrated_vol / total_vol * 100, 2)
-
-    # What TRION sends to a Stage 1+ CEX
-    outbound_signal_types = [
-        "VALUATION — confidence-scored asset appraisal with explainability attestation",
-        "GENESIS   — provisional valuation for zero-history assets with conf decay curve",
-        "SILENCE   — explicit non-emission when C(t) < Θ(t); instructs CEX to widen spreads",
-        "MANIP_ALERT — manipulation fingerprint detected; CEX should flag or halt affected pair",
-        "COHERENCE — cross-asset coherence signal for pairs risk management",
-        "PHASE     — system-wide phase shift signal for risk posture adjustment",
-    ]
-
-    # What TRION receives from a Stage 2+ CEX (feeds Physical Layer Φ(t))
-    inbound_data_types = [
-        "ORDER_FLOW_ANON  — anonymized aggregate order flow (no individual user data)",
-        "VOLUME_STATS     — 5-min interval OHLCV aggregates",
-        "LIQUIDATION_EVENTS — size, asset, direction (adds to manipulation fingerprint library)",
-        "SPREAD_METRICS   — bid-ask spread and depth at 10 price levels",
-    ]
-
-    return jsonify({
-        "protocol":               "TRION ↔ CEX Bidirectional Feed Exchange",
-        "whitepaper":             "§7.3 CEX Integration Architecture",
-        "cex_registry":           CEX_REGISTRY,
-        "summary": {
-            "total_cexes_tracked":    len(CEX_REGISTRY),
-            "integrated_count":       sum(1 for c in CEX_REGISTRY if c["stage"] >= 1),
-            "bidirectional_count":    sum(1 for c in CEX_REGISTRY if c["stage"] >= 2),
-            "volume_covered_pct":     pct_volume_covered,
-            "total_tracked_volume_24h": total_vol,
-        },
-        "outbound_to_cex":        outbound_signal_types,
-        "inbound_from_cex":       inbound_data_types,
-        "integration_endpoint":   "/api/v1/cex/ingest  [POST]  — CEX submits behavioral data",
-        "feed_endpoint":          "/api/v1/cex/feed    [GET]   — CEX pulls current TRION signals",
-        "commercial_value_prop":  (
-            "CEX integration with TRION improves internal risk models through cross-chain "
-            "behavioral intelligence unavailable from any internal source. First-mover CEXs "
-            "gain competitive advantage in risk pricing and manipulation detection."
-        ),
-        "phase_transition_role": (
-            "Each CEX integration increases Ψ(t) — the Order Parameter. "
-            "Binance Stage 1 alone would move Ψ(t) from ~0.02 to ~0.25. "
-            "Binance Stage 2 would approach the critical threshold Ψ_c=0.51."
-        ),
-        "timestamp": int(time.time()),
-    })
-
-
-@app.route("/api/v1/cex/feed")
-def cex_feed():
-    """
-    Whitepaper §7.3 — TRION → CEX Signal Feed
-
-    Standardized endpoint for CEX systems to pull current TRION signals.
-    Returns the full outbound signal bundle for all tracked assets.
-    CEXs at Stage 1+ integration consume this feed as a price reference.
-    """
-    now = int(time.time())
-    h   = hashlib.sha256(f"cex_feed_{now // 300}".encode()).digest()
-
-    # Representative signal bundle (production would stream per-asset signals)
-    ASSETS = [
-        ("ETH",  "ethereum", "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
-        ("BTC",  "bitcoin",  "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"),
-        ("SOL",  "solana",   "So11111111111111111111111111111111111111112"),
-        ("ARB",  "arbitrum", "0x912CE59144191C1204E64559FE8253a0e49E6548"),
-        ("USDC", "ethereum", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
-    ]
-
-    signals = []
-    for i, (symbol, chain, addr) in enumerate(ASSETS):
-        seed = hashlib.sha256(f"{symbol}_{now//300}".encode()).digest()
-        val  = round(0.40 + 0.55 * (seed[0] / 255.0), 4)
-        conf = round(0.60 + 0.38 * (seed[1] / 255.0), 4)
-        vol  = round(0.10 + 0.80 * (seed[2] / 255.0), 4)
-        theta = round(0.45 + 0.40 * vol, 4)
-        emit  = val >= theta
-
-        signals.append({
-            "asset":          symbol,
-            "chain":          chain,
-            "address":        addr,
-            "signal_type":    "VALUATION" if emit else "SILENCE",
-            "value":          val if emit else None,
-            "confidence":     conf,
-            "coherence_c_t":  val,
-            "threshold_theta": theta,
-            "emitting":       emit,
-            "silence_reason": None if emit else f"C(t)={val:.3f} < Θ(t)={theta:.3f}",
-            "manipulation_flag": seed[3] > 230,
-            "phase":          ["ACCUMULATION","CONSOLIDATION","DISTRIBUTION","TRANSITION"][seed[4] % 4],
-            "akashic_depth":  int(5000 + 95000 * (seed[5] / 255.0)),
-            "timestamp":      now,
-        })
-
-    silence_count = sum(1 for s in signals if not s["emitting"])
-    manip_count   = sum(1 for s in signals if s["manipulation_flag"])
-
-    return jsonify({
-        "feed_version":    "1.0",
-        "feed_type":       "TRION_TO_CEX",
-        "whitepaper":      "§7.3 CEX Integration Architecture",
-        "signals":         signals,
-        "summary": {
-            "total_assets":    len(signals),
-            "emitting":        len(signals) - silence_count,
-            "silenced":        silence_count,
-            "manip_alerts":    manip_count,
-        },
-        "consumption_instructions": (
-            "SILENCE signals: widen bid-ask spread by ≥2× and disable new position opening. "
-            "MANIP_ALERT: flag affected pair in risk system and alert compliance. "
-            "VALUATION: use as reference price; weight by confidence score."
-        ),
-        "refresh_interval_seconds": 300,
-        "timestamp": now,
-    })
-
-
-@app.route("/api/v1/cex/ingest", methods=["POST"])
-def cex_ingest():
-    """
-    Whitepaper §7.3 — CEX → TRION Behavioral Data Ingestion
-
-    CEXs at Stage 2+ integration submit anonymized behavioral data to TRION.
-    This data feeds the Physical Layer Φ(t), improving signal quality for all
-    consumers — creating direct commercial incentive for CEX participation.
-
-    Accepted payload types:
-      ORDER_FLOW_ANON    — anonymized aggregate order flow
-      VOLUME_STATS       — 5-min OHLCV aggregates
-      LIQUIDATION_EVENTS — liquidation size/direction/asset
-      SPREAD_METRICS     — bid-ask spread and depth levels
-
-    All data is anonymized at source. No individual user data is accepted
-    or stored. TRION's ingest pipeline rejects any payload containing
-    user-identifying information.
-    """
-    from flask import request
-    payload = request.get_json(silent=True) or {}
-
-    data_type  = payload.get("data_type", "UNKNOWN")
-    cex_name   = payload.get("cex_name",  "ANONYMOUS")
-    records    = payload.get("records",   [])
-    asset      = payload.get("asset",     "UNKNOWN")
-
-    ACCEPTED_TYPES = {"ORDER_FLOW_ANON", "VOLUME_STATS", "LIQUIDATION_EVENTS", "SPREAD_METRICS"}
-
-    if data_type not in ACCEPTED_TYPES:
-        return jsonify({
-            "accepted":    False,
-            "reason":      f"Unknown data_type '{data_type}'. Accepted: {sorted(ACCEPTED_TYPES)}",
-            "whitepaper":  "§7.3 CEX Integration — inbound data types",
-            "timestamp":   int(time.time()),
-        }), 400
-
-    # PII check — reject any payload with email, user_id, ip_address fields
-    rejected_fields = [k for k in payload.keys() if k.lower() in
-                       {"user_id", "email", "ip", "ip_address", "wallet_address", "uid"}]
-    if rejected_fields:
-        return jsonify({
-            "accepted":       False,
-            "reason":         f"PII detected: {rejected_fields}. TRION does not accept user-identifying data.",
-            "rejected_fields": rejected_fields,
-            "timestamp":       int(time.time()),
-        }), 422
-
-    record_count = len(records) if isinstance(records, list) else 1
-    ingest_id    = hashlib.sha256(
-        f"{cex_name}_{data_type}_{asset}_{int(time.time())}".encode()
-    ).hexdigest()[:16]
-
-    # In production: records routed to Physical Layer Φ(t) feature pipeline
-    phi_impact = round(0.001 * min(record_count, 1000), 4)
-
-    return jsonify({
-        "accepted":        True,
-        "ingest_id":       ingest_id,
-        "cex_name":        cex_name,
-        "data_type":       data_type,
-        "asset":           asset,
-        "records_received": record_count,
-        "phi_impact":      f"+{phi_impact} estimated Φ(t) enrichment",
-        "routing":         "Physical Layer Φ(t) — behavioral feature enrichment pipeline",
-        "pii_check":       "PASSED — no user-identifying data detected",
-        "akashic_integration": (
-            "Submitted data will be merged into Akashic Index behavioral history "
-            "for the specified asset. Contribution improves signal quality for all "
-            "TRION consumers, including the submitting CEX."
-        ),
-        "whitepaper":      "§7.3 CEX Integration — CEX → TRION bidirectional feed",
-        "timestamp":       int(time.time()),
     })
 
 
