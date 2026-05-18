@@ -48,17 +48,6 @@ task = "shell.exec"
 args = "bash supervisors/native_vm_indexers.sh"
 
 [[workflows.workflow]]
-name = "EVM Extras Indexer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash supervisors/evm_extras_indexers.sh"
-
-[[workflows.workflow]]
 name = "Native VM Relayer"
 author = "agent"
 
