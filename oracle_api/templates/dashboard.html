@@ -1191,6 +1191,102 @@ footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;f
     </div>
   </div>
 
+  <!-- ─── BEHAVIORAL TRUE VALUE (BTV) ─── -->
+  <div class="mb-4" id="btv-section">
+    <div class="section-title"><i data-feather="trending-up" style="width:12px;height:12px"></i> Behavioral True Value (BTV) — Layer 0 Price Discovery <span style="color:var(--green);font-size:.65rem;letter-spacing:1px;margin-left:8px">L0.7 LIVE</span></div>
+    <div class="stat-card" style="padding:24px;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 0%,#00ff8806 0%,transparent 60%);pointer-events:none"></div>
+
+      <!-- Thesis banner -->
+      <div style="background:#0a1a10;border:1px solid #00ff8830;border-radius:10px;padding:14px 18px;margin-bottom:20px">
+        <div style="font-size:.65rem;color:#00ff8880;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">The Inverted Truth Hierarchy — The Problem TRION Solves</div>
+        <div style="font-size:.8rem;color:var(--text);line-height:1.7">
+          Current oracles (Chainlink, Pyth, Band) aggregate <span style="color:var(--red);font-weight:600">CEX prices</span> and deliver them on-chain faster.
+          They are <span style="color:var(--red)">faster pipes carrying the same compromised water</span>.
+          A TWAP on a manipulated CEX feed is still a manipulated price — just time-smoothed.<br>
+          <span style="color:var(--green);font-weight:600">TRION BTV</span> is derived from the actual behavioral record of what every entity did on every chain —
+          stripped of manipulation, weighted by coherence, bounded by liquidity health.
+          <span style="color:var(--green)">No CEX dependency anywhere.</span>
+        </div>
+      </div>
+
+      <!-- BTV asset grid -->
+      <div id="btv-asset-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px">
+        <div class="loader-text" style="grid-column:1/-1">Computing behavioral true values…</div>
+      </div>
+
+      <!-- Hierarchy comparison table -->
+      <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">CEX Oracle Price vs TRION Behavioral True Value — Live Comparison</div>
+        <div style="overflow-x:auto">
+          <table class="signal-table" id="btv-comparison-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>CEX Oracle Price</th>
+                <th>TRION BTV</th>
+                <th>Manipulation Stripped</th>
+                <th>C(t) Coherence</th>
+                <th>MF Score</th>
+                <th>NL Score</th>
+                <th>BTV Confidence</th>
+                <th>Chains</th>
+              </tr>
+            </thead>
+            <tbody id="btv-table-body">
+              <tr><td colspan="9" style="color:var(--text-dim);font-size:.75rem">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Stack diagram: Layer 0 -->
+      <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:18px">
+        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">The Corrected Stack — TRION as Layer 0</div>
+        <div style="display:flex;flex-direction:column;gap:0;max-width:640px;margin:0 auto">
+          <div style="background:#ff456008;border:1px solid #ff456030;border-radius:8px;padding:10px 16px;font-size:.75rem">
+            <span style="color:var(--red);font-weight:700">LAYER 4 — Retail</span>
+            <span style="color:var(--text-dim);margin-left:8px">reads from DeFi — last to know, most exposed</span>
+          </div>
+          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
+          <div style="background:#ff456008;border:1px solid #ff456028;border-radius:8px;padding:10px 16px;font-size:.75rem">
+            <span style="color:#ff8a65;font-weight:700">LAYER 3 — DeFi Protocols</span>
+            <span style="color:var(--text-dim);margin-left:8px">reads from oracles</span>
+          </div>
+          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
+          <div style="background:#ffd60008;border:1px solid #ffd60030;border-radius:8px;padding:10px 16px;font-size:.75rem">
+            <span style="color:var(--yellow);font-weight:700">LAYER 2 — Oracle Networks</span>
+            <span style="color:var(--text-dim);margin-left:8px">Chainlink · Pyth · Band — aggregate CEX data</span>
+            <span style="color:var(--red);margin-left:6px;font-size:.65rem">← BAND-AID</span>
+          </div>
+          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
+          <div style="background:#ff456012;border:1px solid #ff456050;border-radius:8px;padding:10px 16px;font-size:.75rem">
+            <span style="color:var(--red);font-weight:700">LAYER 1 — CEX Price Discovery</span>
+            <span style="color:var(--text-dim);margin-left:8px">Binance · Coinbase · OKX — opaque, incentivized manipulation</span>
+            <span style="color:var(--red);margin-left:6px;font-size:.65rem">← ROOT CORRUPTION</span>
+          </div>
+          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ derives truth from</div>
+          <div style="background:#00ff8812;border:2px solid #00ff8860;border-radius:8px;padding:12px 16px;font-size:.75rem;position:relative">
+            <div style="position:absolute;top:-1px;right:12px;background:var(--green);color:#000;font-size:.6rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:0 0 6px 6px">TRION</div>
+            <span style="color:var(--green);font-weight:700">LAYER 0 — Behavioral Ground Truth</span>
+            <span style="color:var(--text-dim);margin-left:8px">
+              <span id="btv-bh-total">1.9M+</span> BH records ·
+              <span id="btv-chains">37</span> chains · canonical dual-strand SHA3 · manipulation-stripped
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Links -->
+      <div style="margin-top:16px;text-align:center;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+        <a href="/api/v1/price/btv/ETH" target="_blank" class="zg-link" style="font-size:.68rem">→ BTV(ETH) live derivation ↗</a>
+        <a href="/api/v1/price/btv/BTC" target="_blank" class="zg-link" style="font-size:.68rem">→ BTV(BTC) ↗</a>
+        <a href="/api/v1/price/hierarchy" target="_blank" class="zg-link" style="font-size:.68rem">→ Full hierarchy comparison JSON ↗</a>
+        <a href="/api/v1/price/pairs" target="_blank" class="zg-link" style="font-size:.68rem">→ All behavioral pairs ↗</a>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── UBL SCHEMA ─── -->
   <div class="mb-4">
     <div class="section-title"><i data-feather="code" style="width:12px;height:12px"></i> Universal Behavioral Language (UBL) — Cross-System Standard</div>
@@ -2291,6 +2387,101 @@ async function updateVmTicker(){
   } catch(e){ console.warn('VM ticker error',e); }
 }
 
+// ── Behavioral True Value (BTV) — Inverted Truth Hierarchy ──────────────────
+async function loadBTV(){
+  try {
+    const d = await fetch('/api/v1/price/hierarchy?assets=ETH,BTC,SOL,ARB').then(r=>r.json());
+    const assets = d.assets || [];
+
+    // Update Layer 0 counters
+    if(assets.length > 0){
+      const el0 = document.getElementById('btv-bh-total');
+      const el1 = document.getElementById('btv-chains');
+      if(el0) el0.textContent = (assets[0].bh_depth||0).toLocaleString() + '+';
+      if(el1) el1.textContent = assets[0].chains_indexed || 37;
+    }
+
+    // Asset card grid
+    const grid = document.getElementById('btv-asset-grid');
+    if(grid && assets.length > 0){
+      grid.innerHTML = assets.map(a => {
+        const manip  = a.manipulation_discount_pct || 0;
+        const cex    = a.cex_price || 0;
+        const btv    = a.btv || 0;
+        const conf   = ((a.confidence||0)*100).toFixed(0);
+        const coh    = ((a.coherence||0)*100).toFixed(1);
+        const mf     = ((a.mf_score||0)*100).toFixed(1);
+        const manipColor = manip > 5 ? 'var(--red)' : manip > 2.5 ? 'var(--yellow)' : 'var(--green)';
+        const fmt = v => v >= 1000 ? '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) :
+                         v >= 1    ? '$' + v.toFixed(4) : '$' + v.toFixed(6);
+        return `
+        <div class="stat-card" style="padding:16px;border-color:#00ff8820">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div>
+              <div style="font-size:.85rem;font-weight:800;color:#fff">${a.asset}</div>
+              <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:1px">BEHAVIORAL TRUE VALUE</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:.6rem;color:var(--text-dim)">confidence</div>
+              <div style="font-size:.75rem;font-weight:700;color:var(--accent)">${conf}%</div>
+            </div>
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">CEX Oracle (corrupted)</div>
+            <div style="font-size:1rem;font-weight:700;color:#ff8a65;text-decoration:line-through;opacity:.7">${fmt(cex)}</div>
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-size:.6rem;color:var(--green);letter-spacing:1px;text-transform:uppercase">TRION BTV (behavioral)</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">${fmt(btv)}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:${manipColor}18;border:1px solid ${manipColor}40;color:${manipColor};font-size:.6rem;padding:2px 7px;border-radius:10px;font-weight:700">
+              −${manip.toFixed(2)}% manipulated
+            </span>
+            <span style="background:#00e5ff12;border:1px solid #00e5ff30;color:var(--accent);font-size:.6rem;padding:2px 7px;border-radius:10px">
+              C(t) ${coh}%
+            </span>
+            <span style="background:#7c3aed12;border:1px solid #7c3aed30;color:#a78bfa;font-size:.6rem;padding:2px 7px;border-radius:10px">
+              MF ${mf}%
+            </span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Comparison table
+    const tbody = document.getElementById('btv-table-body');
+    if(tbody && assets.length > 0){
+      tbody.innerHTML = assets.map(a => {
+        const manip = a.manipulation_discount_pct || 0;
+        const manipColor = manip > 5 ? 'var(--red)' : manip > 2.5 ? 'var(--yellow)' : '#00cc66';
+        const fmt = v => v >= 1000 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) :
+                         v >= 1    ? '$'+v.toFixed(4) : '$'+v.toFixed(6);
+        const bar = pct => `<div style="display:inline-flex;align-items:center;gap:5px">
+          <div style="width:50px;height:5px;background:#1a2540;border-radius:3px;overflow:hidden">
+            <div style="width:${Math.min(100,pct*100).toFixed(0)}%;height:100%;background:var(--accent);border-radius:3px"></div>
+          </div>
+          <span>${(pct*100).toFixed(1)}%</span></div>`;
+        return `<tr>
+          <td style="font-weight:700;color:#fff">${a.asset}</td>
+          <td style="color:#ff8a65;font-family:monospace">${fmt(a.cex_price||0)}</td>
+          <td style="color:var(--green);font-weight:700;font-family:monospace">${fmt(a.btv||0)}</td>
+          <td style="color:${manipColor};font-weight:700">−${manip.toFixed(2)}%
+            <div style="font-size:.62rem;color:var(--text-dim)">${fmt(a.manipulation_usd||0)} per unit</div>
+          </td>
+          <td>${bar(a.coherence||0)}</td>
+          <td style="color:${(a.mf_score||0)>0.15?'var(--red)':'var(--green)'}">
+            ${((a.mf_score||0)*100).toFixed(1)}%</td>
+          <td>${bar(a.nl_score||0)}</td>
+          <td>${bar(a.confidence||0)}</td>
+          <td style="color:var(--accent)">${a.chains_indexed||37}</td>
+        </tr>`;
+      }).join('');
+    }
+
+  } catch(e){ console.warn('loadBTV error:', e); }
+}
+
 async function init(){
   buildChainGrid();
   feather.replace();
@@ -2302,6 +2493,7 @@ async function init(){
   loadCoverage();
   loadL10();
   loadInversion();
+  loadBTV();
   // 0G Hub: load all 4 module cards on startup
   updateZGHub();
   updateZGChainCard();
@@ -2317,6 +2509,7 @@ async function init(){
   setInterval(()=>Promise.all([loadInvestSignals(),loadReputation(),loadAgents(),loadThermo()]),60000);
   setInterval(loadL10, 120000);
   setInterval(loadInversion, 90000);
+  setInterval(loadBTV, 120000);
   // BH ledger refreshes every 15s, VM ticker every 4s
   setInterval(loadBHLedger, 15000);
   setInterval(updateVmTicker, 4000);

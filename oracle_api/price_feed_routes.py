@@ -9,6 +9,9 @@ GET  /api/v1/price/<BASE>/<QUOTE>/inverse   Inverse price  (e.g. USD/ETH = 1/ETH
 GET  /api/v1/price/pairs                    List all supported pairs + live prices
 GET  /api/v1/price/<BASE>/<QUOTE>/aggregator  Full AggregatorV3 round struct (for contract callers)
 POST /api/v1/price/seed                     Relayer pushes a new price observation
+GET  /api/v1/price/btv/<BASE>              Behavioral True Value with full derivation trace
+GET  /api/v1/price/btv/<BASE>/<QUOTE>      BTV for specific quote currency
+GET  /api/v1/price/hierarchy               Inverted Truth Hierarchy comparison across assets
 
 CHAINLINK COMPATIBILITY
 -----------------------
@@ -29,7 +32,16 @@ import time
 import math
 import hashlib
 import threading
+import sys
+import os
 from flask import Blueprint, jsonify, request
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+try:
+    from src.price.behavioral_price_engine import get_btv_cached, get_hierarchy_comparison
+    _btv_available = True
+except Exception:
+    _btv_available = False
 
 price_feed_bp = Blueprint("price_feed", __name__)
 
@@ -439,3 +451,82 @@ def _synthesize_cross(base: str, quote: str) -> dict | None:
         "source_count":  min(leg_b["source_count"], leg_q["source_count"]),
         "chains":        chains,
     }
+
+
+# ─── BTV (Behavioral True Value) endpoints ────────────────────────────────────
+
+@price_feed_bp.route("/api/v1/price/btv/<base>")
+@price_feed_bp.route("/api/v1/price/btv/<base>/<quote>")
+def behavioral_true_value(base: str, quote: str = "USD"):
+    """
+    Behavioral True Value (BTV) — TRION's answer to the Inverted Truth Hierarchy.
+
+    Current oracles (Chainlink, Pyth, Band) deliver CEX-aggregated prices more
+    efficiently. They are faster pipes carrying the same compromised water.
+
+    TRION derives value from the actual behavioral record of what every entity
+    did on every chain — stripped of manipulation, weighted by coherence,
+    bounded by liquidity health.
+
+    Returns the full derivation trace:
+      1. CEX reference price (the corrupted baseline)
+      2. Behavioral signals from 37-chain BH ledger
+      3. Manipulation discount applied
+      4. Final BTV with 95% CI
+      5. manipulation_discount_pct = how much of CEX price is unjustified
+    """
+    if not _btv_available:
+        return jsonify({"error": "BTV engine not available", "btv_available": False}), 503
+
+    try:
+        raw = get_btv_cached(base.upper(), quote.upper())
+        data = {k: v for k, v in raw.items() if k != "_fetched_at"}
+        return jsonify({
+            "status":     "ok",
+            "engine":     "TRION Behavioral True Value v1.0",
+            "whitepaper": "L0.7 — Inverted Truth Hierarchy / BTV formula",
+            **data,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "btv_available": True}), 500
+
+
+@price_feed_bp.route("/api/v1/price/hierarchy")
+def inverted_truth_hierarchy():
+    """
+    The Inverted Truth Hierarchy — full cross-asset comparison.
+
+    Shows for ETH, BTC, SOL, ARB:
+      - what CEX-derived oracles currently report (the corrupted baseline)
+      - what TRION behavioral analysis computes (the behavioral truth)
+      - manipulation_discount_pct: % of CEX price that is behaviorally unjustified
+
+    This endpoint is the structural proof that replacing CEXes as the
+    source of truth requires behavioral evidence, not faster aggregation.
+    """
+    if not _btv_available:
+        return jsonify({"error": "BTV engine not available"}), 503
+
+    assets_param = request.args.get("assets", "ETH,BTC,SOL,ARB")
+    assets = [a.strip().upper() for a in assets_param.split(",") if a.strip()]
+    if not assets:
+        assets = ["ETH", "BTC", "SOL", "ARB"]
+
+    try:
+        data = get_hierarchy_comparison(assets)
+        return jsonify({
+            "status":     "ok",
+            "engine":     "TRION Inverted Truth Hierarchy Analyzer",
+            "whitepaper": "Section 2.1–2.2 — Behavioral Truth vs CEX-Derived Oracles",
+            "thesis": (
+                "CEXes sit at the top of the information hierarchy despite opaque matching "
+                "and documented manipulation histories. Current oracles (Chainlink, Pyth) "
+                "aggregate this and deliver it on-chain faster. They are not a solution — "
+                "they are an efficient delivery mechanism for corrupted data. "
+                "TRION provides Layer 0: behavioral ground truth derived from what actually "
+                "happened across 37 chains, not what a CEX claims happened."
+            ),
+            **data,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
