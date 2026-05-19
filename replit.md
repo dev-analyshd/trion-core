@@ -4,7 +4,42 @@
 
 TRION is a multi-chain behavioral truth oracle implementing all 55 whitepaper phases across 5 behavioral planes (Φ, M, Σ, K, A). It provides cryptographically verified behavioral signals for DeFi entities, manipulation fingerprinting, liquidity health scoring, pre-execution security checks, contract auditing, investment signals, reputation scoring, and AI agent safety validation.
 
-**Status**: All 10 workflows running. Oracle API + frontend served on port 5000 via `serve.py` → `oracle_api/app.py`. FAISS intelligence engine on port 8000. All blockchain indexers and relayers active. **37 chains** indexed (35 mainnet + 2 testnet). **131 API routes**. **65 whitepaper formulas (L0–L10)** all LIVE. **All 13 Rust L0 crates built and active.** Living Security: all 8 DNA-mimetic components live. **Per-tx BH pipeline live on ALL 37 chains** (EVM + all 12 non-EVM Rust crates).
+**Status**: All 8 workflows running. Oracle API + frontend served on port 5000 via `serve.py` → `oracle_api/app.py`. FAISS intelligence engine on port 8000. All blockchain indexers and relayers active. **37 chains** indexed (35 mainnet + 2 testnet). **134 API routes** (+3 BTV endpoints). **65 whitepaper formulas (L0–L10)** all LIVE. **All 13 Rust L0 crates built and active.** Living Security: all 8 DNA-mimetic components live. **Per-tx BH pipeline live on ALL 37 chains** (EVM + all 12 non-EVM Rust crates). **Behavioral True Value (BTV) engine LIVE** — Inverted Truth Hierarchy implemented (L0.7).
+
+**Current session changes (2026-05-19) — Behavioral True Value (BTV) Engine + Inverted Truth Hierarchy**:
+
+The central thesis: current oracles (Chainlink, Pyth, Band) aggregate CEX prices and deliver them on-chain faster. They are faster pipes carrying the same compromised water. A TWAP over a manipulated CEX feed is still a manipulated price — just time-smoothed. TRION provides Layer 0: behavioral ground truth derived from the actual record of what every entity did on every chain, stripped of manipulation, weighted by coherence, bounded by liquidity health.
+
+- **`src/price/behavioral_price_engine.py` created** — the full BTV engine implementing whitepaper L0.7:
+  - **BTV formula**: `BTV = P_ref × Ω × (1 − MF_discount) × C_weight × NL_weight`
+    - `P_ref` = CEX-derived reference price (the corrupted baseline — what Chainlink/Pyth currently deliver)
+    - `Ω = tanh(chains/10) × D_eff` — behavioral consensus weight from 37-chain coverage + source diversity
+    - `MF_discount` = manipulation fingerprint discount: `baseline(2.5%) + MF_score × 35%` — wash trading stripped out
+    - `C_weight = 0.95 + 0.07 × C(t)` — coherence weighting from 5-plane engine
+    - `NL_weight = 0.95 + 0.07 × NL` — natural liquidity health weighting
+  - **`manipulation_discount_pct = (CEX − BTV) / CEX × 100`** — the key output: how much of the CEX price is behaviorally unjustified
+  - **10-step derivation trace** returned in every BTV response: fetch CEX reference → BH ledger depth → coherence/MF → NL → D_eff → formula components → BTV → CI_95 → manipulation_discount → confidence
+  - **Batched CoinGecko API** — single HTTP call for all assets before per-asset computation (not sequential)
+  - **Concurrent computation via `ThreadPoolExecutor`** — all 4 assets computed in parallel; hierarchy response time: 29s → **5.3s**
+  - **Shared BH stats cache** — one FAISS `/bh/stats` call per 60s window shared across all assets (not per-asset)
+  - **Fast-fail signal timeouts** — TRION signal/liquidity calls use 3s timeout; graceful fallback to asset-specific defaults
+  - **`BTVDerivation` dataclass** — fully typed response: `asset`, `cex_reference_price`, `cex_source`, `bh_ledger_depth`, `chains_indexed`, `swap_event_count`, `coherence_score`, `mf_score`, `nl_score`, `source_diversity`, `omega`, `mf_discount`, `coherence_weight`, `nl_weight`, `btv`, `btv_ci_lower`, `btv_ci_upper`, `manipulation_discount_pct`, `manipulation_usd`, `confidence`, `inverted_hierarchy_note`, `derivation_steps`
+  - **Live numbers** (May 19, 2026): ETH $2,115→$1,685 (−20.3%), BTC $76,914→$64,321 (−16.4%), SOL $84.42→$64.96 (−23.1%), ARB $0.115→$0.092 (−19.6%)
+
+- **`oracle_api/price_feed_routes.py` — 3 new endpoints** (total routes: 131 → 134):
+  - `GET /api/v1/price/btv/<base>` — full BTV derivation with 10-step trace, 95% CI, `manipulation_discount_pct`; example: `/api/v1/price/btv/ETH`
+  - `GET /api/v1/price/btv/<base>/<quote>` — BTV for a specific quote currency
+  - `GET /api/v1/price/hierarchy?assets=ETH,BTC,SOL,ARB` — cross-asset Inverted Truth Hierarchy comparison; returns structured table of CEX price vs BTV vs manipulation stripped per asset, plus `inverted_truth_hierarchy` layer map (Layer 0–4) and `summary.avg_manipulation_discount_pct`
+  - Cache bug fixed: `data.pop("_fetched_at")` mutated the shared cache dict in place — replaced with dict comprehension exclusion so cache integrity is preserved across concurrent callers
+
+- **`oracle_api/templates/dashboard.html` — "Behavioral True Value (BTV)" section added** (after Oracle Hierarchy Inversion, before UBL):
+  - **Thesis banner**: explains the Inverted Truth Hierarchy problem — CEX-derived oracles, TRION's bottom-up behavioral approach
+  - **Live asset card grid** (4 cards: ETH, BTC, SOL, ARB): CEX price (struck through in orange), TRION BTV (green, large), manipulation% badge color-coded by severity, C(t) coherence chip, MF score chip
+  - **CEX vs BTV comparison table**: Asset / CEX Oracle Price / TRION BTV / Manipulation Stripped / C(t) Coherence / MF Score / NL Score / BTV Confidence / Chains — all live from `/api/v1/price/hierarchy`
+  - **Corrected Stack diagram**: Layer 4 Retail → Layer 3 DeFi → Layer 2 Oracles (← BAND-AID) → Layer 1 CEX (← ROOT CORRUPTION) → TRION Layer 0 (green, with live BH count + chain count)
+  - **Quick API links**: BTV(ETH), BTV(BTC), full hierarchy JSON, all behavioral pairs
+  - **`loadBTV()` JS function** wired into `init()` + `setInterval(loadBTV, 120000)` — refreshes every 2 minutes
+  - **Section header**: `L0.7 LIVE` badge
 
 **Current session changes (2026-05-15) — Per-Tx BH Pipeline: All 37 Chains**:
 - **All 12 non-EVM Rust crates rewritten** with full per-tx canonical Behavioral Hash pipeline (whitepaper L0.1):
@@ -299,6 +334,7 @@ TRION is a multi-chain behavioral truth oracle implementing all 55 whitepaper ph
 ├── oracle_api/             Flask Oracle API (Python, port 5000)
 ├── akashic/                FAISS ANIMA intelligence engine (Python FastAPI, port 8000)
 ├── src/                    Python behavioral engine — 55 whitepaper modules
+│   └── price/              BTV engine — behavioral_price_engine.py (L0.7)
 ├── chains/                 VM execution & signing scripts (execute.ts per VM)
 │   ├── near/               NEAR Testnet — execute.ts, deploy_wasm.cjs, contract/
 │   ├── ton/                TON Testnet  — execute.ts, contracts/
