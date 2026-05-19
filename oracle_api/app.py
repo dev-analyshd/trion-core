@@ -44,6 +44,14 @@ try:
 except Exception as _cex_err:
     _cex_available = False
 
+# ── Register Chainlink AggregatorV3-compatible price feed routes ──────────────
+try:
+    from price_feed_routes import price_feed_bp
+    app.register_blueprint(price_feed_bp)
+    _price_feed_available = True
+except Exception as _pf_err:
+    _price_feed_available = False
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)
