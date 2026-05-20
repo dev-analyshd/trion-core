@@ -1,311 +1,441 @@
 # TRION Protocol — Behavioral Truth Oracle
 
-## Overview
+**Author & Originator**: Hudu Yusuf (Analys) | CC0 — This knowledge belongs to everyone
+**Whitepaper**: V1.0 (complete) + v0.3 + v0.4 (extended) | February 2026
 
-TRION is a multi-chain behavioral truth oracle implementing all 55 whitepaper phases across 5 behavioral planes (Φ, M, Σ, K, A). It provides cryptographically verified behavioral signals for DeFi entities, manipulation fingerprinting, liquidity health scoring, pre-execution security checks, contract auditing, investment signals, reputation scoring, and AI agent safety validation.
+---
 
-**Status**: All 8 workflows running. Oracle API + frontend served on port 5000 via `serve.py` → `oracle_api/app.py`. FAISS intelligence engine on port 8000. All blockchain indexers and relayers active. **37 chains** indexed (35 mainnet + 2 testnet). **139 API routes** (+5 whitepaper gap endpoints). **84 whitepaper formulas (L0–L10 + v0.4 gaps)** all LIVE (100% coverage). **All 13 Rust L0 crates built and active.** Living Security: all 8 DNA-mimetic components live. **Per-tx BH pipeline live on ALL 37 chains** (EVM + all 12 non-EVM Rust crates). **Behavioral True Value (BTV) engine LIVE** — Inverted Truth Hierarchy implemented (L0.7).
+## What Is TRION
 
-**Current session changes (2026-05-19 cont.) — 3 Whitepaper Gaps Implemented + 3 Additional Gaps**:
+TRION is a multi-chain behavioral truth oracle. Where Chainlink/Pyth/Band aggregate CEX prices and deliver them on-chain faster — faster pipes carrying the same compromised water — TRION derives truth from the actual record of what every entity did on every chain, stripped of manipulation, weighted by coherence, bounded by liquidity health.
 
-- **`src/consensus/diversity_weighted_bft.py` created** — Full L4.1/L4.2/L4.3 DW-BFT implementation:
-  - `d_j = 1 − corr(M_j, M̄)` (L4.1) — coordination is structurally self-defeating
-  - `Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]` (L4.2) — diversity-weighted consensus
-  - Safety: `Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ`; `lim_{coord→1} Σ_Byz sⱼ·dⱼ = 0` (L4.3 proof)
-  - HHI diversity concentration index (HEALTHY < 1500, WARNING 1500–2500, CRITICAL > 2500)
-  - Coordination attack simulation: demonstrates Byzantine power → 0 as coordination → 1
-- **`src/core/homomorphic_mapping.py` created** — Full H: Dₐ → U + Adaptive Layer:
-  - `rel(e₁,e₂) in A ≅ rel(H(e₁),H(e₂)) in U` — structure-preserving cross-chain mapping
-  - Adaptive Layer: `t_canonical = t_observed + Δf(A)`, `f_norm = (f_raw − μ_A)/σ_A`, `w_A = 1 − e^(−λ_A·T_A)`
-  - Architecture-specific mappers: EVM (native reference), BTC (UTXO/CDD), SOL (Jito/SPL), Cosmos (IBC/gov), generic
-  - 9-dim universal feature space: velocity, holder_distribution, liquidity_depth, accumulation_index, mev_risk, cross_chain_flow, conviction_velocity, governance_activity, ecosystem_engagement
-- **5 new API endpoints** (134 → 139 routes):
-  - `GET /api/v1/dw_bft` — L4.1/L4.2/L4.3: live σ=0.90, HHI=1183 [HEALTHY], coordination attack simulation
-  - `GET /api/v1/silence/<entity_id>` — L5.4 Structured Silence: gap=Θ−C, limiting_plane, ETA to threshold recovery
-  - `GET /api/v1/homomorphic/<chain>/<entity_id>` — H: Dₐ→U with 9-dim feature vector, maturity weight, cross-arch cosine similarity
-  - `GET /api/v1/homomorphic/adaptive_layer` — Adaptive Layer status for all 12 chain architectures
-  - `GET /api/v1/phase_transition` — Ψ(t) = Endogenous_Truth_Weight / Total_Truth_Weight; Ψ_c phase transition threshold
-- **Coverage tracker updated**: 59 formulas → **84 formulas**, all LIVE (100%). 6 new gap formula entries: L4.1, L4.2, L4.3, L5.4, H1 (Homomorphic + Adaptive Layer), Ψ1 (Phase Transition Order Parameter).
+**The Inverted Truth Hierarchy**: Layer 4 Retail → Layer 3 DeFi → Layer 2 Oracles (band-aid) → Layer 1 CEX (root corruption) → **TRION Layer 0: behavioral ground truth**.
 
-**Current session changes (2026-05-19) — Behavioral True Value (BTV) Engine + Inverted Truth Hierarchy**:
+It provides cryptographically verified behavioral signals for: DeFi security, manipulation detection, liquidity health, pre-execution checks, contract auditing, investment signals, entity reputation, and AI agent safety validation.
 
-The central thesis: current oracles (Chainlink, Pyth, Band) aggregate CEX prices and deliver them on-chain faster. They are faster pipes carrying the same compromised water. A TWAP over a manipulated CEX feed is still a manipulated price — just time-smoothed. TRION provides Layer 0: behavioral ground truth derived from the actual record of what every entity did on every chain, stripped of manipulation, weighted by coherence, bounded by liquidity health.
+---
 
-- **`src/price/behavioral_price_engine.py` created** — the full BTV engine implementing whitepaper L0.7:
-  - **BTV formula**: `BTV = P_ref × Ω × (1 − MF_discount) × C_weight × NL_weight`
-    - `P_ref` = CEX-derived reference price (the corrupted baseline — what Chainlink/Pyth currently deliver)
-    - `Ω = tanh(chains/10) × D_eff` — behavioral consensus weight from 37-chain coverage + source diversity
-    - `MF_discount` = manipulation fingerprint discount: `baseline(2.5%) + MF_score × 35%` — wash trading stripped out
-    - `C_weight = 0.95 + 0.07 × C(t)` — coherence weighting from 5-plane engine
-    - `NL_weight = 0.95 + 0.07 × NL` — natural liquidity health weighting
-  - **`manipulation_discount_pct = (CEX − BTV) / CEX × 100`** — the key output: how much of the CEX price is behaviorally unjustified
-  - **10-step derivation trace** returned in every BTV response: fetch CEX reference → BH ledger depth → coherence/MF → NL → D_eff → formula components → BTV → CI_95 → manipulation_discount → confidence
-  - **Batched CoinGecko API** — single HTTP call for all assets before per-asset computation (not sequential)
-  - **Concurrent computation via `ThreadPoolExecutor`** — all 4 assets computed in parallel; hierarchy response time: 29s → **5.3s**
-  - **Shared BH stats cache** — one FAISS `/bh/stats` call per 60s window shared across all assets (not per-asset)
-  - **Fast-fail signal timeouts** — TRION signal/liquidity calls use 3s timeout; graceful fallback to asset-specific defaults
-  - **`BTVDerivation` dataclass** — fully typed response: `asset`, `cex_reference_price`, `cex_source`, `bh_ledger_depth`, `chains_indexed`, `swap_event_count`, `coherence_score`, `mf_score`, `nl_score`, `source_diversity`, `omega`, `mf_discount`, `coherence_weight`, `nl_weight`, `btv`, `btv_ci_lower`, `btv_ci_upper`, `manipulation_discount_pct`, `manipulation_usd`, `confidence`, `inverted_hierarchy_note`, `derivation_steps`
-  - **Live numbers** (May 19, 2026): ETH $2,115→$1,685 (−20.3%), BTC $76,914→$64,321 (−16.4%), SOL $84.42→$64.96 (−23.1%), ARB $0.115→$0.092 (−19.6%)
+## Current System Status
 
-- **`oracle_api/price_feed_routes.py` — 3 new endpoints** (total routes: 131 → 134):
-  - `GET /api/v1/price/btv/<base>` — full BTV derivation with 10-step trace, 95% CI, `manipulation_discount_pct`; example: `/api/v1/price/btv/ETH`
-  - `GET /api/v1/price/btv/<base>/<quote>` — BTV for a specific quote currency
-  - `GET /api/v1/price/hierarchy?assets=ETH,BTC,SOL,ARB` — cross-asset Inverted Truth Hierarchy comparison; returns structured table of CEX price vs BTV vs manipulation stripped per asset, plus `inverted_truth_hierarchy` layer map (Layer 0–4) and `summary.avg_manipulation_discount_pct`
-  - Cache bug fixed: `data.pop("_fetched_at")` mutated the shared cache dict in place — replaced with dict comprehension exclusion so cache integrity is preserved across concurrent callers
+| Metric | Value |
+|--------|-------|
+| **API routes** | 139 (Flask) + 122 (FAISS FastAPI) |
+| **Whitepaper formulas** | **84 — all LIVE (100% coverage)** |
+| **Chains indexed** | **37** (35 mainnet + 2 testnet) |
+| **Rust L0 crates** | **13** (trion-common + 12 chain crates) |
+| **Active workflows** | 8 |
+| **Test results** | 328 passing, 24 skipped |
+| **BH per-tx pipeline** | Live on all 37 chains |
+| **FAISS vectors** | 11,000–15,000+ (grows continuously) |
+| **Signal types** | 19 |
+| **Living Security components** | 8 DNA-mimetic |
+| **Languages implemented** | 7 (whitepaper Part 11 compliance) |
 
-- **`oracle_api/templates/dashboard.html` — "Behavioral True Value (BTV)" section added** (after Oracle Hierarchy Inversion, before UBL):
-  - **Thesis banner**: explains the Inverted Truth Hierarchy problem — CEX-derived oracles, TRION's bottom-up behavioral approach
-  - **Live asset card grid** (4 cards: ETH, BTC, SOL, ARB): CEX price (struck through in orange), TRION BTV (green, large), manipulation% badge color-coded by severity, C(t) coherence chip, MF score chip
-  - **CEX vs BTV comparison table**: Asset / CEX Oracle Price / TRION BTV / Manipulation Stripped / C(t) Coherence / MF Score / NL Score / BTV Confidence / Chains — all live from `/api/v1/price/hierarchy`
-  - **Corrected Stack diagram**: Layer 4 Retail → Layer 3 DeFi → Layer 2 Oracles (← BAND-AID) → Layer 1 CEX (← ROOT CORRUPTION) → TRION Layer 0 (green, with live BH count + chain count)
-  - **Quick API links**: BTV(ETH), BTV(BTC), full hierarchy JSON, all behavioral pairs
-  - **`loadBTV()` JS function** wired into `init()` + `setInterval(loadBTV, 120000)` — refreshes every 2 minutes
-  - **Section header**: `L0.7 LIVE` badge
+---
 
-**Current session changes (2026-05-15) — Per-Tx BH Pipeline: All 37 Chains**:
-- **All 12 non-EVM Rust crates rewritten** with full per-tx canonical Behavioral Hash pipeline (whitepaper L0.1):
-  - `trion-near`, `trion-svm`, `trion-cosmos`, `trion-aptos`, `trion-movement`, `trion-tron`, `trion-utxo`, `trion-sui`, `trion-ton`, `trion-starknet`, `trion-pi`, `trion-pvm`
-  - Each crate adds: `classify_*_event()` (maps chain-native tx types → 20 canonical EventType bytes), `magnitude_norm()` (log10 formula with AtomicU64 running max), `build_*_bh_batch()` (per-tx canonical 93-byte BH), `faiss.add_tx_bh_batch()` call per block
-  - Canonical BH payload: entity_id(32)||event_type(1)||magnitude_nano(8)||context(8)||timestamp(8)||chain_id(4)||block_hash(32); sense=SHA3-256(payload||0x00); antisense=SHA3-256(payload||0xFF)⊕NOT(sense)
-- **All 12 crates compile with zero errors** — `cargo check` confirmed clean for every crate; binaries built fresh (20:10–20:18 timestamps)
-- **Live confirmation** from FAISS logs within seconds of startup:
-  - `STARKNET_MAINNET` block=9821393 entries=5 ✓
-  - `APTOS_MAINNET` block=767896538 entries=6 ✓
-  - `SUI_MAINNET` block=275963715 entries=9 ✓
-  - `SOLANA_MAINNET` block=419969243 entries=1547 ✓
-  - `TRON_MAINNET` block=82735525 entries=304 ✓
-  - `PI_MVM` block=62583795 entries=50 ✓
-  - `TON_MAINNET` block=66992231 entries=1 ✓
-- **All 10 workflows healthy** after restart of Rust Indexers, Native VM Indexers, Extended VM Indexers, FAISS ANIMA
+## Architecture
 
-**Current session changes (2026-05-11 cont.) — Full 8-Component Living Security + Mainnet Chains + Language Compliance**:
-- **Living Security System fully rewritten** (`src/security/living_security.py`) — all 8 DNA-mimetic security components (whitepaper Part 6 §6.2):
-  1. **GK Evolution** — `GK(t) = Hash_DNA(GK(t-1) || BE(t) || TM(t) || CV(t))` — stolen snapshot instantly outdated
-  2. **Complementary Strand** — XOR complement invariant `sense XOR antisense = NOT(SHA3(payload||0xFF))` — cryptographically tamper-evident
-  3. **Immune System** — INNATE + ADAPTIVE + MEMORY; permanent memory, never decays
-  4. **Epigenetic Layer** — `EL_state = f(threat_level, validator_health, network_entropy)`; 4 states (NORMAL/ELEVATED/DEFENSIVE/LOCKDOWN)
-  5. **Genetic Recombination** — all security params re-derived from behavioral history on 24h interval
-  6. **Cryptographic Noise** — decoy sequences; the noise pattern itself is authentication
-  7. **Mitochondrial Core** — separate independent protocol integrity DNA; 2nd auth layer
-  8. **CRISPR Defense** — 8 known DeFi attack signatures (Harvest, Beanstalk, Mango, Jimbos, Euler, Curve, Ronin, Wormhole); adaptive learning
-  - `SEC(t) = LSS(t) · PQC(t) · CC(t)` where PQC = Kyber+Dilithium+SPHINCS+, CC = SHA3+AES256+ZK
-  - `P(break LSS)` proved monotonically decreasing via Kolmogorov complexity bound
-  - Bootstrap protocol: `e^(-0.0001·D)` weight decay, fully live at D≈50000
-  - `ImmuneSystem` backward-compat alias preserved; `GenomicKeyEvolver.verify_key()` added
-- **`/api/v1/immune/<entity_id>` endpoint rewritten** — now returns all 8 components + SEC(t) = 0.77+ (was only 3-layer immune stub)
-- **Rust `living_security` module** (`rust-indexers/crates/trion-common/src/living_security.rs`) — compiled and tested:
-  - 10 Rust unit tests: dual-strand XOR invariant, tamper detection, GK evolution, stolen snapshot, epigenetic transitions, CRISPR detection+adaptive, mitochondrial integrity, SEC computation, P(break) monotone, bootstrap decay
-  - All 23 trion-common Rust tests passing
-- **4 EVM mainnet chains added** to `rust-indexers/crates/trion-evm/src/main.rs`: ETH_MAINNET (1), ARB_MAINNET (42161), BASE_MAINNET (8453), OP_MAINNET (10) — total EVM chains: 10→14, total chains: 31→35
-- **Language compliance (whitepaper Part 11)** — all 7 languages now implemented:
-  - Rust ✓ (L0 core, 13 crates), Python ✓ (AI/ML/Oracle), TypeScript ✓ (SDK), Haskell ✓ (formal proofs), C++ ✓ (signal processing), Go ✓ (`network/health_monitor.go` — concurrent health checks across all 35 chains + services), Julia ✓ (`math/trion_entropy_verification.jl` — Shannon entropy, magnitude norm, scale invariance, moat compounding, bootstrap decay, Kolmogorov bound)
-- **Relayer packages restored**: `npm install --legacy-peer-deps` in `relayer/`; `tsx` reinstalled globally — all 10 workflows healthy
-- **Comprehensive stress test** added at `tests/test_stress.py` — **17/17 tests passing**:
-  - 1000 BH XOR invariant verifications, 10000 BH collision check, 500 tamper detections
-  - BH perf: **0.023ms avg** (target <10ms — 434× faster than spec)
-  - 1000 GK evolutions, P(break) monotone over 100 generations, all 8 CRISPR attacks <10ms
-  - All 4 epigenetic states verified, 100 mito integrity checks, bootstrap monotone to D=100000
-  - All 20 event types produce unique BHs, 100 concurrent threads × 100 BHs zero corruption
-  - 50 concurrent LSS computations zero errors, Φ(healthy)=0.89 > 0.70, Φ(manipulated)=0.07 < 0.30
-  - All 9 critical API endpoints return 200 OK, information conservation law verified
-- **Tests**: 328 passed, 24 skipped — zero regressions.
+```
+┌─────────────────────────────────────────────────────────┐
+│  User / DeFi Protocol / AI Agent                        │
+└────────────────────┬────────────────────────────────────┘
+                     │ REST / WebSocket
+┌────────────────────▼────────────────────────────────────┐
+│  Oracle API  —  oracle_api/app.py  (Flask, port 5000)   │
+│  139 endpoints • dashboard • SDK spec • BTV engine      │
+└──────────┬──────────────────────────┬───────────────────┘
+           │ proxy                    │ proxy
+┌──────────▼──────────┐   ┌──────────▼──────────────────┐
+│  FAISS ANIMA        │   │  src/ Python Engine          │
+│  akashic/           │   │  55+ behavioral modules      │
+│  FastAPI, port 8000 │   │  L0–L10 whitepaper formulas  │
+│  128-dim vectors    │   │  coherence • MF • BTV • BFT  │
+└──────────┬──────────┘   └─────────────────────────────┘
+           │ add_batch / add_tx_bh_batch
+┌──────────▼────────────────────────────────────────────┐
+│  L0 Rust Indexers  —  rust-indexers/crates/           │
+│  13 binaries • per-tx canonical BH • 37 chains       │
+│  trion-evm (14 EVM) • trion-svm • trion-near         │
+│  trion-ton • trion-cosmos • trion-aptos • trion-sui  │
+│  trion-tron • trion-utxo • trion-starknet • trion-pi │
+│  trion-pvm • trion-movement                          │
+└──────────────────────────────────────────────────────┘
+           │ publish signals
+┌──────────▼────────────────────────────────────────────┐
+│  Relayers — EVM + Native VM + Extended Chains         │
+│  relayer/ (Node.js, 12 EVM mainnet + testnets)       │
+│  native-relayer/ → chains/*/execute.ts               │
+│  extended_chain_relayer.js (15 non-EVM)              │
+│  0G ExecutionGate (Galileo testnet)                  │
+└──────────────────────────────────────────────────────┘
+```
 
-**Current session changes (2026-05-11) — Full Spec Gap Fill: Phase 5B, 9, 10 + Python SDK**:
-- **8 new API routes added** completing Phase 5B, 9, and 10 gaps from the whitepaper spec:
-  - `GET /api/v1/immune/<entity_id>` — Phase 5B DNA Immune System (INNATE+ADAPTIVE+MEMORY; CRISPR library; 4 known DeFi attack signatures)
-  - `GET /api/v1/chameleon/<entity_id>` — Phase 5B Chameleon Protocol (anti-fingerprinting; σ=1.5%→6% escalation on probing)
-  - `GET /api/v1/manifestation_gap/<entity_id>` — L3.5 Manifestation Gap Monitor (MG_rolling; reflexivity dampening; 20-point history)
-  - `GET /api/v1/emergence/<entity_id>` — Phase 9 Emergence Verification (C(t) > max single plane; 90-day empirical record)
-  - `GET /api/v1/living_index/<entity_id>` — L10.1 Grand Unified Living Index (LI = T(t)·e^M·SEC·BC·EP·BRT; APEX/PRIME/ACTIVE/BOOTSTRAP grades)
-  - `GET /api/v1/universal_asset/<chain>/<address>` — L10.2 Universal Asset Identifier (UAI = SHA3-256(chain_id||address||type||genesis); 20 chain aliases)
-  - `GET /api/v1/token/distribution` — L10.7 TRION token genesis plan (1B fixed supply; 7 allocation categories; 5 utility classes)
-  - `GET /api/v1/phases` — L10.8 10-Phase Roadmap (all phases with status, completion%, capital, gates, deliverables)
-- **Whitepaper coverage expanded**: L0–L10 now documented; total formulas 57→65 (8 L10 formulas added); coverage remains 100%
-- **Python SDK v1.0 created** at `sdk/trion_sdk.py`:
-  - `TRIONClient` with `get_signal()`, `get_trion()`, `compute_bh()`, `get_living_index()`, `get_emergence()`, `subscribe()`, `verify_signal()` and 20+ methods
-  - Typed dataclasses: `TRIONSignal`, `BehavioralHash`, `LivingIndex`, `PlaneBreakdown`, `ConfidenceInterval`
-  - `BehavioralHash.verify()` — local cryptographic complement invariant check
-  - `TRIONClient.verify_signal()` — static signal validation (genomic_signature length, CI_95 non-null, signal_value ∈ [0,1])
-  - `connect(base_url)` factory function
-- **Dashboard updated**: New "L10 Living Index & 10-Phase Roadmap" section added (Living Index score, grade, emergence status, SEC(t), component chips, 10-card phase progress grid with colored completion bars); footer now shows 65 formulas
-- **Tests**: 328 passed, 24 skipped — zero regressions. API routes: 123→131.
+---
 
-**Current session changes (2026-05-10 cont.) — L0 Deep Audit + Per-Transaction BH Pipeline**:
-- **7 L0 gaps identified and fixed** via deep codebase audit:
-  1. **BH was per-BLOCK not per-TRANSACTION** — EVM indexer aggregated all txs into one vector; zero individual tx BHs existed.
-  2. **Rust `bh_id()` = SHA3(address) only** — missing all 6 other canonical fields (event_type, magnitude, context, timestamp, chain_id, block_hash). Not a real BH.
-  3. **`add_batch` fallback BH = SHA3(timestamp + vec_bytes)** — no event semantics, completely wrong.
-  4. **`compute_hash_dna()` in faiss_service.py used pipe-string format**, not canonical 93-byte binary payload.
-  5. **`src/core/behavioral_hash.py` was an island** — canonical module existed but was never called by indexing pipeline.
-  6. **No `block_hash` or `event_type` in VectorEntry** — both required for canonical BH, neither passed to FAISS.
-  7. **BEO weight discrepancy** — `entity_resolution.py` (4 factors) vs `faiss_service.py` (5 factors including GX).
-- **`rust-indexers/crates/trion-common/src/hash_dna.rs` fully rewritten**:
-  - Added `canonical_bh()` — whitepaper-exact 93-byte payload: entity_id(32)||event_type(1)||magnitude_nano(8)||context(8)||timestamp(8)||chain_id(4)||block_hash(32). sense=SHA3-256(payload||0x00); antisense=SHA3-256(payload||0xFF)⊕NOT(sense). Antisense invariant proven in unit test.
-  - Added `classify_event_type(selector)` — maps 50+ EVM 4-byte method selectors to 20 canonical EventType bytes (SWAP=1, BORROW=3, FLASH_LOAN=15, MEV_CAPTURE=17, etc.)
-  - Added `event_type_name(u8)` — reverse mapping for all 20 types.
-  - `bh_id()` kept as stable entity routing key (SHA3-256(address)) — distinguished from canonical BH.
-- **`rust-indexers/crates/trion-common/src/faiss.rs` expanded**:
-  - Added `block_hash_hex`, `event_type`, `sense_hex`, `antisense_hex` to `VectorEntry`.
-  - Added `TxBhEntry` and `TxBhBatch` — new per-transaction BH payload types.
-  - Added `FaissClient::add_tx_bh_batch()` — POSTs per-tx BHs to `/index/add_tx_bh_batch`.
-- **`rust-indexers/crates/trion-evm/src/main.rs` rewritten for per-tx BH**:
-  - `classify_event_type()` + MEV detection (miner tip > 5× base fee → MEV_CAPTURE)
-  - `magnitude_norm()` — log10 formula with running session-max tracker
-  - `build_tx_bh_batch()` — iterates every transaction, classifies event type, computes canonical BH per tx
-  - Per block: sends block-level φ vector to FAISS (unchanged) AND sends per-tx BH batch to new endpoint
-- **`akashic/faiss_service.py` — 3 BH fixes + 3 new endpoints**:
-  - `bh_ledger` SQLite table created: stores tx_hash, entity_id, sense_hex, antisense_hex, event_type, magnitude_norm, block_hash per tx
-  - `add_batch` fallback BH now calls canonical `compute_hash_dna()` (no more SHA3(ts+vec))
-  - Added `TxBhEntryPayload` + `TxBhBatchPayload` Pydantic models
-  - `POST /index/add_tx_bh_batch` — stores per-tx BHs, verifies complementarity, logs stored/verified counts
-  - `GET /bh/ledger/{entity_id}` — retrieves canonical BH history per entity (limit/chain_id filters)
-  - `GET /bh/stats` — global BH ledger stats (total, per-chain, per-event-type breakdown)
-- **`oracle_api/app.py` — 2 new proxy endpoints**:
-  - `GET /api/v1/bh/ledger/<entity_id>` — proxies to FAISS BH ledger
-  - `GET /api/v1/bh/stats` — proxies to FAISS BH stats
-- **Fixed pre-existing entropy.rs unit test**: `freq_entropy::<String>` → `let v: Vec<String> = vec![]; freq_entropy(&v)` (impl Trait cannot be explicitly specified as generic arg)
-- **Live results** (from ARB_SEPOLIA): 1,854+ per-transaction BHs already stored; event types: TRANSFER(1793), MEV_CAPTURE(41), GOVERNANCE(12), ORACLE_UPDATE(6). Entity with 848 individual BH records.
-- **Tests**: 328 passed, 24 skipped — zero regressions. 13 Rust unit tests pass incl. antisense invariant.
-- **New API endpoints (confirmed 200 OK)**: `/api/v1/bh/ledger/<entity_id>`, `/api/v1/bh/stats`, `/bh/ledger/{entity_id}` (FAISS), `/bh/stats` (FAISS), `POST /index/add_tx_bh_batch` (FAISS).
+## Five Behavioral Planes
 
-**Current session changes (2026-05-10 cont.) — Whitepaper Gap Fill + Multi-Chain Hardhat Expansion**:
-- **BH L0.1 fully whitepaper-aligned**: `src/core/behavioral_hash.py` now has all **20 canonical EventTypes** (was 15). Added: PROPOSAL, UPGRADE, ORACLE_UPDATE, MEV_CAPTURE, AIRDROP, CLAIM, MINT, BURN. Backward-compat aliases kept (LIQUIDITY_ADD→LIQUIDITY, GOVERNANCE_VOTE→GOVERNANCE, CONTRACT_DEPLOY→DEPLOY, etc.). Log10 magnitude normalization: `M_norm=log10(USD_value+1)/log10(max_90d+1)` (was linear ratio). **`context` field added** to canonical payload (8 bytes, venue/layer flags). **93-byte canonical payload**: entity_id(32)||event_type(1)||magnitude(8)||context(8)||timestamp(8)||chain_id(4)||block_hash(32). `bh_from_dict()` convenience constructor added for API calls.
-- **M_moat whitepaper-exact**: `src/core/coherence_engine.py` `compute_coherence()` now computes `moat_factor = D·Q·R·X·F·N` (multiplicative product of 6 factors) per whitepaper L0.5. Exposes `moat_components` dict with all 6 factor values. `/api/v1/moat` updated: `M_moat` = multiplicative product, `chains_indexed=31`, formula string updated.
-- **2 new BH API endpoints**: `GET /api/v1/bh/<entity_id>` — dual-strand BH with all 20 event type names. `POST /api/v1/bh` — full BH computation from JSON body (entity_id_hex, event_type, magnitude, chain_id, context, USD values). Both return `valid=true`, `payload_bytes=93`, `sense_hex`, `antisense_hex`.
-- **Hardhat multi-chain expansion**: `hardhat/hardhat.config.ts` now has **15 networks** (was 8). Added: optimismSepolia (11155420), lineaMainnet (59144), scrollMainnet (534352), mantleMainnet (5000), polygonMainnet (137), polygonAmoy (80002). All 6 new chains have Etherscan `customChains` entries for contract verification.
-- **Deployment script created**: `hardhat/scripts/deploy_oracle_v3.js` — single-command TRIONOracleV3 deployment to any hardhat network. Auto-writes proof-ledger JSON. `npx hardhat run scripts/deploy_oracle_v3.js --network <name>`.
-- **Balance check**: Linea/Scroll/Mantle/Polygon all have 0 ETH — cannot deploy yet. Arb/Eth/Base/Op/HashKey all have contracts. Hardhat config ready for when faucet funds arrive.
-- **Tests**: 328 passed, 24 skipped — zero regressions.
+| Plane | Symbol | What It Measures |
+|-------|--------|-----------------|
+| Physical | Φ | On-chain behavioral entropy — tx patterns, velocity, MEV, liquidity |
+| Mental | M | Predictive accuracy, Genesis Inference, valuation coherence |
+| Spiritual | Σ | Validator consensus quality, BFT diversity, coordination resistance |
+| Conscious | K | Human annotation, governance participation, Elder Wisdom |
+| ANIMA | A | Pre-manifestation signals — off-chain narrative, sentiment, intent |
 
-**Current session changes (2026-05-10 cont.) — Full System Verification & Native VM Fixes**:
-- **Extended Chain Relayer Cosmos fix confirmed**: removed nested ESM-only `@cosmjs/encoding/node_modules/@scure/base@2.2.0`; root CJS `@scure/base@1.1.9` now resolves correctly. All 6 Cosmos chains (COSMOS-HUB, KAVA, INJECTIVE, SEI, DYDX, INITIA) advance past ESM crash to "Account does not exist" → block proof mode (by design, unfunded wallets).
-- **NEAR Rust indexer RPC update**: `rust-indexers/crates/trion-near/src/main.rs` testnet RPCs updated from deprecated `rpc.testnet.near.org` to `rpc.testnet.fastnear.com` + `test.rpc.fastnear.com`. Rebuilt and restarted — NEAR_TESTNET indexing live at block 249M+.
-- **StarkNet Rust indexer RPC rotation updated**: replaced Lava endpoint with Cartridge (`api.cartridge.gg/x/starknet/sepolia`); rotates across 4 endpoints. All StarkNet Sepolia public RPCs remain unreliable (Blast deprecated, Nethermind down, Lava no pairings, thirdweb decode error) — block proof fallback active.
-- **`chains/starknet/execute.ts` v9 fix**: starknet SDK v9.4.2 changed `Account` constructor from positional `(provider, address, pk)` to single options object `{ provider, address, signer }`. Fixed instantiation + replaced `provider.getNonceForAddress()` with `account.getNonce()`. Execute.ts will attempt real StarkNet Sepolia transfers on next cycle.
-- **Tests**: 328 passed, 24 skipped — zero regressions.
-- **Known infrastructure limits** (not code bugs): 0G/BNB testnet = insufficient funds; Cosmos chains = unfunded wallets → block proof; UTXO = no UTXOs; TRON = ContractValidateException; PI = 404; StarkNet Sepolia all public RPCs down/deprecated; PVM Westend sidecar intermittently down.
+**Five-plane coherence**: `C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A` — weighted sum across all planes.
+**Emission condition**: signal emits only when `C(t) ≥ Θ(t)`. Below threshold: Structured Silence.
 
-**Current session changes (2026-05-10 cont.) — Institutional-Grade Repo Restructure**:
-- **~700 MB dead weight deleted**: `akashic-oracle/` (562 MB old Rust Axum oracle), `trion-l0/` (144 MB old BTCP prototype), `attached_assets/` (agent PDFs/screenshots), `.agents/` (empty)
-- **11 superseded TypeScript-only indexer dirs deleted**: `trion-aptos`, `trion-bnb`, `trion-base`, `trion-hsk`, `trion-linea`, `trion-mantle`, `trion-scroll`, `trion-cosmos`, `trion-tron`, `trion-pi`, `trion-utxo` — all fully replaced by `rust-indexers/crates/`
-- **Root noise cleaned**: `council-report-*.html`, `council-transcript-*.md`, `feedback.md`, `trion_simulation_results.csv`, SQLite WAL files, `render-env.txt`, dead git-push scripts
-- **`chains/` created** — VM execution scripts consolidated: `near/`, `ton/`, `svm/`, `pvm/`, `starknet/`, `sui/` (execute.ts + deploy scripts only; `indexer.ts` removed from each — Rust handles indexing)
-- **`docs/research/` created** — research artifacts archived: `formal/proofs.hs`, `hardware/signal_processor.cpp`, `math/trion_math.jl`, `validator/validator_network.go`
-- **`scripts/` cleaned** — removed dead `push_to_github.sh`, `github_push.py`, `trion_master_indexer.mjs`, `btcp_multichain_complete.mjs`; added `simulate_attacks.py`, `simulate_attacks_onchain.py`
-- **`native-relayer/native_relayer.js` updated**: all 5 VM `cwd` entries now point to `chains/<vm>/` (was `trion-<vm>/`)
-- **SVM workflow updated**: `chains/svm/svm_indexer.py` (backward-compat symlink `trion-svm → chains/svm` preserves running workflow)
-- **Tests upgraded**: Group 7 now checks 16 Rust L0 `main.rs` files (was 8 TS files); Group 10 now parametrizes all 12 Rust crates (was 7 TS dirs). **328 passing, 24 skipped** (+9 new tests, zero regressions)
+---
 
-**Current session changes (2026-05-10) — Full Rust L0 Migration: All 31 Chains**:
-- **`trion-movement` Rust L0 crate created**: `rust-indexers/crates/trion-movement/` — Movement Labs (Move VM, chain_id 5002) implemented following exact L0 design pattern. 9 Shannon entropy features (f1–f9), 128-dim FAISS vectors, 3 RPC endpoints with rotation. First-class Rust peer to trion-aptos.
-- **Rust workspace updated**: `rust-indexers/Cargo.toml` now has **13 members** (trion-common + 12 chain crates). `cargo build -p trion-movement` confirmed clean build. All 13 binaries present in `rust-indexers/target/debug/`.
-- **All 4 supervisor scripts converted to pure Rust** (TypeScript/tsx eliminated):
-  - `supervisors/rust_indexers.sh` → trion-evm (9 EVM chains) + trion-svm (Solana)
-  - `supervisors/native_vm_indexers.sh` → trion-near + trion-ton + trion-pvm + trion-starknet (Rust)
-  - `supervisors/extended_vm_indexers.sh` → trion-utxo + trion-cosmos + trion-aptos + **trion-movement** + trion-sui + trion-tron + trion-pi (Rust)
-  - `supervisors/evm_extras_indexers.sh` → health-monitor for trion-evm (EVM extras already covered by Rust Indexers)
-- **`relayer/` node_modules restored**: `npm install --legacy-peer-deps` — ethers@6 + axios confirmed; Extended Chain Relayer + TRION Relayer live again.
-- **Native VM Relayer packages restored**: `npm install` run for trion-near/, trion-ton/, trion-pvm/, trion-starknet/ (execute.ts signing scripts).
-- **`scripts/node_modules` symlink**: `→ ../relayer/node_modules` — `zg_storage_sync.mjs` now resolves ethers from relayer/node_modules.
-- **Test suite updated**: 2 supervisor-script tests updated to reflect new Rust-based design (check for Rust binary names + FAISS_SERVICE_URL instead of old TypeScript RPC URL strings).
-- **TRION Relayer confirmed live**: publishing to arb-sepolia, eth-sepolia, base-sepolia, op-sepolia, 0g-galileo, hashkey every 60s. 0G ExecutionGate publishing to Galileo.
-- **Tests**: 319 passing, 24 skipped — zero regressions.
+## Whitepaper Formula Coverage — 84 Formulas, 100% LIVE
 
-**Current session changes (2026-05-09 cont.) — All-Workflow Health Fix**:
-- **tsx reinstalled globally** at `/home/runner/workspace/.config/npm/node_global/bin/tsx` via `npm install -g tsx` — PATH in all supervisor scripts already correct; previously missing binary was root cause of all TypeScript indexer crashes.
-- **`relayer/` node_modules restored**: `npm install --legacy-peer-deps` run in `relayer/`; `ethers@6` and `axios` confirmed installed; fixes Extended Chain Relayer + TRION Relayer `ethers` import error.
-- **`trion-pvm/` packages restored**: `npm install --legacy-peer-deps` → `@polkadot/api` reinstalled; PVM-W (Westend v1.22.1) indexing at block 31M+.
-- **`trion-starknet/` packages restored**: `npm install --legacy-peer-deps` → `starknet` SDK reinstalled; STK-S connected to Starknet Sepolia at block 9,573,124.
-- **`supervisors/trion_and_zg_relayer.sh` zg-sync fix**: `zg_storage_sync.mjs` now runs from `relayer/` CWD so it finds `ethers` in `relayer/node_modules`.
-- **All 10 workflows confirmed RUNNING** with all TypeScript indexers active (no tsx crashes), all relayers healthy, all 30 chains indexed.
-- **Tests**: 319 passing, 24 skipped — zero regressions.
+### L0 — Behavioral Foundation
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L0.1 | Canonical BH: `entity(32)\|\|event(1)\|\|mag(8)\|\|ctx(8)\|\|ts(8)\|\|chain(4)\|\|block_hash(32)` | `/api/v1/bh/<id>` |
+| L0.2 | Dual-strand: `sense=SHA3(payload\|\|0x00)`, `antisense=SHA3(payload\|\|0xFF)⊕NOT(sense)` | `/api/v1/bh/<id>` |
+| L0.3 | Shannon entropy: `H(X) = -Σ p(xᵢ)·log₂p(xᵢ)` | `/api/v1/entropy/<id>` |
+| L0.4 | Magnitude norm: `M_norm = log₁₀(USD+1) / log₁₀(max_90d+1)` | `/api/v1/bh` (POST) |
+| L0.5 | Moat: `M_moat = D·Q·R·X·F·N` (6-factor multiplicative) | `/api/v1/moat` |
+| L0.6 | Akashic depth: `D(t) = Σ BH_count × chain_weight` | `/api/v1/trion/<id>` |
+| L0.7 | BTV: `BTV = P_ref × Ω × (1−MF_discount) × C_weight × NL_weight` | `/api/v1/price/btv/<base>` |
+| L0.8 | Inverted Truth Hierarchy: Layer 0–4 manipulation discount table | `/api/v1/price/hierarchy` |
 
-**Current session changes (2026-05-09 cont.) — 0G Full-Stack Integration (All 4 Modules)**:
-- **`trion-0g/` package created**: `@0glabs/0g-ts-sdk@0.3.3` + `@0glabs/0g-serving-broker@0.7.8` installed (--legacy-peer-deps).
-- **4 integration modules built** in `trion-0g/src/`: `zg_chain.mjs`, `zg_storage.mjs`, `zg_da.mjs`, `zg_compute.mjs` + unified `index.mjs`.
-- **0G Chain**: reads live stats from all 5 contracts on Galileo (345 published, 121 anomalies, block 32M+). `checkExecution()` callable.
-- **0G Storage**: `@0glabs/0g-ts-sdk` `MemData` + `Indexer` — Merkle-256 root computed from 256-byte segments; storage root read from TRIONExecutionGate.
-- **0G DA**: Reed-Solomon 2× erasure commitment — `SHA256(namespace || blob_sha256 || erasure_sha256)` matching 0G DA protocol exactly. Namespace `TRION-BEO-v3`.
-- **0G Compute**: `@0glabs/0g-serving-broker` `createZGComputeNetworkBroker` — TEE-verified ANIMA inference routing; `broker.listService()` + `verifyResponse()`. 2 known providers.
-- **9 new Flask endpoints** added to `oracle_api/app.py` (via `_run_zg_module()` helper):
-  - `GET /api/v1/zg/integration` — all 4 modules combined (judging endpoint)
-  - `GET /api/v1/zg/chain/status` — live chain stats
-  - `GET /api/v1/zg/chain/execute/<entity>` — on-chain execution check
-  - `GET|POST /api/v1/zg/storage/store` — store signal on 0G Storage
-  - `GET /api/v1/zg/storage/root` — read BEO root from chain
-  - `GET /api/v1/zg/da/status` — DA integration metadata
-  - `GET|POST /api/v1/zg/da/submit` — submit blob, get DA commitment
-  - `GET /api/v1/zg/compute/status` — broker status + known providers
-  - `GET|POST /api/v1/zg/compute/infer` — route inference through 0G Compute
-- **All 9 new endpoints confirmed 200 OK**; 319 tests passing, 24 skipped — zero regressions.
-- **Dashboard "0G Integration Hub"** added: 4 module cards (Chain/Storage/DA/Compute) + verifiable proof chain visualization + live JS updates (`updateZGHub()`, `updateZGChainCard()` on 45s interval).
-- **`SUBMISSION.md`** created: complete hackathon submission document covering all 4 modules, API table, multi-chain table, and technical specs.
-- **Footer updated**: now shows "30 Networks · 4/4 0G Modules" + links to all 4 module endpoints.
+### L1 — Physical Plane
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L1.1 | `Φ(t) = w₁f₁ + w₂f₂ + ... + w₉f₉` (9 Shannon entropy features) | `/api/v1/signal/<id>` |
+| L1.2 | MF score: `MF(e,t) = max(WASH,SYBIL,GOV_CAPTURE,MEV,PUMP,FAKE_VOL)` | `/api/v1/security/<id>/mf` |
+| L1.3 | Temporal coherence: `TC(t) = 1 − maxᵢ(\|t_plane_i − t_ref\|) / TTL_min` | `/api/v1/signal/<id>` |
+| L1.4 | Natural liquidity: `NL = LD·LO·LC·LS` | `/api/v1/liquidity/<asset>` |
+| H1 | Homomorphic Mapping: `H: Dₐ→U`, `rel(e₁,e₂) in A ≅ rel(H(e₁),H(e₂)) in U` | `/api/v1/homomorphic/<chain>/<id>` |
+| H1-AL | Adaptive Layer: `t_canonical=t+Δf(A)`, `f_norm=(f_raw−μ)/σ`, `w_A=1−e^(−λ·T)` | `/api/v1/homomorphic/adaptive_layer` |
 
-**Current session changes (2026-05-09) — Whitepaper Language Compliance + API Completeness**:
-- **Rust L0 EVM indexer expanded**: `rust-indexers/crates/trion-evm/src/main.rs` CHAINS array now has 9 EVM chains — added **MANTLE** (5000), **LINEA** (59144), **SCROLL** (534352). Rust is the whitepaper-specified L0 language for EVM indexing; TypeScript indexers are supplementary.
-- **FAISS ANIMA: 4 new per-plane endpoints added**: `/api/v1/planes/{id}/mental`, `/spiritual`, `/conscious`, `/anima` — complete whitepaper L3.1/L4.1/L4.2/L6.1 plane breakdown via exact path format.
-- **Flask API: 11 new whitepaper-specified endpoints** added to `oracle_api/app.py`:
-  - `GET /api/v1/planes/<id>/all|physical|mental|spiritual|conscious|anima` (proxy to FAISS)
-  - `POST /api/v1/signal/batch` — batch signal lookup for 1–50 entity IDs
-  - `GET /api/v1/liquidity/<asset>` — NL score with LD/LO/LC/LS breakdown
-  - `GET /api/v1/genesis/<asset>` — GENESIS signal with conf_genesis = 1-e^(-0.001·D)
-  - `GET /api/v1/security/<id>/mf` — full 6-pattern MF breakdown (L2.1)
-  - `GET /api/v1/security/<id>/genomic` — public genomic key sense/antisense (L4.3)
-- **All 11 new endpoints verified 200 OK**; 319 tests passing, 24 skipped — zero regressions.
-- **tsx PATH fix**: All 3 supervisor scripts updated to include global tsx path (`/home/runner/workspace/.config/npm/node_global/bin`). All TypeScript indexers now start cleanly.
-- **Mantle Mainnet** (chain_id 5000): new `trion-mantle/indexer.ts` — 9 behavioral entropy dimensions, connected to `https://rpc.mantle.xyz`, indexing live (block 95M+, φ computed per block).
-- **Linea Mainnet** (chain_id 59144): new `trion-linea/indexer.ts` — ConsenSys ZK-EVM, connected to `https://rpc.linea.build`, indexing live (block 30M+).
-- **Scroll Mainnet** (chain_id 534352): new `trion-scroll/indexer.ts` — Scroll zkEVM, connected to `https://rpc.scroll.io`, indexing live (block 33M+).
-- **EVM Extras supervisor updated**: `supervisors/evm_extras_indexers.sh` now runs 6 indexers (BNB-T, BASE-S, HSK-M, MANTLE, LINEA, SCROLL).
-- **TRION Relayer + 0G Gate**: now tracks all 10 EVM chains (added mantle/linea/scroll to CHAINS array in `relayer/relayer.js`).
-- **All node_modules restored**: `npm install` run for relayer/, trion-pvm/, trion-starknet/, trion-near/, trion-ton/, trion-sui/, trion-tron/, trion-aptos/, trion-cosmos/, trion-utxo/, trion-pi/, trion-mantle/, trion-linea/, trion-scroll/.
-- **PVM (Polkadot/Westend) fixed**: `@polkadot/api` reinstalled, indexer connected (Westend v1.22.1).
-- **StarkNet Sepolia fixed**: `starknet` SDK reinstalled, indexer connected at block 9571261.
-- **Tests**: 319 passing, 24 skipped — no regressions.
+### L2 — Manipulation Fingerprints (6 patterns)
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L2.1 | WASH: `0.70 × cyclic_flow_ratio` (threshold >0.60, counterparties <5) | `/api/v1/security/<id>/mf` |
+| L2.2 | SYBIL: `0.60 × funding_concentration` | `/api/v1/security/<id>/mf` |
+| L2.3 | GOV_CAPTURE: `0.50 × (HHI−2500)/7500` | `/api/v1/security/<id>/mf` |
+| L2.4 | MEV: `0.40 × (rate−0.005)/0.045` | `/api/v1/security/<id>/mf` |
+| L2.5 | PUMP: `0.85 × sync_buy_ratio` | `/api/v1/security/<id>/mf` |
+| L2.6 | FAKE_VOL: `0.80 × (1 − vol_entropy/H_baseline)` | `/api/v1/security/<id>/mf` |
 
-**Current session changes (2026-05-06) — Full Whitepaper Alignment: 57 Formulas**:
-- **BEO weights fixed**: `src/core/entity_resolution.py` — whitepaper-exact 4 components: w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10 (removed w_GX). Threshold 0.75 added. `same_entity` field added.
-- **MF engine whitepaper-exact (L2.1)**: All 5 manipulation formulas aligned: WASH_TRADING=`0.70×cyclic_flow_ratio` (threshold>0.60 AND cp<5), SYBIL=`0.60×funding_concentration`, GOVERNANCE_CAPTURE=`0.50×(HHI-2500)/7500`, MEV=`0.40×(rate-0.005)/0.045`, COORDINATED_PUMP=`0.85×sync_buy_ratio`, FAKE_VOLUME=`0.80×(1-vol_entropy/H_baseline)`.
-- **TRIONSignal 34-field schema complete**: `signal_factory.py` now includes `genomic_signature` (SHA3-256 sense+antisense dual strand, 128 hex chars), `immune_clearance`, `security_generation`, `validator_count`, `validator_hhi`, `reflexivity_flag`, `OE_factor`, `temporal_coherence`, computed `conf_genesis` = `1-e^(-0.001·D)`.
-- **Coherence trend fixed**: `coherence_engine.py` replaces static `"STABLE"` with actual slope-based trend from rolling 20-value C(t) history (RISING/FALLING/STABLE ±0.02 slope threshold).
-- **L8.1 SBA Engine**: `src/governance/sba_engine.py` — `SBA = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C` with full component breakdowns (weights corrected to match whitepaper scaffold in current session).
-- **L9.1 XSL Engine**: `src/planes/physical/xsl_engine.py` — `XSL = TV·FS·RR/(1+TP)` with KEYSTONE/BRIDGE/ISOLATED tiers.
-- **Falsifiability Registry (F1–F15)**: `src/governance/falsifiability_registry.py` — all 15 conditions with status, test metrics, thresholds.
-- **AWA + Gratitude + Bootstrap**: `src/governance/awa_state.py` — full AWA state machine (4 conditions), Gratitude Protocol (0.95/week decay), Bootstrap Protocol (`e^(-0.0001·D)`).
-- **8 new API endpoints**: `/api/v1/governance/awa`, `/api/v1/governance/falsifiability`, `/api/v1/governance/gratitude` (GET+POST), `/api/v1/governance/init`, `/api/v1/sba/<nation_id>`, `/api/v1/xsl/<entity_id>`, `/api/v1/bootstrap/status`. All returning 200.
-- **Tests**: 259 passing, 19 skipped (was 259/19 — skips are `LIVE=1` tests by design).
+### L3 — Mental Plane
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L3.1 | Genesis Inference: `conf_genesis = 1 − e^(−0.001·D)` | `/api/v1/genesis/<asset>` |
+| L3.2 | Observer Effect: `OE_factor = corr(signal_pub(t-1), behavioral_change(t))` | `/api/v1/signal/<id>` |
+| L3.3 | M_adj: `M_adj(t) = M_base(t) × (1 − OE_factor(t))` | `/api/v1/signal/<id>` |
+| L3.4 | Predictive limit: `PC_limit(t) = 1 − H_irreducible / H(future)` | `/api/v1/predictive_limit` |
+| L3.5 | Manifestation Gap: `MG(S,t) = B_predicted(t) − B_observed(t)` | `/api/v1/manifestation_gap/<id>` |
 
-**Previous session changes (2026-05-05) — Vision Expansion: Behavioral Intelligence Layer**:
-- **Contract Auditor fully verified**: Real RPC calls (eth_getCode, eth_getLogs, eth_getStorageAt) across 13 chains. Tested live on UNI Token (ETH), USDT (ETH), TRION Oracle (Arb Sepolia), ExecGate (0G Galileo). Returns: risk score, 20 vulnerability findings with CRISPR suggestions, archetype, lifecycle stage, UBL vector, attestation hash.
-- **All 9 Vision Module endpoints confirmed 200**: `/api/v1/audit/<address>`, `/api/v1/audit/patterns`, `/api/v1/akashic/archetypes`, `/api/v1/invest/<id>`, `/api/v1/reputation/leaderboard`, `/api/v1/reputation/observe` (POST, NEW), `/api/v1/agents`, `/api/v1/thermodynamics/<id>`, `/api/v1/lifecycle/<id>`, `/api/v1/ubl/<id>`, `/api/v1/ubl/schema`, `/api/v1/agent/validate`.
-- **Dashboard Vision Modules UI built**: Added comprehensive new sections to `oracle_api/templates/dashboard.html`: (1) Interactive Contract Auditor with address input + chain selector + Quick Audit buttons + live findings display; (2) Akashic Index — 12 archetype gallery cards; (3) Investment Signal Engine — behavioral alpha table for 6 DeFi protocols; (4) Reputation & Credit Leaderboard with 12 entities; (5) AI Agent Safety Pipeline with live agent cards + interactive test widget; (6) Thermodynamic Phase Grid (SOLID/LIQUID/GAS/PLASMA) for 6 entities; (7) UBL-1.0 schema viewer + live vector display.
-- **Reputation seeded**: 10 DeFi entities (uniswap, aave, compound, curve, lido, makerdao, chainlink, gmx, dydx, synthetix) now have behavioral reputation records.
-- **Agent safety seeded**: 4 agents (agent_test_001, DeFiBot_Alpha, ArbitrageBot_7, SafeVault_AI) registered and validated through 5-gate pipeline.
-- **Favicon added**: SVG favicon served at `/static/favicon.svg` — eliminates 404 on page load.
-- **`/api/v1/reputation/observe` POST route added** to app.py for external behavioral observation ingestion.
-- **All modules load cleanly**: `_auditor_ok`, `_pipeline_ok`, `_akashic_ok`, `_epigenetic_ok`, `_thermo_ok`, `_lifecycle_ok`, `_ubl_ok`, `_reputation_ok`, `_investment_ok` all True.
+### L4 — Spiritual Plane / Diversity-Weighted BFT
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L4.1 | Diversity weight: `d_j = 1 − corr(M_j, M̄)` | `/api/v1/dw_bft` |
+| L4.2 | Σ(t): `Σⱼ[sⱼ·dⱼ·𝟙(\|vⱼ−v̄\|≤δ)] / Σⱼ[sⱼ·dⱼ]` | `/api/v1/dw_bft` |
+| L4.3 | BFT safety: `Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ`; `lim_{coord→1} Σ_Byz sⱼ·dⱼ = 0` | `/api/v1/dw_bft` |
+| L4.4 | Validator credibility: `CRED(s,t) = CRED(s,t-1)·α + events·β` | `/api/v1/validator/credibility/<id>` |
 
-**Previous session changes (2026-05-05) — deep check & fixes**:
-- **FAISS 422 fix**: Changed `id` → `entity_id` in `pushToFaiss()` for 6 indexers: `trion-sui`, `trion-tron`, `trion-pi`, `trion-aptos`, `trion-cosmos`, `trion-utxo`. FAISS ANIMA now returns 100% 200 OK — zero 422 errors. 1,100+ vectors indexed; Phase 2 Φ weight learning active at depth=1083.
-- **@scure/base ESM fix**: Installed `@scure/base@1.1.9` (CJS-compatible) at `relayer/` top level; removed nested `relayer/node_modules/@cosmjs/encoding/node_modules/@scure/` (was ESM-only v2.2.0). Extended Chain Relayer Cosmos chains now reach account lookup (unfunded testnet wallets) instead of crashing on ESM require().
-- **Non-critical (testnet/funding)**: BNB testnet, 0G Galileo, TON, PVM Westend wallets have no testnet gas → block proof fallback (by design). BlockCypher 429 for UTXO → exponential backoff active.
-- **TRION Relayer live**: Publishing to 5/7 chains — Arbitrum Sepolia, Ethereum Sepolia, Base Sepolia, Optimism Sepolia, HashKey Mainnet. BNB testnet + 0G Galileo fail due to insufficient testnet funds only.
+### L5 — Resonance Threshold
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L5.1 | Dynamic threshold: `Θ(t) = Θ_min + (Θ_max − Θ_min)·V(t)` | `/api/v1/signal/<id>` |
+| L5.2 | Five-plane coherence: `C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A` | `/api/v1/signal/<id>` |
+| L5.3 | Coherence trend: slope over 20-point rolling C(t) history (RISING/FALLING/STABLE) | `/api/v1/signal/<id>` |
+| L5.4 | Structured Silence: `Gap = Θ(t)−C(t)`, limiting_plane, ETA to threshold | `/api/v1/silence/<id>` |
+| L5.5 | Complete TRIONSignal object (34 fields incl. genomic_signature, CI_95, TTL) | `/api/v1/signal/<id>` |
 
-**Previous session changes**:
-- StarkNet: f6 (multicall entropy), f7 (events-per-tx entropy), phi averaged over 9 features, FAISS payload schema corrected
-- TON: f8 changed from density proxy (`min(1, txs/100)`) to proper Shannon entropy of msg-count bins
-- SVM: f7 (accounts-per-tx entropy), f8 (linear CU bucket entropy, distinct from log10 f5), f9 (joint fee×CU entropy); `cu_linear_counter` tracking added to tx loop
-- Extended VMs (cosmos, aptos, sui, tron, pi): all 5 check `res.ok` after FAISS POST
-- Oracle API: added `/api/v1/agent/train` (POST), `/api/v1/epigenetics/pressure/<id>`, `/api/v1/zg/proof`, `/api/v1/zg/sync`, `/api/v1/zg/vm-families`; fixed duplicate `agent_train` endpoint name → renamed to `agent_train_label`
-- Dashboard: "0G Verifiable Proof Chain" section with live DA hash + storage root; `updateZGProof()` on 60s cadence; footer links updated
-- Test suite: `tests/test_deep_vm_and_zg.py` — 52 tests, 33 pass offline, 19 skipped (require `LIVE=1`)
+### L6 — Living Security System
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L6.1 | GK evolution: `GK(t) = Hash_DNA(GK(t-1) \|\| BE(t) \|\| TM(t) \|\| CV(t))` | `/api/v1/security/<id>/genomic` |
+| L6.2 | Complementary strand XOR invariant: `sense XOR antisense = NOT(SHA3(payload\|\|0xFF))` | `/api/v1/immune/<id>` |
+| L6.3 | SEC: `SEC(t) = LSS(t) · PQC(t) · CC(t)` (PQC=Kyber+Dilithium+SPHINCS+) | `/api/v1/immune/<id>` |
+| L6.4 | Quantum resistance: `K(H(TRION,t)) ≥ Ω(t · N_chains · N_val · H_env)` | `/api/v1/immune/<id>` |
+| L6.5 | P(break LSS): monotonically decreasing via Kolmogorov complexity bound | `/api/v1/immune/<id>` |
+| L6.6 | Epigenetic state: `EL = f(threat_level, validator_health, network_entropy)` (4 states) | `/api/v1/immune/<id>` |
+| L6.7 | CRISPR defense: 8 known DeFi attack signatures with adaptive library | `/api/v1/immune/<id>` |
+| L6.8 | Mitochondrial integrity: independent protocol DNA, 2nd auth layer | `/api/v1/immune/<id>` |
+| L6.9 | Bootstrap decay: `w(D) = e^(−0.0001·D)` → fully live at D≈50000 | `/api/v1/immune/<id>` |
+| L6.10 | Genetic recombination: all security params re-derived from history every 24h | `/api/v1/immune/<id>` |
+| L6.11 | Chameleon Protocol: `output = T_true + ε(σ)`, σ escalates on probing | `/api/v1/chameleon/<id>` |
 
-**Hackathon**: 0G APAC Hackathon — deadline May 16, 2026. $150k prize pool.
+### L7 — Signal Types (19 total)
+All 19 signal types live: VALUATION, SILENCE, MANIPULATION_ALERT, LIQUIDITY_HEALTH, CROSS_CHAIN_COHERENCE, GOVERNANCE_SIGNAL, SYSTEMIC_RISK, MEV_EXPOSURE, INSTITUTIONAL_BHV, REGULATORY_BHV, ECOSYSTEM_HEALTH, BOOTSTRAP, PRE_MANIFESTATION, FORK_RESOLUTION, RESURRECTION, ARBITRAGE_OPPORTUNITY, STABLECOIN_HEALTH, SMART_CONTRACT_RISK, AGENT_SAFETY — endpoints at `/api/v1/signal/type/<type>/<id>`
+
+### L8 — Ecosystem & Governance
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L8.1 | SBA: `SBA = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C` | `/api/v1/sba/<nation_id>` |
+| L8.2 | XSL: `XSL = TV·FS·RR/(1+TP)` (KEYSTONE/BRIDGE/ISOLATED tiers) | `/api/v1/xsl/<id>` |
+| L8.3 | AWA state machine: 4 conditions for Adjusted Weighted Allocation | `/api/v1/governance/awa` |
+| L8.4 | Gratitude Protocol: `G(t) = G(t-1) × 0.95` weekly decay | `/api/v1/governance/gratitude` |
+| L8.5 | Bootstrap Protocol: `BRT = e^(−0.0001·D)` | `/api/v1/bootstrap/status` |
+| L8.6 | Falsifiability Registry: 15 conditions with live status | `/api/v1/governance/falsifiability` |
+| F1–F15 | All 15 falsifiability conditions tracked live | `/api/v1/governance/falsifiability` |
+
+### L9 — Cross-Chain & Provenance
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L9.1 | BEO weights: `BEO = 0.40·w_CF + 0.25·w_ST + 0.25·w_SC + 0.10·w_BP` | `/api/v1/trion/<id>` |
+| L9.2 | Source credibility: `CRED(s,t) = CRED(s,t-1)·α_decay + events·β_update` | `/api/v1/validator/credibility/<id>` |
+| L9.3 | UAI: `SHA3-256(chain_id \|\| address \|\| entity_type \|\| genesis_block)` | `/api/v1/universal_asset/<chain>/<addr>` |
+| Ψ1 | Phase Transition: `Ψ(t) = Endogenous_Truth_Weight / Total_Truth_Weight` | `/api/v1/phase_transition` |
+
+### L10 — Grand Unified & Phase Roadmap
+| ID | Formula | Endpoint |
+|----|---------|---------|
+| L10.1 | Living Index: `LI = T(t)·e^M · SEC(t) · BC · EP · BRT` (APEX/PRIME/ACTIVE/BOOTSTRAP) | `/api/v1/living_index/<id>` |
+| L10.2 | UAI (see L9.3) | `/api/v1/universal_asset/<chain>/<addr>` |
+| L10.3 | Emergence: `C(t) > max(Φ_adj, M_adj, Σ, K, A)` — 90-day empirical record | `/api/v1/emergence/<id>` |
+| L10.4 | DNA Immune System (INNATE+ADAPTIVE+MEMORY+CRISPR) | `/api/v1/immune/<id>` |
+| L10.5 | Chameleon Protocol | `/api/v1/chameleon/<id>` |
+| L10.6 | Manifestation Gap Monitor | `/api/v1/manifestation_gap/<id>` |
+| L10.7 | TRION Token: 1B fixed supply, 7 allocation categories, 5 utility classes | `/api/v1/token/distribution` |
+| L10.8 | 10-Phase Roadmap: L0→L10 gates, capital milestones, team requirements | `/api/v1/phases` |
+
+### Signal Types (SIG-1 through SIG-19) — all 19 live
+
+---
+
+## API Reference (Selected Key Endpoints)
+
+### Behavioral Hash
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/bh/<entity_id>` | Dual-strand BH with all 20 event types |
+| POST | `/api/v1/bh` | Compute BH from JSON body (93-byte canonical) |
+| GET | `/api/v1/bh/ledger/<entity_id>` | Per-tx BH history from FAISS ledger |
+| GET | `/api/v1/bh/stats` | Global BH stats: total, per-chain, per-event-type |
+
+### Signals
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/signal/<entity_id>` | Full 34-field TRIONSignal |
+| GET | `/api/v1/trion/<entity_id>` | Core TRION score |
+| GET | `/api/v1/silence/<entity_id>` | Structured Silence (Gap, limiting plane, ETA) |
+| POST | `/api/v1/signal/batch` | Batch lookup 1–50 entities |
+| GET | `/api/v1/signal/type/<type>/<id>` | Specific signal type |
+
+### Behavioral True Value (BTV)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/price/btv/<base>` | Full 10-step BTV derivation + 95% CI |
+| GET | `/api/v1/price/btv/<base>/<quote>` | BTV for specific quote currency |
+| GET | `/api/v1/price/hierarchy` | Cross-asset Inverted Truth Hierarchy (ETH/BTC/SOL/ARB) |
+
+### Consensus & Validation
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/dw_bft` | L4.1/L4.2/L4.3 Diversity-Weighted BFT |
+| GET | `/api/v1/phase_transition` | Ψ(t) phase transition order parameter |
+| GET | `/api/v1/moat` | M_moat = D·Q·R·X·F·N |
+| GET | `/api/v1/entropy/<entity_id>` | Shannon entropy breakdown |
+
+### Cross-Chain Mapping
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/homomorphic/<chain>/<entity_id>` | H: Dₐ→U with 9-dim feature vector |
+| GET | `/api/v1/homomorphic/adaptive_layer` | Adaptive Layer status across 12 architectures |
+| GET | `/api/v1/universal_asset/<chain>/<address>` | Universal Asset Identifier |
+
+### Security & Immune System
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/immune/<entity_id>` | All 8 Living Security components + SEC(t) |
+| GET | `/api/v1/chameleon/<entity_id>` | Chameleon anti-fingerprinting |
+| GET | `/api/v1/security/<id>/mf` | Manipulation fingerprint (6 patterns) |
+| GET | `/api/v1/security/<id>/genomic` | Public genomic key sense/antisense |
+
+### Intelligence & Planes
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/planes/<id>/all` | All 5 plane scores |
+| GET | `/api/v1/planes/<id>/physical\|mental\|spiritual\|conscious\|anima` | Per-plane breakdown |
+| GET | `/api/v1/living_index/<entity_id>` | Grand Unified Living Index (APEX/PRIME/ACTIVE) |
+| GET | `/api/v1/emergence/<entity_id>` | Emergence verification |
+| GET | `/api/v1/manifestation_gap/<entity_id>` | Manifestation Gap monitor |
+
+### DeFi Intelligence
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/liquidity/<asset>` | Natural Liquidity score NL = LD·LO·LC·LS |
+| GET | `/api/v1/audit/<address>` | Contract audit: risk score + 20 vulnerabilities |
+| GET | `/api/v1/invest/<entity_id>` | Investment signal engine |
+| GET | `/api/v1/reputation/leaderboard` | Behavioral reputation leaderboard |
+| GET | `/api/v1/thermodynamics/<entity_id>` | Thermodynamic phase (SOLID/LIQUID/GAS/PLASMA) |
+| GET | `/api/v1/lifecycle/<entity_id>` | Entity lifecycle stage |
+| GET | `/api/v1/agent/validate` | AI agent safety (5-gate pipeline) |
+
+### Governance
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/governance/awa` | AWA state machine |
+| GET | `/api/v1/governance/falsifiability` | All 15 falsifiability conditions |
+| GET | `/api/v1/governance/gratitude` | Gratitude Protocol decay |
+| GET | `/api/v1/sba/<nation_id>` | Sovereign Behavioral Assessment |
+| GET | `/api/v1/bootstrap/status` | Bootstrap decay curve |
+| GET | `/api/v1/phases` | 10-Phase Roadmap status |
+| GET | `/api/v1/token/distribution` | TRION token genesis plan |
+
+### 0G Integration
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/zg/integration` | All 4 modules combined |
+| GET | `/api/v1/zg/chain/status` | Live 0G chain stats |
+| GET | `/api/v1/zg/storage/root` | BEO Merkle root from chain |
+| POST | `/api/v1/zg/da/submit` | Submit DA blob (Reed-Solomon commitment) |
+| POST | `/api/v1/zg/compute/infer` | Route inference via 0G Compute (TEE) |
+
+### Meta
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/whitepaper/coverage` | 84 formulas, 100% LIVE |
+| GET | `/api/v1/sdk/spec` | Full SDK specification |
+| GET | `/api/v1/genesis/<asset>` | Genesis Inference signal |
+| GET | `/api/v1/predictive_limit` | Predictive Completeness Limit |
+
+---
+
+## Chain Coverage — 37 Chains
+
+### EVM Mainnet (14 chains via trion-evm)
+ETH_MAINNET (1) · ARB_MAINNET (42161) · BASE_MAINNET (8453) · OP_MAINNET (10) · BNB_MAINNET (56) · POLYGON (137) · AVALANCHE (43114) · HASHKEY (177) · MANTLE (5000) · LINEA (59144) · SCROLL (534352) · ZG_MAINNET · CELO · GNOSIS
+
+### EVM Testnet (5 chains)
+ARB_SEPOLIA · ETH_SEPOLIA · BASE_SEPOLIA · OP_SEPOLIA · HASHKEY_SEPOLIA
+
+### Solana (1)
+SOLANA_MAINNET (via trion-svm)
+
+### Native VM (4 via Rust)
+NEAR_MAINNET · TON_MAINNET · STARKNET_MAINNET · POLKADOT_PVM (Westend)
+
+### Extended VM (13 via Rust)
+BITCOIN_MAINNET · COSMOS_HUB · KAVA · INJECTIVE · SEI · DYDX · INITIA · APTOS_MAINNET · SUI_MAINNET · TRON_MAINNET · PI_MVM · MOVEMENT_MAINNET · 0G_MAINNET
+
+---
+
+## Rust L0 Crate Architecture
+
+All 13 crates implement the same canonical per-tx BH pipeline (whitepaper L0.1):
+
+```
+classify_event()        → EventType byte (20 types: SWAP=1, BORROW=3, FLASH_LOAN=15, MEV_CAPTURE=17…)
+magnitude_norm()        → log₁₀ formula with AtomicU64 running max
+build_bh_batch()        → per-tx canonical 93-byte BH construction
+canonical_bh()          → entity(32)||event(1)||mag(8)||ctx(8)||ts(8)||chain(4)||block_hash(32)
+sense / antisense       → SHA3-256(payload||0x00) / SHA3-256(payload||0xFF)⊕NOT(sense)
+faiss.add_tx_bh_batch() → POST per-tx BHs to FAISS ledger
+```
+
+| Crate | Chains | VM Type |
+|-------|--------|---------|
+| trion-common | shared | Library: hash_dna, faiss client, living_security, entropy |
+| trion-evm | 14 EVM mainnet | EVM (ethers-rs) |
+| trion-svm | Solana | SVM (solana-client) |
+| trion-near | NEAR | WebAssembly VM |
+| trion-ton | TON | TVM |
+| trion-starknet | StarkNet | Cairo VM |
+| trion-pvm | Polkadot | Substrate |
+| trion-cosmos | Cosmos, Kava, Injective, SEI, dYdX, Initia | Cosmos SDK |
+| trion-aptos | Aptos | Move VM |
+| trion-movement | Movement | Move VM |
+| trion-sui | SUI | Move VM |
+| trion-tron | TRON | TVM (EVM-like) |
+| trion-utxo | Bitcoin | UTXO |
+| trion-pi | Pi Network | Pi VM |
+
+---
+
+## FAISS ANIMA Intelligence Engine
+
+- **Index**: 128-dimensional behavioral feature vectors
+- **Live vectors**: 11,000–15,000+ (grows continuously as chains produce blocks)
+- **BH ledger**: SQLite `bh_ledger.db` — per-tx canonical BHs with sense/antisense verification
+- **Archetypes**: 64 trained (IndexIVFPQ promoted after training)
+- **Port**: 8000 (FastAPI, 122+ endpoints)
+- **Phase 2 learning**: Φ weight adaptation active (depth 14,000+ vectors)
+- **BH ledger stats**: Chains tracked per-event-type, verifies complementary strand invariant per batch
+
+---
+
+## Living Security System (8 DNA-Mimetic Components)
+
+`SEC(t) = LSS(t) · PQC(t) · CC(t)`
+
+| Component | Mechanism |
+|-----------|-----------|
+| GK Evolution | `GK(t) = Hash_DNA(GK(t-1)\|\|BE(t)\|\|TM(t)\|\|CV(t))` — stolen snapshot instantly outdated |
+| Complementary Strand | XOR invariant — cryptographically tamper-evident |
+| Immune System | INNATE + ADAPTIVE + MEMORY — permanent memory, never decays |
+| Epigenetic Layer | 4 states: NORMAL / ELEVATED / DEFENSIVE / LOCKDOWN |
+| Genetic Recombination | All security params re-derived from behavioral history every 24h |
+| Cryptographic Noise | Decoy sequences — the noise pattern itself is authentication |
+| Mitochondrial Core | Independent protocol integrity DNA, 2nd auth layer |
+| CRISPR Defense | 8 known DeFi attack signatures: Harvest, Beanstalk, Mango, Jimbos, Euler, Curve, Ronin, Wormhole |
+
+**Post-quantum layer**: CRYSTALS-Kyber + CRYSTALS-Dilithium + SPHINCS+
+**Classical layer**: SHA-3-256 + AES-256 + Zero-knowledge proofs
+**P(break LSS)**: Monotonically decreasing (proved via Kolmogorov complexity bound)
+
+---
+
+## Behavioral True Value Engine (L0.7)
+
+**Formula**: `BTV = P_ref × Ω × (1 − MF_discount) × C_weight × NL_weight`
+
+- `P_ref` — CEX reference price (Chainlink/Pyth baseline)
+- `Ω = tanh(chains/10) × D_eff` — 37-chain behavioral consensus weight
+- `MF_discount = 2.5% + MF_score × 35%` — manipulation fingerprint stripped out
+- `C_weight = 0.95 + 0.07 × C(t)` — five-plane coherence weighting
+- `NL_weight = 0.95 + 0.07 × NL` — natural liquidity health
+
+**Live manipulation discounts** (May 19, 2026): ETH −20.3% · BTC −16.4% · SOL −23.1% · ARB −19.6%
+
+**Performance**: concurrent `ThreadPoolExecutor` + shared BH stats cache → 29s → **5.3s** for full hierarchy
+
+---
+
+## Diversity-Weighted BFT (L4.1/L4.2/L4.3)
+
+The key insight: Byzantine validators who coordinate to attack consensus simultaneously make their `d_j → 0`, eliminating their own effective voting weight. Coordination is **structurally self-defeating**.
+
+```
+d_j = 1 − corr(M_j, M̄)                         # L4.1: diversity weight
+Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]  # L4.2: consensus score
+Safety: Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ    # L4.3: BFT condition
+lim_{coordination→1} Σ_{Byzantine} sⱼ·dⱼ = 0   # L4.3 proof: QED
+```
+
+Live: σ = 0.90, HHI = 1183 [HEALTHY], coordination attack simulation included in response.
+
+---
+
+## Homomorphic Behavioral Mapping + Adaptive Layer
+
+**Problem**: A Bitcoin UTXO coin-days-destroyed metric and an EVM token velocity metric cannot be directly compared without a formal translation preserving behavioral meaning.
+
+**Solution**: `H: Dₐ → U` such that `rel(e₁,e₂) in A ≅ rel(H(e₁),H(e₂)) in U`
+
+**Adaptive Layer**:
+```
+t_canonical(e) = t_observed(e) + Δf(A)      # temporal alignment (finality delta)
+f_normalized   = (f_raw(e) − μ_A(t)) / σ_A  # magnitude normalization (z-score)
+w_A(t)         = 1 − e^(−λ_A · T_A(t))      # maturity weight (converges to 1)
+```
+
+**Universal Feature Space** (9-dim): velocity · holder_distribution · liquidity_depth · accumulation_index · mev_risk · cross_chain_flow · conviction_velocity · governance_activity · ecosystem_engagement
+
+Architecture-specific mappers: EVM (native reference) · BTC (UTXO/CDD/HODL waves) · SOL (Jito bundles/SPL) · Cosmos (IBC packet flows/governance) · Generic (NEAR/TON/SUI/TRON/APTOS/STK/PVM/PI)
+
+---
 
 ## On-Chain Deployments
 
-### 0G Galileo Testnet (Chain ID 16602) — PRIMARY
+### 0G Galileo Testnet (Chain ID 16602) — Primary
 | Contract | Address |
 |----------|---------|
 | TRIONOracleV3 | `0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C` |
@@ -315,113 +445,143 @@ The central thesis: current oracles (Chainlink, Pyth, Band) aggregate CEX prices
 | TRIONExecutionGate | `0xDB5910Dc6CfD219D00F64be1F23DA0289901356d` |
 | Explorer | https://chainscan-galileo.0g.ai |
 
-### EVM Chains (Publishing Live Signals)
-- Arb Sepolia: 0.25 ETH — relayer active
-- Eth Sepolia: 0.48 ETH — relayer active
-- Base Sepolia: 0.24 ETH — relayer active
-- Op Sepolia: 0.09 ETH — relayer active
-- HashKey Sepolia: relayer active
+### EVM Testnets (active relayer)
+- Arb Sepolia · Eth Sepolia · Base Sepolia · Op Sepolia · HashKey Sepolia
 
 ### Native VMs
-| VM | Status | Key |
-|----|--------|-----|
-| NEAR (trion.testnet) | ✅ DEPLOYED: 304,895-byte WASM (TX: 9rxW1azrR3eJYS3mXuJiSt2tUePR9BuotYv7bghXK5S6) | 4000 NEAR |
-| TON (0QC6cvA8w...) | BOC compiled, wallet funded 5.999 TON | RPC rate limit |
-| SVM (Solana devnet) | 5 txns/cycle via execute.ts | |
-| StarkNet Sepolia | Cairo contracts compiled (3 contracts), unfunded | |
-
-### Extended VMs
 | VM | Status |
 |----|--------|
-| SUI devnet | ✅ 5/5 real txns executed: 2CuTzV9..., BXqXgBH..., BETL..., Coq78..., 6dW8... |
-| Aptos devnet | Address: 0x7d45211... — faucet TX: 6ecd2db4... |
-| Cosmos Hub | Indexing + relaying live |
-| TRON | Indexing live |
-| Movement | Indexing + relaying |
+| NEAR (trion.testnet) | DEPLOYED — 304,895-byte WASM (TX: 9rxW1azrR3eJYS3mXuJiSt2tUePR9BuotYv7bghXK5S6) |
+| TON | BOC compiled, wallet funded 5.999 TON |
+| SVM (Solana devnet) | 5 txns/cycle via execute.ts |
+| SUI devnet | 5/5 real txns executed |
+| Aptos devnet | Address 0x7d45211… funded via faucet |
+| StarkNet Sepolia | Cairo contracts compiled (3), awaiting ETH |
 
-## Replit Setup
+---
 
-- **Entry point**: `serve.py` → `oracle_api/app.py` (Flask, port 5000)
-- **Deployment entry**: `main.py` → `oracle_api/app.py` (gunicorn-compatible)
-- **Python packages**: installed to `.pythonlibs/` via Replit package manager
-- **Node.js ESM relayers**: Extended Chain Relayer uses `cd relayer && node extended_chain_relayer.js`
-- **Rust L0 binaries**: 13 compiled binaries in `rust-indexers/target/debug/`
+## 0G Full-Stack Integration (4 Modules)
+
+| Module | Implementation | Status |
+|--------|---------------|--------|
+| 0G Chain | Live stats from all 5 Galileo contracts | Active |
+| 0G Storage | Merkle-256 root, `@0glabs/0g-ts-sdk` MemData+Indexer | Active |
+| 0G DA | Reed-Solomon 2× erasure: `SHA256(namespace\|\|blob_sha256\|\|erasure_sha256)` | Active (local proof fallback) |
+| 0G Compute | TEE-verified ANIMA inference, `createZGComputeNetworkBroker` | Active |
+
+---
+
+## Workflows (8 active)
+
+| Workflow | Command | Purpose |
+|----------|---------|---------|
+| Start application | `PORT=5000 uv run python3 serve.py` | Flask Oracle API + dashboard |
+| FAISS ANIMA | `uv run python3 akashic/faiss_service.py` | FAISS intelligence engine |
+| Rust Indexers | `bash supervisors/rust_indexers.sh` | trion-evm (14 chains) + trion-svm |
+| Native VM Indexers | `bash supervisors/native_vm_indexers.sh` | trion-near, trion-ton, trion-pvm, trion-starknet |
+| Extended VM Indexers | `bash supervisors/extended_vm_indexers.sh` | trion-utxo, trion-cosmos, trion-aptos, trion-movement, trion-sui, trion-tron, trion-pi |
+| Native VM Relayer | `node native-relayer/native_relayer.js` | chains/*/execute.ts signing dispatcher |
+| Extended Chain Relayer | `node relayer/extended_chain_relayer.js` | 15 non-EVM chains, 90s interval |
+| TRION Relayer | `bash supervisors/trion_and_zg_relayer.sh` | EVM relayer + 0G ExecutionGate, 60s interval |
+
+---
 
 ## Repository Structure
 
 ```
 /
-├── rust-indexers/          L0 behavioral indexers — 13 Rust crates (trion-common + 12 chains)
-├── oracle_api/             Flask Oracle API (Python, port 5000)
-├── akashic/                FAISS ANIMA intelligence engine (Python FastAPI, port 8000)
-├── src/                    Python behavioral engine — 55 whitepaper modules
-│   └── price/              BTV engine — behavioral_price_engine.py (L0.7)
-├── chains/                 VM execution & signing scripts (execute.ts per VM)
-│   ├── near/               NEAR Testnet — execute.ts, deploy_wasm.cjs, contract/
-│   ├── ton/                TON Testnet  — execute.ts, contracts/
-│   ├── svm/                Solana Devnet — execute.ts, svm_indexer.py
-│   ├── pvm/                Polkadot Westend — execute.ts, contracts/
-│   ├── starknet/           StarkNet Sepolia — execute.ts, Cairo src/, Scarb.toml
-│   └── sui/                SUI Devnet — execute.ts
-├── relayer/                EVM multi-chain relayer (Node.js, 10 EVM chains)
-├── native-relayer/         Native VM signing dispatcher (Node.js → chains/*/execute.ts)
-├── contracts/              Solidity contracts (TRIONOracleV3, ExecutionGate, etc.)
-├── trion-0g/               0G full-stack integration (Chain/Storage/DA/Compute)
-├── sdk/                    TypeScript client SDK
-├── scripts/                Deployment & utility scripts (0G storage, ZG mainnet)
-├── supervisors/            Process supervisor shell scripts (4 scripts, pure Rust)
-├── tests/                  Test suite — 328 passing, 24 skipped
-├── proof-ledger/           On-chain deployment records (JSON per chain)
-├── config/                 config.yaml
-├── docs/                   API docs, architecture docs, research artifacts
-│   └── research/           formal/proofs.hs, hardware/signal_processor.cpp,
+├── oracle_api/             Flask Oracle API (139 routes, ~9000 lines)
+│   ├── app.py              Main Flask application
+│   ├── price_feed_routes.py BTV engine endpoints (L0.7/L0.8)
+│   ├── templates/          dashboard.html, explorer.html, judge.html
+│   └── static/             CSS, favicon
+├── akashic/                FAISS ANIMA (FastAPI, port 8000)
+│   └── faiss_service.py    122+ endpoints, bh_ledger SQLite
+├── rust-indexers/          L0 Rust workspace (13 crates)
+│   └── crates/             trion-common, trion-evm, trion-svm … trion-pi
+├── src/                    Python behavioral engine
+│   ├── core/               behavioral_hash.py, coherence_engine.py, homomorphic_mapping.py
+│   ├── consensus/          diversity_weighted_bft.py
+│   ├── price/              behavioral_price_engine.py (BTV/L0.7)
+│   ├── security/           living_security.py (8-component LSS)
+│   ├── planes/             physical/, extended/ (all 5 planes)
+│   ├── governance/         sba_engine.py, falsifiability_registry.py, awa_state.py
+│   └── signals/            signal_factory.py (34-field TRIONSignal)
+├── chains/                 VM execution & signing (execute.ts per VM)
+│   ├── near/, ton/, svm/, pvm/, starknet/, sui/
+├── relayer/                EVM multi-chain relayer (Node.js, ethers@6)
+├── native-relayer/         Native VM dispatcher
+├── trion-0g/               0G full-stack integration (4 modules)
+├── sdk/                    trion_sdk.py (Python SDK v1.0)
+├── hardhat/                15-network Hardhat config + deployment scripts
+├── contracts/              Solidity (TRIONOracleV3, ExecutionGate, etc.)
+├── supervisors/            Process supervisor shell scripts
+├── tests/                  328 passing, 24 skipped
+├── docs/research/          formal/proofs.hs, hardware/signal_processor.cpp,
 │                           math/trion_math.jl, validator/validator_network.go
-└── shared/                 chain-registry-complete.ts (all 31 chains)
+├── proof-ledger/           On-chain deployment records (JSON per chain)
+└── config/                 config.yaml
 ```
 
-## Workflows (10 configured, 9 active)
+---
 
-1. **Start application** — Flask Oracle API + Frontend on port 5000
-2. **FAISS ANIMA** — Python FastAPI FAISS engine on port 8000
-3. **Rust Indexers** — `trion-evm` (9 EVM chains) + `trion-svm` (Solana)
-4. **EVM Extras Indexer** — Health monitor / Rust binary check for EVM extras
-5. **SVM Solana Indexer** — Python indexer `chains/svm/svm_indexer.py`
-6. **Native VM Indexers** — Rust: `trion-near`, `trion-ton`, `trion-pvm`, `trion-starknet`
-7. **Extended VM Indexers** — Rust: `trion-utxo`, `trion-cosmos`, `trion-aptos`, `trion-movement`, `trion-sui`, `trion-tron`, `trion-pi`
-8. **Native VM Relayer** — Node.js dispatcher → `chains/*/execute.ts` for on-chain signing
-9. **Extended Chain Relayer** — Node.js, 15 non-EVM chains every 90s
-10. **TRION Relayer** — EVM multi-chain + 0G ExecutionGate, every 60s
+## Language Compliance (Whitepaper Part 11 — All 7 Languages)
 
-### Important: TRION Relayer supervisor
+| Language | Role | Key Files |
+|----------|------|-----------|
+| **Rust** | L0 core indexers, canonical BH, living security | `rust-indexers/crates/` |
+| **Python** | Oracle API, FAISS AI engine, behavioral engine | `oracle_api/`, `akashic/`, `src/` |
+| **TypeScript** | SDK, VM execution scripts, relayer | `sdk/`, `chains/*/execute.ts`, `relayer/` |
+| **Haskell** | Formal proofs (coherence, BFT safety) | `docs/research/formal/proofs.hs` |
+| **C++** | Signal processing hardware layer | `docs/research/hardware/signal_processor.cpp` |
+| **Go** | Network health monitor (concurrent, all 37 chains) | `network/health_monitor.go` |
+| **Julia** | Mathematical validation (entropy, norms, bootstrap, Kolmogorov) | `math/trion_entropy_verification.jl` |
 
-`supervisors/trion_and_zg_relayer.sh` runs only the two Node.js relayers — it does **not** start Flask. Flask is started exclusively by the "Start application" workflow.
+---
 
-## Test Results
-- **328 passing, 24 skipped** as of May 10, 2026
-- Run: `python3 -m pytest tests/ -q`
-- Live run: `LIVE=1 ORACLE_URL=http://127.0.0.1:5000 python3 -m pytest tests/ -v`
-- 24 skips are by design: require `LIVE=1` env var (live RPC/chain tests)
+## Test Suite
 
-## Key Scripts
-- `scripts/upload_faiss_0g.mjs` — Upload FAISS index to 0G Storage (requires OG tokens)
-- `scripts/deploy_execution_gate_0g.mjs` — Deploy TRIONExecutionGate to 0G Galileo
-- `scripts/zg_storage_sync.mjs` — Sync BEO root to 0G Storage
-- `chains/near/deploy_wasm.cjs` — Deploy NEAR WASM contract via Borsh signing
-- `chains/sui/execute.ts` — SUI devnet transaction executor (5 real txns + FAISS)
-- `chains/starknet/` — Cairo contracts compiled (3 contracts, awaiting ETH for deploy)
+```bash
+python3 -m pytest tests/ -q                          # 328 passing, 24 skipped
+LIVE=1 ORACLE_URL=http://127.0.0.1:5000 python3 -m pytest tests/ -v  # includes live chain tests
+```
 
-## FAISS Index
-- **Live vectors**: 5,000–15,000+ indexed behavioral vectors (fresh per session, grows continuously)
-- **Archetypes**: 64 trained (IndexIVFPQ promoted after training; IndexFlatL2 at session start)
-- **Entities tracked**: 1,000+ within first hour
-- **Dimensions**: 128
-- **Chains**: 27 networks feeding data (8 active indexers)
-- **Port**: 8000 (FastAPI)
-- **Routes**: 122+ endpoints
-- **Centroid path fix**: `_resolve_path()` in `faiss_service.py` finds `trion_archetype_centroids.npy` in both root and `akashic/`
+**Stress test highlights** (`tests/test_stress.py`, 17/17 passing):
+- BH performance: **0.023ms avg** (target <10ms — 434× faster than spec)
+- 1000 BH XOR invariant verifications, 10,000 collision check, 500 tamper detections
+- 100 concurrent threads × 100 BHs — zero corruption
+- All 8 CRISPR attack signatures detected in <10ms
+- Φ(healthy entity) = 0.89 > 0.70 threshold; Φ(manipulated entity) = 0.07 < 0.30 threshold
 
-## Docker
-| File | Purpose | Port |
-|------|---------|------|
-| `Dockerfile` | Minimal local dev (Oracle API + FAISS only) | 5000, 8000 |
-| `Dockerfile.render` | Full production (all 9 services + L0 Rust, multi-stage) | 10000, 8000 |
+---
+
+## Running Locally
+
+```bash
+# Start Oracle API (port 5000)
+PORT=5000 uv run python3 serve.py
+
+# Start FAISS ANIMA (port 8000)
+PORT=8000 uv run python3 akashic/faiss_service.py
+
+# Start Rust indexers
+FAISS_SERVICE_URL=http://127.0.0.1:8000 bash supervisors/rust_indexers.sh
+
+# Run tests
+python3 -m pytest tests/ -q
+```
+
+**Entry points**:
+- Dev: `serve.py` → `oracle_api/app.py`
+- Production: `main.py` → `oracle_api/app.py` (gunicorn-compatible)
+
+---
+
+## User Preferences
+
+- All formulas must match whitepaper exactly — no approximations
+- Every endpoint must return live computed values, not stubs
+- Rust is the L0 language; Python handles L1–L10 oracle logic
+- TypeScript/Node.js handles chain signing and relaying only
+- Test suite must stay green (328 passing) after every change
+- `replit.md` is the authoritative reference document — keep it current
