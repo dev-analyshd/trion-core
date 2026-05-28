@@ -82,9 +82,24 @@ def book():
     return render_template("book.html")
 
 
+@app.route("/book/print")
+def book_print():
+    return render_template("book_print.html")
+
+
 @app.route("/pitch")
 def pitch():
     return render_template("pitch.html")
+
+
+@app.route("/pitch/print")
+def pitch_print():
+    return render_template("pitch_print.html")
+
+
+@app.route("/download")
+def download():
+    return render_template("download.html")
 
 
 @app.route("/api/v1/zg")
