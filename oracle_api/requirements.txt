@@ -1,3 +1,16 @@
 flask==3.1.0
 gunicorn==23.0.0
 web3==7.15.0
+requests>=2.33.0
+numpy>=2.4.3
+scipy>=1.15.0
+scikit-learn>=1.8.0
+httpx>=0.28.1
+psycopg2-binary>=2.9.11
+apscheduler>=3.11.2
+vaderSentiment>=3.3.2
+feedparser>=6.0.12
+langdetect>=1.0.9
+stellar-sdk>=13.2.1
+tronpy>=0.6.2
+cosmpy>=0.11.2

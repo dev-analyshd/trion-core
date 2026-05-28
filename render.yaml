@@ -11,6 +11,11 @@ services:
     healthCheckPath: /api/v1/health
     autoDeploy: true
 
+    disk:
+      name: trion-data
+      mountPath: /data
+      sizeGB: 10
+
     envVars:
 
       # ── Internal ports & routing ───────────────────────────────────────────
@@ -27,12 +32,20 @@ services:
       - key: ORACLE_PUBLIC_DIR
         value: "/app/akashic-oracle/public"
 
+      # ── Persistent data paths (Render disk at /data) ───────────────────────
+      - key: FAISS_INDEX_PATH
+        value: "/data/akashic_faiss.index"
+      - key: FAISS_CENTROIDS_PATH
+        value: "/data/trion_archetype_centroids.npy"
+      - key: FAISS_STATE_DB
+        value: "/data/akashic_state.db"
+      - key: BH_LEDGER_DB
+        value: "/data/bh_ledger.db"
+
       # ── Service enable toggles (set to "0" to disable a subsystem) ─────────
       - key: TRION_ENABLE_FAISS
         value: "1"
-      - key: TRION_ENABLE_L0
-        value: "1"
-      - key: TRION_ENABLE_SVM
+      - key: TRION_ENABLE_RUST
         value: "1"
       - key: TRION_ENABLE_EXTRAS
         value: "1"
@@ -42,7 +55,13 @@ services:
         value: "1"
       - key: TRION_ENABLE_RELAYER
         value: "1"
+      - key: TRION_ENABLE_NATIVE_RELAYER
+        value: "1"
       - key: TRION_ENABLE_EXT_RELAYER
+        value: "1"
+      - key: TRION_ENABLE_ZG_SYNC
+        value: "1"
+      - key: TRION_ENABLE_ZG_DA
         value: "1"
 
       # ── Database (auto-populated by Render when trion-db is attached) ───────
