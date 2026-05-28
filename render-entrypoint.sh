@@ -34,6 +34,34 @@ export RUST_BIN_DIR="${RUST_BIN_DIR:-/app/bin}"
 
 log() { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
 
+# ── Persistent data directory (Render disk mounted at /data) ─────────────────
+# All FAISS index, centroids, and SQLite databases live here so they survive
+# container restarts and redeployments. On first boot (empty /data), any
+# pre-seeded files baked into the image are copied across.
+DATA_DIR="${DATA_DIR:-/data}"
+mkdir -p "${DATA_DIR}"
+
+export FAISS_INDEX_PATH="${FAISS_INDEX_PATH:-${DATA_DIR}/akashic_faiss.index}"
+export FAISS_CENTROIDS_PATH="${FAISS_CENTROIDS_PATH:-${DATA_DIR}/trion_archetype_centroids.npy}"
+export FAISS_STATE_DB="${FAISS_STATE_DB:-${DATA_DIR}/akashic_state.db}"
+export BH_LEDGER_DB="${BH_LEDGER_DB:-${DATA_DIR}/bh_ledger.db}"
+
+# Seed /data from baked-in image files on first boot (only if target absent)
+for _seed_src in \
+    "/app/akashic_faiss.index:${FAISS_INDEX_PATH}" \
+    "/app/trion_archetype_centroids.npy:${FAISS_CENTROIDS_PATH}" \
+    "/app/akashic_state.db:${FAISS_STATE_DB}" \
+    "/app/bh_ledger.db:${BH_LEDGER_DB}" \
+    "/app/akashic/akashic_faiss.index:${FAISS_INDEX_PATH}" \
+    "/app/akashic/akashic_state.db:${FAISS_STATE_DB}"; do
+    _src="${_seed_src%%:*}"
+    _dst="${_seed_src##*:}"
+    if [[ -f "$_src" && ! -f "$_dst" ]]; then
+        cp "$_src" "$_dst"
+        log "seeded ${_dst} from ${_src} ($(du -sh "$_dst" | cut -f1))"
+    fi
+done
+
 # ── Restart wrapper (exponential backoff 5s → 120s) ──────────────────────────
 spawn() {
     local label="$1"; shift

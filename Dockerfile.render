@@ -60,13 +60,14 @@ RUN cd native-relayer && npm install --omit=dev --legacy-peer-deps --silent
 COPY trion-0g/package.json trion-0g/package-lock.json ./trion-0g/
 RUN cd trion-0g && npm install --omit=dev --legacy-peer-deps --silent
 
-# Native chain packages (NEAR, PVM, StarkNet, SUI, TON)
+# Native chain packages (NEAR, PVM, StarkNet, SUI, SVM, TON)
 COPY chains/near/package.json      chains/near/package-lock.json      ./chains/near/
 COPY chains/pvm/package.json       chains/pvm/package-lock.json       ./chains/pvm/
 COPY chains/starknet/package.json  chains/starknet/package-lock.json  ./chains/starknet/
 COPY chains/sui/package.json       chains/sui/package-lock.json       ./chains/sui/
+COPY chains/svm/package.json       chains/svm/package-lock.json       ./chains/svm/
 COPY chains/ton/package.json       chains/ton/package-lock.json       ./chains/ton/
-RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/ton; do \
+RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains/ton; do \
         cd /build/$d && npm install --omit=dev --legacy-peer-deps --silent && cd /build; \
     done
 
@@ -105,6 +106,7 @@ COPY --from=node-builder /build/chains/near/node_modules      /app/chains/near/n
 COPY --from=node-builder /build/chains/pvm/node_modules       /app/chains/pvm/node_modules
 COPY --from=node-builder /build/chains/starknet/node_modules  /app/chains/starknet/node_modules
 COPY --from=node-builder /build/chains/sui/node_modules       /app/chains/sui/node_modules
+COPY --from=node-builder /build/chains/svm/node_modules       /app/chains/svm/node_modules
 COPY --from=node-builder /build/chains/ton/node_modules       /app/chains/ton/node_modules
 
 WORKDIR /app
