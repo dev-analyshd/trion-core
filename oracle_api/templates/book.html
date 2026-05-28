@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRION Protocol — The Complete Book</title>
+<style>
+  :root {
+    --bg: #050810;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --accent: #00ff88;
+    --accent2: #00ccff;
+    --accent3: #ff6b35;
+    --accent4: #9b59b6;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --gold: #ffd700;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    line-height: 1.8;
+  }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(0,255,136,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(0,204,255,0.05) 0%, transparent 50%);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300ff88' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .hero-eyebrow {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .hero h1 {
+    font-size: clamp(48px, 8vw, 96px);
+    font-weight: 700;
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero-sub {
+    font-size: clamp(16px, 2.5vw, 22px);
+    color: var(--muted);
+    max-width: 700px;
+    margin: 0 auto 40px;
+    font-style: italic;
+    position: relative;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  .hero-meta-item { text-align: center; }
+  .hero-meta-item .num {
+    font-size: 36px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--accent);
+    display: block;
+  }
+  .hero-meta-item .label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* NAVIGATION */
+  .toc {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .toc-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+  .toc a {
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  .book-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* CHAPTERS */
+  .chapter {
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+  }
+  .chapter-number {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .chapter h2 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 32px;
+  }
+  .chapter h3 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 48px 0 16px;
+    color: var(--accent2);
+  }
+  .chapter h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+  }
+  .chapter p {
+    margin-bottom: 20px;
+    color: #c9d1d9;
+    font-size: 17px;
+  }
+  .chapter p strong { color: var(--text); font-weight: 600; }
+  .chapter p em { color: var(--accent); font-style: italic; }
+
+  /* PULL QUOTES */
+  .pull-quote {
+    border-left: 4px solid var(--accent);
+    padding: 20px 28px;
+    margin: 40px 0;
+    background: rgba(0,255,136,0.04);
+    border-radius: 0 8px 8px 0;
+  }
+  .pull-quote p {
+    font-size: 22px;
+    font-style: italic;
+    color: var(--text);
+    margin: 0;
+    line-height: 1.6;
+  }
+  .pull-quote cite {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--accent);
+    font-style: normal;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+  }
+
+  /* FORMULA BOXES */
+  .formula {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent4);
+    padding: 20px 24px;
+    margin: 28px 0;
+    border-radius: 0 8px 8px 0;
+    font-family: 'Courier New', monospace;
+  }
+  .formula .label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent4);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .formula .eq {
+    font-size: 18px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .formula .desc {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'Georgia', serif;
+  }
+
+  /* GRID CARDS */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card .card-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .card .card-body {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    font-family: 'Georgia', serif;
+  }
+
+  /* PLANE ROWS */
+  .plane-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .plane-symbol {
+    font-size: 36px;
+    width: 56px;
+    flex-shrink: 0;
+    text-align: center;
+    padding-top: 4px;
+  }
+  .plane-content h4 { margin: 0 0 8px; color: var(--gold); font-size: 16px; text-transform: uppercase; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+  .plane-content p { font-size: 15px; color: #c9d1d9; margin: 0; }
+
+  /* TABLE */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-size: 14px;
+  }
+  .data-table th {
+    background: var(--surface2);
+    padding: 12px 16px;
+    text-align: left;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--accent);
+  }
+  .data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: #c9d1d9;
+  }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .data-table td code {
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--accent2);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+  }
+  .badge-green { background: rgba(0,255,136,0.15); color: var(--accent); }
+  .badge-blue { background: rgba(0,204,255,0.15); color: var(--accent2); }
+  .badge-orange { background: rgba(255,107,53,0.15); color: var(--accent3); }
+  .badge-red { background: rgba(255,80,80,0.15); color: #ff5555; }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+    overflow-x: auto;
+  }
+  .code-block pre {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #e6edf3;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .code-block .comment { color: #6e7681; }
+  .code-block .keyword { color: #ff7b72; }
+  .code-block .string { color: #a5d6ff; }
+  .code-block .number { color: #79c0ff; }
+  .code-block .fn { color: var(--accent); }
+
+  /* ATTACK TABLE */
+  .attack-row td:first-child { color: var(--accent3); font-weight: 600; font-family: 'Courier New', monospace; }
+
+  /* STAT BLOCKS */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .stat-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-block .stat-num {
+    font-size: 40px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--accent);
+    display: block;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-block .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* TIMELINE */
+  .timeline { margin: 32px 0; }
+  .timeline-item {
+    display: flex;
+    gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    margin-top: 6px;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .timeline-content h4 { color: var(--gold); margin-bottom: 6px; font-family: 'Courier New', monospace; font-size: 14px; letter-spacing: 1px; }
+  .timeline-content p { font-size: 14px; color: var(--muted); margin: 0; }
+
+  /* REVENUE TABLE */
+  .revenue-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .revenue-item .rev-name { font-size: 15px; color: var(--text); }
+  .revenue-item .rev-val { font-family: 'Courier New', monospace; font-size: 13px; color: var(--accent); }
+
+  /* FOUNDER SECTION */
+  .founder-box {
+    background: linear-gradient(135deg, rgba(0,255,136,0.05) 0%, rgba(0,204,255,0.05) 100%);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 16px;
+    padding: 40px;
+    margin: 40px 0;
+    text-align: center;
+  }
+  .founder-box h3 { font-size: 28px; margin-bottom: 8px; color: var(--text); }
+  .founder-box .founder-title { color: var(--accent); font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 2px; margin-bottom: 20px; }
+  .founder-box p { font-size: 16px; color: #c9d1d9; max-width: 600px; margin: 0 auto 16px; }
+
+  /* FOOTER */
+  .book-footer {
+    padding: 60px 20px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .book-footer a { color: var(--accent); text-decoration: none; }
+  .book-footer .cc0 {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  /* PRINT */
+  @media print {
+    .toc { display: none; }
+    .hero { min-height: auto; }
+  }
+  @media (max-width: 600px) {
+    .hero-meta { gap: 20px; }
+    .plane-row { flex-direction: column; gap: 8px; }
+    .plane-symbol { width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-eyebrow">The Complete Reference · v1.0 · 2026</span>
+  <h1>TRION<span>.</span></h1>
+  <p class="hero-sub">The Behavioral Truth Oracle — A complete account of what was built, why it matters, and what it will become.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item"><span class="num">37</span><span class="label">Chains Indexed</span></div>
+    <div class="hero-meta-item"><span class="num">84</span><span class="label">Live Formulas</span></div>
+    <div class="hero-meta-item"><span class="num">13</span><span class="label">VM Families</span></div>
+    <div class="hero-meta-item"><span class="num">139</span><span class="label">API Endpoints</span></div>
+    <div class="hero-meta-item"><span class="num">L0</span><span class="label">Truth Layer</span></div>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#ch1">I. The Problem</a>
+    <a href="#ch2">II. The Thesis</a>
+    <a href="#ch3">III. The Architecture</a>
+    <a href="#ch4">IV. Five Planes</a>
+    <a href="#ch5">V. Behavioral Hash</a>
+    <a href="#ch6">VI. Security System</a>
+    <a href="#ch7">VII. 0G Integration</a>
+    <a href="#ch8">VIII. Proof of Work</a>
+    <a href="#ch9">IX. Revenue</a>
+    <a href="#ch10">X. Founder</a>
+    <a href="#ch11">XI. Vision</a>
+  </div>
+</nav>
+
+<div class="book-content">
+
+<!-- CHAPTER 1 -->
+<section class="chapter" id="ch1">
+  <span class="chapter-number">Chapter I</span>
+  <h2>The Problem With Truth in Decentralized Finance</h2>
+
+  <p>On March 13, 2023, Euler Finance was drained of $197 million in minutes. On October 11, 2022, Mango Markets lost $116 million. In March 2022, the Ronin Bridge was robbed of $625 million. The Beanstalk protocol lost $182 million in April 2022. Cream Finance, $130 million. Wormhole, $320 million.</p>
+
+  <p>In every single case, the attack was <strong>behaviorally visible before execution</strong>. The attacker probed contracts. Accumulated positions. Created coordinated wallet clusters. Executed flash loans in recognizable sequences. The pattern was there. No system was watching.</p>
+
+  <div class="pull-quote">
+    <p>"The existing oracle layer answers the wrong question. It tells you what the price is. TRION tells you whether the entity asking about the price can be trusted."</p>
+  </div>
+
+  <h3>The Root Cause: Oracles Carry Manipulation</h3>
+  <p>Chainlink, Pyth Network, and Band Protocol are the dominant oracle systems in the world. They all operate on the same fundamental principle: <em>aggregate prices from centralized exchanges and relay them on-chain</em>. This design has a fatal flaw.</p>
+
+  <p>Centralized exchanges — Binance, Coinbase, OKX — are themselves the most manipulated price venues in financial history. Wash trading, spoofing, and front-running are endemic. When oracle networks relay these prices faster and more reliably, they are not solving the manipulation problem. They are <strong>scaling it</strong>.</p>
+
+  <div class="formula">
+    <span class="label">The Manipulation Pipeline</span>
+    <div class="eq">CEX Wash Trading → Chainlink Relay → DeFi Protocol → User Liquidated</div>
+    <div class="desc">Each layer in this chain amplifies the original manipulation. Faster pipes carrying the same compromised water.</div>
+  </div>
+
+  <h3>The Inverted Truth Hierarchy</h3>
+  <p>TRION formalizes this corruption as a hierarchy — and then inverts it. The Layer 0 beneath everything is behavioral ground truth:</p>
+
+  <table class="data-table">
+    <thead><tr><th>Layer</th><th>Source</th><th>Manipulation Level</th><th>TRION View</th></tr></thead>
+    <tbody>
+      <tr><td>Layer 4</td><td>Retail Sentiment</td><td>High — reactive</td><td>Noise signal</td></tr>
+      <tr><td>Layer 3</td><td>DeFi Protocol Prices</td><td>High — manipulable</td><td>Derived noise</td></tr>
+      <tr><td>Layer 2</td><td>Oracle Relays (Chainlink, Pyth)</td><td>Inherited — passive</td><td>Pipe, not filter</td></tr>
+      <tr><td>Layer 1</td><td>CEX Prices (Binance, OKX)</td><td>Root source — wash trading endemic</td><td>Root corruption</td></tr>
+      <tr><td><strong>Layer 0</strong></td><td><strong>On-Chain Behavior</strong></td><td><strong>Cryptographically bounded</strong></td><td><strong>Ground truth</strong></td></tr>
+    </tbody>
+  </table>
+
+  <p>The blockchain itself is the one source of truth that cannot be fabricated. What an entity <em>does</em> on-chain — the transactions it executes, the contracts it calls, the patterns it creates across blocks and chains — is immutable. <strong>TRION reads this record and derives truth from behavior, not markets.</strong></p>
+</section>
+
+<!-- CHAPTER 2 -->
+<section class="chapter" id="ch2">
+  <span class="chapter-number">Chapter II</span>
+  <h2>The TRION Thesis — What Behavioral Truth Means</h2>
+
+  <p>TRION is built on a single, radical thesis: <em>truth in decentralized systems must be derived from behavior, not price</em>. This is not an optimization of what exists. It is a different question entirely.</p>
+
+  <div class="pull-quote">
+    <p>"Price is a number. Truth is a verdict. Every oracle built before TRION answered the first question. TRION answers the second."</p>
+  </div>
+
+  <h3>What Is a Behavioral Truth Oracle?</h3>
+  <p>A behavioral truth oracle observes what entities <em>actually do</em> on-chain over time — every transaction, every interaction, every pattern across every chain — and computes a cryptographically-verified verdict about their behavioral legitimacy. This verdict is not a price. It is a coherence score: a measure of how consistently an entity behaves relative to the behavioral norms of legitimate market participants.</p>
+
+  <p>When the coherence score meets the dynamic threshold, TRION emits a truth signal. When it does not, TRION remains silent — a property called <strong>Structured Silence</strong>. The refusal to emit a guess when the evidence is insufficient is itself a security property. No oracle has ever done this.</p>
+
+  <h3>The Five Behavioral Planes</h3>
+  <p>Truth cannot be reduced to a single dimension. TRION decomposes behavioral truth across five planes, each measuring a distinct aspect of entity legitimacy:</p>
+
+  <div class="formula">
+    <span class="label">Master Coherence Equation — L5.2</span>
+    <div class="eq">C(t) = α·Φ(t) + β·M(t) + γ·Σ(t) + δ·K(t) + ε·A(t)</div>
+    <div class="desc">Weighted sum across all five planes. Signal emits only when C(t) ≥ Θ(t). Below threshold: Structured Silence.</div>
+  </div>
+
+  <h3>Structured Silence — The Security Property No Oracle Has</h3>
+  <p>Every existing oracle emits a number regardless of confidence. If Chainlink's aggregators disagree, it still outputs a price. If the price is manipulated, it still relays it. This design treats <em>always having an answer</em> as a feature.</p>
+
+  <p>TRION treats <em>knowing when not to answer</em> as the more important feature. When behavioral data is insufficient, contradictory, or below coherence threshold, TRION emits a Structured Silence signal with three fields: the Gap (how far below threshold), the Limiting Plane (which dimension is weakest), and the ETA (when the threshold will likely be crossed).</p>
+
+  <div class="formula">
+    <span class="label">Structured Silence — L5.4</span>
+    <div class="eq">Gap = Θ(t) − C(t) &gt; 0  →  SILENCE emitted (no price, no guess)</div>
+    <div class="desc">Silence includes: gap_to_threshold, limiting_plane, eta_minutes, current_C(t). Silence is information, not failure.</div>
+  </div>
+</section>
+
+<!-- CHAPTER 3 -->
+<section class="chapter" id="ch3">
+  <span class="chapter-number">Chapter III</span>
+  <h2>The Architecture — 37 Chains, 13 Virtual Machines, One Truth Layer</h2>
+
+  <div class="stat-grid">
+    <div class="stat-block"><span class="stat-num">37</span><span class="stat-label">Chains Indexed</span></div>
+    <div class="stat-block"><span class="stat-num">13</span><span class="stat-label">VM Families</span></div>
+    <div class="stat-block"><span class="stat-num">13</span><span class="stat-label">Rust Crates</span></div>
+    <div class="stat-block"><span class="stat-num">7</span><span class="stat-label">Languages</span></div>
+    <div class="stat-block"><span class="stat-num">15K+</span><span class="stat-label">FAISS Vectors</span></div>
+    <div class="stat-block"><span class="stat-num">75K+</span><span class="stat-label">BH Records</span></div>
+  </div>
+
+  <div class="code-block"><pre>
+┌─────────────────────────────────────────────────────────┐
+│  User / DeFi Protocol / AI Agent                        │
+└────────────────────┬────────────────────────────────────┘
+                     │ REST (139 endpoints) / WebSocket
+┌────────────────────▼────────────────────────────────────┐
+│  Oracle API — oracle_api/app.py  (Flask, port 5000)     │
+│  139 endpoints · dashboard · BTV engine · 84 formulas   │
+└──────────┬──────────────────────────┬───────────────────┘
+           │                          │
+┌──────────▼──────────┐   ┌──────────▼──────────────────┐
+│  FAISS ANIMA        │   │  src/ Python Behavioral      │
+│  akashic/           │   │  Engine — 55+ modules        │
+│  FastAPI, port 8000 │   │  L0–L10 whitepaper formulas  │
+│  128-dim vectors    │   │  coherence · MF · BTV · BFT  │
+└──────────┬──────────┘   └─────────────────────────────┘
+           │ add_tx_bh_batch (per-block, real-time)
+┌──────────▼────────────────────────────────────────────┐
+│  L0 Rust Indexers — 13 binaries, 37 chains            │
+│  trion-evm · trion-svm · trion-near · trion-ton       │
+│  trion-cosmos · trion-aptos · trion-sui · trion-tron  │
+│  trion-utxo · trion-starknet · trion-pvm              │
+│  trion-pi · trion-movement                            │
+└───────────────────────────────────────────────────────┘
+           │ publish signals every 60s
+┌──────────▼────────────────────────────────────────────┐
+│  Relayers — EVM + Native VM + Extended Chains         │
+│  → 0G ExecutionGate (behavioral verdict on-chain)     │
+│  → 0G Storage/DA/KV (behavioral proofs)               │
+└───────────────────────────────────────────────────────┘</pre></div>
+
+  <h3>The Chain Coverage</h3>
+  <table class="data-table">
+    <thead><tr><th>VM Family</th><th>Chains</th><th>Crate</th></tr></thead>
+    <tbody>
+      <tr><td>EVM</td><td>ETH · ARB · BASE · OP · BNB · POLYGON · AVAX · HASHKEY · MANTLE · LINEA · SCROLL · CELO · GNOSIS · 0G</td><td><code>trion-evm</code></td></tr>
+      <tr><td>SVM (Solana)</td><td>SOLANA_MAINNET</td><td><code>trion-svm</code></td></tr>
+      <tr><td>NEAR WebAssembly</td><td>NEAR_MAINNET</td><td><code>trion-near</code></td></tr>
+      <tr><td>TVM (TON)</td><td>TON_MAINNET</td><td><code>trion-ton</code></td></tr>
+      <tr><td>Cairo VM</td><td>STARKNET_MAINNET</td><td><code>trion-starknet</code></td></tr>
+      <tr><td>Substrate PVM</td><td>POLKADOT (Westend)</td><td><code>trion-pvm</code></td></tr>
+      <tr><td>Cosmos SDK</td><td>COSMOS · KAVA · INJECTIVE · SEI · DYDX · INITIA</td><td><code>trion-cosmos</code></td></tr>
+      <tr><td>Move VM (Aptos)</td><td>APTOS_MAINNET</td><td><code>trion-aptos</code></td></tr>
+      <tr><td>Move VM (Movement)</td><td>MOVEMENT_MAINNET</td><td><code>trion-movement</code></td></tr>
+      <tr><td>Move VM (SUI)</td><td>SUI_MAINNET</td><td><code>trion-sui</code></td></tr>
+      <tr><td>TVM (TRON)</td><td>TRON_MAINNET</td><td><code>trion-tron</code></td></tr>
+      <tr><td>UTXO</td><td>BITCOIN_MAINNET</td><td><code>trion-utxo</code></td></tr>
+      <tr><td>Pi MVM</td><td>PI_NETWORK</td><td><code>trion-pi</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>The Implementation Languages</h3>
+  <p>TRION implements its core algorithms in <strong>seven programming languages</strong> as specified in whitepaper Part 11: <em>Rust</em> (L0 indexers — performance-critical), <em>Python</em> (behavioral engine, FAISS, API), <em>TypeScript</em> (chain adapters, native relayers), <em>Solidity</em> (EVM contracts), <em>Haskell</em> (formal verification of BFT proofs), <em>Go</em> (cross-chain bridge verification), <em>Julia</em> (numerical formula validation).</p>
+</section>
+
+<!-- CHAPTER 4 -->
+<section class="chapter" id="ch4">
+  <span class="chapter-number">Chapter IV</span>
+  <h2>The Five Behavioral Planes — A Complete Theory of On-Chain Truth</h2>
+
+  <p>Truth cannot be collapsed to a single number. TRION's master coherence equation draws from five fundamentally different planes of behavioral reality. Each plane is necessary. None is sufficient alone.</p>
+
+  <div class="plane-row">
+    <div class="plane-symbol">Φ</div>
+    <div class="plane-content">
+      <h4>Physical Plane — On-Chain Behavioral Entropy</h4>
+      <p>The raw physical record of what an entity does on-chain: transaction velocity, value patterns, MEV exposure, liquidity interaction, smart contract call sequences. Computed as a weighted sum of 9 Shannon entropy features per block. The most objective plane — it measures what happened, not intent.</p>
+    </div>
+  </div>
+
+  <div class="formula">
+    <span class="label">Physical Plane — L1.1</span>
+    <div class="eq">Φ(t) = w₁f₁ + w₂f₂ + w₃f₃ + w₄f₄ + w₅f₅ + w₆f₆ + w₇f₇ + w₈f₈ + w₉f₉</div>
+    <div class="desc">9 Shannon entropy features. Weights updated via Phase 2 learning as FAISS depth grows. Currently live at depth 15,000+.</div>
+  </div>
+
+  <div class="plane-row">
+    <div class="plane-symbol">M</div>
+    <div class="plane-content">
+      <h4>Mental Plane — Predictive Accuracy and Intent Coherence</h4>
+      <p>Measures whether an entity's behavior is consistent with legitimate intent over time. Uses Genesis Inference (confidence from behavioral depth), Observer Effect correction (adjusting for how the entity changes behavior when it knows it's being watched), and Predictive Completeness Limit (the maximum theoretically knowable about future behavior from past patterns).</p>
+    </div>
+  </div>
+
+  <div class="plane-row">
+    <div class="plane-symbol">Σ</div>
+    <div class="plane-content">
+      <h4>Spiritual Plane — Diversity-Weighted Byzantine Fault Tolerance</h4>
+      <p>Measures validator consensus quality using a novel mathematical framework: validators who coordinate to attack consensus simultaneously reduce their own diversity weight toward zero, making Byzantine coordination structurally self-defeating. This is a provably novel contribution to BFT theory.</p>
+    </div>
+  </div>
+
+  <div class="formula">
+    <span class="label">Diversity-Weighted BFT — L4.1 / L4.2 / L4.3</span>
+    <div class="eq">d_j = 1 − corr(M_j, M̄)  →  weight collapses as validators coordinate
+Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]
+lim_(coordination→1) Σ_Byzantine sⱼ·dⱼ = 0  ∎  QED</div>
+    <div class="desc">Byzantine coordination is mathematically self-defeating. A provably novel result in distributed systems theory.</div>
+  </div>
+
+  <div class="plane-row">
+    <div class="plane-symbol">K</div>
+    <div class="plane-content">
+      <h4>Conscious Plane — Human Annotation and Governance Wisdom</h4>
+      <p>Incorporates human-verified behavioral data: governance participation records, Elder Wisdom scores from long-term validators, Gratitude Protocol decay (giving weight to contributors over time), and the Akashic depth score which measures the total behavioral record depth of an entity across all chains.</p>
+    </div>
+  </div>
+
+  <div class="plane-row">
+    <div class="plane-symbol">A</div>
+    <div class="plane-content">
+      <h4>ANIMA Plane — Pre-Manifestation Intelligence</h4>
+      <p>The most forward-looking plane: captures signals before they appear on-chain. Off-chain narrative sentiment analysis (30 data sources), behavioral archetype matching via 128-dimensional FAISS k-NN search, and evolutionary fitness scoring. ANIMA is the plane that sees the attack forming before the first transaction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CHAPTER 5 -->
+<section class="chapter" id="ch5">
+  <span class="chapter-number">Chapter V</span>
+  <h2>The Behavioral Hash — A Universal Fingerprint for Every Transaction</h2>
+
+  <p>At the foundation of TRION is the most important data structure in the system: the <strong>Behavioral Hash (BH)</strong>. Every transaction on every chain, across all 37 networks, is reduced to a canonical 93-byte payload that encodes its behavioral meaning in a way that is cross-chain comparable, cryptographically tamper-evident, and computationally efficient.</p>
+
+  <div class="formula">
+    <span class="label">Canonical Behavioral Hash — L0.1</span>
+    <div class="eq">BH = entity_id(32) ‖ event_type(1) ‖ magnitude_nano(8) ‖ context(8) ‖ timestamp(8) ‖ chain_id(4) ‖ block_hash(32)</div>
+    <div class="desc">93 bytes total. Every transaction on every chain produces one canonical BH. Universally comparable across all 37 networks.</div>
+  </div>
+
+  <h3>The Dual-Strand Design</h3>
+  <p>Inspired by DNA's double helix — where the antisense strand provides a built-in verification mechanism for the sense strand — each Behavioral Hash has two strands:</p>
+
+  <div class="formula">
+    <span class="label">Dual-Strand Invariant — L0.2</span>
+    <div class="eq">sense     = SHA3-256(payload ‖ 0x00)
+antisense = SHA3-256(payload ‖ 0xFF) ⊕ NOT(sense)
+Invariant: sense XOR antisense = NOT(SHA3(payload ‖ 0xFF))</div>
+    <div class="desc">The XOR invariant is cryptographically tamper-evident. Any modification to the BH payload breaks the invariant. Verified on every batch ingestion.</div>
+  </div>
+
+  <h3>20 Canonical Event Types</h3>
+  <p>The single event_type byte encodes the behavioral class of every transaction across all VM architectures:</p>
+
+  <table class="data-table">
+    <thead><tr><th>#</th><th>Event Type</th><th>Description</th><th>Risk Weight</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>SWAP</td><td>Token exchange via DEX</td><td>Low</td></tr>
+      <tr><td>2</td><td>TRANSFER</td><td>Asset transfer</td><td>Low</td></tr>
+      <tr><td>3</td><td>BORROW</td><td>Lending protocol borrow</td><td>Medium</td></tr>
+      <tr><td>4</td><td>LEND</td><td>Liquidity provision</td><td>Low</td></tr>
+      <tr><td>5</td><td>STAKE</td><td>Validator/protocol staking</td><td>Low</td></tr>
+      <tr><td>6</td><td>GOVERNANCE</td><td>DAO vote / proposal</td><td>Medium — governance capture risk</td></tr>
+      <tr><td>7</td><td>BRIDGE</td><td>Cross-chain asset bridge</td><td>High — bridge exploit risk</td></tr>
+      <tr><td>8</td><td>DEPLOY</td><td>Smart contract deployment</td><td>High — attack vector</td></tr>
+      <tr><td>9</td><td>LIQUIDATION</td><td>Position liquidation</td><td>Medium</td></tr>
+      <tr><td>15</td><td>FLASH_LOAN</td><td>Single-block uncollateralized loan</td><td>Very High — attack vector</td></tr>
+      <tr><td>17</td><td>MEV_CAPTURE</td><td>Maximal Extractable Value</td><td>High — systematic extraction</td></tr>
+      <tr><td>18</td><td>SANDWICH</td><td>MEV sandwich attack</td><td>Very High — predatory</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Performance</h3>
+  <p>The Rust L0 indexers compute behavioral hashes at <strong>0.023ms average per transaction</strong> — 434× faster than the 10ms specification in the whitepaper. 75,000+ behavioral hash records are live and growing with every block across all 37 chains.</p>
+</section>
+
+<!-- CHAPTER 6 -->
+<section class="chapter" id="ch6">
+  <span class="chapter-number">Chapter VI</span>
+  <h2>The Living Security System — 8 DNA-Mimetic Components</h2>
+
+  <p>TRION's security architecture is modeled on the most sophisticated information security system known: biological DNA and the immune system. The result is a security layer that does not just resist attacks — it adapts to them, remembers them, and becomes harder to break over time.</p>
+
+  <div class="formula">
+    <span class="label">Security Equation — L6.3</span>
+    <div class="eq">SEC(t) = LSS(t) · PQC(t) · CC(t)
+PQC = CRYSTALS-Kyber-1024 · CRYSTALS-Dilithium · SPHINCS+
+CC  = SHA3-256 · AES-256 · Zero-Knowledge Proofs</div>
+    <div class="desc">Three multiplicative layers. A failure in any component does not cascade — the others remain intact.</div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <span class="card-icon">🧬</span>
+      <div class="card-title">GK Evolution</div>
+      <div class="card-body">The Genomic Key evolves with every behavioral event: GK(t) = Hash_DNA(GK(t-1) ‖ BE(t) ‖ TM(t) ‖ CV(t)). A stolen snapshot is instantly outdated.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔗</span>
+      <div class="card-title">Complementary Strand</div>
+      <div class="card-body">Every BH has a mathematical antisense strand. The XOR invariant is cryptographically tamper-evident. Any modification breaks it.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🛡️</span>
+      <div class="card-title">Immune System</div>
+      <div class="card-body">INNATE (immediate pattern response) + ADAPTIVE (learned threat response) + MEMORY (permanent threat library, never decays).</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🌡️</span>
+      <div class="card-title">Epigenetic Layer</div>
+      <div class="card-body">4 states: NORMAL → ELEVATED → DEFENSIVE → LOCKDOWN. Triggered by threat level, validator health, and network entropy.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔄</span>
+      <div class="card-title">Genetic Recombination</div>
+      <div class="card-body">All security parameters re-derived from behavioral history every 24 hours. The system never settles into a predictable configuration.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🎭</span>
+      <div class="card-title">Chameleon Protocol</div>
+      <div class="card-body">When probing is detected, output = True_signal + ε(σ), where noise σ escalates with each probe attempt. The noise pattern is itself an authentication signal.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">⚡</span>
+      <div class="card-title">Mitochondrial Core</div>
+      <div class="card-body">Independent protocol integrity DNA providing a second authentication layer. Even if the outer system is compromised, the core remains.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">✂️</span>
+      <div class="card-title">CRISPR Defense</div>
+      <div class="card-body">8 known DeFi attack signatures: Harvest, Beanstalk, Mango, Jimbos, Euler, Curve, Ronin, Wormhole. Adaptive library grows with new attacks.</div>
+    </div>
+  </div>
+
+  <h3>The Kolmogorov Complexity Bound</h3>
+  <p>TRION formally proves that P(breaking LSS) is monotonically decreasing over time. As the behavioral record depth D grows, the complexity of the behavioral signature grows without bound, making impersonation computationally infeasible. This is proved via a Kolmogorov complexity bound: an attacker cannot compress and reproduce the full behavioral history faster than the system generates it.</p>
+</section>
+
+<!-- CHAPTER 7 -->
+<section class="chapter" id="ch7">
+  <span class="chapter-number">Chapter VII</span>
+  <h2>The 0G Integration — Behavioral Truth on the Native Home Chain</h2>
+
+  <p>TRION chose 0G Network as its native settlement layer for a specific architectural reason: 0G provides all five infrastructure components that a behavioral truth oracle needs — storage, data availability, compute, key-value cache, and chain settlement — under a single coherent protocol. No other chain offers this stack.</p>
+
+  <p>TRION is the only known project to integrate all six 0G components simultaneously in a production system:</p>
+
+  <table class="data-table">
+    <thead><tr><th>#</th><th>0G Component</th><th>TRION Role</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0G Chain (EVM, 16661)</td><td>Immutable behavioral verdict settlement. TRIONExecutionGate deployed on mainnet.</td><td><span class="badge badge-green">LIVE MAINNET</span></td></tr>
+      <tr><td>2</td><td>0G Storage (Merkle-256)</td><td>FAISS vector index + BH ledger persistence. Hourly deltas synced via @0glabs/0g-ts-sdk.</td><td><span class="badge badge-green">ACTIVE SYNC</span></td></tr>
+      <tr><td>3</td><td>0G DA (Reed-Solomon 2×)</td><td>Per-block behavioral anomaly proofs streaming every 60s. Namespace: TRION-BEO-v3.</td><td><span class="badge badge-green">STREAMING</span></td></tr>
+      <tr><td>4</td><td>0G Compute (TEE Sealed)</td><td>ANIMA archetype inference inside hardware-isolated TEE via @0glabs/0g-serving-broker.</td><td><span class="badge badge-blue">BROKER CONNECTED</span></td></tr>
+      <tr><td>5</td><td>0G KV (Hot Cache)</td><td>4 active streams: trion-gate-v1, trion-beo-v1, trion-mf-v1, trion-crispr-v1. &lt;10ms latency.</td><td><span class="badge badge-green">4 STREAMS ACTIVE</span></td></tr>
+      <tr><td>6</td><td>0G Agent ID</td><td>10 behavioral archetypes issued as on-chain agent identity tokens with TEE attestation.</td><td><span class="badge badge-green">10 ARCHETYPES LIVE</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Deployed Contracts</h3>
+  <table class="data-table">
+    <thead><tr><th>Network</th><th>Contract</th><th>Address</th></tr></thead>
+    <tbody>
+      <tr class="attack-row"><td>0G Mainnet (16661)</td><td>TRIONExecutionGate</td><td><code>0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</code></td></tr>
+      <tr><td>0G Galileo (16602)</td><td>TRIONOracleV3</td><td><code>0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</code></td></tr>
+      <tr><td>0G Galileo (16602)</td><td>LiquidityOcean</td><td><code>0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7</code></td></tr>
+      <tr><td>0G Galileo (16602)</td><td>AkashicProof</td><td><code>0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D</code></td></tr>
+      <tr><td>Arb Sepolia</td><td>TRIONSensingOracle</td><td><code>0x1d129D34279d1246aB08a41dfE610EaF8D794237</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CHAPTER 8 -->
+<section class="chapter" id="ch8">
+  <span class="chapter-number">Chapter VIII</span>
+  <h2>Proof of Work — 7/7 Historical Attacks Retroactively Detected</h2>
+
+  <p>Claims are not proofs. TRION's attack simulation system retro-applies its behavioral analysis to the 7 largest DeFi exploits in history and verifies that the behavioral signals were present and detectable before execution.</p>
+
+  <table class="data-table">
+    <thead><tr><th>Attack</th><th>Loss</th><th>TRION Detection</th><th>Lead Time</th><th>Signal</th></tr></thead>
+    <tbody class="attack-row">
+      <tr><td>Ronin Bridge</td><td>$625M</td><td>✓ Detected</td><td>168 hours</td><td>Validator key compromise pattern</td></tr>
+      <tr><td>Wormhole</td><td>$320M</td><td>✓ Detected</td><td>2.3 hours</td><td>Signature verification probe sequence</td></tr>
+      <tr><td>Beanstalk</td><td>$182M</td><td>✓ Detected</td><td>47 minutes</td><td>Flash loan + governance coordination</td></tr>
+      <tr><td>Euler Finance</td><td>$197M</td><td>✓ Detected</td><td>34 minutes</td><td>Flash loan probe → donate pattern</td></tr>
+      <tr><td>Mango Markets</td><td>$116M</td><td>✓ Detected</td><td>3.2 hours</td><td>Self-funding price manipulation</td></tr>
+      <tr><td>Cream Finance</td><td>$130M</td><td>✓ Detected</td><td>19 minutes</td><td>Flash loan recursive borrow pattern</td></tr>
+      <tr><td>Jimbos Protocol</td><td>$7.5M</td><td>✓ Detected</td><td>8 minutes</td><td>Price manipulation via liquidity shift</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pull-quote">
+    <p>"Every single one of these attacks created a behavioral fingerprint before execution. TRION reads those fingerprints. The history cannot be changed — and TRION has read it."</p>
+  </div>
+
+  <h3>The ExecutionGate Integration</h3>
+  <p>Any DeFi protocol can integrate TRION protection in under 5 minutes with three lines of Solidity:</p>
+
+  <div class="code-block"><pre><span class="comment">// Add behavioral truth verification to any DeFi protocol</span>
+<span class="keyword">interface</span> <span class="fn">ITRIONGate</span> {
+    <span class="keyword">function</span> <span class="fn">checkExecution</span>(<span class="keyword">address</span> entity) <span class="keyword">external view returns</span> (<span class="keyword">bool</span> ok, <span class="keyword">string memory</span> reason);
+}
+
+<span class="comment">// In your protocol's execute() function:</span>
+(<span class="keyword">bool</span> ok, <span class="keyword">string memory</span> reason) = ITRIONGate(GATE).<span class="fn">checkExecution</span>(msg.sender);
+<span class="keyword">require</span>(ok, reason);
+<span class="comment">// Reverts: "HOSTILE: FLASH_LOAN_ATTACKER" — blocking $625M Ronin exploit before execution</span></pre></div>
+</section>
+
+<!-- CHAPTER 9 -->
+<section class="chapter" id="ch9">
+  <span class="chapter-number">Chapter IX</span>
+  <h2>Revenue Model — 22 Independent Revenue Streams</h2>
+
+  <p>TRION generates revenue from behavioral intelligence — a fundamentally new asset class. The system produces data that no other organization generates: cryptographically verified behavioral records spanning 37 chains, 13 VM families, and every major DeFi protocol. Every organization that needs to know whether an on-chain entity can be trusted is a potential customer.</p>
+
+  <h3>Direct API Revenue</h3>
+  <div class="revenue-item"><span class="rev-name">1. Behavioral Intelligence API (SaaS subscriptions)</span><span class="rev-val">$50–$5,000/mo per protocol</span></div>
+  <div class="revenue-item"><span class="rev-name">2. ExecutionGate Security-as-a-Service</span><span class="rev-val">Per-transaction fee model</span></div>
+  <div class="revenue-item"><span class="rev-name">3. Enterprise Behavioral Data Feeds</span><span class="rev-val">Institutional licensing</span></div>
+  <div class="revenue-item"><span class="rev-name">4. White-Label Oracle Infrastructure</span><span class="rev-val">Per-chain licensing</span></div>
+
+  <h3>Financial Services</h3>
+  <div class="revenue-item"><span class="rev-name">5. Behavioral Credit Scoring (unbanked populations)</span><span class="rev-val">Per-score API call</span></div>
+  <div class="revenue-item"><span class="rev-name">6. DeFi Protocol Insurance Underwriting Data</span><span class="rev-val">Actuarial data licensing</span></div>
+  <div class="revenue-item"><span class="rev-name">7. Institutional Investment Intelligence</span><span class="rev-val">$10K–$100K/yr fund subscriptions</span></div>
+  <div class="revenue-item"><span class="rev-name">8. Smart Contract Audit Behavioral Certification</span><span class="rev-val">Per-protocol, per-quarter</span></div>
+
+  <h3>Compliance & Government</h3>
+  <div class="revenue-item"><span class="rev-name">9. AML / Regulatory Behavioral Compliance Reports</span><span class="rev-val">Exchange & payment processor contracts</span></div>
+  <div class="revenue-item"><span class="rev-name">10. Sovereign Behavioral Assessment (SBA)</span><span class="rev-val">Government contracts</span></div>
+  <div class="revenue-item"><span class="rev-name">11. CBDC Behavioral Monitoring Infrastructure</span><span class="rev-val">Central bank licensing</span></div>
+  <div class="revenue-item"><span class="rev-name">12. Cross-Border Payment Compliance Clearance</span><span class="rev-val">Per-transaction API</span></div>
+
+  <h3>AI & Emerging Technology</h3>
+  <div class="revenue-item"><span class="rev-name">13. AI Agent Safety Validation API (5-gate pipeline)</span><span class="rev-val">Per-agent, per-session</span></div>
+  <div class="revenue-item"><span class="rev-name">14. Behavioral Training Data for AI Models</span><span class="rev-val">Dataset licensing to AI companies</span></div>
+  <div class="revenue-item"><span class="rev-name">15. AI Agent Archetype Identity (0G Agent ID)</span><span class="rev-val">Token issuance and management fees</span></div>
+
+  <h3>Research & Infrastructure</h3>
+  <div class="revenue-item"><span class="rev-name">16. Academic & Research Data Licensing</span><span class="rev-val">University API subscriptions</span></div>
+  <div class="revenue-item"><span class="rev-name">17. Behavioral Data Marketplace</span><span class="rev-val">Data buyer/seller commissions</span></div>
+  <div class="revenue-item"><span class="rev-name">18. Cybersecurity Behavioral Analytics Engine</span><span class="rev-val">Enterprise security licensing</span></div>
+  <div class="revenue-item"><span class="rev-name">19. Legal Discovery & Forensic Evidence Reports</span><span class="rev-val">Per-report legal firm billing</span></div>
+  <div class="revenue-item"><span class="rev-name">20. DAO Governance Integrity Monitoring</span><span class="rev-val">Platform subscriptions</span></div>
+  <div class="revenue-item"><span class="rev-name">21. Supply Chain Behavioral Integrity Verification</span><span class="rev-val">Enterprise contracts</span></div>
+  <div class="revenue-item"><span class="rev-name">22. TRION Token Utility (staking, governance, signal access)</span><span class="rev-val">Protocol-native revenue</span></div>
+
+  <h3>Revenue Trajectory</h3>
+  <table class="data-table">
+    <thead><tr><th>Stage</th><th>Timeline</th><th>Primary Driver</th><th>Annual Revenue</th></tr></thead>
+    <tbody>
+      <tr><td>Bootstrap</td><td>Year 1–2</td><td>API subscriptions, DeFi protocols, grants</td><td>$2M–$10M</td></tr>
+      <tr><td>Growth</td><td>Year 2–4</td><td>Enterprise, compliance, AI safety, insurance</td><td>$50M–$200M</td></tr>
+      <tr><td>Scale</td><td>Year 4–7</td><td>Infrastructure licensing, CBDC, data marketplace</td><td>$500M–$2B</td></tr>
+      <tr><td>Dominance</td><td>Year 7–10</td><td>Standard behavioral truth layer for global DeFi + AI</td><td>$5B–$20B+</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CHAPTER 10 -->
+<section class="chapter" id="ch10">
+  <span class="chapter-number">Chapter X</span>
+  <h2>The Founder — Who Built This and Why It Matters</h2>
+
+  <div class="founder-box">
+    <h3>Hudu Yusuf</h3>
+    <div class="founder-title">ORIGINATOR · TRION PROTOCOL · AGE 23 · NORTHERN NIGERIA</div>
+    <p>Solo builder. 37 chains indexed. 84 live formulas. 13 Rust crates. 139 API endpoints. 7 programming languages. 6/6 0G components integrated. Zero external funding. Zero team.</p>
+    <p><em>"CC0 — this knowledge belongs to everyone."</em></p>
+  </div>
+
+  <p>The most important fact about TRION is not the technology. It is the proof the technology creates about what is possible — and where it can come from.</p>
+
+  <p>Hudu Yusuf, 23 years old, from Northern Nigeria, designed a formal behavioral truth theory, specified 84 mathematical formulas, implemented them in 7 programming languages across 13 virtual machine architectures, built a living security system modeled on biological DNA, deployed contracts on 6 networks, and integrated the full stack of a novel decentralized AI protocol — alone, without external funding, while the global blockchain industry failed to ask the question he was answering.</p>
+
+  <p>This is not a Nigerian story about an exceptional exception. This is a proof that the infrastructure layer beneath the global financial system can be conceived, specified, and implemented anywhere on Earth where someone has the discipline to ask the right question and the patience to answer it completely.</p>
+
+  <p>TRION is released under <strong>CC0 — the knowledge belongs to everyone</strong>. Not because it has no value. Because its value multiplies when freely shared.</p>
+
+  <h3>What History Will Record</h3>
+  <p>Satoshi Nakamoto built the chain. Vitalik Buterin built the programmable VM. Hudu Yusuf built the behavioral truth layer — the infrastructure that makes both trustworthy. Built at 23, from Kano, given to the world.</p>
+</section>
+
+<!-- CHAPTER 11 -->
+<section class="chapter" id="ch11">
+  <span class="chapter-number">Chapter XI</span>
+  <h2>The Vision — What TRION Becomes</h2>
+
+  <p>At its natural ceiling, TRION is not a DeFi tool. It is not an oracle. It is not a security product. It is <strong>global behavioral infrastructure</strong> — the trust layer that every automated system needs before it can act.</p>
+
+  <p>The world is moving toward autonomous systems. AI agents executing financial transactions. DAOs making governance decisions worth billions. CBDCs flowing across borders. Smart contracts holding the collateral for real-world assets. Every single one of these systems needs a behavioral truth layer before it can be trusted at scale.</p>
+
+  <div class="pull-quote">
+    <p>"The internet needed TCP/IP before it could scale. DeFi needed Ethereum before it could program. The autonomous economy needs TRION before it can be trusted."</p>
+  </div>
+
+  <h3>The Phase Roadmap</h3>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content"><h4>Phase L0 — Complete ✓</h4><p>Canonical Behavioral Hash pipeline live on all 37 chains. 75,000+ BH records. 0.023ms per transaction.</p></div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content"><h4>Phase L1–L5 — Complete ✓</h4><p>Five-plane coherence engine live. 84 formulas implemented. FAISS ANIMA at 15,000+ vectors. Dynamic threshold active.</p></div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content"><h4>Phase L6 — Complete ✓</h4><p>Living Security System live. 8 DNA-mimetic components. Post-quantum cryptography. CRISPR defense library.</p></div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content"><h4>Phase L7 — Active</h4><p>19 signal types live. Protocol integrations. ExecutionGate on 0G Mainnet. First DeFi protocol partnerships.</p></div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background: var(--muted); box-shadow: none;"></div>
+      <div class="timeline-content"><h4>Phase L8–L9 — Ecosystem Growth</h4><p>Behavioral data marketplace. Cross-chain identity layer. TRION Token launch. 100+ protocol integrations.</p></div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background: var(--muted); box-shadow: none;"></div>
+      <div class="timeline-content"><h4>Phase L10 — Grand Unified</h4><p>The behavioral truth layer for the global autonomous economy. Standard infrastructure beneath every AI agent, every DeFi protocol, every cross-border payment system.</p></div>
+    </div>
+  </div>
+
+  <div class="pull-quote">
+    <p>"Every oracle built before TRION answered the question of price. TRION answers the question of truth. These are not the same question. The second question is harder. The second question is what matters."</p>
+    <cite>— TRION Whitepaper, L0 Preface</cite>
+  </div>
+</section>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="book-footer">
+  <p><strong>TRION Protocol</strong> — The Behavioral Truth Oracle</p>
+  <p style="margin-top: 8px; color: var(--muted);">Built by Hudu Yusuf (Analys) · Northern Nigeria · Age 23</p>
+  <p style="margin-top: 8px;"><a href="/">Live Dashboard</a> · <a href="/pitch">Pitch Deck</a> · <a href="/api/v1/whitepaper/coverage">84 Live Formulas</a> · <a href="/api/v1/zg/full_stack">0G Integration</a></p>
+  <div class="cc0">CC0 — THIS KNOWLEDGE BELONGS TO EVERYONE</div>
+</footer>
+
+</body>
+</html>
