@@ -77,6 +77,16 @@ def explorer():
     return render_template("explorer.html")
 
 
+@app.route("/book")
+def book():
+    return render_template("book.html")
+
+
+@app.route("/pitch")
+def pitch():
+    return render_template("pitch.html")
+
+
 @app.route("/api/v1/zg")
 def zg_stats():
     """Live stats from TRIONExecutionGate on 0G Mainnet (chain 16661)."""
