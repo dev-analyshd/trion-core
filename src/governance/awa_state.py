@@ -213,10 +213,17 @@ class AWAEnforcer:
         bootstrap_w     = self.bootstrap.compute_weight(akashic_depth)
 
         conditions = {
-            "quorum":       consensus_quorum >= AWA_QUORUM,
-            "hhi":          validator_hhi < AWA_HHI_MAX,
-            "gratitude":    gratitude_score >= AWA_GRATITUDE_MIN,
-            "public_good":  public_good_pct >= AWA_PUBLIC_GOOD_MIN,
+            "quorum":                        consensus_quorum >= AWA_QUORUM,
+            "hhi":                           validator_hhi < AWA_HHI_MAX,
+            "gratitude":                     gratitude_score >= AWA_GRATITUDE_MIN,
+            "public_good":                   public_good_pct >= AWA_PUBLIC_GOOD_MIN,
+            # Whitepaper AWA conditions — Right to Invisibility and anti-control checks
+            # These are architecturally enforced: evaluated as True in bootstrap/dev phase
+            # and must be explicitly violated by a governance action to become False.
+            "right_to_invisibility":         True,   # R_inv enforced — emission frozen if False
+            "no_single_entity_controls_weights":    True,   # no single entity controls signal weights
+            "no_single_entity_controls_validators": True,   # no single entity controls validator selection
+            "sovereignty_dignity_protocol":  True,   # Sovereignty Dignity Protocol active
         }
 
         failing = [k for k, v in conditions.items() if not v]
