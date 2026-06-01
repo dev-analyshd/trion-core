@@ -47,6 +47,12 @@ class SignalType(IntEnum):
     REGULATORY_BHV        = 16
     ECOSYSTEM_HEALTH      = 17
     BOOTSTRAP             = 18
+    # ── Extended signals (whitepaper original Section 11 — L6–L9 planes) ─────
+    SOVEREIGN_BEHAVIORAL  = 19   # L8.1 SBA — sovereign entity behavioral divergence
+    ENERGY_PARTICIPATION  = 20   # L7.2 EP  — energy participation index signal
+    BIOLOGICAL_CAPITAL    = 21   # L6.1 BC  — biological capital ecosystem health
+    BTCP_ROUTE            = 22   # BIBL     — behavioral transaction continuity routing
+    CONSENSUS_ADAPTATION  = 23   # L4.1     — adaptive consensus mechanism state change
 
 
 def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> dict:
@@ -787,6 +793,222 @@ def build_bootstrap(
     )
 
 
+# ─── Signal Type 19: SOVEREIGN_BEHAVIORAL ────────────────────────────────────
+
+def build_sovereign_behavioral(
+    entity_id, coherence_result: dict,
+    sba_score: float,
+    jurisdiction: str,
+    policy_stated: float,
+    policy_observed: float,
+    divergence_index: float,
+    capital_flow_entropy: float,
+    threat_level: str = "LOW",
+) -> dict:
+    """
+    L8.1 — Sovereign Behavioral Assessment (SBA) signal.
+    Emits when sovereign/state-level behavioral patterns diverge from stated policy.
+    SBA(s,t) = ΔP(s,t) · CF(s,t) · I(s,t)
+    """
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=SignalType.SOVEREIGN_BEHAVIORAL,
+        coherence_result=coherence_result,
+        signal_value=sba_score,
+        ci_95_lower=max(0.0, sba_score - 0.08),
+        ci_95_upper=min(1.0, sba_score + 0.08),
+        extra={
+            "sba_score":             sba_score,
+            "jurisdiction":          jurisdiction,
+            "policy_stated":         policy_stated,
+            "policy_observed":       policy_observed,
+            "divergence_index":      divergence_index,
+            "capital_flow_entropy":  capital_flow_entropy,
+            "threat_level":          threat_level,
+            "primitive_8_note": (
+                f"Sovereign Behavioral Assessment (L8.1): "
+                f"SBA={sba_score:.3f} jurisdiction={jurisdiction} "
+                f"divergence={divergence_index:.3f} threat={threat_level}"
+            ),
+        }
+    )
+
+
+# ─── Signal Type 20: ENERGY_PARTICIPATION ────────────────────────────────────
+
+def build_energy_participation(
+    entity_id, coherence_result: dict,
+    ep_score: float,
+    validator_count: int,
+    participation_ratio: float,
+    decentralization_coefficient: float,
+    energy_source_diversity: float,
+    carbon_intensity: float = 0.0,
+) -> dict:
+    """
+    L7.2 — Energy Participation Index (EP) signal.
+    EP(asset,t) = VC(a,t) · PA(a,t) · DC(a,t)
+    Measures validator energy participation quality and decentralization.
+    """
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=SignalType.ENERGY_PARTICIPATION,
+        coherence_result=coherence_result,
+        signal_value=ep_score,
+        ci_95_lower=max(0.0, ep_score - 0.05),
+        ci_95_upper=min(1.0, ep_score + 0.05),
+        extra={
+            "ep_score":                    ep_score,
+            "validator_count":             validator_count,
+            "participation_ratio":         participation_ratio,
+            "decentralization_coefficient": decentralization_coefficient,
+            "energy_source_diversity":     energy_source_diversity,
+            "carbon_intensity":            carbon_intensity,
+            "participation_tier": (
+                "OPTIMAL"   if ep_score >= 0.80 else
+                "HEALTHY"   if ep_score >= 0.60 else
+                "DEGRADED"  if ep_score >= 0.40 else
+                "CRITICAL"
+            ),
+        }
+    )
+
+
+# ─── Signal Type 21: BIOLOGICAL_CAPITAL ──────────────────────────────────────
+
+def build_biological_capital(
+    entity_id, coherence_result: dict,
+    bc_score: float,
+    ecosystem_id: str,
+    species_at_risk: int,
+    keystone_health: float,
+    resilience_index: float,
+    interdependence_score: float,
+    xsl_aggregate: float,
+) -> dict:
+    """
+    L6.1 — Biological Capital (BC) signal.
+    BC(e,t) = H(e,t) · R(e,t) · I(e,t)
+    Cross-domain ecological health invisible to finance-only oracles.
+    """
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=SignalType.BIOLOGICAL_CAPITAL,
+        coherence_result=coherence_result,
+        signal_value=bc_score,
+        ci_95_lower=max(0.0, bc_score - 0.07),
+        ci_95_upper=min(1.0, bc_score + 0.07),
+        extra={
+            "bc_score":             bc_score,
+            "ecosystem_id":         ecosystem_id,
+            "species_at_risk":      species_at_risk,
+            "keystone_health":      keystone_health,
+            "resilience_index":     resilience_index,
+            "interdependence_score": interdependence_score,
+            "xsl_aggregate":        xsl_aggregate,
+            "ecological_tier": (
+                "THRIVING"  if bc_score >= 0.75 else
+                "STABLE"    if bc_score >= 0.55 else
+                "STRESSED"  if bc_score >= 0.35 else
+                "COLLAPSE_RISK"
+            ),
+            "novel_primitive_note": (
+                "Stream 4 Biological+Ecological signal — "
+                "cross-domain intelligence invisible to finance-only oracles."
+            ),
+        }
+    )
+
+
+# ─── Signal Type 22: BTCP_ROUTE ───────────────────────────────────────────────
+
+def build_btcp_route(
+    entity_id, coherence_result: dict,
+    btcp_score: float,
+    continuity_score: float,
+    route_chain_ids: list,
+    optimal_route: str,
+    mev_exposure_on_route: float,
+    batch_opportunity: bool,
+    estimated_gas_saved: float,
+    mempool_archetype: str = "NORMAL",
+) -> dict:
+    """
+    BIBL — Behavioral Transaction Continuity Protocol (BTCP_ROUTE) signal.
+    Emitted during the inter-block window with routing and MEV protection.
+    Carries: optimal route, batch opportunity, gas savings, MEV warnings.
+    """
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=SignalType.BTCP_ROUTE,
+        coherence_result=coherence_result,
+        signal_value=btcp_score,
+        ci_95_lower=max(0.0, btcp_score - 0.04),
+        ci_95_upper=min(1.0, btcp_score + 0.04),
+        extra={
+            "btcp_score":             btcp_score,
+            "continuity_score":       continuity_score,
+            "route_chain_ids":        route_chain_ids,
+            "optimal_route":          optimal_route,
+            "mev_exposure_on_route":  mev_exposure_on_route,
+            "batch_opportunity":      batch_opportunity,
+            "estimated_gas_saved":    estimated_gas_saved,
+            "mempool_archetype":      mempool_archetype,
+            "bibl_note": (
+                f"BIBL inter-block routing: route={optimal_route} "
+                f"MEV_exposure={mev_exposure_on_route:.3f} "
+                f"archetype={mempool_archetype} "
+                f"batch={'YES' if batch_opportunity else 'NO'}"
+            ),
+        }
+    )
+
+
+# ─── Signal Type 23: CONSENSUS_ADAPTATION ────────────────────────────────────
+
+def build_consensus_adaptation(
+    entity_id, coherence_result: dict,
+    adaptation_score: float,
+    previous_consensus_mode: str,
+    new_consensus_mode: str,
+    trigger_event: str,
+    validator_diversity_index: float,
+    hhi_pre: float,
+    hhi_post: float,
+    degradation_tier: int = 0,
+) -> dict:
+    """
+    L4.1 DW-BFT — Consensus Adaptation signal.
+    Emitted when the adaptive consensus mechanism changes state.
+    Covers: validator composition change, HHI threshold crossing,
+    Coordination Collapse detection, degradation tier transitions.
+    """
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=SignalType.CONSENSUS_ADAPTATION,
+        coherence_result=coherence_result,
+        signal_value=adaptation_score,
+        ci_95_lower=max(0.0, adaptation_score - 0.06),
+        ci_95_upper=min(1.0, adaptation_score + 0.06),
+        extra={
+            "adaptation_score":        adaptation_score,
+            "previous_consensus_mode": previous_consensus_mode,
+            "new_consensus_mode":      new_consensus_mode,
+            "trigger_event":           trigger_event,
+            "validator_diversity_index": validator_diversity_index,
+            "hhi_pre":                 hhi_pre,
+            "hhi_post":                hhi_post,
+            "degradation_tier":        degradation_tier,
+            "dw_bft_note": (
+                f"DW-BFT L4.1: {previous_consensus_mode} → {new_consensus_mode} "
+                f"trigger={trigger_event} "
+                f"HHI: {hhi_pre:.1f} → {hhi_post:.1f} "
+                f"tier={degradation_tier}"
+            ),
+        }
+    )
+
+
 # ─── Self-test ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -826,16 +1048,27 @@ if __name__ == "__main__":
         build_bootstrap(entity, coherence, 0.34, 100, 34, {"sigma": False, "k": False, "anima": False}, 660),
     ]
 
-    assert len(sigs) == 19, f"Expected 19 signals, got {len(sigs)}"
+    # Extended signals (types 19–23 from whitepaper original Section 11)
+    sigs += [
+        build_sovereign_behavioral(entity, coherence, 0.62, "EU", 0.70, 0.45, 0.38, 1.22, "MEDIUM"),
+        build_energy_participation(entity, coherence, 0.75, 512, 0.82, 0.71, 0.60, 0.12),
+        build_biological_capital(entity, coherence, 0.68, "AMAZON_BASIN", 12, 0.72, 0.65, 0.70, 0.67),
+        build_btcp_route(entity, coherence, 0.88, 0.92, [1, 137, 42161], "ethereum→arbitrum", 0.08, True, 0.0035, "PRE_VOLATILITY"),
+        build_consensus_adaptation(entity, coherence, 0.79, "STANDARD_BFT", "DIVERSITY_WEIGHTED_BFT", "HHI_THRESHOLD_CROSSED", 0.85, 3200.0, 1800.0, 1),
+    ]
+
+    assert len(sigs) == 24, f"Expected 24 signals, got {len(sigs)}"
 
     for sig in sigs:
-        assert "signal_id"      in sig, f"Missing signal_id in {sig['signal_type']}"
-        assert "ci_95"          in sig, f"Missing CI_95 in {sig['signal_type']}"
+        assert "signal_id"       in sig, f"Missing signal_id in {sig['signal_type']}"
+        assert "ci_95"           in sig, f"Missing CI_95 in {sig['signal_type']}"
         assert "biological_time" in sig, f"Missing BRT in {sig['signal_type']}"
-        assert "coherence"      in sig, f"Missing coherence in {sig['signal_type']}"
+        assert "coherence"       in sig, f"Missing coherence in {sig['signal_type']}"
 
-    print("All 19 signal types:")
+    print("All 24 signal types:")
     for s in sigs:
-        print(f"  [{s['signal_type_id']:2d}] {s['signal_type']:24s} C={s['coherence']:.2f}  CI=[{s['ci_95'][0]:.2f},{s['ci_95'][1]:.2f}]")
+        star = " *" if s["signal_type_id"] >= 19 else ""
+        print(f"  [{s['signal_type_id']:2d}] {s['signal_type']:28s} C={s['coherence']:.2f}  CI=[{s['ci_95'][0]:.2f},{s['ci_95'][1]:.2f}]{star}")
 
-    print(f"\nPHASE 15 PASS — all {len(sigs)}/19 signal types built with full provenance")
+    print(f"\n  * = extended signals (whitepaper Section 11 original — L6–L9 planes)")
+    print(f"\nPHASE 15 PASS — all {len(sigs)}/24 signal types built with full provenance")
