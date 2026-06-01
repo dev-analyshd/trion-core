@@ -1,19 +1,23 @@
 """
 TRION Protocol Oracle API — Live On-Chain
-Arbitrum Sepolia | TRIONSensingOracle: 0x1d129D34279d1246aB08a41dfE610EaF8D794237
-CoherenceVault: 0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d
+Primary: 0G Mainnet (chain 16661) | TRIONExecutionGate: 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b
+Testnet: Arbitrum Sepolia | TRIONSensingOracle: 0x1d129D34279d1246aB08a41dfE610EaF8D794237
 
 All signals are published on-chain via publishBehavioralTruth().
-All stats read from the live contract. No mocked data.
+194 Flask routes + 151 FAISS FastAPI routes = 345 total.
 """
 import os
 import time
 import hashlib
 import json
 import math
+import logging
 import threading
 from collections import deque
 from flask import Flask, jsonify, request, render_template, send_from_directory
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s [oracle_api] %(message)s")
+_log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
 
@@ -22,6 +26,7 @@ try:
     from blockchain import get_relay
     _chain_available = True
 except ImportError:
+    _log.warning("blockchain relay not available — on-chain publishing disabled")
     _chain_available = False
     def get_relay():
         return None
@@ -33,24 +38,30 @@ try:
     from zg_api_routes import zg_bp
     app.register_blueprint(zg_bp)
     _zg_available = True
+    _log.info("0G integration routes registered")
 except Exception as _zg_err:
     _zg_available = False
+    _log.warning("0G integration routes unavailable: %s", _zg_err)
 
 # ── Register CEX bidirectional integration routes ─────────────────────────────
 try:
     from cex_integration import cex_bp
     app.register_blueprint(cex_bp)
     _cex_available = True
+    _log.info("CEX integration routes registered")
 except Exception as _cex_err:
     _cex_available = False
+    _log.warning("CEX integration routes unavailable: %s", _cex_err)
 
 # ── Register Chainlink AggregatorV3-compatible price feed routes ──────────────
 try:
     from price_feed_routes import price_feed_bp
     app.register_blueprint(price_feed_bp)
     _price_feed_available = True
+    _log.info("Price feed routes registered")
 except Exception as _pf_err:
     _price_feed_available = False
+    _log.warning("Price feed routes unavailable: %s", _pf_err)
 
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
