@@ -40,16 +40,15 @@ const require   = createRequire(import.meta.url);
 
 // Resolve tsx binary — prefer local node_modules, fall back to global npm install
 function resolveTsx(cwd) {
+  const { statSync } = require("fs");
+  // 1. Chain-local node_modules (e.g. chains/svm/node_modules/.bin/tsx)
   const local = path.join(ROOT, cwd, "node_modules", ".bin", "tsx");
-  try {
-    const { statSync } = require("fs");
-    statSync(local);
-    return local;
-  } catch {
-    // not found locally — use global
-    const globalTsx = "/home/runner/workspace/.config/npm/node_global/bin/tsx";
-    return globalTsx;
-  }
+  try { statSync(local); return local; } catch { /* not there */ }
+  // 2. Workspace root node_modules (installed at workspace level)
+  const rootLocal = path.join(ROOT, "node_modules", ".bin", "tsx");
+  try { statSync(rootLocal); return rootLocal; } catch { /* not there */ }
+  // 3. Global npm install fallback
+  return "/home/runner/workspace/.config/npm/node_global/bin/tsx";
 }
 
 const FAISS_URL        = process.env.FAISS_URL        || "http://127.0.0.1:8000";

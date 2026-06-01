@@ -113,6 +113,10 @@ args = "Rust Indexers"
 task = "workflow.run"
 args = "TRION Relayer"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Attack Alert Webhook"
+
 [[workflows.workflow]]
 name = "Rust Indexers"
 author = "agent"
@@ -124,6 +128,18 @@ args = "FAISS_SERVICE_URL=\"http://127.0.0.1:8000\" bash supervisors/rust_indexe
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow]]
+name = "Attack Alert Webhook"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "ORACLE_API_URL=http://127.0.0.1:5000 WEBHOOK_PORT=6000 uv run python3 attack_alert_webhook.py"
+waitForPort = 6000
+
 [[ports]]
 localPort = 5000
 externalPort = 80
@@ -131,6 +147,10 @@ externalPort = 80
 [[ports]]
 localPort = 8000
 externalPort = 8000
+
+[[ports]]
+localPort = 6000
+externalPort = 6000
 
 [deployment]
 deploymentTarget = "autoscale"
