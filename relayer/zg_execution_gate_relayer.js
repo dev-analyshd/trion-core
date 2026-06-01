@@ -31,8 +31,8 @@
  *   ORACLE_API_URL               TRION oracle (default: http://127.0.0.1:5000)
  *   MONITORED_ENTITIES           comma-separated entity IDs to monitor
  *   ZG_POLL_INTERVAL_MS          polling interval (default: 60000)
- *   ZG_DA_ENDPOINT               0G DA node endpoint (default: https://da-rpc.testnet.0g.ai)
- *   ZG_STORAGE_ENDPOINT          0G Storage indexer (default: https://indexer-storage-testnet-standard.0g.ai)
+ *   ZG_DA_ENDPOINT               0G DA node endpoint (default: https://da-rpc.0g.ai)
+ *   ZG_STORAGE_ENDPOINT          0G Storage indexer (default: https://indexer-storage.0g.ai)
  */
 
 import { ethers } from "ethers";
@@ -55,8 +55,8 @@ const ZG_EXPLORER      = ZG_CHAIN_ID === 16661
 const GATE_ADDR        = process.env.ZG_EXECUTION_GATE_ADDR
   || "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"; // fallback: existing oracle
 
-const DA_ENDPOINT      = process.env.ZG_DA_ENDPOINT      || "https://da-rpc.testnet.0g.ai";
-const STORAGE_ENDPOINT = process.env.ZG_STORAGE_ENDPOINT || "https://indexer-storage-testnet-standard.0g.ai";
+const DA_ENDPOINT      = process.env.ZG_DA_ENDPOINT      || "https://da-rpc.0g.ai";
+const STORAGE_ENDPOINT = process.env.ZG_STORAGE_ENDPOINT || "https://indexer-storage.0g.ai";
 
 const MONITORED = (process.env.MONITORED_ENTITIES ||
   "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20,uniswap,aave,compound"
