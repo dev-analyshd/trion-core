@@ -25,6 +25,10 @@ TRION is a multi-chain behavioral truth oracle. It derives cryptographically ver
 | **Cairo** | 1.x | StarkNet attestation contracts (`chains/starknet/`) |
 | **FunC** | TON | TON network contracts (`chains/ton/contracts/`) |
 | **Julia** | 1.x | Formal entropy verification (`math/trion_entropy_verification.jl`) |
+| **Go** | 1.21 | P2P validator mesh networking (Channel 17), ANIMA 54-language crawler coordination (`go/`) |
+| **Haskell** | GHC 9.x | Formal verification — 7 theorems as types; SILENCE≠VALUATION, PC_limit, Θ monotonicity (`math/formal_verification.hs`) |
+| **C++** | C++17 | FFT behavioral entropy engine (wash-trading via spectral analysis), hardware sensor interface — BRT/HSM/ecological (`cpp/`) |
+| **WebAssembly** | WAT/WASM | Browser-side signal processing; type-safe SILENCE≠VALUATION enforcement; local Θ(t) computation (`wasm/`) |
 
 ---
 
@@ -73,6 +77,27 @@ curl http://127.0.0.1:5000/api/v1/zg/integration
 
 # Whitepaper formula coverage (84/84 live)
 curl http://127.0.0.1:5000/api/v1/whitepaper/coverage
+
+# Signal factory self-test (all 24 signal types)
+uv run python3 src/signals/signal_factory.py
+
+# ANIMA language registry (59 ISO 639-1 languages, whitepaper mandates 50+)
+uv run python3 -c "from src.planes.anima.anima_data_streams import SUPPORTED_NLP_LANGUAGES; print(len(SUPPORTED_NLP_LANGUAGES))"
+
+# Coherence engine self-test (11 weight profiles, L3.6 PC_limit)
+uv run python3 src/core/coherence_engine.py
+
+# Haskell formal verification (7 invariants as types — run with GHC if installed)
+# ghc -Wall math/formal_verification.hs -o math/trion_verify && math/trion_verify
+
+# C++ FFT engine self-test (wash-trade spectral detection)
+# mkdir -p cpp/build && cd cpp/build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . && ctest
+
+# Go validator mesh + ANIMA crawler coordinator
+# cd go && go test ./...
+
+# WebAssembly signal processor
+# bash wasm/build.sh --validate
 
 # Run tests
 uv run python3 -m pytest tests/ -q   # 328 passed, 24 skipped
