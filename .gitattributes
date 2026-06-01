@@ -6,3 +6,4 @@ akashic/akashic_faiss.index filter=lfs diff=lfs merge=lfs -text
 akashic/akashic_state.db filter=lfs diff=lfs merge=lfs -text
 akashic_state.db filter=lfs diff=lfs merge=lfs -text
 bh_ledger.db filter=lfs diff=lfs merge=lfs -text
+bh_ledger.db-wal filter=lfs diff=lfs merge=lfs -text
