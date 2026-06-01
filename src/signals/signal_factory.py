@@ -1,19 +1,22 @@
 """
 TRION Protocol — Complete Signal System
-All 19 signal types per whitepaper Section 11.
+24 signal types: 19 canonical (whitepaper Section 11) + 5 extended (L6–L9 planes).
+
+Canonical 19 (whitepaper Section 11):
+  VALUATION, SILENCE, LIQUIDITY_HEALTH, MANIPULATION_ALERT, TRAJECTORY,
+  SYSTEMIC_RISK, GOVERNANCE_SIGNAL, CROSS_CHAIN_COHERENCE, STABLECOIN_HEALTH,
+  PHASE_TRANSITION, FORK_DIVERGENCE, GENESIS, REGULATORY_BHV,
+  SOVEREIGN_BEHAVIORAL, MEV_BEHAVIORAL (alias: MEV_EXPOSURE),
+  ENERGY_PARTICIPATION, BIOLOGICAL_CAPITAL, BTCP_ROUTE, CONSENSUS_ADAPTATION.
+
+Extended 5 (beyond canonical 19, retained for coverage breadth):
+  RESURRECTION, NEGATIVE_SPACE, INSTITUTIONAL_BHV, ECOSYSTEM_HEALTH, BOOTSTRAP.
 
 Every signal includes: CI_95 always, biological_time,
 full provenance chain, coherence breakdown.
 
 SILENCE signal carries:
   coherence_gap, limiting_plane, coherence_trend, eta
-
-Added in this revision:
-  - Builder functions for all 19 signal types (was only 3).
-  - BRT derives from observed timestamps when available.
-  - REGULATORY_BHV signal wires into anima_regulatory.
-  - PHASE_TRANSITION signal uses epigenetic layer state.
-  - GOVERNANCE_SIGNAL includes quorum and HHI health.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0

@@ -114,6 +114,91 @@ class BIBLOutput:
     cross_chain_health: Optional[dict]
 
 
+# ── Gas Preference Profile (Whitepaper Section 18) ────────────────────────────
+
+class TimingIntelligenceMode(str, Enum):
+    USE_BRT    = "USE_BRT"       # use Biological Rhythm Timer phase
+    USE_ANIMA  = "USE_ANIMA"     # use ANIMA pre-manifestation signals
+    USE_MEMORY = "USE_MEMORY"    # use BIBL archetype pattern memory
+    MANUAL     = "MANUAL"        # user-defined override
+
+
+class ChainPreference(str, Enum):
+    ETHEREUM_ONLY    = "ETHEREUM_ONLY"
+    SUGGEST          = "SUGGEST"          # BIBL suggests, user decides
+    AUTO_ROUTE       = "AUTO_ROUTE"       # BIBL routes automatically
+    BEHAVIORAL_ONLY  = "BEHAVIORAL_ONLY"  # route only to chains with NL > threshold
+
+
+class MEVProtectionLevel(str, Enum):
+    NONE    = "NONE"     # no MEV protection
+    DETECT  = "DETECT"   # warn only
+    PROTECT = "PROTECT"  # private mempool routing
+    MAXIMUM = "MAXIMUM"  # BIBL batching + private routing + timing delay
+
+
+class BatchParticipation(str, Enum):
+    NEVER = "NEVER"
+    ASK   = "ASK"    # prompt user before batching
+    AUTO  = "AUTO"   # auto-batch when opportunity detected
+
+
+class MemoryDeference(str, Enum):
+    FULL    = "FULL"     # fully defer to BIBL archetype memory
+    PARTIAL = "PARTIAL"  # blend BIBL memory with real-time signals
+    NONE    = "NONE"     # ignore historical memory
+
+
+@dataclass
+class GasPreferenceProfile:
+    """
+    Whitepaper Section 18 — User-configurable BIBL routing preferences.
+    Allows users to tune the speed-cost-safety tradeoff for cross-chain execution.
+
+    Defaults: balanced profile (speed=5, ANIMA intelligence, auto-route, detect MEV,
+    ask before batching, partial memory deference).
+    """
+    speed_vs_cost:       int                    = 5       # slider 0=cheapest, 10=fastest
+    timing_intelligence: TimingIntelligenceMode = TimingIntelligenceMode.USE_ANIMA
+    chain_preference:    ChainPreference        = ChainPreference.SUGGEST
+    mev_protection:      MEVProtectionLevel     = MEVProtectionLevel.DETECT
+    batch_participation: BatchParticipation     = BatchParticipation.ASK
+    memory_deference:    MemoryDeference        = MemoryDeference.PARTIAL
+
+    def to_dict(self) -> dict:
+        return {
+            "speed_vs_cost":       self.speed_vs_cost,
+            "timing_intelligence": self.timing_intelligence.value,
+            "chain_preference":    self.chain_preference.value,
+            "mev_protection":      self.mev_protection.value,
+            "batch_participation": self.batch_participation.value,
+            "memory_deference":    self.memory_deference.value,
+        }
+
+    @classmethod
+    def speed_profile(cls) -> "GasPreferenceProfile":
+        """Maximum speed: fastest chain, auto-route, full memory."""
+        return cls(speed_vs_cost=10, chain_preference=ChainPreference.AUTO_ROUTE,
+                   mev_protection=MEVProtectionLevel.PROTECT,
+                   batch_participation=BatchParticipation.AUTO,
+                   memory_deference=MemoryDeference.FULL)
+
+    @classmethod
+    def economy_profile(cls) -> "GasPreferenceProfile":
+        """Maximum savings: cheapest route, wait for BRT low-gas window."""
+        return cls(speed_vs_cost=0, timing_intelligence=TimingIntelligenceMode.USE_BRT,
+                   chain_preference=ChainPreference.BEHAVIORAL_ONLY,
+                   batch_participation=BatchParticipation.AUTO,
+                   memory_deference=MemoryDeference.FULL)
+
+    @classmethod
+    def privacy_profile(cls) -> "GasPreferenceProfile":
+        """Maximum privacy: maximum MEV protection, manual routing."""
+        return cls(mev_protection=MEVProtectionLevel.MAXIMUM,
+                   chain_preference=ChainPreference.SUGGEST,
+                   batch_participation=BatchParticipation.NEVER)
+
+
 # ── BRT Derivation from Observed Timing ───────────────────────────────────────
 
 def derive_brt_from_observations(
