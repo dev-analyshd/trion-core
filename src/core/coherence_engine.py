@@ -28,23 +28,38 @@ THETA_MAX = 0.92
 
 
 class AssetProfile(str, Enum):
-    DEFAULT    = "DEFAULT"
-    NEW_TOKEN  = "NEW_TOKEN"
-    MATURE     = "MATURE_PROTOCOL"
-    STABLECOIN = "STABLECOIN"
-    GOVERNANCE = "GOVERNANCE_TOKEN"
-    BRIDGE     = "BRIDGE_ASSET"
-    WRAPPED    = "WRAPPED_ASSET"
+    DEFAULT      = "DEFAULT"
+    NEW_TOKEN    = "NEW_TOKEN"
+    MATURE       = "MATURE_PROTOCOL"
+    STABLECOIN   = "STABLECOIN"
+    GOVERNANCE   = "GOVERNANCE_TOKEN"
+    BRIDGE       = "BRIDGE_ASSET"
+    WRAPPED      = "WRAPPED_ASSET"
+    # ── Named weight profiles (whitepaper L5.2 — query-mode variants) ─────────
+    SPEED        = "SPEED"         # Maximize physical signal velocity
+    INTELLIGENCE = "INTELLIGENCE"  # Maximize ANIMA + mental inference
+    CERTAINTY    = "CERTAINTY"     # Maximize spiritual (consensus) weight
+    FULL_SPECTRUM = "FULL_SPECTRUM" # Equal weight — maximum diversity
 
 
 WEIGHT_PROFILES = {
-    AssetProfile.DEFAULT:    {"alpha":0.25,"beta":0.30,"gamma":0.25,"delta":0.10,"epsilon":0.10},
-    AssetProfile.NEW_TOKEN:  {"alpha":0.40,"beta":0.15,"gamma":0.30,"delta":0.10,"epsilon":0.05},
-    AssetProfile.MATURE:     {"alpha":0.20,"beta":0.30,"gamma":0.20,"delta":0.15,"epsilon":0.15},
-    AssetProfile.STABLECOIN: {"alpha":0.25,"beta":0.35,"gamma":0.25,"delta":0.05,"epsilon":0.10},
-    AssetProfile.GOVERNANCE: {"alpha":0.15,"beta":0.20,"gamma":0.25,"delta":0.25,"epsilon":0.15},
-    AssetProfile.BRIDGE:     {"alpha":0.30,"beta":0.25,"gamma":0.30,"delta":0.05,"epsilon":0.10},
-    AssetProfile.WRAPPED:    {"alpha":0.20,"beta":0.25,"gamma":0.35,"delta":0.05,"epsilon":0.15},
+    # ── Asset-type calibrated profiles (L5.2 table) ───────────────────────────
+    AssetProfile.DEFAULT:      {"alpha":0.25,"beta":0.30,"gamma":0.25,"delta":0.10,"epsilon":0.10},
+    AssetProfile.NEW_TOKEN:    {"alpha":0.40,"beta":0.15,"gamma":0.30,"delta":0.10,"epsilon":0.05},
+    AssetProfile.MATURE:       {"alpha":0.20,"beta":0.30,"gamma":0.20,"delta":0.15,"epsilon":0.15},
+    AssetProfile.STABLECOIN:   {"alpha":0.25,"beta":0.35,"gamma":0.25,"delta":0.05,"epsilon":0.10},
+    AssetProfile.GOVERNANCE:   {"alpha":0.15,"beta":0.20,"gamma":0.25,"delta":0.25,"epsilon":0.15},
+    AssetProfile.BRIDGE:       {"alpha":0.30,"beta":0.25,"gamma":0.30,"delta":0.05,"epsilon":0.10},
+    AssetProfile.WRAPPED:      {"alpha":0.20,"beta":0.25,"gamma":0.35,"delta":0.05,"epsilon":0.15},
+    # ── Named query-mode profiles (L5.2 — consumer optimization) ─────────────
+    # SPEED: maximise Φ for fastest latency — high physical, minimal ANIMA
+    AssetProfile.SPEED:        {"alpha":0.50,"beta":0.20,"gamma":0.20,"delta":0.05,"epsilon":0.05},
+    # INTELLIGENCE: maximise ANIMA + mental — deepest behavioral inference
+    AssetProfile.INTELLIGENCE: {"alpha":0.15,"beta":0.35,"gamma":0.15,"delta":0.05,"epsilon":0.30},
+    # CERTAINTY: maximise Σ consensus — highest validator-backed confidence
+    AssetProfile.CERTAINTY:    {"alpha":0.15,"beta":0.20,"gamma":0.50,"delta":0.10,"epsilon":0.05},
+    # FULL_SPECTRUM: equal weight — maximum information diversity, no plane bias
+    AssetProfile.FULL_SPECTRUM:{"alpha":0.20,"beta":0.20,"gamma":0.20,"delta":0.20,"epsilon":0.20},
 }
 
 
@@ -192,6 +207,37 @@ class CoherenceEngine:
             },
             "akashic_depth":   inp.akashic_depth,
         }
+
+    def compute_pc_limit(self, h_irreducible: float, h_future: float) -> float:
+        """
+        L3.6 — Predictive Completeness Limit
+        PC_limit(t) = 1 - H_irreducible / H(future) < 1 always
+
+        The hard bound on predictive completeness imposed by irreducible
+        entropy. H_irreducible is the minimum uncertainty that cannot be
+        eliminated even with perfect data. H(future) is total future entropy.
+
+        PC_limit < 1 always — this is a mathematical invariant, not an
+        engineering limitation. No signal system can predict the future
+        with certainty; this formula quantifies exactly how close is possible.
+
+        Args:
+            h_irreducible: Irreducible entropy component (nats or bits).
+                           Must be > 0. Sources: quantum randomness,
+                           unobservable private intent, emergent complexity.
+            h_future:      Total future entropy H(future). Must be > 0.
+                           Sources: full uncertainty over future state space.
+
+        Returns:
+            PC_limit ∈ [0, 1) — strictly < 1 when h_irreducible > 0.
+            Returns 0.0 if h_future ≤ 0 (degenerate case).
+        """
+        if h_future <= 0.0:
+            return 0.0
+        if h_irreducible <= 0.0:
+            return 1.0
+        pc = 1.0 - (h_irreducible / h_future)
+        return max(0.0, min(0.9999, pc))
 
     def apply_mf_to_phi(self, phi_raw: float, mf_score: float) -> float:
         return phi_raw * (1.0 - mf_score)
