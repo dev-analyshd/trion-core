@@ -129,6 +129,19 @@ BH_LEDGER_DB_PATH = os.environ.get("BH_LEDGER_DB", os.path.join(
     os.path.dirname(STATE_DB_PATH), "bh_ledger.db"
 ))
 
+# Persistent BH ledger connection — avoids reopening + 5 PRAGMAs on every block
+_bh_persistent_conn: "sqlite3.Connection | None" = None
+_bh_persistent_lock = threading.Lock()
+
+def _get_persistent_bh_conn():
+    """Return the module-level persistent BH connection, creating it if needed."""
+    global _bh_persistent_conn
+    if _bh_persistent_conn is None:
+        with _bh_persistent_lock:
+            if _bh_persistent_conn is None:
+                _bh_persistent_conn = _bh_conn()
+    return _bh_persistent_conn
+
 # L0.1 BH defaults
 ARBITRUM_ONE_CHAIN_ID  = 42161
 ARBITRUM_SEP_CHAIN_ID  = 421614
@@ -3143,7 +3156,8 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
         def _bh_write():
             nonlocal stored
             with _DB_WRITE_LOCK:
-                conn = _bh_conn()
+                conn = _get_persistent_bh_conn()
+                before = conn.execute("SELECT total_changes()").fetchone()[0]
                 conn.executemany("""
                     INSERT OR IGNORE INTO bh_ledger
                         (tx_hash, entity_id, from_addr, to_addr,
@@ -3155,8 +3169,7 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, rows)
                 conn.commit()
-                stored = conn.execute("SELECT changes()").fetchone()[0]
-                conn.close()
+                stored = conn.execute("SELECT total_changes()").fetchone()[0] - before
         try:
             _db_write_with_retry(_bh_write)
         except Exception as exc:
