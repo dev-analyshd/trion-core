@@ -26,6 +26,66 @@ class AnnotationType(IntEnum):
     DISPUTE_RESOLVE  = 4
 
 
+# ── L4.2: 6 Anti-Regulatory-Capture Protections (Whitepaper Section 8, L4.2) ──
+# The whitepaper mandates 6 structural protections that prevent any single
+# regulatory actor from capturing the human annotation network.
+
+ANTI_CAPTURE_PROTECTIONS = [
+    {
+        "id":          "ACP1",
+        "name":        "Pseudonymous Identities",
+        "description": "Annotators are pseudonymous. Their real-world identities are unknown "
+                       "to each other, to TRION, and to any regulatory body. "
+                       "Prevents targeted pressure on known individuals.",
+        "enforcement": "annotator_hash is a commitment — no identity linkage stored.",
+    },
+    {
+        "id":          "ACP2",
+        "name":        "Term Limits",
+        "description": "12-month terms, maximum 24 months. Rotating annotator pool prevents "
+                       "long-term regulatory relationships with specific annotators.",
+        "enforcement": "term_start + 24_months → automatic removal from pool.",
+    },
+    {
+        "id":          "ACP3",
+        "name":        "Commit-Reveal Voting",
+        "description": "Annotators submit a hash commitment before the reveal window opens. "
+                       "Prevents herding: no annotator can see others' votes before committing.",
+        "enforcement": "verify_commit() — mismatched reveal is silently rejected.",
+    },
+    {
+        "id":          "ACP4",
+        "name":        "Conscious Plane Cannot Override Akashic Record",
+        "description": "Human annotation can add cultural context and expert judgment, "
+                       "but cannot modify, delete, or override the on-chain behavioral record. "
+                       "Truth is behavioral, not annotated.",
+        "enforcement": "K plane has no write access to Akashic Index. "
+                       "Architectural separation, not policy.",
+    },
+    {
+        "id":          "ACP5",
+        "name":        "Geographic Jurisdiction Diversity Requirement",
+        "description": "Annotators must be distributed across minimum 3 distinct legal jurisdictions. "
+                       "No single jurisdiction may hold > 40% of annotation weight. "
+                       "Prevents a single regulatory authority from controlling annotation outcomes.",
+        "enforcement": "jurisdiction_hhi enforcement in annotator selection algorithm.",
+    },
+    {
+        "id":          "ACP6",
+        "name":        "Annotation Cannot Reverse Settled Transactions",
+        "description": "The Conscious plane has no retroactive authority. "
+                       "It cannot undo past signals, reverse recorded events, or alter historical "
+                       "behavioral assessments. Forward-looking cultural context only.",
+        "enforcement": "Akashic Index is append-only. No deletion API exists at any layer.",
+    },
+]
+
+
+def get_anti_capture_protections() -> list:
+    """Return all 6 anti-regulatory-capture protections for the Conscious Plane."""
+    return ANTI_CAPTURE_PROTECTIONS
+
+
 @dataclass
 class AnnotationCommit:
     annotator_hash: bytes
