@@ -76,6 +76,14 @@ const CHAINS = [
   // ── 0G Networks ──────────────────────────────────────────────────────────
   { key: "0g-mainnet",   name: "0G Mainnet",          chainId: 16661,  rpcEnv: "ZERO_G_RPC",           rpcDefault: "https://evmrpc.0g.ai",                addrEnv: "ZG_MAINNET_ORACLE_ADDR",   addrDefault: null },
   { key: "0g-newton",    name: "0G Newton Mainnet",   chainId: 16600,  rpcEnv: "ZG_NEWTON_RPC",        rpcDefault: "https://evmrpc-mainnet.0g.ai",        addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
+
+  // ── Testnets (deployed oracle contracts — active for testing) ────────────
+  { key: "arb-sepolia",  name: "Arbitrum Sepolia",    chainId: 421614, rpcEnv: "ARB_SEPOLIA_RPC_URL",  rpcDefault: "https://sepolia-rollup.arbitrum.io/rpc", addrEnv: "ARB_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3" },
+  { key: "eth-sepolia",  name: "Ethereum Sepolia",    chainId: 11155111, rpcEnv: "ETH_SEPOLIA_RPC_URL", rpcDefault: "https://ethereum-sepolia.publicnode.com", addrEnv: "ETH_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39" },
+  { key: "base-sepolia", name: "Base Sepolia",        chainId: 84532,  rpcEnv: "BASE_SEPOLIA_RPC_URL", rpcDefault: "https://sepolia.base.org",              addrEnv: "BASE_SEPOLIA_ORACLE_ADDR", addrDefault: "0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C" },
+  { key: "op-sepolia",   name: "Optimism Sepolia",    chainId: 11155420, rpcEnv: "OP_SEPOLIA_RPC_URL", rpcDefault: "https://sepolia.optimism.io",           addrEnv: "OP_SEPOLIA_ORACLE_ADDR",   addrDefault: "0x708193f93Fb897fbeA72e7e7D19237770F19E969" },
+  { key: "bnb-testnet",  name: "BNB Testnet",         chainId: 97,     rpcEnv: "BNB_TESTNET_RPC_URL",  rpcDefault: "https://bsc-testnet-rpc.publicnode.com", addrEnv: "BNB_TESTNET_ORACLE_ADDR",  addrDefault: "0xf0e20F48D4c2c63DCAf4bad01471d29DEb921721" },
+  { key: "0g-galileo",   name: "0G Galileo Testnet",  chainId: 16602,  rpcEnv: "ZG_GALILEO_RPC",       rpcDefault: "https://evmrpc-testnet.0g.ai",          addrEnv: "ZG_GALILEO_ORACLE_ADDR",   addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
 ];
 
 const ABI = [
