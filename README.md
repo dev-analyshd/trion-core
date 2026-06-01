@@ -1,20 +1,19 @@
 # TRION Protocol — Multi-Chain Behavioral Truth Oracle
 
-> *Real-time behavioral intelligence across **37 indexed networks** · **13 VM families** · Five planes of existence · **162 API routes** · A pre-execution firewall that would have blocked **$44B+** in historical DeFi exploits · **TRIONExecutionGate live on 0G Mainnet (chain 16661)** · **Whitepaper v0.4 aligned**.*
+> *Real-time behavioral intelligence across **37 indexed networks** · **13 VM families** · Five planes of existence · **345 API routes** (194 Flask + 151 FAISS) · A pre-execution firewall that would have blocked **$44B+** in historical DeFi exploits · **TRIONExecutionGate live on 0G Mainnet (chain 16661)** · **Whitepaper v1.0 complete**.*
 
-[![Tests](https://img.shields.io/badge/Tests-184%20passed%2C%205%20skipped%20%C2%B7%20E2E%2015%20sections-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-328%20passed%2C%2024%20skipped-brightgreen)](tests/)
 [![Stress Test](https://img.shields.io/badge/Stress-17%2F17%20passed%20%C2%B7%200.022ms%20avg%20BH-brightgreen)](tests/test_stress.py)
 [![Attacks Blocked](https://img.shields.io/badge/Attacks%20Blocked-32%20%7C%20%2443.6B%20protected-red)](simulate_attacks.py)
 [![FAISS Vectors](https://img.shields.io/badge/FAISS%20Vectors-Growing%20Live%20from%2037%20chains-blue)](#faiss-anima-service)
-[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-162-purple)](#oracle-api----port-5000)
-[![Whitepaper](https://img.shields.io/badge/Whitepaper-v0.4%20Aligned-brightgreen)](#whitepaper-v04-alignment)
-[![Workflows](https://img.shields.io/badge/Workflows-9%20Running-green)](#workflows)
+[![Oracle API Routes](https://img.shields.io/badge/Oracle%20API%20Routes-345-purple)](#oracle-api----port-5000)
+[![Whitepaper](https://img.shields.io/badge/Whitepaper-v1.0%20Complete-brightgreen)](#whitepaper-v10-alignment)
+[![Workflows](https://img.shields.io/badge/Workflows-8%20Running-green)](#workflows)
 [![Chains](https://img.shields.io/badge/Chains-37%20Networks%20%7C%2013%20VM%20Families-orange)](#indexed-networks)
 [![BH Ledger](https://img.shields.io/badge/BH%20Ledger-243k%2B%20per--tx%20records-blue)](#faiss-anima-service)
 [![0G Integration](https://img.shields.io/badge/0G-5%2F5%20Components%20%7C%20Mainnet%2016661-blueviolet)](#0g-integration)
 [![0G Mainnet](https://img.shields.io/badge/0G%20Mainnet-0xA85B49C7...4199b-purple)](https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b)
 [![TEE Sealed](https://img.shields.io/badge/TEE-Sealed%20Inference%20Anti--FrontRun-blueviolet)](#0g-compute--tee-sealed-inference)
-[![Render Ready](https://img.shields.io/badge/Render-Dockerfile%20%2B%20render.yaml%20ready-success)](#render-production)
 [![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey)](https://creativecommons.org/publicdomain/zero/1.0/)
 
 ---
@@ -63,7 +62,7 @@ In the TRION stack, CEXs are no longer the source — they are consumers of the 
 
 Understanding TRION requires following data from raw blockchain activity to a final on-chain gate signal. Here is every step in order.
 
-### Step 1 — Data Ingestion (14 Rust Indexers + 7 Node.js Supervisors)
+### Step 1 — Data Ingestion (13 Rust Indexers + 4 Node.js Supervisors)
 
 Every few seconds, TRION's indexers poll 37 networks across 13 VM families and extract **raw behavioral signals** from each new block.
 
@@ -130,7 +129,7 @@ The FAISS index persists across restarts via a multi-layer save strategy: a SIGT
 
 ### Step 3 — Oracle API Scoring Engine (Python/Flask, port 5000)
 
-The Oracle API (`oracle_api/app.py`, 162 routes) is the integration point for everything. When any consumer calls `GET /api/v1/signal/{entity_id}`, the following pipeline executes:
+The Oracle API (`oracle_api/app.py`, 194 Flask routes + 151 FAISS routes = 345 total) is the integration point for everything. When any consumer calls `GET /api/v1/signal/{entity_id}`, the following pipeline executes:
 
 **3a. Physical Plane (Φ)**
 
@@ -294,9 +293,9 @@ Limiting plane = argmin(Φ_adj, M_adj, Σ, K, A)
 
 ---
 
-## Whitepaper v0.4 Alignment
+## Whitepaper v1.0 Alignment
 
-This section documents what was implemented in this session to align TRION's codebase with whitepaper v0.3 and extend it to v0.4. Every item below corresponds to a section of the whitepaper that previously had no code behind it.
+This section documents the full implementation of all 84 whitepaper formulas across TRION's codebase. Every item below corresponds to a whitepaper section with live code behind it.
 
 ### Three Core Primitives (Whitepaper Introduction)
 
@@ -425,8 +424,8 @@ Joint probability rounds to zero. Attack EV is deeply negative. The mathematics 
 trion-core/
 ├── serve.py                    # Unified entry point → oracle_api/app.py (Flask, port 5000)
 ├── oracle_api/
-│   ├── app.py                  # 162 API routes — signal compute, on-chain publish, live feed
-│   ├── blockchain.py           # web3 relay — TRIONSensingOracle on Arbitrum Sepolia
+│   ├── app.py                  # 194 Flask routes — signal compute, on-chain publish, live feed
+│   ├── blockchain.py           # web3 relay — TRIONExecutionGate on 0G Mainnet (chain 16661)
 │   ├── templates/dashboard.html  # Live dashboard UI
 │   └── requirements.txt
 ├── akashic/
@@ -435,10 +434,10 @@ trion-core/
 │   ├── anima_regulatory.py     # Compliance behavioral patterns
 │   ├── btcp_gas_forecast.py    # Gas price behavioral forecasting
 │   └── liquidity_ocean.py      # Liquidity behavioral patterns
-├── rust-indexers/              # Rust workspace (Cargo workspace, 14 crates)
+├── rust-indexers/              # Rust workspace (Cargo workspace, 13 crates)
 │   └── crates/
 │       ├── trion-common/       # Shared: BH canonical format, FAISS client, entropy utils
-│       ├── trion-evm/          # EVM L0 indexer — 14 chains
+│       ├── trion-evm/          # EVM L0 indexer — 14 EVM mainnet chains
 │       ├── trion-svm/          # Solana behavioral indexer
 │       ├── trion-near/         # NEAR Protocol indexer
 │       ├── trion-ton/          # TON blockchain indexer
@@ -503,7 +502,7 @@ trion-core/
 │   └── interfaces/
 ├── sdk/
 │   └── trion_sdk.py            # Python SDK for TRION API
-├── tests/                      # 184 unit + 17 stress tests
+├── tests/                      # 328 unit + 17 stress tests
 ├── math/                       # Julia entropy verification, Haskell formal proofs
 ├── docs/research/              # C++ signal processor, Go health monitor
 ├── proof-ledger/               # On-chain proof records
@@ -520,19 +519,18 @@ trion-core/
 
 ## Workflows
 
-All **9 workflows** run continuously in the Replit environment:
+All **8 workflows** run continuously in the Replit environment:
 
 | # | Workflow | Runtime | Purpose |
 |---|---------|---------|---------|
-| 1 | **Start application** | Python / Flask (uv) | Oracle API + Frontend on port 5000 — 162 routes, dashboard |
+| 1 | **Start application** | Python / Flask (uv) | Oracle API + Frontend on port 5000 — 194 routes, dashboard |
 | 2 | **FAISS ANIMA** | Python / FastAPI (uv) | 128-dim FAISS vector index + behavioral planes on port 8000 |
 | 3 | **Rust Indexers** | Rust (cargo) | L0 EVM (14 chains) + SVM/Solana — core behavioral indexing |
-| 4 | **EVM Extras Indexer** | Bash supervisor | BNB/Base/HashKey/Mantle/Linea/Scroll → FAISS |
-| 5 | **Native VM Indexers** | Bash / Node.js | NEAR, TON, Polkadot, StarkNet → FAISS |
-| 6 | **Extended VM Indexers** | Bash / Node.js | UTXO×4, COSMOS×6, MOVE×2, SUI, TRON, PI → FAISS |
-| 7 | **Native VM Relayer** | Node.js | Signs block proofs on NEAR · TON · Polkadot · StarkNet |
-| 8 | **TRION Relayer** | Node.js + Bash | Publishes C(t) on EVM chains every 60s; 0G ExecutionGate sync |
-| 9 | **Extended Chain Relayer** | Node.js | Publishes C(t) on 15 non-EVM chains every 90s |
+| 4 | **Native VM Indexers** | Bash / Node.js | NEAR, TON, Polkadot, StarkNet → FAISS |
+| 5 | **Extended VM Indexers** | Bash / Node.js | UTXO×4, COSMOS×6, MOVE×2, SUI, TRON, PI → FAISS |
+| 6 | **Native VM Relayer** | Node.js | Signs block proofs on NEAR · TON · Polkadot · StarkNet |
+| 7 | **TRION Relayer** | Node.js + Bash | Publishes C(t) on EVM chains every 60s; 0G ExecutionGate sync |
+| 8 | **Extended Chain Relayer** | Node.js | Publishes C(t) on 15 non-EVM chains every 90s |
 
 ---
 
@@ -556,7 +554,7 @@ TRION integrates **all 5 components** of the 0G stack simultaneously:
 
 ### Replit (development)
 
-All 9 workflows start automatically. Oracle API available at port 5000, FAISS ANIMA at port 8000.
+All 8 workflows start automatically. Oracle API available at port 5000, FAISS ANIMA at port 8000.
 
 ```bash
 # Verify everything is live
@@ -568,7 +566,7 @@ curl http://127.0.0.1:5000/api/v1/cex/status       # CEX integration status
 curl http://127.0.0.1:5000/api/v1/zg/integration   # All 5 0G components
 
 # Run test suite
-python3 -m pytest tests/ -q                        # 184 passed, 5 skipped
+python3 -m pytest tests/ -q                        # 328 passed, 24 skipped
 ```
 
 **Required secrets** (set in Replit Secrets panel):
@@ -685,14 +683,14 @@ fly auth login && fly launch --no-deploy && fly deploy
 
 ## Oracle API — Port 5000
 
-**162 routes** across all whitepaper sections:
+**194 Flask routes** + **151 FAISS routes** = **345 total** across all whitepaper sections:
 
 ### Core Signal Routes
 - `GET /api/v1/signal/{entity_id}` — full C(t) with all 5 planes
 - `POST /api/v1/signal/batch` — batch scoring up to 100 entities
 - `GET /api/v1/feed` — last 50 computed signals
 
-### Whitepaper-Aligned Routes (v0.4)
+### Whitepaper-Aligned Routes (v1.0 — all 84 formulas live)
 - `GET /api/v1/phase_signal` — §10.6 system-wide phase shift signal
 - `GET /api/v1/phase_signal/<entity_id>` — §10.6 per-entity phase
 - `GET /api/v1/order_parameter` — §9.2 Ψ(t) adoption order parameter
@@ -721,7 +719,7 @@ fly auth login && fly launch --no-deploy && fly deploy
 - `GET /api/v1/zg/chain/status` · `GET /api/v1/zg/storage/root` · `GET /api/v1/zg/da/status`
 - `GET /api/v1/zg/compute/status` · `POST /api/v1/zg/compute/infer`
 
-### + 130 additional routes across all whitepaper sections
+### + 185 additional routes across all whitepaper sections (see FAISS port 8000 for 151 more)
 Liquidity (NL score), moat (M_moat), governance (slashing, SBA), validators, planes (all 5), archetypes, epigenetics, thermodynamics, lifecycle, reputation, investment signals, love protocol, living index, token distribution, 10-phase roadmap, CEX integration, and more.
 
 ---
@@ -773,7 +771,7 @@ Liquidity (NL score), moat (M_moat), governance (slashing, SBA), validators, pla
 ```bash
 # Unit & stress tests (fast, no server required)
 python3 -m pytest tests/ -q
-# 184 passed, 5 skipped
+# 328 passed, 24 skipped
 
 # Stress test (17 tests — BH XOR invariant × 1000, collision check × 10000,
 #              P(break LSS) monotone, all 8 CRISPR attacks, concurrent load × 100)
