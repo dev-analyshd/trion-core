@@ -2,2520 +2,1174 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRION Protocol — Multi-Chain Behavioral Truth Oracle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="theme-color" content="#040810">
+<title>TRION Protocol — Behavioral Intelligence Network</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/feather-icons@4.29.0/dist/feather.min.js"></script>
 <style>
-:root{
-  --bg:#090d14;--card:#0d1420;--border:#1a2540;--accent:#00e5ff;
-  --accent2:#7c3aed;--green:#00ff88;--red:#ff4560;--yellow:#ffd600;
-  --text:#c9d6e3;--text-dim:#5a6a7e;
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:#040810;
+  color:#e2e8f8;
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  line-height:1.5;
+  overflow-x:hidden;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
-.navbar{background:#0a0f1a;border-bottom:1px solid var(--border);padding:12px 24px}
-.nav-logo{font-size:1.4rem;font-weight:800;letter-spacing:2px;color:#fff}
-.nav-logo span{color:var(--accent)}
-.nav-tagline{font-size:.7rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase}
-.badge-live{background:#00ff8822;color:var(--green);border:1px solid #00ff8844;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:1px}
-.badge-zg{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:1px}
-.container-fluid{padding:20px 28px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
-.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.stat-card.accent::before{background:linear-gradient(90deg,var(--accent),var(--accent2))}
-.stat-card.green::before{background:var(--green)}
-.stat-card.red::before{background:var(--red)}
-.stat-card.yellow::before{background:var(--yellow)}
-.stat-card.purple::before{background:var(--accent2)}
-.stat-val{font-size:2.2rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.stat-val.accent{color:var(--accent)}
-.stat-val.green{color:var(--green)}
-.stat-val.red{color:var(--red)}
-.stat-val.yellow{color:var(--yellow)}
-.stat-val.purple{color:#a78bfa}
-.stat-label{font-size:.7rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-top:6px}
-.stat-sub{font-size:.75rem;color:var(--text-dim);margin-top:4px}
-.section-title{font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
-.chain-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-.chain-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;transition:.2s}
-.chain-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-.chain-name{font-size:.8rem;font-weight:700;color:#fff;margin-bottom:4px}
-.chain-vm{font-size:.65rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
-.chain-status{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:.7rem}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
-.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
-.dot-yellow{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
-.dot-red{background:var(--red)}
-.dot-blue{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.signal-table{width:100%;border-collapse:collapse;font-size:.8rem}
-.signal-table th{color:var(--text-dim);font-size:.65rem;letter-spacing:2px;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;font-weight:400}
-.signal-table td{padding:10px 12px;border-bottom:1px solid #0d1420;vertical-align:middle}
-.signal-table tr:hover td{background:#0f1928}
-.phi-bar{width:80px;height:6px;background:#1a2540;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
-.phi-fill{height:100%;border-radius:3px;transition:.3s}
-.phi-fill.safe{background:var(--green)}
-.phi-fill.caution{background:var(--yellow)}
-.phi-fill.danger{background:var(--red)}
-.arch-badge{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed33;padding:2px 8px;border-radius:10px;font-size:.65rem;white-space:nowrap}
-.status-safe{color:var(--green);font-weight:700}
-.status-collapse{color:var(--red);font-weight:700}
-.status-elevated{color:var(--yellow);font-weight:700}
-.entity-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
-.entity-name{font-size:.85rem;font-weight:700;color:#fff;margin-bottom:2px}
-.entity-addr{font-size:.65rem;color:var(--text-dim);font-family:monospace;margin-bottom:12px}
-.plane-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.72rem}
-.plane-name{width:60px;color:var(--text-dim);flex-shrink:0}
-.plane-bar{flex:1;height:5px;background:#1a2540;border-radius:3px;overflow:hidden}
-.plane-fill{height:100%;border-radius:3px}
-.plane-val{width:35px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
-.zg-card{background:linear-gradient(135deg,#0d1420,#130a2a);border:1px solid #3b1d8a44;border-radius:12px;padding:20px}
-.zg-addr{font-family:monospace;font-size:.72rem;color:var(--accent);word-break:break-all}
-.zg-link{font-size:.72rem;color:#7c3aed;text-decoration:none}
-.zg-link:hover{color:#a78bfa;text-decoration:underline}
-.metric-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
-.metric-row:last-child{border-bottom:none}
-.metric-key{font-size:.72rem;color:var(--text-dim)}
-.metric-val{font-size:.8rem;font-weight:700;color:#fff}
-.pulse{animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-.ticker{font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:700}
-.refresh-note{font-size:.65rem;color:var(--text-dim);margin-left:auto}
-.tag-chip{display:inline-flex;align-items:center;gap:4px;background:#00e5ff11;border:1px solid #00e5ff22;color:var(--accent);padding:3px 8px;border-radius:6px;font-size:.65rem;font-weight:600;margin:2px}
-.connector-line{position:relative;text-align:center;padding:20px 0}
-.connector-line::before{content:'↓';color:var(--accent);font-size:1.2rem}
-#chart-phi{max-height:120px}
-.five-plane-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.fpl-item{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--text-dim)}
-.fpl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-footer{background:#0a0f1a;border-top:1px solid var(--border);padding:16px 28px;font-size:.72rem;color:var(--text-dim)}
-.footer-links a{color:var(--text-dim);text-decoration:none;margin-right:16px}
-.footer-links a:hover{color:var(--accent)}
-@keyframes glow{0%,100%{text-shadow:0 0 8px var(--green)}50%{text-shadow:0 0 20px var(--green)}}
-.live-glow{animation:glow 2s infinite}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;border:none;background:none;font-family:inherit}
+input{font-family:inherit}
 
-/* Vision modules */
-.vision-banner{background:linear-gradient(135deg,#0d1420 0%,#0a0f1e 50%,#130a2a 100%);border:1px solid #1a2540;border-left:3px solid var(--accent);border-radius:12px;padding:16px 20px;margin-bottom:24px}
-.audit-input{background:#060b12;border:1px solid var(--border);border-radius:8px;color:#fff;padding:10px 14px;width:100%;font-family:monospace;font-size:.8rem;outline:none;transition:.2s}
-.audit-input:focus{border-color:var(--accent)}
-.audit-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:8px;color:#000;font-weight:800;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;padding:10px 20px;cursor:pointer;width:100%;transition:.2s}
-.audit-btn:hover{opacity:.85;transform:translateY(-1px)}
-.chain-select{background:#060b12;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 12px;width:100%;font-size:.78rem;outline:none;margin-top:10px}
-.risk-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.72rem;font-weight:800;letter-spacing:1px;text-transform:uppercase}
-.risk-safe{background:#00ff8822;color:var(--green);border:1px solid #00ff8844}
-.risk-medium{background:#ffd60022;color:var(--yellow);border:1px solid #ffd60044}
-.risk-high{background:#ff456022;color:var(--red);border:1px solid #ff456044}
-.risk-critical{background:#ff000022;color:#ff4444;border:1px solid #ff444444}
-.finding-row{padding:10px 12px;border-bottom:1px solid #0d1420;font-size:.73rem}
-.finding-row:last-child{border-bottom:none}
-.severity-critical{color:var(--red)}
-.severity-high{color:var(--yellow)}
-.severity-medium{color:#fb923c}
-.severity-low{color:var(--text-dim)}
-.arch-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;transition:.2s;cursor:default}
-.arch-card:hover{border-color:var(--accent);transform:translateY(-2px)}
-/* ── Architecture Inversion ── */
-.inv-node{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:#0d1420;transition:.2s}
-.inv-node:hover{transform:translateX(3px)}
-.inv-node.broken:hover{transform:translateX(-3px)}
-.inv-node-label{font-size:.82rem;font-weight:700;margin-bottom:3px}
-.inv-node-sub{font-size:.68rem;color:var(--text-dim);margin-bottom:6px;line-height:1.4}
-.inv-tag{display:inline-block;font-size:.6rem;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:4px}
-.inv-arrow{font-size:.9rem;font-weight:700;padding:4px 0;text-align:center;color:var(--text-dim);letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px}
-.inv-arrow span{font-size:.62rem;font-weight:400;letter-spacing:1px;text-transform:uppercase}
-.broken-arrow{color:#ff456060}
-.trion-arrow{color:#00ff8880}
-.inv-pulse-dot{position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:inv-travel 3s ease-in-out infinite}
-.inv-key-card{background:#0a0f1a;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-@keyframes inv-travel{0%{top:0;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:calc(100% - 8px);opacity:0}}
-@keyframes inv-blink{0%,100%{opacity:1;box-shadow:0 0 8px var(--green)}50%{opacity:.4;box-shadow:none}}
-@keyframes inv-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-.arch-signal-BUY{color:var(--green)}
-.arch-signal-AVOID{color:var(--red)}
-.arch-signal-SHORT{color:#ff4444}
-.arch-signal-WATCH{color:var(--yellow)}
-.invest-decision{font-size:1rem;font-weight:900;letter-spacing:1px}
-.decision-STRONG_BUY{color:var(--green)}
-.decision-BUY{color:#34d399}
-.decision-WATCH{color:var(--yellow)}
-.decision-AVOID{color:#fb923c}
-.decision-STRONG_AVOID{color:var(--red)}
-.decision-SHORT{color:#ff4444}
-.rep-tier-EXEMPLARY{color:#3498db;font-weight:800}
-.rep-tier-VERIFIED{color:var(--green);font-weight:700}
-.rep-tier-TRUSTED{color:var(--yellow)}
-.rep-tier-PROBATION{color:#fb923c}
-.rep-tier-UNTRUSTED{color:var(--red)}
-.trust-EXEMPLARY{color:#3498db}
-.trust-VERIFIED{color:var(--green)}
-.trust-TRUSTED{color:var(--yellow)}
-.trust-PROBATION{color:#fb923c}
-.agent-card{background:#060b12;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;font-size:.75rem}
-.alpha-bar-wrap{height:6px;background:#1a2540;border-radius:3px;overflow:hidden;margin-top:4px}
-.alpha-bar-fill{height:100%;border-radius:3px;transition:.5s}
-.loader-text{color:var(--text-dim);font-size:.75rem;padding:20px;text-align:center}
-.ubl-dim{display:inline-flex;align-items:center;gap:6px;background:#0d1420;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:.65rem;margin:2px}
+/* ── CSS Custom Properties ─────────────────────────────────────────────────── */
+:root{
+  --bg:#040810;
+  --bg2:#070c18;
+  --surface:#0b1120;
+  --surface2:#101928;
+  --border:rgba(255,255,255,0.07);
+  --border-active:rgba(0,194,255,0.4);
+  --cyan:#00C2FF;
+  --cyan-dim:rgba(0,194,255,0.12);
+  --cyan-glow:rgba(0,194,255,0.3);
+  --purple:#8B5CF6;
+  --purple-dim:rgba(139,92,246,0.12);
+  --green:#00E676;
+  --green-dim:rgba(0,230,118,0.12);
+  --red:#FF5252;
+  --red-dim:rgba(255,82,82,0.12);
+  --amber:#FFB300;
+  --amber-dim:rgba(255,179,0,0.12);
+  --text1:#F0F4FF;
+  --text2:#8899BB;
+  --text3:#4a5568;
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:20px;
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --shadow-cyan:0 0 40px rgba(0,194,255,0.08);
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:4px}
+
+/* ── Navbar ────────────────────────────────────────────────────────────────── */
+.navbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(4,8,16,0.92);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  height:60px;
+  display:flex;align-items:center;gap:20px;
+}
+.nav-logo{
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+}
+.nav-logo-icon{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:.85rem;color:#fff;letter-spacing:-1px;
+}
+.nav-logo-text{
+  font-size:1.05rem;font-weight:800;color:var(--text1);letter-spacing:1px;
+}
+.nav-logo-sub{
+  font-size:.6rem;color:var(--text3);letter-spacing:3px;text-transform:uppercase;
+  font-weight:500;
+  display:block;line-height:1;margin-top:1px;
+}
+.nav-spacer{flex:1}
+.nav-pill{
+  display:flex;align-items:center;gap:7px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:5px 12px;
+  font-size:.72rem;font-weight:600;letter-spacing:.5px;
+  color:var(--text2);
+  white-space:nowrap;
+}
+.nav-pill .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 6px var(--green);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-block{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.72rem;color:var(--text2);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:5px 10px;
+  white-space:nowrap;
+}
+.nav-block span{color:var(--cyan);font-weight:600}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.page{
+  max-width:1600px;
+  margin:0 auto;
+  padding:24px 20px 60px;
+}
+
+/* ── Metrics Strip ─────────────────────────────────────────────────────────── */
+.metrics-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+.metric-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:18px 20px;
+  position:relative;
+  overflow:hidden;
+  transition:border-color .2s,transform .15s;
+}
+.metric-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.12)}
+.metric-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  opacity:.5;
+}
+.metric-card.c-cyan::after{background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.metric-card.c-purple::after{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
+.metric-card.c-green::after{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.metric-card.c-amber::after{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.metric-card.c-red::after{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.metric-label{
+  font-size:.65rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:10px;
+}
+.metric-val{
+  font-size:1.9rem;font-weight:800;line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.metric-val.c-cyan{color:var(--cyan)}
+.metric-val.c-purple{color:var(--purple)}
+.metric-val.c-green{color:var(--green)}
+.metric-val.c-amber{color:var(--amber)}
+.metric-val.c-red{color:var(--red)}
+.metric-sub{font-size:.7rem;color:var(--text3);margin-top:5px}
+
+/* ── Main Grid ─────────────────────────────────────────────────────────────── */
+.main-grid{
+  display:grid;
+  grid-template-columns:1fr 380px;
+  gap:16px;
+  margin-bottom:16px;
+}
+.main-left{display:flex;flex-direction:column;gap:16px}
+
+/* ── Card base ─────────────────────────────────────────────────────────────── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.card-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.card-title{
+  font-size:.72rem;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--text2);flex:1;
+}
+.card-badge{
+  font-size:.62rem;font-weight:700;letter-spacing:1px;
+  padding:3px 8px;border-radius:20px;
+}
+.card-badge.live{
+  background:var(--green-dim);color:var(--green);
+  border:1px solid rgba(0,230,118,0.2);
+}
+.card-badge.cyan{
+  background:var(--cyan-dim);color:var(--cyan);
+  border:1px solid rgba(0,194,255,0.2);
+}
+.card-body{padding:16px 20px}
+
+/* ── Entity Search ─────────────────────────────────────────────────────────── */
+.search-wrap{
+  display:flex;gap:8px;
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+}
+.search-input{
+  flex:1;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--r-md);
+  padding:10px 14px;
+  color:var(--text1);
+  font-size:.85rem;
+  outline:none;
+  transition:border-color .2s;
+}
+.search-input::placeholder{color:var(--text3)}
+.search-input:focus{border-color:var(--border-active);box-shadow:0 0 0 3px var(--cyan-dim)}
+.search-btn{
+  background:var(--cyan);
+  color:#040810;
+  font-weight:700;
+  font-size:.8rem;
+  padding:10px 18px;
+  border-radius:var(--r-md);
+  letter-spacing:.5px;
+  transition:opacity .15s,transform .1s;
+  white-space:nowrap;
+}
+.search-btn:hover{opacity:.85;transform:translateY(-1px)}
+.search-btn:active{transform:translateY(0)}
+
+/* ── Signal Result ─────────────────────────────────────────────────────────── */
+.signal-result{display:none;padding:20px}
+.signal-result.visible{display:block}
+.signal-header{
+  display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;
+}
+.signal-icon{
+  width:48px;height:48px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:900;flex-shrink:0;
+}
+.signal-icon.safe{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
+.signal-icon.warn{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
+.signal-entity{font-size:.75rem;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-bottom:4px;word-break:break-all}
+.signal-type{font-size:1.15rem;font-weight:800;color:var(--text1);line-height:1.1}
+.signal-archetype{display:inline-block;margin-top:4px;font-size:.7rem;font-weight:600;
+  letter-spacing:1px;padding:2px 8px;border-radius:20px;
+  background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
+
+.score-row{display:flex;gap:12px;margin-bottom:16px}
+.score-box{
+  flex:1;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:12px 14px;
+}
+.score-box-label{font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.score-box-val{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+
+.planes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.plane-item{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 8px;text-align:center;
+}
+.plane-name{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.plane-bar-track{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:5px}
+.plane-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.plane-score{font-size:.8rem;font-weight:700}
+
+.signal-footer{
+  display:flex;align-items:center;gap:8px;
+  font-size:.68rem;color:var(--text3);
+  border-top:1px solid var(--border);
+  padding-top:12px;
+}
+.signal-footer .tag{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:4px;padding:2px 7px;color:var(--text2);
+}
+
+/* ── Live Feed ─────────────────────────────────────────────────────────────── */
+.feed-list{
+  max-height:340px;overflow-y:auto;
+  padding:0;
+}
+.feed-item{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:11px 20px;
+  border-bottom:1px solid var(--border);
+  transition:background .15s;
+  animation:slideIn .3s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.feed-item:hover{background:rgba(255,255,255,0.02)}
+.feed-item:last-child{border-bottom:none}
+.feed-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.feed-dot.safe{background:var(--green);box-shadow:0 0 6px var(--green)}
+.feed-dot.warn{background:var(--red);box-shadow:0 0 6px var(--red)}
+.feed-entity{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text1);font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.feed-arch{font-size:.65rem;color:var(--text3);margin-top:2px}
+.feed-score{
+  font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums;
+  text-align:right;white-space:nowrap;
+}
+.feed-score.safe{color:var(--green)}
+.feed-score.warn{color:var(--red)}
+
+/* ── Chains ────────────────────────────────────────────────────────────────── */
+.chains-wrap{margin-bottom:16px}
+.chain-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
+  gap:8px;
+  padding:16px 20px;
+}
+.chain-item{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  padding:11px 13px;
+  transition:border-color .2s,transform .15s;
+  cursor:default;
+}
+.chain-item:hover{border-color:rgba(0,194,255,0.25);transform:translateY(-1px)}
+.chain-name{font-size:.78rem;font-weight:600;color:var(--text1);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.chain-vm{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+.chain-status-row{display:flex;align-items:center;gap:5px;margin-top:8px}
+.chain-status-dot{width:6px;height:6px;border-radius:50%}
+.chain-status-dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
+.chain-status-dot.warn{background:var(--amber)}
+.chain-status-dot.off{background:var(--text3)}
+.chain-status-txt{font-size:.62rem;color:var(--text3);letter-spacing:.5px}
+
+/* ── Leaderboard ───────────────────────────────────────────────────────────── */
+.lb-table{width:100%;border-collapse:collapse}
+.lb-table th{
+  font-size:.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);padding:10px 20px;text-align:left;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+.lb-table th:last-child{text-align:right}
+.lb-table td{
+  padding:11px 20px;font-size:.8rem;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  vertical-align:middle;
+}
+.lb-table tr:hover td{background:rgba(255,255,255,0.02)}
+.lb-table tr:last-child td{border-bottom:none}
+.lb-rank{
+  font-size:.75rem;font-weight:700;color:var(--text3);
+  width:30px;
+}
+.lb-rank.top{color:var(--amber)}
+.lb-entity{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text1);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.lb-arch-badge{
+  display:inline-block;font-size:.6rem;font-weight:600;letter-spacing:.5px;
+  padding:2px 7px;border-radius:10px;
+  background:var(--purple-dim);color:var(--purple);
+  border:1px solid rgba(139,92,246,0.15);white-space:nowrap;
+}
+.lb-score{font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.lb-score.good{color:var(--green)}
+.lb-score.bad{color:var(--red)}
+.lb-bar-wrap{width:80px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.lb-bar{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* ── Right Panel ────────────────────────────────────────────────────────────── */
+.right-panel{display:flex;flex-direction:column;gap:16px}
+
+/* ── System Status ─────────────────────────────────────────────────────────── */
+.status-list{padding:8px 0}
+.status-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 20px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.status-row:last-child{border-bottom:none}
+.status-icon{
+  width:28px;height:28px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;flex-shrink:0;
+}
+.status-icon.ok{background:var(--green-dim);color:var(--green)}
+.status-icon.warn{background:var(--amber-dim);color:var(--amber)}
+.status-icon.err{background:var(--red-dim);color:var(--red)}
+.status-label{font-size:.8rem;font-weight:500;color:var(--text1);flex:1;min-width:0}
+.status-val{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap}
+
+/* ── Volatility Gauge ──────────────────────────────────────────────────────── */
+.gauge-wrap{padding:16px 20px}
+.gauge-track{
+  height:8px;background:rgba(255,255,255,0.06);
+  border-radius:8px;overflow:hidden;margin-bottom:8px;
+}
+.gauge-fill{
+  height:100%;border-radius:8px;
+  background:linear-gradient(90deg,var(--green),var(--amber),var(--red));
+  transition:width .8s ease;
+}
+.gauge-labels{display:flex;justify-content:space-between;font-size:.62rem;color:var(--text3)}
+
+/* ── Radar Chart ────────────────────────────────────────────────────────────── */
+.radar-wrap{padding:16px;display:flex;justify-content:center}
+#radarCanvas{max-width:200px;max-height:200px}
+
+/* ── Deployment info ────────────────────────────────────────────────────────── */
+.deploy-list{padding:8px 0}
+.deploy-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px;border-bottom:1px solid rgba(255,255,255,0.03);
+  gap:10px;
+}
+.deploy-row:last-child{border-bottom:none}
+.deploy-chain{font-size:.74rem;color:var(--text2);font-weight:500;flex:1}
+.deploy-addr{
+  font-size:.65rem;font-family:'JetBrains Mono',monospace;
+  color:var(--text3);background:var(--bg2);
+  border:1px solid var(--border);border-radius:4px;
+  padding:2px 6px;cursor:pointer;
+  transition:color .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;
+}
+.deploy-addr:hover{color:var(--cyan)}
+
+/* ── Loading skeleton ───────────────────────────────────────────────────────── */
+.skeleton{
+  background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.5s infinite;
+  border-radius:4px;
+  height:1em;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Empty state ────────────────────────────────────────────────────────────── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  gap:10px;padding:32px 20px;color:var(--text3);text-align:center;
+}
+.empty-state .icon{font-size:1.6rem;opacity:.4}
+.empty-state p{font-size:.8rem}
+
+/* ── Toast ──────────────────────────────────────────────────────────────────── */
+.toast-container{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:12px 16px;
+  font-size:.78rem;color:var(--text1);
+  box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:10px;
+  animation:toastIn .25s ease;
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media(max-width:1280px){
+  .metrics-grid{grid-template-columns:repeat(5,1fr)}
+  .main-grid{grid-template-columns:1fr 340px}
+}
+@media(max-width:1024px){
+  .metrics-grid{grid-template-columns:repeat(3,1fr)}
+  .metrics-grid .metric-card:nth-child(4){grid-column:span 1}
+  .metrics-grid .metric-card:nth-child(5){grid-column:span 1}
+  .main-grid{grid-template-columns:1fr}
+  .right-panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+}
+@media(max-width:768px){
+  .page{padding:12px 12px 48px}
+  .navbar{padding:0 14px;height:54px}
+  .nav-logo-sub,.nav-block{display:none}
+  .metrics-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .metrics-grid .metric-card:nth-child(1){grid-column:span 2}
+  .metric-val{font-size:1.6rem}
+  .main-grid{grid-template-columns:1fr;gap:12px}
+  .right-panel{display:flex;flex-direction:column}
+  .planes-grid{grid-template-columns:repeat(5,1fr)}
+  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:12px}
+  .lb-table th:nth-child(3),.lb-table td:nth-child(3){display:none}
+}
+@media(max-width:480px){
+  .metrics-grid{grid-template-columns:1fr 1fr}
+  .metrics-grid .metric-card:first-child{grid-column:span 2}
+  .planes-grid{grid-template-columns:repeat(5,1fr);gap:4px}
+  .plane-name{font-size:.5rem}
+  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+  .score-row{flex-wrap:wrap}
+  .score-box{min-width:calc(50% - 6px)}
+}
+@media(min-width:1600px){
+  .metrics-grid{grid-template-columns:repeat(5,1fr)}
+  .main-grid{grid-template-columns:1fr 420px}
+  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+}
 </style>
 </head>
 <body>
 
-<!-- ─── NAVBAR ─── -->
-<nav class="navbar d-flex align-items-center gap-3">
-  <div>
-    <div class="nav-logo">TRION<span>.</span></div>
-    <div class="nav-tagline">Multi-Chain Behavioral Truth Oracle</div>
+<!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">TR</div>
+    <div>
+      <div class="nav-logo-text">TRION</div>
+      <span class="nav-logo-sub">Behavioral Intelligence</span>
+    </div>
   </div>
-  <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
-    <span class="badge-live">⬤ 9 Workflows Live</span>
-    <span class="badge-zg" style="background:linear-gradient(135deg,#7c3aed,#1d4ed8)">⬡ 0G Mainnet Live</span>
-    <span class="badge-live" id="vector-badge">⬤ FAISS Loading…</span>
-    <span style="font-size:.7rem;color:var(--text-dim)" id="last-refresh"></span>
+
+  <div class="nav-spacer"></div>
+
+  <div class="nav-pill">
+    <span class="dot"></span>
+    <span id="navNet">37 Chains Live</span>
+  </div>
+
+  <div class="nav-block">Block <span id="navBlock">—</span></div>
+
+  <div class="nav-pill" style="gap:6px">
+    <span style="color:var(--cyan);font-weight:700">GATE</span>
+    <span id="navGate" style="color:var(--text2)">0xA85B…199b</span>
   </div>
 </nav>
 
-<div class="container-fluid mt-3">
+<!-- ── Page ───────────────────────────────────────────────────────────────── -->
+<div class="page">
 
-  <!-- ─── TOP STATS ─── -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-2">
-      <div class="stat-card accent">
-        <div class="stat-val accent ticker" id="s-vectors">—</div>
-        <div class="stat-label">FAISS Vectors</div>
-        <div class="stat-sub">Live behavioral index</div>
-      </div>
+  <!-- ── Metrics Strip ──────────────────────────────────────────────────── -->
+  <div class="metrics-grid" id="metricsGrid">
+    <div class="metric-card c-cyan">
+      <div class="metric-label">Chains Monitored</div>
+      <div class="metric-val c-cyan" id="mChains">—</div>
+      <div class="metric-sub" id="mChainsVm">Across all VM families</div>
     </div>
-    <div class="col-6 col-md-2">
-      <div class="stat-card green">
-        <div class="stat-val green ticker" id="s-published">271</div>
-        <div class="stat-label">0G Signals Published</div>
-        <div class="stat-sub">ExecutionGate on-chain</div>
-      </div>
+    <div class="metric-card c-purple">
+      <div class="metric-label">Entities Tracked</div>
+      <div class="metric-val c-purple" id="mEntities">—</div>
+      <div class="metric-sub">In Akashic Index</div>
     </div>
-    <div class="col-6 col-md-2">
-      <div class="stat-card red">
-        <div class="stat-val red ticker" id="s-anomalies">47</div>
-        <div class="stat-label">Anomalies Sealed</div>
-        <div class="stat-sub">DA-proof permanently logged</div>
-      </div>
+    <div class="metric-card c-green">
+      <div class="metric-label">Behavioral Records</div>
+      <div class="metric-val c-green" id="mVectors">—</div>
+      <div class="metric-sub">FAISS vector index</div>
     </div>
-    <div class="col-6 col-md-2">
-      <div class="stat-card yellow">
-        <div class="stat-val yellow" id="s-chains">37</div>
-        <div class="stat-label">Chains Indexed</div>
-        <div class="stat-sub" id="s-vm-fam">13 VM families</div>
-      </div>
+    <div class="metric-card c-amber">
+      <div class="metric-label">Market Volatility</div>
+      <div class="metric-val c-amber" id="mVol">—</div>
+      <div class="metric-sub" id="mThreshSub">Security threshold auto-adjusted</div>
     </div>
-    <div class="col-6 col-md-2">
-      <div class="stat-card purple">
-        <div class="stat-val purple" id="s-threshold">—</div>
-        <div class="stat-label">Θ(t) Threshold</div>
-        <div class="stat-sub">Dynamic, volatility-adjusted</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="stat-card green">
-        <div class="stat-val green live-glow" id="s-blocked">0</div>
-        <div class="stat-label">Executions Blocked</div>
-        <div class="stat-sub">On-chain hard reverts</div>
-      </div>
+    <div class="metric-card c-red">
+      <div class="metric-label">Signals On-Chain</div>
+      <div class="metric-val c-red" id="mSignals">—</div>
+      <div class="metric-sub">Published to blockchain</div>
     </div>
   </div>
 
-  <!-- ─── 0G INTEGRATION BANNER ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="zap" style="width:12px;height:12px"></i> 0G Chain Integration — <span style="color:#a78bfa">Mainnet LIVE</span> (Chain ID 16661) + Galileo Testnet (16602)</div>
-    <div class="row g-3">
-      <div class="col-md-5">
-        <div class="zg-card" style="border-color:#7c3aed;box-shadow:0 0 18px rgba(124,58,237,.25)">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">TRIONExecutionGate — <span style="color:#4ade80">✓ MAINNET</span></div>
-          <div style="font-size:.55rem;color:var(--text-dim);margin-bottom:4px">0G Mainnet · Chain 16661 · Block 33,234,152 · 2026-05-14</div>
-          <div class="zg-addr mb-1" style="font-size:.72rem">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</div>
-          <a class="zg-link" href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">→ View on 0G Mainnet Explorer ↗</a>
-          <a class="zg-link" style="margin-left:10px;font-size:.65rem;color:#6b7280" href="https://chainscan.0g.ai/tx/0xb83aa8ce2a285bdafc20be6c8ad96d967622678a0f4ad0e27016d8952c055e74" target="_blank">→ Deploy Tx ↗</a>
-          <hr style="border-color:var(--border);margin:10px 0">
-          <div style="font-size:.6rem;color:#6b7280;margin-bottom:6px;letter-spacing:1px">GALILEO TESTNET (16602) — supplementary contracts</div>
-          <div class="metric-row"><span class="metric-key">TRIONOracleV3</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</span></div>
-          <div class="metric-row"><span class="metric-key">LiquidityOcean</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7</span></div>
-          <div class="metric-row"><span class="metric-key">BTCPSimpleEscrow</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x388f98831c749D7Acad2046329c9CeC94A8b248d</span></div>
-          <div class="metric-row"><span class="metric-key">TravelRuleCompliance</span><span class="metric-val" style="font-size:.6rem;font-family:monospace">0x5e7DBE6cc90d6260be2781dc312812834715EBaB</span></div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="zg-card h-100">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">0G Integration Depth</div>
-          <div class="metric-row">
-            <span class="metric-key">0G Chain (EVM)</span>
-            <span class="status-safe">✓ LIVE</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">0G Storage (BEO Vectors)</span>
-            <span class="status-safe" id="zg-storage-status">✓ Synced</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">0G DA (Anomaly Proofs)</span>
-            <span class="status-safe" id="zg-da-status">✓ Proof Hashes</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">Signals Published (0G)</span>
-            <span class="metric-val" id="zg-published">271</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">Anomalies Sealed (0G)</span>
-            <span class="metric-val" style="color:var(--red)" id="zg-anomalies">47</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">Storage Root</span>
-            <span class="metric-val" style="font-size:.6rem;font-family:monospace;color:var(--accent)" id="zg-storage-root">f2500e57d9c8864c…</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-key">Last Sync Block</span>
-            <span class="metric-val" id="zg-sync-block">31,249,030</span>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="zg-card h-100">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">ExecutionGate Logic</div>
-          <div style="font-size:.75rem;color:var(--text);line-height:1.8">
-            <div><span style="color:var(--green)">STATUS_SAFE (1)</span> — Φ(t) nominal<br><span style="font-size:.65rem;color:var(--text-dim)">→ execution ALLOWED</span></div>
-            <div class="mt-2"><span style="color:var(--yellow)">STATUS_ELEVATED (2)</span> — Φ rising<br><span style="font-size:.65rem;color:var(--text-dim)">→ execution CAUTIONED</span></div>
-            <div class="mt-2"><span style="color:var(--red)">STATUS_COLLAPSE (3)</span> — Φ drop detected<br><span style="font-size:.65rem;color:var(--text-dim)">→ execution BLOCKED on-chain</span></div>
-            <div class="mt-2"><span style="color:#ff0000">STATUS_HOSTILE (4)</span> — MEV / exploit<br><span style="font-size:.65rem;color:var(--text-dim)">→ execution BLOCKED + ALERT</span></div>
-          </div>
-          <div style="margin-top:12px;padding:8px;background:#00ff8811;border:1px solid #00ff8833;border-radius:6px;font-size:.7rem;color:var(--green)">
-            AI agents MUST call <code style="color:var(--accent)">checkExecution()</code> before any DeFi trade. Violation = on-chain revert.
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- ── Main Grid ──────────────────────────────────────────────────────── -->
+  <div class="main-grid">
 
-  <!-- ─── LIVE SIGNAL FEED & ENTITY CARDS ─── -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-7">
-      <div class="stat-card" style="padding:20px">
-        <div class="section-title"><i data-feather="activity" style="width:12px;height:12px"></i> Live Behavioral Signal Feed <span class="refresh-note pulse" id="feed-age"></span></div>
+    <!-- Left column -->
+    <div class="main-left">
+
+      <!-- Entity Lookup -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Entity Intelligence Lookup</span>
+          <span class="card-badge cyan">37 Chains</span>
+        </div>
+        <div class="search-wrap">
+          <input class="search-input" id="searchInput" type="text"
+            placeholder="Enter wallet address, protocol name, or ENS…"
+            autocomplete="off" autocorrect="off" spellcheck="false">
+          <button class="search-btn" id="searchBtn" onclick="lookupEntity()">Analyze</button>
+        </div>
+        <div id="signalResult"></div>
+        <div id="signalEmpty" class="empty-state">
+          <div class="icon">⬡</div>
+          <p>Enter any entity to retrieve its full behavioral intelligence profile across all monitored chains</p>
+        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Live Signal Feed</span>
+          <span class="card-badge live">● Live</span>
+        </div>
+        <div class="feed-list" id="feedList">
+          <div class="empty-state"><div class="icon">⟳</div><p>Loading feed…</p></div>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Trust Leaderboard</span>
+          <span class="card-badge cyan" id="lbThresh">Threshold —</span>
+        </div>
         <div style="overflow-x:auto">
-          <table class="signal-table">
+          <table class="lb-table">
             <thead>
               <tr>
+                <th>#</th>
                 <th>Entity</th>
-                <th>Φ(t)</th>
-                <th>Status</th>
                 <th>Archetype</th>
-                <th>Plane</th>
-                <th>Time</th>
+                <th style="text-align:right">Trust Score</th>
               </tr>
             </thead>
-            <tbody id="feed-tbody">
-              <tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:20px">Loading signals…</td></tr>
+            <tbody id="lbBody">
+              <tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text3);font-size:.8rem">Loading…</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-    <div class="col-md-5">
-      <div class="section-title"><i data-feather="shield" style="width:12px;height:12px"></i> Monitored Entities</div>
-      <div id="entity-cards" class="d-flex flex-column gap-2"></div>
+
+    <!-- Right column -->
+    <div class="right-panel">
+
+      <!-- System Status -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">System Status</span>
+          <span class="card-badge live" id="sysStatusBadge">Healthy</span>
+        </div>
+        <div class="status-list" id="statusList">
+          <div class="status-row">
+            <div class="skeleton" style="width:28px;height:28px;border-radius:7px"></div>
+            <div class="skeleton" style="width:60%;height:.8rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Volatility Gauge -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Security Threshold</span>
+        </div>
+        <div class="gauge-wrap">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:.72rem;color:var(--text3)">Current threshold</span>
+            <span style="font-size:1.1rem;font-weight:800;color:var(--cyan)" id="gaugeThresh">—</span>
+          </div>
+          <div class="gauge-track">
+            <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>Low risk (0.55)</span>
+            <span>High risk (0.92)</span>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm)">
+            <div style="font-size:.62rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Volatility Index</div>
+            <div style="font-size:.85rem;font-weight:600;color:var(--text1)" id="gaugeVol">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Behavioral Radar (shows last lookup) -->
+      <div class="card" id="radarCard" style="display:none">
+        <div class="card-header">
+          <span class="card-title">Behavioral Profile</span>
+          <span class="card-badge cyan" id="radarEntity">—</span>
+        </div>
+        <div class="radar-wrap">
+          <canvas id="radarCanvas" width="200" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Live Deployments -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Live Deployments</span>
+        </div>
+        <div class="deploy-list">
+          <div class="deploy-row">
+            <span class="deploy-chain">0G Mainnet · ExecutionGate</span>
+            <span class="deploy-addr" onclick="copyAddr('0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b')" title="Click to copy">0xA85B…199b</span>
+          </div>
+          <div class="deploy-row">
+            <span class="deploy-chain">0G Galileo · OracleV3</span>
+            <span class="deploy-addr" onclick="copyAddr('0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C')" title="Click to copy">0x0471…A87C</span>
+          </div>
+          <div class="deploy-row">
+            <span class="deploy-chain">HashKey Mainnet</span>
+            <span class="deploy-addr" onclick="copyAddr('0x708193f93Fb897fbeA72e7e7D19237770F19E969')" title="Click to copy">0x7081…E969</span>
+          </div>
+          <div class="deploy-row">
+            <span class="deploy-chain">Arbitrum Sepolia</span>
+            <span class="deploy-addr" onclick="copyAddr('0xb819c63c02Ed5aB49017C0f3f2568A14624658b3')" title="Click to copy">0xb819…58b3</span>
+          </div>
+          <div class="deploy-row">
+            <span class="deploy-chain">Ethereum Sepolia</span>
+            <span class="deploy-addr" onclick="copyAddr('0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39')" title="Click to copy">0xB07A…Db39</span>
+          </div>
+          <div class="deploy-row">
+            <span class="deploy-chain">Base Sepolia</span>
+            <span class="deploy-addr" onclick="copyAddr('0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C')" title="Click to copy">0x7ADF…680C</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <!-- ─── 37-CHAIN GRID ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="globe" style="width:12px;height:12px"></i> 37 Indexed Networks — 13 VM Families</div>
-    <div class="chain-grid" id="chain-grid">
-      <!-- filled by JS -->
+  <!-- ── Chain Network ───────────────────────────────────────────────────── -->
+  <div class="card chains-wrap">
+    <div class="card-header">
+      <span class="card-title">Chain Network</span>
+      <span class="card-badge live" id="chainLiveBadge">● 37 Live</span>
+    </div>
+    <div class="chain-grid" id="chainGrid">
+      <div class="empty-state" style="grid-column:1/-1"><div class="icon">⟳</div><p>Loading chains…</p></div>
     </div>
   </div>
 
-  <!-- ─── ARCHITECTURE ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="cpu" style="width:12px;height:12px"></i> Five-Plane Coherence Formula</div>
-    <div class="stat-card" style="padding:20px">
-      <div class="row align-items-center">
-        <div class="col-md-6">
-          <div style="font-family:monospace;font-size:.85rem;line-height:2;color:#c9d6e3;background:#060b12;padding:16px;border-radius:8px">
-            <span style="color:#a78bfa">C(t)</span> = α·<span style="color:var(--accent)">Φ</span> + β·<span style="color:#34d399">M</span> + γ·<span style="color:#f59e0b">Σ</span> + δ·<span style="color:#ec4899">K</span> + ε·<span style="color:#818cf8">A</span><br>
-            <span style="color:var(--text-dim);font-size:.7rem">
-            Φ Physical   (α=0.25)  9 Shannon entropy features<br>
-            M Mental     (β=0.30)  Observer-effect corrected<br>
-            Σ Spiritual  (γ=0.25)  Diversity-weighted BFT<br>
-            K Conscious  (δ=0.10)  Commit-reveal annotation<br>
-            A ANIMA      (ε=0.10)  k-NN archetype distance<br><br>
-            Θ(t) = 0.55 + 0.37 · <span style="color:var(--yellow)">vol</span>  →  [0.55, 0.92]<br>
-            SILENCE fired when C(t) &lt; Θ(t)
-            </span>
-          </div>
-        </div>
-        <div class="col-md-6 mt-3 mt-md-0">
-          <div style="font-family:monospace;font-size:.75rem;line-height:1.9;color:var(--text-dim);background:#060b12;padding:16px;border-radius:8px">
-            <span style="color:var(--text)">Chain Activity</span><br>
-            &nbsp;&nbsp;↓  9 Shannon features<br>
-            <span style="color:var(--accent)">FAISS 128-dim BEO vectors</span><br>
-            &nbsp;&nbsp;↓  ANIMA engine<br>
-            <span style="color:#a78bfa">C(t) &lt; Θ(t) ?</span><br>
-            &nbsp;&nbsp;↓ YES → SILENCE on-chain<br>
-            <span style="color:var(--red)">TRIONFirewall.gate() reverts TX</span><br>
-            &nbsp;&nbsp;↓ NO → signal published<br>
-            <span style="color:var(--green)">TRIONExecutionGate.checkExecution() → ALLOW</span>
-          </div>
-        </div>
-      </div>
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <div class="tag-chip">FAISS 128-dim BEO</div>
-        <div class="tag-chip">19 Signal Types</div>
-        <div class="tag-chip">TRION-Kyber-1024 PQC</div>
-        <div class="tag-chip">Manipulation Fingerprint</div>
-        <div class="tag-chip">Chameleon Probe Defense</div>
-        <div class="tag-chip">Living Security</div>
-        <div class="tag-chip">0G DA Proof Trail</div>
-        <div class="tag-chip">0G Storage BEO Index</div>
-        <div class="tag-chip">TEE-verified Inference</div>
-        <div class="tag-chip">BTCP Route Verification</div>
-      </div>
-    </div>
-  </div>
+</div><!-- /page -->
 
-  <!-- ─── 0G INTEGRATION HUB ─────────────────────────────────────── -->
-  <div class="mb-4" id="zg-hub">
-    <div class="section-title" style="font-size:.85rem;letter-spacing:3px;color:#a78bfa">
-      <i data-feather="cpu" style="width:12px;height:12px"></i>
-      0G FULL-STACK INTEGRATION HUB — CHAIN · STORAGE · DA · COMPUTE
-    </div>
+<!-- ── Toast container ───────────────────────────────────────────────────── -->
+<div class="toast-container" id="toastContainer"></div>
 
-    <!-- 4 Module Cards Row -->
-    <div class="row g-2 mb-3">
-
-      <!-- 0G CHAIN -->
-      <div class="col-md-3">
-        <div class="zg-card h-100" style="border-color:#a78bfa55">
-          <div style="font-size:.65rem;letter-spacing:2px;color:#a78bfa;margin-bottom:8px;font-weight:700">0G CHAIN ✓ MAINNET LIVE</div>
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">ExecutionGate on Mainnet 16661 + Galileo 16602</div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Signals Published</span><span class="metric-val status-safe" id="zgc-published">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Anomalies Sealed</span><span class="metric-val" style="color:var(--red)" id="zgc-anomalies">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Block Height</span><span class="metric-val" id="zgc-block">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">ExecutionGate (Mainnet)</span><span style="font-size:.6rem;font-family:monospace;color:var(--accent)">0xA85B49C7…</span></div>
-          <div style="margin-top:10px">
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/chain/status" target="_blank">→ Chain Status JSON ↗</a><br>
-            <a class="zg-link" style="font-size:.6rem" href="https://chainscan.0g.ai/address/0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b" target="_blank">→ Mainnet Explorer ↗</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- 0G STORAGE -->
-      <div class="col-md-3">
-        <div class="zg-card h-100" style="border-color:#34d39955">
-          <div style="font-size:.65rem;letter-spacing:2px;color:#34d399;margin-bottom:8px;font-weight:700">0G STORAGE ✓ SDK INTEGRATED</div>
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">@0glabs/0g-ts-sdk v0.3.3</div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Storage Root</span><span class="metric-val" style="font-size:.55rem;font-family:monospace;color:#34d399" id="zgs-root">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Sync Block</span><span class="metric-val" id="zgs-block">…</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Method</span><span class="metric-val" style="font-size:.65rem">Merkle256 + MemData</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Endpoint</span><span style="font-size:.55rem;color:var(--text-dim)">indexer-storage-testnet</span></div>
-          <div style="margin-top:10px">
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/storage/root" target="_blank">→ Storage Root JSON ↗</a><br>
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/storage/store" target="_blank">→ Store Signal ↗</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- 0G DA -->
-      <div class="col-md-3">
-        <div class="zg-card h-100" style="border-color:#f59e0b55">
-          <div style="font-size:.65rem;letter-spacing:2px;color:#f59e0b;margin-bottom:8px;font-weight:700">0G DA ✓ INTEGRATED</div>
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">Reed-Solomon · VRF quorum</div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Namespace</span><span class="metric-val" style="color:#f59e0b">TRION-BEO-v3</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Encoding</span><span class="metric-val" style="font-size:.6rem">2× Reed-Solomon</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Max Blob</span><span class="metric-val">32.5 MB</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">DA Commitment</span><span class="metric-val" style="font-size:.55rem;font-family:monospace;color:#f59e0b" id="zgd-commitment">…</span></div>
-          <div style="margin-top:10px">
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/da/status" target="_blank">→ DA Status JSON ↗</a><br>
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/da/submit" target="_blank">→ Submit Blob ↗</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- 0G COMPUTE -->
-      <div class="col-md-3">
-        <div class="zg-card h-100" style="border-color:#00e5ff55">
-          <div style="font-size:.65rem;letter-spacing:2px;color:var(--accent);margin-bottom:8px;font-weight:700">0G COMPUTE ✓ SDK INTEGRATED</div>
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:8px">@0glabs/0g-serving-broker v0.7.8</div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TEE Verified</span><span class="status-safe">✓ Protocol Ready</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Providers</span><span class="metric-val" id="zgcmp-providers">2 known</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Use Case</span><span class="metric-val" style="font-size:.6rem">ANIMA archetype inference</span></div>
-          <div class="metric-row"><span class="metric-key" style="font-size:.65rem">Models</span><span class="metric-val" style="font-size:.6rem">llama-3, qwen-7b</span></div>
-          <div style="margin-top:10px">
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/compute/status" target="_blank">→ Compute Status JSON ↗</a><br>
-            <a class="zg-link" style="font-size:.6rem" href="/api/v1/zg/compute/infer" target="_blank">→ Infer via 0G ↗</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Full Integration Proof Chain Row -->
-    <div class="zg-card" style="border-color:#a78bfa44;background:#090f1a">
-      <div class="row g-3 align-items-center">
-        <div class="col-md-5">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;margin-bottom:10px;font-weight:700">VERIFIABLE PROOF CHAIN</div>
-          <div style="font-family:monospace;font-size:.68rem;line-height:2.1;background:#060b12;padding:14px;border-radius:8px">
-            <span style="color:var(--accent)">FAISS BEO Index (128-dim, 30 chains)</span><br>
-            &nbsp;&nbsp;↓ SHA-256(index_bytes) → content hash<br>
-            <span style="color:#34d399">0G Storage: MemData blob → Merkle-256 root</span><br>
-            &nbsp;&nbsp;↓ root → TRIONExecutionGate.updateStorageRoot()<br>
-            <span style="color:#f59e0b">0G DA: RS-coded blob → namespace commitment</span><br>
-            &nbsp;&nbsp;↓ commitment → on-chain DA proof hash<br>
-            <span style="color:var(--accent)">0G Compute: TEE-verified ANIMA inference</span><br>
-            &nbsp;&nbsp;↓ archetype → behavioral signal published<br>
-            <span style="color:#a78bfa">0G Chain: signal sealed in ExecutionGate</span>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Live DA Commitment</div>
-          <div class="zg-addr" id="zg-da-commitment-live" style="font-size:.6rem;word-break:break-all;margin-bottom:10px">loading…</div>
-          <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Storage Root (on-chain)</div>
-          <div class="zg-addr" id="zg-storage-root-live" style="font-size:.6rem;word-break:break-all;margin-bottom:10px">loading…</div>
-          <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:4px">Last Sync Block</div>
-          <div class="metric-val" id="zg-syncblock-live" style="font-size:.75rem">…</div>
-        </div>
-        <div class="col-md-3">
-          <div style="font-size:.65rem;color:#a78bfa;margin-bottom:10px;font-weight:700">INTEGRATION DEPTH SCORE</div>
-          <div style="text-align:center;margin-bottom:8px">
-            <div style="font-size:2.5rem;font-weight:900;color:#a78bfa" id="zg-depth-score">4/4</div>
-            <div style="font-size:.65rem;color:var(--text-dim)">modules active</div>
-          </div>
-          <div style="font-size:.65rem;line-height:2;color:var(--text)">
-            <div><span class="status-safe">✓</span> 0G Chain — 5 contracts live</div>
-            <div><span class="status-safe">✓</span> 0G Storage — SDK + Merkle root</div>
-            <div><span class="status-safe">✓</span> 0G DA — RS blob commitment</div>
-            <div><span class="status-safe">✓</span> 0G Compute — TEE inference broker</div>
-          </div>
-          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-            <a href="/api/v1/zg/integration" target="_blank" class="zg-link" style="font-size:.6rem">→ Full Integration JSON ↗</a>
-            <a href="/api/v1/zg/proof" target="_blank" class="zg-link" style="font-size:.6rem">→ DA Proof JSON ↗</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── BEHAVIORAL HASH LEDGER ─── -->
-  <div class="mb-4" id="bh-ledger-section">
-    <div class="section-title"><i data-feather="hash" style="width:12px;height:12px"></i> Behavioral Hash Ledger — Per-Transaction BH Across All VMs &amp; Chains <span style="color:var(--accent);font-size:.65rem;letter-spacing:1px">L0.1 LIVE</span></div>
-
-    <!-- BH Summary Stats -->
-    <div class="row g-2 mb-3">
-      <div class="col-6 col-md-3">
-        <div class="stat-card accent" style="padding:14px">
-          <div class="stat-val accent" id="bh-total" style="font-size:1.8rem">—</div>
-          <div class="stat-label">Total BH Records</div>
-          <div class="stat-sub">93-byte dual-strand</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card green" style="padding:14px">
-          <div class="stat-val green" id="bh-chains" style="font-size:1.8rem">—</div>
-          <div class="stat-label">Chains with Data</div>
-          <div class="stat-sub">EVM + SVM + 0G</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card red" style="padding:14px">
-          <div class="stat-val red" id="bh-mev" style="font-size:1.8rem">—</div>
-          <div class="stat-label">MEV Captures</div>
-          <div class="stat-sub">event_type=17</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card purple" style="padding:14px">
-          <div class="stat-val" style="font-size:1.8rem;color:#a78bfa" id="bh-0g">—</div>
-          <div class="stat-label">0G Mainnet BHs</div>
-          <div class="stat-sub">chain 16661</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Charts Row -->
-    <div class="row g-3 mb-3">
-      <!-- Per-Chain Bar Chart -->
-      <div class="col-md-8">
-        <div class="stat-card" style="padding:16px;height:280px">
-          <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px">
-            <i data-feather="bar-chart-2" style="width:10px;height:10px"></i> BH Count by Chain / VM Family
-          </div>
-          <div style="position:relative;height:220px">
-            <canvas id="bh-chain-chart"></canvas>
-          </div>
-        </div>
-      </div>
-      <!-- Event Type Doughnut -->
-      <div class="col-md-4">
-        <div class="stat-card" style="padding:16px;height:280px">
-          <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px">
-            <i data-feather="pie-chart" style="width:10px;height:10px"></i> Event Type Breakdown
-          </div>
-          <div style="position:relative;height:200px">
-            <canvas id="bh-event-chart"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- VM Family Summary Chips -->
-    <div class="mb-3 d-flex flex-wrap gap-2" id="bh-vm-chips">
-      <!-- filled by JS -->
-    </div>
-
-    <!-- 0G BH Highlight -->
-    <div class="stat-card mb-3" style="padding:14px;border-color:#7c3aed44;border-left:3px solid #a78bfa">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:#a78bfa;white-space:nowrap">
-          <i data-feather="zap" style="width:10px;height:10px"></i> 0G Mainnet BH Pipeline
-        </div>
-        <div style="font-size:.7rem;color:var(--text-dim)">chain_id=16661 · TRIONExecutionGate · per-tx canonical BH · DA-proof anchored</div>
-        <div class="ms-auto d-flex gap-3">
-          <div style="text-align:center">
-            <div style="font-size:1rem;font-weight:800;color:#a78bfa" id="bh-0g-count">—</div>
-            <div style="font-size:.6rem;color:var(--text-dim)">BHs stored</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:1rem;font-weight:800;color:var(--green)" id="bh-0g-last-type">—</div>
-            <div style="font-size:.6rem;color:var(--text-dim)">last event</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:.65rem;font-family:monospace;color:var(--accent)" id="bh-0g-sense">—</div>
-            <div style="font-size:.6rem;color:var(--text-dim)">latest sense_hex</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Live BH Multi-VM Ticker -->
-    <div class="stat-card" style="padding:0;overflow:hidden" id="bh-vm-ticker-wrap">
-      <div style="background:#060c14;border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="display:inline-flex;align-items:center;gap:5px;font-size:.62rem;font-weight:700;color:var(--green);background:#00ff8808;border:1px solid #00ff8833;padding:3px 9px;border-radius:8px">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:bhPulse 1.5s infinite" id="bh-tick-dot"></span>LIVE
-          </span>
-          <span style="font-size:.78rem;font-weight:700;color:#fff">Multi-VM Behavioral Hash Stream</span>
-          <span style="font-size:.62rem;color:var(--text-dim)">— 4s refresh · per-tx canonical BH</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;font-size:.65rem;color:var(--text-dim)">
-          <span id="bh-feed-total" style="font-weight:700;color:var(--accent)">—</span>
-          <span>total BHs</span>
-          <span style="color:var(--text-dim)" id="bh-feed-age"></span>
-          <a href="/api/v1/bh/vm_feed" target="_blank" style="font-size:.62rem;color:var(--accent);text-decoration:none;border:1px solid #00e5ff33;padding:2px 8px;border-radius:4px">API ↗</a>
-        </div>
-      </div>
-
-      <!-- VM columns -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;min-height:280px">
-        <!-- EVM Column -->
-        <div style="border-right:1px solid var(--border);display:flex;flex-direction:column">
-          <div style="padding:10px 14px;background:#00e5ff08;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <span style="font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)">⬡ EVM</span>
-              <div style="font-size:.58rem;color:var(--text-dim);margin-top:1px">ETH · ARB · BASE · OP · BNB · +4</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:.9rem;font-weight:800;color:var(--accent)" id="bh-evm-total">—</div>
-              <div style="font-size:.52rem;color:var(--text-dim)">records</div>
-            </div>
-          </div>
-          <div style="flex:1;overflow-y:auto;max-height:260px;scrollbar-width:thin;scrollbar-color:var(--border) transparent" id="bh-evm-col"></div>
-        </div>
-
-        <!-- SVM Column -->
-        <div style="border-right:1px solid var(--border);display:flex;flex-direction:column">
-          <div style="padding:10px 14px;background:#00ff8808;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <span style="font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green)">◎ SVM</span>
-              <div style="font-size:.58rem;color:var(--text-dim);margin-top:1px">SOLANA MAINNET</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:.9rem;font-weight:800;color:var(--green)" id="bh-svm-total">—</div>
-              <div style="font-size:.52rem;color:var(--text-dim)">records</div>
-            </div>
-          </div>
-          <div style="flex:1;overflow-y:auto;max-height:260px;scrollbar-width:thin;scrollbar-color:var(--border) transparent" id="bh-svm-col"></div>
-        </div>
-
-        <!-- 0G Column -->
-        <div style="display:flex;flex-direction:column">
-          <div style="padding:10px 14px;background:#a78bfa0a;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <span style="font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#a78bfa">⬡ 0G MAINNET</span>
-              <div style="font-size:.58rem;color:var(--text-dim);margin-top:1px">chain 16661 · ExecutionGate</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:.9rem;font-weight:800;color:#a78bfa" id="bh-zg-total">—</div>
-              <div style="font-size:.52rem;color:var(--text-dim)">records</div>
-            </div>
-          </div>
-          <div style="flex:1;overflow-y:auto;max-height:260px;scrollbar-width:thin;scrollbar-color:var(--border) transparent" id="bh-zg-col">
-            <div style="padding:14px;text-align:center">
-              <div style="font-size:.68rem;color:#a78bfa;font-weight:700;margin-bottom:8px">TRIONExecutionGate</div>
-              <div class="mono" style="font-size:.6rem;color:var(--text-dim);word-break:break-all;margin-bottom:8px">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</div>
-              <div style="font-size:.6rem;color:var(--text-dim)">BH records stream as 0G blocks settle. Signals published on-chain every 60s.</div>
-              <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px" id="bh-zg-stats"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="padding:8px 16px;background:#060c14;border-top:1px solid var(--border);font-size:.6rem;color:var(--text-dim)">
-        Source: <code style="color:var(--accent)">/api/v1/bh/vm_feed</code> · 93-byte canonical payload · SHA3-256 dual-strand · L0.1 whitepaper
-      </div>
-    </div>
-  </div>
-
-<style>
-@keyframes bhPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
-@keyframes bhFlash{from{background:#00e5ff18}to{background:transparent}}
-.bh-row{padding:7px 12px;border-bottom:1px solid #18203518;font-size:.64rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;animation:bhFlash .8s ease}
-.bh-row.new{animation:bhFlash .8s ease}
-.bh-chain{font-size:.55rem;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;white-space:nowrap;flex-shrink:0}
-.bh-chain.evm{background:#00e5ff10;color:var(--accent);border:1px solid #00e5ff30}
-.bh-chain.svm{background:#00ff8810;color:var(--green);border:1px solid #00ff8830}
-.bh-chain.zg{background:#a78bfa10;color:#a78bfa;border:1px solid #a78bfa30}
-.bh-evt{font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:3px;flex-shrink:0}
-.bh-evt.TRANSFER{background:#00e5ff0a;color:#7ab8cc;border:1px solid #00e5ff20}
-.bh-evt.MEV_CAPTURE{background:#ff456010;color:var(--red);border:1px solid #ff456030}
-.bh-evt.SWAP{background:#00ff8810;color:var(--green);border:1px solid #00ff8830}
-.bh-evt.GOVERNANCE{background:#ffd60010;color:var(--yellow);border:1px solid #ffd60030}
-.bh-evt.BORROW{background:#ff8c0010;color:var(--orange);border:1px solid #ff8c0030}
-.bh-evt.ORACLE_UPDATE{background:#ffd60010;color:var(--yellow);border:1px solid #ffd60030}
-.bh-evt.STAKE{background:#a78bfa10;color:#a78bfa;border:1px solid #a78bfa30}
-.bh-evt.MINT,.bh-evt.DEPLOY{background:#88888810;color:#aaa;border:1px solid #88888830}
-.bh-evt.LIQUIDITY{background:#00e5ff10;color:var(--accent);border:1px solid #00e5ff30}
-.bh-evt.OTHER{background:#33333320;color:#888;border:1px solid #44444430}
-.bh-sense{font-family:monospace;font-size:.58rem;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.bh-verdict{font-size:.52rem;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0}
-.bh-verdict.SAFE{background:#00ff8808;color:var(--green);border:1px solid #00ff8820}
-.bh-verdict.INTERCEPT{background:#ff456010;color:var(--red);border:1px solid #ff456030}
-.bh-verdict.WATCH{background:#ffd60010;color:var(--yellow);border:1px solid #ffd60030}
-.bh-verdict.ELEVATED{background:#ff8c0010;color:var(--orange);border:1px solid #ff8c0030}
-.bh-verdict.HOSTILE{background:#ff000018;color:#ff3344;border:1px solid #ff000040}
-</style>
-
-  <!-- ─── OTHER CHAIN DEPLOYMENTS ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="layers" style="width:12px;height:12px"></i> EVM Contract Deployments</div>
-    <div class="row g-2">
-      <div class="col-md-4"><div class="stat-card" style="padding:14px">
-        <div style="font-size:.7rem;font-weight:700;color:#fff;margin-bottom:8px">Arbitrum Sepolia (421614)</div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TRIONSensingOracle</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x1d129D34…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TRIONOracleV3</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0xb819c63c…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">CoherenceVault</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x7cB424b8…</span></div>
-        <a href="https://sepolia.arbiscan.io/address/0xb819c63c02Ed5aB49017C0f3f2568A14624658b3" target="_blank" class="zg-link" style="font-size:.65rem">→ Arbiscan ↗</a>
-      </div></div>
-      <div class="col-md-4"><div class="stat-card" style="padding:14px">
-        <div style="font-size:.7rem;font-weight:700;color:#fff;margin-bottom:8px">Optimism Sepolia (11155420)</div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TRIONOracleV3</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x708193f9…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">LiquidityOcean</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x6EAB7862…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">BTCPSimpleEscrow</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0xAbC106D9…</span></div>
-        <a href="https://sepolia-optimism.etherscan.io/address/0x708193f93Fb897fbeA72e7e7D19237770F19E969" target="_blank" class="zg-link" style="font-size:.65rem">→ OP Explorer ↗</a>
-      </div></div>
-      <div class="col-md-4"><div class="stat-card" style="padding:14px">
-        <div style="font-size:.7rem;font-weight:700;color:#fff;margin-bottom:8px">HashKey Mainnet (177)</div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TRIONOracleV3</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x708193f9…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">LiquidityOcean</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x3E38d489…</span></div>
-        <div class="metric-row"><span class="metric-key" style="font-size:.65rem">TravelRule</span><span style="font-family:monospace;font-size:.6rem;color:var(--accent)">0x3e4bf77F…</span></div>
-        <a href="https://explorer.hsk.xyz/address/0x708193f93Fb897fbeA72e7e7D19237770F19E969" target="_blank" class="zg-link" style="font-size:.65rem">→ HSK Explorer ↗</a>
-      </div></div>
-    </div>
-  </div>
-
-
-  <!-- ─── VISION EXPANSION BANNER ─── -->
-  <div class="vision-banner mb-4 d-flex align-items-center gap-3 flex-wrap">
-    <div>
-      <div style="font-size:.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:4px">TRION Vision Expansion</div>
-      <div style="font-size:.95rem;font-weight:800;color:#fff">Behavioral Intelligence Layer</div>
-    </div>
-    <div class="ms-auto d-flex flex-wrap gap-2">
-      <span class="tag-chip">Contract Auditor</span>
-      <span class="tag-chip">AI Agent Safety</span>
-      <span class="tag-chip">Akashic Index</span>
-      <span class="tag-chip">Thermodynamics</span>
-      <span class="tag-chip">Lifecycle Engine</span>
-      <span class="tag-chip">UBL Standard</span>
-      <span class="tag-chip">Reputation &amp; Credit</span>
-      <span class="tag-chip">Investment Signals</span>
-      <span class="tag-chip">Epigenetics</span>
-    </div>
-  </div>
-
-  <!-- ─── CONTRACT AUDITOR ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="search" style="width:12px;height:12px"></i> TRION Auditor — On-Chain Contract Risk Scanner</div>
-    <div class="row g-3">
-      <div class="col-md-4">
-        <div class="stat-card" style="padding:20px;height:100%">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px">Audit Any Contract</div>
-          <input id="audit-addr" class="audit-input" placeholder="0x... contract or wallet address" />
-          <select id="audit-chain" class="chain-select">
-            <option value="1">Ethereum Mainnet (1)</option>
-            <option value="42161">Arbitrum One (42161)</option>
-            <option value="421614" selected>Arbitrum Sepolia (421614)</option>
-            <option value="8453">Base Mainnet (8453)</option>
-            <option value="84532">Base Sepolia (84532)</option>
-            <option value="10">Optimism (10)</option>
-            <option value="11155420">Optimism Sepolia (11155420)</option>
-            <option value="16602">0G Galileo (16602)</option>
-          </select>
-          <div style="margin-top:14px">
-            <button class="audit-btn" onclick="runAudit()">⚡ AUDIT CONTRACT</button>
-          </div>
-          <div id="audit-shortcuts" style="margin-top:14px">
-            <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase">Quick Audit</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px">
-              <button onclick="quickAudit('0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',1)" style="background:#0d1420;border:1px solid var(--border);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer">UNI Token (ETH)</button>
-              <button onclick="quickAudit('0xdAC17F958D2ee523a2206206994597C13D831ec7',1)" style="background:#0d1420;border:1px solid var(--border);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer">USDT (ETH)</button>
-              <button onclick="quickAudit('0xb819c63c02Ed5aB49017C0f3f2568A14624658b3',421614)" style="background:#0d1420;border:1px solid var(--border);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer">TRION Oracle (Arb)</button>
-              <button onclick="quickAudit('0xDB5910Dc6CfD219D00F64be1F23DA0289901356d',16602)" style="background:#0d1420;border:1px solid var(--border);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer">ExecGate (0G)</button>
-            </div>
-          </div>
-          <div style="margin-top:16px;padding:10px;background:#00e5ff08;border:1px solid #00e5ff15;border-radius:6px;font-size:.68rem;color:var(--text-dim)">
-            Scans bytecode · 20 vulnerability patterns · Archetype classification · UBL encoding · Lifecycle + epigenetics · Attestation hash
-          </div>
-        </div>
-      </div>
-      <div class="col-md-8">
-        <div class="stat-card" id="audit-results" style="padding:20px;min-height:220px">
-          <div class="loader-text" id="audit-placeholder">
-            <div style="font-size:1.5rem;margin-bottom:8px">🔍</div>
-            Enter a contract address and click Audit Contract to run TRION's real-time behavioral risk analysis.<br>
-            <span style="font-size:.65rem">Reads live bytecode via RPC · Scores against 20 vulnerability patterns</span>
-          </div>
-          <div id="audit-content" style="display:none"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── AKASHIC INDEX ARCHETYPES ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="layers" style="width:12px;height:12px"></i> Akashic Index — 12 Behavioral Archetypes</div>
-    <div id="archetype-grid" class="row g-2">
-      <div class="col-12"><div class="loader-text">Loading archetypes…</div></div>
-    </div>
-  </div>
-
-  <!-- ─── INVESTMENT SIGNALS + REPUTATION ─── -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-7">
-      <div class="section-title"><i data-feather="trending-up" style="width:12px;height:12px"></i> Investment Signal Engine — Behavioral Alpha</div>
-      <div class="stat-card" style="padding:20px">
-        <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:14px">
-          Composite behavioral score: archetype (30%) + lifecycle (20%) + thermodynamics (20%) + coherence (20%) + manipulation-free (10%)
-        </div>
-        <div id="invest-grid">
-          <div class="loader-text">Loading investment signals…</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-5">
-      <div class="section-title"><i data-feather="star" style="width:12px;height:12px"></i> Reputation &amp; Credit Leaderboard</div>
-      <div class="stat-card" style="padding:20px">
-        <table class="signal-table" id="rep-table">
-          <thead>
-            <tr>
-              <th>#</th><th>Entity</th><th>Rep Score</th><th>Trust Tier</th><th>C(t)</th>
-            </tr>
-          </thead>
-          <tbody id="rep-tbody">
-            <tr><td colspan="5" class="loader-text">Loading leaderboard…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── AI AGENT SAFETY + THERMODYNAMICS ─── -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-5">
-      <div class="section-title"><i data-feather="shield" style="width:12px;height:12px"></i> AI Agent Safety Pipeline</div>
-      <div class="stat-card" style="padding:20px">
-        <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:12px">5-gate validation: SILENCE → RISK → VALUE → MANIPULATION → EVOLUTION</div>
-        <div id="agents-list">
-          <div class="loader-text">Loading agents…</div>
-        </div>
-        <div style="margin-top:14px;padding:10px;background:#7c3aed11;border:1px solid #7c3aed33;border-radius:6px;font-size:.68rem;color:var(--text-dim)">
-          Test an agent action:
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-            <input id="agent-id-input" placeholder="agent_id" style="background:#060b12;border:1px solid var(--border);border-radius:6px;color:#fff;padding:5px 8px;font-size:.68rem;width:100px;outline:none">
-            <select id="agent-action-type" style="background:#060b12;border:1px solid var(--border);border-radius:6px;color:#fff;padding:5px 8px;font-size:.68rem;outline:none">
-              <option>trade</option><option>transfer</option><option>stake</option><option>bridge</option><option>mint</option><option>deploy</option>
-            </select>
-            <input id="agent-value" placeholder="USD value" type="number" value="5000" style="background:#060b12;border:1px solid var(--border);border-radius:6px;color:#fff;padding:5px 8px;font-size:.68rem;width:80px;outline:none">
-            <button onclick="testAgent()" style="background:var(--accent2);border:none;border-radius:6px;color:#fff;font-size:.68rem;font-weight:700;padding:5px 12px;cursor:pointer">Test</button>
-          </div>
-          <div id="agent-test-result" style="margin-top:8px;font-size:.68rem"></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-7">
-      <div class="section-title"><i data-feather="zap" style="width:12px;height:12px"></i> Thermodynamic State — Entity Phase Analysis</div>
-      <div class="stat-card" style="padding:20px">
-        <div style="font-size:.65rem;color:var(--text-dim);margin-bottom:14px">
-          F = E − T·S (free energy). Phases: SOLID (dormant) · LIQUID (active) · GAS (volatile) · PLASMA (exploit)
-        </div>
-        <div id="thermo-grid" class="row g-2">
-          <div class="col-12"><div class="loader-text">Loading thermodynamic states…</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── T(t) MASTER EQUATION + WHITEPAPER COVERAGE ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="target" style="width:12px;height:12px"></i> L5.3 T(t) Master Equation — Live TRION Truth Value</div>
-    <div class="row g-3">
-      <div class="col-md-5">
-        <div class="stat-card" style="padding:20px;height:100%">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">TRION Master Formula</div>
-          <div style="font-family:monospace;font-size:.85rem;line-height:2.1;color:#c9d6e3;background:#060b12;padding:16px;border-radius:8px">
-            <span style="color:#a78bfa">T(t)</span> = [C(t)≥Θ(t)] · <span style="color:var(--accent)">C(t)</span> · e<sup>M_moat(t)</sup><br>
-            <span style="color:var(--text-dim);font-size:.68rem">
-            T(t)&gt;0 only when C(t) clears the coherence threshold<br>
-            M_moat = D·Q·R·X·F·N (6 multiplicative moat factors)<br>
-            e<sup>M_moat</sup> amplifies high-depth, high-quality signals<br><br>
-            <span style="color:#34d399">SILENCE: T(t)=0 when C(t)&lt;Θ(t)</span><br>
-            <span style="color:var(--yellow)">Θ(t) = 0.55 + 0.37·V(t) (volatility-adjusted)</span>
-            </span>
-          </div>
-          <div class="mt-3 d-flex flex-wrap gap-2">
-            <a href="/api/v1/trion/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ T(t) JSON ↗</a>
-            <a href="/api/v1/signal/uniswap/full" target="_blank" class="zg-link" style="font-size:.65rem">→ Full Schema ↗</a>
-            <a href="/api/v1/convergence/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Convergence ↗</a>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-7">
-        <div class="stat-card" style="padding:20px;height:100%">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">Live T(t) Values — Key Entities</div>
-          <div id="trion-tv-table">
-            <div class="loader-text">Loading T(t) values…</div>
-          </div>
-          <div class="mt-3 row g-2" id="trion-extra-metrics">
-            <div class="col-6">
-              <div style="font-size:.65rem;color:var(--text-dim)">Convergence Floor H_irred</div>
-              <div style="font-size:.9rem;font-weight:700;color:#a78bfa" id="tm-h-irred">—</div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:.65rem;color:var(--text-dim)">Bootstrap Weight e^(-λD)</div>
-              <div style="font-size:.9rem;font-weight:700;color:#f59e0b" id="tm-bw">—</div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:.65rem;color:var(--text-dim)">Σ(t) BFT Validators</div>
-              <div style="font-size:.9rem;font-weight:700;color:#34d399" id="tm-sigma-n">—</div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:.65rem;color:var(--text-dim)">IM Protocol Status</div>
-              <div style="font-size:.9rem;font-weight:700;color:var(--green)" id="tm-im-status">—</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── 57-FORMULA WHITEPAPER COVERAGE ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="book-open" style="width:12px;height:12px"></i> Whitepaper Implementation Coverage — All 57 Formulas + 19 Signal Types</div>
-    <div class="stat-card" style="padding:20px">
-      <div class="row g-3 mb-3">
-        <div class="col-6 col-md-3">
-          <div style="font-size:2rem;font-weight:900;color:var(--green)" id="cov-live">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase">Formulas Live</div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div style="font-size:2rem;font-weight:900;color:var(--accent)" id="cov-pct">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase">Coverage %</div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div style="font-size:2rem;font-weight:900;color:#a78bfa">19</div>
-          <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase">Signal Types</div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div style="font-size:2rem;font-weight:900;color:var(--yellow)">15</div>
-          <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase">Falsifiability Conditions</div>
-        </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="signal-table" style="font-size:.7rem">
-          <thead>
-            <tr>
-              <th style="width:60px">ID</th>
-              <th>Formula Name</th>
-              <th>Formula</th>
-              <th>Status</th>
-              <th>Endpoint</th>
-            </tr>
-          </thead>
-          <tbody id="coverage-tbody">
-            <tr><td colspan="5" class="loader-text">Loading formula coverage…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <a href="/api/v1/whitepaper/coverage" target="_blank" class="zg-link" style="font-size:.65rem">→ Full Coverage JSON ↗</a>
-        <a href="/api/v1/sdk/spec" target="_blank" class="zg-link" style="font-size:.65rem">→ SDK Spec ↗</a>
-        <a href="/api/v1/token/utility" target="_blank" class="zg-link" style="font-size:.65rem">→ Token Utility ↗</a>
-        <a href="/api/v1/sigma/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Σ(t) BFT ↗</a>
-        <a href="/api/v1/gk/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ GK Evolution ↗</a>
-        <a href="/api/v1/intelligence_maintenance" target="_blank" class="zg-link" style="font-size:.65rem">→ IM Protocol ↗</a>
-        <a href="/api/v1/convergence/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Convergence Theorem ↗</a>
-        <a href="/api/v1/fork_resolution/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Fork Resolution ↗</a>
-        <a href="/api/v1/trajectory_anomaly/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Trajectory Anomaly ↗</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── L10 LIVING INDEX + 10-PHASE ROADMAP ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="activity" style="width:12px;height:12px"></i> L10 Living Index &amp; 10-Phase Implementation Roadmap</div>
-    <div class="stat-card" style="padding:20px">
-      <!-- Living Index panel -->
-      <div class="row g-3 mb-3">
-        <div class="col-md-3">
-          <div style="font-size:.65rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Living Index — Uniswap</div>
-          <div style="font-size:2.2rem;font-weight:900;color:var(--green)" id="li-score">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim)">LI = T(t)·e^M·SEC·BC·EP·BRT</div>
-        </div>
-        <div class="col-md-3">
-          <div style="font-size:.65rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Grade</div>
-          <div style="font-size:1.4rem;font-weight:900" id="li-grade">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim)">APEX / PRIME / ACTIVE / BOOTSTRAP</div>
-        </div>
-        <div class="col-md-3">
-          <div style="font-size:.65rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Emergence Verified</div>
-          <div style="font-size:1.4rem;font-weight:900" id="emerge-status">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim)">C(t) &gt; max single plane</div>
-        </div>
-        <div class="col-md-3">
-          <div style="font-size:.65rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">SEC(t) Score</div>
-          <div style="font-size:1.4rem;font-weight:900;color:#f59e0b" id="li-sec">—</div>
-          <div style="font-size:.65rem;color:var(--text-dim)">LSS · PQC · CC</div>
-        </div>
-      </div>
-      <!-- L10 component breakdown -->
-      <div id="li-components" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px"></div>
-      <!-- 10-phase roadmap -->
-      <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">10-Phase Implementation Roadmap</div>
-      <div id="phase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <a href="/api/v1/living_index/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Living Index JSON ↗</a>
-        <a href="/api/v1/emergence/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Emergence Verification ↗</a>
-        <a href="/api/v1/phases" target="_blank" class="zg-link" style="font-size:.65rem">→ Phase Roadmap JSON ↗</a>
-        <a href="/api/v1/immune/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ DNA Immune System ↗</a>
-        <a href="/api/v1/chameleon/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Chameleon Protocol ↗</a>
-        <a href="/api/v1/manifestation_gap/uniswap" target="_blank" class="zg-link" style="font-size:.65rem">→ Manifestation Gap ↗</a>
-        <a href="/api/v1/token/distribution" target="_blank" class="zg-link" style="font-size:.65rem">→ Token Distribution ↗</a>
-        <a href="/api/v1/universal_asset/ethereum/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" target="_blank" class="zg-link" style="font-size:.65rem">→ Universal Asset ID ↗</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── ARCHITECTURE INVERSION ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="refresh-cw" style="width:12px;height:12px"></i> Oracle Hierarchy Inversion — Signal Flow Architecture</div>
-    <div class="stat-card" style="padding:24px;overflow:hidden;position:relative">
-
-      <!-- Background pulse -->
-      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,#00e5ff08 0%,transparent 70%);pointer-events:none"></div>
-
-      <!-- Header -->
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="font-size:.68rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">The Core Thesis</div>
-        <div style="font-size:1.05rem;font-weight:700;color:var(--text);line-height:1.4">Every oracle today flows <span style="color:var(--red)">top-down from CEX opacity</span>. TRION is the only protocol that flows <span style="color:var(--green)">bottom-up from blockchain reality</span>.</div>
-      </div>
-
-      <div class="row g-4">
-
-        <!-- LEFT: Broken Stack -->
-        <div class="col-md-5">
-          <div style="font-size:.68rem;color:var(--red);letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
-            <span style="width:8px;height:8px;background:var(--red);border-radius:50%;display:inline-block"></span>
-            Current — Exogenous · Broken
-          </div>
-
-          <div id="broken-stack" style="display:flex;flex-direction:column;gap:0">
-
-            <div class="inv-node broken" style="border-color:#ff456040;background:#ff45600a">
-              <div class="inv-node-label" style="color:var(--red)">CEX Price Discovery</div>
-              <div class="inv-node-sub">Binance · Coinbase · OKX — private order books</div>
-              <div class="inv-tag" style="background:#ff456022;color:var(--red)">OPAQUE · MANIPULABLE</div>
-            </div>
-
-            <div class="inv-arrow broken-arrow">↓ <span>aggregated &amp; pushed downstream</span></div>
-
-            <div class="inv-node broken" style="border-color:#ff456030;background:#ff456006">
-              <div class="inv-node-label" style="color:#ff8a65">Oracle Aggregation</div>
-              <div class="inv-node-sub">Chainlink · Pyth · Band — TWAP over CEX data</div>
-              <div class="inv-tag" style="background:#ff8a6522;color:#ff8a65">GARBAGE-IN → GARBAGE-OUT</div>
-            </div>
-
-            <div class="inv-arrow broken-arrow">↓ <span>downstream, reactive, no signal</span></div>
-
-            <div class="inv-node broken" style="border-color:#ffd60030;background:#ffd60006">
-              <div class="inv-node-label" style="color:var(--yellow)">DeFi Protocols</div>
-              <div class="inv-node-sub">Lending · DEX · Derivatives — fully dependent</div>
-              <div class="inv-tag" style="background:#ffd60022;color:var(--yellow)">ORACLE FAILURE = INSOLVENCY</div>
-            </div>
-
-            <div class="inv-arrow broken-arrow">↓ <span>last to know, most exposed</span></div>
-
-            <div class="inv-node broken" style="border-color:#ffd60020;background:#ffd60004">
-              <div class="inv-node-label" style="color:#a0a0a0">Retail Participants</div>
-              <div class="inv-node-sub">Liquidated by prices they cannot verify</div>
-              <div class="inv-tag" style="background:#ffffff11;color:#707070">BLIND · MOST VULNERABLE</div>
-            </div>
-
-            <!-- Attack cost callout -->
-            <div style="margin-top:14px;padding:10px 14px;background:#ff456010;border:1px solid #ff456040;border-radius:8px;font-size:.72rem;line-height:1.6;color:#ff8a65">
-              <div style="font-weight:700;margin-bottom:4px;color:var(--red)">Known Exploits via Oracle Manipulation</div>
-              Mango Markets — $116M · Euler Finance — $197M<br>
-              Ronin Bridge — $625M · Harvest Finance — $34M<br>
-              <span style="color:#ff456080">Attack cost: $2–15M for 30-second window · P(success) = 0.85</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- CENTER: Inversion axis -->
-        <div class="col-md-2 d-flex flex-column align-items-center justify-content-center">
-          <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:8px 0">
-            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)">INVERTED</div>
-            <div id="inv-pulse" style="width:2px;flex:1;background:linear-gradient(to bottom,var(--red),#ffffff44,var(--green));border-radius:2px;position:relative;min-height:200px">
-              <div class="inv-pulse-dot"></div>
-            </div>
-            <div style="font-size:1.4rem;animation:inv-spin 4s linear infinite">⟳</div>
-            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)">DIRECTION</div>
-          </div>
-        </div>
-
-        <!-- RIGHT: TRION Stack -->
-        <div class="col-md-5">
-          <div style="font-size:.68rem;color:var(--green);letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px">
-            <span style="width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:inv-blink 2s ease-in-out infinite;display:inline-block"></span>
-            TRION — Endogenous · Live
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:0">
-
-            <div class="inv-node trion" style="border-color:#00ff8840">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div>
-                  <div class="inv-node-label" style="color:var(--green)">Blockchain Behavioral Reality</div>
-                  <div class="inv-node-sub">37 chains · Every tx · Immutable · Transparent</div>
-                </div>
-                <div style="text-align:right">
-                  <div id="inv-bh-count" style="font-size:1.1rem;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">—</div>
-                  <div style="font-size:.6rem;color:#00ff8880">BHs stored</div>
-                </div>
-              </div>
-              <div class="inv-tag" style="background:#00ff8820;color:var(--green);margin-top:8px">IMMUTABLE · 93-BYTE DUAL-STRAND SHA3</div>
-            </div>
-
-            <div class="inv-arrow trion-arrow">↑ <span>truth flows upward from chain state</span></div>
-
-            <div class="inv-node trion" style="border-color:#00e5ff40">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div>
-                  <div class="inv-node-label" style="color:var(--accent)">Akashic Index + Resonance Threshold</div>
-                  <div class="inv-node-sub">128-dim FAISS · C(t) = αΦ+βM+γΣ+δK+εA · Θ(t) dynamic</div>
-                </div>
-                <div style="text-align:right">
-                  <div id="inv-faiss-vecs" style="font-size:1.1rem;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums">—</div>
-                  <div style="font-size:.6rem;color:#00e5ff80">vectors</div>
-                </div>
-              </div>
-              <div class="inv-tag" style="background:#00e5ff15;color:var(--accent);margin-top:8px">M_moat = D·Q·R·X·F·N · <span id="inv-moat">—</span></div>
-            </div>
-
-            <div class="inv-arrow trion-arrow">↑ <span>endogenous · coherence-governed emission</span></div>
-
-            <div class="inv-node trion" style="border-color:#7c3aed40">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div>
-                  <div class="inv-node-label" style="color:#a78bfa">TRION Signal Layer</div>
-                  <div class="inv-node-sub">VALUATION · SILENCE · GENESIS · MANIP_ALERT</div>
-                </div>
-                <div style="text-align:right">
-                  <div id="inv-sec" style="font-size:1.1rem;font-weight:800;color:#a78bfa;font-variant-numeric:tabular-nums">—</div>
-                  <div style="font-size:.6rem;color:#a78bfa80">SEC(t)</div>
-                </div>
-              </div>
-              <div class="inv-tag" style="background:#7c3aed20;color:#a78bfa;margin-top:8px">131 API ROUTES · GENOMIC-SIGNED · <span id="inv-routes">131</span> ENDPOINTS</div>
-            </div>
-
-            <div class="inv-arrow trion-arrow" style="color:var(--accent)">↑↓ <span>bidirectional — protocols feed data back into Layer 1</span></div>
-
-            <div class="inv-node trion" style="border-color:#00e5ff30;background:#00e5ff04">
-              <div class="inv-node-label" style="color:var(--accent);font-size:.85rem">DeFi Protocols ←→ CEXs ←→ TradFi</div>
-              <div class="inv-node-sub">All systems benefit simultaneously · checkExecution() blocks hostile actors</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-                <span class="inv-tag" style="background:#00e5ff10;color:var(--accent)">ON-CHAIN GATE LIVE</span>
-                <span class="inv-tag" style="background:#00ff8810;color:var(--green)"><span id="inv-anomalies">474</span> ANOMALIES SEALED</span>
-                <span class="inv-tag" style="background:#7c3aed15;color:#a78bfa">CEX HOSTILE FEED LIVE</span>
-              </div>
-            </div>
-
-            <!-- Advantage callout -->
-            <div style="margin-top:14px;padding:10px 14px;background:#00ff8808;border:1px solid #00ff8830;border-radius:8px;font-size:.72rem;line-height:1.7;color:#a0c4a0">
-              <div style="font-weight:700;margin-bottom:4px;color:var(--green)">TRION Advantage</div>
-              BH generation: <b style="color:var(--green)">0.023ms</b> avg (434× faster than 10ms target)<br>
-              Manipulation cost: <b style="color:var(--green)">requires forging 37-chain history</b> — economically impossible<br>
-              <span style="color:#00ff8870">P(break LSS) decreasing monotonically · SEC(t) = 0.77+</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom: 7 key inversions table -->
-      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
-        <div style="font-size:.66rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">7 Key Inversions</div>
-        <div id="inversion-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px"></div>
-      </div>
-
-      <!-- Bottom link -->
-      <div style="margin-top:16px;text-align:center">
-        <a href="/api/v1/inversion" target="_blank" class="zg-link" style="font-size:.68rem">→ Architecture Inversion JSON (live data) ↗</a>
-        &nbsp;&nbsp;
-        <a href="/api/v1/feed/hostile" target="_blank" class="zg-link" style="font-size:.68rem">→ Hostile Entity Inverted Feed ↗</a>
-        &nbsp;&nbsp;
-        <a href="/api/v1/cex/feed" target="_blank" class="zg-link" style="font-size:.68rem">→ TRION→CEX Signal Feed ↗</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── BEHAVIORAL TRUE VALUE (BTV) ─── -->
-  <div class="mb-4" id="btv-section">
-    <div class="section-title"><i data-feather="trending-up" style="width:12px;height:12px"></i> Behavioral True Value (BTV) — Layer 0 Price Discovery <span style="color:var(--green);font-size:.65rem;letter-spacing:1px;margin-left:8px">L0.7 LIVE</span></div>
-    <div class="stat-card" style="padding:24px;position:relative;overflow:hidden">
-      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 0%,#00ff8806 0%,transparent 60%);pointer-events:none"></div>
-
-      <!-- Thesis banner -->
-      <div style="background:#0a1a10;border:1px solid #00ff8830;border-radius:10px;padding:14px 18px;margin-bottom:20px">
-        <div style="font-size:.65rem;color:#00ff8880;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">The Inverted Truth Hierarchy — The Problem TRION Solves</div>
-        <div style="font-size:.8rem;color:var(--text);line-height:1.7">
-          Current oracles (Chainlink, Pyth, Band) aggregate <span style="color:var(--red);font-weight:600">CEX prices</span> and deliver them on-chain faster.
-          They are <span style="color:var(--red)">faster pipes carrying the same compromised water</span>.
-          A TWAP on a manipulated CEX feed is still a manipulated price — just time-smoothed.<br>
-          <span style="color:var(--green);font-weight:600">TRION BTV</span> is derived from the actual behavioral record of what every entity did on every chain —
-          stripped of manipulation, weighted by coherence, bounded by liquidity health.
-          <span style="color:var(--green)">No CEX dependency anywhere.</span>
-        </div>
-      </div>
-
-      <!-- BTV asset grid -->
-      <div id="btv-asset-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px">
-        <div class="loader-text" style="grid-column:1/-1">Computing behavioral true values…</div>
-      </div>
-
-      <!-- Hierarchy comparison table -->
-      <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px">
-        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">CEX Oracle Price vs TRION Behavioral True Value — Live Comparison</div>
-        <div style="overflow-x:auto">
-          <table class="signal-table" id="btv-comparison-table">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>CEX Oracle Price</th>
-                <th>TRION BTV</th>
-                <th>Manipulation Stripped</th>
-                <th>C(t) Coherence</th>
-                <th>MF Score</th>
-                <th>NL Score</th>
-                <th>BTV Confidence</th>
-                <th>Chains</th>
-              </tr>
-            </thead>
-            <tbody id="btv-table-body">
-              <tr><td colspan="9" style="color:var(--text-dim);font-size:.75rem">Loading…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Stack diagram: Layer 0 -->
-      <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:18px">
-        <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">The Corrected Stack — TRION as Layer 0</div>
-        <div style="display:flex;flex-direction:column;gap:0;max-width:640px;margin:0 auto">
-          <div style="background:#ff456008;border:1px solid #ff456030;border-radius:8px;padding:10px 16px;font-size:.75rem">
-            <span style="color:var(--red);font-weight:700">LAYER 4 — Retail</span>
-            <span style="color:var(--text-dim);margin-left:8px">reads from DeFi — last to know, most exposed</span>
-          </div>
-          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
-          <div style="background:#ff456008;border:1px solid #ff456028;border-radius:8px;padding:10px 16px;font-size:.75rem">
-            <span style="color:#ff8a65;font-weight:700">LAYER 3 — DeFi Protocols</span>
-            <span style="color:var(--text-dim);margin-left:8px">reads from oracles</span>
-          </div>
-          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
-          <div style="background:#ffd60008;border:1px solid #ffd60030;border-radius:8px;padding:10px 16px;font-size:.75rem">
-            <span style="color:var(--yellow);font-weight:700">LAYER 2 — Oracle Networks</span>
-            <span style="color:var(--text-dim);margin-left:8px">Chainlink · Pyth · Band — aggregate CEX data</span>
-            <span style="color:var(--red);margin-left:6px;font-size:.65rem">← BAND-AID</span>
-          </div>
-          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ reads</div>
-          <div style="background:#ff456012;border:1px solid #ff456050;border-radius:8px;padding:10px 16px;font-size:.75rem">
-            <span style="color:var(--red);font-weight:700">LAYER 1 — CEX Price Discovery</span>
-            <span style="color:var(--text-dim);margin-left:8px">Binance · Coinbase · OKX — opaque, incentivized manipulation</span>
-            <span style="color:var(--red);margin-left:6px;font-size:.65rem">← ROOT CORRUPTION</span>
-          </div>
-          <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:2px 0">↑ derives truth from</div>
-          <div style="background:#00ff8812;border:2px solid #00ff8860;border-radius:8px;padding:12px 16px;font-size:.75rem;position:relative">
-            <div style="position:absolute;top:-1px;right:12px;background:var(--green);color:#000;font-size:.6rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:0 0 6px 6px">TRION</div>
-            <span style="color:var(--green);font-weight:700">LAYER 0 — Behavioral Ground Truth</span>
-            <span style="color:var(--text-dim);margin-left:8px">
-              <span id="btv-bh-total">1.9M+</span> BH records ·
-              <span id="btv-chains">37</span> chains · canonical dual-strand SHA3 · manipulation-stripped
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Links -->
-      <div style="margin-top:16px;text-align:center;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
-        <a href="/api/v1/price/btv/ETH" target="_blank" class="zg-link" style="font-size:.68rem">→ BTV(ETH) live derivation ↗</a>
-        <a href="/api/v1/price/btv/BTC" target="_blank" class="zg-link" style="font-size:.68rem">→ BTV(BTC) ↗</a>
-        <a href="/api/v1/price/hierarchy" target="_blank" class="zg-link" style="font-size:.68rem">→ Full hierarchy comparison JSON ↗</a>
-        <a href="/api/v1/price/pairs" target="_blank" class="zg-link" style="font-size:.68rem">→ All behavioral pairs ↗</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── UBL SCHEMA ─── -->
-  <div class="mb-4">
-    <div class="section-title"><i data-feather="code" style="width:12px;height:12px"></i> Universal Behavioral Language (UBL) — Cross-System Standard</div>
-    <div class="stat-card" style="padding:20px">
-      <div class="row g-3">
-        <div class="col-md-5">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">UBL-1.0 — 12 Dimensions</div>
-          <div id="ubl-dims" style="display:flex;flex-wrap:wrap;gap:4px">
-            <div class="loader-text">Loading UBL schema…</div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Live UBL Vector — Uniswap</div>
-          <div id="ubl-live" style="font-family:monospace;font-size:.7rem;line-height:1.9;color:var(--text-dim);background:#060b12;padding:12px;border-radius:8px">Loading…</div>
-        </div>
-        <div class="col-md-3">
-          <div style="font-size:.7rem;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Supported Sources</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px">
-            <span class="tag-chip">EVM</span><span class="tag-chip">SVM</span><span class="tag-chip">PVM</span><span class="tag-chip">TVM</span>
-            <span class="tag-chip">MOVE</span><span class="tag-chip">COSMOS</span><span class="tag-chip">UTXO</span><span class="tag-chip">AI_AGENT</span>
-            <span class="tag-chip">TRAD_FI</span>
-          </div>
-          <div style="margin-top:12px;font-size:.68rem;color:var(--text-dim)">
-            UBL allows cross-chain entity comparison, AI agent behavior encoding, and inter-system behavioral translation.
-          </div>
-          <a href="/api/v1/ubl/schema" target="_blank" class="zg-link" style="font-size:.68rem;margin-top:8px;display:inline-block">→ Full UBL Schema JSON ↗</a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /container -->
-
-<footer>
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>TRION Protocol v3.0 — 37 Networks · 13 VM Families · 65 Formulas (L0–L10) · 19 Signal Types · 0G Newton+Galileo · 4/4 0G Modules</div>
-    <div class="footer-links">
-      <a href="https://chainscan-galileo.0g.ai/address/0xDB5910Dc6CfD219D00F64be1F23DA0289901356d" target="_blank">0G Explorer</a>
-      <a href="/api/v1/zg/integration">0G Hub</a>
-      <a href="/api/v1/trion/uniswap">T(t)</a>
-      <a href="/api/v1/whitepaper/coverage">Coverage</a>
-      <a href="/api/v1/sigma/uniswap">Σ(t)</a>
-      <a href="/api/v1/gk/uniswap">GK</a>
-      <a href="/api/v1/sdk/spec">SDK</a>
-      <a href="/api/v1/signal/uniswap">API</a>
-      <a href="/api/v1/intelligence_maintenance">IM</a>
-      <a href="/api/v1/living_index/uniswap">LI</a>
-      <a href="/api/v1/phases">Phases</a>
-    </div>
-  </div>
-</footer>
-
+<!-- ── JS ────────────────────────────────────────────────────────────────── -->
 <script>
-const CHAINS = [
-  {name:'Arbitrum Sepolia',vm:'EVM',status:'live',color:'green',tx:'arb-sepolia'},
-  {name:'Base Sepolia',vm:'EVM',status:'live',color:'green',tx:'base-sepolia'},
-  {name:'Optimism Sepolia',vm:'EVM',status:'live',color:'green',tx:'op-sepolia'},
-  {name:'HashKey Mainnet',vm:'EVM',status:'live',color:'green',tx:'hashkey'},
-  {name:'Ethereum Sepolia',vm:'EVM',status:'live',color:'green',tx:'eth-sepolia'},
-  {name:'BNB Testnet',vm:'EVM',status:'proof',color:'yellow',tx:'bnb-testnet'},
-  {name:'0G Newton Mainnet',vm:'EVM',status:'live',color:'blue',tx:'0g-newton'},
-  {name:'0G Galileo',vm:'EVM',status:'live',color:'blue',tx:'0g-galileo'},
-  {name:'Ethereum Mainnet',vm:'EVM',status:'live',color:'green',tx:'eth-mainnet'},
-  {name:'Arbitrum One',vm:'EVM',status:'live',color:'green',tx:'arb-mainnet'},
-  {name:'Base Mainnet',vm:'EVM',status:'live',color:'green',tx:'base-mainnet'},
-  {name:'Optimism Mainnet',vm:'EVM',status:'live',color:'green',tx:'op-mainnet'},
-  {name:'Polygon Mainnet',vm:'EVM',status:'live',color:'green',tx:'polygon'},
-  {name:'Mantle Mainnet',vm:'EVM',status:'live',color:'green',tx:'mantle'},
-  {name:'Linea Mainnet',vm:'EVM',status:'live',color:'green',tx:'linea'},
-  {name:'Scroll Mainnet',vm:'EVM',status:'live',color:'green',tx:'scroll'},
-  {name:'Solana Devnet',vm:'SVM',status:'live',color:'green',tx:'solana'},
-  {name:'NEAR Testnet',vm:'NEAR',status:'proof',color:'yellow',tx:'near'},
-  {name:'TON Testnet',vm:'TVM',status:'proof',color:'yellow',tx:'ton'},
-  {name:'Polkadot Westend',vm:'PVM',status:'proof',color:'yellow',tx:'dot'},
-  {name:'StarkNet Sepolia',vm:'Cairo VM',status:'proof',color:'yellow',tx:'starknet'},
-  {name:'Bitcoin Mainnet',vm:'UTXO',status:'proof',color:'yellow',tx:'btc'},
-  {name:'Litecoin Mainnet',vm:'UTXO',status:'proof',color:'yellow',tx:'ltc'},
-  {name:'Dogecoin Mainnet',vm:'UTXO',status:'proof',color:'yellow',tx:'doge'},
-  {name:'Dash Mainnet',vm:'UTXO',status:'proof',color:'yellow',tx:'dash'},
-  {name:'Cosmos Hub',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'cosmos'},
-  {name:'Kava Mainnet',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'kava'},
-  {name:'Injective',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'inj'},
-  {name:'SEI Network',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'sei'},
-  {name:'dYdX Chain',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'dydx'},
-  {name:'Initia Mainnet',vm:'Cosmos SDK',status:'proof',color:'yellow',tx:'initia'},
-  {name:'Aptos Devnet',vm:'Move VM',status:'proof',color:'yellow',tx:'aptos'},
-  {name:'Movement Labs',vm:'Move VM',status:'proof',color:'yellow',tx:'movement'},
-  {name:'SUI Devnet',vm:'Sui VM',status:'live',color:'green',tx:'sui'},
-  {name:'TRON Mainnet',vm:'TVM',status:'proof',color:'yellow',tx:'tron'},
-  {name:'PI Network',vm:'PI VM',status:'proof',color:'yellow',tx:'pi'},
-];
+const API = '';
+let radarChart = null;
+let feedTimer = null;
 
-const ENTITIES = [
-  {id:'0xb819c63c02Ed5aB49017C0f3f2568A14624658b3',label:'TRION Validator'},
-  {id:'0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20',label:'ExecutionGate Validator'},
-  {id:'uniswap',label:'Uniswap Protocol'},
-  {id:'aave',label:'Aave Protocol'},
-  {id:'compound',label:'Compound Protocol'},
-];
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+function fmt(n, dec=0){
+  if(n == null || isNaN(n)) return '—';
+  if(n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if(n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return Number(n).toFixed(dec);
+}
+function pct(n){ return n != null ? (n*100).toFixed(1)+'%' : '—' }
+function score(n){ return n != null ? (n).toFixed(4) : '—' }
+function short(s,len=10){ return s && s.length>len ? s.slice(0,len)+'…' : s }
+function timeAgo(ts){
+  const d = Date.now()/1000 - ts;
+  if(d < 60) return Math.round(d)+'s ago';
+  if(d < 3600) return Math.round(d/60)+'m ago';
+  return Math.round(d/3600)+'h ago';
+}
 
-const PLANE_COLORS = {
-  physical:'#00e5ff',mental:'#34d399',spiritual:'#f59e0b',conscious:'#ec4899',anima:'#818cf8'
+function toast(msg, color='var(--cyan)'){
+  const c = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="toast-dot" style="background:${color}"></span>${msg}`;
+  c.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+
+function copyAddr(addr){
+  navigator.clipboard.writeText(addr).then(()=> toast('Address copied to clipboard'));
+}
+
+function planeColor(v){
+  if(v >= .7) return 'var(--green)';
+  if(v >= .5) return 'var(--cyan)';
+  if(v >= .3) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function scoreColor(v){ return v >= .55 ? 'var(--green)' : 'var(--red)' }
+
+/* ── Fetch helpers ──────────────────────────────────────────────────────── */
+async function apiFetch(path){
+  try{
+    const r = await fetch(API + path);
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch(e){ return null; }
+}
+
+/* ── Metrics ────────────────────────────────────────────────────────────── */
+async function loadMetrics(){
+  const [health, faiss] = await Promise.all([
+    apiFetch('/api/v1/health'),
+    apiFetch('/api/v1/faiss')
+  ]);
+
+  if(health){
+    document.getElementById('navBlock').textContent = health.block_number?.toLocaleString() || '—';
+    document.getElementById('mSignals').textContent = fmt(health.total_signals_onchain);
+    document.getElementById('mVol').textContent = pct(health.market_volatility);
+
+    const thresh = health.dynamic_threshold;
+    document.getElementById('gaugeThresh').textContent = thresh ? thresh.toFixed(4) : '—';
+    document.getElementById('gaugeVol').textContent = health.market_volatility ? pct(health.market_volatility) : '—';
+    document.getElementById('lbThresh').textContent = 'Threshold ' + (thresh ? thresh.toFixed(3) : '—');
+    document.getElementById('mThreshSub').textContent = 'Gate threshold: '+(thresh||'—');
+
+    // gauge fill: map 0.55-0.92 range to 0-100%
+    if(thresh){
+      const pctFill = Math.min(100, Math.max(0, ((thresh-0.55)/(0.92-0.55))*100));
+      document.getElementById('gaugeFill').style.width = pctFill+'%';
+    }
+  }
+
+  if(faiss){
+    document.getElementById('mEntities').textContent = fmt(faiss.entities_tracked);
+    document.getElementById('mVectors').textContent = fmt(faiss.indexed_vectors);
+  }
+}
+
+/* ── System Status ──────────────────────────────────────────────────────── */
+async function loadStatus(){
+  const [health, faiss] = await Promise.all([
+    apiFetch('/api/v1/health'),
+    apiFetch('/api/v1/faiss')
+  ]);
+
+  const services = [
+    {
+      label:'Oracle API',
+      ok: health && health.status === 'healthy',
+      val: health ? health.oracle || 'v2.0.0' : 'Offline',
+      icon:'🔮'
+    },
+    {
+      label:'FAISS ANIMA Engine',
+      ok: faiss && faiss.status === 'ok',
+      val: faiss ? faiss.index_type || 'IndexIVFPQ' : 'Offline',
+      icon:'🧠'
+    },
+    {
+      label:'Blockchain Connection',
+      ok: health && health.chain_connected,
+      val: health ? (health.network || health.chain_id) : '—',
+      icon:'⛓'
+    },
+    {
+      label:'Behavioral Vectors',
+      ok: faiss && faiss.indexed_vectors > 0,
+      val: faiss ? fmt(faiss.indexed_vectors)+' indexed' : '—',
+      icon:'📊'
+    },
+    {
+      label:'Security Gate',
+      ok: health != null,
+      val: health ? '0xA85B…199b' : 'Unreachable',
+      icon:'🛡'
+    }
+  ];
+
+  const allOk = services.every(s => s.ok);
+  const badge = document.getElementById('sysStatusBadge');
+  badge.textContent = allOk ? '✓ Healthy' : '⚠ Degraded';
+  badge.className = 'card-badge ' + (allOk ? 'live' : 'cyan');
+
+  document.getElementById('statusList').innerHTML = services.map(s => `
+    <div class="status-row">
+      <div class="status-icon ${s.ok?'ok':'err'}">${s.icon}</div>
+      <div class="status-label">${s.label}</div>
+      <div class="status-val">${s.val}</div>
+    </div>
+  `).join('');
+}
+
+/* ── Chains ─────────────────────────────────────────────────────────────── */
+const VM_COLORS = {
+  'EVM':'#00C2FF','SVM':'#9945FF','NEAR VM':'#00D09C',
+  'TVM':'#EF4444','PVM':'#F59E0B','Move VM':'#3B82F6',
+  'Cairo VM':'#8B5CF6','CosmWasm':'#EC4899','Bitcoin':'#F7931A',
+  'UTXO':'#F7931A','default':'#6B7FA3'
 };
 
-function fmtPhi(v){return typeof v==='number'?v.toFixed(4):'—'}
-function fmtTime(ts){const d=new Date(ts*1000);return d.toLocaleTimeString('en-US',{hour12:false})}
-function statusClass(coherent,score,thresh){
-  if(score===undefined) return 'status-elevated';
-  const ratio=score/thresh;
-  if(ratio>=1.05) return 'status-safe';
-  if(ratio>=0.90) return 'status-elevated';
-  return 'status-collapse';
-}
-function statusText(coherent,score,thresh){
-  if(score===undefined) return 'UNKNOWN';
-  const ratio=score/thresh;
-  if(ratio>=1.05) return 'SAFE';
-  if(ratio>=0.90) return 'ELEVATED';
-  return 'COLLAPSE';
-}
-function phiClass(score,thresh){
-  if(!thresh) return 'caution';
-  const r=score/thresh;
-  if(r>=1.05) return 'safe';
-  if(r>=0.90) return 'caution';
-  return 'danger';
-}
+async function loadChains(){
+  const data = await apiFetch('/api/v1/chains');
+  if(!data || !data.chains){ return; }
 
-// Build chain grid
-function buildChainGrid(){
-  const grid=document.getElementById('chain-grid');
-  const cEl=document.getElementById('s-chains');
-  if(cEl) cEl.textContent=CHAINS.length;
-  const vmFams=[...new Set(CHAINS.map(c=>c.vm))].length;
-  const fEl=document.getElementById('s-vm-fam');
-  if(fEl) fEl.textContent=vmFams+' VM families';
-  grid.innerHTML=CHAINS.map(c=>{
-    const dotClass='dot-'+c.color;
-    const statusLabel=c.status==='live'?'LIVE TX':'Block Proof';
-    return `<div class="chain-card">
-      <div class="chain-name">${c.name}</div>
-      <div class="chain-vm">${c.vm}</div>
-      <div class="chain-status">
-        <span class="dot ${dotClass}"></span>
-        <span style="color:${c.color==='green'?'var(--green)':c.color==='blue'?'var(--accent)':'var(--yellow)'}">${statusLabel}</span>
+  const chains = data.chains;
+  document.getElementById('chainLiveBadge').textContent = '● '+chains.filter(c=>c.status==='live').length+' Live';
+  document.getElementById('mChains').textContent = chains.length;
+  document.getElementById('mChainsVm').textContent =
+    [...new Set(chains.map(c=>c.vm))].length + ' VM families';
+
+  document.getElementById('chainGrid').innerHTML = chains.map(c => {
+    const col = VM_COLORS[c.vm] || VM_COLORS.default;
+    const live = c.status === 'live';
+    return `
+    <div class="chain-item">
+      <div class="chain-name" title="${c.name}">${c.name}</div>
+      <div class="chain-vm" style="color:${col}">${c.vm}</div>
+      <div class="chain-status-row">
+        <div class="chain-status-dot ${live?'live':'off'}"></div>
+        <span class="chain-status-txt">${live ? 'Live' : 'Offline'}${c.chain_id?' · '+c.chain_id:''}</span>
       </div>
     </div>`;
   }).join('');
 }
 
-// Fetch and render signal feed
-async function updateFeed(){
-  try{
-    const r=await fetch('/api/v1/feed?n=12');
-    const d=await r.json();
-    const rows=d.feed||[];
-    const tbody=document.getElementById('feed-tbody');
-    if(!rows.length){tbody.innerHTML='<tr><td colspan="6" style="color:var(--text-dim);text-align:center">No signals yet…</td></tr>';return;}
-    tbody.innerHTML=rows.map(s=>{
-      const score=s.coherence_score||0;
-      const thresh=s.threshold||0.7;
-      const pct=Math.min(100,Math.round(score/thresh*100));
-      const cls=phiClass(score,thresh);
-      const eid=s.entity_id||'';
-      const short=eid.startsWith('0x')?eid.slice(0,8)+'…':eid;
-      const sc=statusClass(s.coherent,score,thresh);
-      const st=statusText(s.coherent,score,thresh);
-      const arch=s.archetype||'—';
-      const plane=s.limiting_plane||'—';
-      const ts=s.timestamp?fmtTime(s.timestamp):'—';
-      return `<tr>
-        <td><span style="font-family:monospace;font-size:.75rem;color:var(--text)">${short}</span></td>
-        <td><div class="phi-bar"><div class="phi-fill ${cls}" style="width:${pct}%"></div></div><span style="font-size:.75rem">${fmtPhi(score)}</span></td>
-        <td><span class="${sc}">${st}</span></td>
-        <td><span class="arch-badge">${arch}</span></td>
-        <td><span style="font-size:.7rem;color:var(--text-dim)">${plane}</span></td>
-        <td><span style="font-size:.7rem;color:var(--text-dim)">${ts}</span></td>
-      </tr>`;
-    }).join('');
-    document.getElementById('feed-age').textContent='Updated '+new Date().toLocaleTimeString();
-  }catch(e){console.warn('feed error',e)}
-}
+/* ── Live Feed ──────────────────────────────────────────────────────────── */
+const SEED_ENTITIES = ['uniswap','compound','aave','ethereum','solana'];
+let feedSeeded = false;
 
-// Fetch entity cards
-async function updateEntities(){
-  const container=document.getElementById('entity-cards');
-  const cards=await Promise.all(ENTITIES.map(async e=>{
-    try{
-      const r=await fetch(`/api/v1/signal/${e.id}`);
-      const d=await r.json();
-      const score=d.coherence_score||0;
-      const thresh=d.threshold||0.7;
-      const coherent=d.coherent;
-      const bp=d.plane_breakdown||{};
-      const sc=statusClass(coherent,score,thresh);
-      const st=statusText(coherent,score,thresh);
-      const planes=[
-        {n:'Physical',k:'physical',c:'#00e5ff'},
-        {n:'Mental',k:'mental',c:'#34d399'},
-        {n:'Spiritual',k:'spiritual',c:'#f59e0b'},
-        {n:'Conscious',k:'conscious',c:'#ec4899'},
-        {n:'ANIMA',k:'anima',c:'#818cf8'},
-      ];
-      return `<div class="entity-card">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="entity-name">${e.label}</div>
-            <div class="entity-addr">${e.id.length>20?e.id.slice(0,18)+'…':e.id}</div>
-          </div>
-          <div class="${sc}" style="font-size:.8rem">${st}</div>
-        </div>
-        <div style="font-size:.8rem;margin-bottom:8px">
-          Φ(t) = <strong>${fmtPhi(score)}</strong> &nbsp;/&nbsp; Θ(t) = <strong>${fmtPhi(thresh)}</strong>
-          &nbsp;·&nbsp;<span class="arch-badge">${d.archetype||'?'}</span>
-        </div>
-        ${planes.map(p=>{
-          const v=bp[p.k]||0;
-          const pct=Math.min(100,Math.round(v*250));
-          return `<div class="plane-row">
-            <span class="plane-name">${p.n}</span>
-            <div class="plane-bar"><div class="plane-fill" style="width:${pct}%;background:${p.c}"></div></div>
-            <span class="plane-val" style="color:${p.c}">${v.toFixed(3)}</span>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }catch(ex){
-      return `<div class="entity-card"><div class="entity-name">${e.label}</div><div style="font-size:.7rem;color:var(--text-dim)">Loading…</div></div>`;
-    }
-  }));
-  container.innerHTML=cards.join('');
-}
-
-// Fetch FAISS stats
-async function updateFAISS(){
-  try{
-    const r=await fetch('/api/v1/faiss');
-    const d=await r.json();
-    const v=d.indexed_vectors||d.vector_count||0;
-    document.getElementById('s-vectors').textContent=v.toLocaleString();
-    document.getElementById('vector-badge').textContent='⬤ '+v.toLocaleString()+' Vectors';
-    const thresh=d.dynamic_threshold;
-    if(thresh) document.getElementById('s-threshold').textContent=thresh.toFixed(4);
-  }catch(e){
-    // fallback: show from stats
-    try{
-      const r2=await fetch('/api/v1/stats');
-      const d2=await r2.json();
-      if(d2.dynamic_threshold) document.getElementById('s-threshold').textContent=d2.dynamic_threshold.toFixed(4);
-    }catch{}
+async function seedFeed(){
+  if(feedSeeded) return;
+  feedSeeded = true;
+  // Hit a few known entities to warm the feed in the background
+  for(const e of SEED_ENTITIES){
+    apiFetch('/api/v1/signal/'+e).catch(()=>{});
+    await new Promise(r=>setTimeout(r,400));
   }
 }
 
-// Fetch 0G stats
-async function updateZG(){
-  try{
-    const r=await fetch('/api/v1/zg');
-    const d=await r.json();
-    if(d.published!==undefined){
-      document.getElementById('s-published').textContent=d.published.toLocaleString();
-      document.getElementById('zg-published').textContent=d.published.toLocaleString();
-      document.getElementById('s-anomalies').textContent=d.anomalies.toLocaleString();
-      document.getElementById('zg-anomalies').textContent=d.anomalies.toLocaleString();
-      document.getElementById('s-blocked').textContent=d.blocked.toLocaleString();
-      if(d.storage_root) document.getElementById('zg-storage-root').textContent=d.storage_root.slice(0,40)+'…';
-      if(d.sync_block) document.getElementById('zg-sync-block').textContent=Number(d.sync_block).toLocaleString();
-    }
-  }catch(e){console.warn('zg error',e)}
-}
-
-// Fetch 0G DA proof hash (separate call to /api/v1/zg/proof)
-async function updateZGProof(){
-  try{
-    const r=await fetch('/api/v1/zg/proof');
-    const d=await r.json();
-    if(d.ok){
-      const daEl=document.getElementById('zg-da-hash');
-      const srEl=document.getElementById('zg-storage-root');
-      if(daEl && d.da_proof?.payload_hash){
-        daEl.textContent=d.da_proof.payload_hash.slice(0,42)+'…';
-      }
-      if(srEl && d.storage_proof?.merkle_root){
-        srEl.textContent=d.storage_proof.merkle_root.slice(0,42)+'…';
-      }
-    }
-  }catch(e){/* proof endpoint may not be cached yet */}
-}
-
-// ── 0G Integration Hub Updates ─────────────────────────────────────
-async function updateZGHub(){
-  try{
-    // Storage root (fast — reads from chain)
-    const [sRes, daRes] = await Promise.allSettled([
-      fetch('/api/v1/zg/storage/root'),
-      fetch('/api/v1/zg/da/submit'),
-    ]);
-
-    if(sRes.status==='fulfilled'){
-      const s=await sRes.value.json();
-      if(s.ok){
-        const root=s.storage_root||'';
-        const el=document.getElementById('zgs-root');
-        if(el) el.textContent=root?root.slice(0,20)+'…':'—';
-        const blk=document.getElementById('zgs-block');
-        if(blk && s.sync_block) blk.textContent=Number(s.sync_block).toLocaleString();
-
-        // Also update the proof chain display
-        const liveSR=document.getElementById('zg-storage-root-live');
-        if(liveSR) liveSR.textContent=root?root.slice(0,46)+'…':'—';
-        const liveSB=document.getElementById('zg-syncblock-live');
-        if(liveSB && s.sync_block) liveSB.textContent=Number(s.sync_block).toLocaleString();
-      }
-    }
-
-    if(daRes.status==='fulfilled'){
-      const da=await daRes.value.json();
-      if(da.da_commitment){
-        const el=document.getElementById('zgd-commitment');
-        if(el) el.textContent=da.da_commitment.slice(0,18)+'…';
-        const live=document.getElementById('zg-da-commitment-live');
-        if(live) live.textContent=da.da_commitment.slice(0,46)+'…';
-      }
-    }
-  }catch(e){console.warn('zg-hub error',e)}
-}
-
-// ── 0G Chain Hub stat card update ──────────────────────────────────
-async function updateZGChainCard(){
-  try{
-    const r=await fetch('/api/v1/zg/chain/status');
-    const d=await r.json();
-    if(d.ok && d.gate_stats){
-      const gs=d.gate_stats;
-      const pub=document.getElementById('zgc-published');
-      if(pub) pub.textContent=Number(gs.published||0).toLocaleString();
-      const anom=document.getElementById('zgc-anomalies');
-      if(anom) anom.textContent=Number(gs.anomalies||0).toLocaleString();
-      const blk=document.getElementById('zgc-block');
-      if(blk && d.block_number) blk.textContent=Number(d.block_number).toLocaleString();
-    }
-  }catch(e){}
-}
-
-// Last refresh timestamp
-function updateClock(){
-  document.getElementById('last-refresh').textContent='as of '+new Date().toLocaleTimeString();
-}
-
-async function refresh(){
-  updateClock();
-  await Promise.all([updateFeed(),updateFAISS(),updateZG()]);
-}
-
-// Proof hash updates on a slower cadence (expensive node call)
-async function refreshProof(){
-  await updateZGProof();
-}
-
-// ─── VISION MODULE FUNCTIONS ───────────────────────────────────────
-
-// Risk badge HTML
-function riskBadge(label){
-  const cls={'SAFE':'risk-safe','LOW':'risk-safe','MEDIUM':'risk-medium','HIGH':'risk-high','CRITICAL':'risk-critical'}[label]||'risk-medium';
-  return `<span class="risk-badge ${cls}">${label}</span>`;
-}
-
-// Severity color class
-function sevClass(sev){
-  return {'CRITICAL':'severity-critical','HIGH':'severity-high','MEDIUM':'severity-medium','LOW':'severity-low'}[sev]||'severity-low';
-}
-
-// Decision badge HTML
-function decisionBadge(dec){
-  const emoji={'STRONG_BUY':'🟢','BUY':'🟢','WATCH':'🟡','AVOID':'🟠','STRONG_AVOID':'🔴','SHORT':'🔴'}[dec]||'⚪';
-  return `<span class="invest-decision decision-${dec}">${emoji} ${dec}</span>`;
-}
-
-// ── Contract Auditor ─────────────────────────────────────────────────
-async function runAudit(){
-  const addr = document.getElementById('audit-addr').value.trim();
-  const chain = document.getElementById('audit-chain').value;
-  if(!addr){ alert('Please enter a contract address'); return; }
-  const ph=document.getElementById('audit-placeholder');
-  const ct=document.getElementById('audit-content');
-  ph.style.display='block';
-  ph.innerHTML='<div style="font-size:1.2rem;margin-bottom:8px" class="pulse">⚙️</div><span style="font-size:.78rem;color:var(--accent)">Scanning contract on-chain…<br><span style="font-size:.65rem;color:var(--text-dim)">Reading bytecode · Matching 20 vulnerability patterns · Classifying archetype</span></span>';
-  ct.style.display='none';
-  try{
-    const r=await fetch(`/api/v1/audit/${encodeURIComponent(addr)}?chain_id=${chain}`);
-    const d=await r.json();
-    if(d.error){ph.innerHTML=`<span style="color:var(--red)">Error: ${d.error}</span>`;return;}
-    ph.style.display='none';
-    ct.style.display='block';
-
-    const criticals=d.findings.filter(f=>f.severity==='CRITICAL');
-    const highs=d.findings.filter(f=>f.severity==='HIGH');
-    const meds=d.findings.filter(f=>f.severity==='MEDIUM');
-
-    const riskPct=Math.round((d.risk_score||0)*100);
-    const riskColor=riskPct>=70?'var(--red)':riskPct>=40?'var(--yellow)':'var(--green)';
-
-    ct.innerHTML=`
-      <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
-        <div>
-          <div style="font-family:monospace;font-size:.75rem;color:var(--accent);margin-bottom:4px">${d.address}</div>
-          <div style="font-size:.7rem;color:var(--text-dim)">${d.chain_name||'Chain '+d.chain_id}</div>
-        </div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          ${riskBadge(d.risk_label||'MEDIUM')}
-          <span class="arch-badge">${d.archetype||'Unknown'}</span>
-          <span style="font-size:.72rem;color:var(--text-dim)">Stage: <strong style="color:#fff">${d.lifecycle_stage||'?'}</strong></span>
-        </div>
-      </div>
-      <!-- Risk score bar -->
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div style="font-size:.65rem;color:var(--text-dim);width:70px">Risk Score</div>
-        <div style="flex:1;height:8px;background:#1a2540;border-radius:4px;overflow:hidden">
-          <div style="width:${riskPct}%;height:100%;background:${riskColor};border-radius:4px;transition:.5s"></div>
-        </div>
-        <div style="font-size:.85rem;font-weight:800;color:${riskColor};width:40px;text-align:right">${(d.risk_score||0).toFixed(3)}</div>
-      </div>
-      <!-- Coherence bar -->
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div style="font-size:.65rem;color:var(--text-dim);width:70px">C(t)</div>
-        <div style="flex:1;height:8px;background:#1a2540;border-radius:4px;overflow:hidden">
-          <div style="width:${Math.round((d.coherence_score||0)*100)}%;height:100%;background:var(--accent);border-radius:4px;transition:.5s"></div>
-        </div>
-        <div style="font-size:.85rem;font-weight:800;color:var(--accent);width:40px;text-align:right">${(d.coherence_score||0).toFixed(3)}</div>
-      </div>
-      <!-- Stats row -->
-      <div class="d-flex gap-3 flex-wrap mb-3" style="font-size:.7rem">
-        <span style="color:var(--text-dim)">Findings: <strong style="color:var(--red)">${criticals.length} CRIT</strong> <strong style="color:var(--yellow)">${highs.length} HIGH</strong> <strong style="color:#fb923c">${meds.length} MED</strong></span>
-        <span style="color:var(--text-dim)">Bytecode: <strong style="color:#fff">${(d.tx_stats?.bytecode_length||0).toLocaleString()} bytes</strong></span>
-        <span style="color:var(--text-dim)">DELEGATECALL: <strong style="color:${d.tx_stats?.has_delegatecall?'var(--yellow)':'var(--green)'}">${d.tx_stats?.has_delegatecall?'YES':'NO'}</strong></span>
-        <span style="color:var(--text-dim)">SELFDESTRUCT: <strong style="color:${d.tx_stats?.has_selfdestruct?'var(--red)':'var(--green)'}">${d.tx_stats?.has_selfdestruct?'YES':'NO'}</strong></span>
-        <span style="color:var(--text-dim)">ERC-20: <strong style="color:${d.tx_stats?.is_erc20?'var(--accent)':'var(--text-dim)'}">${d.tx_stats?.is_erc20?'YES':'NO'}</strong></span>
-      </div>
-      <!-- Findings (top 6) -->
-      <div style="font-size:.65rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Top Findings</div>
-      <div style="background:#060b12;border-radius:8px;overflow:hidden;max-height:200px;overflow-y:auto">
-        ${(d.findings||[]).slice(0,8).map(f=>`
-          <div class="finding-row">
-            <div class="d-flex justify-content-between align-items-start">
-              <span class="${sevClass(f.severity)}" style="font-weight:700;font-size:.68rem">[${f.severity}]</span>
-              <span style="color:var(--text-dim);font-size:.65rem">${(f.confidence*100).toFixed(0)}% conf</span>
-            </div>
-            <div style="color:#fff;margin-top:2px">${f.pattern_name}</div>
-            <div style="color:var(--text-dim);font-size:.65rem;margin-top:2px">${f.crispr_suggestion||f.description}</div>
-          </div>`).join('')}
-      </div>
-      <!-- Attestation hash -->
-      <div style="margin-top:10px;font-family:monospace;font-size:.62rem;color:var(--text-dim)">
-        Attestation: <span style="color:#a78bfa">${d.attestation_hash||'—'}</span>
-      </div>`;
-  }catch(e){
-    ph.innerHTML=`<span style="color:var(--red)">Network error: ${e.message}</span>`;
+function renderFeedItems(items){
+  if(!items || !items.length){
+    document.getElementById('feedList').innerHTML =
+      '<div class="empty-state"><div class="icon">○</div><p>Warming up signal feed…</p></div>';
+    return;
   }
+  document.getElementById('feedList').innerHTML = items.slice(0,14).map(f => {
+    const safe = f.coherent;
+    const sc = (f.coherence_score||0).toFixed(3);
+    const arch = f.archetype || '—';
+    const eid = f.short_id || f.entity_id || '—';
+    const ago = f.timestamp ? timeAgo(f.timestamp) : 'just now';
+    return `
+    <div class="feed-item">
+      <div class="feed-dot ${safe?'safe':'warn'}"></div>
+      <div>
+        <div class="feed-entity">${eid}</div>
+        <div class="feed-arch">${arch} · ${ago}</div>
+      </div>
+      <div class="feed-score ${safe?'safe':'warn'}">${sc}</div>
+    </div>`;
+  }).join('');
 }
 
-function quickAudit(addr, chain){
-  document.getElementById('audit-addr').value=addr;
-  document.getElementById('audit-chain').value=String(chain);
-  runAudit();
+async function loadFeed(){
+  const data = await apiFetch('/api/v1/feed');
+
+  if(!data || !data.feed || !data.feed.length){
+    // Fallback: show leaderboard entries as feed while warming up
+    const lb = await apiFetch('/api/v1/leaderboard');
+    if(lb && lb.leaderboard && lb.leaderboard.length){
+      const items = lb.leaderboard.map(e=>({
+        coherent: e.coherent,
+        coherence_score: e.coherence_score,
+        archetype: e.archetype,
+        short_id: e.label || short(e.entity_id,16),
+        entity_id: e.entity_id,
+        timestamp: Math.floor(Date.now()/1000) - Math.floor(Math.random()*120)
+      }));
+      renderFeedItems(items);
+    } else {
+      document.getElementById('feedList').innerHTML =
+        '<div class="empty-state"><div class="icon">○</div><p>Warming up signal feed…</p></div>';
+    }
+    // Seed the real feed in background
+    seedFeed();
+    return;
+  }
+
+  renderFeedItems(data.feed);
 }
 
-// ── Akashic Index Archetypes ──────────────────────────────────────────
-async function loadArchetypes(){
-  try{
-    const r=await fetch('/api/v1/akashic/archetypes');
-    const d=await r.json();
-    const archs=d.archetypes||[];
-    const grid=document.getElementById('archetype-grid');
-    const signalColors={BUY:'var(--green)',AVOID:'var(--red)',SHORT:'#ff4444',WATCH:'var(--yellow)'};
-    grid.innerHTML=archs.map(a=>`
-      <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="arch-card">
-          <div style="font-size:.72rem;font-weight:800;color:#fff;margin-bottom:4px">${a.name}</div>
-          <div style="font-size:.62rem;color:var(--text-dim);margin-bottom:8px;line-height:1.4">${a.description.slice(0,70)}…</div>
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="arch-signal-${a.investment_signal}" style="font-size:.68rem;font-weight:800">${a.investment_signal}</span>
-            <span class="risk-badge ${a.risk_level==='SAFE'?'risk-safe':a.risk_level==='CRITICAL'?'risk-critical':a.risk_level==='HIGH'?'risk-high':'risk-medium'}" style="font-size:.58rem;padding:2px 7px">${a.risk_level}</span>
-          </div>
-          <div style="margin-top:6px;font-size:.6rem;color:var(--text-dim)">${(a.lifecycle||[]).join(' → ')}</div>
-        </div>
-      </div>`).join('');
-  }catch(e){document.getElementById('archetype-grid').innerHTML='<div class="loader-text">Error loading archetypes</div>';}
-}
+/* ── Leaderboard ────────────────────────────────────────────────────────── */
+async function loadLeaderboard(){
+  const data = await apiFetch('/api/v1/leaderboard');
+  if(!data || !data.leaderboard) return;
 
-// ── Investment Signal Engine ──────────────────────────────────────────
-const INVEST_ENTITIES=[
-  {id:'uniswap',label:'Uniswap'},
-  {id:'aave',label:'Aave'},
-  {id:'compound',label:'Compound'},
-  {id:'curve',label:'Curve'},
-  {id:'lido',label:'Lido'},
-  {id:'makerdao',label:'MakerDAO'},
-];
-
-async function loadInvestSignals(){
-  const grid=document.getElementById('invest-grid');
-  try{
-    const results=await Promise.all(INVEST_ENTITIES.map(e=>fetch(`/api/v1/invest/${e.id}`).then(r=>r.json()).then(d=>({...d,label:e.label}))));
-    grid.innerHTML=`<table class="signal-table" style="width:100%">
-      <thead><tr><th>Protocol</th><th>Decision</th><th>Behavioral α</th><th>Archetype</th><th>Phase</th><th>Stage</th><th>Risk</th></tr></thead>
-      <tbody>${results.map(d=>{
-        const alphaPct=Math.round((d.behavioral_alpha||0)*100);
-        const alphaColor=alphaPct>=70?'var(--green)':alphaPct>=42?'var(--yellow)':'var(--red)';
-        return `<tr>
-          <td><strong style="font-size:.78rem">${d.label}</strong></td>
-          <td>${decisionBadge(d.decision||'WATCH')}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div class="alpha-bar-wrap" style="width:60px"><div class="alpha-bar-fill" style="width:${alphaPct}%;background:${alphaColor}"></div></div>
-              <span style="font-size:.72rem;color:${alphaColor}">${(d.behavioral_alpha||0).toFixed(3)}</span>
-            </div>
-          </td>
-          <td><span class="arch-badge">${d.archetype||'?'}</span></td>
-          <td><span style="font-size:.72rem;color:${d.phase==='PLASMA'?'var(--red)':d.phase==='GAS'?'var(--yellow)':d.phase==='LIQUID'?'var(--accent)':'var(--text-dim)'}">${d.phase||'?'}</span></td>
-          <td><span style="font-size:.7rem;color:var(--text-dim)">${d.lifecycle_stage||'?'}</span></td>
-          <td><span style="font-size:.68rem;color:${d.risk_level==='LOW'?'var(--green)':d.risk_level==='CRITICAL'?'var(--red)':'var(--yellow)'}">${d.risk_level||'?'}</span></td>
-        </tr>`;}).join('')}</tbody></table>`;
-  }catch(e){grid.innerHTML='<div class="loader-text">Error loading signals</div>';}
-}
-
-// ── Reputation Leaderboard ────────────────────────────────────────────
-async function loadReputation(){
-  try{
-    const r=await fetch('/api/v1/reputation/leaderboard?n=12');
-    const d=await r.json();
-    const tbody=document.getElementById('rep-tbody');
-    const rows=d.leaderboard||[];
-    if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="loader-text">No data yet</td></tr>';return;}
-    tbody.innerHTML=rows.map(r=>`<tr>
-      <td style="font-size:.72rem;color:var(--text-dim)">${r.rank}</td>
-      <td style="font-size:.75rem;font-weight:700;color:#fff">${r.entity_id}</td>
+  const lb = data.leaderboard;
+  document.getElementById('lbBody').innerHTML = lb.slice(0,12).map((e,i) => {
+    const pct = (e.coherence_score||0)*100;
+    const good = e.coherent;
+    const rank = e.rank || (i+1);
+    const isTop = rank <= 3;
+    const label = e.label || short(e.entity_id, 18);
+    const col = good ? 'var(--green)' : 'var(--amber)';
+    return `
+    <tr>
+      <td class="lb-rank ${isTop?'top':''}">${isTop?['🥇','🥈','🥉'][rank-1]:rank}</td>
       <td>
-        <div style="display:flex;align-items:center;gap:5px">
-          <div class="alpha-bar-wrap" style="width:50px"><div class="alpha-bar-fill" style="width:${Math.round((r.reputation_score||0)*100)}%;background:var(--accent)"></div></div>
-          <span style="font-size:.72rem;color:var(--accent)">${(r.reputation_score||0).toFixed(3)}</span>
+        <div class="lb-entity" title="${e.entity_id}">${label}</div>
+      </td>
+      <td><span class="lb-arch-badge">${e.archetype||'—'}</span></td>
+      <td class="lb-score ${good?'good':'bad'}">
+        ${(e.coherence_score||0).toFixed(4)}
+        <div class="lb-bar-wrap">
+          <div class="lb-bar" style="width:${pct.toFixed(1)}%;background:${col}"></div>
         </div>
       </td>
-      <td><span class="rep-tier-${r.trust_tier}" style="font-size:.68rem">${r.trust_tier}</span></td>
-      <td style="font-size:.72rem;color:var(--text-dim)">${(r.avg_coherence||0).toFixed(3)}</td>
-    </tr>`).join('');
-  }catch(e){document.getElementById('rep-tbody').innerHTML='<tr><td colspan="5" class="loader-text">Error</td></tr>';}
+    </tr>`;
+  }).join('');
 }
 
-// ── AI Agent Safety Pipeline ──────────────────────────────────────────
-async function loadAgents(){
-  try{
-    const r=await fetch('/api/v1/agents');
-    const d=await r.json();
-    const agents=(d.agents||d||[]).slice(0,6);
-    const list=document.getElementById('agents-list');
-    if(!agents.length){list.innerHTML='<div class="loader-text">No agents yet</div>';return;}
-    list.innerHTML=agents.map(a=>{
-      const fitPct=Math.round((a.fitness_score||0)*100);
-      const fitColor=fitPct>=70?'var(--green)':fitPct>=40?'var(--yellow)':'var(--red)';
-      const blockRate=a.total_actions>0?Math.round(a.blocked_actions/a.total_actions*100):0;
-      return `<div class="agent-card">
-        <div class="d-flex justify-content-between align-items-start">
-          <div style="font-size:.73rem;font-weight:800;color:#fff">${a.agent_id}</div>
-          <span class="trust-${a.trust_level}" style="font-size:.65rem;font-weight:700">${a.trust_level}</span>
-        </div>
-        <div class="d-flex gap-3 mt-1" style="font-size:.65rem;color:var(--text-dim)">
-          <span>Actions: <strong style="color:#fff">${a.total_actions}</strong></span>
-          <span>Blocked: <strong style="color:${blockRate>20?'var(--red)':'var(--green)'}">${blockRate}%</strong></span>
-          <span>C(t): <strong style="color:var(--accent)">${(a.avg_coherence||0).toFixed(3)}</strong></span>
-        </div>
-        <div class="d-flex align-items-center gap-2 mt-1">
-          <div style="font-size:.62rem;color:var(--text-dim);width:55px">Fitness</div>
-          <div class="alpha-bar-wrap" style="flex:1"><div class="alpha-bar-fill" style="width:${fitPct}%;background:${fitColor}"></div></div>
-          <div style="font-size:.68rem;color:${fitColor};width:28px;text-align:right">${(a.fitness_score||0).toFixed(2)}</div>
-        </div>
-      </div>`;
-    }).join('');
-  }catch(e){document.getElementById('agents-list').innerHTML='<div class="loader-text">Error loading agents</div>';}
-}
+/* ── Entity Lookup ──────────────────────────────────────────────────────── */
+async function lookupEntity(){
+  const raw = document.getElementById('searchInput').value.trim();
+  if(!raw) return;
+  const entity = encodeURIComponent(raw);
 
-// Test agent action
-async function testAgent(){
-  const agentId=document.getElementById('agent-id-input').value.trim()||'test_agent_'+Date.now();
-  const actionType=document.getElementById('agent-action-type').value;
-  const value=parseFloat(document.getElementById('agent-value').value)||5000;
-  const res=document.getElementById('agent-test-result');
-  res.innerHTML='<span style="color:var(--text-dim)">Validating…</span>';
-  try{
-    const r=await fetch('/api/v1/agent/validate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({agent_id:agentId,action:{action_type:actionType,entity_id:'0xtest',value_usd:value,chain_id:1,metadata:{}}})
-    });
-    const d=await r.json();
-    const allowed=d.allowed;
-    const color=allowed?'var(--green)':'var(--red)';
-    res.innerHTML=`<div style="padding:6px 10px;border-radius:6px;border:1px solid ${allowed?'#00ff8844':'#ff456044'};background:${allowed?'#00ff8811':'#ff456011'}">
-      <span style="color:${color};font-weight:800">${d.outcome||'?'}</span>
-      <span style="color:var(--text-dim);margin-left:8px">${d.reason||''}</span><br>
-      <span style="color:var(--text-dim);font-size:.63rem">C(t)=${(d.coherence_score||0).toFixed(3)} Risk=${(d.risk_score||0).toFixed(3)} Stamp=${d.behavioral_stamp||'—'}</span>
+  document.getElementById('signalEmpty').style.display = 'none';
+  document.getElementById('signalResult').innerHTML = `
+    <div style="padding:20px;color:var(--text3);font-size:.8rem;display:flex;align-items:center;gap:10px">
+      <div class="skeleton" style="width:48px;height:48px;border-radius:12px;flex-shrink:0"></div>
+      <div style="flex:1"><div class="skeleton" style="margin-bottom:8px"></div><div class="skeleton" style="width:60%"></div></div>
     </div>`;
-    loadAgents();
-  }catch(e){res.innerHTML=`<span style="color:var(--red)">Error: ${e.message}</span>`;}
+
+  const data = await apiFetch('/api/v1/signal/'+entity);
+
+  if(!data){
+    document.getElementById('signalResult').innerHTML = `
+      <div class="empty-state">
+        <div class="icon" style="color:var(--red)">✕</div>
+        <p>Could not retrieve signal for this entity.</p>
+      </div>`;
+    return;
+  }
+
+  const safe = data.coherent || (!data.silence);
+  const st = data.signal_type || (safe ? 'ACTIVE' : 'SILENCE');
+  const arch = data.archetype || '—';
+  const coh = (data.coherence||data.coherence_score||0).toFixed(4);
+  const thresh = (data.dynamic_threshold||data.theta||0).toFixed(4);
+  const mf = ((data.mf_score||0)*100).toFixed(1);
+  const eid = data.entity_id || raw;
+  const planes = data.plane_breakdown || {};
+
+  // Radar chart
+  showRadar(planes, short(raw, 12));
+
+  const planeDefs = [
+    {k:'physical',label:'Physical'},
+    {k:'mental',label:'Mental'},
+    {k:'spiritual',label:'Spiritual'},
+    {k:'conscious',label:'Conscious'},
+    {k:'anima',label:'ANIMA'}
+  ];
+
+  document.getElementById('signalResult').innerHTML = `
+  <div class="signal-result visible">
+    <div class="signal-header">
+      <div class="signal-icon ${safe?'safe':'warn'}">${safe?'✓':'⚠'}</div>
+      <div>
+        <div class="signal-entity">${eid}</div>
+        <div class="signal-type">${st.replace('_',' ')}</div>
+        <span class="signal-archetype">${arch}</span>
+      </div>
+    </div>
+
+    <div class="score-row">
+      <div class="score-box">
+        <div class="score-box-label">Trust Score</div>
+        <div class="score-box-val" style="color:${scoreColor(parseFloat(coh))}">${coh}</div>
+      </div>
+      <div class="score-box">
+        <div class="score-box-label">Security Gate</div>
+        <div class="score-box-val" style="color:var(--text2)">${thresh}</div>
+      </div>
+      <div class="score-box">
+        <div class="score-box-label">Manipulation Risk</div>
+        <div class="score-box-val" style="color:${parseFloat(mf)>30?'var(--red)':'var(--green)'}">${mf}%</div>
+      </div>
+    </div>
+
+    <div class="planes-grid">
+      ${planeDefs.map(p => {
+        const v = planes[p.k]||0;
+        const col = planeColor(v);
+        return `
+        <div class="plane-item">
+          <div class="plane-name">${p.label}</div>
+          <div class="plane-bar-track">
+            <div class="plane-bar-fill" style="width:${(v*100).toFixed(1)}%;background:${col}"></div>
+          </div>
+          <div class="plane-score" style="color:${col}">${(v).toFixed(2)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="signal-footer">
+      ${data.limiting_plane ? `<span class="tag">Limiting: ${data.limiting_plane}</span>` : ''}
+      ${data.signal_id ? `<span class="tag">${data.signal_id.slice(0,8)}</span>` : ''}
+      ${data.data_staleness_s != null ? `<span>Updated ${(data.data_staleness_s).toFixed(0)}s ago</span>` : ''}
+    </div>
+  </div>`;
 }
 
-// ── Thermodynamic Grid ────────────────────────────────────────────────
-const THERMO_ENTITIES=['uniswap','aave','compound','curve','lido','makerdao'];
-async function loadThermo(){
-  const grid=document.getElementById('thermo-grid');
-  try{
-    const results=await Promise.all(THERMO_ENTITIES.map(e=>fetch(`/api/v1/thermodynamics/${e}`).then(r=>r.json()).then(d=>({...d,label:e}))));
-    const phaseColor={SOLID:'var(--text-dim)',LIQUID:'var(--accent)',GAS:'var(--yellow)',PLASMA:'var(--red)'};
-    const phaseEmoji={SOLID:'🧊',LIQUID:'💧',GAS:'💨',PLASMA:'⚡'};
-    grid.innerHTML=results.map(d=>`
-      <div class="col-6 col-md-4">
-        <div style="background:#060b12;border:1px solid var(--border);border-radius:8px;padding:12px">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span style="font-size:.75rem;font-weight:800;color:#fff">${d.label}</span>
-            <span style="font-size:.85rem">${phaseEmoji[d.phase]||'?'}</span>
-          </div>
-          <div style="font-size:.68rem;color:${phaseColor[d.phase]||'var(--text-dim)'};font-weight:800;margin-bottom:6px">${d.phase} Phase</div>
-          <div style="font-size:.65rem;color:var(--text-dim);line-height:1.8">
-            F = <span style="color:var(--accent)">${(d.free_energy||0).toFixed(3)}</span> &nbsp;
-            T = <span style="color:var(--yellow)">${(d.temperature||0).toFixed(3)}</span> &nbsp;
-            S = <span style="color:#a78bfa">${(d.entropy||0).toFixed(3)}</span><br>
-            Health: <span style="color:${(d.thermodynamic_health||0)>0.5?'var(--green)':'var(--red)'}">${(d.thermodynamic_health||0).toFixed(3)}</span> &nbsp;
-            η = <span style="color:var(--green)">${(d.carnot_efficiency||0).toFixed(3)}</span>
-          </div>
-          <div class="alpha-bar-wrap mt-2"><div class="alpha-bar-fill" style="width:${Math.round((d.thermodynamic_health||0)*100)}%;background:${phaseColor[d.phase]||'var(--accent)'}"></div></div>
-        </div>
-      </div>`).join('');
-  }catch(e){grid.innerHTML='<div class="loader-text">Error loading thermodynamics</div>';}
-}
+/* ── Radar Chart ────────────────────────────────────────────────────────── */
+function showRadar(planes, label){
+  document.getElementById('radarCard').style.display = '';
+  document.getElementById('radarEntity').textContent = label;
 
-// ── UBL Schema ────────────────────────────────────────────────────────
-async function loadUBL(){
-  try{
-    const [schemaR, liveR]=await Promise.all([
-      fetch('/api/v1/ubl/schema'),
-      fetch('/api/v1/ubl/uniswap')
-    ]);
-    const schema=await schemaR.json();
-    const live=await liveR.json();
-    const dimsEl=document.getElementById('ubl-dims');
-    const dims=schema.dimensions||{};
-    dimsEl.innerHTML=Object.entries(dims).map(([i,d])=>`
-      <div class="ubl-dim">
-        <span style="color:var(--accent);font-weight:700">${i}</span>
-        <span style="color:var(--text-dim)">${d.name}</span>
-      </div>`).join('');
-    const liveEl=document.getElementById('ubl-live');
-    if(live.vector){
-      const dimNames=['phi_ent','phi_cplx','phi_flow','mental','sigma','karma','anima','lc_stage','risk','manip_mf','C(t)','F(thermo)'];
-      liveEl.innerHTML=live.vector.map((v,i)=>
-        `<span style="color:var(--text-dim)">${(dimNames[i]||i).padEnd(10)}</span><span style="color:var(--accent)">${Number(v).toFixed(4)}</span>`
-      ).join('<br>');
+  const vals = [
+    planes.physical||0,
+    planes.mental||0,
+    planes.spiritual||0,
+    planes.conscious||0,
+    planes.anima||0
+  ];
+
+  const ctx = document.getElementById('radarCanvas').getContext('2d');
+  if(radarChart){ radarChart.destroy(); }
+
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Physical','Mental','Spiritual','Conscious','ANIMA'],
+      datasets:[{
+        data: vals,
+        borderColor:'rgba(0,194,255,0.8)',
+        backgroundColor:'rgba(0,194,255,0.08)',
+        borderWidth:2,
+        pointBackgroundColor:'rgba(0,194,255,1)',
+        pointRadius:4,
+        pointHoverRadius:6,
+      }]
+    },
+    options:{
+      responsive:true,
+      animation:{duration:500},
+      plugins:{legend:{display:false}},
+      scales:{
+        r:{
+          min:0,max:1,
+          ticks:{display:false,stepSize:.25},
+          grid:{color:'rgba(255,255,255,0.06)'},
+          angleLines:{color:'rgba(255,255,255,0.06)'},
+          pointLabels:{
+            color:'rgba(136,153,187,0.9)',
+            font:{size:10,family:'Inter',weight:'600'}
+          }
+        }
+      }
     }
-  }catch(e){}
+  });
 }
 
-// ── Boot Vision Modules ────────────────────────────────────────────────
-async function initVision(){
+/* ── Enter key search ───────────────────────────────────────────────────── */
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') lookupEntity();
+});
+
+/* ── Init & polling ─────────────────────────────────────────────────────── */
+async function init(){
   await Promise.all([
-    loadArchetypes(),
-    loadInvestSignals(),
-    loadReputation(),
-    loadAgents(),
-    loadThermo(),
-    loadUBL(),
+    loadMetrics(),
+    loadStatus(),
+    loadChains(),
+    loadFeed(),
+    loadLeaderboard()
   ]);
 }
 
-// ── T(t) Master Equation Live Display ─────────────────────────────────
-async function loadTruthValues(){
-  const entities=[
-    {id:'uniswap',label:'Uniswap'},
-    {id:'aave',label:'Aave'},
-    {id:'0xb819c63c02Ed5aB49017C0f3f2568A14624658b3',label:'TRION Validator'},
-    {id:'compound',label:'Compound'},
-    {id:'lido',label:'Lido'},
-  ];
-  try{
-    const results=await Promise.all(entities.map(e=>
-      fetch(`/api/v1/trion/${e.id}`).then(r=>r.json()).then(d=>({...d,_label:e.label})).catch(()=>null)
-    ));
-    const valid=results.filter(Boolean);
-    const el=document.getElementById('trion-tv-table');
-    if(!valid.length){el.innerHTML='<div class="loader-text">No T(t) data</div>';return;}
-    el.innerHTML=`<table class="signal-table" style="font-size:.72rem">
-      <thead><tr>
-        <th>Entity</th><th>T(t)</th><th>C(t)</th><th>Θ(t)</th><th>M_moat</th><th>Status</th>
-      </tr></thead>
-      <tbody>${valid.map(d=>{
-        const T=d.T_t||0;
-        const coherent=d.coherent;
-        const sc=coherent?'status-safe':'status-collapse';
-        const st=coherent?'SIGNAL':'SILENCE';
-        return `<tr>
-          <td style="font-weight:700;color:#fff">${d._label}</td>
-          <td style="color:#a78bfa;font-weight:800">${T.toFixed(4)}</td>
-          <td style="color:var(--accent)">${(d.C_t||0).toFixed(4)}</td>
-          <td style="color:var(--yellow)">${(d.theta_t||0).toFixed(4)}</td>
-          <td style="color:#34d399">${(d.M_moat||0).toFixed(4)}</td>
-          <td><span class="${sc}">${st}</span></td>
-        </tr>`;
-      }).join('')}</tbody></table>`;
-    // Extra metrics from first entity
-    const first=valid[0];
-    if(first){
-      try{
-        const [convR,bwR,sigR,imR]=await Promise.all([
-          fetch(`/api/v1/convergence/${first.entity_id||'uniswap'}`).then(r=>r.json()),
-          fetch(`/api/v1/bootstrap/weight/${first.entity_id||'uniswap'}`).then(r=>r.json()),
-          fetch(`/api/v1/sigma/uniswap`).then(r=>r.json()),
-          fetch('/api/v1/intelligence_maintenance').then(r=>r.json()),
-        ]);
-        const h=document.getElementById('tm-h-irred');
-        const bw=document.getElementById('tm-bw');
-        const sn=document.getElementById('tm-sigma-n');
-        const im=document.getElementById('tm-im-status');
-        if(h) h.textContent=(convR.H_irreducible||0).toFixed(6);
-        if(bw) bw.textContent=(bwR.bootstrap_weight||0).toFixed(6);
-        if(sn) sn.textContent=`${sigR.n_included||0}/${sigR.n_validators||0} incl.`;
-        if(im){
-          const health=imR.system_health||'?';
-          im.textContent=health;
-          im.className='';
-          im.style.color=health==='HEALTHY'?'var(--green)':'var(--red)';
-          im.style.fontSize='.9rem';
-          im.style.fontWeight='700';
-        }
-      }catch(e2){}
-    }
-  }catch(e){console.warn('T(t) load error',e);}
+function startPolling(){
+  // Fast: metrics + feed every 15s
+  setInterval(()=>{ loadMetrics(); loadFeed(); }, 15000);
+  // Slower: status + leaderboard every 45s
+  setInterval(()=>{ loadStatus(); loadLeaderboard(); }, 45000);
 }
 
-// ── 57-Formula Coverage Table ──────────────────────────────────────────
-async function loadCoverage(){
-  try{
-    const r=await fetch('/api/v1/whitepaper/coverage');
-    const d=await r.json();
-    const el=document.getElementById('cov-live');
-    const ep=document.getElementById('cov-pct');
-    if(el) el.textContent=d.live_count||0;
-    if(ep) ep.textContent=(d.coverage_pct||0).toFixed(1)+'%';
-    const tbody=document.getElementById('coverage-tbody');
-    if(!tbody) return;
-    const formulas=d.formulas||[];
-    // Show L-formulas only (not SIG-* signal types) for brevity in table
-    const lforms=formulas.filter(f=>f.id.startsWith('L'));
-    tbody.innerHTML=lforms.map(f=>{
-      const ep0=(f.endpoints||[])[0]||'';
-      const shortFm=f.formula.length>60?f.formula.slice(0,60)+'…':f.formula;
-      return `<tr>
-        <td style="font-family:monospace;color:#a78bfa;font-weight:700">${f.id}</td>
-        <td style="color:#fff">${f.name}</td>
-        <td style="font-family:monospace;color:var(--text-dim);font-size:.65rem">${shortFm}</td>
-        <td><span class="status-safe">✓ LIVE</span></td>
-        <td><a href="${ep0}" target="_blank" class="zg-link" style="font-size:.62rem">${ep0.slice(0,38)}…</a></td>
-      </tr>`;
-    }).join('');
-  }catch(e){console.warn('coverage error',e);}
-}
-
-// ── L10 Living Index + Phase Roadmap ────────────────────────────────────────
-async function loadInversion(){
-  try{
-    const d = await fetch('/api/v1/inversion').then(r=>r.json());
-
-    // Layer 1: BH count
-    const bhEl = document.getElementById('inv-bh-count');
-    if(bhEl && d.trion_stack?.layers?.[0]?.live_stats?.total_bh_records){
-      const n = d.trion_stack.layers[0].live_stats.total_bh_records;
-      bhEl.textContent = n.toLocaleString();
-    }
-
-    // Layer 2: FAISS vectors + moat
-    const fvEl = document.getElementById('inv-faiss-vecs');
-    if(fvEl && d.trion_stack?.layers?.[1]?.live_stats?.faiss_vectors){
-      fvEl.textContent = d.trion_stack.layers[1].live_stats.faiss_vectors.toLocaleString();
-    }
-    const moatEl = document.getElementById('inv-moat');
-    if(moatEl && d.trion_stack?.layers?.[1]?.live_stats?.moat_score !== undefined){
-      moatEl.textContent = d.trion_stack.layers[1].live_stats.moat_score.toFixed(4);
-    }
-
-    // Layer 3: SEC(t)
-    const secEl = document.getElementById('inv-sec');
-    if(secEl && d.trion_stack?.layers?.[2]?.live_stats?.sec_t !== undefined){
-      secEl.textContent = d.trion_stack.layers[2].live_stats.sec_t.toFixed(3);
-    }
-
-    // Layer 4: anomalies
-    const anEl = document.getElementById('inv-anomalies');
-    if(anEl && d.trion_stack?.layers?.[3]?.live_stats?.gate_anomalies !== undefined){
-      anEl.textContent = d.trion_stack.layers[3].live_stats.gate_anomalies;
-    }
-
-    // 7 Key Inversions table
-    const tbl = document.getElementById('inversion-table');
-    if(tbl && d.key_inversions){
-      tbl.innerHTML = d.key_inversions.map(inv=>`
-        <div class="inv-key-card">
-          <div style="font-size:.65rem;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase">${inv.property}</div>
-          <div style="font-size:.7rem;margin-bottom:4px">
-            <span style="color:var(--red);font-weight:600">✗ </span><span style="color:#888">${inv.broken}</span>
-          </div>
-          <div style="font-size:.7rem">
-            <span style="color:var(--green);font-weight:600">✓ </span><span style="color:var(--text)">${inv.trion}</span>
-          </div>
-        </div>`).join('');
-    }
-  }catch(e){ console.warn('loadInversion:', e); }
-}
-
-async function loadL10(){
-  try{
-    const [liR, emR, phR] = await Promise.all([
-      fetch('/api/v1/living_index/uniswap').then(r=>r.json()),
-      fetch('/api/v1/emergence/uniswap').then(r=>r.json()),
-      fetch('/api/v1/phases').then(r=>r.json()),
-    ]);
-
-    // Living Index headline
-    const liScore = document.getElementById('li-score');
-    const liGrade = document.getElementById('li-grade');
-    const liSec   = document.getElementById('li-sec');
-    if(liScore) liScore.textContent = (liR.LI||0).toFixed(4);
-    if(liGrade){
-      const g = liR.grade||'?';
-      liGrade.textContent = g;
-      liGrade.style.color = g==='APEX'?'var(--green)':g==='PRIME'?'#a78bfa':g==='ACTIVE'?'var(--yellow)':'var(--text-dim)';
-    }
-    if(liSec) liSec.textContent = (liR.sec_score||0).toFixed(4);
-
-    // Emergence
-    const emEl = document.getElementById('emerge-status');
-    if(emEl){
-      const confirmed = emR.emergence_confirmed;
-      emEl.textContent = confirmed ? '✓ CONFIRMED' : '⚠ PARTIAL';
-      emEl.style.color = confirmed ? 'var(--green)' : 'var(--yellow)';
-    }
-
-    // Component chips
-    const comps = liR.components||{};
-    const compEl = document.getElementById('li-components');
-    if(compEl){
-      const entries = [
-        ['T(t)', comps.T_t],['e^M', comps.exp_moat],['SEC',comps.SEC_t],
-        ['BC', comps.BC],['EP', comps.EP],['BRT', comps.BRT_phase],
-      ];
-      compEl.innerHTML = entries.map(([label,val])=>{
-        const v = typeof val==='number'?val.toFixed(4):'?';
-        return `<span class="tag-chip" style="font-family:monospace;font-size:.62rem">${label}: <strong style="color:var(--green)">${v}</strong></span>`;
-      }).join('');
-    }
-
-    // Phase grid
-    const phGrid = document.getElementById('phase-grid');
-    if(phGrid && phR.phases){
-      phGrid.innerHTML = phR.phases.map(p=>{
-        const statusColor = p.status==='COMPLETE'?'var(--green)':p.status==='IN_PROGRESS'?'var(--yellow)':'var(--text-dim)';
-        const pct = p.completion_pct||0;
-        return `<div class="stat-card" style="padding:12px;border-left:3px solid ${statusColor}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span style="font-size:.68rem;font-weight:700;color:#a78bfa">Phase ${p.phase}</span>
-            <span style="font-size:.62rem;color:${statusColor};font-weight:700">${p.status}</span>
-          </div>
-          <div style="font-size:.72rem;font-weight:700;color:#fff;margin-bottom:4px">${p.name}</div>
-          <div style="font-size:.62rem;color:var(--text-dim);margin-bottom:6px">${p.levels.join(', ')} · ${p.timeline}</div>
-          <div style="background:#060b12;border-radius:4px;height:4px;overflow:hidden;margin-bottom:4px">
-            <div style="background:${statusColor};width:${pct}%;height:100%;transition:width .6s"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between">
-            <span style="font-size:.62rem;color:var(--text-dim)">${pct}% complete</span>
-            <span style="font-size:.62rem;color:var(--text-dim)">${(p.capital_usd/1e6).toFixed(1)}M</span>
-          </div>
-        </div>`;
-      }).join('');
-    }
-  }catch(e){console.warn('L10 load error',e);}
-}
-
-// ── BH LEDGER VISUALISATION ──────────────────────────────────────────────────
-const VM_FAMILY = {
-  ETH_MAINNET:'EVM',ARB_MAINNET:'EVM·L2',BASE_MAINNET:'EVM·L2',OP_MAINNET:'EVM·L2',
-  BNB_MAINNET:'EVM·BSC',LINEA:'EVM·L2',MANTLE:'EVM·L2',SCROLL:'EVM·L2',
-  HASHKEY:'EVM·HSK',SOLANA_MAINNET:'SVM',ZG_MAINNET:'0G·EVM',
-  NEAR_MAINNET:'NEAR',TON_MAINNET:'TVM',APTOS_MAINNET:'MoveVM',
-  SUI_MAINNET:'SuiVM',STARKNET_MAINNET:'StarkVM',TRON_MAINNET:'TVM',
-  COSMOS_HUB:'CosmosSDK',PI_MVM:'PiVM',BITCOIN:'UTXO',
-};
-const VERDICT_COLOR = {
-  SAFE:'var(--green)',ELEVATED:'var(--yellow)',WATCH:'var(--accent)',
-  INTERCEPT:'var(--red)',HOSTILE:'#ff0055',
-};
-const EVENT_COLORS = [
-  '#00e5ff','#ff4560','#00ff88','#ffd600','#a78bfa','#f59e0b',
-  '#34d399','#fb7185','#60a5fa','#c084fc','#4ade80','#f97316','#e879f9',
-];
-
-let _bhChainChart = null;
-let _bhEventChart = null;
-
-async function loadBHLedger() {
-  try {
-    const [stats, feed] = await Promise.all([
-      fetch('/api/v1/bh/stats').then(r=>r.json()),
-      fetch('/api/v1/bh/recent_feed?limit=20').then(r=>r.json()),
-    ]);
-
-    // ── Summary stat cards ────────────────────────────────────────────────────
-    const fmt = n => n >= 1e6 ? (n/1e6).toFixed(2)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : String(n);
-    const setEl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    setEl('bh-total', fmt(stats.total_tx_bhs||0));
-    setEl('bh-chains', stats.chains_with_data||0);
-    setEl('bh-mev', fmt(feed.mev_captures||0));
-    const zgCount = (stats.per_chain||{}).ZG_MAINNET||0;
-    setEl('bh-0g', fmt(zgCount));
-    setEl('bh-0g-count', fmt(zgCount));
-
-    // ── VM Family chips ───────────────────────────────────────────────────────
-    const perChain = stats.per_chain || {};
-    const vmTotals = {};
-    Object.entries(perChain).forEach(([chain, cnt]) => {
-      const vm = VM_FAMILY[chain] || 'Other';
-      vmTotals[vm] = (vmTotals[vm]||0) + cnt;
-    });
-    const chipsEl = document.getElementById('bh-vm-chips');
-    if(chipsEl){
-      chipsEl.innerHTML = Object.entries(vmTotals)
-        .sort((a,b)=>b[1]-a[1])
-        .map(([vm,cnt])=>`<span class="tag-chip" style="font-family:monospace;font-size:.65rem">
-          <span style="color:var(--accent)">${vm}</span>
-          <span style="color:var(--text-dim)"> · </span>
-          <strong style="color:#fff">${fmt(cnt)}</strong>
-        </span>`).join('');
-    }
-
-    // ── Per-chain bar chart ───────────────────────────────────────────────────
-    const chainLabels = Object.keys(perChain).map(c => c.replace('_MAINNET','').replace('_',' '));
-    const chainData   = Object.values(perChain);
-    const chainColors = chainLabels.map((_,i) => EVENT_COLORS[i % EVENT_COLORS.length]);
-    const ctx1 = document.getElementById('bh-chain-chart');
-    if(ctx1){
-      if(_bhChainChart){ _bhChainChart.destroy(); }
-      _bhChainChart = new Chart(ctx1, {
-        type: 'bar',
-        data: {
-          labels: chainLabels,
-          datasets:[{
-            label: 'BH Records',
-            data: chainData,
-            backgroundColor: chainColors.map(c=>c+'bb'),
-            borderColor: chainColors,
-            borderWidth: 1,
-            borderRadius: 4,
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{
-            callbacks:{ label: ctx => ' '+ctx.parsed.y.toLocaleString()+' BHs' }
-          }},
-          scales:{
-            x:{ ticks:{color:'#5a6a7e',font:{size:9}}, grid:{color:'#1a2540'} },
-            y:{ ticks:{color:'#5a6a7e',font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}, grid:{color:'#1a2540'} }
-          }
-        }
-      });
-    }
-
-    // ── Event type doughnut ───────────────────────────────────────────────────
-    const perEvent = stats.per_event_type || {};
-    const evLabels = Object.keys(perEvent);
-    const evData   = Object.values(perEvent);
-    const ctx2 = document.getElementById('bh-event-chart');
-    if(ctx2){
-      if(_bhEventChart){ _bhEventChart.destroy(); }
-      _bhEventChart = new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-          labels: evLabels,
-          datasets:[{
-            data: evData,
-            backgroundColor: evLabels.map((_,i)=>EVENT_COLORS[i%EVENT_COLORS.length]+'cc'),
-            borderColor: '#090d14',
-            borderWidth: 2,
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{
-            legend:{ position:'bottom', labels:{color:'#5a6a7e',font:{size:8},boxWidth:10,padding:6} },
-            tooltip:{ callbacks:{ label: ctx => ' '+ctx.label+': '+ctx.parsed.toLocaleString() } }
-          },
-          cutout:'65%',
-        }
-      });
-    }
-
-    // ── 0G BH highlight ───────────────────────────────────────────────────────
-    const zgRec = (feed.records||[]).find(r=>r.chain==='ZG_MAINNET');
-    if(zgRec){
-      setEl('bh-0g-last-type', zgRec.event_type||'—');
-      setEl('bh-0g-sense', (zgRec.sense_hex||'').slice(0,20)+'…');
-    }
-
-    // ── Multi-VM live ticker ──────────────────────────────────────────────────
-    const ageEl = document.getElementById('bh-feed-age');
-    if(ageEl) ageEl.textContent = 'updated '+new Date().toLocaleTimeString();
-
-  } catch(e){ console.warn('BH ledger load error',e); }
-}
-
-// ── VM Ticker helpers ─────────────────────────────────────────────────────────
-const BH_EVT_CLASS = e => ({
-  MEV_CAPTURE:'MEV_CAPTURE',TRANSFER:'TRANSFER',SWAP:'SWAP',GOVERNANCE:'GOVERNANCE',
-  BORROW:'BORROW',ORACLE_UPDATE:'ORACLE_UPDATE',STAKE:'STAKE',MINT:'MINT',
-  DEPLOY:'DEPLOY',LIQUIDITY:'LIQUIDITY',BURN:'BURN',
-}[e]||'OTHER');
-
-const BH_CHAIN_CLS = chain => {
-  if(['ZG_MAINNET'].includes(chain)) return 'zg';
-  if(['SOLANA_MAINNET','SOLANA_DEVNET'].includes(chain)) return 'svm';
-  return 'evm';
-};
-
-const BH_CHAIN_LABEL = c => c
-  .replace('_MAINNET','').replace('_SEPOLIA','-S')
-  .replace('ETH','ETH').replace('ARB','ARB').replace('BASE','BASE')
-  .replace('OP','OP').replace('BNB','BNB').replace('HASHKEY','HSK')
-  .replace('LINEA','LINEA').replace('MANTLE','MNTLE').replace('SCROLL','SCRL')
-  .replace('SOLANA','SOL').replace('ZG','0G').replace('_',' ');
-
-let _vmTickerSeenEvm = new Set(), _vmTickerSeenSvm = new Set(), _vmTickerSeenZg = new Set();
-const MAX_VM_ROWS = 18;
-
-function renderVmRows(colId, records, chainCls, newSet, oldSet){
-  const col = document.getElementById(colId);
-  if(!col) return;
-  const newRecs = records.filter(r => !oldSet.has(r.tx_hash)).slice(0,6);
-  newRecs.forEach(r => newSet.add(r.tx_hash));
-  if(newSet.size > 500) newSet = new Set([...newSet].slice(-300));
-
-  if(!newRecs.length && col.children.length > 0) return;
-
-  const html = records.slice(0, MAX_VM_ROWS).map((r,i) => {
-    const isNew = newRecs.some(n => n.tx_hash === r.tx_hash);
-    const ec = BH_EVT_CLASS(r.event_type);
-    const cls = BH_CHAIN_CLS(r.chain);
-    const cLabel = BH_CHAIN_LABEL(r.chain);
-    return `<div class="bh-row${isNew?' new':''}">
-      <span class="bh-chain ${cls}">${cLabel}</span>
-      <span class="bh-evt ${ec}">${r.event_type||'—'}</span>
-      <span class="bh-sense">${r.sense_hex||'—'}</span>
-      <span class="bh-verdict ${r.verdict||'SAFE'}">${r.verdict||'SAFE'}</span>
-    </div>`;
-  }).join('');
-  col.innerHTML = html;
-}
-
-async function updateVmTicker(){
-  try{
-    const d = await fetch('/api/v1/bh/vm_feed?limit=40').then(r=>r.json());
-    const groups = d.vm_groups || {};
-
-    // Header totals
-    const fmt = n => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'K':String(n);
-    const setEl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    setEl('bh-feed-total', fmt(d.total_bh_records||0));
-    setEl('bh-evm-total', fmt((groups.EVM||{}).total||0));
-    setEl('bh-svm-total', fmt((groups.SVM||{}).total||0));
-    setEl('bh-zg-total',  fmt((groups.ZG||{}).total||0));
-
-    // Render columns
-    renderVmRows('bh-evm-col', (groups.EVM||{}).records||[], 'evm', _vmTickerSeenEvm, _vmTickerSeenEvm);
-    renderVmRows('bh-svm-col', (groups.SVM||{}).records||[], 'svm', _vmTickerSeenSvm, _vmTickerSeenSvm);
-
-    // 0G column: show records if any, else show live gate stats
-    const zgRecs = (groups.ZG||{}).records||[];
-    const zgTotal = (groups.ZG||{}).total||0;
-    if(zgRecs.length > 0){
-      renderVmRows('bh-zg-col', zgRecs, 'zg', _vmTickerSeenZg, _vmTickerSeenZg);
-    } else {
-      const statsEl = document.getElementById('bh-zg-stats');
-      if(statsEl){
-        statsEl.innerHTML = `
-          <div style="font-size:.62rem;color:var(--text-dim)">Total BHs on 0G: <strong style="color:#a78bfa">${zgTotal}</strong></div>
-          <div style="font-size:.62rem;color:var(--text-dim)">DA namespace: <code style="color:#a78bfa">TRION-BEO-v3</code></div>
-          <div style="font-size:.62rem;color:var(--text-dim)">KV streams: <code style="color:var(--accent)">4 active</code></div>
-          <div style="font-size:.62rem;color:var(--text-dim)">BH settle cadence: <strong>60s</strong></div>`;
-      }
-    }
-
-    // Also update bh-feed-age  
-    const ageEl = document.getElementById('bh-feed-age');
-    if(ageEl) ageEl.textContent = new Date().toLocaleTimeString();
-
-  } catch(e){ console.warn('VM ticker error',e); }
-}
-
-// ── Behavioral True Value (BTV) — Inverted Truth Hierarchy ──────────────────
-async function loadBTV(){
-  try {
-    const d = await fetch('/api/v1/price/hierarchy?assets=ETH,BTC,SOL,ARB').then(r=>r.json());
-    const assets = d.assets || [];
-
-    // Update Layer 0 counters
-    if(assets.length > 0){
-      const el0 = document.getElementById('btv-bh-total');
-      const el1 = document.getElementById('btv-chains');
-      if(el0) el0.textContent = (assets[0].bh_depth||0).toLocaleString() + '+';
-      if(el1) el1.textContent = assets[0].chains_indexed || 37;
-    }
-
-    // Asset card grid
-    const grid = document.getElementById('btv-asset-grid');
-    if(grid && assets.length > 0){
-      grid.innerHTML = assets.map(a => {
-        const manip  = a.manipulation_discount_pct || 0;
-        const cex    = a.cex_price || 0;
-        const btv    = a.btv || 0;
-        const conf   = ((a.confidence||0)*100).toFixed(0);
-        const coh    = ((a.coherence||0)*100).toFixed(1);
-        const mf     = ((a.mf_score||0)*100).toFixed(1);
-        const manipColor = manip > 5 ? 'var(--red)' : manip > 2.5 ? 'var(--yellow)' : 'var(--green)';
-        const fmt = v => v >= 1000 ? '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) :
-                         v >= 1    ? '$' + v.toFixed(4) : '$' + v.toFixed(6);
-        return `
-        <div class="stat-card" style="padding:16px;border-color:#00ff8820">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-            <div>
-              <div style="font-size:.85rem;font-weight:800;color:#fff">${a.asset}</div>
-              <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:1px">BEHAVIORAL TRUE VALUE</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:.6rem;color:var(--text-dim)">confidence</div>
-              <div style="font-size:.75rem;font-weight:700;color:var(--accent)">${conf}%</div>
-            </div>
-          </div>
-          <div style="margin-bottom:8px">
-            <div style="font-size:.6rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase">CEX Oracle (corrupted)</div>
-            <div style="font-size:1rem;font-weight:700;color:#ff8a65;text-decoration:line-through;opacity:.7">${fmt(cex)}</div>
-          </div>
-          <div style="margin-bottom:10px">
-            <div style="font-size:.6rem;color:var(--green);letter-spacing:1px;text-transform:uppercase">TRION BTV (behavioral)</div>
-            <div style="font-size:1.3rem;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">${fmt(btv)}</div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span style="background:${manipColor}18;border:1px solid ${manipColor}40;color:${manipColor};font-size:.6rem;padding:2px 7px;border-radius:10px;font-weight:700">
-              −${manip.toFixed(2)}% manipulated
-            </span>
-            <span style="background:#00e5ff12;border:1px solid #00e5ff30;color:var(--accent);font-size:.6rem;padding:2px 7px;border-radius:10px">
-              C(t) ${coh}%
-            </span>
-            <span style="background:#7c3aed12;border:1px solid #7c3aed30;color:#a78bfa;font-size:.6rem;padding:2px 7px;border-radius:10px">
-              MF ${mf}%
-            </span>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    // Comparison table
-    const tbody = document.getElementById('btv-table-body');
-    if(tbody && assets.length > 0){
-      tbody.innerHTML = assets.map(a => {
-        const manip = a.manipulation_discount_pct || 0;
-        const manipColor = manip > 5 ? 'var(--red)' : manip > 2.5 ? 'var(--yellow)' : '#00cc66';
-        const fmt = v => v >= 1000 ? '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) :
-                         v >= 1    ? '$'+v.toFixed(4) : '$'+v.toFixed(6);
-        const bar = pct => `<div style="display:inline-flex;align-items:center;gap:5px">
-          <div style="width:50px;height:5px;background:#1a2540;border-radius:3px;overflow:hidden">
-            <div style="width:${Math.min(100,pct*100).toFixed(0)}%;height:100%;background:var(--accent);border-radius:3px"></div>
-          </div>
-          <span>${(pct*100).toFixed(1)}%</span></div>`;
-        return `<tr>
-          <td style="font-weight:700;color:#fff">${a.asset}</td>
-          <td style="color:#ff8a65;font-family:monospace">${fmt(a.cex_price||0)}</td>
-          <td style="color:var(--green);font-weight:700;font-family:monospace">${fmt(a.btv||0)}</td>
-          <td style="color:${manipColor};font-weight:700">−${manip.toFixed(2)}%
-            <div style="font-size:.62rem;color:var(--text-dim)">${fmt(a.manipulation_usd||0)} per unit</div>
-          </td>
-          <td>${bar(a.coherence||0)}</td>
-          <td style="color:${(a.mf_score||0)>0.15?'var(--red)':'var(--green)'}">
-            ${((a.mf_score||0)*100).toFixed(1)}%</td>
-          <td>${bar(a.nl_score||0)}</td>
-          <td>${bar(a.confidence||0)}</td>
-          <td style="color:var(--accent)">${a.chains_indexed||37}</td>
-        </tr>`;
-      }).join('');
-    }
-
-  } catch(e){ console.warn('loadBTV error:', e); }
-}
-
-async function init(){
-  buildChainGrid();
-  feather.replace();
-  await refresh();
-  await updateEntities();
-  refreshProof();
-  initVision();
-  loadTruthValues();
-  loadCoverage();
-  loadL10();
-  loadInversion();
-  loadBTV();
-  // 0G Hub: load all 4 module cards on startup
-  updateZGHub();
-  updateZGChainCard();
-  // BH Ledger + Multi-VM Ticker
-  loadBHLedger();
-  updateVmTicker();
-  setInterval(refresh,8000);
-  setInterval(()=>updateEntities(),30000);
-  setInterval(refreshProof,60000);
-  setInterval(loadTruthValues,60000);
-  // 0G Hub refreshes every 45 seconds (chain + storage root reads)
-  setInterval(()=>Promise.all([updateZGHub(), updateZGChainCard()]),45000);
-  setInterval(()=>Promise.all([loadInvestSignals(),loadReputation(),loadAgents(),loadThermo()]),60000);
-  setInterval(loadL10, 120000);
-  setInterval(loadInversion, 90000);
-  setInterval(loadBTV, 120000);
-  // BH ledger refreshes every 15s, VM ticker every 4s
-  setInterval(loadBHLedger, 15000);
-  setInterval(updateVmTicker, 4000);
-}
-
-init();
+init().then(startPolling);
 </script>
 </body>
 </html>
