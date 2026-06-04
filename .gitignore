@@ -104,3 +104,4 @@ Thumbs.db
 # Internal working files (not for public repo)
 attached_assets/
 .agents/
+*.db-wal
