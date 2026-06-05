@@ -122,7 +122,8 @@ def compute_f6_wallet_architecture(txs: List[TransactionData]) -> float:
         return 0.0
     contract_count = sum(1 for tx in txs if tx.is_contract)
     eoa_count = len(txs) - contract_count
-    return shannon_entropy([float(eoa_count), float(contract_count)])
+    H = shannon_entropy([float(eoa_count), float(contract_count)])
+    return normalize_entropy(H, 2)
 
 
 def compute_f7_cross_protocol(txs: List[TransactionData]) -> float:

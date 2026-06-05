@@ -113,10 +113,12 @@ def compute_fork_resolution(
     retained_a = 0
     retained_b = 0
     split_holders = 0
+    valid_holders = 0
 
     for holder in holders:
         if holder.pre_fork_balance <= 0:
             continue
+        valid_holders += 1
         threshold = holder.pre_fork_balance * balance_threshold
         holds_a = holder.post_fork_a >= threshold
         holds_b = holder.post_fork_b >= threshold
@@ -128,8 +130,8 @@ def compute_fork_resolution(
         if holds_a and holds_b:
             split_holders += 1
 
-    cc_a = retained_a / n if n > 0 else 0.5
-    cc_b = retained_b / n if n > 0 else 0.5
+    cc_a = retained_a / valid_holders if valid_holders > 0 else 0.5
+    cc_b = retained_b / valid_holders if valid_holders > 0 else 0.5
 
     # History inheritance weights
     total_cc = cc_a + cc_b

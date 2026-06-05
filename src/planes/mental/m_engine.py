@@ -30,7 +30,7 @@ def compute_prediction_interval(
     n    = len(arr)
 
     t_crit = scipy_stats.t.ppf(1 - alpha/2, df=n-1)
-    margin = t_crit * std / np.sqrt(n)
+    margin = t_crit * std * np.sqrt(1 + 1.0 / n)
 
     lower = mean - margin
     upper = mean + margin

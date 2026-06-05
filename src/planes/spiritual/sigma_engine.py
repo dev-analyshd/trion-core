@@ -68,7 +68,7 @@ def compute_sigma(
 
     max_len = max(len(v.model_outputs) for v in validators)
     padded  = [
-        np.pad(v.model_outputs, (max_len - len(v.model_outputs), 0))
+        np.pad(v.model_outputs, (0, max_len - len(v.model_outputs)))
         for v in validators
     ]
     median_outputs = np.median(padded, axis=0)

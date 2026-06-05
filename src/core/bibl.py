@@ -437,8 +437,8 @@ class BIBLEngine:
         Record actual fee outcome vs recommendation for pattern calibration.
         Call this after each block settles to continuously improve accuracy.
         """
-        base_fee     = recommended_fee / max(1, 1 + ARCHETYPES[archetype_code].base_fee_adj
-                                             if archetype_code in ARCHETYPES else 1)
+        base_fee     = recommended_fee / max(0.01, (1 + ARCHETYPES[archetype_code].base_fee_adj)
+                                              if archetype_code in ARCHETYPES else 1)
         rec_adj      = recommended_fee / max(base_fee, 1e-9) - 1
         actual_adj   = actual_fee      / max(base_fee, 1e-9) - 1
         pred_error   = abs(rec_adj - actual_adj)

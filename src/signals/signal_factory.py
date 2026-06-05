@@ -75,8 +75,11 @@ def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> d
             if brt_obs.data_source == "OBSERVED":
                 circ = brt_obs.circadian_phase
                 ultr = brt_obs.ultradian_phase
-        except Exception:
-            pass
+        except Exception as _brt_err:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "BRT observed phase derivation failed: %s", _brt_err, exc_info=True
+            )
 
     return {
         "circadian_phase":  circ,
