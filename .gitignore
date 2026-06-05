@@ -34,7 +34,6 @@ venv/
 .pythonlibs/
 
 # Python package management
-uv.lock
 .uv/
 
 # Hardhat / Foundry compiled artifacts
@@ -69,8 +68,16 @@ bh_ledger.db
 # Indexed binary blobs
 *.bin
 *.bin.gz
-data/*.bin
 faiss_index/
+
+# Runtime state in data/ — keep dir, ignore generated content
+data/*.json
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.bin
+data/*.bin.gz
+!data/.gitkeep
 
 # Runtime log files
 *.log
@@ -87,6 +94,13 @@ starknet_status.json
 pi_status.json
 relayer_state.json
 attack_simulation_results.json
+
+# Backtest generated outputs — regenerate with python3 backtest/run_backtest.py
+backtest/results/
+
+# Proof-ledger runtime entries (deployment receipts are tracked; runtime state is not)
+proof-ledger/trion_relayer_live_txs.json
+proof-ledger/zg_storage_sync_latest.json
 
 # IDE / OS
 .idea/
@@ -105,3 +119,4 @@ Thumbs.db
 attached_assets/
 .agents/
 *.db-wal
+*.db-shm
