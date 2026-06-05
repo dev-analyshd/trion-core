@@ -2,1201 +2,1652 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="theme-color" content="#040810">
-<title>TRION Protocol — Behavioral Intelligence Network</title>
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRION — Behavioral Truth Oracle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{background:#040810;color:#e2e8f8;font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;line-height:1.5;overflow-x:hidden}
-a{color:inherit;text-decoration:none}
-button{cursor:pointer;border:none;background:none;font-family:inherit}
-input{font-family:inherit}
-
 :root{
-  --bg:#040810;--bg2:#070c18;--surface:#0b1120;--surface2:#101928;
-  --border:rgba(255,255,255,0.07);--border-active:rgba(0,194,255,0.4);
-  --cyan:#00C2FF;--cyan-dim:rgba(0,194,255,0.1);--cyan-glow:rgba(0,194,255,0.25);
-  --purple:#8B5CF6;--purple-dim:rgba(139,92,246,0.1);
-  --green:#00E676;--green-dim:rgba(0,230,118,0.1);
-  --red:#FF5252;--red-dim:rgba(255,82,82,0.1);
-  --amber:#FFB300;--amber-dim:rgba(255,179,0,0.1);
-  --text1:#F0F4FF;--text2:#8899BB;--text3:#4a5568;
-  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
-  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --bg:#040D1A;--sidebar:#060F1E;--card:#08152A;--card2:#0A1830;
+  --border:#12233E;--border2:#1A3356;
+  --text:#E2EAF4;--text2:#7F9BB8;--text3:#4A6B8A;
+  --cyan:#00C2FF;--cyan2:#00A3D9;--cyan-glow:rgba(0,194,255,.15);
+  --purple:#7C3AED;--purple2:#9F67F5;
+  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;--orange:#F97316;
+  --sidebar-w:240px;--topbar:56px;
 }
-
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:13px;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:'Inter',sans-serif}
+input{font-family:'Inter',sans-serif}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 
-/* ── Navbar ── */
-.navbar{
-  position:sticky;top:0;z-index:200;
-  background:rgba(4,8,16,0.95);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);
-  padding:0 24px;height:58px;
-  display:flex;align-items:center;gap:14px;
-}
-.nav-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.nav-logo-icon{
-  width:30px;height:30px;background:linear-gradient(135deg,var(--cyan),var(--purple));
-  border-radius:8px;display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:.8rem;color:#fff;letter-spacing:-1px;
-}
-.nav-logo-text{font-size:1rem;font-weight:800;color:var(--text1);letter-spacing:1px}
-.nav-logo-sub{font-size:.58rem;color:var(--text3);letter-spacing:3px;text-transform:uppercase;display:block;line-height:1;margin-top:1px}
-.nav-spacer{flex:1}
-.nav-pill{
-  display:flex;align-items:center;gap:7px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:20px;padding:5px 12px;
-  font-size:.7rem;font-weight:600;letter-spacing:.5px;color:var(--text2);white-space:nowrap;
-}
-.nav-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
-.nav-pill.alert-pill{background:var(--red-dim);border-color:rgba(255,82,82,0.25);color:var(--red);display:none}
-.nav-pill.alert-pill .dot{background:var(--red);box-shadow:0 0 6px var(--red)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-.nav-mono{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;white-space:nowrap}
-.nav-mono span{color:var(--cyan);font-weight:600}
+/* ─── LAYOUT ─── */
+#app{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .25s}
+#sidebar.collapsed{width:56px;min-width:56px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{height:var(--topbar);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;background:var(--sidebar)}
+#content{flex:1;overflow-y:auto;padding:20px}
 
-/* ── Alert Ticker ── */
-.alert-ticker{
-  display:none;
-  background:linear-gradient(90deg,rgba(255,82,82,0.08),rgba(255,82,82,0.04));
-  border-bottom:1px solid rgba(255,82,82,0.2);
-  padding:7px 24px;
-  font-size:.72rem;font-weight:600;
-  color:var(--red);
-  overflow:hidden;position:relative;
-}
-.alert-ticker.visible{display:flex;align-items:center;gap:12px}
-.ticker-label{font-size:.65rem;letter-spacing:2px;text-transform:uppercase;opacity:.8;flex-shrink:0}
-.ticker-scroll{flex:1;overflow:hidden;position:relative}
-.ticker-inner{display:flex;gap:32px;animation:tickerMove 20s linear infinite;white-space:nowrap}
-@keyframes tickerMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-.ticker-item{font-family:'JetBrains Mono',monospace;font-size:.7rem}
+/* ─── SIDEBAR ─── */
+#sb-logo{padding:16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0}
+#sb-logo svg{flex-shrink:0}
+#sb-logo .wordmark{display:flex;flex-direction:column}
+#sb-logo .wordmark .name{font-size:15px;font-weight:700;letter-spacing:.08em;color:var(--cyan)}
+#sb-logo .wordmark .sub{font-size:9px;letter-spacing:.12em;color:var(--text3);text-transform:uppercase}
+#sb-nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-section{padding:12px 12px 4px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;transition:all .15s;position:relative;white-space:nowrap}
+.nav-item:hover{background:var(--border);color:var(--cyan)}
+.nav-item.active{background:var(--cyan-glow);color:var(--cyan)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan)}
+.nav-item .icon{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.nav-item.active .icon,.nav-item:hover .icon{opacity:1}
+.nav-item .label{font-size:12px;font-weight:500}
+#sb-author{border-top:1px solid var(--border);padding:12px}
+.author-card{display:flex;align-items:center;gap:10px}
+.author-card img{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--cyan);flex-shrink:0}
+.author-card .info .name{font-size:12px;font-weight:600;color:var(--text)}
+.author-card .info .role{font-size:10px;color:var(--text3)}
+#sidebar.collapsed #sb-logo .wordmark,
+#sidebar.collapsed .nav-item .label,
+#sidebar.collapsed .nav-section,
+#sidebar.collapsed #sb-author .info{display:none}
+#sidebar.collapsed .author-card img{margin:0 auto}
+#sidebar.collapsed .author-card{justify-content:center}
 
-/* ── Page ── */
-.page{max-width:1680px;margin:0 auto;padding:20px 20px 60px}
+/* ─── TOPBAR ─── */
+#tb-left{display:flex;align-items:center;gap:12px}
+#tb-toggle{width:28px;height:28px;background:none;border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+#tb-toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+#tb-section{font-size:13px;font-weight:600;color:var(--text)}
+#tb-right{display:flex;align-items:center;gap:10px}
+.tb-pill{display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:500;color:var(--text2)}
+.tb-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+.tb-pill.amber .dot{background:var(--amber)}
+#live-block{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan)}
+#tb-chain{font-size:11px;color:var(--text3)}
 
-/* ── Metrics Strip ── */
-.metrics-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
-.metric-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-lg);padding:16px 18px;
-  position:relative;overflow:hidden;transition:border-color .2s,transform .15s;
-}
-.metric-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.12)}
-.metric-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;opacity:.6}
-.metric-card.c-cyan::after{background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
-.metric-card.c-purple::after{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
-.metric-card.c-green::after{background:linear-gradient(90deg,transparent,var(--green),transparent)}
-.metric-card.c-amber::after{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
-.metric-card.c-red::after{background:linear-gradient(90deg,transparent,var(--red),transparent)}
-.metric-label{font-size:.63rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
-.metric-row{display:flex;align-items:flex-end;gap:8px;line-height:1}
-.metric-val{font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums}
-.metric-val.c-cyan{color:var(--cyan)}.metric-val.c-purple{color:var(--purple)}
-.metric-val.c-green{color:var(--green)}.metric-val.c-amber{color:var(--amber)}.metric-val.c-red{color:var(--red)}
-.metric-trend{font-size:.68rem;font-weight:700;padding:2px 5px;border-radius:4px;margin-bottom:4px}
-.metric-trend.up{color:var(--green);background:var(--green-dim)}.metric-trend.dn{color:var(--red);background:var(--red-dim)}.metric-trend.flat{color:var(--text3);background:var(--surface2)}
-.metric-sub{font-size:.68rem;color:var(--text3);margin-top:5px}
+/* ─── SECTIONS ─── */
+.section{display:none}
+.section.active{display:block}
 
-/* ── Main Grid ── */
-.main-grid{display:grid;grid-template-columns:1fr 390px;gap:16px;margin-bottom:16px}
-.main-left{display:flex;flex-direction:column;gap:16px}
+/* ─── METRICS ROW ─── */
+.metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:1200px){.metrics-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.metrics-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.metrics-row{grid-template-columns:1fr}}
+.metric-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px 16px}
+.metric-card .m-label{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.metric-card .m-value{font-size:24px;font-weight:700;margin:4px 0 2px;line-height:1}
+.metric-card .m-sub{font-size:10px;color:var(--text3)}
 
-/* ── Card ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
-.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.card-title{font-size:.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);flex:1}
-.card-badge{font-size:.6rem;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:20px}
-.card-badge.live{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
-.card-badge.cyan{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(0,194,255,0.2)}
-.card-badge.purple{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
-.card-badge.amber{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,179,0,0.2)}
-.card-badge.red{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
-.card-body{padding:16px 18px}
+/* ─── GRID LAYOUTS ─── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.main-aside{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:16px}
+@media(max-width:1100px){.two-col,.main-aside{grid-template-columns:1fr}.three-col{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.three-col{grid-template-columns:1fr}}
 
-/* ── Search ── */
-.search-wrap{display:flex;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);position:relative}
-.search-input{
-  flex:1;background:var(--bg2);border:1px solid var(--border);
-  border-radius:var(--r-md);padding:9px 13px;color:var(--text1);
-  font-size:.84rem;outline:none;transition:border-color .2s;
-}
-.search-input::placeholder{color:var(--text3)}
-.search-input:focus{border-color:var(--border-active);box-shadow:0 0 0 3px var(--cyan-dim)}
-.search-btn{
-  background:var(--cyan);color:#040810;font-weight:700;font-size:.78rem;
-  padding:9px 16px;border-radius:var(--r-md);letter-spacing:.5px;
-  transition:opacity .15s,transform .1s;white-space:nowrap;
-}
-.search-btn:hover{opacity:.85;transform:translateY(-1px)}
-.search-btn:active{transform:translateY(0)}
-.search-suggestions{
-  position:absolute;top:calc(100% - 14px);left:18px;right:18px;
-  background:var(--surface2);border:1px solid var(--border-active);
-  border-top:none;border-radius:0 0 var(--r-md) var(--r-md);
-  z-index:50;display:none;
-}
-.search-suggestions.open{display:block}
-.sugg-item{
-  padding:8px 13px;font-size:.8rem;cursor:pointer;
-  display:flex;align-items:center;gap:10px;
-  transition:background .1s;
-  font-family:'JetBrains Mono',monospace;
-}
-.sugg-item:hover{background:var(--cyan-dim)}
-.sugg-item-type{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-family:'Inter',sans-serif}
+/* ─── CARDS ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-header h3{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.card-body{padding:16px}
+.card-body.no-pad{padding:0}
+.card-body.sm{padding:12px}
 
-/* ── Signal Result ── */
-.signal-result{display:none;padding:18px}
-.signal-result.visible{display:block}
-.signal-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
-.signal-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;flex-shrink:0}
-.signal-icon.safe{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
-.signal-icon.warn{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
-.signal-icon.caution{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,179,0,0.2)}
-.signal-entity{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-bottom:3px;word-break:break-all}
-.signal-type{font-size:1.1rem;font-weight:800;color:var(--text1);line-height:1.2}
-.signal-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
-.signal-badge{display:inline-block;font-size:.62rem;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:20px}
-.signal-badge.arch{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
-.signal-badge.faiss{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
-.signal-badge.hash{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
-.signal-badge.trend-up{background:var(--green-dim);color:var(--green)}
-.signal-badge.trend-dn{background:var(--red-dim);color:var(--red)}
-.signal-badge.trend-flat{background:var(--surface2);color:var(--text3)}
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.badge.green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.badge.red{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.badge.amber{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.badge.cyan{background:rgba(0,194,255,.1);color:var(--cyan);border:1px solid rgba(0,194,255,.2)}
+.badge.purple{background:rgba(124,58,237,.12);color:var(--purple2);border:1px solid rgba(124,58,237,.25)}
+.badge.gray{background:rgba(127,155,184,.08);color:var(--text3);border:1px solid var(--border)}
+.badge.orange{background:rgba(249,115,22,.12);color:var(--orange);border:1px solid rgba(249,115,22,.25)}
 
-.score-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.score-box{flex:1;min-width:80px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px}
-.score-box-label{font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
-.score-box-val{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums}
-.score-box-sub{font-size:.62rem;color:var(--text3);margin-top:2px}
+/* ─── PROGRESS BAR ─── */
+.progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .5s}
 
-.planes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:14px}
-.plane-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 7px;text-align:center;cursor:default}
-.plane-item:hover{border-color:rgba(255,255,255,0.12)}
-.plane-name{font-size:.55rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
-.plane-bar-track{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px}
-.plane-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
-.plane-score{font-size:.8rem;font-weight:700}
+/* ─── SCORE DISPLAY ─── */
+.score-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.score-row .s-label{font-size:11px;color:var(--text2)}
+.score-row .s-val{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace}
 
-.ci-bar{margin-bottom:14px}
-.ci-label{font-size:.62rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
-.ci-track{height:6px;background:rgba(255,255,255,0.05);border-radius:4px;position:relative;overflow:visible}
-.ci-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));transition:all .5s}
-.ci-point{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--cyan);border:2px solid var(--bg);transform:translateX(-50%)}
-.ci-nums{display:flex;justify-content:space-between;font-size:.62rem;color:var(--text3);margin-top:4px}
+/* ─── TABLE ─── */
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border)}
+th{padding:8px 12px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer;transition:background .1s}
+tbody tr:hover{background:var(--card2)}
 
-.moat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
-.moat-item{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:7px 9px}
-.moat-label{font-size:.58rem;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
-.moat-val{font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}
-
-.signal-footer{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.66rem;color:var(--text3);border-top:1px solid var(--border);padding-top:10px}
-.signal-footer .tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text2)}
-
-/* ── Feed ── */
-.feed-list{max-height:320px;overflow-y:auto;padding:0}
-.feed-item{
-  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
-  gap:11px;padding:10px 18px;border-bottom:1px solid var(--border);
-  transition:background .15s;animation:slideIn .3s ease;cursor:pointer;
-}
-@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-.feed-item:hover{background:rgba(0,194,255,0.04)}
+/* ─── FEED ITEM ─── */
+.feed-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.feed-item:hover{background:var(--card2)}
 .feed-item:last-child{border-bottom:none}
 .feed-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.feed-dot.safe{background:var(--green);box-shadow:0 0 6px var(--green)}
-.feed-dot.warn{background:var(--red);box-shadow:0 0 6px var(--red)}
-.feed-dot.caution{background:var(--amber);box-shadow:0 0 5px var(--amber)}
-.feed-entity{font-size:.77rem;font-family:'JetBrains Mono',monospace;color:var(--text1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.feed-meta{font-size:.63rem;color:var(--text3);margin-top:2px;display:flex;gap:6px;align-items:center}
-.feed-type-tag{font-size:.57rem;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;text-transform:uppercase}
-.feed-score{font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
-.feed-score.safe{color:var(--green)}.feed-score.warn{color:var(--red)}.feed-score.caution{color:var(--amber)}
+.feed-dot.silence{background:var(--amber)}
+.feed-dot.active{background:var(--green)}
+.feed-dot.intercept{background:var(--red);box-shadow:0 0 6px var(--red)}
+.feed-main{flex:1;min-width:0}
+.feed-entity{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed-meta{font-size:10px;color:var(--text3);margin-top:1px}
+.feed-score{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
 
-/* ── Chains ── */
-.chain-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:14px 18px}
-.chain-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;transition:border-color .2s,transform .15s;cursor:default}
-.chain-item:hover{border-color:rgba(0,194,255,0.25);transform:translateY(-1px)}
-.chain-name{font-size:.77rem;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
-.chain-vm{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
-.chain-status-row{display:flex;align-items:center;gap:5px;margin-top:7px}
-.chain-status-dot{width:6px;height:6px;border-radius:50%}
-.chain-status-dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
-.chain-status-dot.warn{background:var(--amber)}
-.chain-status-dot.off{background:var(--text3)}
-.chain-status-txt{font-size:.6rem;color:var(--text3);letter-spacing:.5px}
+/* ─── CHAIN GRID ─── */
+.chain-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.chain-chip{background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:10px 12px;transition:border-color .15s}
+.chain-chip:hover{border-color:var(--cyan)}
+.chain-chip .cc-label{font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chain-chip .cc-vm{font-size:9px;color:var(--text3);margin-top:2px}
+.chain-chip .cc-count{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--cyan);margin-top:4px}
 
-/* ── Leaderboard ── */
-.lb-table{width:100%;border-collapse:collapse}
-.lb-table th{font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:9px 18px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-.lb-table th:last-child{text-align:right}
-.lb-table td{padding:10px 18px;font-size:.78rem;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle}
-.lb-table tr{cursor:pointer;transition:background .1s}
-.lb-table tr:hover td{background:rgba(0,194,255,0.04)}
-.lb-table tr:last-child td{border-bottom:none}
-.lb-rank{font-size:.72rem;font-weight:700;color:var(--text3);width:28px}
-.lb-rank.top{color:var(--amber)}
-.lb-entity{font-size:.76rem;font-family:'JetBrains Mono',monospace;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
-.lb-arch-badge{display:inline-block;font-size:.58rem;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:10px;background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.15);white-space:nowrap}
-.lb-score{font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
-.lb-score.good{color:var(--green)}.lb-score.bad{color:var(--red)}.lb-score.caution{color:var(--amber)}
-.lb-bar-wrap{width:70px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:7px}
-.lb-bar{height:100%;border-radius:2px;transition:width .5s ease}
+/* ─── BH RECORD ─── */
+.bh-row{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer;transition:background .1s}
+.bh-row:hover{background:var(--card2)}
+.bh-row:last-child{border-bottom:none}
+.bh-verdict{display:flex;align-items:center}
+.bh-hash{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.bh-chain{font-size:10px;color:var(--text3);white-space:nowrap}
+.bh-event{font-size:10px;font-weight:600}
+.bh-ts{font-size:9px;color:var(--text3);margin-left:auto;white-space:nowrap}
 
-/* ── Right Panel ── */
-.right-panel{display:flex;flex-direction:column;gap:16px}
+/* ─── PLANE ROW ─── */
+.plane-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.plane-name{width:80px;font-size:11px;font-weight:600;color:var(--text2);flex-shrink:0}
+.plane-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;position:relative}
+.plane-fill{height:100%;border-radius:3px;transition:width .6s}
+.plane-fill.phi{background:linear-gradient(90deg,#0EA5E9,#06B6D4)}
+.plane-fill.mental{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.plane-fill.sigma{background:linear-gradient(90deg,#22C55E,#4ADE80)}
+.plane-fill.conscious{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.plane-fill.anima{background:linear-gradient(90deg,#EC4899,#F9A8D4)}
+.plane-val{width:40px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;text-align:right;flex-shrink:0}
+.plane-state{font-size:9px;flex-shrink:0}
 
-/* ── Status ── */
-.status-list{padding:6px 0}
-.status-row{display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,0.03)}
-.status-row:last-child{border-bottom:none}
-.status-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
-.status-icon.ok{background:var(--green-dim);color:var(--green)}
-.status-icon.warn{background:var(--amber-dim);color:var(--amber)}
-.status-icon.err{background:var(--red-dim);color:var(--red)}
-.status-label{font-size:.78rem;font-weight:500;color:var(--text1);flex:1;min-width:0}
-.status-val{font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap}
+/* ─── ENTITY DETAIL ─── */
+.entity-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.entity-name{font-size:18px;font-weight:700}
+.entity-id{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all}
+.coherence-ring{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+.coherence-ring .val{font-size:28px;font-weight:700;color:var(--cyan);font-family:'JetBrains Mono',monospace}
+.coherence-ring .lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat-box{background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:10px 12px}
+.stat-box .sb-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.stat-box .sb-val{font-size:13px;font-weight:700;margin-top:3px;font-family:'JetBrains Mono',monospace}
 
-/* ── Gauge ── */
-.gauge-wrap{padding:14px 18px}
-.gauge-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-.gauge-title{font-size:.62rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)}
-.gauge-val{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan)}
-.gauge-track{height:8px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;margin-bottom:7px}
-.gauge-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));transition:width .8s ease}
-.gauge-labels{display:flex;justify-content:space-between;font-size:.6rem;color:var(--text3)}
+/* ─── SEARCH ─── */
+.search-wrap{position:relative;display:flex;gap:8px;margin-bottom:16px}
+.search-wrap input{flex:1;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:10px 14px;font-size:13px;outline:none;transition:border-color .15s}
+.search-wrap input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px var(--cyan-glow)}
+.search-wrap button{padding:10px 18px;background:var(--cyan);color:#000;border:none;border-radius:5px;font-weight:700;font-size:12px;letter-spacing:.03em;transition:background .15s}
+.search-wrap button:hover{background:var(--cyan2)}
+.autocomplete{position:absolute;top:42px;left:0;right:80px;background:var(--card);border:1px solid var(--border);border-radius:5px;z-index:100;display:none;max-height:200px;overflow-y:auto}
+.ac-item{padding:9px 14px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border)}
+.ac-item:hover{background:var(--card2);color:var(--cyan)}
+.ac-item:last-child{border-bottom:none}
 
-.vol-chart-wrap{padding:0 18px 14px}
-#volCanvas{width:100%!important;height:60px!important}
+/* ─── KV/STAT BLOCK ─── */
+.kv-list{display:flex;flex-direction:column;gap:0}
+.kv-row{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.kv-row:last-child{border-bottom:none}
+.kv-key{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.kv-val{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace}
 
-/* ── Deployments ── */
-.deploy-list{padding:6px 0}
-.deploy-row{display:flex;align-items:center;justify-content:space-between;padding:7px 18px;border-bottom:1px solid rgba(255,255,255,0.03);gap:8px}
-.deploy-row:last-child{border-bottom:none}
-.deploy-chain{font-size:.72rem;color:var(--text2);font-weight:500;flex:1}
-.deploy-addr{
-  font-size:.63rem;font-family:'JetBrains Mono',monospace;
-  color:var(--text3);background:var(--bg2);border:1px solid var(--border);
-  border-radius:4px;padding:2px 7px;cursor:pointer;transition:color .15s,border-color .15s;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px;
-}
-.deploy-addr:hover{color:var(--cyan);border-color:rgba(0,194,255,0.3)}
+/* ─── ARCHETYPE CARD ─── */
+.arch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.arch-card{background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:12px}
+.arch-card .ac-name{font-size:12px;font-weight:700;color:var(--text)}
+.arch-card .ac-signal{margin-top:4px}
+.arch-card .ac-conf{font-size:10px;color:var(--text3);margin-top:4px}
+.arch-card .ac-ex{font-size:9px;color:var(--text3);margin-top:2px;font-style:italic}
 
-/* ── Threat Counter ── */
-.threat-row{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
-.threat-box{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;text-align:center}
-.threat-box-val{font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums}
-.threat-box-label{font-size:.6rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+/* ─── ATTACK CARD ─── */
+.attack-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.attack-row:hover{background:var(--card2)}
+.attack-row:last-child{border-bottom:none}
+.atk-loss{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--red);white-space:nowrap}
+.atk-name{font-size:12px;font-weight:600}
+.atk-chain{font-size:10px;color:var(--text3)}
+.atk-lead{font-size:10px;color:var(--amber);white-space:nowrap;margin-left:auto}
 
-/* ── Skeleton ── */
-.skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:1em}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* ─── ABOUT SECTION ─── */
+.about-hero{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;margin-bottom:20px}
+@media(max-width:800px){.about-hero{grid-template-columns:1fr}}
+.author-profile{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.author-profile img{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--cyan);margin-bottom:14px}
+.author-profile .ap-name{font-size:18px;font-weight:700}
+.author-profile .ap-handle{font-size:13px;color:var(--cyan);margin-top:2px}
+.author-profile .ap-bio{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7}
+.author-profile .ap-loc{font-size:10px;color:var(--text3);margin-top:8px;display:flex;align-items:center;gap:4px;justify-content:center}
+.whitepaper-stats{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:20px}
+.wp-formula{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.wp-formula:last-child{border-bottom:none}
+.wp-id{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan)}
+.wp-name{font-size:11px;font-weight:500}
 
-.empty-state{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 20px;color:var(--text3);text-align:center}
-.empty-state .icon{font-size:1.5rem;opacity:.4}
-.empty-state p{font-size:.78rem}
+/* ─── 0G PANEL ─── */
+.zg-component{background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:12px 14px;margin-bottom:8px}
+.zg-component .zc-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:6px}
+.zg-component .zc-status{font-size:12px;font-weight:600}
+.zg-addr{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);word-break:break-all;margin-top:4px}
 
-/* ── Toast ── */
-.toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 15px;font-size:.76rem;color:var(--text1);box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;animation:toastIn .25s ease}
-@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* ─── SECURITY SCORE ─── */
+.sec-score-big{text-align:center;padding:20px}
+.sec-score-big .val{font-size:52px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sec-score-big .tier{font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin-top:4px}
+.pqc-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.pqc-item:last-child{border-bottom:none}
+.pqc-check{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.pqc-check.on{background:rgba(34,197,94,.2);color:var(--green)}
+.pqc-check.off{background:rgba(239,68,68,.1);color:var(--red)}
 
-/* ── Responsive ── */
-@media(max-width:1280px){.main-grid{grid-template-columns:1fr 340px}}
-@media(max-width:1024px){
-  .metrics-grid{grid-template-columns:repeat(3,1fr)}
-  .main-grid{grid-template-columns:1fr}
-  .right-panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-}
+/* ─── ANIMS ─── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .3s ease-out}
+.spin{animation:spin 1.5s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ─── TICKER ─── */
+#alert-ticker{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:6px 12px;margin-bottom:12px;display:none;align-items:center;gap:8px;overflow:hidden}
+#alert-ticker .atk-label{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;flex-shrink:0}
+#alert-ticker .scroll-wrap{overflow:hidden;flex:1}
+#alert-ticker .scroll-text{font-size:11px;color:var(--red);white-space:nowrap;animation:ticker 20s linear infinite}
+@keyframes ticker{from{transform:translateX(100%)}to{transform:translateX(-100%)}}}
+
+/* ─── CHART CONTAINERS ─── */
+.chart-wrap{position:relative;height:180px}
+.chart-wrap-sm{position:relative;height:120px}
+
+/* ─── LOADING ─── */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text3);flex-direction:column;gap:10px}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite}
+
+/* ─── MONO TAG ─── */
+.mono{font-family:'JetBrains Mono',monospace}
+.truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.text-cyan{color:var(--cyan)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.text-amber{color:var(--amber)}
+.text-purple{color:var(--purple2)}
+.text-muted{color:var(--text3)}
+.mb8{margin-bottom:8px}
+.mb12{margin-bottom:12px}
+.mb16{margin-bottom:16px}
+.flex-gap{display:flex;align-items:center;gap:8px}
+
+/* RESPONSIVE */
 @media(max-width:768px){
-  .page{padding:12px 12px 48px}
-  .navbar{padding:0 14px;height:52px}
-  .nav-logo-sub,.nav-mono{display:none}
-  .metrics-grid{grid-template-columns:repeat(2,1fr);gap:10px}
-  .metrics-grid .metric-card:nth-child(1){grid-column:span 2}
-  .metric-val{font-size:1.6rem}
-  .main-grid{grid-template-columns:1fr;gap:12px}
-  .right-panel{display:flex;flex-direction:column}
-  .planes-grid{grid-template-columns:repeat(5,1fr)}
-  .moat-grid{grid-template-columns:repeat(3,1fr)}
-  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:6px;padding:10px}
-  .lb-table th:nth-child(3),.lb-table td:nth-child(3){display:none}
-}
-@media(max-width:480px){
-  .metrics-grid{grid-template-columns:1fr 1fr}
-  .metrics-grid .metric-card:first-child{grid-column:span 2}
-  .planes-grid{grid-template-columns:repeat(5,1fr);gap:4px}
-  .plane-name{font-size:.5rem}
-  .score-row{flex-wrap:wrap}
-  .score-box{min-width:calc(50% - 5px)}
-  .moat-grid{grid-template-columns:repeat(2,1fr)}
-}
-@media(min-width:1600px){
-  .main-grid{grid-template-columns:1fr 430px}
-  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
+  :root{--sidebar-w:0px}
+  #sidebar{position:fixed;z-index:200;left:-240px;width:240px;min-width:240px;transition:left .25s}
+  #sidebar.mobile-open{left:0}
+  #content{padding:12px}
 }
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- ── Navbar ── -->
-<nav class="navbar">
-  <div class="nav-logo">
-    <div class="nav-logo-icon">TR</div>
-    <div>
-      <div class="nav-logo-text">TRION</div>
-      <span class="nav-logo-sub">Behavioral Intelligence</span>
-    </div>
-  </div>
-  <div class="nav-spacer"></div>
-  <div class="nav-pill alert-pill" id="alertPill">
-    <span class="dot"></span>
-    <span id="alertPillText">0 Intercepts</span>
-  </div>
-  <div class="nav-pill">
-    <span class="dot"></span>
-    <span id="navNet">37 Chains Live</span>
-  </div>
-  <div class="nav-mono">Block <span id="navBlock">—</span></div>
-  <div class="nav-pill" style="gap:6px">
-    <span style="color:var(--cyan);font-weight:700">GATE</span>
-    <span id="navGate" style="color:var(--text2)">0xA85B…199b</span>
-  </div>
-</nav>
-
-<!-- ── Alert Ticker ── -->
-<div class="alert-ticker" id="alertTicker">
-  <span class="ticker-label">⚠ Threat Alert</span>
-  <div class="ticker-scroll"><div class="ticker-inner" id="tickerInner"></div></div>
-</div>
-
-<!-- ── Page ── -->
-<div class="page">
-
-  <!-- Metrics Strip -->
-  <div class="metrics-grid" id="metricsGrid">
-    <div class="metric-card c-cyan">
-      <div class="metric-label">Chains Monitored</div>
-      <div class="metric-row">
-        <div class="metric-val c-cyan" id="mChains">—</div>
-      </div>
-      <div class="metric-sub" id="mChainsVm">11 VM families</div>
-    </div>
-    <div class="metric-card c-purple">
-      <div class="metric-label">Entities Tracked</div>
-      <div class="metric-row">
-        <div class="metric-val c-purple" id="mEntities">—</div>
-        <div class="metric-trend flat" id="mEntitiesTrend" style="display:none"></div>
-      </div>
-      <div class="metric-sub">In Akashic Index</div>
-    </div>
-    <div class="metric-card c-green">
-      <div class="metric-label">Behavioral Records</div>
-      <div class="metric-row">
-        <div class="metric-val c-green" id="mVectors">—</div>
-      </div>
-      <div class="metric-sub">FAISS vector index</div>
-    </div>
-    <div class="metric-card c-amber">
-      <div class="metric-label">Market Volatility</div>
-      <div class="metric-row">
-        <div class="metric-val c-amber" id="mVol">—</div>
-      </div>
-      <div class="metric-sub" id="mThreshSub">Gate threshold auto-adjusted</div>
-    </div>
-    <div class="metric-card c-red">
-      <div class="metric-label">Signals On-Chain</div>
-      <div class="metric-row">
-        <div class="metric-val c-red" id="mSignals">—</div>
-      </div>
-      <div class="metric-sub">Published to blockchain</div>
+<!-- ─── SIDEBAR ─── -->
+<aside id="sidebar">
+  <div id="sb-logo">
+    <!-- TRION Icosahedron SVG -->
+    <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lg1" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#00C2FF"/>
+          <stop offset="100%" stop-color="#7C3AED"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="50" cy="50" r="50">
+          <stop offset="0%" stop-color="#7C3AED" stop-opacity=".3"/>
+          <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <!-- outer hex -->
+      <polygon points="50,4 91,27.5 91,72.5 50,96 9,72.5 9,27.5" stroke="url(#lg1)" stroke-width="1.5" fill="none"/>
+      <!-- mid hex -->
+      <polygon points="50,19 75,33.5 75,62.5 50,77 25,62.5 25,33.5" stroke="url(#lg1)" stroke-width="1.2" fill="none" opacity=".85"/>
+      <!-- inner tri -->
+      <polygon points="50,32 67,54.5 33,54.5" stroke="url(#lg1)" stroke-width="1.2" fill="none" opacity=".9"/>
+      <!-- vert lines outer→mid -->
+      <line x1="50" y1="4" x2="50" y2="19" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="91" y1="27.5" x2="75" y2="33.5" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="91" y1="72.5" x2="75" y2="62.5" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="50" y1="96" x2="50" y2="77" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="9" y1="72.5" x2="25" y2="62.5" stroke="url(#lg1)" stroke-width="1"/>
+      <line x1="9" y1="27.5" x2="25" y2="33.5" stroke="url(#lg1)" stroke-width="1"/>
+      <!-- diagonals inner hex -->
+      <line x1="50" y1="19" x2="75" y2="62.5" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <line x1="75" y1="33.5" x2="25" y2="62.5" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <line x1="75" y1="62.5" x2="25" y2="33.5" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <line x1="25" y1="33.5" x2="50" y2="77" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <line x1="50" y1="19" x2="25" y2="62.5" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <line x1="75" y1="33.5" x2="50" y2="77" stroke="url(#lg1)" stroke-width=".8" opacity=".6"/>
+      <!-- center burst -->
+      <circle cx="50" cy="48" r="5" fill="#7C3AED" opacity=".9"/>
+      <circle cx="50" cy="48" r="9" fill="none" stroke="#00C2FF" stroke-width=".8" opacity=".5"/>
+      <circle cx="50" cy="48" r="14" fill="none" stroke="#00C2FF" stroke-width=".5" opacity=".25"/>
+      <!-- star lines -->
+      <line x1="50" y1="39" x2="50" y2="34" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <line x1="50" y1="57" x2="50" y2="62" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <line x1="42" y1="43.5" x2="38" y2="41" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <line x1="58" y1="43.5" x2="62" y2="41" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <line x1="42" y1="52.5" x2="38" y2="55" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <line x1="58" y1="52.5" x2="62" y2="55" stroke="#00C2FF" stroke-width=".8" opacity=".6"/>
+      <circle cx="50" cy="48" r="3" fill="#D946EF" opacity=".95"/>
+    </svg>
+    <div class="wordmark">
+      <span class="name">TRION</span>
+      <span class="sub">Truth Oracle</span>
     </div>
   </div>
 
-  <!-- Main Grid -->
-  <div class="main-grid">
+  <nav id="sb-nav">
+    <div class="nav-section">Intelligence</div>
+    <div class="nav-item active" data-section="overview">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      <span class="label">Overview</span>
+    </div>
+    <div class="nav-item" data-section="entity">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M1 14c0-3.866 3.134-7 7-7s7 3.134 7 7"/></svg>
+      <span class="label">Entity Intel</span>
+    </div>
+    <div class="nav-item" data-section="feed">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
+      <span class="label">Live Feed</span>
+    </div>
+    <div class="nav-section">Data Layers</div>
+    <div class="nav-item" data-section="bh">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h5"/><circle cx="12" cy="11" r="3"/></svg>
+      <span class="label">BH Explorer</span>
+    </div>
+    <div class="nav-item" data-section="faiss">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z"/></svg>
+      <span class="label">FAISS ANIMA</span>
+    </div>
+    <div class="nav-section">Infrastructure</div>
+    <div class="nav-item" data-section="zg">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1L1 4l7 3 7-3-7-3z"/><path d="M1 8l7 3 7-3"/><path d="M1 12l7 3 7-3"/></svg>
+      <span class="label">0G Network</span>
+    </div>
+    <div class="nav-item" data-section="security">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l6 2.5V8c0 3-2.5 5.5-6 7-3.5-1.5-6-4-6-7V3.5L8 1z"/></svg>
+      <span class="label">Security</span>
+    </div>
+    <div class="nav-item" data-section="chains">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 8h6M2 4h2a1 1 0 011 1v6a1 1 0 01-1 1H2a1 1 0 01-1-1V5a1 1 0 011-1zM12 4h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>
+      <span class="label">Chain Network</span>
+    </div>
+    <div class="nav-item" data-section="about">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 7v5M8 5v.5"/></svg>
+      <span class="label">About</span>
+    </div>
+  </nav>
 
-    <!-- Left Column -->
-    <div class="main-left">
+  <div id="sb-author">
+    <div class="author-card">
+      <img src="/static/author.png" alt="Hudu Yusuf" onerror="this.style.display='none'">
+      <div class="info">
+        <div class="name">Hudu Yusuf</div>
+        <div class="role">Analys · Creator</div>
+      </div>
+    </div>
+  </div>
+</aside>
 
-      <!-- Entity Lookup -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Entity Intelligence Lookup</span>
-          <span class="card-badge cyan" id="lookupChainBadge">37 Chains</span>
+<!-- ─── MAIN ─── -->
+<div id="main">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="tb-left">
+      <button id="tb-toggle" onclick="toggleSidebar()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="13" y2="3"/><line x1="1" y1="7" x2="13" y2="7"/><line x1="1" y1="11" x2="13" y2="11"/></svg>
+      </button>
+      <span id="tb-section">Overview</span>
+    </div>
+    <div id="tb-right">
+      <div class="tb-pill">
+        <div class="dot" id="live-dot"></div>
+        <span id="chain-count">37</span> Chains Live
+      </div>
+      <div class="tb-pill">
+        Block <span class="mono text-cyan" id="live-block">—</span>
+      </div>
+      <div class="tb-pill" id="gate-pill">
+        GATE <span class="mono" id="gate-addr" style="color:var(--text3)">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ══════════ OVERVIEW ══════════ -->
+    <section class="section active" id="s-overview">
+      <div id="alert-ticker">
+        <span class="atk-label">⚠ INTERCEPT</span>
+        <div class="scroll-wrap"><div class="scroll-text" id="ticker-text">Loading…</div></div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="m-label">Chains Monitored</div>
+          <div class="m-value text-cyan" id="ov-chains">37</div>
+          <div class="m-sub">37 chains · 11 VM families</div>
         </div>
-        <div class="search-wrap" id="searchWrap">
-          <input class="search-input" id="searchInput" type="text"
-            placeholder="Wallet address, protocol name, ENS…"
-            autocomplete="off" autocorrect="off" spellcheck="false">
-          <button class="search-btn" id="searchBtn" onclick="lookupEntity()">Analyze</button>
-          <div class="search-suggestions" id="searchSugg"></div>
+        <div class="metric-card">
+          <div class="m-label">Behavioral Records</div>
+          <div class="m-value text-green" id="ov-bh">—</div>
+          <div class="m-sub" id="ov-bh-sub">FAISS vector index</div>
         </div>
-        <div id="signalResult"></div>
-        <div id="signalEmpty" class="empty-state">
-          <div class="icon">⬡</div>
-          <p>Enter any entity to retrieve its full behavioral intelligence profile across all monitored chains</p>
+        <div class="metric-card">
+          <div class="m-label">Entities Tracked</div>
+          <div class="m-value" style="color:var(--purple2)" id="ov-entities">—</div>
+          <div class="m-sub">In Akashic Index</div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">Market Volatility</div>
+          <div class="m-value text-amber" id="ov-vol">—</div>
+          <div class="m-sub" id="ov-thresh-sub">Gate threshold: —</div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">Signals On-Chain</div>
+          <div class="m-value" id="ov-signals">—</div>
+          <div class="m-sub">Published to blockchain</div>
         </div>
       </div>
 
-      <!-- Live Signal Feed -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Live Signal Feed</span>
-          <span class="card-badge live" id="feedBadge">● Live</span>
-          <button onclick="loadFeed(true)" style="font-size:.65rem;color:var(--text3);padding:3px 8px;border:1px solid var(--border);border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text3)'">Refresh</button>
+      <div class="main-aside">
+        <div>
+          <div class="card mb12">
+            <div class="card-header">
+              <h3>Live Signal Feed</h3>
+              <div class="flex-gap">
+                <span class="badge green"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 2s infinite"></span>&nbsp;Live</span>
+                <button onclick="loadFeed()" style="background:none;border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:3px;font-size:10px">↻ Refresh</button>
+              </div>
+            </div>
+            <div id="ov-feed" class="card-body no-pad">
+              <div class="loading"><div class="spinner"></div>Loading feed…</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Trust Leaderboard</h3>
+              <span class="badge cyan">Top 10</span>
+            </div>
+            <div id="ov-leaderboard" class="card-body no-pad">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+          </div>
         </div>
-        <div class="feed-list" id="feedList">
-          <div class="empty-state"><div class="icon">⟳</div><p>Loading feed…</p></div>
+        <div>
+          <div class="card mb12">
+            <div class="card-header"><h3>System Status</h3><span class="badge green" id="sys-status-badge">Healthy</span></div>
+            <div class="card-body">
+              <div id="sys-services"></div>
+            </div>
+          </div>
+          <div class="card mb12">
+            <div class="card-header"><h3>Session Threat Counts</h3><span class="badge red" style="display:none" id="threat-badge">Live</span></div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+                <div class="stat-box"><div class="sb-label">Intercepted</div><div class="sb-val text-red" id="tc-intercept">0</div></div>
+                <div class="stat-box"><div class="sb-label">Silence</div><div class="sb-val text-amber" id="tc-silence">0</div></div>
+                <div class="stat-box"><div class="sb-label">Active</div><div class="sb-val text-green" id="tc-active">0</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Security Threshold</h3><span class="badge purple">Dynamic</span></div>
+            <div class="card-body">
+              <div class="score-row"><span class="s-label">Θ(t) Current</span><span class="s-val text-cyan" id="ov-theta">—</span></div>
+              <div class="score-row"><span class="s-label">Volatility V(t)</span><span class="s-val" id="ov-vt">—</span></div>
+              <div class="score-row"><span class="s-label">Formula</span><span class="s-val mono" style="font-size:10px">Θ = 0.55 + 0.37×V(t)</span></div>
+              <div class="progress mt8"><div class="progress-fill" id="ov-theta-bar" style="width:70%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ ENTITY INTEL ══════════ -->
+    <section class="section" id="s-entity">
+      <div class="search-wrap">
+        <input id="ent-input" type="text" placeholder="Wallet address, protocol name, ENS…" autocomplete="off" oninput="onEntityInput()" onkeydown="if(event.key==='Enter')lookupEntity()">
+        <div class="autocomplete" id="ent-ac"></div>
+        <button onclick="lookupEntity()">Analyze</button>
+      </div>
+      <div id="ent-result">
+        <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <svg style="width:48px;height:48px;margin:0 auto 12px;display:block;opacity:.3" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="50,4 91,27.5 91,72.5 50,96 9,72.5 9,27.5" /><polygon points="50,19 75,33.5 75,62.5 50,77 25,62.5 25,33.5"/>
+          </svg>
+          <p style="font-size:13px">Enter any entity to retrieve its full behavioral intelligence profile</p>
+          <p style="font-size:11px;margin-top:6px;color:var(--text3)">37 chains · 5 behavioral planes · FAISS ANIMA enrichment</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ LIVE FEED ══════════ -->
+    <section class="section" id="s-feed">
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric-card"><div class="m-label">Total Signals</div><div class="m-value text-cyan" id="fd-total">—</div><div class="m-sub">Session count</div></div>
+        <div class="metric-card"><div class="m-label">Intercepts</div><div class="m-value text-red" id="fd-intercept">0</div><div class="m-sub">Hostile entities blocked</div></div>
+        <div class="metric-card"><div class="m-label">Silence</div><div class="m-value text-amber" id="fd-silence">0</div><div class="m-sub">Below threshold</div></div>
+        <div class="metric-card"><div class="m-label">Active Signals</div><div class="m-value text-green" id="fd-active">0</div><div class="m-sub">Coherent entities</div></div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h3>Signal Stream</h3><span class="badge green"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 2s infinite"></span>&nbsp;Real-time</span></div>
+          <div id="feed-list" class="card-body no-pad"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div>
+          <div class="card mb12">
+            <div class="card-header"><h3>Signal Type Distribution</h3></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="feed-chart"></canvas></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Archetype Distribution</h3></div>
+            <div id="feed-archetypes" class="card-body no-pad"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ BH EXPLORER ══════════ -->
+    <section class="section" id="s-bh">
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric-card"><div class="m-label">Total BH Records</div><div class="m-value text-cyan" id="bh-total">—</div><div class="m-sub">93-byte canonical payload</div></div>
+        <div class="metric-card"><div class="m-label">Chains with Data</div><div class="m-value text-green" id="bh-chains">—</div><div class="m-sub">Live indexers</div></div>
+        <div class="metric-card"><div class="m-label">MEV Captures</div><div class="m-value text-red" id="bh-mev">—</div><div class="m-sub">Detected manipulation</div></div>
+        <div class="metric-card"><div class="m-label">Governance Events</div><div class="m-value" style="color:var(--purple2)" id="bh-gov">—</div><div class="m-sub">On-chain voting</div></div>
+      </div>
+
+      <div class="main-aside mb12">
+        <div class="card">
+          <div class="card-header"><h3>Records by Chain</h3><span class="badge cyan" id="bh-chain-count">Loading…</span></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="bh-chain-chart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Event Type Breakdown</h3></div>
+          <div class="card-body"><div class="chart-wrap" style="height:220px"><canvas id="bh-event-chart"></canvas></div></div>
         </div>
       </div>
 
-      <!-- Trust Leaderboard -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Trust Leaderboard</span>
-          <span class="card-badge cyan" id="lbThresh">Threshold —</span>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h3>Live BH Records</h3><span class="badge green"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 2s infinite"></span>&nbsp;Streaming</span></div>
+          <div id="bh-live-feed" class="card-body no-pad"><div class="loading"><div class="spinner"></div></div></div>
         </div>
-        <div style="overflow-x:auto">
-          <table class="lb-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Entity</th>
-                <th>Archetype</th>
-                <th style="text-align:right">Trust Score</th>
-              </tr>
-            </thead>
-            <tbody id="lbBody">
-              <tr><td colspan="4"><div class="skeleton" style="height:32px;margin:8px 18px"></div></td></tr>
+        <div class="card">
+          <div class="card-header"><h3>BH Formula</h3><span class="badge gray">L0.1</span></div>
+          <div class="card-body">
+            <div class="kv-list">
+              <div class="kv-row"><span class="kv-key">Payload</span><span class="kv-val mono">93 bytes</span></div>
+              <div class="kv-row"><span class="kv-key">Canonical order</span><span class="kv-val mono" style="font-size:9px;text-align:right">entity(32)||event(1)||mag(8)||ctx(8)||ts(8)||chain(4)||block(32)</span></div>
+              <div class="kv-row"><span class="kv-key">sense</span><span class="kv-val mono" style="font-size:9px">SHA3-256(payload||0x00)</span></div>
+              <div class="kv-row"><span class="kv-key">antisense</span><span class="kv-val mono" style="font-size:9px">SHA3(payload||0xFF)⊕NOT(sense)</span></div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="score-row mb8"><span class="s-label">Event Types</span><span class="badge cyan" id="bh-event-count">20 types</span></div>
+              <div id="bh-event-list" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ FAISS ANIMA ══════════ -->
+    <section class="section" id="s-faiss">
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric-card"><div class="m-label">Indexed Vectors</div><div class="m-value text-cyan" id="fa-vectors">—</div><div class="m-sub">128-dim FAISS space</div></div>
+        <div class="metric-card"><div class="m-label">Entities Tracked</div><div class="m-value text-green" id="fa-entities">—</div><div class="m-sub">Unique BEO profiles</div></div>
+        <div class="metric-card"><div class="m-label">Index Type</div><div class="m-value" style="font-size:16px;color:var(--purple2)" id="fa-index-type">—</div><div class="m-sub">Compression type</div></div>
+        <div class="metric-card"><div class="m-label">Intelligence Score</div><div class="m-value text-green" id="fa-im">—</div><div class="m-sub">IM(t) health</div></div>
+      </div>
+
+      <div class="main-aside mb12">
+        <div>
+          <div class="card mb12">
+            <div class="card-header"><h3>ANIMA Intelligence Health</h3></div>
+            <div class="card-body" id="fa-health"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Archetype Library</h3><span class="badge purple" id="fa-arch-count">—</span></div>
+            <div class="card-body no-pad"><div id="fa-archetypes"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card mb12">
+            <div class="card-header"><h3>Bootstrap Status</h3><span class="badge" id="fa-boot-badge">—</span></div>
+            <div class="card-body" id="fa-bootstrap"></div>
+          </div>
+          <div class="card mb12">
+            <div class="card-header"><h3>Five-Plane Formula</h3><span class="badge gray">C(t)</span></div>
+            <div class="card-body">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan);text-align:center;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:12px">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A</div>
+              <div class="kv-list">
+                <div class="kv-row"><span class="kv-key">Φ Physical (α=0.25)</span><span class="kv-val">9 Shannon entropy features</span></div>
+                <div class="kv-row"><span class="kv-key">M Mental (β=0.30)</span><span class="kv-val">Observer-effect corrected</span></div>
+                <div class="kv-row"><span class="kv-key">Σ Spiritual (γ=0.25)</span><span class="kv-val">DW-BFT consensus diversity</span></div>
+                <div class="kv-row"><span class="kv-key">K Conscious (δ=0.10)</span><span class="kv-val">Commit-reveal stake vote</span></div>
+                <div class="kv-row"><span class="kv-key">A ANIMA (ε=0.10)</span><span class="kv-val">k-NN archetype distance</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Akashic Depth</h3></div>
+            <div class="card-body" id="fa-depth-panel">
+              <div class="loading" style="padding:20px"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ 0G NETWORK ══════════ -->
+    <section class="section" id="s-zg">
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric-card"><div class="m-label">0G Chain</div><div class="m-value text-cyan" id="zg-chain-id">16661</div><div class="m-sub">0G Mainnet</div></div>
+        <div class="metric-card"><div class="m-label">Gate Contract</div><div class="m-value mono" style="font-size:12px;color:var(--purple2)" id="zg-gate">0xA85B4…199b</div><div class="m-sub">TRIONExecutionGate</div></div>
+        <div class="metric-card"><div class="m-label">DA Proof</div><div class="m-value text-green" id="zg-da-status">Live</div><div class="m-sub">Reed-Solomon 2×</div></div>
+        <div class="metric-card"><div class="m-label">Chains Indexed</div><div class="m-value" id="zg-chains">37</div><div class="m-sub">Behavioral coverage</div></div>
+      </div>
+
+      <div class="two-col mb12">
+        <div class="card">
+          <div class="card-header"><h3>0G Integration Proof</h3><span class="badge green" id="zg-proof-badge">LIVE</span></div>
+          <div class="card-body" id="zg-proof-panel"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Full Stack Components</h3></div>
+          <div class="card-body" id="zg-components"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <div class="card mb12">
+        <div class="card-header"><h3>Deployed Contracts</h3><span class="badge cyan">All Networks</span></div>
+        <div class="card-body no-pad">
+          <table>
+            <thead><tr><th>Contract</th><th>Network</th><th>Address</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><b>TRIONExecutionGate</b></td><td>0G Mainnet (16661)</td><td class="mono" style="font-size:10px;color:var(--cyan)">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</td><td><span class="badge green">LIVE</span></td></tr>
+              <tr><td>AkashicProof</td><td>0G Mainnet (16661)</td><td class="mono" style="font-size:10px;color:var(--cyan)">0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D</td><td><span class="badge green">LIVE</span></td></tr>
+              <tr><td>TRIONOracleV3</td><td>0G Galileo (16602)</td><td class="mono" style="font-size:10px">0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C</td><td><span class="badge amber">TESTNET</span></td></tr>
+              <tr><td>LiquidityOcean</td><td>0G Galileo (16602)</td><td class="mono" style="font-size:10px">0x105c7F6c16d2c92FEad10336C2b6A047F999a5A7</td><td><span class="badge amber">TESTNET</span></td></tr>
+              <tr><td>Oracle (Arbitrum Sepolia)</td><td>Arbitrum Sep (421614)</td><td class="mono" style="font-size:10px">0xb819c63c02Ed5aB49017C0f3f2568A14624658b3</td><td><span class="badge amber">TESTNET</span></td></tr>
+              <tr><td>Oracle (Ethereum Sepolia)</td><td>ETH Sep (11155111)</td><td class="mono" style="font-size:10px">0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39</td><td><span class="badge amber">TESTNET</span></td></tr>
+              <tr><td>Oracle (HashKey)</td><td>HashKey (177)</td><td class="mono" style="font-size:10px">0x708193f93Fb897fbeA72e7e7D19237770F19E969</td><td><span class="badge green">LIVE</span></td></tr>
             </tbody>
           </table>
         </div>
       </div>
+    </section>
 
-      <!-- Chain Network -->
-      <div class="card chains-wrap">
-        <div class="card-header">
-          <span class="card-title">Chain Network</span>
-          <span class="card-badge cyan" id="chainCountBadge">— Active</span>
+    <!-- ══════════ SECURITY ══════════ -->
+    <section class="section" id="s-security">
+      <div class="three-col mb12">
+        <div class="card">
+          <div class="card-header"><h3>Living Security Score</h3></div>
+          <div class="sec-score-big">
+            <div class="val text-green" id="sec-score">—</div>
+            <div class="tier text-muted" id="sec-tier">—</div>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div class="score-row"><span class="s-label">SEC(t) formula</span><span class="s-val mono" style="font-size:10px">LSS × PQC × CC</span></div>
+            <div class="score-row"><span class="s-label">LSS (Living Security)</span><span class="s-val" id="sec-lss">—</span></div>
+            <div class="score-row"><span class="s-label">PQC (Post-Quantum)</span><span class="s-val" id="sec-pqc">—</span></div>
+            <div class="score-row"><span class="s-label">CC (Cross-Chain)</span><span class="s-val" id="sec-cc">—</span></div>
+            <div class="score-row"><span class="s-label">Effective SEC</span><span class="s-val text-green" id="sec-eff">—</span></div>
+          </div>
         </div>
-        <div class="chain-grid" id="chainGrid">
-          <div class="skeleton" style="height:70px"></div>
-          <div class="skeleton" style="height:70px"></div>
-          <div class="skeleton" style="height:70px"></div>
+        <div class="card">
+          <div class="card-header"><h3>Post-Quantum Schemes</h3><span class="badge purple">NIST Level 3</span></div>
+          <div class="card-body">
+            <div class="pqc-item">
+              <div class="pqc-check on" id="pqc-kyber">✓</div>
+              <div><div style="font-size:12px;font-weight:600">CRYSTALS-Kyber-768</div><div style="font-size:10px;color:var(--text3)">Key Encapsulation (KEM)</div></div>
+            </div>
+            <div class="pqc-item">
+              <div class="pqc-check on" id="pqc-dili">✓</div>
+              <div><div style="font-size:12px;font-weight:600">CRYSTALS-Dilithium-3</div><div style="font-size:10px;color:var(--text3)">Digital Signature</div></div>
+            </div>
+            <div class="pqc-item">
+              <div class="pqc-check on" id="pqc-sphincs">✓</div>
+              <div><div style="font-size:12px;font-weight:600">SPHINCS+-SHAKE-256</div><div style="font-size:10px;color:var(--text3)">Hash-based Signature</div></div>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <div class="score-row"><span class="s-label">Bootstrap Weight</span><span class="s-val text-amber" id="sec-boot-w">—</span></div>
+              <div class="score-row"><span class="s-label">Bootstrap Stage</span><span class="s-val" id="sec-boot-stage">—</span></div>
+              <div class="score-row"><span class="s-label">Living Weight</span><span class="s-val text-green" id="sec-live-w">—</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Whitepaper Coverage</h3><span class="badge green" id="wp-badge">84/84</span></div>
+          <div class="card-body">
+            <div style="text-align:center;padding:12px 0">
+              <div style="font-size:36px;font-weight:700;color:var(--green)" id="wp-pct">100%</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px">Formula coverage</div>
+            </div>
+            <div class="kv-list" id="wp-stats"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Right Panel -->
-    <div class="right-panel">
-
-      <!-- System Status -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">System Status</span>
-          <span class="card-badge" id="statusBadge">—</span>
+          <h3>Historical Attack Database</h3>
+          <span class="badge red" id="atk-count">—</span>
         </div>
-        <div class="status-list" id="statusList">
-          <div class="skeleton" style="height:38px;margin:8px 18px"></div>
+        <div class="card-body no-pad">
+          <div id="atk-list"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
+    </section>
 
-      <!-- Threat Counters -->
+    <!-- ══════════ CHAIN NETWORK ══════════ -->
+    <section class="section" id="s-chains">
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric-card"><div class="m-label">Total Chains</div><div class="m-value text-cyan" id="cn-total">37</div><div class="m-sub">Active monitoring</div></div>
+        <div class="metric-card"><div class="m-label">VM Families</div><div class="m-value text-green">11</div><div class="m-sub">EVM/SVM/CosmWasm/Move…</div></div>
+        <div class="metric-card"><div class="m-label">Relayers Active</div><div class="m-value text-green">3</div><div class="m-sub">EVM · Native VM · Extended</div></div>
+        <div class="metric-card"><div class="m-label">Indexers Running</div><div class="m-value" style="color:var(--purple2)">13</div><div class="m-sub">Rust crates + Node adapters</div></div>
+      </div>
+      <div class="card mb12">
+        <div class="card-header"><h3>Chain Network</h3><span class="badge cyan" id="cn-badge">All 37 Chains</span></div>
+        <div class="card-body">
+          <div id="cn-grid" class="chain-grid"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Session Threat Counts</span>
-          <span class="card-badge amber">Live</span>
+        <div class="card-header"><h3>VM Family Groups</h3></div>
+        <div class="card-body">
+          <div class="arch-grid" id="vm-groups"></div>
         </div>
-        <div class="threat-row">
-          <div class="threat-box">
-            <div class="threat-box-val" id="tIntercept" style="color:var(--red)">0</div>
-            <div class="threat-box-label">Intercepted</div>
+      </div>
+    </section>
+
+    <!-- ══════════ ABOUT ══════════ -->
+    <section class="section" id="s-about">
+      <div class="about-hero">
+        <div>
+          <div class="card mb12">
+            <div class="card-header">
+              <div style="display:flex;align-items:center;gap:12px">
+                <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+                  <defs><linearGradient id="lg2" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#00C2FF"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs>
+                  <polygon points="50,4 91,27.5 91,72.5 50,96 9,72.5 9,27.5" stroke="url(#lg2)" stroke-width="1.5" fill="none"/>
+                  <polygon points="50,19 75,33.5 75,62.5 50,77 25,62.5 25,33.5" stroke="url(#lg2)" stroke-width="1.2" fill="none"/>
+                  <circle cx="50" cy="48" r="6" fill="#7C3AED"/><circle cx="50" cy="48" r="3" fill="#D946EF"/>
+                </svg>
+                <h3 style="font-size:15px;font-weight:700;color:var(--text);letter-spacing:.02em;text-transform:none">TRION Protocol</h3>
+              </div>
+              <span class="badge cyan">v2.0.0</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:12px;line-height:1.8;color:var(--text2)">TRION is a multi-chain behavioral truth oracle. It derives cryptographically verified behavioral signals from the actual record of what every entity did on every chain — stripped of manipulation, weighted by coherence, bounded by liquidity health.</p>
+              <p style="font-size:12px;line-height:1.8;color:var(--text2);margin-top:10px">It provides a pre-execution firewall: any DeFi protocol can call <code style="background:var(--card2);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--cyan)">TRIONExecutionGate.checkExecution(address)</code> before a trade executes to block wallets exhibiting attack fingerprints.</p>
+              <div class="kv-list" style="margin-top:14px">
+                <div class="kv-row"><span class="kv-key">Whitepaper</span><span class="kv-val">v1.0 — 84 formulas, 100% live coverage</span></div>
+                <div class="kv-row"><span class="kv-key">Historical exploits blocked</span><span class="kv-val text-green">$44B+ (simulated)</span></div>
+                <div class="kv-row"><span class="kv-key">Chains indexed</span><span class="kv-val">37 across 11 VM families</span></div>
+                <div class="kv-row"><span class="kv-key">License</span><span class="kv-val">CC0 — Public Domain</span></div>
+              </div>
+            </div>
           </div>
-          <div class="threat-box">
-            <div class="threat-box-val" id="tSilence" style="color:var(--amber)">0</div>
-            <div class="threat-box-label">Silence</div>
+
+          <div class="card">
+            <div class="card-header"><h3>Language Stack</h3></div>
+            <div class="card-body no-pad">
+              <table>
+                <thead><tr><th>Language</th><th>Role</th></tr></thead>
+                <tbody>
+                  <tr><td><b>Python 3.11</b></td><td>Oracle API (Flask) + FAISS ANIMA (FastAPI)</td></tr>
+                  <tr><td><b>Rust (stable)</b></td><td>13 L0 indexer crates — canonical 93-byte BH</td></tr>
+                  <tr><td><b>JavaScript / Node 18</b></td><td>3 relayers: EVM, Extended non-EVM, 0G Gate</td></tr>
+                  <tr><td><b>Solidity 0.8.x</b></td><td>15 EVM contracts — ExecutionGate, Oracle, Ocean</td></tr>
+                  <tr><td><b>Cairo 1.x</b></td><td>StarkNet attestation contracts</td></tr>
+                  <tr><td><b>C++ / WASM</b></td><td>FFT behavioral entropy engine, wash-trade detection</td></tr>
+                  <tr><td><b>Haskell (GHC 9)</b></td><td>Formal verification — 7 theorems as types</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="threat-box">
-            <div class="threat-box-val" id="tActive" style="color:var(--green)">0</div>
-            <div class="threat-box-label">Active</div>
+        </div>
+
+        <div class="author-profile">
+          <img src="/static/author.png" alt="Hudu Yusuf — Analys">
+          <div class="ap-name">Hudu Yusuf</div>
+          <div class="ap-handle">Analys</div>
+          <div class="ap-bio">Creator and sole architect of the TRION Protocol — a multi-chain behavioral truth oracle designed to prevent DeFi exploits through cryptographic behavioral analysis.</div>
+          <div class="ap-loc">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M8 1C5.24 1 3 3.24 3 6c0 4 5 9 5 9s5-5 5-9c0-2.76-2.24-5-5-5z"/></svg>
+            Northern Nigeria
+          </div>
+          <div style="margin-top:16px;display:flex;gap:8px;justify-content:center">
+            <span class="badge cyan">Oracle</span>
+            <span class="badge purple">DeFi Security</span>
+            <span class="badge gray">CC0</span>
           </div>
         </div>
       </div>
 
-      <!-- Security Threshold -->
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Security Threshold</span>
-          <span class="card-badge cyan">Dynamic</span>
-        </div>
-        <div class="gauge-wrap">
-          <div class="gauge-header">
-            <span class="gauge-title">Current threshold</span>
-            <span class="gauge-val" id="gaugeVal">—</span>
-          </div>
-          <div class="gauge-track">
-            <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
-          </div>
-          <div class="gauge-labels"><span>Low risk (0.55)</span><span>High risk (0.92)</span></div>
-        </div>
-        <div class="vol-chart-wrap">
-          <div style="font-size:.6rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Volatility Index (recent)</div>
-          <canvas id="volCanvas"></canvas>
+        <div class="card-header"><h3>Live Coverage — All 84 Whitepaper Formulas</h3><span class="badge green">100% Live</span></div>
+        <div class="card-body no-pad">
+          <div id="wp-formula-list"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
+    </section>
 
-      <!-- Radar Chart -->
-      <div class="card" id="radarCard" style="display:none">
-        <div class="card-header">
-          <span class="card-title">5-Plane Radar</span>
-          <span class="card-badge purple" id="radarEntity">—</span>
-        </div>
-        <div style="padding:14px;display:flex;justify-content:center">
-          <canvas id="radarCanvas" style="max-width:210px;max-height:210px"></canvas>
-        </div>
-      </div>
-
-      <!-- Live Deployments -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Live Deployments</span>
-          <span class="card-badge live">Mainnet</span>
-        </div>
-        <div class="deploy-list">
-          <div class="deploy-row">
-            <span class="deploy-chain">0G Mainnet Gate</span>
-            <span class="deploy-addr" onclick="copyAddr('0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b')" title="Click to copy">0xA85B…199b</span>
-          </div>
-          <div class="deploy-row">
-            <span class="deploy-chain">0G AkashicProof</span>
-            <span class="deploy-addr" onclick="copyAddr('0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D')" title="Click to copy">0x33c7…56D</span>
-          </div>
-          <div class="deploy-row">
-            <span class="deploy-chain">HashKey Mainnet</span>
-            <span class="deploy-addr" onclick="copyAddr('0x708193f93Fb897fbeA72e7e7D19237770F19E969')" title="Click to copy">0x7081…E969</span>
-          </div>
-          <div class="deploy-row">
-            <span class="deploy-chain">Arb Sepolia</span>
-            <span class="deploy-addr" onclick="copyAddr('0xb819c63c02Ed5aB49017C0f3f2568A14624658b3')" title="Click to copy">0xb819…58b3</span>
-          </div>
-          <div class="deploy-row">
-            <span class="deploy-chain">ETH Sepolia</span>
-            <span class="deploy-addr" onclick="copyAddr('0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39')" title="Click to copy">0xB07A…b39</span>
-          </div>
-          <div class="deploy-row">
-            <span class="deploy-chain">Base Sepolia</span>
-            <span class="deploy-addr" onclick="copyAddr('0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C')" title="Click to copy">0x7ADF…80C</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-</div>
-
-<!-- Toast -->
-<div class="toast-container" id="toastContainer"></div>
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
 
 <script>
 'use strict';
 
-/* ── State ── */
-let radarChart = null;
-let volChart   = null;
-let volHistory = [];
-let interceptCount = 0, silenceCount = 0, activeCount = 0;
-let interceptedEntities = [];
-let prevVectors = 0;
+/* ─── UTILS ─── */
+const $=id=>document.getElementById(id);
+const fmt=n=>{if(n==null)return '—';if(typeof n==='string')return n;if(n>=1e9)return (n/1e9).toFixed(1)+'B';if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3)return (n/1e3).toFixed(1)+'K';return n.toString()};
+const fmtN=n=>{if(n==null||isNaN(n))return '—';return parseFloat(n).toFixed(3)};
+const fmtPct=n=>{if(n==null)return '—';return (n*100).toFixed(1)+'%'};
+const age=ts=>{const d=Math.floor(Date.now()/1000)-ts;if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago'};
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const shortAddr=a=>{if(!a)return '—';if(a.length>16)return a.slice(0,8)+'…'+a.slice(-4);return a};
 
-/* ── Autocomplete suggestions ── */
-const KNOWN_ENTITIES = [
-  {id:'uniswap',      type:'DEX Protocol'},
-  {id:'aave',         type:'Lending Protocol'},
-  {id:'compound',     type:'Lending Protocol'},
-  {id:'curve',        type:'DEX Protocol'},
-  {id:'makerdao',     type:'Stablecoin'},
-  {id:'lido',         type:'Liquid Staking'},
-  {id:'balancer',     type:'DEX Protocol'},
-  {id:'1inch',        type:'Aggregator'},
-  {id:'sushiswap',    type:'DEX Protocol'},
-  {id:'chainlink',    type:'Oracle'},
-  {id:'synthetix',    type:'Derivatives'},
-  {id:'frax',         type:'Stablecoin'},
-  {id:'convex',       type:'Yield'},
-  {id:'yearn',        type:'Yield Vault'},
-];
-
-/* ── Helpers ── */
-const $ = id => document.getElementById(id);
-function fmt(n){
-  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
-  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
-  return String(n);
-}
-function short(s,n=16){return s.length>n?s.slice(0,n)+'…':s}
-function planeColor(v){
-  if(v>=0.70) return 'var(--green)';
-  if(v>=0.50) return 'var(--amber)';
-  return 'var(--red)';
-}
-function scoreColor(v){
-  if(v>=0.70) return 'var(--green)';
-  if(v>=0.50) return 'var(--amber)';
-  return 'var(--red)';
-}
-function timeAgo(ts){
-  const s=Math.round(Date.now()/1000-ts);
-  if(s<5) return 'just now';
-  if(s<60) return s+'s ago';
-  if(s<3600) return Math.round(s/60)+'m ago';
-  return Math.round(s/3600)+'h ago';
-}
-async function apiFetch(url){
-  try{const r=await fetch(url,{signal:AbortSignal.timeout(8000)});return r.ok?r.json():null}
-  catch{return null}
-}
-function toast(msg,color='var(--cyan)'){
-  const el=document.createElement('div');
-  el.className='toast';
-  el.innerHTML=`<span class="toast-dot" style="background:${color}"></span>${msg}`;
-  $('toastContainer').prepend(el);
-  setTimeout(()=>el.remove(),3500);
-}
-function copyAddr(addr){
-  navigator.clipboard?.writeText(addr).then(()=>toast('Copied: '+addr.slice(0,10)+'…'));
+async function apiFetch(url,timeout=8000){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),timeout);
+  try{
+    const r=await fetch(url,{signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!r.ok)return null;
+    return r.json();
+  }catch{clearTimeout(tid);return null}
 }
 
-/* ── Autocomplete ── */
-const searchInput = $('searchInput');
-const searchSugg  = $('searchSugg');
+const KNOWN_ENTITIES=['uniswap','aave','compound','maker','curve','lido','synthetix','yearn','sushiswap','balancer','dydx','gmx','frax','convex'];
+const CHART_COLORS=['#00C2FF','#7C3AED','#22C55E','#F59E0B','#EF4444','#F97316','#EC4899','#06B6D4','#A78BFA','#4ADE80','#FCD34D','#FB7185'];
+const chartDef={plugins:{legend:{labels:{color:'#7F9BB8',font:{size:10}}}}};
 
-searchInput.addEventListener('input', () => {
-  const q = searchInput.value.trim().toLowerCase();
-  if(!q || q.length < 2){searchSugg.classList.remove('open');return}
-  if(q.startsWith('0x')){searchSugg.classList.remove('open');return}
-  const matches = KNOWN_ENTITIES.filter(e=>e.id.includes(q)).slice(0,5);
-  if(!matches.length){searchSugg.classList.remove('open');return}
-  searchSugg.innerHTML = matches.map(e=>`
-    <div class="sugg-item" onclick="selectSugg('${e.id}')">
-      <span>${e.id}</span><span class="sugg-item-type">${e.type}</span>
-    </div>`).join('');
-  searchSugg.classList.add('open');
+/* ─── NAVIGATION ─── */
+const sections={
+  overview:'s-overview',entity:'s-entity',feed:'s-feed',
+  bh:'s-bh',faiss:'s-faiss',zg:'s-zg',security:'s-security',
+  chains:'s-chains',about:'s-about'
+};
+const sectionTitles={
+  overview:'Overview',entity:'Entity Intelligence',feed:'Live Signal Feed',
+  bh:'BH Explorer',faiss:'FAISS ANIMA',zg:'0G Network',security:'Security',
+  chains:'Chain Network',about:'About'
+};
+let activeSec='overview';
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const sec=el.dataset.section;
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+    document.getElementById(sections[sec]).classList.add('active');
+    $('tb-section').textContent=sectionTitles[sec];
+    activeSec=sec;
+    if(sec==='bh'&&!bhLoaded)loadBH();
+    if(sec==='faiss'&&!faissLoaded)loadFAISS();
+    if(sec==='zg'&&!zgLoaded)loadZG();
+    if(sec==='security'&&!secLoaded)loadSecurity();
+    if(sec==='chains'&&!chainsLoaded)loadChains();
+    if(sec==='about'&&!aboutLoaded)loadAbout();
+    if(sec==='feed'&&!feedLoaded)loadFeedSection();
+  });
 });
-searchInput.addEventListener('keydown', e=>{
-  if(e.key==='Enter'){searchSugg.classList.remove('open');lookupEntity();}
-  if(e.key==='Escape') searchSugg.classList.remove('open');
-});
-document.addEventListener('click', e=>{
-  if(!$('searchWrap').contains(e.target)) searchSugg.classList.remove('open');
-});
-function selectSugg(id){
-  searchInput.value=id;
-  searchSugg.classList.remove('open');
-  lookupEntity();
+
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  if(window.innerWidth<=768){sb.classList.toggle('mobile-open')}
+  else{sb.classList.toggle('collapsed')}
 }
 
-/* ── Metrics ── */
-async function loadMetrics(){
-  const [health, faiss, chains] = await Promise.all([
-    apiFetch('/api/v1/health'),
-    apiFetch('/api/v1/faiss'),
-    apiFetch('/api/v1/chains')
-  ]);
-
-  if(health){
-    const vol = health.market_volatility||0;
-    $('mVol').textContent = (vol*100).toFixed(1)+'%';
-    $('mThreshSub').textContent = 'Gate threshold: '+(health.dynamic_threshold||0).toFixed(4);
-    $('mSignals').textContent = health.total_signals_onchain ?? '—';
-    $('navBlock').textContent = (health.block_number||0).toLocaleString();
-
-    // Update volatility history & gauge
-    const thresh = health.dynamic_threshold||0;
-    $('gaugeVal').textContent = thresh.toFixed(4);
-    const pct = ((thresh - 0.55)/(0.92-0.55)*100).toFixed(1);
-    $('gaugeFill').style.width = Math.max(0,Math.min(100,pct))+'%';
-
-    volHistory.push(+(vol*100).toFixed(2));
-    if(volHistory.length>20) volHistory.shift();
-    updateVolChart();
+/* ─── TOPBAR LIVE DATA ─── */
+async function loadTopbar(){
+  const h=await apiFetch('/api/v1/health');
+  if(h){
+    $('live-block').textContent=fmt(h.block_number);
+    $('gate-addr').textContent='0xA85B…199b';
+    $('gate-addr').style.color='var(--green)';
+    // Overview metrics
+    $('ov-vol').textContent=fmtPct(h.market_volatility);
+    $('ov-signals').textContent=fmt(h.total_signals_onchain);
+    $('ov-theta').textContent=fmtN(h.dynamic_threshold);
+    $('ov-vt').textContent=fmtN(h.market_volatility);
+    if($('ov-theta-bar'))$('ov-theta-bar').style.width=(h.dynamic_threshold*100)+'%';
+    $('ov-thresh-sub').textContent='Gate threshold: '+fmtN(h.dynamic_threshold);
   }
-  if(faiss){
-    const vecs = faiss.indexed_vectors||0;
-    $('mVectors').textContent = fmt(vecs);
-    const ents = faiss.entities_tracked || faiss.indexed_vectors || 0;
-    $('mEntities').textContent = fmt(ents);
-    if(prevVectors && vecs !== prevVectors){
-      const delta = vecs - prevVectors;
-      const trend = $('mEntitiesTrend');
-      trend.style.display='inline-block';
-      trend.textContent = (delta>0?'+':'')+fmt(delta);
-      trend.className = 'metric-trend '+(delta>0?'up':(delta<0?'dn':'flat'));
-    }
-    prevVectors = vecs;
-  }
-  if(chains){
-    const n = Array.isArray(chains)?chains.length:(chains.chains?.length||37);
-    $('mChains').textContent = n;
-    $('navNet').textContent = n+' Chains Live';
-    $('lookupChainBadge').textContent = n+' Chains';
-    $('chainCountBadge').textContent = n+' Active';
+  const f=await apiFetch('/api/v1/faiss');
+  if(f){
+    $('ov-bh').textContent=fmt(f.indexed_vectors);
+    $('ov-entities').textContent=fmt(f.entities_tracked||f.bh_entities);
+    $('ov-bh-sub').textContent='FAISS vector index';
   }
 }
 
-function updateVolChart(){
-  if(!volChart){
-    const ctx=document.getElementById('volCanvas').getContext('2d');
-    volChart=new Chart(ctx,{
-      type:'line',
-      data:{
-        labels:volHistory.map((_,i)=>i),
-        datasets:[{
-          data:volHistory,borderColor:'rgba(255,179,0,0.7)',
-          backgroundColor:'rgba(255,179,0,0.06)',
-          borderWidth:1.5,pointRadius:0,tension:.4,fill:true
-        }]
-      },
-      options:{
-        responsive:true,animation:{duration:400},
-        plugins:{legend:{display:false},tooltip:{enabled:false}},
-        scales:{
-          x:{display:false},
-          y:{display:false,min:0,max:100}
-        }
-      }
-    });
-  } else {
-    volChart.data.labels=volHistory.map((_,i)=>i);
-    volChart.data.datasets[0].data=[...volHistory];
-    volChart.update('none');
-  }
+/* ─── OVERVIEW SERVICES ─── */
+async function loadSystemStatus(){
+  const [h,fa]=await Promise.all([apiFetch('/api/v1/health'),apiFetch('/api/v1/faiss')]);
+  const services=[
+    {name:'Oracle API',val:h?'TRION Protocol v2.0.0':'Error',ok:!!h},
+    {name:'Blockchain',val:h?h.network:'—',ok:!!(h&&h.chain_connected)},
+    {name:'Security Gate',val:h?fmtN(h.dynamic_threshold):'—',ok:!!h},
+    {name:'FAISS ANIMA',val:fa?fmt(fa.indexed_vectors)+' vectors':'—',ok:!!fa},
+    {name:'BH Ledger',val:fa?fmt(fa.entities_tracked||0)+' entities':'—',ok:!!fa},
+  ];
+  const el=$('sys-services');
+  if(!el)return;
+  el.innerHTML=services.map(s=>`
+    <div class="score-row" style="margin-bottom:8px">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${s.ok?'var(--green)':'var(--red)'}"></span>
+        <span class="s-label">${s.name}</span>
+      </span>
+      <span class="s-val mono" style="font-size:10px">${s.val}</span>
+    </div>
+  `).join('');
 }
 
-/* ── System Status ── */
-async function loadStatus(){
-  const [health, faiss] = await Promise.all([apiFetch('/api/v1/health'),apiFetch('/api/v1/faiss')]);
-  const rows = [];
-  let issues = 0;
+/* ─── FEED ─── */
+let interceptCount=0,silenceCount=0,activeCount=0;
+async function loadFeed(){
+  const data=await apiFetch('/api/v1/feed');
+  let items=[];
+  if(data&&Array.isArray(data))items=data;
+  else if(data&&data.feed)items=data.feed;
+  else if(data&&data.signals)items=data.signals;
 
-  function addRow(icon,cls,label,val){
-    rows.push(`<div class="status-row">
-      <div class="status-icon ${cls}">${icon}</div>
-      <div class="status-label">${label}</div>
-      <div class="status-val">${val}</div>
-    </div>`);
-    if(cls==='err') issues++;
-  }
-
-  if(health){
-    const ok = health.status==='healthy';
-    addRow(ok?'✓':'!', ok?'ok':'err', 'Oracle API', health.oracle||'TRION v2.0.0');
-    addRow('✓','ok','Blockchain', health.network||'arb-sepolia');
-    addRow('✓','ok','Security Gate', (health.dynamic_threshold||0).toFixed(4));
-  } else {
-    addRow('✕','err','Oracle API','offline');issues++;
-  }
-  if(faiss){
-    const ok = faiss.faiss_available!==false;
-    const vecs = faiss.indexed_vectors||0;
-    addRow(ok?'✓':'!', ok?'ok':'warn', 'FAISS ANIMA', fmt(vecs)+' vectors');
-    addRow('✓','ok','BH Ledger', (faiss.entities_tracked||vecs)+' entities');
-  } else {
-    addRow('✕','err','FAISS ANIMA','offline');issues++;
-  }
-
-  $('statusList').innerHTML = rows.join('');
-  const badge = $('statusBadge');
-  if(!issues){
-    badge.className='card-badge live';badge.textContent='✓ Healthy';
-  } else {
-    badge.className='card-badge amber';badge.textContent=issues+' Issue'+(issues>1?'s':'');
-  }
-}
-
-/* ── Feed ── */
-let _lastFeedTs = 0;
-async function loadFeed(force){
-  const data = await apiFetch('/api/v1/feed');
-  let items = [];
-
-  if(data && Array.isArray(data) && data.length){
-    items = data;
-  } else if(data && data.feed && data.feed.length){
-    items = data.feed;
-  }
-
+  // Normalise
+  items=items.map(it=>({
+    ...it,
+    signal_type:it.signal_type||(it.coherent?'ACTIVE':'SILENCE'),
+    coherence:it.coherence||it.coherence_score||0,
+  }));
   if(!items.length){
-    // Fallback: seed with leaderboard data
-    const lb = await apiFetch('/api/v1/leaderboard');
-    const lbArr = lb?.leaderboard||[];
-    if(lbArr.length){
-      items = lbArr.slice(0,5).map(e=>({
-        entity_id: e.label||e.entity_id,
-        signal_type: e.coherent?'ACTIVE':'SILENCE',
-        coherence: e.coherence_score||0,
-        archetype: e.archetype||'Unknown',
-        timestamp: Math.floor(Date.now()/1000)-Math.floor(Math.random()*120),
-        mf_score: e.mf_score||0,
+    // Fallback: leaderboard
+    const lb=await apiFetch('/api/v1/leaderboard');
+    if(lb&&lb.leaderboard){
+      items=lb.leaderboard.slice(0,8).map(e=>({
+        entity_id:e.label||e.entity_id,
+        signal_type:e.coherent?'ACTIVE':'SILENCE',
+        coherence:e.coherence_score||0,
+        archetype:e.archetype||'—',
+        timestamp:Math.floor(Date.now()/1000)-Math.floor(Math.random()*180),
       }));
     }
   }
 
-  if(!items.length){
-    $('feedList').innerHTML='<div class="empty-state"><div class="icon">⟳</div><p>Waiting for signal activity…</p></div>';
-    return;
-  }
-
-  // Normalise signal_type: when absent, derive from coherent flag
-  items = items.map(it=>({
-    ...it,
-    signal_type: it.signal_type || (it.coherent ? 'ACTIVE' : 'SILENCE'),
-    coherence: it.coherence || it.coherence_score || 0,
-  }));
-
-  // Update threat counters
+  // Counts
   items.forEach(it=>{
-    const st = (it.signal_type||'SILENCE').toUpperCase();
-    if(st==='INTERCEPT'||st==='HOSTILE') interceptCount++;
-    else if(st==='SILENCE') silenceCount++;
+    const st=(it.signal_type||'SILENCE').toUpperCase();
+    if(st==='INTERCEPT'||st==='HOSTILE')interceptCount++;
+    else if(st==='SILENCE')silenceCount++;
     else activeCount++;
   });
-  $('tIntercept').textContent=interceptCount;
-  $('tSilence').textContent=silenceCount;
-  $('tActive').textContent=activeCount;
+  $('tc-intercept').textContent=interceptCount;
+  $('tc-silence').textContent=silenceCount;
+  $('tc-active').textContent=activeCount;
 
-  // Threat ticker
-  const hostile = items.filter(it=>{
-    const st=(it.signal_type||'').toUpperCase();
-    return st==='INTERCEPT'||st==='HOSTILE';
-  });
-  updateTicker(hostile);
+  // Alert ticker for intercepts
+  const hostile=items.filter(x=>['INTERCEPT','HOSTILE'].includes((x.signal_type||'').toUpperCase()));
+  if(hostile.length){
+    $('alert-ticker').style.display='flex';
+    $('ticker-text').textContent=hostile.map(x=>`${x.entity_id} — Coherence: ${fmtN(x.coherence)}`).join('   ·   ');
+  }
 
-  $('feedList').innerHTML = items.slice(0,15).map(it=>{
+  const el=$('ov-feed');
+  if(!el)return;
+  if(!items.length){el.innerHTML='<div class="loading" style="padding:30px"><p>Waiting for signals…</p></div>';return;}
+
+  el.innerHTML=items.slice(0,8).map(it=>{
     const st=(it.signal_type||'SILENCE').toUpperCase();
-    const coh=parseFloat(it.coherence||it.coherence_score||0);
-    const ts=it.timestamp||0;
-    const arch=it.archetype||'Unknown';
-    const mf=parseFloat(it.mf_score||0);
-    const entity=it.entity_id||it.label||'—';
-    const isHostile=st==='INTERCEPT'||st==='HOSTILE';
-    const isSilence=st==='SILENCE';
-    const dotCls=isHostile?'warn':isSilence?'caution':'safe';
-    const scoreCls=isHostile?'warn':isSilence?'caution':'safe';
-    let typeColor=isSilence?'color:var(--amber);background:var(--amber-dim)':'color:var(--green);background:var(--green-dim)';
-    if(isHostile) typeColor='color:var(--red);background:var(--red-dim)';
-    const displayName = entity.length>42?entity.slice(0,10)+'…'+entity.slice(-6):entity;
-    return `<div class="feed-item" onclick="selectFromFeed('${entity.replace(/'/g,"\\'")}')">
-      <span class="feed-dot ${dotCls}"></span>
-      <div>
-        <div class="feed-entity" title="${entity}">${displayName}</div>
-        <div class="feed-meta">
-          <span class="feed-type-tag" style="${typeColor};border-radius:3px;font-size:.55rem;padding:1px 4px">${st}</span>
-          <span>${arch}</span>
-          ${ts?'<span>'+timeAgo(ts)+'</span>':''}
-          ${mf>0?`<span>MF:${(mf*100).toFixed(0)}%</span>`:''}
-        </div>
+    const dotClass=st==='INTERCEPT'||st==='HOSTILE'?'intercept':st==='ACTIVE'?'active':'silence';
+    const badgeClass=st==='INTERCEPT'||st==='HOSTILE'?'red':st==='ACTIVE'?'green':'amber';
+    const score=parseFloat(it.coherence||0);
+    const scoreColor=score>0.7?'var(--green)':score>0.45?'var(--amber)':'var(--red)';
+    return `<div class="feed-item fade-in" onclick="goEntity('${it.entity_id}')">
+      <div class="feed-dot ${dotClass}"></div>
+      <div class="feed-main">
+        <div class="feed-entity">${it.entity_id}</div>
+        <div class="feed-meta"><span class="badge ${badgeClass}" style="font-size:8px">${st}</span>&nbsp;${it.archetype||'—'}&nbsp;·&nbsp;${age(it.timestamp||0)}</div>
       </div>
-      <span class="feed-score ${scoreCls}">${coh.toFixed(3)}</span>
+      <div class="feed-score" style="color:${scoreColor}">${score.toFixed(3)}</div>
     </div>`;
   }).join('');
-
-  if(force) toast('Feed refreshed — '+items.length+' signals');
 }
 
-function selectFromFeed(entityId){
-  $('searchInput').value = entityId;
-  $('searchSugg').classList.remove('open');
-  document.querySelector('.main-left .card').scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(lookupEntity, 200);
-}
-
-/* ── Ticker ── */
-function updateTicker(hostile){
-  const ticker = $('alertTicker');
-  const pill   = $('alertPill');
-  const inner  = $('tickerInner');
-  $('alertPillText').textContent = interceptCount+' Intercept'+(interceptCount!==1?'s':'');
-
-  if(!hostile.length) return;
-  pill.style.display='flex';
-
-  const items = hostile.map(it=>{
-    const e=it.entity_id||it.label||'Unknown';
-    const short=e.length>18?e.slice(0,10)+'…'+e.slice(-6):e;
-    return `<span class="ticker-item">⚠ ${short} — ${(it.signal_type||'INTERCEPT').toUpperCase()} — score ${parseFloat(it.coherence||0).toFixed(3)}</span>`;
-  }).join('');
-  inner.innerHTML=items+items; // duplicate for seamless loop
-  ticker.classList.add('visible');
-}
-
-/* ── Leaderboard ── */
 async function loadLeaderboard(){
-  const data = await apiFetch('/api/v1/leaderboard');
-  const items = data?.leaderboard || [];
-  const thresh = data?.dynamic_threshold||0;
-
-  if(thresh) $('lbThresh').textContent='Threshold '+thresh.toFixed(4);
-
-  if(!items.length){
-    $('lbBody').innerHTML='<tr><td colspan="4" class="empty-state"><p>No leaderboard data</p></td></tr>';
-    return;
-  }
-
-  const max = Math.max(...items.map(e=>e.coherence_score||0),0.01);
-  $('lbBody').innerHTML = items.slice(0,12).map(e=>{
-    const coh=parseFloat(e.coherence_score||0);
-    const col=scoreColor(coh);
-    const pct=(coh/max*100).toFixed(1);
-    const label=e.label||e.entity_id||'Unknown';
-    const displayLabel=label.length>20?label.slice(0,18)+'…':label;
-    const rankCls=e.rank<=3?'lb-rank top':'lb-rank';
-    const scoreCls=coh>=0.7?'good':(coh>=0.5?'caution':'bad');
-    return `<tr onclick="selectFromFeed('${(e.entity_id||'').replace(/'/g,"\\'")}')">
-      <td><span class="${rankCls}">${e.rank}</span></td>
-      <td><span class="lb-entity" title="${label}">${displayLabel}</span></td>
-      <td><span class="lb-arch-badge">${e.archetype||'—'}</span></td>
-      <td>
-        <span class="lb-score ${scoreCls}">${coh.toFixed(4)}</span>
-        <span class="lb-bar-wrap"><span class="lb-bar" style="width:${pct}%;background:${col}"></span></span>
-      </td>
-    </tr>`;
-  }).join('');
+  const data=await apiFetch('/api/v1/leaderboard');
+  const el=$('ov-leaderboard');
+  if(!el)return;
+  const rows=(data&&data.leaderboard)||[];
+  if(!rows.length){el.innerHTML='<div class="loading" style="padding:20px"><p>No data</p></div>';return;}
+  el.innerHTML=`<table>
+    <thead><tr><th>#</th><th>Entity</th><th>Archetype</th><th>C(t)</th><th>Signal</th></tr></thead>
+    <tbody>${rows.slice(0,10).map((r,i)=>{
+      const score=r.coherence_score||r.coherence||0;
+      const sig=r.coherent?'ACTIVE':'SILENCE';
+      const bc=r.coherent?'green':'amber';
+      return `<tr onclick="goEntity('${r.label||r.entity_id}')">
+        <td class="text-muted">${i+1}</td>
+        <td><b>${r.label||r.entity_id}</b></td>
+        <td class="text-muted">${r.archetype||'—'}</td>
+        <td class="mono">${score.toFixed(3)}</td>
+        <td><span class="badge ${bc}">${sig}</span></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
 
-/* ── Chains ── */
-async function loadChains(){
-  const data = await apiFetch('/api/v1/chains');
-  const chains = Array.isArray(data) ? data : (data?.chains||[]);
-
-  if(!chains.length){
-    $('chainGrid').innerHTML='<div class="empty-state"><p>No chain data</p></div>';
-    return;
-  }
-  $('chainCountBadge').textContent = chains.length+' Active';
-  $('mChainsVm').textContent = chains.length+' chains across 11 VM families';
-
-  const vmColors={
-    'EVM':'var(--cyan)','SVM':'var(--purple)','MoveVM':'var(--green)',
-    'CosmosSDK':'var(--amber)','UTXO':'var(--amber)','TVM':'var(--red)',
-    'NEAR':'var(--green)','TON':'var(--cyan)','StarkNet':'var(--purple)',
-    'Substrate':'var(--amber)','Pi':'var(--text3)',
-  };
-
-  $('chainGrid').innerHTML = chains.map(c=>{
-    const vm = c.vm_family||c.vm||'EVM';
-    const color = vmColors[vm]||'var(--cyan)';
-    const name = c.name||c.chain||'Chain';
-    return `<div class="chain-item">
-      <div class="chain-name" title="${name}">${name}</div>
-      <div class="chain-vm" style="color:${color}">${vm}</div>
-      <div class="chain-status-row">
-        <span class="chain-status-dot live"></span>
-        <span class="chain-status-txt">Live</span>
-      </div>
-    </div>`;
-  }).join('');
+/* ─── ENTITY LOOKUP ─── */
+function goEntity(id){
+  $('ent-input').value=id;
+  document.querySelector('[data-section="entity"]').click();
+  lookupEntity();
 }
 
-/* ── Entity Lookup ── */
+function onEntityInput(){
+  const v=$('ent-input').value.trim().toLowerCase();
+  const ac=$('ent-ac');
+  if(!v){ac.style.display='none';return;}
+  const matches=KNOWN_ENTITIES.filter(e=>e.includes(v));
+  if(!matches.length){ac.style.display='none';return;}
+  ac.innerHTML=matches.map(m=>`<div class="ac-item" onclick="selectAC('${m}')">${m}</div>`).join('');
+  ac.style.display='block';
+}
+function selectAC(val){$('ent-input').value=val;$('ent-ac').style.display='none';lookupEntity();}
+document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))$('ent-ac').style.display='none';});
+
 async function lookupEntity(){
-  const raw = searchInput.value.trim();
-  if(!raw) return;
-  searchSugg.classList.remove('open');
-  const entity = encodeURIComponent(raw);
+  const id=$('ent-input').value.trim();
+  if(!id)return;
+  $('ent-ac').style.display='none';
+  const el=$('ent-result');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Analyzing entity…</div>';
 
-  $('signalEmpty').style.display='none';
-  $('signalResult').innerHTML=`
-    <div style="padding:18px;display:flex;align-items:center;gap:12px">
-      <div class="skeleton" style="width:46px;height:46px;border-radius:11px;flex-shrink:0"></div>
-      <div style="flex:1">
-        <div class="skeleton" style="margin-bottom:7px;width:40%"></div>
-        <div class="skeleton" style="width:70%"></div>
-      </div>
-    </div>`;
+  const [sig,planes,life,thermo,validator,anima,silence]=await Promise.all([
+    apiFetch('/api/v1/signal/'+encodeURIComponent(id),12000),
+    apiFetch('/api/v1/planes/'+encodeURIComponent(id)+'/all',10000),
+    apiFetch('/api/v1/lifecycle/'+encodeURIComponent(id),8000),
+    apiFetch('/api/v1/thermodynamics/'+encodeURIComponent(id),8000),
+    apiFetch('/api/v1/validator/'+encodeURIComponent(id),8000),
+    apiFetch('/api/v1/anima/'+encodeURIComponent(id),8000),
+    apiFetch('/api/v1/silence/'+encodeURIComponent(id),8000),
+  ]);
 
-  const data = await apiFetch('/api/v1/signal/'+entity);
-  if(!data){
-    $('signalResult').innerHTML=`<div class="empty-state"><div class="icon" style="color:var(--red)">✕</div><p>Could not retrieve signal for this entity.</p></div>`;
-    return;
-  }
+  if(!sig){el.innerHTML='<div class="loading"><p>Entity not found or signal timed out.</p></div>';return;}
 
-  const st = (data.signal_type||'SILENCE').toUpperCase();
-  const coh = parseFloat(data.coherence||data.coherence_score||0);
-  const thresh = parseFloat(data.dynamic_threshold||data.theta||0);
-  const mf = parseFloat(data.mf_score||0);
-  const arch = data.archetype||'Unknown';
-  const eid = data.entity_id||raw;
-  const planes = data.plane_breakdown||{};
-  const isHostile = st==='INTERCEPT'||st==='HOSTILE';
-  const isSilence = st==='SILENCE';
-  const isActive  = !isHostile && !isSilence;
-  const iconCls   = isHostile?'warn':(isActive?'safe':'caution');
-  const iconChar  = isHostile?'⚠':(isActive?'✓':'–');
-  const enriched  = data.faiss_enriched===true;
-  const trend     = data.coherence_trend||'STABLE';
-  const ci        = data.confidence_interval||data.ci_95;
-  const moat      = data.moat_components||{};
-  const limiting  = data.limiting_plane||'';
-  const akashic   = data.akashic_depth||0;
+  const c=sig.coherence||0;
+  const thresh=sig.theta||sig.dynamic_threshold||0.7;
+  const isCoherent=c>=thresh;
+  const scoreColor=isCoherent?'var(--green)':c>0.45?'var(--amber)':'var(--red)';
+  const sigType=sig.signal_type||(isCoherent?'ACTIVE':'SILENCE');
+  const sigBadge=sigType==='INTERCEPT'||sigType==='HOSTILE'?'red':isCoherent?'green':'amber';
 
-  showRadar(planes, short(raw,14));
-
-  const ciLow  = ci?.lower??ci?.[0]??0;
-  const ciHigh = ci?.upper??ci?.[1]??1;
-  const ciPctL = (ciLow*100).toFixed(0);
-  const ciPctH = (ciHigh*100).toFixed(0);
-  const cohPct = (coh*100).toFixed(0);
-  const ciWidth= Math.max(0,(ciHigh-ciLow)*100).toFixed(1);
-  const ciLeft = (ciLow*100).toFixed(1);
-
-  const planeDefs=[
-    {k:'physical',label:'Physical'},
-    {k:'mental',label:'Mental'},
-    {k:'spiritual',label:'Spiritual'},
-    {k:'conscious',label:'Conscious'},
-    {k:'anima',label:'ANIMA'}
+  // Plane data
+  const plData=planes&&planes.planes?planes.planes:{};
+  const planesDef=[
+    {key:'physical',name:'Physical Φ',cls:'phi',w:'α=0.25'},
+    {key:'mental',name:'Mental M',cls:'mental',w:'β=0.30'},
+    {key:'spiritual',name:'Spiritual Σ',cls:'sigma',w:'γ=0.25'},
+    {key:'conscious',name:'Conscious K',cls:'conscious',w:'δ=0.10'},
+    {key:'anima',name:'ANIMA A',cls:'anima',w:'ε=0.10'},
   ];
+  const planesHTML=planesDef.map(p=>{
+    const d=plData[p.key]||{};
+    const score=parseFloat(d.score||sig[p.key+'_score']||0);
+    const pct=(clamp(score,0,1)*100).toFixed(0);
+    const active=d.active!==false;
+    return `<div class="plane-row">
+      <div class="plane-name" title="${p.w}">${p.name}</div>
+      <div class="plane-bar"><div class="plane-fill ${p.cls}" style="width:${pct}%"></div></div>
+      <div class="plane-val" style="color:${score>0.6?'var(--green)':score>0.35?'var(--amber)':'var(--red)'}">${score.toFixed(3)}</div>
+      <div class="plane-state">${active?'<span class="badge green" style="font-size:8px">ACTIVE</span>':'<span class="badge gray" style="font-size:8px">BOOT</span>'}</div>
+    </div>`;
+  }).join('');
 
-  const trendClass = trend==='RISING'?'trend-up':trend==='FALLING'?'trend-dn':'trend-flat';
-  const trendIcon  = trend==='RISING'?'↑':trend==='FALLING'?'↓':'→';
+  // CI
+  const ci=sig.ci_95||{};
+  const ciLo=ci.lo!=null?ci.lo.toFixed(3):'—';
+  const ciHi=ci.hi!=null?ci.hi.toFixed(3):'—';
+  const ciWidth=ci.lo!=null&&ci.hi!=null?((ci.hi-ci.lo)*100).toFixed(0)+'%':'0%';
+  const ciPos=ci.lo!=null?((c-ci.lo)/(ci.hi-ci.lo+.001)*100).toFixed(0)+'%':'50%';
 
-  $('signalResult').innerHTML=`
-  <div class="signal-result visible">
-    <div class="signal-header">
-      <div class="signal-icon ${iconCls}">${iconChar}</div>
-      <div style="flex:1;min-width:0">
-        <div class="signal-entity">${eid}</div>
-        <div class="signal-type">${st.replace(/_/g,' ')}</div>
-        <div class="signal-badges">
-          <span class="signal-badge arch">${arch}</span>
-          <span class="signal-badge ${enriched?'faiss':'hash'}">${enriched?'FAISS Enriched':'Hash Derived'}</span>
-          <span class="signal-badge ${trendClass}">${trendIcon} ${trend}</span>
+  // Moat
+  const moat=sig.moat_score||{};
+  const moatKeys=Object.keys(moat);
+
+  // Lifecycle
+  const lifeMeta=life?`Stage: <b>${life.stage||'—'}</b> · Vitality: <b>${fmtN(life.vitality)}</b> · Transition: <b>${life.transition||'—'}</b>`:'—';
+  const thermoMeta=thermo?`Phase: <b>${thermo.phase||'—'}</b> · Entropy: <b>${fmtN(thermo.entropy)}</b> · Carnot η: <b>${fmtN(thermo.carnot_efficiency)}</b>`:'—';
+  const validMeta=validator?`${validator.validator_count||0} validators · Alignment: <b>${fmtN(validator.validator_alignment)}</b>`:'—';
+  const animaMeta=anima?`Archetype: <b>${anima.archetype||'—'}</b> · ANIMA: <b>${fmtN(anima.anima_score)}</b>`:'—';
+
+  el.innerHTML=`
+  <div class="fade-in">
+    <div class="two-col mb12">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div style="font-size:13px;font-weight:700">${id}</div>
+            <div class="mono" style="font-size:9px;color:var(--text3);margin-top:2px;word-break:break-all">${sig.entity_id||id}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:28px;font-weight:800;color:${scoreColor};font-family:'JetBrains Mono',monospace">${c.toFixed(3)}</div>
+            <span class="badge ${sigBadge}">${sigType}</span>
+            ${sig.faiss_enriched?'<span class="badge cyan" style="margin-left:4px">FAISS</span>':'<span class="badge gray" style="margin-left:4px">HASH</span>'}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="stat-grid mb12">
+            <div class="stat-box"><div class="sb-label">Threshold Θ(t)</div><div class="sb-val mono">${fmtN(thresh)}</div></div>
+            <div class="stat-box"><div class="sb-label">Gap to Signal</div><div class="sb-val mono ${isCoherent?'text-green':'text-red'}">${isCoherent?'+':'-'}${Math.abs(c-thresh).toFixed(3)}</div></div>
+            <div class="stat-box"><div class="sb-label">Trend</div><div class="sb-val">${sig.coherence_trend||'—'}</div></div>
+            <div class="stat-box"><div class="sb-label">Limiting Plane</div><div class="sb-val">${sig.limiting_plane||planes?.limiting_plane||'—'}</div></div>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">95% Confidence Interval</div>
+            <div style="position:relative;height:20px;background:var(--border);border-radius:3px">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:${clamp((ci.lo||0)*100,0,100)}%;"></div>
+              <div style="position:absolute;top:0;bottom:0;left:${clamp((ci.lo||0)*100,0,100)}%;width:${ciWidth};background:rgba(0,194,255,.2);border-radius:3px"></div>
+              <div style="position:absolute;top:0;bottom:0;left:${clamp(c*100,0,100)}%;width:2px;background:var(--cyan);border-radius:2px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:3px"><span>${ciLo}</span><span style="color:var(--cyan)">${c.toFixed(3)}</span><span>${ciHi}</span></div>
+          </div>
+          ${silence&&silence.plane_scores?`
+          <div style="margin-bottom:12px;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:5px">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Silence Profile</div>
+            <div style="font-size:11px;color:var(--text2)">Gap: <b class="text-red">${fmtN(silence.gap)}</b> · ETA: <b>${silence.eta_human||'—'}</b> · Limit: <b>${silence.limiting_plane||'—'}</b></div>
+          </div>`:''}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Behavioral Planes</h3></div>
+        <div class="card-body">${planesHTML}</div>
+      </div>
+    </div>
+
+    <div class="three-col mb12">
+      <div class="card">
+        <div class="card-header"><h3>Lifecycle</h3>${life?`<span class="badge cyan">${life.stage||'—'}</span>`:''}</div>
+        <div class="card-body">
+          ${life?`
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-key">Stage</span><span class="kv-val">${life.stage||'—'}</span></div>
+            <div class="kv-row"><span class="kv-key">Vitality</span><span class="kv-val text-green">${fmtN(life.vitality)}</span></div>
+            <div class="kv-row"><span class="kv-key">Transition</span><span class="kv-val">${life.transition||'—'}</span></div>
+            <div class="kv-row"><span class="kv-key">Mortality Risk</span><span class="kv-val text-red">${fmtN(life.mortality_risk)}</span></div>
+            <div class="kv-row"><span class="kv-key">Metabolic Rate</span><span class="kv-val">${fmtN(life.metabolic_rate)}</span></div>
+          </div>`:'<div class="loading" style="padding:20px"><p>No lifecycle data</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Thermodynamics</h3>${thermo?`<span class="badge purple">${thermo.phase||'—'}</span>`:''}</div>
+        <div class="card-body">
+          ${thermo?`
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-key">Phase</span><span class="kv-val">${thermo.phase||'—'}</span></div>
+            <div class="kv-row"><span class="kv-key">Entropy</span><span class="kv-val">${fmtN(thermo.entropy)}</span></div>
+            <div class="kv-row"><span class="kv-key">Temperature</span><span class="kv-val">${fmtN(thermo.temperature)}</span></div>
+            <div class="kv-row"><span class="kv-key">Carnot η</span><span class="kv-val text-green">${fmtN(thermo.carnot_efficiency)}</span></div>
+            <div class="kv-row"><span class="kv-key">Phase Trans. Risk</span><span class="kv-val text-amber">${fmtN(thermo.phase_transition_risk)}</span></div>
+          </div>`:'<div class="loading" style="padding:20px"><p>No thermodynamic data</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Validator & ANIMA</h3></div>
+        <div class="card-body">
+          ${validator?`
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-key">Validators</span><span class="kv-val">${validator.validator_count||0}</span></div>
+            <div class="kv-row"><span class="kv-key">Alignment</span><span class="kv-val">${fmtN(validator.validator_alignment)}</span></div>
+            <div class="kv-row"><span class="kv-key">Consensus Rounds</span><span class="kv-val">${validator.consensus_rounds||0}</span></div>
+          </div>`:''}
+          ${anima?`
+          <div class="kv-list" style="margin-top:${validator?8:0}px">
+            <div class="kv-row"><span class="kv-key">Archetype</span><span class="kv-val text-purple">${anima.archetype||'—'}</span></div>
+            <div class="kv-row"><span class="kv-key">ANIMA Score</span><span class="kv-val">${fmtN(anima.anima_score)}</span></div>
+            <div class="kv-row"><span class="kv-key">Neighbors</span><span class="kv-val">${anima.vector_neighbors||0}</span></div>
+          </div>`:''}
         </div>
       </div>
     </div>
 
-    <div class="score-row">
-      <div class="score-box">
-        <div class="score-box-label">Trust Score</div>
-        <div class="score-box-val" style="color:${scoreColor(coh)}">${coh.toFixed(4)}</div>
+    ${moatKeys.length?`
+    <div class="card">
+      <div class="card-header"><h3>Moat Analysis</h3><span class="badge cyan">Protocol Moat</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
+          ${moatKeys.map(k=>{
+            const v=parseFloat(moat[k]||0);
+            return `<div class="stat-box">
+              <div class="sb-label">${k.replace(/_/g,' ')}</div>
+              <div class="sb-val">${v.toFixed(3)}</div>
+              <div class="progress mt8"><div class="progress-fill" style="width:${(v*100).toFixed(0)}%"></div></div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
-      <div class="score-box">
-        <div class="score-box-label">Security Gate</div>
-        <div class="score-box-val" style="color:var(--text2)">${thresh.toFixed(4)}</div>
-        <div class="score-box-sub">${coh>=thresh?'Above gate':'Below gate'}</div>
-      </div>
-      <div class="score-box">
-        <div class="score-box-label">Manip Risk</div>
-        <div class="score-box-val" style="color:${mf>0.3?'var(--red)':'var(--green)'}">${(mf*100).toFixed(1)}%</div>
-      </div>
-      ${akashic>0?`<div class="score-box">
-        <div class="score-box-label">Akashic Depth</div>
-        <div class="score-box-val" style="color:var(--purple)">${akashic.toFixed(0)}</div>
-      </div>`:''}
-    </div>
-
-    <div class="planes-grid">
-      ${planeDefs.map(p=>{
-        const v=parseFloat(planes[p.k]||0);
-        const col=planeColor(v);
-        return `<div class="plane-item" title="${p.label}: ${v.toFixed(3)}">
-          <div class="plane-name">${p.label}</div>
-          <div class="plane-bar-track"><div class="plane-bar-fill" style="width:${(v*100).toFixed(1)}%;background:${col}"></div></div>
-          <div class="plane-score" style="color:${col}">${v.toFixed(2)}</div>
-        </div>`;
-      }).join('')}
-    </div>
-
-    ${(ciLow||ciHigh)?`<div class="ci-bar">
-      <div class="ci-label">95% Confidence Interval</div>
-      <div class="ci-track">
-        <div class="ci-fill" style="left:${ciLeft}%;width:${ciWidth}%;position:absolute;top:0;bottom:0"></div>
-        <div class="ci-point" style="left:${cohPct}%"></div>
-      </div>
-      <div class="ci-nums"><span>${ciLow.toFixed(3)}</span><span>${coh.toFixed(3)}</span><span>${ciHigh.toFixed(3)}</span></div>
     </div>`:''}
-
-    ${Object.keys(moat).length?`<div class="moat-grid">
-      ${Object.entries(moat).slice(0,6).map(([k,v])=>{
-        const vf=parseFloat(v);
-        const moatKeys={D_data:'Data',F_falsifiability:'Falsify',N_network:'Network',Q_quality:'Quality',R_reflexivity:'Reflexivity',X_crosschain:'Cross-chain'};
-        return `<div class="moat-item">
-          <div class="moat-label">${moatKeys[k]||k}</div>
-          <div class="moat-val" style="color:${vf>=0.7?'var(--green)':vf>=0.4?'var(--amber)':'var(--red)'}">${vf.toFixed(3)}</div>
-        </div>`;
-      }).join('')}
-    </div>`:''}
-
-    <div class="signal-footer">
-      ${limiting?`<span class="tag">Limiting: ${limiting}</span>`:''}
-      ${data.signal_id?`<span class="tag">${data.signal_id.slice(0,8)}</span>`:''}
-      ${data.data_staleness_s!=null?`<span>Stale: ${parseFloat(data.data_staleness_s).toFixed(0)}s</span>`:''}
-      ${data.eta_blocks?`<span>ETA: ${data.eta_blocks} blocks</span>`:''}
-    </div>
   </div>`;
 }
 
-/* ── Radar Chart ── */
-function showRadar(planes,label){
-  $('radarCard').style.display='';
-  $('radarEntity').textContent=label;
-  const vals=[
-    planes.physical||0,planes.mental||0,planes.spiritual||0,
-    planes.conscious||0,planes.anima||0
-  ];
-  const ctx=document.getElementById('radarCanvas').getContext('2d');
-  if(radarChart) radarChart.destroy();
-  radarChart=new Chart(ctx,{
-    type:'radar',
-    data:{
-      labels:['Physical','Mental','Spiritual','Conscious','ANIMA'],
-      datasets:[{
-        data:vals,
-        borderColor:'rgba(0,194,255,0.8)',
-        backgroundColor:'rgba(0,194,255,0.07)',
-        borderWidth:2,
-        pointBackgroundColor:'rgba(0,194,255,1)',
-        pointRadius:4,pointHoverRadius:6,
-      }]
-    },
-    options:{
-      responsive:true,animation:{duration:500},
-      plugins:{legend:{display:false}},
-      scales:{r:{
-        min:0,max:1,
-        ticks:{display:false,stepSize:.25},
-        grid:{color:'rgba(255,255,255,0.06)'},
-        angleLines:{color:'rgba(255,255,255,0.06)'},
-        pointLabels:{color:'rgba(136,153,187,0.9)',font:{size:10,family:'Inter',weight:'600'}}
-      }}
-    }
+/* ─── FEED SECTION ─── */
+let feedLoaded=false,feedChartInst=null;
+async function loadFeedSection(){
+  feedLoaded=true;
+  const data=await apiFetch('/api/v1/feed');
+  let items=[];
+  if(data&&Array.isArray(data))items=data;
+  else if(data&&data.feed)items=data.feed;
+  items=items.map(it=>({...it,signal_type:it.signal_type||(it.coherent?'ACTIVE':'SILENCE'),coherence:it.coherence||it.coherence_score||0}));
+
+  if(!items.length){
+    const lb=await apiFetch('/api/v1/leaderboard');
+    if(lb&&lb.leaderboard)items=lb.leaderboard.slice(0,10).map(e=>({entity_id:e.label||e.entity_id,signal_type:e.coherent?'ACTIVE':'SILENCE',coherence:e.coherence_score||0,archetype:e.archetype||'—',timestamp:Math.floor(Date.now()/1000)-Math.floor(Math.random()*300)}));
+  }
+
+  // Counts
+  let ic=0,sc=0,ac=0;
+  const archs={};
+  items.forEach(it=>{
+    const st=(it.signal_type||'SILENCE').toUpperCase();
+    if(st==='INTERCEPT'||st==='HOSTILE')ic++;
+    else if(st==='SILENCE')sc++;
+    else ac++;
+    const a=it.archetype||'Unknown';
+    archs[a]=(archs[a]||0)+1;
   });
+  $('fd-total').textContent=items.length;
+  $('fd-intercept').textContent=ic;
+  $('fd-silence').textContent=sc;
+  $('fd-active').textContent=ac;
+
+  // Feed list
+  const fl=$('feed-list');
+  fl.innerHTML=items.map(it=>{
+    const st=(it.signal_type||'SILENCE').toUpperCase();
+    const dotClass=st==='INTERCEPT'||st==='HOSTILE'?'intercept':st==='ACTIVE'?'active':'silence';
+    const score=parseFloat(it.coherence||0);
+    const scoreColor=score>0.7?'var(--green)':score>0.45?'var(--amber)':'var(--red)';
+    return `<div class="feed-item" onclick="goEntity('${it.entity_id}')">
+      <div class="feed-dot ${dotClass}"></div>
+      <div class="feed-main">
+        <div class="feed-entity">${it.entity_id}</div>
+        <div class="feed-meta"><span class="badge ${st==='INTERCEPT'||st==='HOSTILE'?'red':st==='ACTIVE'?'green':'amber'}" style="font-size:8px">${st}</span>&nbsp;${it.archetype||'—'}&nbsp;·&nbsp;${age(it.timestamp||0)}</div>
+      </div>
+      <div class="feed-score" style="color:${scoreColor}">${score.toFixed(3)}</div>
+    </div>`;
+  }).join('');
+
+  // Signal type chart
+  const ctx=document.getElementById('feed-chart');
+  if(ctx){
+    if(feedChartInst)feedChartInst.destroy();
+    feedChartInst=new Chart(ctx,{type:'doughnut',data:{labels:['Active','Silence','Intercept'],datasets:[{data:[ac,sc,ic],backgroundColor:['rgba(34,197,94,.7)','rgba(245,158,11,.7)','rgba(239,68,68,.7)'],borderWidth:0}]},options:{...chartDef,cutout:'65%'}});
+  }
+
+  // Archetype list
+  const archEl=$('feed-archetypes');
+  const archEntries=Object.entries(archs).sort((a,b)=>b[1]-a[1]);
+  archEl.innerHTML=archEntries.map(([name,count])=>`
+    <div class="kv-row" style="padding:8px 16px;border-bottom:1px solid var(--border)">
+      <span class="kv-key">${name}</span>
+      <span class="kv-val">${count}</span>
+    </div>
+  `).join('');
 }
 
-/* ── Init ── */
-async function init(){
-  await Promise.all([loadMetrics(),loadStatus(),loadChains(),loadFeed(),loadLeaderboard()]);
-}
-function startPolling(){
-  setInterval(()=>{loadMetrics();loadFeed();},15000);
-  setInterval(()=>{loadStatus();loadLeaderboard();},45000);
+/* ─── BH EXPLORER ─── */
+let bhLoaded=false,bhChainChartInst=null,bhEventChartInst=null;
+async function loadBH(){
+  bhLoaded=true;
+  const [stats,feed,vmfeed]=await Promise.all([
+    apiFetch('/api/v1/bh/stats'),
+    apiFetch('/api/v1/bh/recent_feed'),
+    apiFetch('/api/v1/bh/vm_feed'),
+  ]);
+
+  if(stats){
+    // Metrics
+    const total=Object.values(stats.per_chain||{}).reduce((a,b)=>a+b,0);
+    $('bh-total').textContent=fmt(total);
+    $('bh-chains').textContent=Object.keys(stats.per_chain||{}).length;
+    $('bh-mev').textContent=fmt((stats.per_event_type||{})['MEV_CAPTURE']||0);
+    $('bh-gov').textContent=fmt((stats.per_event_type||{})['GOVERNANCE']||0);
+
+    // Chain chart
+    const chainData=Object.entries(stats.per_chain||{}).sort((a,b)=>b[1]-a[1]);
+    $('bh-chain-count').textContent=chainData.length+' chains';
+    const ctx1=document.getElementById('bh-chain-chart');
+    if(ctx1){
+      if(bhChainChartInst)bhChainChartInst.destroy();
+      bhChainChartInst=new Chart(ctx1,{type:'bar',data:{labels:chainData.map(x=>x[0].replace('_MAINNET','').replace('_','')),datasets:[{data:chainData.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7F9BB8',font:{size:9}},grid:{color:'#12233E'}},y:{ticks:{color:'#7F9BB8',font:{size:9}},grid:{display:false}}}}});
+    }
+
+    // Event type chart
+    const evtData=Object.entries(stats.per_event_type||{}).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const ctx2=document.getElementById('bh-event-chart');
+    if(ctx2){
+      if(bhEventChartInst)bhEventChartInst.destroy();
+      bhEventChartInst=new Chart(ctx2,{type:'doughnut',data:{labels:evtData.map(x=>x[0]),datasets:[{data:evtData.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0}]},options:{...chartDef,cutout:'55%'}});
+    }
+
+    // Event type badges
+    const allTypes=Object.keys(stats.per_event_type||{});
+    $('bh-event-count').textContent=allTypes.length+' types';
+    $('bh-event-list').innerHTML=allTypes.map(t=>`<span class="badge gray" style="font-size:8px">${t}</span>`).join(' ');
+  }
+
+  // Live BH feed
+  const records=(feed&&feed.records)||[];
+  const el=$('bh-live-feed');
+  if(!records.length){el.innerHTML='<div class="loading" style="padding:30px"><p>No recent BH records</p></div>';return;}
+  el.innerHTML=records.slice(0,15).map(r=>{
+    const verdict=(r.verdict||'SAFE').toUpperCase();
+    const vColor=verdict==='INTERCEPT'?'var(--red)':verdict==='SAFE'?'var(--green)':'var(--amber)';
+    const evtColor=r.event_type==='MEV_CAPTURE'?'var(--red)':r.event_type==='GOVERNANCE'?'var(--purple2)':'var(--text2)';
+    return `<div class="bh-row">
+      <div class="bh-verdict"><span class="badge" style="background:${verdict==='INTERCEPT'?'rgba(239,68,68,.12)':'rgba(34,197,94,.1)'};color:${vColor};border-color:${vColor+'33'};font-size:8px">${verdict}</span></div>
+      <div class="bh-hash" title="${r.tx_hash||''}">${r.tx_hash?r.tx_hash.slice(0,18)+'…':r.sense_hex?r.sense_hex.slice(0,16)+'…':'—'}</div>
+      <div class="bh-chain">${r.chain||'—'}</div>
+      <div class="bh-event" style="color:${evtColor}">${r.event_type||'—'}</div>
+      <div class="bh-ts">${age(r.ts||0)}</div>
+    </div>`;
+  }).join('');
 }
 
-init().then(startPolling);
+/* ─── FAISS ANIMA ─── */
+let faissLoaded=false;
+async function loadFAISS(){
+  faissLoaded=true;
+  const [faiss,intel,archs,boot]=await Promise.all([
+    apiFetch('/api/v1/faiss'),
+    apiFetch('/api/v1/anima/intelligence'),
+    apiFetch('/api/v1/akashic/archetypes'),
+    apiFetch('/api/v1/bootstrap/status'),
+  ]);
+
+  if(faiss){
+    $('fa-vectors').textContent=fmt(faiss.indexed_vectors);
+    $('fa-entities').textContent=fmt(faiss.entities_tracked||faiss.bh_entities||0);
+    $('fa-index-type').textContent=faiss.index_type||'IVFPQ';
+  }
+
+  if(intel){
+    const im=(intel.im_score||0)*100;
+    $('fa-im').textContent=fmtN(intel.im_score);
+    const comps=intel.component_scores||{};
+    $('fa-health').innerHTML=`
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="font-size:32px;font-weight:800;color:${im>80?'var(--green)':im>60?'var(--amber)':'var(--red)'};font-family:'JetBrains Mono',monospace">${(intel.im_score||0).toFixed(3)}</div>
+        <div>
+          <div style="font-size:11px;font-weight:600">${intel.disclosure?(intel.disclosure.match(/\[(\w+)\]/)||['',''])[1]:'HEALTHY'}</div>
+          <div style="font-size:10px;color:var(--text3)">IM(t) = 0.30·PA + 0.20·CS + 0.20·PCR + 0.15·SC + 0.15·CA</div>
+        </div>
+      </div>
+      <div class="kv-list">
+        ${Object.entries(comps).map(([k,v])=>`<div class="kv-row"><span class="kv-key">${k.toUpperCase()}</span><span class="kv-val">${fmtN(v)}</span></div>`).join('')}
+      </div>
+      <div style="margin-top:8px;padding:8px 10px;background:var(--card2);border-radius:4px;font-size:10px;color:var(--text3)">${intel.disclosure||''}</div>
+    `;
+  }
+
+  if(archs&&archs.archetypes){
+    const list=archs.archetypes;
+    $('fa-arch-count').textContent=list.length+' archetypes';
+    $('fa-archetypes').innerHTML=list.map(a=>{
+      const sigColor=a.investment_signal==='BUY'?'green':a.investment_signal==='SELL'?'red':'amber';
+      return `<div class="arch-card">
+        <div class="ac-name">${a.name||a.id}</div>
+        <div class="ac-signal"><span class="badge ${sigColor}" style="font-size:8px">${a.investment_signal||'HOLD'}</span></div>
+        <div class="ac-conf">Conf: ${fmtN(a.investment_confidence)}</div>
+        <div class="ac-ex">${(a.examples||[]).slice(0,2).join(' · ')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  if(boot){
+    const bw=(boot.bootstrap_weight||0)*100;
+    const lw=(boot.living_weight||0)*100;
+    const badge=$('fa-boot-badge');
+    badge.textContent=boot.stage||'—';
+    badge.className='badge '+(boot.stage==='TRANSITION'?'amber':boot.stage==='COMPLETE'?'green':'gray');
+    $('fa-bootstrap').innerHTML=`
+      <div class="kv-list">
+        <div class="kv-row"><span class="kv-key">Stage</span><span class="kv-val">${boot.stage||'—'}</span></div>
+        <div class="kv-row"><span class="kv-key">Akashic Depth</span><span class="kv-val text-cyan">${fmt(boot.akashic_depth)}</span></div>
+        <div class="kv-row"><span class="kv-key">Bootstrap Weight</span><span class="kv-val text-amber">${bw.toFixed(1)}%</span></div>
+        <div class="kv-row"><span class="kv-key">Living Weight</span><span class="kv-val text-green">${lw.toFixed(1)}%</span></div>
+        <div class="kv-row"><span class="kv-key">Full Transition at</span><span class="kv-val">${fmt(boot.depth_for_full_transition)}</span></div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Living Security progress</div>
+        <div class="progress"><div class="progress-fill" style="width:${lw.toFixed(0)}%"></div></div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text3)">${boot.formula||''}</div>
+    `;
+  }
+
+  // Depth panel from bootstrap status
+  if(boot){
+    $('fa-depth-panel').innerHTML=`
+      <div class="score-row"><span class="s-label">Akashic Depth D(t)</span><span class="s-val text-cyan mono">${fmt(boot.akashic_depth)}</span></div>
+      <div class="score-row"><span class="s-label">Formula</span><span class="s-val mono" style="font-size:10px">e^(−λ×D(t))</span></div>
+      <div class="score-row"><span class="s-label">λ</span><span class="s-val mono">${boot.lambda||'0.0001'}</span></div>
+      <div style="margin-top:10px;padding:8px 10px;background:var(--card2);border-radius:4px;font-size:10px;color:var(--text2);line-height:1.6">${boot.disclosure||''}</div>
+    `;
+  }
+
+  // Refresh FAISS feed every 30s
+  setTimeout(()=>{if(activeSec==='faiss')loadFAISS();},30000);
+}
+
+/* ─── 0G NETWORK ─── */
+let zgLoaded=false;
+async function loadZG(){
+  zgLoaded=true;
+  const [proof,full]=await Promise.all([
+    apiFetch('/api/v1/zg/proof',12000),
+    apiFetch('/api/v1/zg/full_stack',12000),
+  ]);
+
+  if(proof){
+    const daProof=proof.da_proof||{};
+    $('zg-da-status').textContent=daProof.submission_status?(daProof.submission_status.includes('live')?'Live':'Pending'):'—';
+    const el=$('zg-proof-panel');
+    el.innerHTML=`
+      <div class="kv-list">
+        <div class="kv-row"><span class="kv-key">Gate Address</span><span class="kv-val mono text-cyan" style="font-size:9px">${proof.gate_address||'—'}</span></div>
+        <div class="kv-row"><span class="kv-key">Chain</span><span class="kv-val">${proof.chain||'0G-Mainnet'}</span></div>
+        <div class="kv-row"><span class="kv-key">Chain ID</span><span class="kv-val">${proof.chain_id||16661}</span></div>
+        <div class="kv-row"><span class="kv-key">Deploy Block</span><span class="kv-val mono">${fmt(proof.deploy_block)}</span></div>
+        <div class="kv-row"><span class="kv-key">DA Proof Algorithm</span><span class="kv-val">${daProof.algorithm||'—'}</span></div>
+        <div class="kv-row"><span class="kv-key">DA Namespace</span><span class="kv-val">${daProof.blob_namespace||'TRION'}</span></div>
+        <div class="kv-row"><span class="kv-key">DA Status</span><span class="kv-val text-green">${daProof.submission_status||'—'}</span></div>
+        <div class="kv-row"><span class="kv-key">Payload Hash</span><span class="kv-val mono text-cyan" style="font-size:9px">${(daProof.payload_hash||'—').slice(0,20)}…</span></div>
+      </div>
+      ${proof.explorer?`<div style="margin-top:12px"><a href="${proof.explorer}" target="_blank" style="color:var(--cyan);font-size:11px">View on 0G Explorer →</a></div>`:''}
+    `;
+  }
+
+  if(full&&full.components){
+    const comps=full.components;
+    $('zg-components').innerHTML=Object.entries(comps).map(([key,c])=>`
+      <div class="zg-component">
+        <div class="zc-label">${(c.name||key).slice(0,60)}</div>
+        <div class="zc-status text-${c.status==='ACTIVE'?'green':'amber'}">${c.status||'—'}</div>
+        ${c.role?`<div style="font-size:10px;color:var(--text3);margin-top:3px">${c.role}</div>`:''}
+      </div>
+    `).join('');
+    if(full.bh_records)$('zg-chains').textContent=full.chains_indexed||37;
+  } else {
+    $('zg-components').innerHTML='<div class="kv-list"><div class="kv-row"><span class="kv-key">Chain Gate</span><span class="kv-val text-green">Active</span></div><div class="kv-row"><span class="kv-key">DA Streamer</span><span class="kv-val text-green">Active</span></div><div class="kv-row"><span class="kv-key">Storage Sync</span><span class="kv-val text-amber">Syncing</span></div><div class="kv-row"><span class="kv-key">KV Cache</span><span class="kv-val text-green">Active</span></div><div class="kv-row"><span class="kv-key">Compute TEE</span><span class="kv-val text-green">Active</span></div></div>';
+  }
+}
+
+/* ─── SECURITY ─── */
+let secLoaded=false;
+async function loadSecurity(){
+  secLoaded=true;
+  const [sec,boot,wp,attacks]=await Promise.all([
+    apiFetch('/api/v1/security/sec'),
+    apiFetch('/api/v1/bootstrap/status'),
+    apiFetch('/api/v1/whitepaper/coverage'),
+    apiFetch('/api/v1/attacks'),
+  ]);
+
+  if(sec){
+    const eff=(sec.effective_sec||0)*100;
+    $('sec-score').textContent=(sec.sec_score||0).toFixed(3);
+    $('sec-score').style.color=eff>85?'var(--green)':eff>60?'var(--amber)':'var(--red)';
+    $('sec-tier').textContent=sec.security_tier||'—';
+    $('sec-lss').textContent=fmtN(sec.lss);
+    $('sec-pqc').textContent=fmtN(sec.pqc_score);
+    $('sec-cc').textContent=fmtN(sec.cc_score);
+    $('sec-eff').textContent=fmtN(sec.effective_sec);
+    if(sec.pqc_schemes){
+      $('pqc-kyber').className='pqc-check '+(sec.pqc_schemes.kyber?'on':'off');
+      $('pqc-kyber').textContent=sec.pqc_schemes.kyber?'✓':'✗';
+      $('pqc-dili').className='pqc-check '+(sec.pqc_schemes.dilithium?'on':'off');
+      $('pqc-dili').textContent=sec.pqc_schemes.dilithium?'✓':'✗';
+      $('pqc-sphincs').className='pqc-check '+(sec.pqc_schemes.sphincs?'on':'off');
+      $('pqc-sphincs').textContent=sec.pqc_schemes.sphincs?'✓':'✗';
+    }
+  }
+
+  if(boot){
+    $('sec-boot-w').textContent=fmtPct(boot.bootstrap_weight);
+    $('sec-boot-stage').textContent=boot.stage||'—';
+    $('sec-live-w').textContent=fmtPct(boot.living_weight);
+  }
+
+  if(wp){
+    const pct=(wp.coverage_pct||100).toFixed(1);
+    $('wp-pct').textContent=pct+'%';
+    $('wp-badge').textContent=`${wp.formulas?wp.formulas.length:84}/84`;
+    $('wp-stats').innerHTML=`
+      <div class="kv-row"><span class="kv-key">Chains Indexed</span><span class="kv-val">${wp.chains_indexed||37}</span></div>
+      <div class="kv-row"><span class="kv-key">Falsifiability Conditions</span><span class="kv-val">${wp.falsifiability_conditions||15}</span></div>
+      <div class="kv-row"><span class="kv-key">Coverage</span><span class="kv-val text-green">${pct}%</span></div>
+    `;
+  }
+
+  if(attacks&&attacks.attacks){
+    const atks=attacks.attacks;
+    $('atk-count').textContent=atks.length+' attacks tracked';
+    const totalLoss=atks.reduce((a,b)=>a+(b.loss_usd||0),0);
+    $('atk-list').innerHTML=`
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)">Total modeled loss: <b class="text-red">${fmt(totalLoss)} USD</b> · TRION would have detected ${atks.filter(x=>x.detection_lead_time_hours>0).length}/${atks.length} attacks</div>
+      ${atks.map(a=>`
+      <div class="attack-row">
+        <div><div class="atk-name">${a.name||a.key}</div><div class="atk-chain">${a.chain||'—'} · ${a.pattern||'—'} · ${a.date||'—'}</div></div>
+        <div class="atk-loss">${a.loss_fmt||'—'}</div>
+        <div class="atk-lead">${a.detection_lead_time_hours||0}h early</div>
+      </div>`).join('')}
+    `;
+  }
+}
+
+/* ─── CHAIN NETWORK ─── */
+let chainsLoaded=false;
+async function loadChains(){
+  chainsLoaded=true;
+  const [chains,bhchains]=await Promise.all([
+    apiFetch('/api/v1/chains'),
+    apiFetch('/api/v1/bh/chains'),
+  ]);
+
+  const el=$('cn-grid');
+  let chainList=[];
+  if(chains&&chains.chains)chainList=chains.chains;
+  else if(bhchains&&bhchains.chains){
+    chainList=bhchains.chains.map(c=>({name:c.chain,vm:c.vm,chain_id:c.chain_id,bh_count:c.count,live:c.live}));
+  }
+  $('cn-total').textContent=chainList.length||37;
+  $('cn-badge').textContent='All '+( chainList.length||37)+' Chains';
+
+  if(!chainList.length){el.innerHTML='<div class="loading"><p>No chain data</p></div>';return;}
+  el.innerHTML=chainList.map(c=>{
+    const name=(c.name||c.chain||'—').replace('_MAINNET','').replace('_CHAIN','');
+    return `<div class="chain-chip">
+      <div class="cc-label">${name}</div>
+      <div class="cc-vm">${c.vm||'—'}</div>
+      ${c.bh_count?`<div class="cc-count">${fmt(c.bh_count)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  // VM groups
+  const vmEl=$('vm-groups');
+  const bhVm=bhchains&&bhchains.vm_groups?bhchains.vm_groups:{};
+  const vmList=Object.entries(bhVm);
+  if(vmList.length){
+    vmEl.innerHTML=vmList.map(([vm,d])=>`
+      <div class="arch-card">
+        <div class="ac-name">${vm}</div>
+        <div class="ac-conf">${(d.chains||[]).slice(0,5).join(', ')}</div>
+      </div>
+    `).join('');
+  }
+}
+
+/* ─── ABOUT / WHITEPAPER ─── */
+let aboutLoaded=false;
+async function loadAbout(){
+  aboutLoaded=true;
+  const wp=await apiFetch('/api/v1/whitepaper/coverage');
+  if(wp&&wp.formulas){
+    const el=$('wp-formula-list');
+    el.innerHTML=`<table>
+      <thead><tr><th>ID</th><th>Formula</th><th>Status</th><th>Endpoints</th></tr></thead>
+      <tbody>${wp.formulas.map(f=>`
+        <tr>
+          <td class="mono text-cyan">${f.id||f.whitepaper||'—'}</td>
+          <td><b>${f.name||'—'}</b><div style="font-size:10px;color:var(--text3);margin-top:2px;font-family:JetBrains Mono,monospace">${f.formula||''}</div></td>
+          <td><span class="badge ${f.status==='LIVE'?'green':'amber'}">${f.status||'—'}</span></td>
+          <td style="font-size:10px;color:var(--text3)">${(f.endpoints||[]).slice(0,2).join('<br>')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+}
+
+/* ─── AUTO-REFRESH ─── */
+async function tick(){
+  await loadTopbar();
+  if(activeSec==='overview'){
+    await Promise.all([loadFeed(),loadLeaderboard(),loadSystemStatus()]);
+  }
+  if(activeSec==='feed'&&feedLoaded)loadFeedSection();
+  if(activeSec==='bh')loadBH();
+}
+
+/* ─── INIT ─── */
+(async()=>{
+  await Promise.all([loadTopbar(),loadFeed(),loadLeaderboard(),loadSystemStatus()]);
+  setInterval(tick,15000);
+  setInterval(loadTopbar,8000);
+})();
 </script>
 </body>
 </html>
