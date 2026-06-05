@@ -1,4 +1,4 @@
-TRION Backtest — 2026-06-01T18:29:07.663842+00:00
+TRION Backtest — 2026-06-05T18:02:36.100912+00:00
 Exploits: 30 | Controls: 10
 TP=30 FP=10 TN=0 FN=0
 Precision=0.7500 Recall=1.0000 F1=0.8571
