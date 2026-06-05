@@ -299,8 +299,11 @@ def _query_faiss_planes(eid: str) -> dict | None:
             _faiss_plane_cache[eid] = None
             _faiss_plane_ts[eid]    = now
             return None
-        # Only trust FAISS when there is real indexed history for this entity
-        if mental.get("history_window", 0) == 0 or mental.get("archetype_id", -1) == -1:
+        # Only skip when BOTH history is empty AND mental score is exactly the
+        # neutral prior (0.5). A valid archetype_id of -1 just means unclassified
+        # — ANIMA can still provide a meaningful score in that state.
+        _m_val_raw = float(mental.get("mental_m", 0.5))
+        if mental.get("history_window", 0) == 0 and abs(_m_val_raw - 0.5) < 1e-6:
             _faiss_plane_cache[eid] = None
             _faiss_plane_ts[eid]    = now
             return None

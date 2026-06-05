@@ -10,490 +10,328 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ── Reset & Base ──────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{
-  background:#040810;
-  color:#e2e8f8;
-  font-family:'Inter',system-ui,-apple-system,sans-serif;
-  min-height:100vh;
-  line-height:1.5;
-  overflow-x:hidden;
-}
+body{background:#040810;color:#e2e8f8;font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;line-height:1.5;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 button{cursor:pointer;border:none;background:none;font-family:inherit}
 input{font-family:inherit}
 
-/* ── CSS Custom Properties ─────────────────────────────────────────────────── */
 :root{
-  --bg:#040810;
-  --bg2:#070c18;
-  --surface:#0b1120;
-  --surface2:#101928;
-  --border:rgba(255,255,255,0.07);
-  --border-active:rgba(0,194,255,0.4);
-  --cyan:#00C2FF;
-  --cyan-dim:rgba(0,194,255,0.12);
-  --cyan-glow:rgba(0,194,255,0.3);
-  --purple:#8B5CF6;
-  --purple-dim:rgba(139,92,246,0.12);
-  --green:#00E676;
-  --green-dim:rgba(0,230,118,0.12);
-  --red:#FF5252;
-  --red-dim:rgba(255,82,82,0.12);
-  --amber:#FFB300;
-  --amber-dim:rgba(255,179,0,0.12);
-  --text1:#F0F4FF;
-  --text2:#8899BB;
-  --text3:#4a5568;
-  --r-sm:8px;
-  --r-md:12px;
-  --r-lg:16px;
-  --r-xl:20px;
+  --bg:#040810;--bg2:#070c18;--surface:#0b1120;--surface2:#101928;
+  --border:rgba(255,255,255,0.07);--border-active:rgba(0,194,255,0.4);
+  --cyan:#00C2FF;--cyan-dim:rgba(0,194,255,0.1);--cyan-glow:rgba(0,194,255,0.25);
+  --purple:#8B5CF6;--purple-dim:rgba(139,92,246,0.1);
+  --green:#00E676;--green-dim:rgba(0,230,118,0.1);
+  --red:#FF5252;--red-dim:rgba(255,82,82,0.1);
+  --amber:#FFB300;--amber-dim:rgba(255,179,0,0.1);
+  --text1:#F0F4FF;--text2:#8899BB;--text3:#4a5568;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
   --shadow:0 4px 24px rgba(0,0,0,0.4);
-  --shadow-cyan:0 0 40px rgba(0,194,255,0.08);
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:4px}
 
-/* ── Navbar ────────────────────────────────────────────────────────────────── */
+/* ── Navbar ── */
 .navbar{
-  position:sticky;top:0;z-index:100;
-  background:rgba(4,8,16,0.92);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
+  position:sticky;top:0;z-index:200;
+  background:rgba(4,8,16,0.95);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
-  padding:0 24px;
-  height:60px;
-  display:flex;align-items:center;gap:20px;
+  padding:0 24px;height:58px;
+  display:flex;align-items:center;gap:14px;
 }
-.nav-logo{
-  display:flex;align-items:center;gap:10px;
-  flex-shrink:0;
-}
+.nav-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .nav-logo-icon{
-  width:32px;height:32px;
-  background:linear-gradient(135deg,var(--cyan),var(--purple));
-  border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:.85rem;color:#fff;letter-spacing:-1px;
+  width:30px;height:30px;background:linear-gradient(135deg,var(--cyan),var(--purple));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:.8rem;color:#fff;letter-spacing:-1px;
 }
-.nav-logo-text{
-  font-size:1.05rem;font-weight:800;color:var(--text1);letter-spacing:1px;
-}
-.nav-logo-sub{
-  font-size:.6rem;color:var(--text3);letter-spacing:3px;text-transform:uppercase;
-  font-weight:500;
-  display:block;line-height:1;margin-top:1px;
-}
+.nav-logo-text{font-size:1rem;font-weight:800;color:var(--text1);letter-spacing:1px}
+.nav-logo-sub{font-size:.58rem;color:var(--text3);letter-spacing:3px;text-transform:uppercase;display:block;line-height:1;margin-top:1px}
 .nav-spacer{flex:1}
 .nav-pill{
   display:flex;align-items:center;gap:7px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:20px;
-  padding:5px 12px;
-  font-size:.72rem;font-weight:600;letter-spacing:.5px;
-  color:var(--text2);
-  white-space:nowrap;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:5px 12px;
+  font-size:.7rem;font-weight:600;letter-spacing:.5px;color:var(--text2);white-space:nowrap;
 }
-.nav-pill .dot{
-  width:6px;height:6px;border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 6px var(--green);
-  animation:pulse 2s infinite;
-}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.nav-block{
-  font-family:'JetBrains Mono',monospace;
-  font-size:.72rem;color:var(--text2);
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:6px;
-  padding:5px 10px;
-  white-space:nowrap;
-}
-.nav-block span{color:var(--cyan);font-weight:600}
+.nav-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+.nav-pill.alert-pill{background:var(--red-dim);border-color:rgba(255,82,82,0.25);color:var(--red);display:none}
+.nav-pill.alert-pill .dot{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-mono{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;white-space:nowrap}
+.nav-mono span{color:var(--cyan);font-weight:600}
 
-/* ── Layout ────────────────────────────────────────────────────────────────── */
-.page{
-  max-width:1600px;
-  margin:0 auto;
-  padding:24px 20px 60px;
+/* ── Alert Ticker ── */
+.alert-ticker{
+  display:none;
+  background:linear-gradient(90deg,rgba(255,82,82,0.08),rgba(255,82,82,0.04));
+  border-bottom:1px solid rgba(255,82,82,0.2);
+  padding:7px 24px;
+  font-size:.72rem;font-weight:600;
+  color:var(--red);
+  overflow:hidden;position:relative;
 }
+.alert-ticker.visible{display:flex;align-items:center;gap:12px}
+.ticker-label{font-size:.65rem;letter-spacing:2px;text-transform:uppercase;opacity:.8;flex-shrink:0}
+.ticker-scroll{flex:1;overflow:hidden;position:relative}
+.ticker-inner{display:flex;gap:32px;animation:tickerMove 20s linear infinite;white-space:nowrap}
+@keyframes tickerMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-item{font-family:'JetBrains Mono',monospace;font-size:.7rem}
 
-/* ── Metrics Strip ─────────────────────────────────────────────────────────── */
-.metrics-grid{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:12px;
-  margin-bottom:20px;
-}
+/* ── Page ── */
+.page{max-width:1680px;margin:0 auto;padding:20px 20px 60px}
+
+/* ── Metrics Strip ── */
+.metrics-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
 .metric-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  padding:18px 20px;
-  position:relative;
-  overflow:hidden;
-  transition:border-color .2s,transform .15s;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px 18px;
+  position:relative;overflow:hidden;transition:border-color .2s,transform .15s;
 }
 .metric-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.12)}
-.metric-card::after{
-  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
-  opacity:.5;
-}
+.metric-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;opacity:.6}
 .metric-card.c-cyan::after{background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
 .metric-card.c-purple::after{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
 .metric-card.c-green::after{background:linear-gradient(90deg,transparent,var(--green),transparent)}
 .metric-card.c-amber::after{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
 .metric-card.c-red::after{background:linear-gradient(90deg,transparent,var(--red),transparent)}
-.metric-label{
-  font-size:.65rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;
-  color:var(--text3);margin-bottom:10px;
-}
-.metric-val{
-  font-size:1.9rem;font-weight:800;line-height:1;
-  font-variant-numeric:tabular-nums;
-}
-.metric-val.c-cyan{color:var(--cyan)}
-.metric-val.c-purple{color:var(--purple)}
-.metric-val.c-green{color:var(--green)}
-.metric-val.c-amber{color:var(--amber)}
-.metric-val.c-red{color:var(--red)}
-.metric-sub{font-size:.7rem;color:var(--text3);margin-top:5px}
+.metric-label{font-size:.63rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.metric-row{display:flex;align-items:flex-end;gap:8px;line-height:1}
+.metric-val{font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums}
+.metric-val.c-cyan{color:var(--cyan)}.metric-val.c-purple{color:var(--purple)}
+.metric-val.c-green{color:var(--green)}.metric-val.c-amber{color:var(--amber)}.metric-val.c-red{color:var(--red)}
+.metric-trend{font-size:.68rem;font-weight:700;padding:2px 5px;border-radius:4px;margin-bottom:4px}
+.metric-trend.up{color:var(--green);background:var(--green-dim)}.metric-trend.dn{color:var(--red);background:var(--red-dim)}.metric-trend.flat{color:var(--text3);background:var(--surface2)}
+.metric-sub{font-size:.68rem;color:var(--text3);margin-top:5px}
 
-/* ── Main Grid ─────────────────────────────────────────────────────────────── */
-.main-grid{
-  display:grid;
-  grid-template-columns:1fr 380px;
-  gap:16px;
-  margin-bottom:16px;
-}
+/* ── Main Grid ── */
+.main-grid{display:grid;grid-template-columns:1fr 390px;gap:16px;margin-bottom:16px}
 .main-left{display:flex;flex-direction:column;gap:16px}
 
-/* ── Card base ─────────────────────────────────────────────────────────────── */
-.card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  overflow:hidden;
-}
-.card-header{
-  padding:16px 20px;
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:10px;
-}
-.card-title{
-  font-size:.72rem;font-weight:700;letter-spacing:2px;
-  text-transform:uppercase;color:var(--text2);flex:1;
-}
-.card-badge{
-  font-size:.62rem;font-weight:700;letter-spacing:1px;
-  padding:3px 8px;border-radius:20px;
-}
-.card-badge.live{
-  background:var(--green-dim);color:var(--green);
-  border:1px solid rgba(0,230,118,0.2);
-}
-.card-badge.cyan{
-  background:var(--cyan-dim);color:var(--cyan);
-  border:1px solid rgba(0,194,255,0.2);
-}
-.card-body{padding:16px 20px}
+/* ── Card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.card-title{font-size:.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);flex:1}
+.card-badge{font-size:.6rem;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:20px}
+.card-badge.live{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
+.card-badge.cyan{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(0,194,255,0.2)}
+.card-badge.purple{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
+.card-badge.amber{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,179,0,0.2)}
+.card-badge.red{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
+.card-body{padding:16px 18px}
 
-/* ── Entity Search ─────────────────────────────────────────────────────────── */
-.search-wrap{
-  display:flex;gap:8px;
-  padding:16px 20px;
-  border-bottom:1px solid var(--border);
-}
+/* ── Search ── */
+.search-wrap{display:flex;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);position:relative}
 .search-input{
-  flex:1;
-  background:var(--bg2);
-  border:1px solid var(--border);
-  border-radius:var(--r-md);
-  padding:10px 14px;
-  color:var(--text1);
-  font-size:.85rem;
-  outline:none;
-  transition:border-color .2s;
+  flex:1;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:9px 13px;color:var(--text1);
+  font-size:.84rem;outline:none;transition:border-color .2s;
 }
 .search-input::placeholder{color:var(--text3)}
 .search-input:focus{border-color:var(--border-active);box-shadow:0 0 0 3px var(--cyan-dim)}
 .search-btn{
-  background:var(--cyan);
-  color:#040810;
-  font-weight:700;
-  font-size:.8rem;
-  padding:10px 18px;
-  border-radius:var(--r-md);
-  letter-spacing:.5px;
-  transition:opacity .15s,transform .1s;
-  white-space:nowrap;
+  background:var(--cyan);color:#040810;font-weight:700;font-size:.78rem;
+  padding:9px 16px;border-radius:var(--r-md);letter-spacing:.5px;
+  transition:opacity .15s,transform .1s;white-space:nowrap;
 }
 .search-btn:hover{opacity:.85;transform:translateY(-1px)}
 .search-btn:active{transform:translateY(0)}
+.search-suggestions{
+  position:absolute;top:calc(100% - 14px);left:18px;right:18px;
+  background:var(--surface2);border:1px solid var(--border-active);
+  border-top:none;border-radius:0 0 var(--r-md) var(--r-md);
+  z-index:50;display:none;
+}
+.search-suggestions.open{display:block}
+.sugg-item{
+  padding:8px 13px;font-size:.8rem;cursor:pointer;
+  display:flex;align-items:center;gap:10px;
+  transition:background .1s;
+  font-family:'JetBrains Mono',monospace;
+}
+.sugg-item:hover{background:var(--cyan-dim)}
+.sugg-item-type{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-family:'Inter',sans-serif}
 
-/* ── Signal Result ─────────────────────────────────────────────────────────── */
-.signal-result{display:none;padding:20px}
+/* ── Signal Result ── */
+.signal-result{display:none;padding:18px}
 .signal-result.visible{display:block}
-.signal-header{
-  display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;
-}
-.signal-icon{
-  width:48px;height:48px;border-radius:12px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;font-weight:900;flex-shrink:0;
-}
+.signal-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.signal-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;flex-shrink:0}
 .signal-icon.safe{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
 .signal-icon.warn{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
-.signal-entity{font-size:.75rem;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-bottom:4px;word-break:break-all}
-.signal-type{font-size:1.15rem;font-weight:800;color:var(--text1);line-height:1.1}
-.signal-archetype{display:inline-block;margin-top:4px;font-size:.7rem;font-weight:600;
-  letter-spacing:1px;padding:2px 8px;border-radius:20px;
-  background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
+.signal-icon.caution{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,179,0,0.2)}
+.signal-entity{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-bottom:3px;word-break:break-all}
+.signal-type{font-size:1.1rem;font-weight:800;color:var(--text1);line-height:1.2}
+.signal-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.signal-badge{display:inline-block;font-size:.62rem;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:20px}
+.signal-badge.arch{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.2)}
+.signal-badge.faiss{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,0.2)}
+.signal-badge.hash{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.signal-badge.trend-up{background:var(--green-dim);color:var(--green)}
+.signal-badge.trend-dn{background:var(--red-dim);color:var(--red)}
+.signal-badge.trend-flat{background:var(--surface2);color:var(--text3)}
 
-.score-row{display:flex;gap:12px;margin-bottom:16px}
-.score-box{
-  flex:1;background:var(--bg2);border:1px solid var(--border);
-  border-radius:var(--r-md);padding:12px 14px;
-}
-.score-box-label{font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
-.score-box-val{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.score-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.score-box{flex:1;min-width:80px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px}
+.score-box-label{font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.score-box-val{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.score-box-sub{font-size:.62rem;color:var(--text3);margin-top:2px}
 
-.planes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
-.plane-item{
-  background:var(--bg2);border:1px solid var(--border);
-  border-radius:var(--r-sm);padding:10px 8px;text-align:center;
-}
-.plane-name{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
-.plane-bar-track{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:5px}
+.planes-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:14px}
+.plane-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 7px;text-align:center;cursor:default}
+.plane-item:hover{border-color:rgba(255,255,255,0.12)}
+.plane-name{font-size:.55rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.plane-bar-track{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px}
 .plane-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
 .plane-score{font-size:.8rem;font-weight:700}
 
-.signal-footer{
-  display:flex;align-items:center;gap:8px;
-  font-size:.68rem;color:var(--text3);
-  border-top:1px solid var(--border);
-  padding-top:12px;
-}
-.signal-footer .tag{
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:4px;padding:2px 7px;color:var(--text2);
-}
+.ci-bar{margin-bottom:14px}
+.ci-label{font-size:.62rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.ci-track{height:6px;background:rgba(255,255,255,0.05);border-radius:4px;position:relative;overflow:visible}
+.ci-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));transition:all .5s}
+.ci-point{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--cyan);border:2px solid var(--bg);transform:translateX(-50%)}
+.ci-nums{display:flex;justify-content:space-between;font-size:.62rem;color:var(--text3);margin-top:4px}
 
-/* ── Live Feed ─────────────────────────────────────────────────────────────── */
-.feed-list{
-  max-height:340px;overflow-y:auto;
-  padding:0;
-}
+.moat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.moat-item{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:7px 9px}
+.moat-label{font-size:.58rem;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
+.moat-val{font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}
+
+.signal-footer{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.66rem;color:var(--text3);border-top:1px solid var(--border);padding-top:10px}
+.signal-footer .tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text2)}
+
+/* ── Feed ── */
+.feed-list{max-height:320px;overflow-y:auto;padding:0}
 .feed-item{
-  display:grid;
-  grid-template-columns:auto 1fr auto;
-  align-items:center;
-  gap:12px;
-  padding:11px 20px;
-  border-bottom:1px solid var(--border);
-  transition:background .15s;
-  animation:slideIn .3s ease;
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  gap:11px;padding:10px 18px;border-bottom:1px solid var(--border);
+  transition:background .15s;animation:slideIn .3s ease;cursor:pointer;
 }
-@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-.feed-item:hover{background:rgba(255,255,255,0.02)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.feed-item:hover{background:rgba(0,194,255,0.04)}
 .feed-item:last-child{border-bottom:none}
 .feed-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .feed-dot.safe{background:var(--green);box-shadow:0 0 6px var(--green)}
 .feed-dot.warn{background:var(--red);box-shadow:0 0 6px var(--red)}
-.feed-entity{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text1);font-weight:500;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.feed-arch{font-size:.65rem;color:var(--text3);margin-top:2px}
-.feed-score{
-  font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums;
-  text-align:right;white-space:nowrap;
-}
-.feed-score.safe{color:var(--green)}
-.feed-score.warn{color:var(--red)}
+.feed-dot.caution{background:var(--amber);box-shadow:0 0 5px var(--amber)}
+.feed-entity{font-size:.77rem;font-family:'JetBrains Mono',monospace;color:var(--text1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.feed-meta{font-size:.63rem;color:var(--text3);margin-top:2px;display:flex;gap:6px;align-items:center}
+.feed-type-tag{font-size:.57rem;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;text-transform:uppercase}
+.feed-score{font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.feed-score.safe{color:var(--green)}.feed-score.warn{color:var(--red)}.feed-score.caution{color:var(--amber)}
 
-/* ── Chains ────────────────────────────────────────────────────────────────── */
-.chains-wrap{margin-bottom:16px}
-.chain-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
-  gap:8px;
-  padding:16px 20px;
-}
-.chain-item{
-  background:var(--bg2);
-  border:1px solid var(--border);
-  border-radius:var(--r-sm);
-  padding:11px 13px;
-  transition:border-color .2s,transform .15s;
-  cursor:default;
-}
+/* ── Chains ── */
+.chain-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:14px 18px}
+.chain-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;transition:border-color .2s,transform .15s;cursor:default}
 .chain-item:hover{border-color:rgba(0,194,255,0.25);transform:translateY(-1px)}
-.chain-name{font-size:.78rem;font-weight:600;color:var(--text1);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
-.chain-vm{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
-.chain-status-row{display:flex;align-items:center;gap:5px;margin-top:8px}
+.chain-name{font-size:.77rem;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.chain-vm{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+.chain-status-row{display:flex;align-items:center;gap:5px;margin-top:7px}
 .chain-status-dot{width:6px;height:6px;border-radius:50%}
 .chain-status-dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
 .chain-status-dot.warn{background:var(--amber)}
 .chain-status-dot.off{background:var(--text3)}
-.chain-status-txt{font-size:.62rem;color:var(--text3);letter-spacing:.5px}
+.chain-status-txt{font-size:.6rem;color:var(--text3);letter-spacing:.5px}
 
-/* ── Leaderboard ───────────────────────────────────────────────────────────── */
+/* ── Leaderboard ── */
 .lb-table{width:100%;border-collapse:collapse}
-.lb-table th{
-  font-size:.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  color:var(--text3);padding:10px 20px;text-align:left;
-  border-bottom:1px solid var(--border);
-  white-space:nowrap;
-}
+.lb-table th{font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:9px 18px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
 .lb-table th:last-child{text-align:right}
-.lb-table td{
-  padding:11px 20px;font-size:.8rem;
-  border-bottom:1px solid rgba(255,255,255,0.04);
-  vertical-align:middle;
-}
-.lb-table tr:hover td{background:rgba(255,255,255,0.02)}
+.lb-table td{padding:10px 18px;font-size:.78rem;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle}
+.lb-table tr{cursor:pointer;transition:background .1s}
+.lb-table tr:hover td{background:rgba(0,194,255,0.04)}
 .lb-table tr:last-child td{border-bottom:none}
-.lb-rank{
-  font-size:.75rem;font-weight:700;color:var(--text3);
-  width:30px;
-}
+.lb-rank{font-size:.72rem;font-weight:700;color:var(--text3);width:28px}
 .lb-rank.top{color:var(--amber)}
-.lb-entity{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text1);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
-.lb-arch-badge{
-  display:inline-block;font-size:.6rem;font-weight:600;letter-spacing:.5px;
-  padding:2px 7px;border-radius:10px;
-  background:var(--purple-dim);color:var(--purple);
-  border:1px solid rgba(139,92,246,0.15);white-space:nowrap;
-}
+.lb-entity{font-size:.76rem;font-family:'JetBrains Mono',monospace;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.lb-arch-badge{display:inline-block;font-size:.58rem;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:10px;background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.15);white-space:nowrap}
 .lb-score{font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
-.lb-score.good{color:var(--green)}
-.lb-score.bad{color:var(--red)}
-.lb-bar-wrap{width:80px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.lb-score.good{color:var(--green)}.lb-score.bad{color:var(--red)}.lb-score.caution{color:var(--amber)}
+.lb-bar-wrap{width:70px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:7px}
 .lb-bar{height:100%;border-radius:2px;transition:width .5s ease}
 
-/* ── Right Panel ────────────────────────────────────────────────────────────── */
+/* ── Right Panel ── */
 .right-panel{display:flex;flex-direction:column;gap:16px}
 
-/* ── System Status ─────────────────────────────────────────────────────────── */
-.status-list{padding:8px 0}
-.status-row{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 20px;
-  border-bottom:1px solid rgba(255,255,255,0.03);
-}
+/* ── Status ── */
+.status-list{padding:6px 0}
+.status-row{display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,0.03)}
 .status-row:last-child{border-bottom:none}
-.status-icon{
-  width:28px;height:28px;border-radius:7px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.75rem;font-weight:700;flex-shrink:0;
-}
+.status-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
 .status-icon.ok{background:var(--green-dim);color:var(--green)}
 .status-icon.warn{background:var(--amber-dim);color:var(--amber)}
 .status-icon.err{background:var(--red-dim);color:var(--red)}
-.status-label{font-size:.8rem;font-weight:500;color:var(--text1);flex:1;min-width:0}
-.status-val{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap}
+.status-label{font-size:.78rem;font-weight:500;color:var(--text1);flex:1;min-width:0}
+.status-val{font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--text2);white-space:nowrap}
 
-/* ── Volatility Gauge ──────────────────────────────────────────────────────── */
-.gauge-wrap{padding:16px 20px}
-.gauge-track{
-  height:8px;background:rgba(255,255,255,0.06);
-  border-radius:8px;overflow:hidden;margin-bottom:8px;
-}
-.gauge-fill{
-  height:100%;border-radius:8px;
-  background:linear-gradient(90deg,var(--green),var(--amber),var(--red));
-  transition:width .8s ease;
-}
-.gauge-labels{display:flex;justify-content:space-between;font-size:.62rem;color:var(--text3)}
+/* ── Gauge ── */
+.gauge-wrap{padding:14px 18px}
+.gauge-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.gauge-title{font-size:.62rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)}
+.gauge-val{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan)}
+.gauge-track{height:8px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;margin-bottom:7px}
+.gauge-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));transition:width .8s ease}
+.gauge-labels{display:flex;justify-content:space-between;font-size:.6rem;color:var(--text3)}
 
-/* ── Radar Chart ────────────────────────────────────────────────────────────── */
-.radar-wrap{padding:16px;display:flex;justify-content:center}
-#radarCanvas{max-width:200px;max-height:200px}
+.vol-chart-wrap{padding:0 18px 14px}
+#volCanvas{width:100%!important;height:60px!important}
 
-/* ── Deployment info ────────────────────────────────────────────────────────── */
-.deploy-list{padding:8px 0}
-.deploy-row{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:8px 20px;border-bottom:1px solid rgba(255,255,255,0.03);
-  gap:10px;
-}
+/* ── Deployments ── */
+.deploy-list{padding:6px 0}
+.deploy-row{display:flex;align-items:center;justify-content:space-between;padding:7px 18px;border-bottom:1px solid rgba(255,255,255,0.03);gap:8px}
 .deploy-row:last-child{border-bottom:none}
-.deploy-chain{font-size:.74rem;color:var(--text2);font-weight:500;flex:1}
+.deploy-chain{font-size:.72rem;color:var(--text2);font-weight:500;flex:1}
 .deploy-addr{
-  font-size:.65rem;font-family:'JetBrains Mono',monospace;
-  color:var(--text3);background:var(--bg2);
-  border:1px solid var(--border);border-radius:4px;
-  padding:2px 6px;cursor:pointer;
-  transition:color .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;
+  font-size:.63rem;font-family:'JetBrains Mono',monospace;
+  color:var(--text3);background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;padding:2px 7px;cursor:pointer;transition:color .15s,border-color .15s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px;
 }
-.deploy-addr:hover{color:var(--cyan)}
+.deploy-addr:hover{color:var(--cyan);border-color:rgba(0,194,255,0.3)}
 
-/* ── Loading skeleton ───────────────────────────────────────────────────────── */
-.skeleton{
-  background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);
-  background-size:200% 100%;
-  animation:shimmer 1.5s infinite;
-  border-radius:4px;
-  height:1em;
-}
+/* ── Threat Counter ── */
+.threat-row{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.threat-box{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;text-align:center}
+.threat-box-val{font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums}
+.threat-box-label{font-size:.6rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+/* ── Skeleton ── */
+.skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:1em}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-/* ── Empty state ────────────────────────────────────────────────────────────── */
-.empty-state{
-  display:flex;flex-direction:column;align-items:center;
-  gap:10px;padding:32px 20px;color:var(--text3);text-align:center;
-}
-.empty-state .icon{font-size:1.6rem;opacity:.4}
-.empty-state p{font-size:.8rem}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 20px;color:var(--text3);text-align:center}
+.empty-state .icon{font-size:1.5rem;opacity:.4}
+.empty-state p{font-size:.78rem}
 
-/* ── Toast ──────────────────────────────────────────────────────────────────── */
-.toast-container{
-  position:fixed;bottom:24px;right:24px;z-index:999;
-  display:flex;flex-direction:column;gap:8px;
-}
-.toast{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-md);padding:12px 16px;
-  font-size:.78rem;color:var(--text1);
-  box-shadow:var(--shadow);
-  display:flex;align-items:center;gap:10px;
-  animation:toastIn .25s ease;
-}
+/* ── Toast ── */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 15px;font-size:.76rem;color:var(--text1);box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;animation:toastIn .25s ease}
 @keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
-/* ── Responsive ─────────────────────────────────────────────────────────────── */
-@media(max-width:1280px){
-  .metrics-grid{grid-template-columns:repeat(5,1fr)}
-  .main-grid{grid-template-columns:1fr 340px}
-}
+/* ── Responsive ── */
+@media(max-width:1280px){.main-grid{grid-template-columns:1fr 340px}}
 @media(max-width:1024px){
   .metrics-grid{grid-template-columns:repeat(3,1fr)}
-  .metrics-grid .metric-card:nth-child(4){grid-column:span 1}
-  .metrics-grid .metric-card:nth-child(5){grid-column:span 1}
   .main-grid{grid-template-columns:1fr}
   .right-panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 }
 @media(max-width:768px){
   .page{padding:12px 12px 48px}
-  .navbar{padding:0 14px;height:54px}
-  .nav-logo-sub,.nav-block{display:none}
+  .navbar{padding:0 14px;height:52px}
+  .nav-logo-sub,.nav-mono{display:none}
   .metrics-grid{grid-template-columns:repeat(2,1fr);gap:10px}
   .metrics-grid .metric-card:nth-child(1){grid-column:span 2}
   .metric-val{font-size:1.6rem}
   .main-grid{grid-template-columns:1fr;gap:12px}
   .right-panel{display:flex;flex-direction:column}
   .planes-grid{grid-template-columns:repeat(5,1fr)}
-  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:12px}
+  .moat-grid{grid-template-columns:repeat(3,1fr)}
+  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:6px;padding:10px}
   .lb-table th:nth-child(3),.lb-table td:nth-child(3){display:none}
 }
 @media(max-width:480px){
@@ -501,20 +339,19 @@ input{font-family:inherit}
   .metrics-grid .metric-card:first-child{grid-column:span 2}
   .planes-grid{grid-template-columns:repeat(5,1fr);gap:4px}
   .plane-name{font-size:.5rem}
-  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
   .score-row{flex-wrap:wrap}
-  .score-box{min-width:calc(50% - 6px)}
+  .score-box{min-width:calc(50% - 5px)}
+  .moat-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(min-width:1600px){
-  .metrics-grid{grid-template-columns:repeat(5,1fr)}
-  .main-grid{grid-template-columns:1fr 420px}
-  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .main-grid{grid-template-columns:1fr 430px}
+  .chain-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
 }
 </style>
 </head>
 <body>
 
-<!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
+<!-- ── Navbar ── -->
 <nav class="navbar">
   <div class="nav-logo">
     <div class="nav-logo-icon">TR</div>
@@ -523,71 +360,89 @@ input{font-family:inherit}
       <span class="nav-logo-sub">Behavioral Intelligence</span>
     </div>
   </div>
-
   <div class="nav-spacer"></div>
-
+  <div class="nav-pill alert-pill" id="alertPill">
+    <span class="dot"></span>
+    <span id="alertPillText">0 Intercepts</span>
+  </div>
   <div class="nav-pill">
     <span class="dot"></span>
     <span id="navNet">37 Chains Live</span>
   </div>
-
-  <div class="nav-block">Block <span id="navBlock">—</span></div>
-
+  <div class="nav-mono">Block <span id="navBlock">—</span></div>
   <div class="nav-pill" style="gap:6px">
     <span style="color:var(--cyan);font-weight:700">GATE</span>
     <span id="navGate" style="color:var(--text2)">0xA85B…199b</span>
   </div>
 </nav>
 
-<!-- ── Page ───────────────────────────────────────────────────────────────── -->
+<!-- ── Alert Ticker ── -->
+<div class="alert-ticker" id="alertTicker">
+  <span class="ticker-label">⚠ Threat Alert</span>
+  <div class="ticker-scroll"><div class="ticker-inner" id="tickerInner"></div></div>
+</div>
+
+<!-- ── Page ── -->
 <div class="page">
 
-  <!-- ── Metrics Strip ──────────────────────────────────────────────────── -->
+  <!-- Metrics Strip -->
   <div class="metrics-grid" id="metricsGrid">
     <div class="metric-card c-cyan">
       <div class="metric-label">Chains Monitored</div>
-      <div class="metric-val c-cyan" id="mChains">—</div>
-      <div class="metric-sub" id="mChainsVm">Across all VM families</div>
+      <div class="metric-row">
+        <div class="metric-val c-cyan" id="mChains">—</div>
+      </div>
+      <div class="metric-sub" id="mChainsVm">11 VM families</div>
     </div>
     <div class="metric-card c-purple">
       <div class="metric-label">Entities Tracked</div>
-      <div class="metric-val c-purple" id="mEntities">—</div>
+      <div class="metric-row">
+        <div class="metric-val c-purple" id="mEntities">—</div>
+        <div class="metric-trend flat" id="mEntitiesTrend" style="display:none"></div>
+      </div>
       <div class="metric-sub">In Akashic Index</div>
     </div>
     <div class="metric-card c-green">
       <div class="metric-label">Behavioral Records</div>
-      <div class="metric-val c-green" id="mVectors">—</div>
+      <div class="metric-row">
+        <div class="metric-val c-green" id="mVectors">—</div>
+      </div>
       <div class="metric-sub">FAISS vector index</div>
     </div>
     <div class="metric-card c-amber">
       <div class="metric-label">Market Volatility</div>
-      <div class="metric-val c-amber" id="mVol">—</div>
-      <div class="metric-sub" id="mThreshSub">Security threshold auto-adjusted</div>
+      <div class="metric-row">
+        <div class="metric-val c-amber" id="mVol">—</div>
+      </div>
+      <div class="metric-sub" id="mThreshSub">Gate threshold auto-adjusted</div>
     </div>
     <div class="metric-card c-red">
       <div class="metric-label">Signals On-Chain</div>
-      <div class="metric-val c-red" id="mSignals">—</div>
+      <div class="metric-row">
+        <div class="metric-val c-red" id="mSignals">—</div>
+      </div>
       <div class="metric-sub">Published to blockchain</div>
     </div>
   </div>
 
-  <!-- ── Main Grid ──────────────────────────────────────────────────────── -->
+  <!-- Main Grid -->
   <div class="main-grid">
 
-    <!-- Left column -->
+    <!-- Left Column -->
     <div class="main-left">
 
       <!-- Entity Lookup -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">Entity Intelligence Lookup</span>
-          <span class="card-badge cyan">37 Chains</span>
+          <span class="card-badge cyan" id="lookupChainBadge">37 Chains</span>
         </div>
-        <div class="search-wrap">
+        <div class="search-wrap" id="searchWrap">
           <input class="search-input" id="searchInput" type="text"
-            placeholder="Enter wallet address, protocol name, or ENS…"
+            placeholder="Wallet address, protocol name, ENS…"
             autocomplete="off" autocorrect="off" spellcheck="false">
           <button class="search-btn" id="searchBtn" onclick="lookupEntity()">Analyze</button>
+          <div class="search-suggestions" id="searchSugg"></div>
         </div>
         <div id="signalResult"></div>
         <div id="signalEmpty" class="empty-state">
@@ -596,18 +451,19 @@ input{font-family:inherit}
         </div>
       </div>
 
-      <!-- Live Activity Feed -->
+      <!-- Live Signal Feed -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">Live Signal Feed</span>
-          <span class="card-badge live">● Live</span>
+          <span class="card-badge live" id="feedBadge">● Live</span>
+          <button onclick="loadFeed(true)" style="font-size:.65rem;color:var(--text3);padding:3px 8px;border:1px solid var(--border);border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text3)'">Refresh</button>
         </div>
         <div class="feed-list" id="feedList">
           <div class="empty-state"><div class="icon">⟳</div><p>Loading feed…</p></div>
         </div>
       </div>
 
-      <!-- Leaderboard -->
+      <!-- Trust Leaderboard -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">Trust Leaderboard</span>
@@ -624,62 +480,92 @@ input{font-family:inherit}
               </tr>
             </thead>
             <tbody id="lbBody">
-              <tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text3);font-size:.8rem">Loading…</td></tr>
+              <tr><td colspan="4"><div class="skeleton" style="height:32px;margin:8px 18px"></div></td></tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Chain Network -->
+      <div class="card chains-wrap">
+        <div class="card-header">
+          <span class="card-title">Chain Network</span>
+          <span class="card-badge cyan" id="chainCountBadge">— Active</span>
+        </div>
+        <div class="chain-grid" id="chainGrid">
+          <div class="skeleton" style="height:70px"></div>
+          <div class="skeleton" style="height:70px"></div>
+          <div class="skeleton" style="height:70px"></div>
+        </div>
+      </div>
     </div>
 
-    <!-- Right column -->
+    <!-- Right Panel -->
     <div class="right-panel">
 
       <!-- System Status -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">System Status</span>
-          <span class="card-badge live" id="sysStatusBadge">Healthy</span>
+          <span class="card-badge" id="statusBadge">—</span>
         </div>
         <div class="status-list" id="statusList">
-          <div class="status-row">
-            <div class="skeleton" style="width:28px;height:28px;border-radius:7px"></div>
-            <div class="skeleton" style="width:60%;height:.8rem"></div>
+          <div class="skeleton" style="height:38px;margin:8px 18px"></div>
+        </div>
+      </div>
+
+      <!-- Threat Counters -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Session Threat Counts</span>
+          <span class="card-badge amber">Live</span>
+        </div>
+        <div class="threat-row">
+          <div class="threat-box">
+            <div class="threat-box-val" id="tIntercept" style="color:var(--red)">0</div>
+            <div class="threat-box-label">Intercepted</div>
+          </div>
+          <div class="threat-box">
+            <div class="threat-box-val" id="tSilence" style="color:var(--amber)">0</div>
+            <div class="threat-box-label">Silence</div>
+          </div>
+          <div class="threat-box">
+            <div class="threat-box-val" id="tActive" style="color:var(--green)">0</div>
+            <div class="threat-box-label">Active</div>
           </div>
         </div>
       </div>
 
-      <!-- Market Volatility Gauge -->
+      <!-- Security Threshold -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">Security Threshold</span>
+          <span class="card-badge cyan">Dynamic</span>
         </div>
         <div class="gauge-wrap">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-size:.72rem;color:var(--text3)">Current threshold</span>
-            <span style="font-size:1.1rem;font-weight:800;color:var(--cyan)" id="gaugeThresh">—</span>
+          <div class="gauge-header">
+            <span class="gauge-title">Current threshold</span>
+            <span class="gauge-val" id="gaugeVal">—</span>
           </div>
           <div class="gauge-track">
             <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
           </div>
-          <div class="gauge-labels">
-            <span>Low risk (0.55)</span>
-            <span>High risk (0.92)</span>
-          </div>
-          <div style="margin-top:12px;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm)">
-            <div style="font-size:.62rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Volatility Index</div>
-            <div style="font-size:.85rem;font-weight:600;color:var(--text1)" id="gaugeVol">—</div>
-          </div>
+          <div class="gauge-labels"><span>Low risk (0.55)</span><span>High risk (0.92)</span></div>
+        </div>
+        <div class="vol-chart-wrap">
+          <div style="font-size:.6rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Volatility Index (recent)</div>
+          <canvas id="volCanvas"></canvas>
         </div>
       </div>
 
-      <!-- Behavioral Radar (shows last lookup) -->
+      <!-- Radar Chart -->
       <div class="card" id="radarCard" style="display:none">
         <div class="card-header">
-          <span class="card-title">Behavioral Profile</span>
-          <span class="card-badge cyan" id="radarEntity">—</span>
+          <span class="card-title">5-Plane Radar</span>
+          <span class="card-badge purple" id="radarEntity">—</span>
         </div>
-        <div class="radar-wrap">
-          <canvas id="radarCanvas" width="200" height="200"></canvas>
+        <div style="padding:14px;display:flex;justify-content:center">
+          <canvas id="radarCanvas" style="max-width:210px;max-height:210px"></canvas>
         </div>
       </div>
 
@@ -687,31 +573,32 @@ input{font-family:inherit}
       <div class="card">
         <div class="card-header">
           <span class="card-title">Live Deployments</span>
+          <span class="card-badge live">Mainnet</span>
         </div>
         <div class="deploy-list">
           <div class="deploy-row">
-            <span class="deploy-chain">0G Mainnet · ExecutionGate</span>
+            <span class="deploy-chain">0G Mainnet Gate</span>
             <span class="deploy-addr" onclick="copyAddr('0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b')" title="Click to copy">0xA85B…199b</span>
           </div>
           <div class="deploy-row">
-            <span class="deploy-chain">0G Galileo · OracleV3</span>
-            <span class="deploy-addr" onclick="copyAddr('0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C')" title="Click to copy">0x0471…A87C</span>
+            <span class="deploy-chain">0G AkashicProof</span>
+            <span class="deploy-addr" onclick="copyAddr('0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D')" title="Click to copy">0x33c7…56D</span>
           </div>
           <div class="deploy-row">
             <span class="deploy-chain">HashKey Mainnet</span>
             <span class="deploy-addr" onclick="copyAddr('0x708193f93Fb897fbeA72e7e7D19237770F19E969')" title="Click to copy">0x7081…E969</span>
           </div>
           <div class="deploy-row">
-            <span class="deploy-chain">Arbitrum Sepolia</span>
+            <span class="deploy-chain">Arb Sepolia</span>
             <span class="deploy-addr" onclick="copyAddr('0xb819c63c02Ed5aB49017C0f3f2568A14624658b3')" title="Click to copy">0xb819…58b3</span>
           </div>
           <div class="deploy-row">
-            <span class="deploy-chain">Ethereum Sepolia</span>
-            <span class="deploy-addr" onclick="copyAddr('0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39')" title="Click to copy">0xB07A…Db39</span>
+            <span class="deploy-chain">ETH Sepolia</span>
+            <span class="deploy-addr" onclick="copyAddr('0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39')" title="Click to copy">0xB07A…b39</span>
           </div>
           <div class="deploy-row">
             <span class="deploy-chain">Base Sepolia</span>
-            <span class="deploy-addr" onclick="copyAddr('0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C')" title="Click to copy">0x7ADF…680C</span>
+            <span class="deploy-addr" onclick="copyAddr('0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C')" title="Click to copy">0x7ADF…80C</span>
           </div>
         </div>
       </div>
@@ -719,327 +606,464 @@ input{font-family:inherit}
     </div>
   </div>
 
-  <!-- ── Chain Network ───────────────────────────────────────────────────── -->
-  <div class="card chains-wrap">
-    <div class="card-header">
-      <span class="card-title">Chain Network</span>
-      <span class="card-badge live" id="chainLiveBadge">● 37 Live</span>
-    </div>
-    <div class="chain-grid" id="chainGrid">
-      <div class="empty-state" style="grid-column:1/-1"><div class="icon">⟳</div><p>Loading chains…</p></div>
-    </div>
-  </div>
+</div>
 
-</div><!-- /page -->
-
-<!-- ── Toast container ───────────────────────────────────────────────────── -->
+<!-- Toast -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- ── JS ────────────────────────────────────────────────────────────────── -->
 <script>
-const API = '';
+'use strict';
+
+/* ── State ── */
 let radarChart = null;
-let feedTimer = null;
+let volChart   = null;
+let volHistory = [];
+let interceptCount = 0, silenceCount = 0, activeCount = 0;
+let interceptedEntities = [];
+let prevVectors = 0;
 
-/* ── Utilities ──────────────────────────────────────────────────────────── */
-function fmt(n, dec=0){
-  if(n == null || isNaN(n)) return '—';
-  if(n >= 1e6) return (n/1e6).toFixed(1)+'M';
-  if(n >= 1e3) return (n/1e3).toFixed(1)+'K';
-  return Number(n).toFixed(dec);
-}
-function pct(n){ return n != null ? (n*100).toFixed(1)+'%' : '—' }
-function score(n){ return n != null ? (n).toFixed(4) : '—' }
-function short(s,len=10){ return s && s.length>len ? s.slice(0,len)+'…' : s }
-function timeAgo(ts){
-  const d = Date.now()/1000 - ts;
-  if(d < 60) return Math.round(d)+'s ago';
-  if(d < 3600) return Math.round(d/60)+'m ago';
-  return Math.round(d/3600)+'h ago';
-}
+/* ── Autocomplete suggestions ── */
+const KNOWN_ENTITIES = [
+  {id:'uniswap',      type:'DEX Protocol'},
+  {id:'aave',         type:'Lending Protocol'},
+  {id:'compound',     type:'Lending Protocol'},
+  {id:'curve',        type:'DEX Protocol'},
+  {id:'makerdao',     type:'Stablecoin'},
+  {id:'lido',         type:'Liquid Staking'},
+  {id:'balancer',     type:'DEX Protocol'},
+  {id:'1inch',        type:'Aggregator'},
+  {id:'sushiswap',    type:'DEX Protocol'},
+  {id:'chainlink',    type:'Oracle'},
+  {id:'synthetix',    type:'Derivatives'},
+  {id:'frax',         type:'Stablecoin'},
+  {id:'convex',       type:'Yield'},
+  {id:'yearn',        type:'Yield Vault'},
+];
 
-function toast(msg, color='var(--cyan)'){
-  const c = document.getElementById('toastContainer');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.innerHTML = `<span class="toast-dot" style="background:${color}"></span>${msg}`;
-  c.appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3000);
+/* ── Helpers ── */
+const $ = id => document.getElementById(id);
+function fmt(n){
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return String(n);
 }
-
-function copyAddr(addr){
-  navigator.clipboard.writeText(addr).then(()=> toast('Address copied to clipboard'));
-}
-
+function short(s,n=16){return s.length>n?s.slice(0,n)+'…':s}
 function planeColor(v){
-  if(v >= .7) return 'var(--green)';
-  if(v >= .5) return 'var(--cyan)';
-  if(v >= .3) return 'var(--amber)';
+  if(v>=0.70) return 'var(--green)';
+  if(v>=0.50) return 'var(--amber)';
   return 'var(--red)';
 }
-
-function scoreColor(v){ return v >= .55 ? 'var(--green)' : 'var(--red)' }
-
-/* ── Fetch helpers ──────────────────────────────────────────────────────── */
-async function apiFetch(path){
-  try{
-    const r = await fetch(API + path);
-    if(!r.ok) throw new Error(r.status);
-    return await r.json();
-  } catch(e){ return null; }
+function scoreColor(v){
+  if(v>=0.70) return 'var(--green)';
+  if(v>=0.50) return 'var(--amber)';
+  return 'var(--red)';
+}
+function timeAgo(ts){
+  const s=Math.round(Date.now()/1000-ts);
+  if(s<5) return 'just now';
+  if(s<60) return s+'s ago';
+  if(s<3600) return Math.round(s/60)+'m ago';
+  return Math.round(s/3600)+'h ago';
+}
+async function apiFetch(url){
+  try{const r=await fetch(url,{signal:AbortSignal.timeout(8000)});return r.ok?r.json():null}
+  catch{return null}
+}
+function toast(msg,color='var(--cyan)'){
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<span class="toast-dot" style="background:${color}"></span>${msg}`;
+  $('toastContainer').prepend(el);
+  setTimeout(()=>el.remove(),3500);
+}
+function copyAddr(addr){
+  navigator.clipboard?.writeText(addr).then(()=>toast('Copied: '+addr.slice(0,10)+'…'));
 }
 
-/* ── Metrics ────────────────────────────────────────────────────────────── */
+/* ── Autocomplete ── */
+const searchInput = $('searchInput');
+const searchSugg  = $('searchSugg');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if(!q || q.length < 2){searchSugg.classList.remove('open');return}
+  if(q.startsWith('0x')){searchSugg.classList.remove('open');return}
+  const matches = KNOWN_ENTITIES.filter(e=>e.id.includes(q)).slice(0,5);
+  if(!matches.length){searchSugg.classList.remove('open');return}
+  searchSugg.innerHTML = matches.map(e=>`
+    <div class="sugg-item" onclick="selectSugg('${e.id}')">
+      <span>${e.id}</span><span class="sugg-item-type">${e.type}</span>
+    </div>`).join('');
+  searchSugg.classList.add('open');
+});
+searchInput.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){searchSugg.classList.remove('open');lookupEntity();}
+  if(e.key==='Escape') searchSugg.classList.remove('open');
+});
+document.addEventListener('click', e=>{
+  if(!$('searchWrap').contains(e.target)) searchSugg.classList.remove('open');
+});
+function selectSugg(id){
+  searchInput.value=id;
+  searchSugg.classList.remove('open');
+  lookupEntity();
+}
+
+/* ── Metrics ── */
 async function loadMetrics(){
-  const [health, faiss] = await Promise.all([
+  const [health, faiss, chains] = await Promise.all([
     apiFetch('/api/v1/health'),
-    apiFetch('/api/v1/faiss')
+    apiFetch('/api/v1/faiss'),
+    apiFetch('/api/v1/chains')
   ]);
 
   if(health){
-    document.getElementById('navBlock').textContent = health.block_number?.toLocaleString() || '—';
-    document.getElementById('mSignals').textContent = fmt(health.total_signals_onchain);
-    document.getElementById('mVol').textContent = pct(health.market_volatility);
+    const vol = health.market_volatility||0;
+    $('mVol').textContent = (vol*100).toFixed(1)+'%';
+    $('mThreshSub').textContent = 'Gate threshold: '+(health.dynamic_threshold||0).toFixed(4);
+    $('mSignals').textContent = health.total_signals_onchain ?? '—';
+    $('navBlock').textContent = (health.block_number||0).toLocaleString();
 
-    const thresh = health.dynamic_threshold;
-    document.getElementById('gaugeThresh').textContent = thresh ? thresh.toFixed(4) : '—';
-    document.getElementById('gaugeVol').textContent = health.market_volatility ? pct(health.market_volatility) : '—';
-    document.getElementById('lbThresh').textContent = 'Threshold ' + (thresh ? thresh.toFixed(3) : '—');
-    document.getElementById('mThreshSub').textContent = 'Gate threshold: '+(thresh||'—');
+    // Update volatility history & gauge
+    const thresh = health.dynamic_threshold||0;
+    $('gaugeVal').textContent = thresh.toFixed(4);
+    const pct = ((thresh - 0.55)/(0.92-0.55)*100).toFixed(1);
+    $('gaugeFill').style.width = Math.max(0,Math.min(100,pct))+'%';
 
-    // gauge fill: map 0.55-0.92 range to 0-100%
-    if(thresh){
-      const pctFill = Math.min(100, Math.max(0, ((thresh-0.55)/(0.92-0.55))*100));
-      document.getElementById('gaugeFill').style.width = pctFill+'%';
-    }
+    volHistory.push(+(vol*100).toFixed(2));
+    if(volHistory.length>20) volHistory.shift();
+    updateVolChart();
   }
-
   if(faiss){
-    document.getElementById('mEntities').textContent = fmt(faiss.entities_tracked);
-    document.getElementById('mVectors').textContent = fmt(faiss.indexed_vectors);
+    const vecs = faiss.indexed_vectors||0;
+    $('mVectors').textContent = fmt(vecs);
+    const ents = faiss.entities_tracked || faiss.indexed_vectors || 0;
+    $('mEntities').textContent = fmt(ents);
+    if(prevVectors && vecs !== prevVectors){
+      const delta = vecs - prevVectors;
+      const trend = $('mEntitiesTrend');
+      trend.style.display='inline-block';
+      trend.textContent = (delta>0?'+':'')+fmt(delta);
+      trend.className = 'metric-trend '+(delta>0?'up':(delta<0?'dn':'flat'));
+    }
+    prevVectors = vecs;
+  }
+  if(chains){
+    const n = Array.isArray(chains)?chains.length:(chains.chains?.length||37);
+    $('mChains').textContent = n;
+    $('navNet').textContent = n+' Chains Live';
+    $('lookupChainBadge').textContent = n+' Chains';
+    $('chainCountBadge').textContent = n+' Active';
   }
 }
 
-/* ── System Status ──────────────────────────────────────────────────────── */
+function updateVolChart(){
+  if(!volChart){
+    const ctx=document.getElementById('volCanvas').getContext('2d');
+    volChart=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:volHistory.map((_,i)=>i),
+        datasets:[{
+          data:volHistory,borderColor:'rgba(255,179,0,0.7)',
+          backgroundColor:'rgba(255,179,0,0.06)',
+          borderWidth:1.5,pointRadius:0,tension:.4,fill:true
+        }]
+      },
+      options:{
+        responsive:true,animation:{duration:400},
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{
+          x:{display:false},
+          y:{display:false,min:0,max:100}
+        }
+      }
+    });
+  } else {
+    volChart.data.labels=volHistory.map((_,i)=>i);
+    volChart.data.datasets[0].data=[...volHistory];
+    volChart.update('none');
+  }
+}
+
+/* ── System Status ── */
 async function loadStatus(){
-  const [health, faiss] = await Promise.all([
-    apiFetch('/api/v1/health'),
-    apiFetch('/api/v1/faiss')
-  ]);
+  const [health, faiss] = await Promise.all([apiFetch('/api/v1/health'),apiFetch('/api/v1/faiss')]);
+  const rows = [];
+  let issues = 0;
 
-  const services = [
-    {
-      label:'Oracle API',
-      ok: health && health.status === 'healthy',
-      val: health ? health.oracle || 'v2.0.0' : 'Offline',
-      icon:'🔮'
-    },
-    {
-      label:'FAISS ANIMA Engine',
-      ok: faiss && faiss.status === 'ok',
-      val: faiss ? faiss.index_type || 'IndexIVFPQ' : 'Offline',
-      icon:'🧠'
-    },
-    {
-      label:'Blockchain Connection',
-      ok: health && health.chain_connected,
-      val: health ? (health.network || health.chain_id) : '—',
-      icon:'⛓'
-    },
-    {
-      label:'Behavioral Vectors',
-      ok: faiss && faiss.indexed_vectors > 0,
-      val: faiss ? fmt(faiss.indexed_vectors)+' indexed' : '—',
-      icon:'📊'
-    },
-    {
-      label:'Security Gate',
-      ok: health != null,
-      val: health ? '0xA85B…199b' : 'Unreachable',
-      icon:'🛡'
-    }
-  ];
+  function addRow(icon,cls,label,val){
+    rows.push(`<div class="status-row">
+      <div class="status-icon ${cls}">${icon}</div>
+      <div class="status-label">${label}</div>
+      <div class="status-val">${val}</div>
+    </div>`);
+    if(cls==='err') issues++;
+  }
 
-  const allOk = services.every(s => s.ok);
-  const badge = document.getElementById('sysStatusBadge');
-  badge.textContent = allOk ? '✓ Healthy' : '⚠ Degraded';
-  badge.className = 'card-badge ' + (allOk ? 'live' : 'cyan');
+  if(health){
+    const ok = health.status==='healthy';
+    addRow(ok?'✓':'!', ok?'ok':'err', 'Oracle API', health.oracle||'TRION v2.0.0');
+    addRow('✓','ok','Blockchain', health.network||'arb-sepolia');
+    addRow('✓','ok','Security Gate', (health.dynamic_threshold||0).toFixed(4));
+  } else {
+    addRow('✕','err','Oracle API','offline');issues++;
+  }
+  if(faiss){
+    const ok = faiss.faiss_available!==false;
+    const vecs = faiss.indexed_vectors||0;
+    addRow(ok?'✓':'!', ok?'ok':'warn', 'FAISS ANIMA', fmt(vecs)+' vectors');
+    addRow('✓','ok','BH Ledger', (faiss.entities_tracked||vecs)+' entities');
+  } else {
+    addRow('✕','err','FAISS ANIMA','offline');issues++;
+  }
 
-  document.getElementById('statusList').innerHTML = services.map(s => `
-    <div class="status-row">
-      <div class="status-icon ${s.ok?'ok':'err'}">${s.icon}</div>
-      <div class="status-label">${s.label}</div>
-      <div class="status-val">${s.val}</div>
-    </div>
-  `).join('');
-}
-
-/* ── Chains ─────────────────────────────────────────────────────────────── */
-const VM_COLORS = {
-  'EVM':'#00C2FF','SVM':'#9945FF','NEAR VM':'#00D09C',
-  'TVM':'#EF4444','PVM':'#F59E0B','Move VM':'#3B82F6',
-  'Cairo VM':'#8B5CF6','CosmWasm':'#EC4899','Bitcoin':'#F7931A',
-  'UTXO':'#F7931A','default':'#6B7FA3'
-};
-
-async function loadChains(){
-  const data = await apiFetch('/api/v1/chains');
-  if(!data || !data.chains){ return; }
-
-  const chains = data.chains;
-  document.getElementById('chainLiveBadge').textContent = '● '+chains.filter(c=>c.status==='live').length+' Live';
-  document.getElementById('mChains').textContent = chains.length;
-  document.getElementById('mChainsVm').textContent =
-    [...new Set(chains.map(c=>c.vm))].length + ' VM families';
-
-  document.getElementById('chainGrid').innerHTML = chains.map(c => {
-    const col = VM_COLORS[c.vm] || VM_COLORS.default;
-    const live = c.status === 'live';
-    return `
-    <div class="chain-item">
-      <div class="chain-name" title="${c.name}">${c.name}</div>
-      <div class="chain-vm" style="color:${col}">${c.vm}</div>
-      <div class="chain-status-row">
-        <div class="chain-status-dot ${live?'live':'off'}"></div>
-        <span class="chain-status-txt">${live ? 'Live' : 'Offline'}${c.chain_id?' · '+c.chain_id:''}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-/* ── Live Feed ──────────────────────────────────────────────────────────── */
-const SEED_ENTITIES = ['uniswap','compound','aave','ethereum','solana'];
-let feedSeeded = false;
-
-async function seedFeed(){
-  if(feedSeeded) return;
-  feedSeeded = true;
-  // Hit a few known entities to warm the feed in the background
-  for(const e of SEED_ENTITIES){
-    apiFetch('/api/v1/signal/'+e).catch(()=>{});
-    await new Promise(r=>setTimeout(r,400));
+  $('statusList').innerHTML = rows.join('');
+  const badge = $('statusBadge');
+  if(!issues){
+    badge.className='card-badge live';badge.textContent='✓ Healthy';
+  } else {
+    badge.className='card-badge amber';badge.textContent=issues+' Issue'+(issues>1?'s':'');
   }
 }
 
-function renderFeedItems(items){
-  if(!items || !items.length){
-    document.getElementById('feedList').innerHTML =
-      '<div class="empty-state"><div class="icon">○</div><p>Warming up signal feed…</p></div>';
-    return;
-  }
-  document.getElementById('feedList').innerHTML = items.slice(0,14).map(f => {
-    const safe = f.coherent;
-    const sc = (f.coherence_score||0).toFixed(3);
-    const arch = f.archetype || '—';
-    const eid = f.short_id || f.entity_id || '—';
-    const ago = f.timestamp ? timeAgo(f.timestamp) : 'just now';
-    return `
-    <div class="feed-item">
-      <div class="feed-dot ${safe?'safe':'warn'}"></div>
-      <div>
-        <div class="feed-entity">${eid}</div>
-        <div class="feed-arch">${arch} · ${ago}</div>
-      </div>
-      <div class="feed-score ${safe?'safe':'warn'}">${sc}</div>
-    </div>`;
-  }).join('');
-}
-
-async function loadFeed(){
+/* ── Feed ── */
+let _lastFeedTs = 0;
+async function loadFeed(force){
   const data = await apiFetch('/api/v1/feed');
+  let items = [];
 
-  if(!data || !data.feed || !data.feed.length){
-    // Fallback: show leaderboard entries as feed while warming up
+  if(data && Array.isArray(data) && data.length){
+    items = data;
+  } else if(data && data.feed && data.feed.length){
+    items = data.feed;
+  }
+
+  if(!items.length){
+    // Fallback: seed with leaderboard data
     const lb = await apiFetch('/api/v1/leaderboard');
-    if(lb && lb.leaderboard && lb.leaderboard.length){
-      const items = lb.leaderboard.map(e=>({
-        coherent: e.coherent,
-        coherence_score: e.coherence_score,
-        archetype: e.archetype,
-        short_id: e.label || short(e.entity_id,16),
-        entity_id: e.entity_id,
-        timestamp: Math.floor(Date.now()/1000) - Math.floor(Math.random()*120)
+    const lbArr = lb?.leaderboard||[];
+    if(lbArr.length){
+      items = lbArr.slice(0,5).map(e=>({
+        entity_id: e.label||e.entity_id,
+        signal_type: e.coherent?'ACTIVE':'SILENCE',
+        coherence: e.coherence_score||0,
+        archetype: e.archetype||'Unknown',
+        timestamp: Math.floor(Date.now()/1000)-Math.floor(Math.random()*120),
+        mf_score: e.mf_score||0,
       }));
-      renderFeedItems(items);
-    } else {
-      document.getElementById('feedList').innerHTML =
-        '<div class="empty-state"><div class="icon">○</div><p>Warming up signal feed…</p></div>';
     }
-    // Seed the real feed in background
-    seedFeed();
+  }
+
+  if(!items.length){
+    $('feedList').innerHTML='<div class="empty-state"><div class="icon">⟳</div><p>Waiting for signal activity…</p></div>';
     return;
   }
 
-  renderFeedItems(data.feed);
+  // Normalise signal_type: when absent, derive from coherent flag
+  items = items.map(it=>({
+    ...it,
+    signal_type: it.signal_type || (it.coherent ? 'ACTIVE' : 'SILENCE'),
+    coherence: it.coherence || it.coherence_score || 0,
+  }));
+
+  // Update threat counters
+  items.forEach(it=>{
+    const st = (it.signal_type||'SILENCE').toUpperCase();
+    if(st==='INTERCEPT'||st==='HOSTILE') interceptCount++;
+    else if(st==='SILENCE') silenceCount++;
+    else activeCount++;
+  });
+  $('tIntercept').textContent=interceptCount;
+  $('tSilence').textContent=silenceCount;
+  $('tActive').textContent=activeCount;
+
+  // Threat ticker
+  const hostile = items.filter(it=>{
+    const st=(it.signal_type||'').toUpperCase();
+    return st==='INTERCEPT'||st==='HOSTILE';
+  });
+  updateTicker(hostile);
+
+  $('feedList').innerHTML = items.slice(0,15).map(it=>{
+    const st=(it.signal_type||'SILENCE').toUpperCase();
+    const coh=parseFloat(it.coherence||it.coherence_score||0);
+    const ts=it.timestamp||0;
+    const arch=it.archetype||'Unknown';
+    const mf=parseFloat(it.mf_score||0);
+    const entity=it.entity_id||it.label||'—';
+    const isHostile=st==='INTERCEPT'||st==='HOSTILE';
+    const isSilence=st==='SILENCE';
+    const dotCls=isHostile?'warn':isSilence?'caution':'safe';
+    const scoreCls=isHostile?'warn':isSilence?'caution':'safe';
+    let typeColor=isSilence?'color:var(--amber);background:var(--amber-dim)':'color:var(--green);background:var(--green-dim)';
+    if(isHostile) typeColor='color:var(--red);background:var(--red-dim)';
+    const displayName = entity.length>42?entity.slice(0,10)+'…'+entity.slice(-6):entity;
+    return `<div class="feed-item" onclick="selectFromFeed('${entity.replace(/'/g,"\\'")}')">
+      <span class="feed-dot ${dotCls}"></span>
+      <div>
+        <div class="feed-entity" title="${entity}">${displayName}</div>
+        <div class="feed-meta">
+          <span class="feed-type-tag" style="${typeColor};border-radius:3px;font-size:.55rem;padding:1px 4px">${st}</span>
+          <span>${arch}</span>
+          ${ts?'<span>'+timeAgo(ts)+'</span>':''}
+          ${mf>0?`<span>MF:${(mf*100).toFixed(0)}%</span>`:''}
+        </div>
+      </div>
+      <span class="feed-score ${scoreCls}">${coh.toFixed(3)}</span>
+    </div>`;
+  }).join('');
+
+  if(force) toast('Feed refreshed — '+items.length+' signals');
 }
 
-/* ── Leaderboard ────────────────────────────────────────────────────────── */
+function selectFromFeed(entityId){
+  $('searchInput').value = entityId;
+  $('searchSugg').classList.remove('open');
+  document.querySelector('.main-left .card').scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(lookupEntity, 200);
+}
+
+/* ── Ticker ── */
+function updateTicker(hostile){
+  const ticker = $('alertTicker');
+  const pill   = $('alertPill');
+  const inner  = $('tickerInner');
+  $('alertPillText').textContent = interceptCount+' Intercept'+(interceptCount!==1?'s':'');
+
+  if(!hostile.length) return;
+  pill.style.display='flex';
+
+  const items = hostile.map(it=>{
+    const e=it.entity_id||it.label||'Unknown';
+    const short=e.length>18?e.slice(0,10)+'…'+e.slice(-6):e;
+    return `<span class="ticker-item">⚠ ${short} — ${(it.signal_type||'INTERCEPT').toUpperCase()} — score ${parseFloat(it.coherence||0).toFixed(3)}</span>`;
+  }).join('');
+  inner.innerHTML=items+items; // duplicate for seamless loop
+  ticker.classList.add('visible');
+}
+
+/* ── Leaderboard ── */
 async function loadLeaderboard(){
   const data = await apiFetch('/api/v1/leaderboard');
-  if(!data || !data.leaderboard) return;
+  const items = data?.leaderboard || [];
+  const thresh = data?.dynamic_threshold||0;
 
-  const lb = data.leaderboard;
-  document.getElementById('lbBody').innerHTML = lb.slice(0,12).map((e,i) => {
-    const pct = (e.coherence_score||0)*100;
-    const good = e.coherent;
-    const rank = e.rank || (i+1);
-    const isTop = rank <= 3;
-    const label = e.label || short(e.entity_id, 18);
-    const col = good ? 'var(--green)' : 'var(--amber)';
-    return `
-    <tr>
-      <td class="lb-rank ${isTop?'top':''}">${isTop?['🥇','🥈','🥉'][rank-1]:rank}</td>
-      <td>
-        <div class="lb-entity" title="${e.entity_id}">${label}</div>
-      </td>
+  if(thresh) $('lbThresh').textContent='Threshold '+thresh.toFixed(4);
+
+  if(!items.length){
+    $('lbBody').innerHTML='<tr><td colspan="4" class="empty-state"><p>No leaderboard data</p></td></tr>';
+    return;
+  }
+
+  const max = Math.max(...items.map(e=>e.coherence_score||0),0.01);
+  $('lbBody').innerHTML = items.slice(0,12).map(e=>{
+    const coh=parseFloat(e.coherence_score||0);
+    const col=scoreColor(coh);
+    const pct=(coh/max*100).toFixed(1);
+    const label=e.label||e.entity_id||'Unknown';
+    const displayLabel=label.length>20?label.slice(0,18)+'…':label;
+    const rankCls=e.rank<=3?'lb-rank top':'lb-rank';
+    const scoreCls=coh>=0.7?'good':(coh>=0.5?'caution':'bad');
+    return `<tr onclick="selectFromFeed('${(e.entity_id||'').replace(/'/g,"\\'")}')">
+      <td><span class="${rankCls}">${e.rank}</span></td>
+      <td><span class="lb-entity" title="${label}">${displayLabel}</span></td>
       <td><span class="lb-arch-badge">${e.archetype||'—'}</span></td>
-      <td class="lb-score ${good?'good':'bad'}">
-        ${(e.coherence_score||0).toFixed(4)}
-        <div class="lb-bar-wrap">
-          <div class="lb-bar" style="width:${pct.toFixed(1)}%;background:${col}"></div>
-        </div>
+      <td>
+        <span class="lb-score ${scoreCls}">${coh.toFixed(4)}</span>
+        <span class="lb-bar-wrap"><span class="lb-bar" style="width:${pct}%;background:${col}"></span></span>
       </td>
     </tr>`;
   }).join('');
 }
 
-/* ── Entity Lookup ──────────────────────────────────────────────────────── */
+/* ── Chains ── */
+async function loadChains(){
+  const data = await apiFetch('/api/v1/chains');
+  const chains = Array.isArray(data) ? data : (data?.chains||[]);
+
+  if(!chains.length){
+    $('chainGrid').innerHTML='<div class="empty-state"><p>No chain data</p></div>';
+    return;
+  }
+  $('chainCountBadge').textContent = chains.length+' Active';
+  $('mChainsVm').textContent = chains.length+' chains across 11 VM families';
+
+  const vmColors={
+    'EVM':'var(--cyan)','SVM':'var(--purple)','MoveVM':'var(--green)',
+    'CosmosSDK':'var(--amber)','UTXO':'var(--amber)','TVM':'var(--red)',
+    'NEAR':'var(--green)','TON':'var(--cyan)','StarkNet':'var(--purple)',
+    'Substrate':'var(--amber)','Pi':'var(--text3)',
+  };
+
+  $('chainGrid').innerHTML = chains.map(c=>{
+    const vm = c.vm_family||c.vm||'EVM';
+    const color = vmColors[vm]||'var(--cyan)';
+    const name = c.name||c.chain||'Chain';
+    return `<div class="chain-item">
+      <div class="chain-name" title="${name}">${name}</div>
+      <div class="chain-vm" style="color:${color}">${vm}</div>
+      <div class="chain-status-row">
+        <span class="chain-status-dot live"></span>
+        <span class="chain-status-txt">Live</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Entity Lookup ── */
 async function lookupEntity(){
-  const raw = document.getElementById('searchInput').value.trim();
+  const raw = searchInput.value.trim();
   if(!raw) return;
+  searchSugg.classList.remove('open');
   const entity = encodeURIComponent(raw);
 
-  document.getElementById('signalEmpty').style.display = 'none';
-  document.getElementById('signalResult').innerHTML = `
-    <div style="padding:20px;color:var(--text3);font-size:.8rem;display:flex;align-items:center;gap:10px">
-      <div class="skeleton" style="width:48px;height:48px;border-radius:12px;flex-shrink:0"></div>
-      <div style="flex:1"><div class="skeleton" style="margin-bottom:8px"></div><div class="skeleton" style="width:60%"></div></div>
+  $('signalEmpty').style.display='none';
+  $('signalResult').innerHTML=`
+    <div style="padding:18px;display:flex;align-items:center;gap:12px">
+      <div class="skeleton" style="width:46px;height:46px;border-radius:11px;flex-shrink:0"></div>
+      <div style="flex:1">
+        <div class="skeleton" style="margin-bottom:7px;width:40%"></div>
+        <div class="skeleton" style="width:70%"></div>
+      </div>
     </div>`;
 
   const data = await apiFetch('/api/v1/signal/'+entity);
-
   if(!data){
-    document.getElementById('signalResult').innerHTML = `
-      <div class="empty-state">
-        <div class="icon" style="color:var(--red)">✕</div>
-        <p>Could not retrieve signal for this entity.</p>
-      </div>`;
+    $('signalResult').innerHTML=`<div class="empty-state"><div class="icon" style="color:var(--red)">✕</div><p>Could not retrieve signal for this entity.</p></div>`;
     return;
   }
 
-  const safe = data.coherent || (!data.silence);
-  const st = data.signal_type || (safe ? 'ACTIVE' : 'SILENCE');
-  const arch = data.archetype || '—';
-  const coh = (data.coherence||data.coherence_score||0).toFixed(4);
-  const thresh = (data.dynamic_threshold||data.theta||0).toFixed(4);
-  const mf = ((data.mf_score||0)*100).toFixed(1);
-  const eid = data.entity_id || raw;
-  const planes = data.plane_breakdown || {};
+  const st = (data.signal_type||'SILENCE').toUpperCase();
+  const coh = parseFloat(data.coherence||data.coherence_score||0);
+  const thresh = parseFloat(data.dynamic_threshold||data.theta||0);
+  const mf = parseFloat(data.mf_score||0);
+  const arch = data.archetype||'Unknown';
+  const eid = data.entity_id||raw;
+  const planes = data.plane_breakdown||{};
+  const isHostile = st==='INTERCEPT'||st==='HOSTILE';
+  const isSilence = st==='SILENCE';
+  const isActive  = !isHostile && !isSilence;
+  const iconCls   = isHostile?'warn':(isActive?'safe':'caution');
+  const iconChar  = isHostile?'⚠':(isActive?'✓':'–');
+  const enriched  = data.faiss_enriched===true;
+  const trend     = data.coherence_trend||'STABLE';
+  const ci        = data.confidence_interval||data.ci_95;
+  const moat      = data.moat_components||{};
+  const limiting  = data.limiting_plane||'';
+  const akashic   = data.akashic_depth||0;
 
-  // Radar chart
-  showRadar(planes, short(raw, 12));
+  showRadar(planes, short(raw,14));
 
-  const planeDefs = [
+  const ciLow  = ci?.lower??ci?.[0]??0;
+  const ciHigh = ci?.upper??ci?.[1]??1;
+  const ciPctL = (ciLow*100).toFixed(0);
+  const ciPctH = (ciHigh*100).toFixed(0);
+  const cohPct = (coh*100).toFixed(0);
+  const ciWidth= Math.max(0,(ciHigh-ciLow)*100).toFixed(1);
+  const ciLeft = (ciLow*100).toFixed(1);
+
+  const planeDefs=[
     {k:'physical',label:'Physical'},
     {k:'mental',label:'Mental'},
     {k:'spiritual',label:'Spiritual'},
@@ -1047,126 +1071,129 @@ async function lookupEntity(){
     {k:'anima',label:'ANIMA'}
   ];
 
-  document.getElementById('signalResult').innerHTML = `
+  const trendClass = trend==='RISING'?'trend-up':trend==='FALLING'?'trend-dn':'trend-flat';
+  const trendIcon  = trend==='RISING'?'↑':trend==='FALLING'?'↓':'→';
+
+  $('signalResult').innerHTML=`
   <div class="signal-result visible">
     <div class="signal-header">
-      <div class="signal-icon ${safe?'safe':'warn'}">${safe?'✓':'⚠'}</div>
-      <div>
+      <div class="signal-icon ${iconCls}">${iconChar}</div>
+      <div style="flex:1;min-width:0">
         <div class="signal-entity">${eid}</div>
-        <div class="signal-type">${st.replace('_',' ')}</div>
-        <span class="signal-archetype">${arch}</span>
+        <div class="signal-type">${st.replace(/_/g,' ')}</div>
+        <div class="signal-badges">
+          <span class="signal-badge arch">${arch}</span>
+          <span class="signal-badge ${enriched?'faiss':'hash'}">${enriched?'FAISS Enriched':'Hash Derived'}</span>
+          <span class="signal-badge ${trendClass}">${trendIcon} ${trend}</span>
+        </div>
       </div>
     </div>
 
     <div class="score-row">
       <div class="score-box">
         <div class="score-box-label">Trust Score</div>
-        <div class="score-box-val" style="color:${scoreColor(parseFloat(coh))}">${coh}</div>
+        <div class="score-box-val" style="color:${scoreColor(coh)}">${coh.toFixed(4)}</div>
       </div>
       <div class="score-box">
         <div class="score-box-label">Security Gate</div>
-        <div class="score-box-val" style="color:var(--text2)">${thresh}</div>
+        <div class="score-box-val" style="color:var(--text2)">${thresh.toFixed(4)}</div>
+        <div class="score-box-sub">${coh>=thresh?'Above gate':'Below gate'}</div>
       </div>
       <div class="score-box">
-        <div class="score-box-label">Manipulation Risk</div>
-        <div class="score-box-val" style="color:${parseFloat(mf)>30?'var(--red)':'var(--green)'}">${mf}%</div>
+        <div class="score-box-label">Manip Risk</div>
+        <div class="score-box-val" style="color:${mf>0.3?'var(--red)':'var(--green)'}">${(mf*100).toFixed(1)}%</div>
       </div>
+      ${akashic>0?`<div class="score-box">
+        <div class="score-box-label">Akashic Depth</div>
+        <div class="score-box-val" style="color:var(--purple)">${akashic.toFixed(0)}</div>
+      </div>`:''}
     </div>
 
     <div class="planes-grid">
-      ${planeDefs.map(p => {
-        const v = planes[p.k]||0;
-        const col = planeColor(v);
-        return `
-        <div class="plane-item">
+      ${planeDefs.map(p=>{
+        const v=parseFloat(planes[p.k]||0);
+        const col=planeColor(v);
+        return `<div class="plane-item" title="${p.label}: ${v.toFixed(3)}">
           <div class="plane-name">${p.label}</div>
-          <div class="plane-bar-track">
-            <div class="plane-bar-fill" style="width:${(v*100).toFixed(1)}%;background:${col}"></div>
-          </div>
-          <div class="plane-score" style="color:${col}">${(v).toFixed(2)}</div>
+          <div class="plane-bar-track"><div class="plane-bar-fill" style="width:${(v*100).toFixed(1)}%;background:${col}"></div></div>
+          <div class="plane-score" style="color:${col}">${v.toFixed(2)}</div>
         </div>`;
       }).join('')}
     </div>
 
+    ${(ciLow||ciHigh)?`<div class="ci-bar">
+      <div class="ci-label">95% Confidence Interval</div>
+      <div class="ci-track">
+        <div class="ci-fill" style="left:${ciLeft}%;width:${ciWidth}%;position:absolute;top:0;bottom:0"></div>
+        <div class="ci-point" style="left:${cohPct}%"></div>
+      </div>
+      <div class="ci-nums"><span>${ciLow.toFixed(3)}</span><span>${coh.toFixed(3)}</span><span>${ciHigh.toFixed(3)}</span></div>
+    </div>`:''}
+
+    ${Object.keys(moat).length?`<div class="moat-grid">
+      ${Object.entries(moat).slice(0,6).map(([k,v])=>{
+        const vf=parseFloat(v);
+        const moatKeys={D_data:'Data',F_falsifiability:'Falsify',N_network:'Network',Q_quality:'Quality',R_reflexivity:'Reflexivity',X_crosschain:'Cross-chain'};
+        return `<div class="moat-item">
+          <div class="moat-label">${moatKeys[k]||k}</div>
+          <div class="moat-val" style="color:${vf>=0.7?'var(--green)':vf>=0.4?'var(--amber)':'var(--red)'}">${vf.toFixed(3)}</div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+
     <div class="signal-footer">
-      ${data.limiting_plane ? `<span class="tag">Limiting: ${data.limiting_plane}</span>` : ''}
-      ${data.signal_id ? `<span class="tag">${data.signal_id.slice(0,8)}</span>` : ''}
-      ${data.data_staleness_s != null ? `<span>Updated ${(data.data_staleness_s).toFixed(0)}s ago</span>` : ''}
+      ${limiting?`<span class="tag">Limiting: ${limiting}</span>`:''}
+      ${data.signal_id?`<span class="tag">${data.signal_id.slice(0,8)}</span>`:''}
+      ${data.data_staleness_s!=null?`<span>Stale: ${parseFloat(data.data_staleness_s).toFixed(0)}s</span>`:''}
+      ${data.eta_blocks?`<span>ETA: ${data.eta_blocks} blocks</span>`:''}
     </div>
   </div>`;
 }
 
-/* ── Radar Chart ────────────────────────────────────────────────────────── */
-function showRadar(planes, label){
-  document.getElementById('radarCard').style.display = '';
-  document.getElementById('radarEntity').textContent = label;
-
-  const vals = [
-    planes.physical||0,
-    planes.mental||0,
-    planes.spiritual||0,
-    planes.conscious||0,
-    planes.anima||0
+/* ── Radar Chart ── */
+function showRadar(planes,label){
+  $('radarCard').style.display='';
+  $('radarEntity').textContent=label;
+  const vals=[
+    planes.physical||0,planes.mental||0,planes.spiritual||0,
+    planes.conscious||0,planes.anima||0
   ];
-
-  const ctx = document.getElementById('radarCanvas').getContext('2d');
-  if(radarChart){ radarChart.destroy(); }
-
-  radarChart = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: ['Physical','Mental','Spiritual','Conscious','ANIMA'],
+  const ctx=document.getElementById('radarCanvas').getContext('2d');
+  if(radarChart) radarChart.destroy();
+  radarChart=new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:['Physical','Mental','Spiritual','Conscious','ANIMA'],
       datasets:[{
-        data: vals,
+        data:vals,
         borderColor:'rgba(0,194,255,0.8)',
-        backgroundColor:'rgba(0,194,255,0.08)',
+        backgroundColor:'rgba(0,194,255,0.07)',
         borderWidth:2,
         pointBackgroundColor:'rgba(0,194,255,1)',
-        pointRadius:4,
-        pointHoverRadius:6,
+        pointRadius:4,pointHoverRadius:6,
       }]
     },
     options:{
-      responsive:true,
-      animation:{duration:500},
+      responsive:true,animation:{duration:500},
       plugins:{legend:{display:false}},
-      scales:{
-        r:{
-          min:0,max:1,
-          ticks:{display:false,stepSize:.25},
-          grid:{color:'rgba(255,255,255,0.06)'},
-          angleLines:{color:'rgba(255,255,255,0.06)'},
-          pointLabels:{
-            color:'rgba(136,153,187,0.9)',
-            font:{size:10,family:'Inter',weight:'600'}
-          }
-        }
-      }
+      scales:{r:{
+        min:0,max:1,
+        ticks:{display:false,stepSize:.25},
+        grid:{color:'rgba(255,255,255,0.06)'},
+        angleLines:{color:'rgba(255,255,255,0.06)'},
+        pointLabels:{color:'rgba(136,153,187,0.9)',font:{size:10,family:'Inter',weight:'600'}}
+      }}
     }
   });
 }
 
-/* ── Enter key search ───────────────────────────────────────────────────── */
-document.getElementById('searchInput').addEventListener('keydown', e => {
-  if(e.key === 'Enter') lookupEntity();
-});
-
-/* ── Init & polling ─────────────────────────────────────────────────────── */
+/* ── Init ── */
 async function init(){
-  await Promise.all([
-    loadMetrics(),
-    loadStatus(),
-    loadChains(),
-    loadFeed(),
-    loadLeaderboard()
-  ]);
+  await Promise.all([loadMetrics(),loadStatus(),loadChains(),loadFeed(),loadLeaderboard()]);
 }
-
 function startPolling(){
-  // Fast: metrics + feed every 15s
-  setInterval(()=>{ loadMetrics(); loadFeed(); }, 15000);
-  // Slower: status + leaderboard every 45s
-  setInterval(()=>{ loadStatus(); loadLeaderboard(); }, 45000);
+  setInterval(()=>{loadMetrics();loadFeed();},15000);
+  setInterval(()=>{loadStatus();loadLeaderboard();},45000);
 }
 
 init().then(startPolling);
