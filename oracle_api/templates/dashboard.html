@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
 <style>
 :root{
   --bg:#040D1A;--sidebar:#060F1E;--card:#08152A;--card2:#0A1830;
@@ -256,6 +257,7 @@ tbody tr:hover{background:var(--card2)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn .3s ease-out}
+@keyframes wsFlash{0%{background:rgba(0,194,255,.18);box-shadow:0 0 0 1px rgba(0,194,255,.3)}100%{background:transparent;box-shadow:none}}
 .spin{animation:spin 1.5s linear infinite}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
@@ -432,6 +434,10 @@ tbody tr:hover{background:var(--card2)}
       <div class="tb-pill" id="gate-pill">
         GATE <span class="mono" id="gate-addr" style="color:var(--text3)">—</span>
       </div>
+      <div class="tb-pill" title="WebSocket push status" style="gap:5px">
+        <div id="ws-dot" style="width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;transition:background .4s"></div>
+        <span style="font-size:9px;color:var(--text3)">WS</span>
+      </div>
     </div>
   </div>
 
@@ -554,7 +560,7 @@ tbody tr:hover{background:var(--card2)}
       </div>
       <div class="two-col">
         <div class="card">
-          <div class="card-header"><h3>Signal Stream</h3><span class="badge green"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 2s infinite"></span>&nbsp;Real-time</span></div>
+          <div class="card-header"><h3>Signal Stream</h3><span id="ws-feed-status" style="font-size:9px;font-weight:700;color:var(--amber);letter-spacing:.04em">◌ CONNECTING</span></div>
           <div id="feed-list" class="card-body no-pad"><div class="loading"><div class="spinner"></div></div></div>
         </div>
         <div>
@@ -1302,70 +1308,171 @@ async function lookupEntity(){
   </div>`;
 }
 
-/* ─── FEED SECTION ─── */
+/* ─── WEBSOCKET PUSH ─── */
+let wsSocket=null,wsConnected=false;
+// Ring buffer: up to 200 feed entries kept in memory
+const WS_MAX=200;
+let wsFeedItems=[];       // normalised entries, newest first
+let wsCounters={ic:0,sc:0,ac:0};
+let wsArchs={};
 let feedLoaded=false,feedChartInst=null;
-async function loadFeedSection(){
-  feedLoaded=true;
-  const data=await apiFetch('/api/v1/feed');
-  let items=[];
-  if(data&&Array.isArray(data))items=data;
-  else if(data&&data.feed)items=data.feed;
-  items=items.map(it=>({...it,signal_type:it.signal_type||(it.coherent?'ACTIVE':'SILENCE'),coherence:it.coherence||it.coherence_score||0}));
 
-  if(!items.length){
-    const lb=await apiFetch('/api/v1/leaderboard');
-    if(lb&&lb.leaderboard)items=lb.leaderboard.slice(0,10).map(e=>({entity_id:e.label||e.entity_id,signal_type:e.coherent?'ACTIVE':'SILENCE',coherence:e.coherence_score||0,archetype:e.archetype||'—',timestamp:Math.floor(Date.now()/1000)-Math.floor(Math.random()*300)}));
+function wsNorm(e){
+  return {
+    ...e,
+    signal_type: e.signal_type||(e.coherent?'ACTIVE':'SILENCE'),
+    coherence:   parseFloat(e.coherence||e.coherence_score||0),
+  };
+}
+
+function wsSetStatus(connected){
+  wsConnected=connected;
+  // topbar badge
+  const el=$('ws-dot');
+  if(el){el.style.background=connected?'var(--green)':'var(--amber)';el.title=connected?'WebSocket connected — live push active':'WebSocket reconnecting…';}
+  // feed section badge
+  const fb=$('ws-feed-status');
+  if(fb){
+    fb.textContent=connected?'● LIVE PUSH':'◌ RECONNECTING';
+    fb.style.color=connected?'var(--green)':'var(--amber)';
   }
+}
 
-  // Counts
-  let ic=0,sc=0,ac=0;
-  const archs={};
-  items.forEach(it=>{
-    const st=(it.signal_type||'SILENCE').toUpperCase();
-    if(st==='INTERCEPT'||st==='HOSTILE')ic++;
-    else if(st==='SILENCE')sc++;
-    else ac++;
-    const a=it.archetype||'Unknown';
-    archs[a]=(archs[a]||0)+1;
-  });
-  $('fd-total').textContent=items.length;
-  $('fd-intercept').textContent=ic;
-  $('fd-silence').textContent=sc;
-  $('fd-active').textContent=ac;
+function wsAddEntry(raw){
+  const e=wsNorm(raw);
+  // deduplicate by (entity_id, timestamp)
+  const dup=wsFeedItems.some(x=>x.entity_id===e.entity_id&&x.timestamp===e.timestamp);
+  if(dup)return false;
+  wsFeedItems.unshift(e);
+  if(wsFeedItems.length>WS_MAX)wsFeedItems.length=WS_MAX;
+  // update counters
+  const st=(e.signal_type||'SILENCE').toUpperCase();
+  if(st==='INTERCEPT'||st==='HOSTILE')wsCounters.ic++;
+  else if(st==='SILENCE')wsCounters.sc++;
+  else wsCounters.ac++;
+  const a=e.archetype||'Unknown';
+  wsArchs[a]=(wsArchs[a]||0)+1;
+  return true;
+}
 
-  // Feed list
+function wsFeedItemHTML(it){
+  const st=(it.signal_type||'SILENCE').toUpperCase();
+  const dotClass=st==='INTERCEPT'||st==='HOSTILE'?'intercept':st==='ACTIVE'?'active':'silence';
+  const score=it.coherence||0;
+  const scoreColor=score>0.7?'var(--green)':score>0.45?'var(--amber)':'var(--red)';
+  return `<div class="feed-item" onclick="goEntity('${it.entity_id}')">
+    <div class="feed-dot ${dotClass}"></div>
+    <div class="feed-main">
+      <div class="feed-entity">${it.entity_id}</div>
+      <div class="feed-meta"><span class="badge ${st==='INTERCEPT'||st==='HOSTILE'?'red':st==='ACTIVE'?'green':'amber'}" style="font-size:8px">${st}</span>&nbsp;${it.archetype||'—'}&nbsp;·&nbsp;${age(it.timestamp||0)}</div>
+    </div>
+    <div class="feed-score" style="color:${scoreColor}">${score.toFixed(3)}</div>
+  </div>`;
+}
+
+function wsRenderFeed(){
+  if(activeSec!=='feed')return;
+  $('fd-total').textContent=wsFeedItems.length;
+  $('fd-intercept').textContent=wsCounters.ic;
+  $('fd-silence').textContent=wsCounters.sc;
+  $('fd-active').textContent=wsCounters.ac;
   const fl=$('feed-list');
-  fl.innerHTML=items.map(it=>{
-    const st=(it.signal_type||'SILENCE').toUpperCase();
-    const dotClass=st==='INTERCEPT'||st==='HOSTILE'?'intercept':st==='ACTIVE'?'active':'silence';
-    const score=parseFloat(it.coherence||0);
-    const scoreColor=score>0.7?'var(--green)':score>0.45?'var(--amber)':'var(--red)';
-    return `<div class="feed-item" onclick="goEntity('${it.entity_id}')">
-      <div class="feed-dot ${dotClass}"></div>
-      <div class="feed-main">
-        <div class="feed-entity">${it.entity_id}</div>
-        <div class="feed-meta"><span class="badge ${st==='INTERCEPT'||st==='HOSTILE'?'red':st==='ACTIVE'?'green':'amber'}" style="font-size:8px">${st}</span>&nbsp;${it.archetype||'—'}&nbsp;·&nbsp;${age(it.timestamp||0)}</div>
-      </div>
-      <div class="feed-score" style="color:${scoreColor}">${score.toFixed(3)}</div>
-    </div>`;
-  }).join('');
-
-  // Signal type chart
+  if(fl)fl.innerHTML=wsFeedItems.map(wsFeedItemHTML).join('');
+  // donut
   const ctx=document.getElementById('feed-chart');
   if(ctx){
     if(feedChartInst)feedChartInst.destroy();
-    feedChartInst=new Chart(ctx,{type:'doughnut',data:{labels:['Active','Silence','Intercept'],datasets:[{data:[ac,sc,ic],backgroundColor:['rgba(34,197,94,.7)','rgba(245,158,11,.7)','rgba(239,68,68,.7)'],borderWidth:0}]},options:{...chartDef,cutout:'65%'}});
+    feedChartInst=new Chart(ctx,{type:'doughnut',data:{labels:['Active','Silence','Intercept'],datasets:[{data:[wsCounters.ac,wsCounters.sc,wsCounters.ic],backgroundColor:['rgba(34,197,94,.7)','rgba(245,158,11,.7)','rgba(239,68,68,.7)'],borderWidth:0}]},options:{...chartDef,cutout:'65%'}});
   }
-
-  // Archetype list
+  // archetypes
   const archEl=$('feed-archetypes');
-  const archEntries=Object.entries(archs).sort((a,b)=>b[1]-a[1]);
-  archEl.innerHTML=archEntries.map(([name,count])=>`
-    <div class="kv-row" style="padding:8px 16px;border-bottom:1px solid var(--border)">
-      <span class="kv-key">${name}</span>
-      <span class="kv-val">${count}</span>
-    </div>
-  `).join('');
+  if(archEl){
+    const archEntries=Object.entries(wsArchs).sort((a,b)=>b[1]-a[1]);
+    archEl.innerHTML=archEntries.map(([name,count])=>`
+      <div class="kv-row" style="padding:8px 16px;border-bottom:1px solid var(--border)">
+        <span class="kv-key">${name}</span>
+        <span class="kv-val">${count}</span>
+      </div>`).join('');
+  }
+}
+
+function wsPrepend(e){
+  // called when a new signal arrives via WebSocket
+  const added=wsAddEntry(e);
+  if(!added)return;
+  if(activeSec==='feed'){
+    // prepend row without full re-render for snappiness
+    const fl=$('feed-list');
+    if(fl){
+      const el=document.createElement('div');
+      el.innerHTML=wsFeedItemHTML(wsFeedItems[0]);
+      const row=el.firstElementChild;
+      row.style.animation='wsFlash .6s ease-out';
+      fl.prepend(row);
+      if(fl.children.length>100)fl.lastElementChild?.remove();
+    }
+    $('fd-total').textContent=wsFeedItems.length;
+    $('fd-intercept').textContent=wsCounters.ic;
+    $('fd-silence').textContent=wsCounters.sc;
+    $('fd-active').textContent=wsCounters.ac;
+  }
+  // also update overview mini-feed
+  updateOverviewFeedItem(e);
+}
+
+function updateOverviewFeedItem(e){
+  const fl=$('feed-items');
+  if(!fl)return;
+  const norm=wsNorm(e);
+  const el=document.createElement('div');
+  el.innerHTML=wsFeedItemHTML(norm);
+  const row=el.firstElementChild;
+  row.style.animation='wsFlash .6s ease-out';
+  fl.prepend(row);
+  while(fl.children.length>8)fl.lastElementChild?.remove();
+}
+
+function wsConnect(){
+  if(wsSocket)wsSocket.disconnect();
+  try{
+    wsSocket=io('/feed',{
+      transports:['websocket','polling'],
+      reconnectionDelay:2000,
+      reconnectionDelayMax:10000,
+    });
+    wsSocket.on('connect',()=>{
+      wsSetStatus(true);
+    });
+    wsSocket.on('disconnect',()=>wsSetStatus(false));
+    wsSocket.on('connect_error',()=>wsSetStatus(false));
+    wsSocket.on('signal',e=>wsPrepend(e));
+    wsSocket.on('health',h=>{
+      // update topbar from health push
+      if(h&&h.block_number)$('tb-block').textContent=fmt(h.block_number);
+    });
+  }catch(err){
+    wsSetStatus(false);
+  }
+}
+
+/* ─── FEED SECTION ─── */
+async function loadFeedSection(){
+  feedLoaded=true;
+  // Seed the buffer from HTTP if empty
+  if(!wsFeedItems.length){
+    const data=await apiFetch('/api/v1/feed');
+    let items=[];
+    if(data&&Array.isArray(data))items=data;
+    else if(data&&data.feed)items=data.feed;
+    if(!items.length){
+      const lb=await apiFetch('/api/v1/leaderboard');
+      if(lb&&lb.leaderboard)items=lb.leaderboard.slice(0,10).map(e=>({entity_id:e.label||e.entity_id,signal_type:e.coherent?'ACTIVE':'SILENCE',coherence_score:e.coherence_score||0,archetype:e.archetype||'—',timestamp:Math.floor(Date.now()/1000)-Math.floor(Math.random()*300)}));
+    }
+    // reset counters then add each entry
+    wsCounters={ic:0,sc:0,ac:0};wsArchs={};wsFeedItems=[];
+    items.forEach(it=>wsAddEntry(it));
+  }
+  wsRenderFeed();
 }
 
 /* ─── BH EXPLORER ─── */
@@ -1963,12 +2070,14 @@ async function tick(){
   if(activeSec==='overview'){
     await Promise.all([loadFeed(),loadLeaderboard(),loadSystemStatus()]);
   }
-  if(activeSec==='feed'&&feedLoaded)loadFeedSection();
+  // Feed section: WebSocket handles live push; only fall back to HTTP poll if WS is down
+  if(activeSec==='feed'&&feedLoaded&&!wsConnected)loadFeedSection();
   if(activeSec==='bh')loadBH();
 }
 
 /* ─── INIT ─── */
 (async()=>{
+  wsConnect();   // start WebSocket push (connects to /feed namespace)
   await Promise.all([loadTopbar(),loadFeed(),loadLeaderboard(),loadSystemStatus()]);
   setInterval(tick,15000);
   setInterval(loadTopbar,8000);
