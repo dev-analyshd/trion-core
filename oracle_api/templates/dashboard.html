@@ -368,6 +368,10 @@ tbody tr:hover{background:var(--card2)}
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
       <span class="label">Live Feed</span>
     </div>
+    <div class="nav-item" data-section="simulation">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 5-10 5V3z"/></svg>
+      <span class="label">Attack Simulator</span>
+    </div>
     <div class="nav-section">Data Layers</div>
     <div class="nav-item" data-section="bh">
       <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h5"/><circle cx="12" cy="11" r="3"/></svg>
@@ -561,6 +565,49 @@ tbody tr:hover{background:var(--card2)}
           <div class="card">
             <div class="card-header"><h3>Archetype Distribution</h3></div>
             <div id="feed-archetypes" class="card-body no-pad"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ ATTACK SIMULATOR ══════════ -->
+    <section class="section" id="s-simulation">
+      <!-- Summary bar -->
+      <div class="metrics-row" style="grid-template-columns:repeat(4,1fr)" id="sim-summary-row">
+        <div class="metric-card"><div class="m-label">Attacks in DB</div><div class="m-value text-red" id="sim-count">32</div><div class="m-sub">Historical DeFi exploits</div></div>
+        <div class="metric-card"><div class="m-label">Total Protected</div><div class="m-value text-green" id="sim-total">$43.6B</div><div class="m-sub">USD modeled losses</div></div>
+        <div class="metric-card"><div class="m-label">Patterns Indexed</div><div class="m-value" style="color:var(--purple2)" id="sim-patterns">9</div><div class="m-sub">Attack fingerprints</div></div>
+        <div class="metric-card"><div class="m-label">Avg Detection Lead</div><div class="m-value text-amber" id="sim-lead">112h</div><div class="m-sub">Before exploit executes</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:12px;align-items:start">
+        <!-- Attack list -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Select Attack</h3>
+              <select id="sim-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text2);border-radius:3px;padding:3px 6px;font-size:10px" onchange="filterAttacks()">
+                <option value="">All patterns</option>
+                <option value="FLASH_LOAN_ATTACKER">Flash Loan</option>
+                <option value="BRIDGE_EXPLOIT">Bridge Exploit</option>
+                <option value="AMM_MANIPULATION">AMM Manipulation</option>
+                <option value="ORACLE_MANIPULATION">Oracle Manipulation</option>
+                <option value="COORDINATED_PUMP">Coordinated Pump</option>
+                <option value="GOVERNANCE_CAPTURE">Governance</option>
+              </select>
+            </div>
+            <div id="sim-attack-list" style="max-height:600px;overflow-y:auto">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation output -->
+        <div id="sim-output">
+          <div class="card" style="text-align:center;padding:60px 20px">
+            <svg style="width:52px;height:52px;margin:0 auto 16px;display:block;opacity:.25" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 3l10 5-10 5V3z"/></svg>
+            <div style="font-size:14px;font-weight:600;color:var(--text2)">Select an attack to run simulation</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:6px">TRION replays each phase against the behavioral engine<br>and shows exactly when the gate would have fired</div>
           </div>
         </div>
       </div>
@@ -887,11 +934,13 @@ const chartDef={plugins:{legend:{labels:{color:'#7F9BB8',font:{size:10}}}}};
 /* ─── NAVIGATION ─── */
 const sections={
   overview:'s-overview',entity:'s-entity',feed:'s-feed',
+  simulation:'s-simulation',
   bh:'s-bh',faiss:'s-faiss',zg:'s-zg',security:'s-security',
   chains:'s-chains',about:'s-about'
 };
 const sectionTitles={
   overview:'Overview',entity:'Entity Intelligence',feed:'Live Signal Feed',
+  simulation:'Attack Simulator',
   bh:'BH Explorer',faiss:'FAISS ANIMA',zg:'0G Network',security:'Security',
   chains:'Chain Network',about:'About'
 };
@@ -912,6 +961,7 @@ document.querySelectorAll('.nav-item').forEach(el=>{
     if(sec==='chains'&&!chainsLoaded)loadChains();
     if(sec==='about'&&!aboutLoaded)loadAbout();
     if(sec==='feed'&&!feedLoaded)loadFeedSection();
+    if(sec==='simulation'&&!simLoaded)loadSimulation();
   });
 });
 
@@ -1630,6 +1680,281 @@ async function loadAbout(){
       </tbody>
     </table>`;
   }
+}
+
+/* ─── ATTACK SIMULATOR ─── */
+let simLoaded=false,allAttacks=[],simChartInst=null,simRadarInst=null;
+
+async function loadSimulation(){
+  simLoaded=true;
+  const [atkData,statsData]=await Promise.all([
+    apiFetch('/api/v1/attacks'),
+    apiFetch('/api/v1/demo/stats'),
+  ]);
+  if(atkData&&atkData.attacks){
+    allAttacks=atkData.attacks;
+    $('sim-count').textContent=allAttacks.length;
+    renderAttackList(allAttacks);
+  }
+  if(statsData){
+    $('sim-total').textContent=statsData.attacks_value_total_fmt||'$43.6B';
+    $('sim-patterns').textContent=Object.keys(statsData.pattern_breakdown||{}).length||9;
+    // Avg detection lead: sum detection_lead_time_hours / count
+    if(allAttacks.length){
+      const leads=allAttacks.filter(a=>a.detection_lead_time_hours>0).map(a=>a.detection_lead_time_hours);
+      const avg=leads.reduce((a,b)=>a+b,0)/leads.length;
+      $('sim-lead').textContent=Math.round(avg)+'h';
+    }
+  }
+}
+
+function renderAttackList(attacks){
+  const el=$('sim-attack-list');
+  if(!attacks.length){el.innerHTML='<div class="loading" style="padding:20px"><p>No attacks match filter</p></div>';return;}
+  const patternColors={
+    FLASH_LOAN_ATTACKER:'red',BRIDGE_EXPLOIT:'red',AMM_MANIPULATION:'amber',
+    ORACLE_MANIPULATION:'amber',COORDINATED_PUMP:'orange',GOVERNANCE_CAPTURE:'purple',
+    INFINITE_MINT:'red',LOGIC_BUG:'amber',ACCESS_CONTROL:'purple',
+  };
+  el.innerHTML=attacks.map(a=>{
+    const pc=patternColors[a.pattern]||'gray';
+    return `<div class="feed-item" onclick="runSimulation('${a.key}',this)" data-key="${a.key}" data-pattern="${a.pattern||''}">
+      <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <span class="badge ${pc}" style="font-size:7px">${(a.pattern||'—').replace(/_/g,' ')}</span>
+          <span style="font-size:9px;color:var(--text3)">${a.date||''}</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:11px;font-weight:700;color:var(--red);font-family:'JetBrains Mono',monospace">${a.loss_fmt||'—'}</div>
+        <div style="font-size:9px;color:var(--amber)">${a.detection_lead_time_hours||0}h lead</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterAttacks(){
+  const pat=$('sim-filter').value;
+  renderAttackList(pat?allAttacks.filter(a=>a.pattern===pat):allAttacks);
+}
+
+async function runSimulation(key, rowEl){
+  // Highlight selected row
+  document.querySelectorAll('#sim-attack-list .feed-item').forEach(r=>r.style.background='');
+  if(rowEl)rowEl.style.background='var(--cyan-glow)';
+
+  const out=$('sim-output');
+  out.innerHTML='<div class="loading" style="padding:60px"><div class="spinner"></div><p style="margin-top:12px">Running behavioral simulation…</p></div>';
+
+  const data=await apiFetch('/api/v1/demo/simulate_attack?attack='+encodeURIComponent(key),15000);
+  if(!data||!data.phases){
+    out.innerHTML='<div class="loading"><p>Simulation failed — try another attack</p></div>';
+    return;
+  }
+
+  const phases=data.phases||[];
+  const finalVerdict=data.final_verdict||'BLOCKED';
+  const isBlocked=finalVerdict.includes('BLOCKED');
+  const leadTime=data.detection_lead_time||'—';
+  const lossProtected=data.loss_protected_fmt||'—';
+
+  // Find the first phase that triggered an alert
+  const firstAlert=phases.find(p=>p.coherence_status&&p.coherence_status!=='SAFE')||phases[phases.length-1];
+  const blockPhase=phases.find(p=>p.gate_decision&&p.gate_decision!=='ALLOWED')||phases[phases.length-1];
+
+  // Build coherence timeline data
+  const labels=phases.map(p=>p.time||`T${p.phase}`);
+  const coherences=phases.map(p=>parseFloat(p.coherence_score||0));
+  const threshold=0.7; // approximate gate threshold
+
+  // Entropy feature names (9 Shannon features)
+  const ENTROPY_KEYS=['H_contract','H_counterparty','H_cross_proto','H_gas','H_mev','H_temporal','H_value_flow','H_volume','wallet_arch'];
+  const ENTROPY_LABELS=['H_contract','H_counterparty','H_cross_proto','H_gas','H_mev','H_temporal','H_value_flow','H_volume','wallet_arch'];
+
+  out.innerHTML=`
+  <div class="fade-in">
+    <!-- Attack header -->
+    <div class="card mb12">
+      <div class="card-header">
+        <div>
+          <div style="font-size:15px;font-weight:800">${data.attack||key}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">${data.attacker_address||''}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="badge ${isBlocked?'red':'green'}" style="font-size:11px;padding:4px 10px">${isBlocked?'✋ BLOCKED':'ALLOWED'}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+          <div class="stat-box"><div class="sb-label">Loss Protected</div><div class="sb-val text-green">${lossProtected}</div></div>
+          <div class="stat-box"><div class="sb-label">Detection Lead</div><div class="sb-val text-amber">${leadTime}</div></div>
+          <div class="stat-box"><div class="sb-label">Attack Pattern</div><div class="sb-val" style="font-size:10px">${data.final_pattern||'—'}</div></div>
+          <div class="stat-box"><div class="sb-label">Date</div><div class="sb-val">${data.date||'—'}</div></div>
+        </div>
+        <div style="padding:10px 12px;background:var(--card2);border-radius:4px;font-size:11px;color:var(--text2);line-height:1.7">${data.description||''}</div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text3)">Gate: <span class="mono text-cyan">${data.gate_contract||'0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b'}</span> on <b>${data.gate_chain||'0G Mainnet (16661)'}</b></div>
+      </div>
+    </div>
+
+    <!-- Coherence timeline -->
+    <div class="card mb12">
+      <div class="card-header">
+        <h3>Coherence Progression Timeline</h3>
+        <span class="badge red">Gate fires at Θ(t)</span>
+      </div>
+      <div class="card-body">
+        <div style="position:relative;height:200px"><canvas id="sim-coherence-chart"></canvas></div>
+        <div style="display:flex;align-items:center;gap:16px;margin-top:8px;font-size:10px;color:var(--text3)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:2px;background:var(--cyan);display:inline-block"></span>C(t) Coherence Score</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:2px;background:var(--red);display:inline-block;border-top:2px dashed var(--red)"></span>Θ(t) Gate Threshold</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase breakdown -->
+    <div class="card mb12">
+      <div class="card-header"><h3>Phase-by-Phase Behavioral Analysis</h3><span class="badge cyan">${phases.length} phases</span></div>
+      <div class="card-body no-pad">
+        ${phases.map((p,i)=>{
+          const score=parseFloat(p.coherence_score||0);
+          const st=p.coherence_status||'SAFE';
+          const gate=p.gate_decision||'ALLOWED';
+          const stColor=st==='SAFE'?'var(--green)':st==='ELEVATED'?'var(--amber)':'var(--red)';
+          const gateColor=gate==='ALLOWED'?'var(--green)':'var(--red)';
+          const gateIcon=gate==='ALLOWED'?'✓':'✋';
+          const pct=Math.round(score*100);
+          const barColor=score>0.7?'var(--green)':score>0.45?'var(--amber)':'var(--red)';
+          const isLast=i===phases.length-1;
+          const ent=p.entropy_features||{};
+          return `
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);${isLast?'border-bottom:none':''}">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <!-- Phase badge -->
+              <div style="min-width:52px;text-align:center">
+                <div style="width:36px;height:36px;border-radius:50%;border:2px solid ${stColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${stColor};margin:0 auto">${p.phase||i+1}</div>
+                <div style="font-size:9px;color:var(--text3);margin-top:3px">${p.time||''}</div>
+              </div>
+              <!-- Phase details -->
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+                  <span class="badge ${st==='SAFE'?'green':st==='ELEVATED'?'amber':'red'}" style="font-size:8px">${st}</span>
+                  <span style="font-size:9px;background:${gateColor+'15'};color:${gateColor};border:1px solid ${gateColor+'33'};padding:1px 6px;border-radius:2px;font-weight:700;font-size:8px">${gateIcon} ${gate}</span>
+                  ${p.manipulation_pattern?`<span class="badge orange" style="font-size:8px">${p.manipulation_pattern.replace(/_/g,' ')}</span>`:''}
+                </div>
+                <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">${p.action||'—'}</div>
+                <!-- Coherence bar -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <span style="font-size:9px;color:var(--text3);width:60px;flex-shrink:0">C(t) = ${score.toFixed(3)}</span>
+                  <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                    <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width .5s"></div>
+                  </div>
+                </div>
+                <!-- Shannon entropy mini bars -->
+                ${Object.keys(ent).length?`
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:4px">
+                  ${ENTROPY_KEYS.filter(k=>ent[k]!=null).map(k=>{
+                    const ev=parseFloat(ent[k]||0);
+                    const ec=ev>0.7?'#22C55E':ev>0.4?'#F59E0B':'#EF4444';
+                    return `<div style="background:var(--card2);border-radius:2px;padding:3px 5px;display:flex;align-items:center;gap:3px">
+                      <div style="width:${Math.round(ev*32)}px;max-width:32px;min-width:2px;height:3px;background:${ec};border-radius:1px;flex-shrink:0"></div>
+                      <span style="font-size:8px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.replace('H_','')}</span>
+                    </div>`;
+                  }).join('')}
+                </div>`:''}
+              </div>
+              <!-- BH hashes -->
+              ${p.behavioral_hash?`
+              <div style="min-width:120px;max-width:120px;flex-shrink:0">
+                <div style="font-size:8px;color:var(--text3);margin-bottom:2px">sense</div>
+                <div class="mono" style="font-size:8px;color:var(--cyan);word-break:break-all;line-height:1.4">${(p.behavioral_hash.sense||'').slice(0,16)}…</div>
+                <div style="font-size:8px;color:var(--text3);margin-top:4px;margin-bottom:2px">antisense</div>
+                <div class="mono" style="font-size:8px;color:var(--purple2);word-break:break-all;line-height:1.4">${(p.behavioral_hash.antisense||'').slice(0,16)}…</div>
+              </div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Entropy radar - last vs first phase -->
+    ${phases.length>=2?`
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><h3>Shannon Entropy — Phase 1 (Baseline)</h3><span class="badge green">SAFE</span></div>
+        <div class="card-body"><div style="position:relative;height:200px"><canvas id="sim-radar-a"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Shannon Entropy — Final Phase (Attack)</h3><span class="badge red">HOSTILE</span></div>
+        <div class="card-body"><div style="position:relative;height:200px"><canvas id="sim-radar-b"></canvas></div></div>
+      </div>
+    </div>`:''}
+  </div>`;
+
+  // Coherence line chart
+  setTimeout(()=>{
+    const ctx=document.getElementById('sim-coherence-chart');
+    if(ctx){
+      if(simChartInst)simChartInst.destroy();
+      // Add threshold line as dataset
+      const threshLine=phases.map(()=>threshold);
+      simChartInst=new Chart(ctx,{
+        type:'line',
+        data:{
+          labels,
+          datasets:[
+            {label:'C(t) Coherence',data:coherences,borderColor:'#00C2FF',backgroundColor:'rgba(0,194,255,.08)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:coherences.map(v=>v<threshold?'#EF4444':'#22C55E'),pointBorderColor:'transparent',borderWidth:2},
+            {label:'Θ(t) Threshold',data:threshLine,borderColor:'#EF4444',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false},
+          ]
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw.toFixed(3)}`}}},
+          scales:{
+            x:{ticks:{color:'#7F9BB8',font:{size:9}},grid:{color:'#12233E'}},
+            y:{min:0,max:1,ticks:{color:'#7F9BB8',font:{size:9},callback:v=>v.toFixed(1)},grid:{color:'#12233E'}}
+          },
+          // Add vertical annotation for first block
+          animation:{onComplete:function(){
+            const chart=this;
+            const ctx2=chart.ctx;
+            // Draw "GATE FIRES" annotation on first phase below threshold
+            const blkIdx=coherences.findIndex(v=>v<threshold);
+            if(blkIdx>=0){
+              const meta=chart.getDatasetMeta(0);
+              const pt=meta.data[blkIdx];
+              if(pt){
+                ctx2.save();
+                ctx2.strokeStyle='#EF4444';
+                ctx2.lineWidth=1;
+                ctx2.setLineDash([3,3]);
+                ctx2.beginPath();ctx2.moveTo(pt.x,chart.chartArea.top);ctx2.lineTo(pt.x,chart.chartArea.bottom);ctx2.stroke();
+                ctx2.fillStyle='#EF4444';ctx2.font='bold 9px Inter';ctx2.textAlign='center';
+                ctx2.fillText('GATE FIRES',pt.x,chart.chartArea.top+12);
+                ctx2.restore();
+              }
+            }
+          }}
+        }
+      });
+    }
+
+    // Radar charts
+    if(phases.length>=2){
+      const p1Ent=phases[0].entropy_features||{};
+      const pLEnt=phases[phases.length-1].entropy_features||{};
+      const radarLabels=ENTROPY_LABELS;
+      const radarCfg=(data,color,label)=>({
+        type:'radar',
+        data:{labels:radarLabels,datasets:[{label,data:ENTROPY_KEYS.map(k=>parseFloat(data[k]||0)),borderColor:color,backgroundColor:color.replace(')',',0.12)').replace('rgb','rgba'),pointBackgroundColor:color,borderWidth:1.5,pointRadius:3}]},
+        options:{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:1,ticks:{display:false,stepSize:.2},grid:{color:'#12233E'},pointLabels:{color:'#7F9BB8',font:{size:8}},angleLines:{color:'#12233E'}}},plugins:{legend:{display:false}}}
+      });
+      const ctxA=document.getElementById('sim-radar-a');
+      const ctxB=document.getElementById('sim-radar-b');
+      if(ctxA)new Chart(ctxA,radarCfg(p1Ent,'rgb(34,197,94)','Baseline'));
+      if(ctxB)new Chart(ctxB,radarCfg(pLEnt,'rgb(239,68,68)','Attack'));
+    }
+  },80);
 }
 
 /* ─── AUTO-REFRESH ─── */
