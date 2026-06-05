@@ -23,7 +23,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import numpy as np
 
-LIFECYCLE_STORE_PATH = "/tmp/trion_lifecycle_state.json"
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data")
+os.makedirs(_DATA_DIR, exist_ok=True)
+LIFECYCLE_STORE_PATH = os.path.join(_DATA_DIR, "trion_lifecycle_state.json")
 
 
 @dataclass

@@ -103,12 +103,13 @@ def classify_consensus_state(
         count_state = ConsensusState.FULL
 
     # Geography-based tier
+    # Spec: HALTED < 2, DEGRADED = 2, REDUCED = 3, FULL >= 4
     if continent_count < 2:
         geo_state = ConsensusState.HALTED
     elif continent_count < 3:
-        geo_state = ConsensusState.MINIMAL
-    elif continent_count < 4:
         geo_state = ConsensusState.DEGRADED
+    elif continent_count < 4:
+        geo_state = ConsensusState.REDUCED
     else:
         geo_state = ConsensusState.FULL
 

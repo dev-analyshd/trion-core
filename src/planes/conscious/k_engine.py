@@ -135,7 +135,7 @@ def compute_k_score(reveals: List[AnnotationReveal]) -> dict:
 
     times     = [r.revealed_at for r in reveals]
     time_span = max(times) - min(times) if len(times) > 1 else 0
-    temporal_consistency = max(0.5, 1.0 - time_span / (7 * 24 * 3600))
+    temporal_consistency = max(0.0, 1.0 - time_span / (7 * 24 * 3600))
 
     k_final = weighted_k * temporal_consistency
 

@@ -22,7 +22,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import numpy as np
 
-REPUTATION_STORE_PATH = "/tmp/trion_reputation_state.json"
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data")
+os.makedirs(_DATA_DIR, exist_ok=True)
+REPUTATION_STORE_PATH = os.path.join(_DATA_DIR, "trion_reputation_state.json")
 
 
 @dataclass

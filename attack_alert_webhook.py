@@ -36,6 +36,9 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [WEBHOOK] %(levelname)s %(message)s")
 log = logging.getLogger("trion.webhook")
 
+# Semaphore: cap concurrent outbound webhook delivery threads to prevent FD exhaustion
+_DELIVERY_SEMAPHORE = threading.Semaphore(32)
+
 app = Flask(__name__)
 
 ORACLE_URL    = os.getenv("ORACLE_API_URL", "http://127.0.0.1:5000")
@@ -86,7 +89,10 @@ def _dispatch(alert: dict):
         subscribed = wh.get("events", [])
         if subscribed and event not in subscribed and "all" not in subscribed:
             continue
-        threading.Thread(target=_fire, args=(wh["id"], wh, alert), daemon=True).start()
+        def _guarded_fire(webhook_id, hook, alert):
+            with _DELIVERY_SEMAPHORE:
+                _fire(webhook_id, hook, alert)
+        threading.Thread(target=_guarded_fire, args=(wh["id"], wh, alert), daemon=True).start()
 
 
 def _check_entity(entity: str):

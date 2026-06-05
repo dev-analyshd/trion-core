@@ -30,7 +30,7 @@ def compute_cf_score(wallets: List[WalletActivity]) -> float:
     if not funders:
         return 0.0
     most_common = max(set(funders), key=funders.count)
-    return funders.count(most_common) / len(wallets)
+    return funders.count(most_common) / len(funders)
 
 
 def compute_st_score(wallets: List[WalletActivity], window_secs: float = 300) -> float:
@@ -82,7 +82,8 @@ def resolve_entity(
     BP = behavioral pattern match score from FAISS 128-dim space.
     bp_prior=0.50 when FAISS behavioral pattern match is not available.
     """
-    assert abs(w_CF + w_ST + w_SC + w_BP - 1.0) < 1e-9, "BEO weights must sum to 1.0"
+    if abs(w_CF + w_ST + w_SC + w_BP - 1.0) >= 1e-9:
+        raise ValueError(f"BEO weights must sum to 1.0, got {w_CF + w_ST + w_SC + w_BP}")
 
     if not wallets:
         return {"beo_confidence": 0.0, "canonical_id": None, "wallet_count": 0}

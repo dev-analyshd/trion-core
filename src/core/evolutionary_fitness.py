@@ -119,7 +119,7 @@ def compute_pa(
     pairs  = list(zip(predicted_values[:n], realized_values[:n]))
     mae    = sum(abs(p - r) for p, r in pairs) / n
     mean_r = sum(r for _, r in pairs) / n
-    var_r  = sum((r - mean_r) ** 2 for _, r in pairs) / n
+    var_r  = sum((r - mean_r) ** 2 for _, r in pairs) / max(1, n - 1)
     baseline_mae = var_r ** 0.5
 
     if baseline_mae <= 0:

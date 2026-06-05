@@ -195,7 +195,7 @@ def detect_mev_extraction(
     MF = 0.40 × (mev_rate - 0.005) / 0.045
     Threshold: mev_rate > 0.005 (0.5% MEV extraction rate)
     """
-    detected = mev_ratio_30d > threshold_ratio or sandwich_count > 10
+    detected = mev_ratio_30d > threshold_ratio or (sandwich_count > 10 and mev_ratio_30d > 0)
     if detected:
         mf_score = min(0.40, max(0.0, 0.40 * (mev_ratio_30d - 0.005) / 0.045))
         return MFResult(
@@ -237,7 +237,8 @@ def detect_coordinated_pump(
     high_sync = sum(1 for r in sync_buy_ratios if r > sync_threshold)
     detected = high_sync >= min_entities and entity_count >= min_entities
     if detected:
-        avg_sync = sum(sync_buy_ratios) / len(sync_buy_ratios) if sync_buy_ratios else 0
+        high_sync_ratios = [r for r in sync_buy_ratios if r > sync_threshold]
+        avg_sync = sum(high_sync_ratios) / len(high_sync_ratios) if high_sync_ratios else 0
         mf_score = min(1.0, 0.85 * avg_sync)
         return MFResult(
             pattern_type="COORDINATED_PUMP",
