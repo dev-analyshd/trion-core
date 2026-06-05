@@ -122,7 +122,8 @@ class CoherenceEngine:
         w = WEIGHT_PROFILES[inp.profile]
 
         weight_sum = sum(w.values())
-        assert abs(weight_sum - 1.0) < 1e-9, f"Weights sum to {weight_sum}"
+        if abs(weight_sum - 1.0) >= 1e-9:
+            raise ValueError(f"Weight profile '{inp.profile}' sums to {weight_sum}, expected 1.0")
 
         C = (
             w["alpha"]   * inp.phi_adj  +
@@ -163,7 +164,7 @@ class CoherenceEngine:
         #   N = Network factor        (moat durability over time)
         D_factor = min(1.0, math.log(1 + inp.akashic_depth / 1000) / math.log(1 + 10.0))
         Q_factor = min(1.0, inp.k_plane + 0.15)          # k-plane (conscious) as quality proxy
-        R_factor = min(1.0, 1.0 - 0.30 * (inp.m_adj - 0.5) ** 2) if inp.m_adj >= 0 else 0.7
+        R_factor = min(1.0, 1.0 - 0.30 * (inp.m_adj - 0.5) ** 2)
         X_factor = min(1.0, math.log(1 + inp.akashic_depth / 5000) / math.log(3))   # chain breadth
         F_factor = 0.90  # falsifiability registry baseline (updated by governance votes)
         N_factor = math.exp(-inp.moat_time / 1e8) if inp.moat_time > 0 else 1.0      # decay over time
