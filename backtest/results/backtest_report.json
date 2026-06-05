@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-06-01T18:29:07.658094+00:00",
+    "generated_at": "2026-06-05T18:02:36.094066+00:00",
     "oracle_url": "http://127.0.0.1:5000",
     "dataset_version": "1.0",
     "exploits_tested": 30,
@@ -48,10 +48,10 @@
       ],
       "signal": {
         "coherence": 0.400232,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.344351,
+        "silence_gap": 0.288814,
         "archetype": "Lover",
         "planes": {
           "anima": 0.474706,
@@ -65,9 +65,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "e737e09c-c69b-4515-af99-2ebee7b13e24",
+        "signal_id": "bfb7dafd-3852-42e3-b0d7-2dcacb598196",
         "genomic_sig": "e9a54ef147a453c02544ab1525b8d267...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -89,10 +89,10 @@
       ],
       "signal": {
         "coherence": 0.398877,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.345706,
+        "silence_gap": 0.290169,
         "archetype": "Creator",
         "planes": {
           "anima": 0.820588,
@@ -106,9 +106,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "e5ab30f7-7eed-4390-9e22-ccdb895df794",
+        "signal_id": "3097b128-112b-4ead-a84f-07846b198f6a",
         "genomic_sig": "5a93f5761a026bdc45170225b667de96...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -130,10 +130,10 @@
       ],
       "signal": {
         "coherence": 0.378871,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.365712,
+        "silence_gap": 0.310175,
         "archetype": "Sage",
         "planes": {
           "anima": 0.679412,
@@ -147,9 +147,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "2bc764dc-f0fd-446e-b75d-b1a5c702cb74",
+        "signal_id": "57333778-84e5-43c5-9d9c-1666fa9e4732",
         "genomic_sig": "de71ffa245884b76a947cfcd06ac7451...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -171,10 +171,10 @@
       ],
       "signal": {
         "coherence": 0.458709,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.285874,
+        "silence_gap": 0.230337,
         "archetype": "Regular",
         "planes": {
           "anima": 0.585294,
@@ -188,9 +188,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "66dc89d6-2b4f-4e0f-a5ca-6f3110fe3746",
+        "signal_id": "23ea85cc-5178-4d62-8100-3da83e4ce9ab",
         "genomic_sig": "ecb8a9b44526be6133a51c18f262c8fc...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -213,10 +213,10 @@
       ],
       "signal": {
         "coherence": 0.376388,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.368195,
+        "silence_gap": 0.312658,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.465294,
@@ -230,9 +230,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "2cd06259-2c3c-44c8-a922-2d747a069ff4",
+        "signal_id": "97ebacf0-fea7-4744-92ab-491d1cfe85ea",
         "genomic_sig": "369faa45c4741220e6ab0f1c35c42e80...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -255,10 +255,10 @@
       ],
       "signal": {
         "coherence": 0.435181,
-        "threshold": 0.744583,
+        "threshold": 0.689046,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.309402,
+        "silence_gap": 0.253865,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.500588,
@@ -272,9 +272,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "9511a36a-3d14-4b4d-9c51-00f0504184e0",
+        "signal_id": "71e4ff7e-6d7a-477a-903e-16c6158db88f",
         "genomic_sig": "3e4979501d86cfd46d30e78be7379b0e...",
-        "market_vol": 0.5259
+        "market_vol": 0.3758
       },
       "entity_type": "ATTACKER"
     },
@@ -296,10 +296,10 @@
       ],
       "signal": {
         "coherence": 0.470465,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.274118,
+        "silence_gap": 0.218544,
         "archetype": "Creator",
         "planes": {
           "anima": 0.804118,
@@ -313,9 +313,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "a6c42357-c368-4385-95ce-f6738570e831",
+        "signal_id": "1c7ac9fe-f98f-486f-bd6f-1a510299686f",
         "genomic_sig": "3bcc4237373886cbb65fc59c1b177290...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -338,10 +338,10 @@
       ],
       "signal": {
         "coherence": 0.433921,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.310662,
+        "silence_gap": 0.255088,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.392353,
@@ -355,9 +355,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "60e93813-d68f-4af9-9ffc-4cec009ce570",
+        "signal_id": "8dd9148f-aaa4-426f-8fff-1177590cb480",
         "genomic_sig": "f4ca966bac44bf2cd977151a29ffe67c...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -379,10 +379,10 @@
       ],
       "signal": {
         "coherence": 0.458554,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.286029,
+        "silence_gap": 0.230455,
         "archetype": "Jester",
         "planes": {
           "anima": 0.858235,
@@ -396,9 +396,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "38355c32-aba0-4e6b-8667-217fad5d2f44",
+        "signal_id": "26efb545-d467-4bee-aebc-be8cb83ced29",
         "genomic_sig": "9f5a4d4f84d40137454e05dbd2c7ef1a...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -421,10 +421,10 @@
       ],
       "signal": {
         "coherence": 0.365828,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.378755,
+        "silence_gap": 0.323181,
         "archetype": "Outlaw",
         "planes": {
           "anima": 0.757059,
@@ -438,9 +438,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "176e8664-cb9a-4745-9a45-fe8228aa5691",
+        "signal_id": "8b38a79b-477a-4348-b0ce-49581f7f44b4",
         "genomic_sig": "41ed1536f4ff5a802e8162216f54a066...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -462,10 +462,10 @@
       ],
       "signal": {
         "coherence": 0.492745,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.251838,
+        "silence_gap": 0.196264,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.651176,
@@ -479,9 +479,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "c4c9fd36-1d00-4d94-98ec-c224cbf6069f",
+        "signal_id": "ea611788-19f7-4699-b6b9-c53830f2cdde",
         "genomic_sig": "da5a5b5aef46a43c31523c4840642e65...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -503,10 +503,10 @@
       ],
       "signal": {
         "coherence": 0.440007,
-        "threshold": 0.744583,
+        "threshold": 0.689009,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.304576,
+        "silence_gap": 0.249002,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.905294,
@@ -520,9 +520,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "9d0b9df8-53b2-49aa-a3b7-40f32e1847c3",
+        "signal_id": "8d548986-286b-4768-815a-5c12d560ae50",
         "genomic_sig": "5e29ca2e7185c9a25e82c55a581a6bb1...",
-        "market_vol": 0.5259
+        "market_vol": 0.3757
       },
       "entity_type": "ATTACKER"
     },
@@ -545,10 +545,10 @@
       ],
       "signal": {
         "coherence": 0.361859,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.382724,
+        "silence_gap": 0.327113,
         "archetype": "Innocent",
         "planes": {
           "anima": 0.512353,
@@ -562,9 +562,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "1358c646-9082-424a-9c66-3e9772a868ed",
+        "signal_id": "6bcc5741-dab4-4f62-a627-33af971bb17f",
         "genomic_sig": "a9e10a5f33bc6e65d53778a709316177...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -586,10 +586,10 @@
       ],
       "signal": {
         "coherence": 0.352946,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.391637,
+        "silence_gap": 0.336026,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.797059,
@@ -603,9 +603,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "4ad822e4-bbb3-4de0-a84a-41cfadb20fda",
+        "signal_id": "9f5b7aac-4ea3-4108-8a82-16ccc21cc13e",
         "genomic_sig": "dcb1838137c01545ecbfeef7f76642c2...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -628,10 +628,10 @@
       ],
       "signal": {
         "coherence": 0.408255,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.336328,
+        "silence_gap": 0.280717,
         "archetype": "Hero",
         "planes": {
           "anima": 0.538235,
@@ -645,9 +645,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "3ca36ffb-e860-4897-b217-f987bf39c242",
+        "signal_id": "59574a6c-09ae-4855-a917-4a56622f57f7",
         "genomic_sig": "f79755e88a960f72475eb287607ae5b4...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -669,10 +669,10 @@
       ],
       "signal": {
         "coherence": 0.45496,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.289623,
+        "silence_gap": 0.234012,
         "archetype": "Hero",
         "planes": {
           "anima": 0.559412,
@@ -686,9 +686,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "21a4e9e9-47d6-42ed-9481-390a436063c1",
+        "signal_id": "d2e2748b-2c2a-4bbd-ad0e-9057e6d511c2",
         "genomic_sig": "15940effe56586d464aec26256d5b077...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -710,10 +710,10 @@
       ],
       "signal": {
         "coherence": 0.431208,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.313375,
+        "silence_gap": 0.257764,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.738235,
@@ -727,9 +727,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "f780cff3-8f25-4237-bf47-f1ff6f4a4cf4",
+        "signal_id": "8432aea3-31cf-471f-9b15-fc588f350b77",
         "genomic_sig": "fc114fe5a8875f58d162e9baa5871e02...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -751,10 +751,10 @@
       ],
       "signal": {
         "coherence": 0.540351,
-        "threshold": 0.744583,
+        "threshold": 0.688972,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.204232,
+        "silence_gap": 0.148621,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.542941,
@@ -768,9 +768,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "c03074c8-eb9f-404f-bdc1-9c0a8aeb5a94",
+        "signal_id": "24c69272-3d68-4ee2-ae65-97a357fbdc1c",
         "genomic_sig": "9adac25e86281669d250dee13900c633...",
-        "market_vol": 0.5259
+        "market_vol": 0.3756
       },
       "entity_type": "ATTACKER"
     },
@@ -792,10 +792,10 @@
       ],
       "signal": {
         "coherence": 0.44072,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.303863,
+        "silence_gap": 0.248215,
         "archetype": "Lover",
         "planes": {
           "anima": 0.655882,
@@ -809,9 +809,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "1c72bae0-fe20-43b8-8e6d-160d29d9b0e6",
+        "signal_id": "eaaccce6-e063-4e1f-ba05-14f31ea53c52",
         "genomic_sig": "1e8848de8eac4ae0e5fdd9eeebe9da6f...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -833,10 +833,10 @@
       ],
       "signal": {
         "coherence": 0.421786,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.322797,
+        "silence_gap": 0.267149,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.420588,
@@ -850,9 +850,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "1592f622-4287-4f6d-a591-e499ae639fc8",
+        "signal_id": "afe3738f-20c2-4c88-908b-549ea2178407",
         "genomic_sig": "e476c7f952c8321645f28eeb6049d218...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -874,10 +874,10 @@
       ],
       "signal": {
         "coherence": 0.429557,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.315026,
+        "silence_gap": 0.259378,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.91,
@@ -891,9 +891,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "0313d3c9-3efa-43b0-b7a3-ef96c0703165",
+        "signal_id": "f1075292-4682-4ee7-93b1-a64622e9c1b6",
         "genomic_sig": "119cb130c56c9c2262a08565d3519f0c...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -915,10 +915,10 @@
       ],
       "signal": {
         "coherence": 0.493436,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.251147,
+        "silence_gap": 0.195499,
         "archetype": "Magician",
         "planes": {
           "anima": 0.912353,
@@ -932,9 +932,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "78b2284d-d9a9-4da9-9c72-5c9af5a608d3",
+        "signal_id": "6cc98263-0153-4c1b-9e65-5cda5097507e",
         "genomic_sig": "795d096685292df2c7a0b5944b1a3c29...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -956,10 +956,10 @@
       ],
       "signal": {
         "coherence": 0.422992,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.321591,
+        "silence_gap": 0.265943,
         "archetype": "Caregiver",
         "planes": {
           "anima": 0.397059,
@@ -973,9 +973,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "c14c0a7f-4e1e-44e4-b0c6-f7eac3c591b5",
+        "signal_id": "516cc76d-5e89-43c7-8011-1eb70bef31b9",
         "genomic_sig": "d83f97c4531e30cbdc12e2257a952341...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -997,10 +997,10 @@
       ],
       "signal": {
         "coherence": 0.490273,
-        "threshold": 0.744583,
+        "threshold": 0.688935,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.25431,
+        "silence_gap": 0.198662,
         "archetype": "Hero",
         "planes": {
           "anima": 0.891176,
@@ -1014,9 +1014,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "e992d189-04f5-4d23-bd88-d00356038eca",
+        "signal_id": "d25de82c-32ec-4cbb-8c93-9061e0cfdb09",
         "genomic_sig": "d2f58b65a127e16f8eeceb1a6fbddd32...",
-        "market_vol": 0.5259
+        "market_vol": 0.3755
       },
       "entity_type": "ATTACKER"
     },
@@ -1038,10 +1038,10 @@
       ],
       "signal": {
         "coherence": 0.444377,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.300206,
+        "silence_gap": 0.244521,
         "archetype": "Outlaw",
         "planes": {
           "anima": 0.434706,
@@ -1055,9 +1055,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "0f7b32b0-884c-4d2a-9c5c-c38c78e686ba",
+        "signal_id": "bd29eb12-a8a3-4fa9-af7e-8bed98b706ad",
         "genomic_sig": "85a49503a0f48da2f36ebd74ad4018e3...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1079,10 +1079,10 @@
       ],
       "signal": {
         "coherence": 0.447818,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.296765,
+        "silence_gap": 0.24108,
         "archetype": "Lover",
         "planes": {
           "anima": 0.427647,
@@ -1096,9 +1096,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "89b6dabf-685b-4356-a908-2a5e43d3c75a",
+        "signal_id": "ad19bbea-d72e-47ab-9fc4-4282926da065",
         "genomic_sig": "9be09205cc107f74f81961f00576167a...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1119,10 +1119,10 @@
       ],
       "signal": {
         "coherence": 0.48857,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.256013,
+        "silence_gap": 0.200328,
         "archetype": "Ruler",
         "planes": {
           "anima": 0.799412,
@@ -1136,9 +1136,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "3bdf62f3-ec45-4b4c-9b49-1755d440ffe0",
+        "signal_id": "2a1e62e5-3014-4a62-99f8-d679eca43bdb",
         "genomic_sig": "76122f6d53a72034053270bf23667675...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1159,10 +1159,10 @@
       ],
       "signal": {
         "coherence": 0.406815,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.337768,
+        "silence_gap": 0.282083,
         "archetype": "Regular",
         "planes": {
           "anima": 0.524118,
@@ -1176,9 +1176,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "6b1263f5-f125-49e9-8dba-1790998d0a85",
+        "signal_id": "9579a4e3-2f5b-4ccf-83fc-e9bd6d90bb5e",
         "genomic_sig": "b40dfe83cc4e9dd95718f6f71a4858d6...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1199,10 +1199,10 @@
       ],
       "signal": {
         "coherence": 0.358309,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.386274,
+        "silence_gap": 0.330589,
         "archetype": "Innocent",
         "planes": {
           "anima": 0.500588,
@@ -1216,9 +1216,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "6aac0956-0edd-4ff1-a077-1bac1c0f7aab",
+        "signal_id": "cb9650b7-d848-445f-940c-0b1db1bd6ae3",
         "genomic_sig": "d6945e8f4745148391ebaa730348b32b...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1240,10 +1240,10 @@
       ],
       "signal": {
         "coherence": 0.424889,
-        "threshold": 0.744583,
+        "threshold": 0.688898,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.319694,
+        "silence_gap": 0.264009,
         "archetype": "Ruler",
         "planes": {
           "anima": 0.862941,
@@ -1257,9 +1257,9 @@
         "TN": false,
         "FN": false,
         "outcome": "TP",
-        "signal_id": "3fb39335-724f-49eb-aa00-04c9031bf9c5",
+        "signal_id": "93f6152a-5473-45ba-bd66-cccb1e830433",
         "genomic_sig": "a8c4c030cd76d1cbd21cbc8b2f43afe3...",
-        "market_vol": 0.5259
+        "market_vol": 0.3754
       },
       "entity_type": "ATTACKER"
     },
@@ -1271,10 +1271,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.374856,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.369727,
+        "silence_gap": 0.314005,
         "archetype": "Creator",
         "planes": {
           "anima": 0.604118,
@@ -1288,9 +1288,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "96f476ff-b956-4aea-8ab8-9c25f03a6259",
+        "signal_id": "6140d205-4aa0-448e-8e05-d9ec06787867",
         "genomic_sig": "370e47bb19c87861d7f4a0b041b5913a...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1302,10 +1302,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.476906,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.267677,
+        "silence_gap": 0.211955,
         "archetype": "Hero",
         "planes": {
           "anima": 0.613529,
@@ -1319,9 +1319,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "3ac01937-84d2-44e6-8aae-c488535160bf",
+        "signal_id": "1412ff2e-9f98-43a1-b087-9700c03b7cbf",
         "genomic_sig": "5645a6f0bce9954eec17b8ec11c6f581...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1333,10 +1333,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.489967,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.254616,
+        "silence_gap": 0.198894,
         "archetype": "Ruler",
         "planes": {
           "anima": 0.413529,
@@ -1350,9 +1350,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "5e347d00-9632-4a50-8fd3-a378d4189f74",
+        "signal_id": "37c0794d-00a3-4b27-9f2b-f62bf35c8bbf",
         "genomic_sig": "8916daf2c6840b532a936fa06b1812bf...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1364,10 +1364,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.517762,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.226821,
+        "silence_gap": 0.171099,
         "archetype": "Sage",
         "planes": {
           "anima": 0.665294,
@@ -1381,9 +1381,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "0a600e41-eb5a-42d4-baac-9ca744334358",
+        "signal_id": "b7059a04-2c2c-4309-800b-de410deeebb6",
         "genomic_sig": "af411f0dc1155494b0e3eea9ab3644dd...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1395,10 +1395,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.562543,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.18204,
+        "silence_gap": 0.126318,
         "archetype": "Lover",
         "planes": {
           "anima": 0.695882,
@@ -1412,9 +1412,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "1c466fe0-0b22-4c3d-8155-c4f535c17499",
+        "signal_id": "df20be8c-b605-4c20-83b1-2fb9fc2f604f",
         "genomic_sig": "eedb59f98cbc6e29a945ae9a40eade47...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1426,10 +1426,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.384134,
-        "threshold": 0.744583,
+        "threshold": 0.688861,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.360449,
+        "silence_gap": 0.304727,
         "archetype": "Sage",
         "planes": {
           "anima": 0.437059,
@@ -1443,9 +1443,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "f112bd29-d48b-40dd-aba2-db88d793d1a8",
+        "signal_id": "1c577599-21d5-4b71-ac20-8935824f2f9e",
         "genomic_sig": "49c1cdc36b19cfb81fafdda61c3a59cd...",
-        "market_vol": 0.5259
+        "market_vol": 0.3753
       },
       "entity_type": "CONTROL"
     },
@@ -1457,10 +1457,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.477759,
-        "threshold": 0.744583,
+        "threshold": 0.688824,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.266824,
+        "silence_gap": 0.211065,
         "archetype": "Outlaw",
         "planes": {
           "anima": 0.653529,
@@ -1474,9 +1474,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "e67e6d95-e9dd-445f-a8dc-a868d45cd933",
+        "signal_id": "a1885a9a-ebab-4dda-9fea-7ba340bba4bb",
         "genomic_sig": "d2b07034c204b90d43b76a8d05559915...",
-        "market_vol": 0.5259
+        "market_vol": 0.3752
       },
       "entity_type": "CONTROL"
     },
@@ -1488,10 +1488,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.436635,
-        "threshold": 0.744583,
+        "threshold": 0.688824,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.307948,
+        "silence_gap": 0.252189,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.799412,
@@ -1505,9 +1505,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "5acac91f-8cfd-4418-9c25-08a3ba784b4e",
+        "signal_id": "107da61d-c312-4d12-a14d-a95831c40360",
         "genomic_sig": "d7453b861a5a4f72b655b7e5371fadb2...",
-        "market_vol": 0.5259
+        "market_vol": 0.3752
       },
       "entity_type": "CONTROL"
     },
@@ -1519,10 +1519,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.500486,
-        "threshold": 0.744583,
+        "threshold": 0.688824,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.244097,
+        "silence_gap": 0.188338,
         "archetype": "Explorer",
         "planes": {
           "anima": 0.808824,
@@ -1536,9 +1536,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "6fca085e-cfb5-4ad9-a570-d46d287c78d5",
+        "signal_id": "e43743ef-c739-4cd6-ac15-c6b9d105b964",
         "genomic_sig": "fa9b964bf76502a9fff96120f26c565c...",
-        "market_vol": 0.5259
+        "market_vol": 0.3752
       },
       "entity_type": "CONTROL"
     },
@@ -1550,10 +1550,10 @@
       "expected_result": "COHERENT",
       "signal": {
         "coherence": 0.38551,
-        "threshold": 0.744583,
+        "threshold": 0.688824,
         "coherent": false,
         "trion_flagged": true,
-        "silence_gap": 0.359073,
+        "silence_gap": 0.303314,
         "archetype": "Innocent",
         "planes": {
           "anima": 0.357059,
@@ -1567,9 +1567,9 @@
         "TN": false,
         "FN": false,
         "outcome": "FP",
-        "signal_id": "33957194-5613-44bf-85f9-5d81b1eb9d58",
+        "signal_id": "89f92709-5958-4ec5-bf8c-9919b7935d4a",
         "genomic_sig": "dab04031c49b5c0b371a0ec396792de3...",
-        "market_vol": 0.5259
+        "market_vol": 0.3752
       },
       "entity_type": "CONTROL"
     }
