@@ -39,7 +39,13 @@ const ZG_RPC         = process.env.ZERO_G_RPC     || "https://evmrpc-testnet.0g.
 const ZG_CHAIN_ID    = parseInt(process.env.ZG_CHAIN_ID || "16602", 10);
 const ZG_EXPLORER    = ZG_CHAIN_ID === 16601 ? "https://chainscan.0g.ai" : "https://chainscan-galileo.0g.ai";
 const STORAGE_EP     = process.env.ZG_STORAGE_ENDPOINT || "https://indexer-storage-testnet-standard.0g.ai";
-const FAISS_PATH     = process.env.FAISS_INDEX_PATH || path.join(ROOT, "akashic", "akashic_faiss.index");
+// The FAISS index is saved to the workspace root by faiss_service.py,
+// not inside the akashic/ subdirectory. Try workspace root first, then
+// fall back to the subdirectory path for backwards-compat.
+const _faissDefault = fs.existsSync(path.join(ROOT, "akashic_faiss.index"))
+  ? path.join(ROOT, "akashic_faiss.index")
+  : path.join(ROOT, "akashic", "akashic_faiss.index");
+const FAISS_PATH     = process.env.FAISS_INDEX_PATH || _faissDefault;
 
 const GATE_ABI_SYNC  = [
   "function confirmStorageSync(string calldata storageRoot, uint256 vectorCount) external",
