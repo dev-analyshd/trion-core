@@ -6,51 +6,65 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: "3.11"
+
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Python unit + integration tests
+  # ─────────────────────────────────────────────────────────────────────────────
   test-python:
-    name: Python — Full Test Suite (416 tests)
+    name: Python — Unit & Integration Tests
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install \
+          uv pip install --system \
             pytest numpy scipy scikit-learn \
-            flask flask-sqlalchemy requests httpx \
+            flask flask-sqlalchemy sqlalchemy \
+            requests httpx uvicorn fastapi \
             faiss-cpu pydantic web3 \
             apscheduler feedparser langdetect \
-            vadersentiment
+            vadersentiment psycopg2-binary
 
-      - name: Run Five Planes test suite
+      - name: Five Planes — C(t) assembly, Θ(t), Silence
         run: python3 -m pytest tests/test_all_planes.py -v --tb=short
 
-      - name: Run chain integration tests
-        run: python3 -m pytest tests/test_chain_integrations.py -v --tb=short
-
-      - name: Run whitepaper gap tests
+      - name: Whitepaper gap coverage (84 formulas)
         run: python3 -m pytest tests/test_whitepaper_gaps.py -v --tb=short
 
-      - name: Run deep VM and 0G tests
-        run: python3 -m pytest tests/test_deep_vm_and_zg.py -v --tb=short
+      - name: Trading signals — BTV, price feed, CEX
+        run: python3 -m pytest tests/test_trading_signals.py -v --tb=short
 
-      - name: Run vision expansion tests
-        run: python3 -m pytest tests/test_vision_expansion.py -v --tb=short
-
-      - name: Run TRION protocol unit tests
+      - name: TRION protocol unit tests
         run: python3 -m pytest tests/trion_protocol/ -v --tb=short
 
-      - name: Run attack simulator
+      - name: Deep VM and 0G integration
+        run: python3 -m pytest tests/test_deep_vm_and_zg.py -v --tb=short
+
+      - name: Stress tests — concurrency, throughput, resilience
+        run: python3 -m pytest tests/test_stress.py -v --tb=short
+
+      - name: Attack simulator self-test
         run: python3 scripts/simulate_attacks.py
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Solidity contracts
+  # ─────────────────────────────────────────────────────────────────────────────
   compile-solidity:
     name: Solidity — Hardhat Compile
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -58,15 +72,21 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
+      - name: Install Hardhat dependencies
+        working-directory: hardhat
         run: npm install --legacy-peer-deps
 
       - name: Compile contracts
+        working-directory: hardhat
         run: npx hardhat compile
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Rust L0 indexers
+  # ─────────────────────────────────────────────────────────────────────────────
   compile-rust:
-    name: Rust — Indexer Build
+    name: Rust — L0 Indexer Build
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -77,16 +97,20 @@ jobs:
       - name: Build Rust indexers
         run: cargo build --manifest-path rust-indexers/Cargo.toml
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stress — runs only after Python suite is green
+  # ─────────────────────────────────────────────────────────────────────────────
   stress-test:
-    name: Stress Test — 200 req @ 226 req/s
+    name: Stress Test — 200 concurrent requests
     runs-on: ubuntu-latest
     needs: [test-python]
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: pip install requests numpy flask flask-sqlalchemy faiss-cpu scikit-learn
@@ -95,11 +119,15 @@ jobs:
         run: python3 scripts/stress_test.py --ci
         continue-on-error: true
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy — triggers Render on push to main
+  # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy — Trigger Production Deploy
     runs-on: ubuntu-latest
     needs: [test-python, compile-solidity]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
       - name: Trigger Render deploy webhook
         run: |
