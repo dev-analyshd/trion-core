@@ -2832,6 +2832,8 @@ def add_vector(payload: VectorPayload):
         "arch_sim":  arch_sim_pre,   # M(τ) proxy for L2.1 D(t) integral
     })
     entity_last_active[beo_id] = ts
+    # Persist to SQLite so entity_history survives service restarts
+    _db_persist_record(beo_id, entity_history[beo_id][-1])
 
     # Merkle leaf registration
     bh_id = payload.bh_id or hashlib.sha3_256(str(ts).encode() + bytes(vec)).hexdigest()
@@ -2904,6 +2906,7 @@ def add_vector_batch(payload: BatchVectorPayload):
 
     new_timing_entries: List[Tuple[str, float]] = []
     batch_beo_ids: List[str] = []   # collect canonical BEO IDs for conv proxy
+    new_entity_records: List[Tuple] = []   # (beo_id, record) for batch SQLite persist
 
     # ── Cross-VM chain adapter ─────────────────────────────────────────────────
     # Batch-level vm_type overrides per-item vm_type when set (SVM/PVM indexers
@@ -2983,6 +2986,7 @@ def add_vector_batch(payload: BatchVectorPayload):
             "arch_sim":  arch_sim_pre,
         })
         entity_last_active[beo_id] = ts
+        new_entity_records.append((beo_id, entity_history[beo_id][-1]))
 
         # Update BEO timing log for ST correlation (L0.2) — batch-persisted after loop
         beo_timing_log[beo_id].append(ts)
@@ -3054,6 +3058,30 @@ def add_vector_batch(payload: BatchVectorPayload):
                     "(SELECT ts FROM beo_timing WHERE beo_id=? ORDER BY ts DESC LIMIT 200)",
                     (beo_id, beo_id)
                 )
+            conn.commit()
+            conn.close()
+
+    # Batch-persist entity records and metadata to SQLite so entities_tracked
+    # survives service restarts (fixes: entity_records table was never written)
+    if new_entity_records:
+        with _DB_WRITE_LOCK:
+            conn = _db_conn()
+            conn.executemany(
+                "INSERT OR REPLACE INTO entity_records VALUES (?,?,?,?,?,?)",
+                [
+                    (beo, rec["ts"], rec["magnitude"], rec["entropy"],
+                     rec.get("arch_sim", 0.0),
+                     np.array(rec["vector"], dtype="float32").tobytes())
+                    for beo, rec in new_entity_records
+                ],
+            )
+            # Upsert entity_meta for all entities touched in this batch
+            touched_beos = list({beo for beo, _ in new_entity_records})
+            conn.executemany(
+                "INSERT OR REPLACE INTO entity_meta VALUES (?,?,?)",
+                [(beo, entity_last_active.get(beo), entity_archetypes.get(beo))
+                 for beo in touched_beos],
+            )
             conn.commit()
             conn.close()
 
