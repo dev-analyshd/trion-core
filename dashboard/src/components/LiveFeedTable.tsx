@@ -1,12 +1,11 @@
 'use client';
 
-import useSWR from 'swr';
-import { endpoints, fetchJSON } from '@/lib/api';
-import type { FeedData, FeedEntry } from '@/lib/types';
+import { useLiveFeed } from '@/hooks/useLiveFeed';
+import type { FeedEntry } from '@/lib/types';
 import CoherenceMeter from './CoherenceMeter';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
-import { Activity } from 'lucide-react';
+import { Activity, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 const ARCH_COLORS: Record<string, string> = {
   Hero: 'text-cyan border-cyan/30 bg-cyan/5',
@@ -26,11 +25,45 @@ function ArchBadge({ arch }: { arch: string }) {
   );
 }
 
-function SignalBadge({ coherent, type }: { coherent: boolean; type?: string }) {
+function SignalBadge({ coherent }: { coherent: boolean }) {
   if (coherent) {
     return <span className="px-1.5 py-0.5 rounded border border-green-500/30 bg-green-500/5 text-green-400 text-[9px] font-semibold uppercase">EMIT</span>;
   }
   return <span className="px-1.5 py-0.5 rounded border border-t3/30 bg-card2 text-t3 text-[9px] font-semibold uppercase">SILENCE</span>;
+}
+
+function ConnIndicator({ state }: { state: 'connecting' | 'live' | 'error' | 'polling' }) {
+  if (state === 'live') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink" />
+        <Wifi size={10} className="text-green-400" />
+        <span className="text-[10px] text-green-400 font-medium">LIVE</span>
+      </div>
+    );
+  }
+  if (state === 'connecting') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <RefreshCw size={10} className="text-amber-400 animate-spin" />
+        <span className="text-[10px] text-amber-400 font-medium">CONNECTING</span>
+      </div>
+    );
+  }
+  if (state === 'error') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <WifiOff size={10} className="text-red-400" />
+        <span className="text-[10px] text-red-400 font-medium">RECONNECTING</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-blink" />
+      <span className="text-[10px] text-amber-400 font-medium">POLLING</span>
+    </div>
+  );
 }
 
 interface Props {
@@ -38,12 +71,9 @@ interface Props {
   compact?: boolean;
 }
 
-export default function LiveFeedTable({ limit = 20, compact = false }: Props) {
-  const { data, isLoading } = useSWR<FeedData>(endpoints.feed, fetchJSON, {
-    refreshInterval: 3000,
-  });
-
-  const entries = (data?.feed ?? []).slice(0, limit);
+export default function LiveFeedTable({ limit = 50, compact = false }: Props) {
+  const { entries, connState, newCount } = useLiveFeed(limit);
+  const isLoading = entries.length === 0;
 
   return (
     <div className="card flex flex-col overflow-hidden h-full">
@@ -51,11 +81,13 @@ export default function LiveFeedTable({ limit = 20, compact = false }: Props) {
         <div className="flex items-center gap-2">
           <Activity size={13} className="text-cyan" />
           <span className="text-[12px] font-semibold text-t1">Live Signal Feed</span>
+          {newCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded bg-cyan/10 border border-cyan/20 text-cyan text-[9px] font-semibold mono">
+              +{newCount}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink" />
-          <span className="text-[10px] text-green-400 font-medium">LIVE</span>
-        </div>
+        <ConnIndicator state={connState} />
       </div>
 
       <div className="overflow-y-auto scrollable flex-1">
@@ -81,7 +113,10 @@ export default function LiveFeedTable({ limit = 20, compact = false }: Props) {
               {entries.map((e: FeedEntry, i) => (
                 <tr
                   key={`${e.entity_id}-${e.timestamp}-${i}`}
-                  className="border-b border-border/50 hover:bg-card2 transition-colors"
+                  className={clsx(
+                    'border-b border-border/50 hover:bg-card2 transition-colors',
+                    i === 0 && connState === 'live' && 'animate-flash-in'
+                  )}
                 >
                   <td className="px-4 py-2.5">
                     <span className="mono text-[11px] text-t1 truncate block max-w-[140px]" title={e.entity_id}>
