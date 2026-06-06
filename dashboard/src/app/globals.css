@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sidebar-w: 232px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: #030711;
+  color: #e2eaf4;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #030711; }
+::-webkit-scrollbar-thumb { background: #1a3356; border-radius: 2px; }
+
+.scrollable { overflow-y: auto; }
+
+@layer utilities {
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #00c2ff, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 12px rgba(0, 194, 255, 0.2);
+  }
+
+  .card {
+    @apply bg-card border border-border rounded-lg;
+  }
+
+  .card2 {
+    @apply bg-card2 border border-border rounded-lg;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #0a1628 !important;
+  border: 1px solid #122040 !important;
+  border-radius: 6px !important;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #122040 !important;
+}
