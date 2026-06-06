@@ -678,6 +678,7 @@ def _db_persist_record(beo_id: str, record: dict, block_num: int = 0):
         conn.close()
     # Dual-write to TimescaleDB when configured (Postgres has its own concurrency)
     _tsdb_write_bh(beo_id, record, block_num=block_num)
+    _tsdb_write_vector(beo_id, record)
 
 
 def _db_persist_genesis_lock(beo_id: str):
@@ -925,20 +926,45 @@ def _init_timescaledb():
         with open(schema_path, "r") as f:
             schema_sql = f.read()
 
+        # Split on ";" only OUTSIDE $$...$$  dollar-quoted blocks so that
+        # PL/pgSQL function bodies with internal semicolons are kept intact.
+        def _split_sql(sql: str) -> list:
+            stmts, buf, in_dollar = [], [], False
+            i = 0
+            while i < len(sql):
+                if sql[i:i+2] == "$$":
+                    in_dollar = not in_dollar
+                    buf.append("$$")
+                    i += 2
+                elif sql[i] == ";" and not in_dollar:
+                    s = "".join(buf).strip()
+                    if s:
+                        stmts.append(s)
+                    buf = []
+                    i += 1
+                else:
+                    buf.append(sql[i])
+                    i += 1
+            s = "".join(buf).strip()
+            if s:
+                stmts.append(s)
+            return stmts
+
+        # Use autocommit so each statement is independent — a failed DDL
+        # statement does NOT roll back previously successful ones.
+        conn.autocommit = True
+        statements = _split_sql(schema_sql)
+        applied, skipped = 0, 0
         with conn.cursor() as cur:
-            # Execute schema statement by statement, skip failures gracefully
-            # (e.g. hypertables that already exist, compression policies already set)
-            statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
-            applied = 0
             for stmt in statements:
                 try:
                     cur.execute(stmt)
                     applied += 1
                 except Exception as e:
-                    conn.rollback()
+                    skipped += 1
                     logger.debug("[TimescaleDB] Schema stmt skipped: %s", str(e)[:120])
-            conn.commit()
 
+        logger.debug("[TimescaleDB] Schema: %d applied, %d skipped", applied, skipped)
         conn.close()
         _tsdb_ready = True
         logger.info("[TimescaleDB] Connected and schema applied — dual-write ACTIVE")
@@ -1024,7 +1050,197 @@ def _tsdb_write_beo(beo_id: str, addresses: list, depth: float, archetype_id: Op
         logger.debug("[TimescaleDB] beo_registry write failed: %s", str(e)[:120])
 
 
+def _tsdb_write_vector(beo_id: str, record: dict):
+    """
+    Dual-write the raw 128-dim vector to TimescaleDB akashic_vectors.
+    This is the authoritative source for cold-boot FAISS + SQLite restore.
+    Non-blocking — errors swallowed so SQLite remains source of truth.
+    """
+    if not _tsdb_ready:
+        return
+    try:
+        conn = _tsdb_conn()
+        if not conn:
+            return
+        ts  = datetime.fromtimestamp(record["ts"], tz=timezone.utc)
+        vec = list(float(v) for v in record["vector"])  # psycopg2 → FLOAT8[]
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO akashic_vectors (entity_id, ts, vector, magnitude, entropy, arch_sim)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (entity_id, ts) DO NOTHING
+            """, (
+                beo_id,
+                ts,
+                vec,
+                float(record.get("magnitude", 0.0)),
+                float(record.get("entropy",   0.0)),
+                float(record.get("arch_sim",  0.0)),
+            ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.debug("[TimescaleDB] vector write failed: %s", str(e)[:120])
+
+
+def _restore_from_timescaledb():
+    """
+    Cold-boot restore: hydrate FAISS index + SQLite from TimescaleDB.
+
+    Runs only when the local FAISS index AND entity_history are both empty,
+    which happens after a full container reset (gitignored .index/.db files
+    are wiped). TimescaleDB is the durable source of truth for the vectors.
+
+    Restores:
+      - entity_history / entity_last_active / entity_archetypes (in-memory)
+      - FAISS index (rebuilt via batch add)
+      - SQLite entity_records, entity_meta, beo_clusters (written to disk)
+      - address_to_canonical mapping (from beo_registry.raw_addresses)
+    """
+    global index, entity_history, entity_last_active, entity_archetypes
+    global address_to_canonical
+
+    if not _tsdb_ready:
+        return
+    if index is not None and index.ntotal > 0:
+        return  # Local FAISS intact — nothing to restore
+    if entity_history:
+        return  # SQLite had entities — skip
+
+    logger.info("[restore] Cold-boot detected — querying TimescaleDB for vectors...")
+    try:
+        conn = _tsdb_conn()
+        if not conn:
+            logger.warning("[restore] TSDB unavailable — starting fresh")
+            return
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM akashic_vectors")
+            total = cur.fetchone()[0]
+
+        if total == 0:
+            logger.info("[restore] akashic_vectors is empty — nothing to restore")
+            conn.close()
+            return
+
+        logger.info("[restore] %d vectors available in TimescaleDB — restoring...", total)
+
+        # Pull last 500 records per entity (matches SQLite HOT-tier limit)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT entity_id,
+                       EXTRACT(EPOCH FROM ts)::FLOAT8,
+                       vector, magnitude, entropy, arch_sim
+                FROM (
+                    SELECT entity_id, ts, vector, magnitude, entropy, arch_sim,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY entity_id ORDER BY ts DESC
+                           ) AS rn
+                    FROM akashic_vectors
+                ) sub
+                WHERE rn <= 500
+                ORDER BY entity_id, ts ASC
+            """)
+            rows = cur.fetchall()
+
+        # Restore beo_registry → address mappings + archetype assignments (optional)
+        beo_rows = []
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT entity_id::TEXT, raw_addresses, last_seen, archetype_id
+                    FROM beo_registry
+                """)
+                beo_rows = cur.fetchall()
+        except Exception as beo_err:
+            logger.debug("[restore] beo_registry unavailable — skipping address restore: %s", str(beo_err)[:80])
+
+        conn.close()
+
+        # ── Populate in-memory state + build numpy batch for FAISS ───────────
+        all_vecs      = []
+        sqlite_records = []  # (beo_id, ts, magnitude, entropy, arch_sim, vec_blob)
+
+        for row in rows:
+            beo_id, ts_epoch, vec_list, magnitude, entropy, arch_sim = row
+            if not vec_list or len(vec_list) != DIMENSION:
+                continue
+            vec_f32  = np.array(vec_list, dtype="float32")
+            vec_blob = vec_f32.tobytes()
+            all_vecs.append(vec_f32)
+            sqlite_records.append((beo_id, ts_epoch, magnitude, entropy, arch_sim, vec_blob))
+
+            rec = {
+                "vector":    list(vec_list),
+                "ts":        ts_epoch,
+                "magnitude": magnitude,
+                "entropy":   entropy,
+                "arch_sim":  arch_sim,
+            }
+            entity_history[beo_id].append(rec)
+            prev = entity_last_active.get(beo_id, 0.0)
+            entity_last_active[beo_id] = max(prev, ts_epoch)
+
+        for entity_id_raw, raw_addresses, last_seen, archetype_id in beo_rows:
+            beo_id = str(entity_id_raw)
+            if archetype_id is not None:
+                entity_archetypes[beo_id] = archetype_id
+            if last_seen:
+                ls_ts = last_seen.timestamp() if hasattr(last_seen, "timestamp") else float(last_seen)
+                entity_last_active[beo_id] = max(entity_last_active.get(beo_id, 0.0), ls_ts)
+            if raw_addresses:
+                for addr in raw_addresses:
+                    if addr:
+                        address_to_canonical[addr.lower()] = beo_id
+
+        # ── Rebuild FAISS index ───────────────────────────────────────────────
+        if all_vecs:
+            vecs_np = np.stack(all_vecs, axis=0)
+            index.add(vecs_np)
+            faiss.write_index(index, INDEX_PATH)
+            logger.info("[restore] FAISS rebuilt — %d vectors, %d entities",
+                        index.ntotal, len(entity_history))
+
+        # ── Persist restored state to SQLite in one transaction ──────────────
+        if sqlite_records:
+            with _DB_WRITE_LOCK:
+                sq = _db_conn()
+                sq.executemany(
+                    "INSERT OR REPLACE INTO entity_records VALUES (?,?,?,?,?,?)",
+                    sqlite_records,
+                )
+                sq.executemany(
+                    "INSERT OR REPLACE INTO entity_meta VALUES (?,?,?)",
+                    [
+                        (beo_id,
+                         entity_last_active.get(beo_id),
+                         entity_archetypes.get(beo_id))
+                        for beo_id in entity_history
+                    ],
+                )
+                if address_to_canonical:
+                    sq.executemany(
+                        "INSERT OR REPLACE INTO beo_clusters VALUES (?,?,?)",
+                        [(addr, canonical, None)
+                         for addr, canonical in address_to_canonical.items()],
+                    )
+                sq.commit()
+                sq.close()
+            logger.info("[restore] SQLite hydrated — %d records written", len(sqlite_records))
+
+        logger.info(
+            "[restore] Cold-boot restore complete: entities=%d  vectors=%d  beo_mappings=%d",
+            len(entity_history),
+            index.ntotal if index is not None else 0,
+            len(address_to_canonical),
+        )
+
+    except Exception as exc:
+        logger.error("[restore] Restore from TimescaleDB failed: %s", exc)
+
+
 _init_timescaledb()
+_restore_from_timescaledb()
 
 # ── L3.3  ANIMA Engine — initialise after DB and index are ready ──────────────
 _STATE_DB_PATH = os.environ.get("FAISS_STATE_DB", "akashic_state.db")
