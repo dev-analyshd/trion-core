@@ -384,6 +384,34 @@ def main():
         except Exception as e:
             print(f"(health check failed: {e})")
 
+        if total_added > 0:
+            print("\nTriggering archetype training on full entity population…",
+                  end=" ", flush=True)
+            try:
+                import urllib.request, json as _json
+                req = urllib.request.Request(
+                    f"{args.faiss_url}/archetypes/train",
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                    data=b"{}",
+                )
+                with urllib.request.urlopen(req, timeout=180) as resp:
+                    train_result = _json.loads(resp.read())
+                status   = train_result.get("status", "?")
+                n_arch   = train_result.get("archetypes", "?")
+                coverage = train_result.get("coverage", 0)
+                n_vecs   = train_result.get("vectors_used", "?")
+                print(f"done\n"
+                      f"  status    : {status}\n"
+                      f"  archetypes: {n_arch}\n"
+                      f"  coverage  : {coverage:.1%}\n"
+                      f"  vectors   : {n_vecs:,}" if isinstance(n_vecs, int) else
+                      f"  status    : {status}\n"
+                      f"  archetypes: {n_arch}\n"
+                      f"  coverage  : {coverage:.1%}")
+            except Exception as e:
+                print(f"(archetype training request failed: {e})")
+
 
 if __name__ == "__main__":
     main()
