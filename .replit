@@ -159,5 +159,4 @@ run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 [userenv]
 
 [userenv.shared]
-TIMESCALEDB_URL = "$DATABASE_URL"
 ZG_AKASHIC_CONTRACT = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
