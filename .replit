@@ -16,12 +16,11 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-outputType = "webview"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=5000 uv run python3 serve.py"
-waitForPort = 5000
+args = "PORT=5001 uv run python3 serve.py"
 
 [[workflows.workflow]]
 name = "FAISS ANIMA"
@@ -75,10 +74,11 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" EXTENDED_POLL_INTERVAL_MS=90000 node extended_chain_relayer.js"
+args = "cd relayer && ORACLE_API_URL=\"http://127.0.0.1:5001\" EXTENDED_POLL_INTERVAL_MS=90000 node extended_chain_relayer.js"
 
 [[workflows.workflow]]
 name = "TRION Relayer"
@@ -90,7 +90,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
+args = "ORACLE_API_URL=\"http://127.0.0.1:5001\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
 
 [[workflows.workflow]]
 name = "Project"
@@ -117,6 +117,14 @@ args = "TRION Relayer"
 task = "workflow.run"
 args = "Attack Alert Webhook"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Extended Chain Relayer"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "TRION Dashboard"
+
 [[workflows.workflow]]
 name = "Rust Indexers"
 author = "agent"
@@ -137,16 +145,23 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "ORACLE_API_URL=http://127.0.0.1:5000 WEBHOOK_PORT=6000 uv run python3 attack_alert_webhook.py"
-waitForPort = 6000
+args = "ORACLE_API_URL=http://127.0.0.1:5001 WEBHOOK_PORT=6000 uv run python3 attack_alert_webhook.py"
+
+[[workflows.workflow]]
+name = "TRION Dashboard"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd dashboard && npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 6000
-externalPort = 6000
 
 [[ports]]
 localPort = 8000
