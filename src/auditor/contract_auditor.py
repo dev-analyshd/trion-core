@@ -103,6 +103,9 @@ class ContractAuditor:
         self._vuln_phi_matrix = get_phi_matrix()
 
     def _rpc_call(self, chain_id: int, method: str, params: list) -> Optional[dict]:
+        # Skip live RPC unless TRION_LIVE=1 — avoids hanging in sandbox/test environments
+        if not os.environ.get("TRION_LIVE"):
+            return None
         rpc = CHAIN_RPCS.get(chain_id)
         if not rpc:
             return None
@@ -110,7 +113,7 @@ class ContractAuditor:
             r = requests.post(rpc, json={
                 "jsonrpc": "2.0", "id": 1,
                 "method": method, "params": params
-            }, timeout=8)
+            }, timeout=1.5)
             data = r.json()
             return data.get("result")
         except Exception as e:
