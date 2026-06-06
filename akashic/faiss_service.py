@@ -5033,6 +5033,422 @@ def get_crispr_signatures():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# THREAT SCAN — Ranked pre-attack behavioral fingerprint across live entity population
+#
+# Composite threat score per entity:
+#   threat_score = 0.50 × mf_score
+#               + 0.35 × min(1.0, crispr_hits / 3.0)
+#               + 0.15 × entropy_spike_score
+#
+#   entropy_spike_score = 1.0 if last-3 mean entropy > historical mean + 2σ; else 0.0
+#
+# Tier:
+#   CRITICAL : threat_score ≥ 0.70  → ExecutionGate BLOCKED
+#   HIGH     : threat_score ≥ 0.50  → ExecutionGate BLOCKED
+#   MEDIUM   : threat_score ≥ 0.30  → ExecutionGate WATCH
+#   LOW      : threat_score ≥ 0.10  → ExecutionGate CLEAN
+#   CLEAN    : threat_score < 0.10  → ExecutionGate CLEAN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _entropy_spike_score(records: list) -> float:
+    """
+    Returns 1.0 if the entity's last-3 entropy readings are more than 2σ
+    above the historical mean — a classic pre-attack footprint (burst of
+    high-variance events before the exploit window).
+    Returns 0.0 when there is insufficient history.
+    """
+    if len(records) < 6:
+        return 0.0
+    entropies = [float(r.get("entropy", 0.0)) for r in records]
+    hist = np.array(entropies[:-3], dtype=float)
+    tail = np.array(entropies[-3:],  dtype=float)
+    mu, sigma = float(hist.mean()), float(hist.std())
+    if sigma < 1e-6:
+        return 0.0
+    tail_mean = float(tail.mean())
+    z_score   = (tail_mean - mu) / sigma
+    return min(1.0, max(0.0, (z_score - 2.0) / 4.0))   # linear ramp 0→1 between z=2 and z=6
+
+
+def _crispr_from_bh_rows(rows: list) -> Tuple[int, list]:
+    """
+    Run CRISPR pattern matching directly against BH ledger rows.
+    rows: list of (event_type_name, magnitude_norm, block_num) ordered by block_num ASC.
+    Returns (hit_count, list_of_signature_names).
+    """
+    events = [r[0] for r in rows]
+    mags   = [float(r[1] or 0.0) for r in rows]
+    blocks = [int(r[2] or 0) for r in rows]
+    n      = len(events)
+    hits   = []
+
+    # FLASH_LOAN_LOOP — >5 FLASH_LOAN events in any 10-event window
+    fl_indices = [i for i, e in enumerate(events) if e == "FLASH_LOAN"]
+    if len(fl_indices) >= 5:
+        for start in range(len(fl_indices) - 4):
+            window_blocks = blocks[fl_indices[start+4]] - blocks[fl_indices[start]]
+            if window_blocks <= 10:
+                hits.append("FLASH_LOAN_LOOP")
+                break
+
+    # DRAIN_PATTERN — 3+ consecutive events with magnitude_norm > 0.95
+    consec = 0
+    for m in mags:
+        if m > 0.95:
+            consec += 1
+            if consec >= 3:
+                hits.append("DRAIN_PATTERN")
+                break
+        else:
+            consec = 0
+
+    # MEV_SANDWICH — MEV_CAPTURE … SWAP … MEV_CAPTURE within 2 blocks
+    for i in range(n - 2):
+        if events[i] == "MEV_CAPTURE" and events[i+1] == "SWAP" and events[i+2] == "MEV_CAPTURE":
+            if blocks[i+2] - blocks[i] <= 2:
+                hits.append("MEV_SANDWICH")
+                break
+
+    # ORACLE_PRICE_PUSH — 3+ ORACLE_UPDATE events with magnitude > 0.90 in 5 blocks
+    ou_idx = [i for i, e in enumerate(events) if e == "ORACLE_UPDATE" and mags[i] > 0.90]
+    if len(ou_idx) >= 3:
+        for start in range(len(ou_idx) - 2):
+            if blocks[ou_idx[start+2]] - blocks[ou_idx[start]] <= 5:
+                hits.append("ORACLE_PRICE_PUSH")
+                break
+
+    # RECURSIVE_BORROW — >4 BORROW events in 5 blocks
+    borrow_idx = [i for i, e in enumerate(events) if e == "BORROW"]
+    if len(borrow_idx) >= 4:
+        for start in range(len(borrow_idx) - 3):
+            if blocks[borrow_idx[start+3]] - blocks[borrow_idx[start]] <= 5:
+                hits.append("RECURSIVE_BORROW")
+                break
+
+    # GOVERNANCE_HIJACK — PROPOSAL → GOVERNANCE/UPGRADE in < 100 blocks
+    for i in range(n):
+        if events[i] == "PROPOSAL":
+            window = [j for j in range(i+1, n) if blocks[j] - blocks[i] <= 100]
+            if any(events[j] in ("GOVERNANCE", "UPGRADE") for j in window):
+                hits.append("GOVERNANCE_HIJACK")
+                break
+
+    return len(hits), list(set(hits))   # deduplicate overlapping detections
+
+
+def compute_threat_scan(
+    top_n:         int   = 50,
+    min_score:     float = 0.0,
+    tier_filter:   Optional[str] = None,
+    include_clean: bool  = False,
+) -> dict:
+    """
+    Two-phase threat scan across the live Akashic entity population.
+
+    Phase 1 — BH ledger SQL pre-scan (fast):
+      Aggregate per entity: flash_loan_count, mev_count, high_mag_count, borrow_count,
+      oracle_count, total_tx. Candidates are entities where ANY count ≥ threshold.
+
+    Phase 2 — Deep fingerprint (candidates only):
+      For each candidate: pull ordered BH rows, run CRISPR pattern matching,
+      compute entropy spike, merge with entity_history MF score, produce composite
+      threat_score and named pre-attack signatures.
+    """
+    t_start = datetime.now(timezone.utc)
+
+    TIER_THRESHOLDS = {"CRITICAL": 0.70, "HIGH": 0.50, "MEDIUM": 0.30, "LOW": 0.10}
+
+    def _tier(score: float) -> str:
+        if score >= 0.70: return "CRITICAL"
+        if score >= 0.50: return "HIGH"
+        if score >= 0.30: return "MEDIUM"
+        if score >= 0.10: return "LOW"
+        return "CLEAN"
+
+    def _gate_verdict(tier: str) -> str:
+        return "BLOCKED" if tier in ("CRITICAL", "HIGH") else (
+               "WATCH"   if tier == "MEDIUM" else "CLEAN")
+
+    # ── Phase 0: count total entities in scope ────────────────────────────────
+    bh_total_entities = 0
+    eh_total_entities = len(entity_history)
+    candidates: Dict[str, dict] = {}   # entity_id → {raw signal counts}
+
+    try:
+        bh = _bh_conn()
+
+        bh_total_entities = (bh.execute(
+            "SELECT COUNT(DISTINCT entity_id) FROM bh_ledger"
+        ).fetchone() or [0])[0]
+
+        # ── Phase 1: SQL aggregation — find suspicious entities fast ──────────
+        # Each column counts a specific attack-precursor event type.
+        agg_rows = bh.execute("""
+            SELECT
+                entity_id,
+                COUNT(*) AS total_tx,
+                SUM(CASE WHEN event_type_name='FLASH_LOAN'   THEN 1 ELSE 0 END) AS fl_count,
+                SUM(CASE WHEN event_type_name='MEV_CAPTURE'  THEN 1 ELSE 0 END) AS mev_count,
+                SUM(CASE WHEN event_type_name='BORROW'       THEN 1 ELSE 0 END) AS borrow_count,
+                SUM(CASE WHEN event_type_name='ORACLE_UPDATE' THEN 1 ELSE 0 END) AS oracle_count,
+                SUM(CASE WHEN magnitude_norm > 0.90          THEN 1 ELSE 0 END) AS high_mag_count,
+                MAX(magnitude_norm) AS peak_mag,
+                MAX(ts)            AS last_ts
+            FROM bh_ledger
+            GROUP BY entity_id
+            HAVING fl_count >= 1
+                OR mev_count >= 1
+                OR (borrow_count >= 3)
+                OR (oracle_count >= 2 AND high_mag_count >= 2)
+                OR (high_mag_count >= 3)
+            ORDER BY (fl_count * 5 + mev_count * 3 + high_mag_count * 2) DESC
+            LIMIT 500
+        """).fetchall()
+
+        for row in agg_rows:
+            (eid, total_tx, fl_c, mev_c, borrow_c, oracle_c, hm_c, peak_mag, last_ts) = row
+            candidates[eid] = {
+                "total_tx":       int(total_tx   or 0),
+                "fl_count":       int(fl_c       or 0),
+                "mev_count":      int(mev_c      or 0),
+                "borrow_count":   int(borrow_c   or 0),
+                "oracle_count":   int(oracle_c   or 0),
+                "high_mag_count": int(hm_c       or 0),
+                "peak_mag":       float(peak_mag or 0.0),
+                "last_ts":        float(last_ts  or 0.0),
+            }
+
+        # ── Phase 2: Deep fingerprint each candidate ──────────────────────────
+        results = []
+        for eid, sig_counts in candidates.items():
+            # Pull ordered BH rows for this entity (last 200 events)
+            bh_rows = bh.execute(
+                "SELECT event_type_name, magnitude_norm, block_num "
+                "FROM bh_ledger WHERE entity_id=? ORDER BY block_num ASC LIMIT 200",
+                (eid,),
+            ).fetchall()
+
+            # CRISPR pattern matching on actual event sequence
+            crispr_hits, crispr_names = _crispr_from_bh_rows(bh_rows)
+
+            # Entropy spike: magnitude_norm as a proxy for entropy
+            mags_seq = [float(r[1] or 0.0) for r in bh_rows]
+            ent_spike = 0.0
+            if len(mags_seq) >= 6:
+                hist_arr = np.array(mags_seq[:-3], dtype=float)
+                tail_arr = np.array(mags_seq[-3:],  dtype=float)
+                mu_h, sd_h = float(hist_arr.mean()), float(hist_arr.std())
+                if sd_h > 1e-6:
+                    z = (float(tail_arr.mean()) - mu_h) / sd_h
+                    ent_spike = min(1.0, max(0.0, (z - 2.0) / 4.0))
+
+            # Raw MF-like score from aggregate counts
+            # Scale: each attack type contributes based on expected count thresholds
+            fl_score     = min(1.0, sig_counts["fl_count"]   / 5.0)   # >5 = full score
+            mev_score    = min(1.0, sig_counts["mev_count"]  / 4.0)   # >4 = full score
+            borrow_score = min(1.0, sig_counts["borrow_count"] / 8.0) # >8 = full score
+            oracle_score = min(1.0, sig_counts["oracle_count"] / 3.0) # >3 = full score
+            hm_score     = min(1.0, sig_counts["high_mag_count"] / 5.0)
+            # MF from entity_history (may be zero for sparse entities)
+            eh_mf     = compute_manipulation_fingerprint(eid)
+            eh_mf_val = float(eh_mf.get("mf_score", 0.0))
+            dom_type  = eh_mf.get("dominant_type", "UNKNOWN")
+            # Take the max signal across all sources
+            raw_mf    = max(eh_mf_val, fl_score * 0.90, mev_score * 0.60,
+                            borrow_score * 0.55, oracle_score * 0.70, hm_score * 0.50)
+
+            crispr_norm  = min(1.0, crispr_hits / 3.0)
+            threat_score = round(
+                0.50 * raw_mf + 0.35 * crispr_norm + 0.15 * ent_spike, 6
+            )
+
+            # Archetype proximity from entity_history (best effort)
+            arch_id  = entity_archetypes.get(eid, -1)
+            arch_sim = 0.0
+            eh_recs  = entity_history.get(eid, [])
+            if eh_recs:
+                last_vec = eh_recs[-1].get("vector", [])
+                if last_vec and centroids is not None:
+                    vec = np.array(last_vec, dtype="float32")
+                    if vec.shape[0] == DIMENSION:
+                        _, arch_sim = get_archetype(vec)
+
+            tier    = _tier(threat_score)
+            verdict = _gate_verdict(tier)
+
+            # Apply output filters
+            if not include_clean and tier == "CLEAN":
+                continue
+            if threat_score < min_score:
+                continue
+            if tier_filter and tier != tier_filter.upper():
+                continue
+
+            # Named pre-attack signatures
+            pre_attack_sigs = list(crispr_names)
+            if sig_counts["fl_count"] >= 2:
+                pre_attack_sigs.append(f"FLASH_LOAN×{sig_counts['fl_count']}")
+            if sig_counts["mev_count"] >= 2:
+                pre_attack_sigs.append(f"MEV_CAPTURE×{sig_counts['mev_count']}")
+            if sig_counts["high_mag_count"] >= 3:
+                pre_attack_sigs.append(f"HIGH_MAG_BURST×{sig_counts['high_mag_count']}")
+            if raw_mf >= 0.50:
+                pre_attack_sigs.append(f"HIGH_MANIPULATION:{dom_type}")
+            if ent_spike >= 0.50:
+                pre_attack_sigs.append("MAGNITUDE_SPIKE")
+            pre_attack_sigs = list(dict.fromkeys(pre_attack_sigs))   # preserve order, dedupe
+
+            last_active_iso = (
+                datetime.fromtimestamp(sig_counts["last_ts"], tz=timezone.utc).isoformat()
+                if sig_counts["last_ts"] else None
+            )
+
+            results.append({
+                "entity_id":             eid,
+                "threat_score":          threat_score,
+                "tier":                  tier,
+                "gate_verdict":          verdict,
+                "dominant_type":         dom_type,
+                "mf_score":              round(raw_mf, 4),
+                "mf_alert":              ("MANIPULATION_ALERT" if raw_mf >= 0.50
+                                          else "MANIPULATION_WARN" if raw_mf >= 0.20
+                                          else "CLEAN"),
+                "crispr_hits":           crispr_hits,
+                "crispr_signatures":     crispr_names,
+                "entropy_spike":         round(ent_spike, 4),
+                "archetype_id":          arch_id,
+                "archetype_sim":         round(arch_sim, 4),
+                "pre_attack_signatures": pre_attack_sigs,
+                "bh_event_counts": {
+                    "total_tx":       sig_counts["total_tx"],
+                    "flash_loan":     sig_counts["fl_count"],
+                    "mev_capture":    sig_counts["mev_count"],
+                    "borrow":         sig_counts["borrow_count"],
+                    "oracle_update":  sig_counts["oracle_count"],
+                    "high_magnitude": sig_counts["high_mag_count"],
+                    "peak_magnitude": round(sig_counts["peak_mag"], 4),
+                },
+                "eh_record_count": len(eh_recs),
+                "last_active":     last_active_iso,
+            })
+
+        bh.close()
+
+    except Exception as exc:
+        logger.warning("[threat_scan] BH ledger query failed: %s — falling back to entity_history only", exc)
+        # Fallback: entity_history only (original path)
+        for beo_id, records in list(entity_history.items()):
+            if len(records) < 3:
+                continue
+            mf      = compute_manipulation_fingerprint(beo_id)
+            crispr  = screen_crispr(beo_id)
+            mf_score      = float(mf.get("mf_score", 0.0))
+            dominant_type = mf.get("dominant_type", "UNKNOWN")
+            crispr_hits   = int(crispr.get("threat_count", 0))
+            crispr_names  = [t["signature"] for t in crispr.get("threats", [])]
+            ent_spike     = _entropy_spike_score(records)
+            crispr_norm   = min(1.0, crispr_hits / 3.0)
+            threat_score  = round(0.50 * mf_score + 0.35 * crispr_norm + 0.15 * ent_spike, 6)
+            tier    = _tier(threat_score)
+            verdict = _gate_verdict(tier)
+            if not include_clean and tier == "CLEAN":
+                continue
+            if threat_score < min_score:
+                continue
+            if tier_filter and tier != tier_filter.upper():
+                continue
+            results.append({
+                "entity_id": beo_id, "threat_score": threat_score, "tier": tier,
+                "gate_verdict": verdict, "dominant_type": dominant_type,
+                "mf_score": round(mf_score, 4), "mf_alert": mf.get("alert", "CLEAN"),
+                "crispr_hits": crispr_hits, "crispr_signatures": crispr_names,
+                "entropy_spike": round(ent_spike, 4), "archetype_id": entity_archetypes.get(beo_id, -1),
+                "archetype_sim": 0.0, "pre_attack_signatures": crispr_names,
+                "bh_event_counts": {}, "eh_record_count": len(records), "last_active": None,
+            })
+
+    # Sort descending by threat_score, cap at top_n
+    results.sort(key=lambda x: x["threat_score"], reverse=True)
+    results = results[:top_n]
+
+    # ── Tier breakdown ────────────────────────────────────────────────────────
+    tier_counts: Dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "CLEAN": 0}
+    for r in results:
+        tier_counts[r["tier"]] = tier_counts.get(r["tier"], 0) + 1
+
+    blocked_count = tier_counts["CRITICAL"] + tier_counts["HIGH"]
+    elapsed_ms    = round((datetime.now(timezone.utc) - t_start).total_seconds() * 1000, 1)
+
+    return {
+        "ok":                   True,
+        "scanned_bh_entities":  bh_total_entities,
+        "scanned_eh_entities":  eh_total_entities,
+        "candidates_evaluated": len(candidates),
+        "flagged":              len(results),
+        "blocked":              blocked_count,
+        "tier_breakdown":       tier_counts,
+        "scan_duration_ms":     elapsed_ms,
+        "top_n":                top_n,
+        "min_score":            min_score,
+        "threats":              results,
+        "scoring_formula":      "0.50×mf_score + 0.35×min(1,crispr_hits/3) + 0.15×entropy_spike",
+        "tier_thresholds":      TIER_THRESHOLDS,
+        "timestamp":            t_start.isoformat(),
+        "whitepaper":           "L1.2 MF + L4.6 CRISPR + L1.1 Entropy — composite pre-attack fingerprint",
+        "source":               "BH_LEDGER_PHASE1 + ENTITY_HISTORY_PHASE2",
+    }
+
+
+@app.get("/archetypes/threat_scan")
+def threat_scan_get(
+    top_n:         int            = 50,
+    min_score:     float          = 0.0,
+    tier:          Optional[str]  = None,
+    include_clean: bool           = False,
+):
+    """
+    Ranked threat scan across the live Akashic entity population.
+
+    Combines L1.2 Manipulation Fingerprint + L4.6 CRISPR signatures +
+    L1.1 entropy spike detection into a single composite threat_score per entity.
+
+    Results are sorted by threat_score descending. The gate_verdict field
+    maps directly to what TRIONExecutionGate would return for each entity:
+      BLOCKED — CRITICAL or HIGH threat (≥0.50 score)
+      WATCH   — MEDIUM threat (≥0.30 score)
+      CLEAN   — LOW or CLEAN (< 0.30 score)
+
+    Query params:
+      top_n         — max entities to return (default 50)
+      min_score     — minimum threat_score to include (default 0.0)
+      tier          — filter to one tier: CRITICAL | HIGH | MEDIUM | LOW | CLEAN
+      include_clean — include CLEAN-tier entities (default false)
+    """
+    return compute_threat_scan(
+        top_n=max(1, min(top_n, 500)),
+        min_score=max(0.0, min(min_score, 1.0)),
+        tier_filter=tier,
+        include_clean=include_clean,
+    )
+
+
+@app.post("/archetypes/threat_scan")
+def threat_scan_post(
+    top_n:         int            = 50,
+    min_score:     float          = 0.0,
+    tier:          Optional[str]  = None,
+    include_clean: bool           = False,
+):
+    """POST variant of /archetypes/threat_scan — same behaviour, accepts JSON body params."""
+    return compute_threat_scan(
+        top_n=max(1, min(top_n, 500)),
+        min_score=max(0.0, min(min_score, 1.0)),
+        tier_filter=tier,
+        include_clean=include_clean,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # L5.1 — LIVING SECURITY: Complete 8-Component DNA-Mimetic Architecture
 #
 # Whitepaper §6.2 defines 8 components:
