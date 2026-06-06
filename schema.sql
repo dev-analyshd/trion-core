@@ -67,6 +67,22 @@ CREATE TABLE IF NOT EXISTS beo_registry (
 
 CREATE INDEX IF NOT EXISTS idx_beo_last_seen ON beo_registry (last_seen DESC);
 
+-- ── L2.0 Vector Store — cold-boot restore source ─────────────────────────────
+-- Stores the raw 128-dim behavioral vectors alongside their metadata.
+-- This table is the authoritative source for rebuilding the FAISS index and
+-- SQLite entity_records on a cold boot (container reset / filesystem wipe).
+CREATE TABLE IF NOT EXISTS akashic_vectors (
+    entity_id   TEXT             NOT NULL,
+    ts          TIMESTAMPTZ      NOT NULL,
+    vector      FLOAT8[]         NOT NULL,   -- 128-dim float32 behavioral vector
+    magnitude   DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    entropy     DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    arch_sim    DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    PRIMARY KEY (entity_id, ts)
+);
+
+CREATE INDEX IF NOT EXISTS idx_akashic_vectors_entity ON akashic_vectors (entity_id, ts DESC);
+
 -- ── L2.1 Akashic Depth View ───────────────────────────────────────────────────
 -- D(t) = accumulated depth of truth. Appended to every TRIONSignal.
 CREATE OR REPLACE VIEW akashic_depth AS
