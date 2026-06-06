@@ -1,4 +1,9 @@
 {
   "/page": "app/page.js",
-  "/api/live-feed/route": "app/api/live-feed/route.js"
+  "/anima/page": "app/anima/page.js",
+  "/zg/page": "app/zg/page.js",
+  "/chains/page": "app/chains/page.js",
+  "/leaderboard/page": "app/leaderboard/page.js",
+  "/api/live-feed/route": "app/api/live-feed/route.js",
+  "/feed/page": "app/feed/page.js"
 }
