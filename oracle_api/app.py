@@ -3951,6 +3951,157 @@ def bh_ledger_stats():
     return jsonify(result)
 
 
+@app.route("/api/v1/tsdb/stats")
+def tsdb_stats():
+    """
+    TimescaleDB persistence health — row counts, accumulation rates, and
+    estimated cold-boot restore time for the FAISS index.
+
+    Useful for confirming dual-write is flowing and how long a container
+    reset would take to recover from TimescaleDB.
+    Cached for 30 s to avoid hammering the DB on high-traffic pages.
+    """
+    import threading as _th
+    import time as _time
+
+    _c = tsdb_stats
+    if not hasattr(_c, "_cache"):
+        _c._cache = {}
+        _c._lock  = _th.Lock()
+        _c._ts    = 0.0
+
+    now = _time.time()
+    with _c._lock:
+        if _c._cache and (now - _c._ts) < 30:
+            return jsonify(_c._cache)
+
+    tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
+    if not tsdb_url:
+        return jsonify({"error": "TIMESCALEDB_URL not configured", "connected": False}), 503
+
+    try:
+        import psycopg2 as _pg
+        conn = _pg.connect(tsdb_url, connect_timeout=4)
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # ── Core table counts ─────────────────────────────────────────────────
+        def _count(table):
+            try:
+                cur.execute(f"SELECT COUNT(*) FROM {table}")
+                return cur.fetchone()[0]
+            except Exception:
+                return None
+
+        vectors_total  = _count("akashic_vectors")
+        bh_total       = _count("akashic_bh")
+        beo_total      = _count("beo_registry")
+
+        # ── Accumulation rates ────────────────────────────────────────────────
+        vectors_1h, vectors_24h = None, None
+        oldest_ts, newest_ts   = None, None
+        try:
+            cur.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE ts >= NOW() - INTERVAL '1 hour')  AS last_1h,
+                    COUNT(*) FILTER (WHERE ts >= NOW() - INTERVAL '24 hours') AS last_24h,
+                    MIN(ts), MAX(ts)
+                FROM akashic_vectors
+            """)
+            row = cur.fetchone()
+            vectors_1h  = row[0]
+            vectors_24h = row[1]
+            oldest_ts   = row[2].isoformat() if row[2] else None
+            newest_ts   = row[3].isoformat() if row[3] else None
+        except Exception:
+            pass
+
+        # ── Schema table count ────────────────────────────────────────────────
+        cur.execute("SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'")
+        table_count = cur.fetchone()[0]
+
+        # ── Hypertable count ─────────────────────────────────────────────────
+        try:
+            cur.execute("SELECT COUNT(*) FROM timescaledb_information.hypertables")
+            hypertable_count = cur.fetchone()[0]
+        except Exception:
+            hypertable_count = 0
+
+        conn.close()
+
+        # ── Estimate cold-boot restore time ───────────────────────────────────
+        # Empirical: DB query ~1s/50K rows + FAISS batch add ~50ms/1K vecs +
+        # SQLite write ~100ms/10K records. Cap display at reasonable bounds.
+        restore_secs = None
+        restore_label = "n/a"
+        if vectors_total is not None:
+            db_query_s   = max(0.5, vectors_total / 50_000)
+            faiss_add_s  = vectors_total / 1_000 * 0.05
+            sqlite_write = vectors_total / 10_000 * 0.1
+            restore_secs = round(db_query_s + faiss_add_s + sqlite_write, 1)
+            if restore_secs < 5:
+                restore_label = f"~{restore_secs}s (instant)"
+            elif restore_secs < 30:
+                restore_label = f"~{restore_secs}s (fast)"
+            elif restore_secs < 120:
+                restore_label = f"~{restore_secs}s (moderate)"
+            else:
+                restore_label = f"~{restore_secs}s (slow — consider pruning)"
+
+        # ── Vectors/hour rate ─────────────────────────────────────────────────
+        rate_per_hour = None
+        if vectors_1h is not None:
+            rate_per_hour = vectors_1h
+
+        result = {
+            "connected":          True,
+            "schema_tables":      table_count,
+            "hypertables":        hypertable_count,
+            "akashic_vectors": {
+                "total":          vectors_total,
+                "last_1h":        vectors_1h,
+                "last_24h":       vectors_24h,
+                "rate_per_hour":  rate_per_hour,
+                "oldest":         oldest_ts,
+                "newest":         newest_ts,
+            },
+            "akashic_bh": {
+                "total":          bh_total,
+            },
+            "beo_registry": {
+                "total":          beo_total,
+            },
+            "cold_boot_restore": {
+                "estimated_seconds": restore_secs,
+                "label":             restore_label,
+                "note": (
+                    "Time to rebuild FAISS index + hydrate SQLite from "
+                    "TimescaleDB on a fresh container with no local .index/.db files."
+                ),
+            },
+            "dual_write_healthy": (
+                vectors_total is not None and
+                bh_total is not None and
+                bh_total > 0
+            ),
+            "timestamp": int(now),
+        }
+
+    except Exception as exc:
+        with _c._lock:
+            if _c._cache:
+                cached = dict(_c._cache)
+                cached["_from_cache"] = True
+                return jsonify(cached)
+        return jsonify({"error": str(exc), "connected": False}), 503
+
+    with _c._lock:
+        _c._cache = result
+        _c._ts    = now
+
+    return jsonify(result)
+
+
 @app.route("/api/v1/bh/recent_feed")
 def bh_recent_feed():
     """
