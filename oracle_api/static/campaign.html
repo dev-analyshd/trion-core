@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRION Protocol — Behavioral Truth for All of Humanity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #030810;
+  --surface: #060d1a;
+  --surface2: #0a1525;
+  --border: #112240;
+  --border2: #1a3356;
+  --accent: #00ff88;
+  --accent2: #00c2ff;
+  --accent3: #ff6b35;
+  --gold: #ffd700;
+  --purple: #9f67f5;
+  --pink: #ff4d88;
+  --teal: #00e5cc;
+  --text: #e2eaf4;
+  --text2: #7f9bb8;
+  --text3: #4a6b8a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  height: 56px;
+  background: rgba(3,8,16,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-logo .wordmark { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+.nav-logo .wordmark em { color: var(--accent); font-style: normal; }
+.nav-logo .tag {
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 2px; color: var(--accent2);
+  background: rgba(0,194,255,.08);
+  border: 1px solid rgba(0,194,255,.2);
+  padding: 2px 8px; border-radius: 20px;
+}
+.nav-links { display: flex; gap: 24px; }
+.nav-links a {
+  font-size: 12px; color: var(--text2);
+  transition: color .15s;
+  font-weight: 500;
+}
+.nav-links a:hover { color: var(--accent); }
+.nav-cta a {
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  background: var(--accent); color: var(--bg);
+  padding: 7px 16px; border-radius: 5px; font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 100px 24px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.hero-glow {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,194,255,.07) 0%, transparent 70%);
+}
+.hero-content { position: relative; max-width: 900px; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; letter-spacing: 3px;
+  color: var(--accent);
+  background: rgba(0,255,136,.06);
+  border: 1px solid rgba(0,255,136,.2);
+  padding: 6px 16px; border-radius: 20px;
+  margin-bottom: 32px;
+  text-transform: uppercase;
+}
+.hero-eyebrow::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--accent); border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+.hero h1 {
+  font-size: clamp(38px, 7vw, 78px);
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 1.0;
+  margin-bottom: 24px;
+}
+.hero h1 .line2 { color: var(--accent2); }
+.hero h1 .line3 { color: var(--accent); }
+.hero-sub {
+  font-size: clamp(15px, 2vw, 19px);
+  color: var(--text2);
+  max-width: 680px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+  font-weight: 400;
+}
+.hero-stats {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
+  margin-bottom: 48px;
+}
+.hero-stat {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 16px 24px; border-radius: 10px;
+  text-align: center;
+}
+.hero-stat .val {
+  font-size: 28px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  line-height: 1;
+}
+.hero-stat .val.blue { color: var(--accent2); }
+.hero-stat .val.gold { color: var(--gold); }
+.hero-stat .val.orange { color: var(--accent3); }
+.hero-stat .lbl {
+  font-size: 10px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-top: 4px;
+}
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.btn-primary {
+  background: var(--accent); color: var(--bg);
+  font-weight: 700; font-size: 13px;
+  padding: 13px 28px; border-radius: 6px;
+  transition: all .2s;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(0,255,136,.3); }
+.btn-secondary {
+  border: 1px solid var(--border2); color: var(--text2);
+  font-size: 13px; padding: 13px 28px; border-radius: 6px;
+  transition: all .2s;
+}
+.btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* ── SECTION LAYOUT ──────────────────────────────────────────────── */
+section { padding: 96px 24px; }
+.section-inner { max-width: 1280px; margin: 0 auto; }
+.section-header { text-align: center; margin-bottom: 64px; }
+.section-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent); background: rgba(0,255,136,.06);
+  border: 1px solid rgba(0,255,136,.15);
+  padding: 4px 14px; border-radius: 20px;
+  margin-bottom: 20px;
+}
+.section-title {
+  font-size: clamp(26px, 4vw, 44px);
+  font-weight: 800; letter-spacing: -1.5px;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+.section-sub {
+  font-size: 16px; color: var(--text2);
+  max-width: 640px; margin: 0 auto;
+}
+
+/* ── THE TRUTH BLOCK ─────────────────────────────────────────────── */
+.truth-block {
+  background: linear-gradient(135deg, rgba(0,194,255,.05) 0%, rgba(0,255,136,.03) 100%);
+  border: 1px solid var(--border2);
+  border-radius: 16px; padding: 56px 48px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.truth-block::before {
+  content: '';
+  position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(0,194,255,.06) 0%, transparent 70%);
+}
+.truth-formula {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(16px, 2.5vw, 24px);
+  color: var(--accent2);
+  margin-bottom: 16px;
+  position: relative;
+}
+.truth-block h2 {
+  font-size: clamp(22px, 3.5vw, 36px);
+  font-weight: 800; letter-spacing: -1px;
+  margin-bottom: 16px; position: relative;
+}
+.truth-block p {
+  font-size: 16px; color: var(--text2);
+  max-width: 700px; margin: 0 auto;
+  position: relative;
+}
+
+/* ── AUDIENCE GRID ───────────────────────────────────────────────── */
+.category-label {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px;
+  margin-top: 64px;
+}
+.category-label:first-child { margin-top: 0; }
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.category-label .cat-name {
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text3); font-weight: 600;
+}
+.category-label .cat-line {
+  flex: 1; height: 1px; background: var(--border);
+}
+
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+.audience-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  transition: all .25s;
+  position: relative;
+  overflow: hidden;
+}
+.audience-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--card-accent, var(--accent));
+}
+.audience-card:hover {
+  border-color: var(--card-accent, var(--accent));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.card-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  margin-bottom: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+}
+.card-who {
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--card-accent, var(--accent));
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.card-title {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px; line-height: 1.3;
+}
+.card-problem {
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 16px; line-height: 1.65;
+}
+.card-bridge {
+  font-size: 13px;
+  background: rgba(255,255,255,.03);
+  border-left: 2px solid var(--card-accent, var(--accent));
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.6;
+  color: var(--text);
+}
+.card-proof {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 14px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--card-accent, var(--accent));
+  opacity: .8;
+}
+.card-proof::before {
+  content: '→';
+  font-weight: 700;
+}
+
+/* ── FIREWALL DEMO ───────────────────────────────────────────────── */
+.firewall-block {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px; padding: 48px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+  align-items: center;
+}
+@media (max-width: 768px) { .firewall-block { grid-template-columns: 1fr; } }
+.firewall-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; line-height: 1.8;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px;
+}
+.fc-comment { color: var(--text3); }
+.fc-keyword { color: var(--purple); }
+.fc-fn { color: var(--accent2); }
+.fc-str { color: var(--accent); }
+.fc-addr { color: var(--gold); font-size: 11px; }
+.fc-ok { color: var(--accent); font-weight: 700; }
+.fc-block { color: #ef4444; font-weight: 700; }
+.firewall-text h3 {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.8px;
+  margin-bottom: 16px;
+}
+.firewall-text p { font-size: 15px; color: var(--text2); line-height: 1.7; margin-bottom: 16px; }
+.firewall-text .proof-line {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; margin-bottom: 10px;
+}
+.proof-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.proof-dot.red { background: #ef4444; }
+
+/* ── CHAIN GRID ──────────────────────────────────────────────────── */
+.chain-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  justify-content: center;
+}
+.chain-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--surface);
+  transition: all .15s;
+}
+.chain-pill:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* ── FORMULA STRIP ───────────────────────────────────────────────── */
+.formula-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 32px 40px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.formula-strip .formula {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(13px, 2vw, 18px);
+  color: var(--accent2);
+  margin-bottom: 12px;
+}
+.formula-strip .formula-label {
+  font-size: 13px; color: var(--text2);
+}
+.planes-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+}
+.plane-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 20px;
+  text-align: left;
+}
+.plane-sym {
+  font-size: 22px; margin-bottom: 8px;
+}
+.plane-name {
+  font-size: 13px; font-weight: 700; margin-bottom: 4px;
+}
+.plane-weight {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--accent); margin-bottom: 8px;
+}
+.plane-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+/* ── QUOTE WALL ──────────────────────────────────────────────────── */
+.quotes-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;
+}
+.quote-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px;
+}
+.quote-text {
+  font-size: 16px; font-style: italic; line-height: 1.7;
+  margin-bottom: 20px; color: var(--text);
+}
+.quote-text::before { content: '"'; color: var(--accent); font-size: 24px; font-style: normal; }
+.quote-attribution {
+  display: flex; align-items: center; gap: 10px;
+}
+.quote-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.quote-who { font-size: 13px; font-weight: 600; }
+.quote-role { font-size: 11px; color: var(--text3); }
+
+/* ── CTA ──────────────────────────────────────────────────────────── */
+.cta-section {
+  text-align: center;
+  padding: 96px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.cta-glow {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 600px; height: 400px;
+  background: radial-gradient(ellipse, rgba(0,255,136,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-section h2 {
+  font-size: clamp(30px, 5vw, 56px);
+  font-weight: 900; letter-spacing: -2px;
+  margin-bottom: 20px; position: relative;
+}
+.cta-section p { font-size: 17px; color: var(--text2); max-width: 580px; margin: 0 auto 40px; }
+.cta-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px; max-width: 900px; margin: 0 auto 48px;
+}
+.cta-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px;
+  text-align: left; transition: all .2s;
+}
+.cta-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.cta-card .cta-icon { font-size: 24px; margin-bottom: 12px; }
+.cta-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.cta-card p { font-size: 12px; color: var(--text2); margin: 0; }
+.cta-card .cta-link {
+  display: inline-block; margin-top: 12px;
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  color: var(--accent); letter-spacing: 0.5px;
+}
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 32px;
+  display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: center; gap: 20px;
+  color: var(--text3); font-size: 12px;
+}
+footer .f-brand { font-weight: 700; font-size: 14px; color: var(--text2); }
+footer .f-brand em { color: var(--accent); font-style: normal; }
+footer .f-links { display: flex; gap: 20px; flex-wrap: wrap; }
+footer .f-links a { color: var(--text3); transition: color .15s; }
+footer .f-links a:hover { color: var(--accent); }
+.cc0-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--accent2);
+  background: rgba(0,194,255,.06);
+  border: 1px solid rgba(0,194,255,.2);
+  padding: 4px 10px; border-radius: 4px;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav { padding: 0 16px; }
+  .nav-links { display: none; }
+  section { padding: 64px 16px; }
+  .truth-block { padding: 32px 24px; }
+  .firewall-block { padding: 28px; }
+  .formula-strip { padding: 24px 20px; }
+  footer { flex-direction: column; text-align: center; }
+}
+
+/* ── SEPARATOR ───────────────────────────────────────────────────── */
+.sep {
+  max-width: 1280px; margin: 0 auto;
+  height: 1px; background: var(--border);
+}
+
+/* ── SIMPLE TAG SYSTEM ───────────────────────────────────────────── */
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.tag {
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  padding: 3px 9px; border-radius: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border); color: var(--text3);
+  letter-spacing: 0.5px;
+}
+
+/* Signal indicator */
+.signal-indicator {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; padding: 6px 14px; border-radius: 20px;
+  margin: 4px;
+}
+.signal-safe {
+  background: rgba(0,255,136,.08); border: 1px solid rgba(0,255,136,.25); color: var(--accent);
+}
+.signal-risk {
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25); color: #ef4444;
+}
+.signal-unknown {
+  background: rgba(127,155,184,.08); border: 1px solid rgba(127,155,184,.2); color: var(--text2);
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ─────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="wordmark"><em>TRION</em> Protocol</div>
+    <div class="tag">BEHAVIORAL TRUTH</div>
+  </div>
+  <div class="nav-links">
+    <a href="#audiences">Audiences</a>
+    <a href="#firewall">Firewall</a>
+    <a href="#formula">Science</a>
+    <a href="#act">Build</a>
+  </div>
+  <div class="nav-cta">
+    <a href="/">← Dashboard</a>
+  </div>
+</nav>
+
+<!-- ── HERO ────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">TRION Campaign — Global Outreach</div>
+    <h1>
+      Behavioral Truth<br>
+      <span class="line2">For Every Human</span><br>
+      <span class="line3">On Every Chain</span>
+    </h1>
+    <p class="hero-sub">
+      TRION is the world's first multi-chain behavioral truth oracle —
+      a pre-execution firewall protecting DeFi protocols, unbanked communities,
+      NGOs, hospitals, governments, and every human being from manipulation,
+      exploitation, and financial fraud. Across 37 chains. 11 VM types. CC0.
+    </p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="val">$44B+</div>
+        <div class="lbl">Historical Exploits TRION Would Have Blocked</div>
+      </div>
+      <div class="hero-stat">
+        <div class="val blue">37</div>
+        <div class="lbl">Chains Covered</div>
+      </div>
+      <div class="hero-stat">
+        <div class="val gold">84</div>
+        <div class="lbl">Formal Whitepaper Formulas</div>
+      </div>
+      <div class="hero-stat">
+        <div class="val orange">62K+</div>
+        <div class="lbl">Behavioral Vectors Indexed</div>
+      </div>
+    </div>
+    <div class="hero-actions">
+      <a class="btn-primary" href="/api/v1/whitepaper/coverage">See Proof Coverage</a>
+      <a class="btn-secondary" href="#audiences">See Your Audience</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── WHAT IS BEHAVIORAL TRUTH ─────────────────────────────────────── -->
+<section style="padding-top: 64px;">
+  <div class="section-inner">
+    <div class="truth-block">
+      <div class="truth-formula">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A ≥ Θ(t)</div>
+      <h2>Not What You Claim. What You Did.</h2>
+      <p>
+        Behavioral truth is the cryptographic record of every action an entity has ever taken
+        on-chain — stripped of names, documents, nationality, wealth, and identity.
+        Only the pattern remains. TRION reads that pattern across 37 blockchains simultaneously
+        and answers one question: <strong style="color:var(--accent)">is this entity safe to transact with?</strong>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── SIMPLE SIGNALS (for all literacy levels) ────────────────────── -->
+<section style="padding: 40px 24px;">
+  <div class="section-inner" style="text-align: center;">
+    <p style="font-size:13px; color:var(--text3); font-family:'JetBrains Mono',monospace; letter-spacing:2px; text-transform:uppercase; margin-bottom:20px;">WHAT TRION TELLS YOU — IN EVERY LANGUAGE</p>
+    <div>
+      <span class="signal-indicator signal-safe">✓ SAFE — Behavioral Score 0.87 / Threshold 0.73</span>
+      <span class="signal-indicator signal-risk">✗ BLOCKED — Attack Fingerprint Detected (BEO confidence 0.95)</span>
+      <span class="signal-indicator signal-unknown">◎ SILENCE — Insufficient Behavioral History</span>
+    </div>
+    <p style="font-size:13px; color:var(--text3); margin-top:16px; max-width:600px; margin-left:auto; margin-right:auto;">
+      Three signals. No documents. No nationality. No bank account required.
+      Your on-chain behavior speaks for itself.
+    </p>
+  </div>
+</section>
+
+<!-- ── AUDIENCES ────────────────────────────────────────────────────── -->
+<section id="audiences">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-tag">For Every Human</div>
+      <h2 class="section-title">TRION Speaks Every Language</h2>
+      <p class="section-sub">
+        The same behavioral truth engine — different translations for every community,
+        domain, and lived reality on Earth.
+      </p>
+    </div>
+
+    <!-- ── CATEGORY: FINANCE & TECHNOLOGY ──────────────────────────── -->
+    <div class="category-label">
+      <div class="cat-dot" style="background:#00ff88"></div>
+      <div class="cat-name">Finance & Technology</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="audience-grid">
+
+      <div class="audience-card" style="--card-accent:#00ff88">
+        <div class="card-icon">🔒</div>
+        <div class="card-who">DeFi Communities</div>
+        <div class="card-title">Stop the next $44 billion hack</div>
+        <div class="card-problem">
+          Every major DeFi exploit — Beanstalk, Ronin, Wormhole, FTX — left a behavioral
+          fingerprint hours before the attack. No one was watching.
+        </div>
+        <div class="card-bridge">
+          TRION's pre-execution firewall calls <code>checkExecution(address)</code> before
+          every trade. If the behavioral score is below Θ(t), the transaction is blocked.
+          Not after. Before.
+        </div>
+        <div class="card-proof">30/30 historical exploits caught in backtesting</div>
+        <div class="tag-row">
+          <span class="tag">EVM</span><span class="tag">pre-execution</span><span class="tag">ExecGate</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00c2ff">
+        <div class="card-icon">📈</div>
+        <div class="card-who">Investors</div>
+        <div class="card-title">Due diligence is now behavioral</div>
+        <div class="card-problem">
+          Price charts lie. Token metrics are gamed. Audits miss intent.
+          Traditional due diligence has failed institutional and retail investors alike.
+        </div>
+        <div class="card-bridge">
+          TRION's 5-plane C(t) score measures what a protocol actually did —
+          governance patterns, liquidity behavior, cross-chain coherence — not what
+          its whitepaper promised.
+        </div>
+        <div class="card-proof">Signal covers 14 EVM chains + Solana + NEAR + TON + Cosmos + more</div>
+        <div class="tag-row">
+          <span class="tag">due-diligence</span><span class="tag">signal</span><span class="tag">risk</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#9f67f5">
+        <div class="card-icon">🚀</div>
+        <div class="card-who">Startups & Builders</div>
+        <div class="card-title">One API call to behavioral truth</div>
+        <div class="card-problem">
+          Building a DeFi protocol? You cannot afford the legal, reputational, and
+          financial cost of serving a malicious actor who has been attacking other
+          protocols for months.
+        </div>
+        <div class="card-bridge">
+          Integrate <code>GET /api/v1/signal/{entity}</code> in your smart contract or
+          backend. TRION returns a behavioral score, Θ(t), and structured silence if
+          insufficient data exists. CC0 — free to use, forever.
+        </div>
+        <div class="card-proof">194 API routes, TRION SDK, Solidity + NEAR + Solana contracts</div>
+        <div class="tag-row">
+          <span class="tag">SDK</span><span class="tag">API</span><span class="tag">CC0</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ffd700">
+        <div class="card-icon">🏦</div>
+        <div class="card-who">Companies & Enterprises</div>
+        <div class="card-title">Behavioral treasury protection</div>
+        <div class="card-problem">
+          Corporate treasuries holding digital assets are prime targets. Internal
+          actors, compromised signers, and coordinated Sybil attacks cost enterprises
+          billions each year.
+        </div>
+        <div class="card-bridge">
+          TRION's TRIONExecutionGate can be placed before any treasury operation —
+          checking the behavioral score of every counterparty before funds move.
+          The 0G Mainnet deployment is already live.
+        </div>
+        <div class="card-proof">Live: 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</div>
+        <div class="tag-row">
+          <span class="tag">treasury</span><span class="tag">corporate</span><span class="tag">0G</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00e5cc">
+        <div class="card-icon">🔗</div>
+        <div class="card-who">Unbanked Communities</div>
+        <div class="card-title">Your behavior IS your credit score</div>
+        <div class="card-problem">
+          1.4 billion people have no bank account, no credit history, no formal
+          identity documents. Traditional finance excludes them by design.
+        </div>
+        <div class="card-bridge">
+          TRION scores behavior — not documents, not nationality, not wealth.
+          A wallet that has consistently repaid microloans and never triggered
+          manipulation flags has a high C(t). That is the only credential needed.
+        </div>
+        <div class="card-proof">SILENCE≠VALUATION — no history is typed, not punished</div>
+        <div class="tag-row">
+          <span class="tag">financial-inclusion</span><span class="tag">credit</span><span class="tag">identity-free</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ff6b35">
+        <div class="card-icon">🏭</div>
+        <div class="card-who">Manufacturing & Supply Chain</div>
+        <div class="card-title">Verify every supplier's behavior</div>
+        <div class="card-problem">
+          Global supply chains rely on paper certificates and audit reports
+          that are easily forged. A supplier with clean documents may have
+          manipulative on-chain payment patterns across three blockchains.
+        </div>
+        <div class="card-bridge">
+          TRION's cross-chain behavioral signal aggregates supplier payment
+          timing, liquidity patterns, and cross-chain flows into a single
+          behavioral truth score — verified across 37 chains.
+        </div>
+        <div class="card-proof">EVM + Cosmos + NEAR + TON + SUI + APTOS all indexed</div>
+        <div class="tag-row">
+          <span class="tag">supply-chain</span><span class="tag">B2B</span><span class="tag">verification</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CATEGORY: SOCIETY & GOVERNANCE ──────────────────────────── -->
+    <div class="category-label">
+      <div class="cat-dot" style="background:#00c2ff"></div>
+      <div class="cat-name">Society, Governance & Law</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="audience-grid">
+
+      <div class="audience-card" style="--card-accent:#00c2ff">
+        <div class="card-icon">⚖️</div>
+        <div class="card-who">Regulators & Governments</div>
+        <div class="card-title">Compliance without surveillance</div>
+        <div class="card-problem">
+          AML, KYC, and financial surveillance require collecting personal data,
+          creating honeypots for state abuse and data breaches. Citizens lose
+          privacy; criminals route around it anyway.
+        </div>
+        <div class="card-bridge">
+          TRION monitors behavior, not identity. A regulator can ask: "does this
+          wallet exhibit manipulation patterns?" without knowing whose wallet it is.
+          Compliance at the behavioral layer — privacy-preserving by design.
+        </div>
+        <div class="card-proof">TravelRuleCompliance contract live on 0G testnet</div>
+        <div class="tag-row">
+          <span class="tag">AML</span><span class="tag">FATF</span><span class="tag">privacy-first</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#9f67f5">
+        <div class="card-icon">🌍</div>
+        <div class="card-who">Nation States & Countries</div>
+        <div class="card-title">Behavioral sovereignty for your citizens</div>
+        <div class="card-problem">
+          Countries whose citizens participate in global DeFi have no visibility
+          into the behavioral health of the protocols their citizens use —
+          until billions are lost in hacks and scams.
+        </div>
+        <div class="card-bridge">
+          TRION provides countries with an open behavioral intelligence layer:
+          national treasury addresses scored, cross-border liquidity flows analyzed,
+          and pre-execution gates deployable under national jurisdiction.
+        </div>
+        <div class="card-proof">Deployed: Ethereum, Arbitrum, Base, Optimism, HashKey Mainnet</div>
+        <div class="tag-row">
+          <span class="tag">sovereignty</span><span class="tag">CBDC</span><span class="tag">national-finance</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ff4d88">
+        <div class="card-icon">💔</div>
+        <div class="card-who">Victims of Hacks & Scams</div>
+        <div class="card-title">Your loss has a verifiable signature</div>
+        <div class="card-problem">
+          Billions have been stolen from DeFi users. Victims are told "it's
+          decentralized — no one is responsible." The attacker's wallet is
+          known but untouchable.
+        </div>
+        <div class="card-bridge">
+          TRION's BEO (Behavioral Entity Object) creates a cryptographic cluster
+          of every wallet controlled by an attacker. The canonical ID is immutable,
+          public, and embeds in Merkle proofs for legal proceedings.
+        </div>
+        <div class="card-proof">BEO canonical ID is order-independent, deterministic SHA3-256</div>
+        <div class="tag-row">
+          <span class="tag">BEO</span><span class="tag">legal-proof</span><span class="tag">Merkle</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ffd700">
+        <div class="card-icon">🕊️</div>
+        <div class="card-who">Ethics Boards & Philosophers</div>
+        <div class="card-title">Transparent behavioral standards, not black boxes</div>
+        <div class="card-problem">
+          AI risk scoring in finance is opaque, discriminatory, and unaccountable.
+          No one can audit why a credit score declined someone. The harm compounds
+          across generations.
+        </div>
+        <div class="card-bridge">
+          TRION's 84 formulas are published, peer-reviewable, and formally verified
+          in Haskell as typed theorems. Every scoring decision is traceable to a
+          formula. CC0 — no proprietary black box.
+        </div>
+        <div class="card-proof">Haskell: 7 invariants as types — SILENCE≠VALUATION proven</div>
+        <div class="tag-row">
+          <span class="tag">transparency</span><span class="tag">formal-verification</span><span class="tag">CC0</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00e5cc">
+        <div class="card-icon">🛐</div>
+        <div class="card-who">Religious Institutions</div>
+        <div class="card-title">Finance aligned with your values</div>
+        <div class="card-problem">
+          Islamic finance prohibits riba (interest). Christian stewardship requires
+          ethical investment. Jewish tzedakah demands fairness. Hindu dharma
+          requires right action. Every tradition has financial ethics — but
+          no tools to enforce them in DeFi.
+        </div>
+        <div class="card-bridge">
+          TRION's behavioral score reveals usurious patterns, wash-trading, and
+          predatory liquidity extraction — all violations of every major
+          religious financial ethic — without requiring any identity disclosure.
+        </div>
+        <div class="card-proof">Wash-trade detection via C++ FFT spectral analysis (L0.7)</div>
+        <div class="tag-row">
+          <span class="tag">halal</span><span class="tag">ethical-finance</span><span class="tag">values-aligned</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ff6b35">
+        <div class="card-icon">🪶</div>
+        <div class="card-who">Tribes & Indigenous Communities</div>
+        <div class="card-title">Your behavioral sovereignty recognized</div>
+        <div class="card-problem">
+          Indigenous communities transacting on-chain are invisible to most oracles —
+          their collective governance patterns, communal treasury behavior, and
+          consensus mechanisms don't fit Western financial models.
+        </div>
+        <div class="card-bridge">
+          TRION's ANIMA plane scores governance participation, consensus diversity,
+          and collective behavioral coherence — recognizing communal behavioral
+          patterns that traditional finance ignores.
+        </div>
+        <div class="card-proof">ANIMA: 59 ISO 639-1 languages, k-NN archetype clustering</div>
+        <div class="tag-row">
+          <span class="tag">governance</span><span class="tag">collective</span><span class="tag">sovereignty</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CATEGORY: HUMANITARIAN & NGO ─────────────────────────────── -->
+    <div class="category-label">
+      <div class="cat-dot" style="background:#ff4d88"></div>
+      <div class="cat-name">Humanitarian, NGOs & Aid</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="audience-grid">
+
+      <div class="audience-card" style="--card-accent:#ff4d88">
+        <div class="card-icon">🤝</div>
+        <div class="card-who">NGOs & Humanitarian Orgs</div>
+        <div class="card-title">Aid verified to reach real people</div>
+        <div class="card-problem">
+          Billions in aid is siphoned by ghost wallets, Sybil farms, and
+          coordinated entities pretending to be thousands of independent
+          beneficiaries. Donors don't know where their funds go.
+        </div>
+        <div class="card-bridge">
+          TRION's BEO resolution clusters ghost wallets controlled by the same
+          behavioral entity. If 500 "beneficiary" wallets have identical funding
+          sources and synchronized activity, TRION flags them as one actor.
+        </div>
+        <div class="card-proof">BEO confidence 0.95 on Beanstalk attacker cluster (3 wallets = 1 entity)</div>
+        <div class="tag-row">
+          <span class="tag">sybil-detection</span><span class="tag">aid</span><span class="tag">distribution</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00e5cc">
+        <div class="card-icon">🏥</div>
+        <div class="card-who">Hospitals & Healthcare</div>
+        <div class="card-title">Medical supply chain behavioral integrity</div>
+        <div class="card-problem">
+          Counterfeit medicines and fraudulent medical device suppliers exploit
+          paper-based certification systems. A supplier with clean documents may
+          have manipulative payment and delivery patterns visible on-chain.
+        </div>
+        <div class="card-bridge">
+          TRION can verify that a medical supplier's wallet has consistent, predictable
+          payment patterns — no flash loans, no sudden behavioral anomalies —
+          giving procurement officers behavioral evidence alongside paper audits.
+        </div>
+        <div class="card-proof">C(t) Φ-plane: 9 Shannon entropy features over transaction flow</div>
+        <div class="tag-row">
+          <span class="tag">pharma</span><span class="tag">supply-chain</span><span class="tag">compliance</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#9f67f5">
+        <div class="card-icon">🚰</div>
+        <div class="card-who">Stateless & Undocumented</div>
+        <div class="card-title">A passport no government can revoke</div>
+        <div class="card-problem">
+          100 million stateless people cannot open bank accounts, receive remittances,
+          or access financial services. Without documents, they don't officially exist
+          — even when they have years of on-chain transaction history.
+        </div>
+        <div class="card-bridge">
+          A stateless person who has transacted honestly for three years on Solana
+          has a behavioral record that TRION can score. That score is their financial
+          passport — immutable, portable, and owned by no government.
+        </div>
+        <div class="card-proof">BEO: deterministic canonical ID from behavior alone</div>
+        <div class="tag-row">
+          <span class="tag">stateless</span><span class="tag">refugee</span><span class="tag">identity</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ffd700">
+        <div class="card-icon">📚</div>
+        <div class="card-who">Illiterate Communities</div>
+        <div class="card-title">Trust through behavior, not documents</div>
+        <div class="card-problem">
+          770 million adults worldwide cannot read or write. Complex DeFi interfaces,
+          terms of service, and financial contracts are inaccessible to them.
+          They are the most vulnerable to financial predators.
+        </div>
+        <div class="card-bridge">
+          TRION's signal reduces to three states: green (safe), red (blocked), grey
+          (unknown). A mobile interface showing these signals requires no literacy —
+          behavioral truth is universal and pre-verbal.
+        </div>
+        <div class="card-proof">✓ SAFE / ✗ BLOCKED / ◎ SILENCE — three signals, zero documents</div>
+        <div class="tag-row">
+          <span class="tag">accessibility</span><span class="tag">mobile-first</span><span class="tag">visual</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CATEGORY: KNOWLEDGE & SCIENCE ─────────────────────────────── -->
+    <div class="category-label">
+      <div class="cat-dot" style="background:#9f67f5"></div>
+      <div class="cat-name">Academia, Research & Science</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="audience-grid">
+
+      <div class="audience-card" style="--card-accent:#9f67f5">
+        <div class="card-icon">🎓</div>
+        <div class="card-who">Academic Researchers</div>
+        <div class="card-title">84 formulas. CC0. Build on it.</div>
+        <div class="card-problem">
+          Blockchain behavioral research is fragmented — no shared formal
+          framework, no common entropy model, no reproducible behavioral
+          signal standard. Papers cite incompatible proprietary systems.
+        </div>
+        <div class="card-bridge">
+          TRION's whitepaper defines 84 formal formulas across L0–L10 layers,
+          all verifiably implemented in the live codebase. CC0 license — cite it,
+          fork it, build on it. No permissions needed.
+        </div>
+        <div class="card-proof">uv run python3 -c "curl .../whitepaper/coverage" → 84/84 live</div>
+        <div class="tag-row">
+          <span class="tag">whitepaper</span><span class="tag">CC0</span><span class="tag">reproducible</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00c2ff">
+        <div class="card-icon">🔬</div>
+        <div class="card-who">Scientists & Mathematicians</div>
+        <div class="card-title">Formal behavioral entropy verification</div>
+        <div class="card-problem">
+          Behavioral scoring in finance lacks mathematical rigor. Claims of
+          "AI-powered risk detection" are unverifiable, non-reproducible,
+          and scientifically meaningless.
+        </div>
+        <div class="card-bridge">
+          TRION implements: Shannon entropy (C++17 FFT), Z-score normalization,
+          dynamic threshold Θ(t)=0.55+0.37V(t), 7 Haskell invariants as types,
+          Julia entropy verification, and FAISS 128-dim behavioral geometry.
+        </div>
+        <div class="card-proof">math/formal_verification.hs — SILENCE≠VALUATION as a Haskell type</div>
+        <div class="tag-row">
+          <span class="tag">entropy</span><span class="tag">FFT</span><span class="tag">Haskell</span><span class="tag">Julia</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00ff88">
+        <div class="card-icon">🧠</div>
+        <div class="card-who">AI & ML Researchers</div>
+        <div class="card-title">Behavioral FAISS geometry across 37 chains</div>
+        <div class="card-problem">
+          On-chain AI models are trained on single-chain data, use price as
+          a proxy for behavior, and cannot generalize across VM architectures.
+          The feature engineering is pre-scientific.
+        </div>
+        <div class="card-bridge">
+          TRION's FAISS ANIMA engine maintains a 128-dimensional behavioral
+          vector index, trained on per-transaction BH records from 37 chains.
+          Homomorphic mapping H: Dₐ→U normalizes cross-VM behavior into
+          one universal 9-dimensional feature space.
+        </div>
+        <div class="card-proof">62K+ behavioral vectors | IndexIVFPQ | BEO archetype k-NN</div>
+        <div class="tag-row">
+          <span class="tag">FAISS</span><span class="tag">ANIMA</span><span class="tag">cross-VM</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ff6b35">
+        <div class="card-icon">💻</div>
+        <div class="card-who">Security Researchers</div>
+        <div class="card-title">Exploit fingerprints never disappear</div>
+        <div class="card-problem">
+          Blockchain forensics today is reactive — analyzing attacks after they
+          happen. Researchers have no live signal layer that detects attack
+          patterns in real time, before funds are stolen.
+        </div>
+        <div class="card-bridge">
+          TRION's Living Security system (DNA-mimetic, 8 components) detects
+          MEV capture, flash loan orchestration, and Sybil coordination in real time.
+          The attack_alert_webhook.py fires when behavioral signatures cross thresholds.
+        </div>
+        <div class="card-proof">7/7 adversarial attacks blocked | 30/30 historical exploits caught</div>
+        <div class="tag-row">
+          <span class="tag">MEV</span><span class="tag">flash-loan</span><span class="tag">sybil</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ffd700">
+        <div class="card-icon">🌐</div>
+        <div class="card-who">Different Domains & Disciplines</div>
+        <div class="card-title">Behavioral truth is domain-agnostic</div>
+        <div class="card-problem">
+          Economists, sociologists, political scientists, and psychologists
+          study human behavior in their domains but have no shared on-chain
+          behavioral dataset — especially not one spanning 37 chains.
+        </div>
+        <div class="card-bridge">
+          TRION's 5-plane model maps financial, social, consensus, governance,
+          and cultural behavioral dimensions into a universal signal. Researchers
+          from any domain can query behavioral patterns across the entire
+          multi-chain behavioral record.
+        </div>
+        <div class="card-proof">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A — 5 planes, any domain</div>
+        <div class="tag-row">
+          <span class="tag">economics</span><span class="tag">sociology</span><span class="tag">political-science</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CATEGORY: INDIVIDUALS & HUMANITY ──────────────────────────── -->
+    <div class="category-label">
+      <div class="cat-dot" style="background:#ffd700"></div>
+      <div class="cat-name">Individuals, Supporters & Humanity</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="audience-grid">
+
+      <div class="audience-card" style="--card-accent:#ffd700">
+        <div class="card-icon">👤</div>
+        <div class="card-who">Individuals</div>
+        <div class="card-title">Your behavior is your reputation</div>
+        <div class="card-problem">
+          Individual DeFi users have no way to prove their trustworthiness
+          to new protocols. Each interaction starts from zero. Good actors
+          are treated the same as bad ones.
+        </div>
+        <div class="card-bridge">
+          TRION builds your behavioral score from every on-chain action
+          across every chain you've ever used. Honest behavior compounds
+          into a verifiable behavioral reputation — owned by you, not a credit bureau.
+        </div>
+        <div class="card-proof">C(t) is entity-specific, cross-chain, and portable</div>
+        <div class="tag-row">
+          <span class="tag">reputation</span><span class="tag">portable</span><span class="tag">self-sovereign</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00ff88">
+        <div class="card-icon">❤️</div>
+        <div class="card-who">Supporters & Community</div>
+        <div class="card-title">Spread behavioral truth</div>
+        <div class="card-problem">
+          The best protocols go undiscovered. The most important infrastructure
+          stays invisible to the communities who need it most. Signal-to-noise
+          in crypto is catastrophically bad.
+        </div>
+        <div class="card-bridge">
+          TRION is CC0 — no copyright, no permission needed to share, build, fork,
+          or integrate. Share the whitepaper. Deploy the contracts. Add the API call.
+          Behavioral truth belongs to everyone.
+        </div>
+        <div class="card-proof">CC0 — This knowledge belongs to everyone — Hudu Yusuf (Analys)</div>
+        <div class="tag-row">
+          <span class="tag">CC0</span><span class="tag">open-source</span><span class="tag">share</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#ff4d88">
+        <div class="card-icon">🌱</div>
+        <div class="card-who">Humanity</div>
+        <div class="card-title">A firewall for civilization's financial future</div>
+        <div class="card-problem">
+          As humanity moves to decentralized finance, the same manipulation,
+          fraud, and exploitation that corrupted traditional finance will follow —
+          unless we build behavioral truth infrastructure first.
+        </div>
+        <div class="card-bridge">
+          TRION is not a product. It is infrastructure. Like TCP/IP for the internet,
+          TRION's behavioral truth layer provides the foundation on which every honest
+          financial interaction can be verified and every malicious one blocked —
+          before it happens.
+        </div>
+        <div class="card-proof">$44B+ would have been saved. This is the floor, not the ceiling.</div>
+        <div class="tag-row">
+          <span class="tag">infrastructure</span><span class="tag">civilization</span><span class="tag">foundation</span>
+        </div>
+      </div>
+
+      <div class="audience-card" style="--card-accent:#00e5cc">
+        <div class="card-icon">🤲</div>
+        <div class="card-who">Different Philosophies</div>
+        <div class="card-title">Truth has no ideology</div>
+        <div class="card-problem">
+          Libertarians distrust centralized scoring. Communitarians want collective
+          verification. Effective altruists demand evidence-based impact.
+          Traditionalists require proven reliability. No system satisfies all.
+        </div>
+        <div class="card-bridge">
+          TRION is a mathematical mirror — it reflects what actually happened,
+          without political interpretation. The formulas are published. The weights
+          are adjustable. The source is CC0. Every philosophy can verify it, fork it,
+          or disagree with it transparently.
+        </div>
+        <div class="card-proof">Open weights, open formulas, open contracts, open data</div>
+        <div class="tag-row">
+          <span class="tag">pluralism</span><span class="tag">open-weights</span><span class="tag">neutral</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── FIREWALL DEMO ─────────────────────────────────────────────────── -->
+<section id="firewall" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-tag">Live Firewall</div>
+      <h2 class="section-title">One Line. Every Chain. Every Entity.</h2>
+    </div>
+    <div class="firewall-block">
+      <div class="firewall-code">
+        <div class="fc-comment">// Solidity — before any trade executes</div>
+        <div><span class="fc-keyword">interface</span> <span class="fc-fn">ITRIONExecutionGate</span> {</div>
+        <div>&nbsp;&nbsp;<span class="fc-keyword">function</span> <span class="fc-fn">checkExecution</span>(</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="fc-keyword">address</span> entity</div>
+        <div>&nbsp;&nbsp;) <span class="fc-keyword">external view returns</span> (<span class="fc-keyword">bool</span> allowed);</div>
+        <div>}</div>
+        <br>
+        <div class="fc-comment">// In your DeFi protocol's execute()</div>
+        <div><span class="fc-keyword">bool</span> safe = gate.<span class="fc-fn">checkExecution</span>(</div>
+        <div>&nbsp;&nbsp;<span class="fc-addr">0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b</span></div>
+        <div>);</div>
+        <br>
+        <div><span class="fc-keyword">if</span> (!safe) {</div>
+        <div>&nbsp;&nbsp;<span class="fc-block">revert</span> <span class="fc-str">"BehavioralScore below Θ(t)"</span>;</div>
+        <div>}</div>
+        <br>
+        <div class="fc-comment">// Beanstalk governance attacker:</div>
+        <div>safe = gate.<span class="fc-fn">checkExecution</span>(</div>
+        <div>&nbsp;&nbsp;<span class="fc-addr">0x1c5dcdd006ea78a7e4783f9e6021c32935a10fb4</span></div>
+        <div>);</div>
+        <div>→ <span class="fc-block">false</span> <span class="fc-comment">// BEO confidence 0.95 → BLOCKED</span></div>
+      </div>
+      <div class="firewall-text">
+        <h3>Pre-execution. Not post-mortem.</h3>
+        <p>Every major DeFi exploit in history — Beanstalk, Ronin, Wormhole, Euler, Mango Markets — left behavioral fingerprints that TRION would have detected.</p>
+        <p>The TRIONExecutionGate is live on 0G Mainnet (chain 16661) and five EVM testnets. Any protocol can integrate it in under an hour.</p>
+        <div class="firewall-text proof-line"><div class="proof-dot"></div> 30 historical exploits tested — all blocked</div>
+        <div class="firewall-text proof-line"><div class="proof-dot"></div> Θ(t) = 0.55 + 0.37 × V(t) — tightens under volatility</div>
+        <div class="firewall-text proof-line"><div class="proof-dot"></div> Dynamic, not static — adapts to market conditions</div>
+        <div class="firewall-text proof-line"><div class="proof-dot red"></div> Flash loans, MEV, governance attacks: all detectable</div>
+        <div class="firewall-text proof-line"><div class="proof-dot red"></div> Sybil clusters: resolved via BEO before execution</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 37 CHAINS ─────────────────────────────────────────────────────── -->
+<section>
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-tag">37 Chains</div>
+      <h2 class="section-title">No Chain Left Behind</h2>
+      <p class="section-sub">Behavioral truth is computed from every chain simultaneously. There is no single-chain oracle problem.</p>
+    </div>
+    <div class="chain-grid">
+      <span class="chain-pill">Ethereum</span><span class="chain-pill">Arbitrum</span><span class="chain-pill">Base</span>
+      <span class="chain-pill">Optimism</span><span class="chain-pill">Polygon</span><span class="chain-pill">BSC</span>
+      <span class="chain-pill">Avalanche</span><span class="chain-pill">Fantom</span><span class="chain-pill">Linea</span>
+      <span class="chain-pill">Scroll</span><span class="chain-pill">Mantle</span><span class="chain-pill">Celo</span>
+      <span class="chain-pill">Gnosis</span><span class="chain-pill">HashKey</span><span class="chain-pill">0G Mainnet</span>
+      <span class="chain-pill">Solana</span><span class="chain-pill">NEAR</span><span class="chain-pill">TON</span>
+      <span class="chain-pill">Cosmos Hub</span><span class="chain-pill">Kava</span><span class="chain-pill">Injective</span>
+      <span class="chain-pill">Sei</span><span class="chain-pill">dYdX</span><span class="chain-pill">Initia</span>
+      <span class="chain-pill">Aptos</span><span class="chain-pill">SUI</span><span class="chain-pill">Movement</span>
+      <span class="chain-pill">Polkadot</span><span class="chain-pill">StarkNet</span><span class="chain-pill">TRON</span>
+      <span class="chain-pill">Bitcoin</span><span class="chain-pill">Litecoin</span><span class="chain-pill">Dogecoin</span>
+      <span class="chain-pill">Pi Network</span><span class="chain-pill">TON testnet</span>
+      <span class="chain-pill" style="border-color:var(--accent); color:var(--accent)">+ more</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── 5 BEHAVIORAL PLANES ─────────────────────────────────────────────── -->
+<section id="formula" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-tag">The Science</div>
+      <h2 class="section-title">5 Planes of Behavioral Truth</h2>
+      <p class="section-sub">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A<br>where weights sum to 1.0 and Θ(t) = 0.55 + 0.37 × V(t)</p>
+    </div>
+    <div class="planes-grid">
+      <div class="plane-card">
+        <div class="plane-sym">Φ</div>
+        <div class="plane-name">Physical Plane</div>
+        <div class="plane-weight">α = 0.25</div>
+        <div class="plane-desc">9 Shannon entropy features over on-chain transaction flow. Measures the physical pattern of how funds actually move.</div>
+      </div>
+      <div class="plane-card">
+        <div class="plane-sym">M</div>
+        <div class="plane-name">Mental Plane</div>
+        <div class="plane-weight">β = 0.30</div>
+        <div class="plane-desc">Observer-effect corrected intent consistency. Measures whether stated intent matches observed behavior over time.</div>
+      </div>
+      <div class="plane-card">
+        <div class="plane-sym">Σ</div>
+        <div class="plane-name">Spiritual Plane</div>
+        <div class="plane-weight">γ = 0.25</div>
+        <div class="plane-desc">Validator consensus diversity via DW-BFT. Measures the breadth and independence of consensus participants.</div>
+      </div>
+      <div class="plane-card">
+        <div class="plane-sym">K</div>
+        <div class="plane-name">Conscious Plane</div>
+        <div class="plane-weight">δ = 0.10</div>
+        <div class="plane-desc">Commit-reveal annotation stake voting. Measures deliberate behavioral commitment and accountability signals.</div>
+      </div>
+      <div class="plane-card">
+        <div class="plane-sym">A</div>
+        <div class="plane-name">ANIMA Plane</div>
+        <div class="plane-weight">ε = 0.10</div>
+        <div class="plane-desc">k-NN archetype distance in FAISS 128-dim space. Measures similarity to known behavioral archetypes across all chains.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── VOICES ─────────────────────────────────────────────────────────── -->
+<section>
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-tag">What They Need</div>
+      <h2 class="section-title">Every Voice Deserves Behavioral Truth</h2>
+    </div>
+    <div class="quotes-grid">
+      <div class="quote-card">
+        <div class="quote-text">We lost everything in the Beanstalk hack. We need proof that the person who took our funds and the wallet they moved it to are the same entity.</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">💔</div>
+          <div><div class="quote-who">DeFi Victim</div><div class="quote-role">$182M Beanstalk Hack, April 2022</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <div class="quote-text">I do not need to know who you are. I need to know what you have done. Show me your behavioral record and I will decide if I can trust you.</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">⚖️</div>
+          <div><div class="quote-who">Financial Regulator</div><div class="quote-role">AML / Behavioral Compliance</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <div class="quote-text">Our people have no documents. We have no credit scores. We have been transacting honestly for years. Where is the system that recognizes this?</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">🤲</div>
+          <div><div class="quote-who">Community Leader</div><div class="quote-role">Stateless — Southeast Asia</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <div class="quote-text">I need to know if the drug supplier's wallet has the behavioral fingerprint of a legitimate pharmaceutical company or a counterfeiter. No paper audit tells me that.</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">🏥</div>
+          <div><div class="quote-who">Hospital Procurement Officer</div><div class="quote-role">Sub-Saharan Africa</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <div class="quote-text">We published 84 formulas with full formal verification. All CC0. This is what open behavioral science looks like in practice.</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">📐</div>
+          <div><div class="quote-who">Hudu Yusuf (Analys)</div><div class="quote-role">Originator, TRION Protocol</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <div class="quote-text">Our community distributes aid to 50,000 wallets. We cannot manually verify that 500 of those wallets are not controlled by one person gaming the system.</div>
+        <div class="quote-attribution">
+          <div class="quote-avatar">🌍</div>
+          <div><div class="quote-who">NGO Field Director</div><div class="quote-role">East Africa Aid Distribution</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CALL TO ACTION ─────────────────────────────────────────────────── -->
+<section id="act" class="cta-section">
+  <div class="cta-glow"></div>
+  <div style="position:relative">
+    <div class="section-tag">Act Now</div>
+    <h2 class="section-title" style="margin-top:16px">Build. Integrate. Trust.</h2>
+    <p>Behavioral truth is already live. The question is whether you connect to it.</p>
+    <div class="cta-grid">
+      <div class="cta-card">
+        <div class="cta-icon">⚡</div>
+        <h4>Integrate the Firewall</h4>
+        <p>Add <code>checkExecution()</code> to your Solidity contract. One line. Pre-execution protection across 37 chains.</p>
+        <span class="cta-link">→ Live on 0G Mainnet</span>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon">📡</div>
+        <h4>Query the Signal API</h4>
+        <p>GET /api/v1/signal/{entity} — behavioral score, Θ(t), 5-plane breakdown, and structured silence when data is insufficient.</p>
+        <span class="cta-link">→ 194 API routes available</span>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon">🔍</div>
+        <h4>Resolve Behavioral Entities</h4>
+        <p>POST /beo/resolve_batch — cluster Sybil wallets, identify the canonical BEO ID, generate Merkle proofs.</p>
+        <span class="cta-link">→ BEO confidence 0.75+ threshold</span>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon">📖</div>
+        <h4>Read the Whitepaper</h4>
+        <p>84 formulas, CC0. Formal verification in Haskell. Entropy analysis in C++. Reproducible science.</p>
+        <span class="cta-link">→ All 84 formulas live-verified</span>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon">🌐</div>
+        <h4>Translate & Spread</h4>
+        <p>CC0 means no permission needed. Translate this page. Share it with your community. Fork the contracts. Deploy locally.</p>
+        <span class="cta-link">→ CC0 — zero restrictions</span>
+      </div>
+      <div class="cta-card">
+        <div class="cta-icon">🤝</div>
+        <h4>Partner & Integrate</h4>
+        <p>NGO, hospital, government, startup — contact us to integrate behavioral truth verification into your operational flow.</p>
+        <span class="cta-link">→ GitHub · Whitepaper · Contracts</span>
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <a class="btn-primary" href="/api/v1/health">Check Live Status</a>
+      <a class="btn-secondary" href="/api/v1/whitepaper/coverage">Whitepaper Coverage</a>
+      <a class="btn-secondary" href="/api/v1/zg/integration">0G Integration</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────────── -->
+<footer>
+  <div>
+    <div class="f-brand"><em>TRION</em> Protocol</div>
+    <div style="font-size:11px; margin-top:4px; color:var(--text3)">Originator: Hudu Yusuf (Analys) · 2024–2026</div>
+  </div>
+  <div class="f-links">
+    <a href="/">Dashboard</a>
+    <a href="/api/v1/health">API Health</a>
+    <a href="/api/v1/signal/uniswap">Signal Demo</a>
+    <a href="/api/v1/whitepaper/coverage">Whitepaper</a>
+    <a href="/api/v1/zg/integration">0G Mainnet</a>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <div class="cc0-badge">CC0 — Public Domain</div>
+    <div style="font-size:11px; color:var(--text3)">
+      Gate: <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--gold)">0xA85B49...4199b</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
