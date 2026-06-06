@@ -1083,6 +1083,46 @@ def _tsdb_write_vector(beo_id: str, record: dict):
         logger.debug("[TimescaleDB] vector write failed: %s", str(e)[:120])
 
 
+def _tsdb_write_vector_batch(records: list):
+    """
+    Batch dual-write vectors to TimescaleDB akashic_vectors.
+    Called in a background daemon thread from /index/add_batch so the HTTP
+    response is never blocked on Postgres writes.
+    records: List[Tuple[beo_id: str, record: dict]]
+    """
+    if not _tsdb_ready or not records:
+        return
+    try:
+        conn = _tsdb_conn()
+        if not conn:
+            return
+        rows = []
+        for beo_id, rec in records:
+            try:
+                ts  = datetime.fromtimestamp(rec["ts"], tz=timezone.utc)
+                vec = [float(v) for v in rec["vector"]]
+                rows.append((
+                    beo_id, ts, vec,
+                    float(rec.get("magnitude", 0.0)),
+                    float(rec.get("entropy",   0.0)),
+                    float(rec.get("arch_sim",  0.0)),
+                ))
+            except Exception:
+                continue
+        if rows:
+            with conn.cursor() as cur:
+                psycopg2.extras.execute_values(cur, """
+                    INSERT INTO akashic_vectors (entity_id, ts, vector, magnitude, entropy, arch_sim)
+                    VALUES %s
+                    ON CONFLICT (entity_id, ts) DO NOTHING
+                """, rows)
+            conn.commit()
+            logger.debug("[TimescaleDB] vector batch: %d rows written", len(rows))
+        conn.close()
+    except Exception as e:
+        logger.debug("[TimescaleDB] vector batch write failed: %s", str(e)[:120])
+
+
 def _restore_from_timescaledb():
     """
     Cold-boot restore: hydrate FAISS index + SQLite from TimescaleDB.
@@ -3306,6 +3346,16 @@ def add_vector_batch(payload: BatchVectorPayload):
             )
             conn.commit()
             conn.close()
+
+    # TimescaleDB dual-write — batch-flush all new vectors in a background thread
+    # so the HTTP response is never blocked on Postgres I/O.
+    if new_entity_records and _tsdb_ready:
+        _tsdb_records_snapshot = list(new_entity_records)
+        threading.Thread(
+            target=_tsdb_write_vector_batch,
+            args=(_tsdb_records_snapshot,),
+            daemon=True,
+        ).start()
 
     # L1.1 Phase 2 — Persist block features for Φ weight learning
     if payload.block_features and len(payload.block_features) >= 9 and payload.block_num:
