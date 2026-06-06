@@ -34,8 +34,9 @@ socketio = SocketIO(
 
 # ── broadcaster state ──────────────────────────────────────────────
 _POLL_INTERVAL = 3            # seconds between internal feed checks
-_FEED_URL      = "http://127.0.0.1:5000/api/v1/feed"
-_STATS_URL     = "http://127.0.0.1:5000/api/v1/health"
+_PORT          = int(os.environ.get("PORT", 5001))
+_FEED_URL      = f"http://127.0.0.1:{_PORT}/api/v1/feed"
+_STATS_URL     = f"http://127.0.0.1:{_PORT}/api/v1/health"
 _seen_keys: set = set()       # (entity_id, timestamp) already broadcast
 _connected: int = 0           # rough connected-client counter (for logging)
 
