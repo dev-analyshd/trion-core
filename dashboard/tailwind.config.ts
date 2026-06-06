@@ -26,11 +26,16 @@ const config: Config = {
       animation: {
         blink: 'blink 2s infinite',
         'pulse-slow': 'pulse 3s infinite',
+        'flash-in': 'flashIn 0.6s ease-out',
       },
       keyframes: {
         blink: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.3' },
+        },
+        flashIn: {
+          '0%': { backgroundColor: 'rgba(0, 194, 255, 0.12)', opacity: '0.7' },
+          '100%': { backgroundColor: 'transparent', opacity: '1' },
         },
       },
     },
