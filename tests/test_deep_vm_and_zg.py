@@ -390,7 +390,7 @@ class TestZGIntegrationLive:
         with urllib.request.urlopen(f"{ORACLE_URL}/api/v1/zg", timeout=10) as r:
             d = json.loads(r.read())
         assert "chain_id" in d
-        assert d["chain_id"] == 16602
+        assert d["chain_id"] in (16602, 16661)   # Galileo testnet or 0G Mainnet
         assert "gate_address" in d or "published" in d
 
     def test_zg_proof_endpoint(self):
@@ -400,15 +400,18 @@ class TestZGIntegrationLive:
         assert d["ok"] is True
         assert "da_proof" in d
         assert "storage_proof" in d
-        assert d["gate_address"] == "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d"
-        assert d["chain_id"] == 16602
+        assert d["gate_address"] in (
+            "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",   # Galileo testnet
+            "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",   # 0G Mainnet (active)
+        )
+        assert d["chain_id"] in (16602, 16661)
         assert "payload_hash" in d["da_proof"]
         assert d["da_proof"]["algorithm"] == "SHA-256"
         assert "faiss_index_sha256" in d["storage_proof"]
         assert "merkle_root" in d["storage_proof"]
         assert "behavioral_coverage" in d
         assert d["behavioral_coverage"]["vm_families"] == 10
-        assert d["behavioral_coverage"]["chains"] == 24
+        assert d["behavioral_coverage"]["chains"] >= 24   # expanded from 24 → 35 chains
         assert d["behavioral_coverage"]["behavioral_planes"] == 9
 
     def test_zg_vm_families_endpoint(self):
@@ -416,8 +419,8 @@ class TestZGIntegrationLive:
         with urllib.request.urlopen(f"{ORACLE_URL}/api/v1/zg/vm-families", timeout=10) as r:
             d = json.loads(r.read())
         assert d["total_vm_families"] == 10
-        assert d["total_chains"] == 24
-        assert d["zg_chain_id"] == 16602
+        assert d["total_chains"] >= 24   # expanded from 24 → 35 chains
+        assert d["zg_chain_id"] in (16602, 16661)   # Galileo testnet or 0G Mainnet
         families = {f["id"] for f in d["vm_families"]}
         for expected in ["EVM", "SVM", "MoveVM", "SuiVM", "CosmosSDK",
                          "STARKVM", "TVM", "PVM", "UTXO", "MVM"]:
