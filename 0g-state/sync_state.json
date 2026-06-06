@@ -1,9 +1,9 @@
 {
-  "last_sync_ts": "2026-06-06T06:42:08.846965+00:00",
-  "last_vector_count": 59273,
+  "last_sync_ts": "2026-06-06T07:11:02.472807+00:00",
+  "last_vector_count": 62340,
   "last_bh_record_id": 0,
   "last_signal_id": null,
-  "sync_count": 120,
+  "sync_count": 121,
   "root_hashes": {
     "faiss_delta_3": "0xc326fe295e3a292bd96e1db3a61243c98e861b4b996f43a8e08675b43e41b3cd",
     "bh_sqlite_delta_3": "0x2c8b43e0be958b6110bc42bf687f22186c203e8723df3a2db3e9baf07579fd6f",
@@ -17,7 +17,7 @@
     "bh_sqlite_delta_21": "0xc22de492f6f49b4d52c8abd007579e4390c7cd3dddbb3e5661106b7cfe3d661b",
     "faiss_delta_22": "0x01277632754f8bc773acaddfc7fd7da0063a8d95f4c0eeab3c172e37357dc0bc",
     "bh_sqlite_delta_22": "0xfd8f0efda56ec3bcdd3f845f120a1502d60413d98d210076450e51febddff550",
-    "faiss_full": "0x98e10f6389a89022daf8208c05ce2f51546f94bca9b25cfa8a9fa87acc43f467",
+    "faiss_full": "0xf809f2dfcb87001cae9ef8b23c415872e41453a15a00d420b97216c6be4cb081",
     "bh_sqlite_delta_35": "0x25df026717d0a972528a95d8e5788703f9e8838a873da42a01ecf099e5fa76ca",
     "bh_sqlite_delta_36": "0xc4fbbe4109583fd0bd3bca09786165d6619e69759fb0bb4f5fb898ca89d9a774",
     "bh_sqlite_delta_41": "0xd33f31e3f73f6a42636b92bf562140c683092bf0a4b7774835ec2a6ed72c2802",
@@ -39,10 +39,12 @@
     "bh_sqlite_delta_106": "0x6cb9ecc6a90b7f5dc776fbb619dcb2f781d51e29ee6601796141c01310beda1d",
     "bh_sqlite_delta_118": "0x58450b1ce75357827ad0fee86aaa7d2d36f84daedd2d31116efcd3d7cdb4a019",
     "faiss_delta_119": "0xc999186de7a65ad33a408de6c478b627cdc9973441e43b476f991a5192818389",
-    "bh_sqlite_delta_119": "0x58e554a8a261d1320a4998a870949bff8595816169cfaeb2cdbdf2dd19dc30a5"
+    "bh_sqlite_delta_119": "0x58e554a8a261d1320a4998a870949bff8595816169cfaeb2cdbdf2dd19dc30a5",
+    "faiss_delta_120": "0x6138f7806b0bfc725167efbaedcf9e0e1a7ece29b61ab0686681ab2335eb79eb",
+    "bh_sqlite_delta_120": "0x5255a60fababa739beb347ef005cb57a8fe516b2962a2584b23f03b1a3be9d1d"
   },
   "total_bytes_uploaded": 0,
-  "last_sqlite_bh_id": 4116792,
+  "last_sqlite_bh_id": 4216792,
   "last_onchain_tx": "acf72411f063c66d05fa93b4df82978d47c6b505188064a03748aa75d3ff5873",
   "last_onchain_block": 33471383
 }
