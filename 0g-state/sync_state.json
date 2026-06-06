@@ -1,9 +1,9 @@
 {
-  "last_sync_ts": "2026-06-05T18:26:39.452849+00:00",
-  "last_vector_count": 52876,
+  "last_sync_ts": "2026-06-06T06:42:08.846965+00:00",
+  "last_vector_count": 59273,
   "last_bh_record_id": 0,
   "last_signal_id": null,
-  "sync_count": 117,
+  "sync_count": 120,
   "root_hashes": {
     "faiss_delta_3": "0xc326fe295e3a292bd96e1db3a61243c98e861b4b996f43a8e08675b43e41b3cd",
     "bh_sqlite_delta_3": "0x2c8b43e0be958b6110bc42bf687f22186c203e8723df3a2db3e9baf07579fd6f",
@@ -36,10 +36,13 @@
     "bh_sqlite_delta_102": "0x968729ef9e33df457cff2640064f8144d1df4f7072c450442e6cd99704303eeb",
     "bh_sqlite_delta_103": "0xedc465caa7f8724b2a9ad0f2ba99752c5986c6ec24a367869469f080e85bc370",
     "bh_sqlite_delta_104": "0x29d7ed5189ce4c416f9edf1a545eec485abd7e675575e6b7f39e9693ddcdecd1",
-    "bh_sqlite_delta_106": "0x6cb9ecc6a90b7f5dc776fbb619dcb2f781d51e29ee6601796141c01310beda1d"
+    "bh_sqlite_delta_106": "0x6cb9ecc6a90b7f5dc776fbb619dcb2f781d51e29ee6601796141c01310beda1d",
+    "bh_sqlite_delta_118": "0x58450b1ce75357827ad0fee86aaa7d2d36f84daedd2d31116efcd3d7cdb4a019",
+    "faiss_delta_119": "0xc999186de7a65ad33a408de6c478b627cdc9973441e43b476f991a5192818389",
+    "bh_sqlite_delta_119": "0x58e554a8a261d1320a4998a870949bff8595816169cfaeb2cdbdf2dd19dc30a5"
   },
   "total_bytes_uploaded": 0,
-  "last_sqlite_bh_id": 3916792,
+  "last_sqlite_bh_id": 4116792,
   "last_onchain_tx": "acf72411f063c66d05fa93b4df82978d47c6b505188064a03748aa75d3ff5873",
   "last_onchain_block": 33471383
 }
