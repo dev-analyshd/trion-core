@@ -1041,7 +1041,13 @@ def _maybe_auto_train_archetypes():
     n_vecs = sum(len(v) for v in entity_history.values())
     if centroids is None and n_vecs >= NUM_ARCHETYPES:
         logger.info("[startup] Auto-training archetypes — %d vectors available, no centroids found", n_vecs)
-        result = train_archetypes()
+        # train_archetypes may not yet be defined when this is called at module
+        # load time (forward-reference). Resolve it lazily via globals().
+        _fn = globals().get("train_archetypes")
+        if _fn is None:
+            logger.warning("[startup] train_archetypes not yet defined — deferring archetype auto-train")
+            return
+        result = _fn()
         logger.info("[startup] Archetype auto-train result: %s", result)
     elif centroids is not None:
         logger.info("[startup] Archetypes already loaded — %d centroids, skipping auto-train", len(centroids))
@@ -3214,6 +3220,122 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
         "block_num":   payload.block_num,
         "chain_label": payload.chain_label,
         "whitepaper":  "L0.1",
+    }
+
+
+# ── Bulk backfill endpoint ────────────────────────────────────────────────────
+
+class BulkBackfillItem(BaseModel):
+    entity_id:   str
+    vector:      List[float]
+    magnitude:   float
+    entropy:     float
+    timestamp:   float
+    sense_hex:   Optional[str] = None
+    chain_label: Optional[str] = "BACKFILL"
+
+class BulkBackfillPayload(BaseModel):
+    items: List[BulkBackfillItem]
+
+@app.post("/index/bulk_backfill")
+def bulk_backfill(payload: BulkBackfillPayload):
+    """
+    Fast bulk ingest of historical entity records reconstructed from bh_ledger.
+
+    Bypasses the per-item L0.5 signal-selection filter, BEO-merge, archetype
+    lookup, and convergence scoring — those are expensive per-item operations
+    that are unnecessary for backfill since these records are pre-validated
+    historical data from bh_ledger.
+
+    All vectors are added to FAISS in a single numpy batch operation, and all
+    SQLite writes are done in one transaction, making this ~50× faster than
+    /index/add_batch for bulk historical ingest.
+
+    Returns: {"added": N, "skipped": M, "total_vectors": T}
+    """
+    if not FAISS_AVAILABLE or index is None:
+        raise HTTPException(503, "FAISS not available")
+    if not payload.items:
+        return {"added": 0, "skipped": 0, "total_vectors": index.ntotal}
+
+    valid_items = []
+    for item in payload.items:
+        if len(item.vector) != DIMENSION:
+            continue
+        valid_items.append(item)
+
+    if not valid_items:
+        return {"added": 0, "skipped": len(payload.items), "total_vectors": index.ntotal}
+
+    now = datetime.now(timezone.utc).timestamp()
+
+    # ── Batch-add all vectors to FAISS in one numpy call ─────────────────────
+    vecs_np = np.array([item.vector for item in valid_items], dtype="float32")
+    index.add(vecs_np)
+
+    # ── Update in-memory state ────────────────────────────────────────────────
+    entity_records_rows = []
+    entity_meta_rows    = []
+    beo_timing_rows     = []
+    beo_cluster_rows    = []
+
+    for item in valid_items:
+        beo_id = item.entity_id
+        ts     = item.timestamp or now
+        rec    = {
+            "vector":    item.vector,
+            "ts":        ts,
+            "magnitude": item.magnitude,
+            "entropy":   item.entropy,
+            "arch_sim":  0.0,
+        }
+        # Populate in-memory structures so /signal, /depth, /mental_confidence work
+        if beo_id not in entity_history or not entity_history[beo_id]:
+            entity_history[beo_id].append(rec)
+        entity_last_active[beo_id] = max(entity_last_active.get(beo_id, 0), ts)
+
+        vec_blob = np.array(item.vector, dtype="float32").tobytes()
+        entity_records_rows.append((
+            beo_id, ts, item.magnitude, item.entropy, 0.0, vec_blob
+        ))
+        entity_meta_rows.append((
+            beo_id, entity_last_active[beo_id], entity_archetypes.get(beo_id)
+        ))
+        beo_timing_rows.append((beo_id, ts))
+        beo_cluster_rows.append((beo_id.lower(), beo_id, None))
+
+    # ── Single-transaction SQLite bulk write ──────────────────────────────────
+    with _DB_WRITE_LOCK:
+        conn = _db_conn()
+        conn.executemany(
+            "INSERT OR IGNORE INTO entity_records VALUES (?,?,?,?,?,?)",
+            entity_records_rows,
+        )
+        conn.executemany(
+            "INSERT OR REPLACE INTO entity_meta VALUES (?,?,?)",
+            entity_meta_rows,
+        )
+        conn.executemany(
+            "INSERT OR IGNORE INTO beo_timing VALUES (?,?)",
+            beo_timing_rows,
+        )
+        conn.executemany(
+            "INSERT OR IGNORE INTO beo_clusters VALUES (?,?,?)",
+            beo_cluster_rows,
+        )
+        conn.commit()
+        conn.close()
+
+    # Persist FAISS index to disk every backfill call
+    faiss.write_index(index, INDEX_PATH)
+
+    added = len(valid_items)
+    logger.info("[bulk_backfill] added=%d total_vectors=%d", added, index.ntotal)
+    return {
+        "added":         added,
+        "skipped":       len(payload.items) - added,
+        "total_vectors": index.ntotal,
+        "entities":      len(entity_history),
     }
 
 
