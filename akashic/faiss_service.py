@@ -9687,10 +9687,85 @@ _bg_persist_thread = threading.Thread(
     target=_periodic_persist_loop, daemon=True, name="faiss-persist"
 )
 _bg_persist_thread.start()
+
+
+# ── Scheduled archetype re-training ───────────────────────────────────────────
+# Re-trains K-means centroids every 6 hours IF entity count has grown by
+# at least 5% since the last training run.  Keeps ANIMA plane accurate as
+# the entity population grows with live indexer data.
+
+_archetype_train_entity_count: int = 0   # entity count at last training run
+
+
+def _periodic_archetype_train_loop() -> None:
+    """Background daemon: re-train archetypes every 6 h when population grows."""
+    global _archetype_train_entity_count
+    _time.sleep(60)   # brief warm-up delay so startup training finishes first
+    while True:
+        _time.sleep(6 * 3600)   # 6-hour cadence
+        try:
+            current_count = len(entity_history)
+            if current_count == 0:
+                continue
+            growth = (current_count - _archetype_train_entity_count) / max(_archetype_train_entity_count, 1)
+            if growth >= 0.05 or _archetype_train_entity_count == 0:
+                logger.info(
+                    "[archetype-scheduler] Triggering re-train — entities=%d prev=%d growth=%.1f%%",
+                    current_count, _archetype_train_entity_count, growth * 100,
+                )
+                result = train_archetypes()
+                _archetype_train_entity_count = current_count
+                logger.info("[archetype-scheduler] Re-train complete: %s", result)
+            else:
+                logger.info(
+                    "[archetype-scheduler] Growth %.1f%% < 5%% — skipping re-train (entities=%d)",
+                    growth * 100, current_count,
+                )
+        except Exception as _exc:
+            logger.error("[archetype-scheduler] Re-train error: %s", _exc)
+
+
+_bg_archetype_thread = threading.Thread(
+    target=_periodic_archetype_train_loop, daemon=True, name="archetype-retrain"
+)
+_bg_archetype_thread.start()
 logger.info(
     "[persist] Auto-save active — atexit + SIGTERM + 5min background thread | INDEX_PATH=%s",
     INDEX_PATH,
 )
+
+
+@app.on_event("startup")
+async def _on_fastapi_startup():
+    """
+    FastAPI lifecycle hook — runs archetype training once the server is fully
+    initialised (all module-level code already executed, so train_archetypes
+    is defined and centroids/entity_history are loaded from disk).
+    Offloaded to a daemon thread so uvicorn is not blocked during K-means.
+    """
+    def _deferred_train():
+        try:
+            n_vecs = sum(len(v) for v in entity_history.values())
+            if centroids is None and n_vecs >= NUM_ARCHETYPES:
+                logger.info(
+                    "[startup] Deferred archetype training — %d vectors available", n_vecs
+                )
+                result = train_archetypes()
+                logger.info("[startup] Archetype training complete: %s", result)
+            elif centroids is not None:
+                logger.info(
+                    "[startup] Archetypes already present (%d centroids) — skipping", len(centroids)
+                )
+            else:
+                logger.info(
+                    "[startup] Insufficient vectors (%d < %d) — archetype training skipped",
+                    n_vecs, NUM_ARCHETYPES,
+                )
+        except Exception as _exc:
+            logger.error("[startup] Deferred archetype training failed: %s", _exc)
+
+    _t = threading.Thread(target=_deferred_train, daemon=True, name="archetype-startup")
+    _t.start()
 
 
 @app.on_event("shutdown")
