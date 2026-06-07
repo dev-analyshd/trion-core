@@ -714,6 +714,9 @@ video {
 .min-w-\[120px\]{
   min-width: 120px;
 }
+.min-w-0{
+  min-width: 0px;
+}
 .max-w-\[140px\]{
   max-width: 140px;
 }
@@ -990,6 +993,9 @@ video {
 .border-teal-400\/25{
   border-color: rgb(45 212 191 / 0.25);
 }
+.border-blue-500\/20{
+  border-color: rgb(59 130 246 / 0.2);
+}
 .bg-\[rgba\(0\2c 194\2c 255\2c 0\.08\)\]{
   background-color: rgba(0,194,255,0.08);
 }
@@ -1086,6 +1092,15 @@ video {
 }
 .bg-white\/30{
   background-color: rgb(255 255 255 / 0.3);
+}
+.bg-blue-500\/10{
+  background-color: rgb(59 130 246 / 0.1);
+}
+.bg-blue-950\/10{
+  background-color: rgb(23 37 84 / 0.1);
+}
+.bg-red-950\/20{
+  background-color: rgb(69 10 10 / 0.2);
 }
 .bg-gradient-to-r{
   background-image: linear-gradient(to right, var(--tw-gradient-stops));

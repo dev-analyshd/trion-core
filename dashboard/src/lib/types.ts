@@ -32,6 +32,17 @@ export interface FeedEntry {
   threshold: number;
   limiting_plane: string;
   timestamp: number;
+  // Protocol health events (kind === "PROTOCOL_HEALTH")
+  kind?: string;
+  grade?: string;
+  threat_level?: string;
+  attack_probability?: number;
+  protocol_name?: string;
+  change_reason?: string;
+  prev_score?: number;
+  dc_score?: number;
+  sub_entity_count?: number;
+  recommendations?: string[];
 }
 
 export interface FeedData {

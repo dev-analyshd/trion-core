@@ -45,6 +45,18 @@ except Exception as _err:
     _engine = None
     log.warning("Protocol engine unavailable: %s", _err)
 
+# ── Start background protocol monitor when blueprint is registered ────────────
+@protocol_bp.record_once
+def _start_protocol_monitor(state):
+    if not _available:
+        return
+    try:
+        from protocol_monitor import start_monitor
+        start_monitor(_engine)
+        log.info("Protocol monitor started via blueprint.record_once")
+    except Exception as _mon_err:
+        log.warning("Protocol monitor could not start: %s", _mon_err)
+
 
 def _unavailable():
     return jsonify({"error": "Protocol intelligence engine not available", "status": 503}), 503
@@ -358,3 +370,24 @@ def supported_roles():
             if role != DeFiRole.UNKNOWN
         ],
     })
+
+
+# ── /api/v1/protocol/monitor/status ──────────────────────────────────────────
+
+@protocol_bp.route("/api/v1/protocol/monitor/status", methods=["GET"])
+def monitor_status():
+    """
+    Returns current state of the background protocol health monitor:
+    last H(t) score, grade, threat level, and push count for each watched protocol.
+    """
+    try:
+        from protocol_monitor import get_monitor_status, WATCHED_PROTOCOLS, POLL_INTERVAL_SECONDS
+        return jsonify({
+            "status": "ok",
+            "monitor_active": True,
+            "poll_interval_seconds": POLL_INTERVAL_SECONDS,
+            "watched_protocols": WATCHED_PROTOCOLS,
+            "states": get_monitor_status(),
+        })
+    except Exception as exc:
+        return jsonify({"status": "ok", "monitor_active": False, "error": str(exc)})
