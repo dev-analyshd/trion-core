@@ -19,4 +19,11 @@ export const endpoints = {
   security: '/api/v1/security/sec',
   zgIntegration: '/api/v1/zg/integration',
   zgChainStatus: '/api/v1/zg/chain/status',
+  protocolHealth: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/health`,
+  protocolUsers: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/users`,
+  protocolRoles: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/roles`,
+  protocolAttackSurface: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/attack-surface`,
+  protocolDistribution: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/distribution`,
+  protocolSubEntities: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/sub-entities`,
+  protocolSupportedRoles: '/api/v1/protocol/supported-roles',
 };
