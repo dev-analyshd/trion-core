@@ -1,6 +1,1 @@
-{
-  "/page": "app/page.js",
-  "/feed/page": "app/feed/page.js",
-  "/api/live-feed/route": "app/api/live-feed/route.js",
-  "/protocol/page": "app/protocol/page.js"
-}
+{}
