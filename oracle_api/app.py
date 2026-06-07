@@ -63,6 +63,16 @@ except Exception as _pf_err:
     _price_feed_available = False
     _log.warning("Price feed routes unavailable: %s", _pf_err)
 
+# ── Register Protocol-Contract Intelligence routes ────────────────────────────
+try:
+    from protocol_routes import protocol_bp
+    app.register_blueprint(protocol_bp)
+    _protocol_available = True
+    _log.info("Protocol intelligence routes registered")
+except Exception as _proto_err:
+    _protocol_available = False
+    _log.warning("Protocol intelligence routes unavailable: %s", _proto_err)
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)
