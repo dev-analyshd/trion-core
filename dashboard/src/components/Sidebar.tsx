@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity, Layers, Network, Shield, Database,
-  Cpu, GitBranch, ChevronLeft, ChevronRight, Brain
+  Cpu, GitBranch, ChevronLeft, ChevronRight, Brain, Building2
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ const NAV = [
     items: [
       { href: '/', label: 'Overview', icon: Activity },
       { href: '/entity', label: 'Entity Intel', icon: Brain },
+      { href: '/protocol', label: 'Protocol Intel', icon: Building2 },
       { href: '/feed', label: 'Live Feed', icon: Layers },
     ],
   },
