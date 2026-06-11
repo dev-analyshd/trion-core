@@ -1,0 +1,7 @@
+{
+  "/page": "app/page.js",
+  "/api/live-feed/route": "app/api/live-feed/route.js",
+  "/protocol/page": "app/protocol/page.js",
+  "/chains/page": "app/chains/page.js",
+  "/feed/page": "app/feed/page.js"
+}
