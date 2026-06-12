@@ -34,5 +34,3 @@ dependencies = [
     "web3>=7.15.0",
     "flask-socketio",
 ]
-
-]
