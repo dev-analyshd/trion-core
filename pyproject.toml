@@ -32,4 +32,7 @@ dependencies = [
     "uvicorn>=0.46.0",
     "vadersentiment>=3.3.2",
     "web3>=7.15.0",
+    "flask-socketio",
+]
+
 ]

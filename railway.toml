@@ -7,25 +7,34 @@
 #   3. railway init
 #   4. railway up
 #
-# Or connect your GitHub repo at railway.app and Railway will auto-detect
-# this file and the Dockerfile.render.
+# Or connect your GitHub repo at railway.app — Railway auto-detects this file.
 #
-# Set secrets in Railway dashboard (Project → Variables):
-#   RELAYER_PRIVATE_KEY, NEAR_PRIVATE_KEY, TON_PRIVATE_KEY_HEX,
-#   DOT_MNEMONIC, STARKNET_PRIVATE_KEY, BTC_TAPROOT_WIF,
-#   BTC_LEGACY_WIF, LITECOIN_PRIVATE_KEY, DOGE_PRIVATE_KEY,
-#   DASH_PRIVATE_KEY, COSMOS_PRIVATE_KEY, KAVA_PRIVATE_KEY,
-#   INJECTIVE_PRIVATE_KEY, SEI_PRIVATE_KEY, DYDX_PRIVATE_KEY,
-#   INITIA_PRIVATE_KEY, APTOS_PRIVATE_KEY, MOVEMENT_PRIVATE_KEY,
-#   SUI_PRIVATE_KEY, TRON_PRIVATE_KEY, PI_SECRET_KEY,
-#   SOLANA_RELAYER_PRIVATE_KEY, ZG_PRIVATE_KEY,
-#   GITHUB_PERSONAL_ACCESS_TOKEN (optional, for auto-sync)
+# ── Variables to set in Railway Dashboard (Project → Variables) ──────────────
+#
+# Required secrets (relay won't sign txs without these; runs DRY_RUN if absent):
+#   RELAYER_PRIVATE_KEY          EVM signing key (no 0x prefix)
+#   ZG_PRIVATE_KEY               0G Mainnet signing key
+#   NEAR_PRIVATE_KEY             ed25519:... format
+#   TON_PRIVATE_KEY_HEX          TON hex private key
+#   DOT_MNEMONIC                 Polkadot BIP39 mnemonic
+#   STARKNET_PRIVATE_KEY         StarkNet signing key
+#   SVM_PRIVATE_KEY_B58          Solana base58 private key
+#   BTC_TAPROOT_WIF / BTC_LEGACY_WIF / LITECOIN_PRIVATE_KEY / DOGE_PRIVATE_KEY
+#   COSMOS_PRIVATE_KEY / KAVA_PRIVATE_KEY / INJECTIVE_PRIVATE_KEY
+#   SEI_PRIVATE_KEY / DYDX_PRIVATE_KEY / INITIA_PRIVATE_KEY
+#   APTOS_PRIVATE_KEY / MOVEMENT_PRIVATE_KEY / SUI_PRIVATE_KEY
+#   TRON_PRIVATE_KEY / PI_SECRET_KEY
+#
+# Optional:
+#   DATABASE_URL                 PostgreSQL (SQLite fallback if absent)
+#   GITHUB_PERSONAL_ACCESS_TOKEN Auto-push token
+#
+# These non-secret variables are set automatically by railway.toml (see below).
 # =============================================================================
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.render"
-buildCommand = ""
 
 [deploy]
 startCommand = "/app/render-entrypoint.sh"
@@ -34,10 +43,10 @@ healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
 
-[[services]]
-name = "trion-protocol"
+[deploy.defaults]
+region = "us-west1"
 
-[services.variables]
+[variables]
 
 # ── Ports & routing ───────────────────────────────────────────────────────────
 PORT               = "8080"
@@ -45,6 +54,13 @@ FAISS_PORT         = "8000"
 FAISS_SERVICE_URL  = "http://127.0.0.1:8000"
 FAISS_URL          = "http://127.0.0.1:8000"
 ORACLE_API_URL     = "http://127.0.0.1:8080"
+
+# ── Persistent data paths (Railway volume mounted at /data) ──────────────────
+FAISS_INDEX_PATH      = "/data/akashic_faiss.index"
+FAISS_CENTROIDS_PATH  = "/data/trion_archetype_centroids.npy"
+FAISS_STATE_DB        = "/data/akashic_state.db"
+BH_LEDGER_DB          = "/data/bh_ledger.db"
+DATA_DIR              = "/data"
 
 # ── Service enable flags (set to "0" to disable a subsystem) ─────────────────
 TRION_ENABLE_FAISS          = "1"
@@ -71,11 +87,12 @@ POLL_INTERVAL_MS          = "60000"
 EXTENDED_POLL_INTERVAL_MS = "90000"
 ZG_POLL_INTERVAL_MS       = "120000"
 
-# ── 0G contracts ──────────────────────────────────────────────────────────────
-ZG_EXECUTION_GATE_ADDR = "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d"
+# ── 0G contracts (mainnet) ────────────────────────────────────────────────────
+ZG_EXECUTION_GATE_ADDR = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
 ZG_AKASHIC_CONTRACT    = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
-ZG_CHAIN_ID            = "16602"
-ZERO_G_RPC             = "https://evmrpc-testnet.0g.ai"
+ZG_CHAIN_ID            = "16661"
+ZERO_G_RPC             = "https://evmrpc.0g.ai"
+ZG_NETWORK             = "mainnet"
 
 # ── gunicorn ──────────────────────────────────────────────────────────────────
 GUNICORN_WORKERS = "2"
@@ -83,5 +100,5 @@ GUNICORN_THREADS = "4"
 GUNICORN_TIMEOUT = "120"
 
 # ── Python ────────────────────────────────────────────────────────────────────
-PYTHONUNBUFFERED = "1"
+PYTHONUNBUFFERED        = "1"
 PYTHONDONTWRITEBYTECODE = "1"

@@ -75,7 +75,104 @@ const CHAINS = [
   { key: "scroll",       name: "Scroll Mainnet",      chainId: 534352, rpcEnv: "SCROLL_RPC_URL",       rpcDefault: "https://rpc.scroll.io",               addrEnv: "SCROLL_ORACLE_ADDR",       addrDefault: null },
   // ── 0G Networks ──────────────────────────────────────────────────────────
   { key: "0g-mainnet",   name: "0G Mainnet",          chainId: 16661,  rpcEnv: "ZERO_G_RPC",           rpcDefault: "https://evmrpc.0g.ai",                addrEnv: "ZG_MAINNET_ORACLE_ADDR",   addrDefault: null },
-  { key: "0g-newton",    name: "0G Newton Mainnet",   chainId: 16600,  rpcEnv: "ZG_NEWTON_RPC",        rpcDefault: "https://evmrpc-mainnet.0g.ai",        addrEnv: "ZG_NEWTON_ORACLE_ADDR",    addrDefault: null },
+
+  // ── Avalanche ────────────────────────────────────────────────────────────
+  { key: "avalanche",    name: "Avalanche C-Chain",   chainId: 43114,  rpcEnv: "AVAX_RPC_URL",         rpcDefault: "https://api.avax.network/ext/bc/C/rpc", addrEnv: "AVAX_ORACLE_ADDR",       addrDefault: null },
+
+  // ── Fantom / Sonic ────────────────────────────────────────────────────────
+  { key: "fantom",       name: "Fantom Opera",        chainId: 250,    rpcEnv: "FTM_RPC_URL",          rpcDefault: "https://rpcapi.fantom.network",       addrEnv: "FTM_ORACLE_ADDR",          addrDefault: null },
+  { key: "sonic",        name: "Sonic Mainnet",       chainId: 146,    rpcEnv: "SONIC_RPC_URL",        rpcDefault: "https://rpc.soniclabs.com",           addrEnv: "SONIC_ORACLE_ADDR",        addrDefault: null },
+
+  // ── zkSync Era ────────────────────────────────────────────────────────────
+  { key: "zksync-era",   name: "zkSync Era",          chainId: 324,    rpcEnv: "ZKSYNC_RPC_URL",       rpcDefault: "https://mainnet.era.zksync.io",       addrEnv: "ZKSYNC_ORACLE_ADDR",       addrDefault: null },
+
+  // ── Berachain ─────────────────────────────────────────────────────────────
+  { key: "berachain",    name: "Berachain",           chainId: 80094,  rpcEnv: "BERA_RPC_URL",         rpcDefault: "https://rpc.berachain.com",           addrEnv: "BERA_ORACLE_ADDR",         addrDefault: null },
+
+  // ── X Layer (OKX L2) ─────────────────────────────────────────────────────
+  { key: "xlayer",       name: "X Layer",             chainId: 196,    rpcEnv: "XLAYER_RPC_URL",       rpcDefault: "https://rpc.xlayer.tech",             addrEnv: "XLAYER_ORACLE_ADDR",       addrDefault: null },
+
+  // ── XDC Network ──────────────────────────────────────────────────────────
+  { key: "xdc",          name: "XDC Network",         chainId: 50,     rpcEnv: "XDC_RPC_URL",          rpcDefault: "https://rpc.xinfin.network",          addrEnv: "XDC_ORACLE_ADDR",          addrDefault: null },
+
+  // ── Story Protocol (IP) ───────────────────────────────────────────────────
+  { key: "story-ip",     name: "Story Protocol IP",   chainId: 1514,   rpcEnv: "STORY_RPC_URL",        rpcDefault: "https://mainnet.storyrpc.io",         addrEnv: "STORY_ORACLE_ADDR",        addrDefault: null },
+
+  // ── Blast ─────────────────────────────────────────────────────────────────
+  { key: "blast",        name: "Blast Mainnet",       chainId: 81457,  rpcEnv: "BLAST_RPC_URL",        rpcDefault: "https://rpc.blast.io",                addrEnv: "BLAST_ORACLE_ADDR",        addrDefault: null },
+
+  // ── Manta Pacific ─────────────────────────────────────────────────────────
+  { key: "manta",        name: "Manta Pacific",       chainId: 169,    rpcEnv: "MANTA_RPC_URL",        rpcDefault: "https://pacific-rpc.manta.network/http", addrEnv: "MANTA_ORACLE_ADDR",     addrDefault: null },
+
+  // ── Mode Network ──────────────────────────────────────────────────────────
+  { key: "mode",         name: "Mode Network",        chainId: 34443,  rpcEnv: "MODE_RPC_URL",         rpcDefault: "https://mainnet.mode.network",        addrEnv: "MODE_ORACLE_ADDR",         addrDefault: null },
+
+  // ── Taiko ─────────────────────────────────────────────────────────────────
+  { key: "taiko",        name: "Taiko Mainnet",       chainId: 167000, rpcEnv: "TAIKO_RPC_URL",        rpcDefault: "https://rpc.mainnet.taiko.xyz",       addrEnv: "TAIKO_ORACLE_ADDR",        addrDefault: null },
+
+  // ── Fraxtal ───────────────────────────────────────────────────────────────
+  { key: "fraxtal",      name: "Fraxtal Mainnet",     chainId: 252,    rpcEnv: "FRAXTAL_RPC_URL",      rpcDefault: "https://rpc.frax.com",                addrEnv: "FRAXTAL_ORACLE_ADDR",      addrDefault: null },
+
+  // ── Metis ─────────────────────────────────────────────────────────────────
+  { key: "metis",        name: "Metis Andromeda",     chainId: 1088,   rpcEnv: "METIS_RPC_URL",        rpcDefault: "https://andromeda.metis.io/?owner=1088", addrEnv: "METIS_ORACLE_ADDR",     addrDefault: null },
+
+  // ── Celo ──────────────────────────────────────────────────────────────────
+  { key: "celo",         name: "Celo Mainnet",        chainId: 42220,  rpcEnv: "CELO_RPC_URL",         rpcDefault: "https://forno.celo.org",              addrEnv: "CELO_ORACLE_ADDR",         addrDefault: null },
+
+  // ── Gnosis Chain ──────────────────────────────────────────────────────────
+  { key: "gnosis",       name: "Gnosis Chain",        chainId: 100,    rpcEnv: "GNOSIS_RPC_URL",       rpcDefault: "https://rpc.gnosischain.com",         addrEnv: "GNOSIS_ORACLE_ADDR",       addrDefault: null },
+
+  // ── Moonbeam ──────────────────────────────────────────────────────────────
+  { key: "moonbeam",     name: "Moonbeam",            chainId: 1284,   rpcEnv: "MOONBEAM_RPC_URL",     rpcDefault: "https://rpc.api.moonbeam.network",    addrEnv: "MOONBEAM_ORACLE_ADDR",     addrDefault: null },
+
+  // ── Kaia (formerly Klaytn) ────────────────────────────────────────────────
+  { key: "kaia",         name: "Kaia Mainnet",        chainId: 8217,   rpcEnv: "KAIA_RPC_URL",         rpcDefault: "https://public-en.node.kaia.io",      addrEnv: "KAIA_ORACLE_ADDR",         addrDefault: null },
+
+  // ── CORE Chain ────────────────────────────────────────────────────────────
+  { key: "core",         name: "CORE Chain",          chainId: 1116,   rpcEnv: "CORE_RPC_URL",         rpcDefault: "https://rpc.coredao.org",             addrEnv: "CORE_ORACLE_ADDR",         addrDefault: null },
+
+  // ── Bitlayer (BTC L2) ─────────────────────────────────────────────────────
+  { key: "bitlayer",     name: "Bitlayer Mainnet",    chainId: 200901, rpcEnv: "BITLAYER_RPC_URL",     rpcDefault: "https://rpc.bitlayer.org",            addrEnv: "BITLAYER_ORACLE_ADDR",     addrDefault: null },
+
+  // ── BOB Network (BTC L2) ─────────────────────────────────────────────────
+  { key: "bob",          name: "BOB Network",         chainId: 60808,  rpcEnv: "BOB_RPC_URL",          rpcDefault: "https://rpc.gobob.xyz",               addrEnv: "BOB_ORACLE_ADDR",          addrDefault: null },
+
+  // ── Rootstock (RSK) ──────────────────────────────────────────────────────
+  { key: "rootstock",    name: "Rootstock RSK",       chainId: 30,     rpcEnv: "RSK_RPC_URL",          rpcDefault: "https://public-node.rsk.co",          addrEnv: "RSK_ORACLE_ADDR",          addrDefault: null },
+
+  // ── Cronos ───────────────────────────────────────────────────────────────
+  { key: "cronos",       name: "Cronos Mainnet",      chainId: 25,     rpcEnv: "CRO_RPC_URL",          rpcDefault: "https://evm.cronos.org",              addrEnv: "CRO_ORACLE_ADDR",          addrDefault: null },
+
+  // ── Aurora (NEAR EVM) ────────────────────────────────────────────────────
+  { key: "aurora",       name: "Aurora Mainnet",      chainId: 1313161554, rpcEnv: "AURORA_RPC_URL",   rpcDefault: "https://mainnet.aurora.dev",          addrEnv: "AURORA_ORACLE_ADDR",       addrDefault: null },
+
+  // ── Harmony ONE ──────────────────────────────────────────────────────────
+  { key: "harmony",      name: "Harmony ONE",         chainId: 1666600000, rpcEnv: "ONE_RPC_URL",      rpcDefault: "https://api.harmony.one",             addrEnv: "ONE_ORACLE_ADDR",          addrDefault: null },
+
+  // ── IoTeX ─────────────────────────────────────────────────────────────────
+  { key: "iotex",        name: "IoTeX Mainnet",       chainId: 4689,   rpcEnv: "IOTEX_RPC_URL",        rpcDefault: "https://babel-api.mainnet.iotex.io",  addrEnv: "IOTEX_ORACLE_ADDR",        addrDefault: null },
+
+  // ── Conflux eSpace ───────────────────────────────────────────────────────
+  { key: "conflux",      name: "Conflux eSpace",      chainId: 1030,   rpcEnv: "CFX_RPC_URL",          rpcDefault: "https://evm.confluxrpc.com",          addrEnv: "CFX_ORACLE_ADDR",          addrDefault: null },
+
+  // ── Expansion batch 3: Monad · Filecoin · HyperLiquid · Abstract · Zora ─
+  //    WEMIX · OKT · Sapphire · Telos · Kroma · Cyber · Sei EVM · Canto ────
+  //    Neon EVM · IOTA EVM ─────────────────────────────────────────────────
+  { key: "monad-mainnet",  name: "Monad Mainnet",        chainId: 10143,     rpcEnv: "MONAD_RPC_URL",        rpcDefault: "https://rpc.monad.xyz",                      addrEnv: "MONAD_ORACLE_ADDR",        addrDefault: null },
+  { key: "filecoin",       name: "Filecoin FEVM",         chainId: 314,       rpcEnv: "FIL_RPC_URL",          rpcDefault: "https://api.node.glif.io/rpc/v1",            addrEnv: "FIL_ORACLE_ADDR",          addrDefault: null },
+  { key: "hyperliquid",    name: "HyperLiquid EVM",       chainId: 999,       rpcEnv: "HYPERLIQ_RPC_URL",     rpcDefault: "https://rpc.hyperliquid-testnet.xyz/evm",    addrEnv: "HYPERLIQ_ORACLE_ADDR",     addrDefault: null },
+  { key: "abstract",       name: "Abstract Mainnet",      chainId: 2741,      rpcEnv: "ABSTRACT_RPC_URL",     rpcDefault: "https://api.mainnet.abs.xyz",                addrEnv: "ABSTRACT_ORACLE_ADDR",     addrDefault: null },
+  { key: "zora",           name: "Zora Network",          chainId: 7777777,   rpcEnv: "ZORA_RPC_URL",         rpcDefault: "https://rpc.zora.energy",                    addrEnv: "ZORA_ORACLE_ADDR",         addrDefault: null },
+  { key: "wemix",          name: "WEMIX 3.0",             chainId: 1111,      rpcEnv: "WEMIX_RPC_URL",        rpcDefault: "https://api.wemix.com",                      addrEnv: "WEMIX_ORACLE_ADDR",        addrDefault: null },
+  { key: "okt-chain",      name: "OKX Chain (OKT)",       chainId: 66,        rpcEnv: "OKT_RPC_URL",          rpcDefault: "https://exchainrpc.okex.org",                addrEnv: "OKT_ORACLE_ADDR",          addrDefault: null },
+  { key: "oasis-sapphire", name: "Oasis Sapphire",        chainId: 23294,     rpcEnv: "SAPPHIRE_RPC_URL",     rpcDefault: "https://sapphire.oasis.io",                  addrEnv: "SAPPHIRE_ORACLE_ADDR",     addrDefault: null },
+  { key: "telos",          name: "Telos EVM",             chainId: 40,        rpcEnv: "TELOS_RPC_URL",        rpcDefault: "https://mainnet.telos.net/evm",              addrEnv: "TELOS_ORACLE_ADDR",        addrDefault: null },
+  { key: "kroma",          name: "Kroma Mainnet",         chainId: 255,       rpcEnv: "KROMA_RPC_URL",        rpcDefault: "https://api.kroma.network",                  addrEnv: "KROMA_ORACLE_ADDR",        addrDefault: null },
+  { key: "cyber",          name: "Cyber L3",              chainId: 7560,      rpcEnv: "CYBER_RPC_URL",        rpcDefault: "https://rpc.cyber.co",                       addrEnv: "CYBER_ORACLE_ADDR",        addrDefault: null },
+  { key: "sei-evm",        name: "Sei EVM",               chainId: 1329,      rpcEnv: "SEI_EVM_RPC_URL",      rpcDefault: "https://evm-rpc.sei-apis.com",               addrEnv: "SEI_EVM_ORACLE_ADDR",      addrDefault: null },
+  { key: "canto",          name: "Canto Mainnet",         chainId: 7700,      rpcEnv: "CANTO_RPC_URL",        rpcDefault: "https://canto.gravitychain.io",              addrEnv: "CANTO_ORACLE_ADDR",        addrDefault: null },
+  { key: "neon-evm",       name: "Neon EVM (Solana)",     chainId: 245022934, rpcEnv: "NEON_RPC_URL",         rpcDefault: "https://neon-proxy-mainnet.solana.p2p.org",  addrEnv: "NEON_ORACLE_ADDR",         addrDefault: null },
+  { key: "iota-evm",       name: "IOTA EVM",              chainId: 8822,      rpcEnv: "IOTA_RPC_URL",         rpcDefault: "https://json-rpc.evm.iotaledger.net",        addrEnv: "IOTA_ORACLE_ADDR",         addrDefault: null },
 
   // ── Testnets (deployed oracle contracts — active for testing) ────────────
   { key: "arb-sepolia",  name: "Arbitrum Sepolia",    chainId: 421614, rpcEnv: "ARB_SEPOLIA_RPC_URL",  rpcDefault: "https://sepolia-rollup.arbitrum.io/rpc", addrEnv: "ARB_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3" },
