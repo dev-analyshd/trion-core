@@ -1,13 +1,86 @@
+# ── Version control & CI ──────────────────────────────────────────────────────
 .git
 .github
+
+# ── Rust build artifacts ──────────────────────────────────────────────────────
 target
 **/target
+
+# ── Node.js dependencies ──────────────────────────────────────────────────────
 node_modules
 **/node_modules
+
+# ── Hardhat build cache ───────────────────────────────────────────────────────
 hardhat/cache
 hardhat/artifacts
+
+# ── Environment files (secrets must never enter image) ───────────────────────
 .env
 .env.*
 !.env.example
+
+# ── Markdown docs (keep README only) ─────────────────────────────────────────
 *.md
 !README.md
+
+# =============================================================================
+# LARGE RUNTIME DATA — NEVER bake into image; served from /data volume
+# bh_ledger.db is 2 GB — including it kills the Render/Railway build context
+# =============================================================================
+bh_ledger.db
+bh_ledger.db-shm
+bh_ledger.db-wal
+bh_ledger.db-journal
+cex_bh_ledger.db
+cex_bh_ledger.db-shm
+cex_bh_ledger.db-wal
+akashic_state.db
+akashic_state.db-shm
+akashic_state.db-wal
+akashic/akashic_state.db
+akashic/akashic_state.db-shm
+akashic/akashic_state.db-wal
+akashic/akashic_faiss.index
+
+# FAISS index + numpy centroids (large binary blobs, live on /data)
+akashic_faiss.index
+*.npy
+akashic/*.npy
+
+# Catch-all for any additional SQLite WAL/SHM files
+*.db-shm
+*.db-wal
+*.db-journal
+
+# ── Python bytecode and test cache ───────────────────────────────────────────
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+
+# ── Replit-internal directories (not needed in image) ────────────────────────
+.agents
+.local
+.cache
+.config
+.uv
+.pythonlibs
+.replit
+replit.nix
+
+# ── Dev / scratch artifacts ───────────────────────────────────────────────────
+attached_assets
+0g-state
+*.log
+*.tmp
+
+# ── Wallet / key files (defence-in-depth) ────────────────────────────────────
+*.pem
+*.key
+*.wif
+keystore
+secrets
+funded_wallets.json
+wallets*.json

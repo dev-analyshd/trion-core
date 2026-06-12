@@ -1,5 +1,7 @@
 flask==3.1.0
 gunicorn==23.0.0
+flask-socketio>=5.6.1
+simple-websocket>=1.1.0
 web3==7.15.0
 requests>=2.33.0
 numpy>=2.4.3
@@ -14,3 +16,4 @@ langdetect>=1.0.9
 stellar-sdk>=13.2.1
 tronpy>=0.6.2
 cosmpy>=0.11.2
+python-dotenv>=1.0.0

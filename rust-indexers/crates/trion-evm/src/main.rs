@@ -3,7 +3,13 @@
  * =============================================================================
  * Covers: ETH Mainnet, ARB Mainnet, BASE Mainnet, OP Mainnet, BNB Mainnet,
  *         HashKey Mainnet, Mantle Mainnet, Linea Mainnet, Scroll Mainnet,
- *         Polygon Mainnet, 0G Mainnet, 0G Newton Mainnet
+ *         Polygon Mainnet, 0G Mainnet, 0G Newton Mainnet,
+ *         Avalanche C-Chain, Fantom, Sonic, zkSync Era, Berachain,
+ *         X Layer, XDC Network, Story Protocol (IP), Blast, Manta Pacific,
+ *         Mode Network, Taiko, Fraxtal, Metis, Celo, Gnosis Chain,
+ *         Moonbeam, Kaia (Klaytn), CORE Chain, Bitlayer, BOB Network,
+ *         Rootstock (RSK), Cronos, Somnia, Pharos, Aurora,
+ *         Harmony ONE, IoTeX, Conflux eSpace
  *
  * Two outputs per block:
  *   1. Block-level 128-dim vector (φ) → POST /index/add_batch   (FAISS indexing)
@@ -121,12 +127,384 @@ const CHAINS: &[EvmChain] = &[
             "https://rpc.0g.ai",
         ],
     },
+
+    // ── Avalanche ─────────────────────────────────────────────────────────────
     EvmChain {
-        label: "ZG_NEWTON", chain_id: 16600,
+        label: "AVALANCHE", chain_id: 43114,
         rpcs: &[
-            "https://evmrpc-mainnet.0g.ai",
-            "https://0g-mainnet.g.alchemy.com/v2/demo",
-            "https://0g.rpc.thirdweb.com",
+            "https://api.avax.network/ext/bc/C/rpc",
+            "https://avalanche-c-chain-rpc.publicnode.com",
+            "https://rpc.ankr.com/avalanche",
+            "https://1rpc.io/avax/c",
+        ],
+    },
+
+    // ── Fantom / Sonic ────────────────────────────────────────────────────────
+    EvmChain {
+        label: "FANTOM", chain_id: 250,
+        rpcs: &[
+            "https://rpcapi.fantom.network",
+            "https://fantom-mainnet.public.blastapi.io",
+            "https://rpc.ankr.com/fantom",
+            "https://fantom.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "SONIC", chain_id: 146,
+        rpcs: &[
+            "https://rpc.soniclabs.com",
+            "https://sonic-mainnet.public.blastapi.io",
+            "https://sonic.drpc.org",
+        ],
+    },
+
+    // ── zkSync Era ────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "ZKSYNC_ERA", chain_id: 324,
+        rpcs: &[
+            "https://mainnet.era.zksync.io",
+            "https://zksync-mainnet.public.blastapi.io",
+            "https://zksync.drpc.org",
+            "https://1rpc.io/zksync2-era",
+        ],
+    },
+
+    // ── Berachain ─────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "BERACHAIN", chain_id: 80094,
+        rpcs: &[
+            "https://rpc.berachain.com",
+            "https://berachain-mainnet.public.blastapi.io",
+            "https://berachain.drpc.org",
+        ],
+    },
+
+    // ── X Layer (OKX L2) ──────────────────────────────────────────────────────
+    EvmChain {
+        label: "XLAYER", chain_id: 196,
+        rpcs: &[
+            "https://rpc.xlayer.tech",
+            "https://xlayerrpc.okx.com",
+            "https://xlayer-mainnet.public.blastapi.io",
+        ],
+    },
+
+    // ── XDC Network ───────────────────────────────────────────────────────────
+    EvmChain {
+        label: "XDC", chain_id: 50,
+        rpcs: &[
+            "https://rpc.xinfin.network",
+            "https://erpc.xinfin.network",
+            "https://rpc1.xinfin.network",
+        ],
+    },
+
+    // ── Story Protocol (IP) ───────────────────────────────────────────────────
+    EvmChain {
+        label: "STORY_IP", chain_id: 1514,
+        rpcs: &[
+            "https://mainnet.storyrpc.io",
+            "https://story-mainnet.public.blastapi.io",
+        ],
+    },
+
+    // ── Blast ─────────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "BLAST", chain_id: 81457,
+        rpcs: &[
+            "https://rpc.blast.io",
+            "https://blast-mainnet.public.blastapi.io",
+            "https://blast.drpc.org",
+            "https://rpc.ankr.com/blast",
+        ],
+    },
+
+    // ── Manta Pacific ─────────────────────────────────────────────────────────
+    EvmChain {
+        label: "MANTA_PACIFIC", chain_id: 169,
+        rpcs: &[
+            "https://pacific-rpc.manta.network/http",
+            "https://manta-pacific-mainnet.public.blastapi.io",
+            "https://manta.drpc.org",
+        ],
+    },
+
+    // ── Mode Network ──────────────────────────────────────────────────────────
+    EvmChain {
+        label: "MODE", chain_id: 34443,
+        rpcs: &[
+            "https://mainnet.mode.network",
+            "https://mode-mainnet.public.blastapi.io",
+            "https://mode.drpc.org",
+        ],
+    },
+
+    // ── Taiko ─────────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "TAIKO", chain_id: 167000,
+        rpcs: &[
+            "https://rpc.mainnet.taiko.xyz",
+            "https://taiko-mainnet.public.blastapi.io",
+            "https://taiko.drpc.org",
+        ],
+    },
+
+    // ── Fraxtal ───────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "FRAXTAL", chain_id: 252,
+        rpcs: &[
+            "https://rpc.frax.com",
+            "https://fraxtal-mainnet.public.blastapi.io",
+        ],
+    },
+
+    // ── Metis ─────────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "METIS", chain_id: 1088,
+        rpcs: &[
+            "https://andromeda.metis.io/?owner=1088",
+            "https://metis-mainnet.public.blastapi.io",
+            "https://metis.drpc.org",
+        ],
+    },
+
+    // ── Celo ──────────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "CELO", chain_id: 42220,
+        rpcs: &[
+            "https://forno.celo.org",
+            "https://celo-mainnet.public.blastapi.io",
+            "https://rpc.ankr.com/celo",
+            "https://1rpc.io/celo",
+        ],
+    },
+
+    // ── Gnosis Chain ──────────────────────────────────────────────────────────
+    EvmChain {
+        label: "GNOSIS", chain_id: 100,
+        rpcs: &[
+            "https://rpc.gnosischain.com",
+            "https://gnosis-mainnet.public.blastapi.io",
+            "https://rpc.ankr.com/gnosis",
+            "https://gnosis.drpc.org",
+        ],
+    },
+
+    // ── Moonbeam ──────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "MOONBEAM", chain_id: 1284,
+        rpcs: &[
+            "https://rpc.api.moonbeam.network",
+            "https://moonbeam-mainnet.public.blastapi.io",
+            "https://moonbeam.drpc.org",
+            "https://rpc.ankr.com/moonbeam",
+        ],
+    },
+
+    // ── Kaia (formerly Klaytn) ────────────────────────────────────────────────
+    EvmChain {
+        label: "KAIA", chain_id: 8217,
+        rpcs: &[
+            "https://public-en.node.kaia.io",
+            "https://klaytn-mainnet-rpc.publicnode.com",
+            "https://klaytn.drpc.org",
+            "https://rpc.ankr.com/klaytn",
+        ],
+    },
+
+    // ── CORE Chain ────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "CORE", chain_id: 1116,
+        rpcs: &[
+            "https://rpc.coredao.org",
+            "https://core-mainnet.public.blastapi.io",
+            "https://1rpc.io/core",
+        ],
+    },
+
+    // ── Bitlayer (BTC L2) ─────────────────────────────────────────────────────
+    EvmChain {
+        label: "BITLAYER", chain_id: 200901,
+        rpcs: &[
+            "https://rpc.bitlayer.org",
+            "https://rpc.bitlayer-rpc.com",
+        ],
+    },
+
+    // ── BOB Network (BTC L2) ─────────────────────────────────────────────────
+    EvmChain {
+        label: "BOB", chain_id: 60808,
+        rpcs: &[
+            "https://rpc.gobob.xyz",
+            "https://bob-mainnet.public.blastapi.io",
+        ],
+    },
+
+    // ── Rootstock (RSK, Bitcoin EVM) ─────────────────────────────────────────
+    EvmChain {
+        label: "ROOTSTOCK", chain_id: 30,
+        rpcs: &[
+            "https://public-node.rsk.co",
+            "https://mycrypto.rsk.co",
+        ],
+    },
+
+    // ── Cronos ───────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "CRONOS", chain_id: 25,
+        rpcs: &[
+            "https://evm.cronos.org",
+            "https://cronos-mainnet.public.blastapi.io",
+            "https://cronos.drpc.org",
+            "https://rpc.vvs.finance",
+        ],
+    },
+
+    // ── Aurora (NEAR EVM) ────────────────────────────────────────────────────
+    EvmChain {
+        label: "AURORA", chain_id: 1313161554,
+        rpcs: &[
+            "https://mainnet.aurora.dev",
+            "https://aurora-mainnet.public.blastapi.io",
+            "https://1rpc.io/aurora",
+        ],
+    },
+
+    // ── Harmony ONE ──────────────────────────────────────────────────────────
+    EvmChain {
+        label: "HARMONY", chain_id: 1666600000,
+        rpcs: &[
+            "https://api.harmony.one",
+            "https://harmony-0-rpc.gateway.pokt.network",
+            "https://harmony.drpc.org",
+        ],
+    },
+
+    // ── IoTeX ─────────────────────────────────────────────────────────────────
+    EvmChain {
+        label: "IOTEX", chain_id: 4689,
+        rpcs: &[
+            "https://babel-api.mainnet.iotex.io",
+            "https://rpc.iotex.io",
+        ],
+    },
+
+    // ── Conflux eSpace ───────────────────────────────────────────────────────
+    EvmChain {
+        label: "CONFLUX", chain_id: 1030,
+        rpcs: &[
+            "https://evm.confluxrpc.com",
+            "https://conflux-espace-public.unifra.io",
+        ],
+    },
+
+    // ── Expansion batch 3: Monad Mainnet, Filecoin, HyperLiquid, Abstract,
+    //    Zora, WEMIX, OKT, Oasis Sapphire, Telos, Kroma, Cyber, Sei EVM,
+    //    Canto, Neon EVM, IOTA EVM ────────────────────────────────────────
+    EvmChain {
+        label: "MONAD_MAINNET", chain_id: 10143,
+        rpcs: &[
+            "https://rpc.monad.xyz",
+            "https://monad.drpc.org",
+            "https://1rpc.io/monad",
+        ],
+    },
+    EvmChain {
+        label: "FILECOIN", chain_id: 314,
+        rpcs: &[
+            "https://api.node.glif.io/rpc/v1",
+            "https://rpc.ankr.com/filecoin",
+        ],
+    },
+    EvmChain {
+        label: "HYPERLIQUID", chain_id: 999,
+        rpcs: &[
+            "https://rpc.hyperliquid-testnet.xyz/evm",
+            "https://api.hyperliquid-testnet.xyz/evm",
+        ],
+    },
+    EvmChain {
+        label: "ABSTRACT", chain_id: 2741,
+        rpcs: &[
+            "https://api.mainnet.abs.xyz",
+            "https://abstract-mainnet.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "ZORA", chain_id: 7777777,
+        rpcs: &[
+            "https://rpc.zora.energy",
+            "https://zora.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "WEMIX", chain_id: 1111,
+        rpcs: &[
+            "https://api.wemix.com",
+            "https://wemix-mainnet.rpc.thirdweb.com",
+        ],
+    },
+    EvmChain {
+        label: "OKT_CHAIN", chain_id: 66,
+        rpcs: &[
+            "https://exchainrpc.okex.org",
+            "https://okt.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "OASIS_SAPPHIRE", chain_id: 23294,
+        rpcs: &[
+            "https://sapphire.oasis.io",
+            "https://1rpc.io/oasis/sapphire",
+        ],
+    },
+    EvmChain {
+        label: "TELOS", chain_id: 40,
+        rpcs: &[
+            "https://mainnet.telos.net/evm",
+            "https://rpc1.eu.telos.net/evm",
+        ],
+    },
+    EvmChain {
+        label: "KROMA", chain_id: 255,
+        rpcs: &[
+            "https://api.kroma.network",
+            "https://1rpc.io/kroma",
+        ],
+    },
+    EvmChain {
+        label: "CYBER", chain_id: 7560,
+        rpcs: &[
+            "https://rpc.cyber.co",
+            "https://cyber.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "SEI_EVM", chain_id: 1329,
+        rpcs: &[
+            "https://evm-rpc.sei-apis.com",
+            "https://sei-evm.drpc.org",
+        ],
+    },
+    EvmChain {
+        label: "CANTO", chain_id: 7700,
+        rpcs: &[
+            "https://canto.gravitychain.io",
+            "https://mainnode.plexnode.org:8545",
+        ],
+    },
+    EvmChain {
+        label: "NEON_EVM", chain_id: 245022934,
+        rpcs: &[
+            "https://neon-proxy-mainnet.solana.p2p.org",
+            "https://neon-mainnet.everstake.one",
+        ],
+    },
+    EvmChain {
+        label: "IOTA_EVM", chain_id: 8822,
+        rpcs: &[
+            "https://json-rpc.evm.iotaledger.net",
+            "https://iota-mainnet-evm.public.blastapi.io",
         ],
     },
 ];

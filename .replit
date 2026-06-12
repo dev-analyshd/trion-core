@@ -36,39 +36,6 @@ args = "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_T
 waitForPort = 8000
 
 [[workflows.workflow]]
-name = "Native VM Indexers"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash supervisors/native_vm_indexers.sh"
-
-[[workflows.workflow]]
-name = "Native VM Relayer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node native-relayer/native_relayer.js"
-
-[[workflows.workflow]]
-name = "Extended VM Indexers"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash supervisors/extended_vm_indexers.sh"
-
-[[workflows.workflow]]
 name = "Extended Chain Relayer"
 author = "agent"
 
@@ -161,7 +128,7 @@ outputType = "webview"
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
 
 [[ports]]
 localPort = 5001
