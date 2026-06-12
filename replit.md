@@ -18,7 +18,7 @@ TRION is a multi-chain behavioral truth oracle. It derives cryptographically ver
 | Language | Version | Role |
 |----------|---------|------|
 | **Python** | 3.11 | Oracle API (Flask, 194 routes), FAISS ANIMA engine (FastAPI, 151 routes), src/ behavioral engine (15 modules), ZG daemons |
-| **Rust** | stable | 13 L0 indexer crates — canonical 93-byte BH per tx across all 37 chains; NEAR/PVM WASM contracts |
+| **Rust** | stable | 13 L0 indexer crates — canonical 93-byte BH per tx across all 100 chains; NEAR/PVM WASM contracts |
 | **JavaScript** | ESM / Node 18 | 3 relayers: EVM multi-chain, extended non-EVM chains, 0G ExecutionGate |
 | **TypeScript** | 5.x | Native VM chain adapters (`chains/*/execute.ts`), TRION SDK |
 | **Solidity** | 0.8.x | 15 EVM contracts — TRIONExecutionGate, TRIONOracleV3, LiquidityOcean, AkashicProof, etc. |
@@ -49,12 +49,12 @@ Everything else (Rust indexers, relayers) communicates with these two services i
 |---------|---------|-------------|
 | **Start application** | Python/Flask | Oracle API + dashboard on port 5000; 194 Flask routes |
 | **FAISS ANIMA** | Python/FastAPI | 128-dim FAISS vector index + BH ledger on port 8000; 151 routes |
-| **Rust Indexers** | Rust/cargo | trion-evm (14 EVM mainnet chains) + trion-svm (Solana) → posts per-tx BH to FAISS |
+| **Rust Indexers** | Rust/cargo | trion-evm (57 EVM mainnet chains) + trion-svm (Solana) → posts per-tx BH to FAISS |
 | **Native VM Indexers** | Bash/Node | trion-near, trion-ton, trion-pvm, trion-starknet → FAISS |
 | **Extended VM Indexers** | Bash/Node | trion-utxo, trion-cosmos, trion-aptos, trion-movement, trion-sui, trion-tron, trion-pi → FAISS |
 | **Native VM Relayer** | Node.js | Signs block proofs on NEAR, TON, Polkadot, StarkNet using chain-native key schemes |
-| **TRION Relayer** | Node+Bash | Publishes C(t) signals to EVM chains every 60s; syncs 0G ExecutionGate |
-| **Extended Chain Relayer** | Node.js | Publishes to 15 non-EVM chains every 90s (OP_RETURN, IBC memo, Move calls, etc.) |
+| **TRION Relayer** | Node+Bash | Publishes C(t) signals to 63 EVM chains every 60s; syncs 0G ExecutionGate |
+| **Extended Chain Relayer** | Node.js | Publishes to 38 non-EVM chains every 90s (UTXO, Cosmos, Move, XRPL, Algo, Hedera, VeChain, Kadena, ICP, Cardano, Bittensor, Stellar, Canton, Flow, MultiversX, Quant, Zilliqa, Waves, LayerZero) |
 
 The **Project** workflow runs `Start application + FAISS ANIMA + Rust Indexers + TRION Relayer` in parallel as the default run button.
 

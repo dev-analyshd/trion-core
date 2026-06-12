@@ -8,7 +8,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN_DIR="$ROOT/rust-indexers/target/debug"
+# Production binaries live at /app/bin (set via RUST_BIN_DIR in Dockerfile.render).
+# In Replit dev mode RUST_BIN_DIR is unset, so fall back to the local debug build.
+BIN_DIR="${RUST_BIN_DIR:-$ROOT/rust-indexers/target/debug}"
 FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
@@ -29,9 +31,14 @@ wait_faiss() {
 build_if_needed() {
     local bin="$1"
     if [[ ! -x "$BIN_DIR/$bin" ]]; then
-        log "Binary $bin not found — building workspace..."
-        cd "$ROOT/rust-indexers" && cargo build --workspace 2>&1 | tail -20
-        log "Build complete."
+        if command -v cargo > /dev/null 2>&1; then
+            log "Binary $bin not found — building workspace with cargo..."
+            cd "$ROOT/rust-indexers" && cargo build --workspace 2>&1 | tail -20
+            log "Build complete."
+        else
+            log "WARN: $bin not found at $BIN_DIR/$bin and cargo is not available (production image). Skipping."
+            return 1
+        fi
     fi
 }
 
@@ -57,35 +64,39 @@ wait_faiss
 pids=()
 
 # NEAR Mainnet
-build_if_needed "trion-near"
-restart_process "trion-near" \
-    env FAISS_SERVICE_URL="$FAISS_URL" \
-    "$BIN_DIR/trion-near" &
-pids+=($!)
-sleep 0.3
+if build_if_needed "trion-near"; then
+    restart_process "trion-near" \
+        env FAISS_SERVICE_URL="$FAISS_URL" \
+        "$BIN_DIR/trion-near" &
+    pids+=($!)
+    sleep 0.3
+fi
 
 # TON Mainnet (TON_TESTNET not set → defaults to mainnet)
-build_if_needed "trion-ton"
-restart_process "trion-ton" \
-    env FAISS_SERVICE_URL="$FAISS_URL" \
-    "$BIN_DIR/trion-ton" &
-pids+=($!)
-sleep 0.3
+if build_if_needed "trion-ton"; then
+    restart_process "trion-ton" \
+        env FAISS_SERVICE_URL="$FAISS_URL" \
+        "$BIN_DIR/trion-ton" &
+    pids+=($!)
+    sleep 0.3
+fi
 
 # PVM (Polkadot Mainnet — chain_id 900)
-build_if_needed "trion-pvm"
-restart_process "trion-pvm" \
-    env FAISS_SERVICE_URL="$FAISS_URL" \
-    "$BIN_DIR/trion-pvm" &
-pids+=($!)
-sleep 0.3
+if build_if_needed "trion-pvm"; then
+    restart_process "trion-pvm" \
+        env FAISS_SERVICE_URL="$FAISS_URL" \
+        "$BIN_DIR/trion-pvm" &
+    pids+=($!)
+    sleep 0.3
+fi
 
 # StarkNet Mainnet
-build_if_needed "trion-starknet"
-restart_process "trion-starknet" \
-    env FAISS_SERVICE_URL="$FAISS_URL" \
-    "$BIN_DIR/trion-starknet" &
-pids+=($!)
+if build_if_needed "trion-starknet"; then
+    restart_process "trion-starknet" \
+        env FAISS_SERVICE_URL="$FAISS_URL" \
+        "$BIN_DIR/trion-starknet" &
+    pids+=($!)
+fi
 
 log "Native VM Rust indexers started: trion-near(1200) trion-ton(1100) trion-pvm(900) trion-starknet(8000) — all mainnet"
 log "Logs: $LOG_DIR/"
