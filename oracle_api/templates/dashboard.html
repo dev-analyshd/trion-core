@@ -2418,62 +2418,180 @@ const CMD_ACTIONS=[
   {label:'Refresh live feed',sub:'Force-poll the signal feed now',action:()=>{cmdClose();loadFeedSection&&loadFeedSection()},icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 8A6 6 0 1 1 8 2a6 6 0 0 1 4.9 2.5"/><polyline points="14,2 14,6 10,6"/></svg>',tag:'Action'},
 ];
 
-let cmdOpen=false,cmdIdx=0,cmdFiltered=[];
+/* ── CMD STATE ── */
+let cmdOpen=false,cmdIdx=0,cmdFiltered=[],cmdDebounce=null,cmdSeq=0;
 
+/* ── SIGNAL SCORE COLOR ── */
+function cmdScoreColor(v){
+  if(v===null||v===undefined)return'#64748B';
+  if(v>=0.7)return'#10B981';
+  if(v>=0.55)return'#F59E0B';
+  return'#EF4444';
+}
+
+/* ── OPEN / CLOSE ── */
 function cmdShow(){
-  document.getElementById('cmd-overlay').classList.add('open');
-  document.getElementById('cmd-input').value='';
+  const overlay=document.getElementById('cmd-overlay');
+  const inp=document.getElementById('cmd-input');
+  overlay.classList.add('open');
+  inp.value='';
   cmdOpen=true;cmdIdx=0;
   cmdRender('');
-  requestAnimationFrame(()=>document.getElementById('cmd-input').focus());
+  requestAnimationFrame(()=>inp.focus());
 }
 function cmdClose(){
   document.getElementById('cmd-overlay').classList.remove('open');
   cmdOpen=false;
+  clearTimeout(cmdDebounce);
 }
+
+/* ── STATIC RENDER (nav + actions + known entity shortcuts) ── */
 function cmdRender(q){
   const r=document.getElementById('cmd-results');
   r.innerHTML='';
-  const lq=q.toLowerCase();
+  const lq=q.trim().toLowerCase();
 
   const navHits=CMD_NAV.filter(x=>x.label.toLowerCase().includes(lq)||x.sub.toLowerCase().includes(lq));
   const actHits=CMD_ACTIONS.filter(x=>x.label.toLowerCase().includes(lq)||x.sub.toLowerCase().includes(lq));
-  const entHits=q.length>0?KNOWN_ENTITIES.filter(e=>e.includes(lq)).slice(0,6):[];
+  const entHits=lq.length>0?KNOWN_ENTITIES.filter(e=>e.includes(lq)).slice(0,5):[];
 
   cmdFiltered=[];
 
-  if(navHits.length){
+  if(navHits.length&&!lq){
     const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Navigate';r.appendChild(g);
     navHits.forEach(item=>{
       const idx=cmdFiltered.length;cmdFiltered.push({type:'nav',item});
-      r.appendChild(cmdItemEl(item.icon,item.label,item.sub,'Nav',idx,()=>{cmdClose();document.querySelector(`[data-section=${item.section}]`)?.click();}));
+      r.appendChild(cmdItemEl(item.icon,item.label,item.sub,'Nav',idx,
+        ()=>{cmdClose();document.querySelector(`[data-section=${item.section}]`)?.click();}));
     });
   }
-  if(actHits.length){
+  if(actHits.length&&!lq){
     const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Actions';r.appendChild(g);
     actHits.forEach(item=>{
       const idx=cmdFiltered.length;cmdFiltered.push({type:'action',item});
       r.appendChild(cmdItemEl(item.icon,item.label,item.sub,item.tag,idx,item.action));
     });
   }
+
+  /* known entity shortcuts (shown while live search loads) */
   if(entHits.length){
-    const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Known Entities';r.appendChild(g);
+    const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Entities';r.appendChild(g);
     entHits.forEach(e=>{
       const idx=cmdFiltered.length;cmdFiltered.push({type:'entity',e});
-      const entityIcon='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>';
-      r.appendChild(cmdItemEl(entityIcon,e,'Look up behavioral signal','Entity',idx,()=>{
-        cmdClose();
-        document.querySelector('[data-section=entity]').click();
-        setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=e;lookupEntity();}},120);
-      },'entity'));
+      const eIcon='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>';
+      r.appendChild(cmdItemEl(eIcon,e,'Loading signal…','Entity',idx,
+        ()=>cmdOpenEntity(e),'entity'));
     });
   }
+
+  /* show spinning placeholder while awaiting live results */
+  if(lq.length>=1){
+    const placeholder=document.createElement('div');
+    placeholder.id='cmd-live-section';
+    placeholder.innerHTML='<div class="cmd-group-label">Live Signal<span id="cmd-live-spinner" style="margin-left:6px;display:inline-block;width:8px;height:8px;border:1.5px solid rgba(0,212,170,.25);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle"></span></div>';
+    r.appendChild(placeholder);
+  }
+
   cmdHighlight();
+
+  /* debounce live API fetch (300 ms) */
+  clearTimeout(cmdDebounce);
+  if(lq.length>=1){
+    cmdDebounce=setTimeout(()=>cmdLiveSearch(lq),300);
+  }
+}
+
+/* ── LIVE ORACLE SEARCH ── */
+const CMD_ENTITY_ICON='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>';
+
+async function cmdLiveSearch(q){
+  const seq=++cmdSeq;
+
+  /* build candidate list: exact query + matching known entities */
+  const candidates=[...new Set([q,...KNOWN_ENTITIES.filter(e=>e.includes(q))].slice(0,6))];
+
+  const results=await Promise.all(candidates.map(async ent=>{
+    try{
+      const res=await fetch(`/api/v1/signal/${encodeURIComponent(ent)}`,{signal:AbortSignal.timeout(4000)});
+      if(!res.ok)return null;
+      const d=await res.json();
+      if(d.error)return null;
+      return{entity:ent,score:d.coherence_score??d.score??null,archetype:d.archetype??'—',signal:d.signal_type??d.signal??'—',gate:d.gate_decision??null};
+    }catch{return null;}
+  }));
+
+  if(seq!==cmdSeq)return; /* stale response, discard */
+
+  const hits=results.filter(Boolean);
+  const section=document.getElementById('cmd-live-section');
+  if(!section)return;
+
+  section.innerHTML=''; /* clear spinner */
+
+  if(!hits.length){
+    const g=document.createElement('div');g.className='cmd-group-label';
+    g.textContent='Live Signal — no results';section.appendChild(g);
+    return;
+  }
+
+  const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Live Signal';section.appendChild(g);
+
+  hits.forEach(h=>{
+    const idx=cmdFiltered.length;
+    cmdFiltered.push({type:'live',h});
+    const scoreColor=cmdScoreColor(h.score);
+    const scoreStr=h.score!=null?h.score.toFixed(3):'—';
+    const sigLabel=(h.signal||'').toUpperCase().slice(0,12);
+    const sigColor=sigLabel.includes('INTERCEPT')?'#EF4444':sigLabel.includes('SILENCE')?'#F59E0B':'#10B981';
+    const gateStr=h.gate?`· GATE: ${h.gate}`:'';
+
+    const el=document.createElement('div');
+    el.className='cmd-item';el.dataset.idx=idx;
+    el.innerHTML=`
+      <div class="cmd-icon">${CMD_ENTITY_ICON}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="cmd-label" style="font-family:'Space Grotesk',sans-serif">${h.entity}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${scoreColor}">${scoreStr}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+          <span style="font-size:10px;color:var(--text3)">${h.archetype}</span>
+          <span style="font-size:9px;color:#64748B">·</span>
+          <span style="font-size:10px;font-weight:700;color:${sigColor};letter-spacing:.04em">${sigLabel}</span>
+          <span style="font-size:9px;color:#64748B">${gateStr}</span>
+        </div>
+      </div>
+      <span class="cmd-tag entity">Signal</span>`;
+    el.addEventListener('click',()=>cmdOpenEntity(h.entity));
+    el.addEventListener('mousemove',()=>{cmdIdx=idx;cmdHighlight();});
+
+    /* also update the matching shortcut item if present */
+    document.querySelectorAll('.cmd-item').forEach(shortcut=>{
+      if(shortcut.querySelector('.cmd-label')?.textContent===h.entity&&shortcut!==el){
+        const sub=shortcut.querySelector('.cmd-sublabel');
+        if(sub){
+          sub.textContent=`C(t) ${scoreStr} · ${h.archetype}`;
+          sub.style.color=scoreColor;
+        }
+      }
+    });
+
+    section.appendChild(el);
+  });
+
+  cmdHighlight();
+}
+
+/* ── HELPERS ── */
+function cmdOpenEntity(e){
+  cmdClose();
+  document.querySelector('[data-section=entity]').click();
+  setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=e;lookupEntity();}},120);
 }
 function cmdItemEl(icon,label,sub,tag,idx,action,tagClass=''){
   const el=document.createElement('div');
   el.className='cmd-item';el.dataset.idx=idx;
-  el.innerHTML=`<div class="cmd-icon">${icon}</div><span class="cmd-label">${label}</span><span class="cmd-sublabel">${sub}</span><span class="cmd-tag ${tagClass}">${tag}</span>`;
+  el.innerHTML=`<div class="cmd-icon">${icon}</div><div style="flex:1;min-width:0"><span class="cmd-label">${label}</span><br><span class="cmd-sublabel">${sub}</span></div><span class="cmd-tag ${tagClass}">${tag}</span>`;
   el.addEventListener('click',action);
   el.addEventListener('mousemove',()=>{cmdIdx=idx;cmdHighlight();});
   return el;
@@ -2488,18 +2606,15 @@ function cmdHighlight(){
 function cmdExec(){
   const item=cmdFiltered[cmdIdx];if(!item)return;
   if(item.type==='nav'){cmdClose();document.querySelector(`[data-section=${item.item.section}]`)?.click();}
-  else if(item.type==='action'){item.item.action();}
-  else if(item.type==='entity'){
-    cmdClose();
-    document.querySelector('[data-section=entity]').click();
-    setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=item.e;lookupEntity();}},120);
-  }
+  else if(item.type==='action')item.item.action();
+  else if(item.type==='entity')cmdOpenEntity(item.e);
+  else if(item.type==='live')cmdOpenEntity(item.h.entity);
 }
 
+/* ── EVENT WIRING ── */
 document.getElementById('cmd-input').addEventListener('input',e=>{ cmdIdx=0;cmdRender(e.target.value); });
 document.getElementById('cmd-overlay').addEventListener('click',e=>{ if(e.target===e.currentTarget)cmdClose(); });
 document.getElementById('cmd-esc').addEventListener('click',cmdClose);
-
 document.getElementById('tb-search-hint').addEventListener('click',cmdShow);
 document.getElementById('tb-search').querySelector('input').addEventListener('focus',e=>{e.preventDefault();e.target.blur();cmdShow();});
 
