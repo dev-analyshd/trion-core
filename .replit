@@ -16,11 +16,12 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=5001 uv run python3 serve.py"
+args = "python serve.py"
+waitForPort = 5000
 
 [[workflows.workflow]]
 name = "FAISS ANIMA"
@@ -128,14 +129,6 @@ outputType = "webview"
 
 [[ports]]
 localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
-
-[[ports]]
-localPort = 6000
 externalPort = 80
 
 [[ports]]
