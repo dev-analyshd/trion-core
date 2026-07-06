@@ -509,6 +509,98 @@ select:focus{border-color:rgba(0,212,170,0.35)}
   #content{padding:16px}
 }
 
+/* ── COMMAND PALETTE ── */
+#cmd-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(6px);
+  display:none;align-items:flex-start;justify-content:center;
+  padding-top:12vh;
+  animation:cmdFadeIn .15s ease-out;
+}
+#cmd-overlay.open{display:flex}
+@keyframes cmdFadeIn{from{opacity:0}to{opacity:1}}
+#cmd-box{
+  width:100%;max-width:560px;
+  background:rgba(12,12,20,0.96);
+  backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid rgba(0,212,170,0.18);
+  border-radius:20px;
+  box-shadow:0 24px 64px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.04),inset 0 1px 0 rgba(255,255,255,0.06);
+  overflow:hidden;
+  animation:cmdSlideIn .18s cubic-bezier(.4,0,.2,1);
+}
+@keyframes cmdSlideIn{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+#cmd-input-wrap{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 20px;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+}
+#cmd-search-icon{color:var(--teal);flex-shrink:0;opacity:.9}
+#cmd-input{
+  flex:1;background:none;border:none;outline:none;
+  font-family:'Inter',sans-serif;font-size:15px;font-weight:400;
+  color:var(--text);caret-color:var(--teal);
+}
+#cmd-input::placeholder{color:var(--text3)}
+#cmd-esc{
+  font-size:10px;color:var(--text3);
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:5px;padding:2px 7px;cursor:pointer;
+  flex-shrink:0;font-family:'JetBrains Mono',monospace;
+}
+#cmd-results{
+  max-height:360px;overflow-y:auto;padding:8px 0;
+}
+#cmd-results:empty::after{
+  content:'No results';display:block;
+  text-align:center;padding:32px;
+  color:var(--text3);font-size:13px;
+}
+.cmd-group-label{
+  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);padding:10px 20px 4px;
+}
+.cmd-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 20px;cursor:pointer;
+  transition:background .1s;
+  border-radius:0;
+}
+.cmd-item:hover,.cmd-item.selected{
+  background:rgba(0,212,170,0.08);
+}
+.cmd-item.selected .cmd-label{color:var(--teal)}
+.cmd-icon{
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text3);flex-shrink:0;transition:all .1s;
+}
+.cmd-item:hover .cmd-icon,.cmd-item.selected .cmd-icon{
+  background:rgba(0,212,170,0.10);border-color:rgba(0,212,170,0.2);color:var(--teal);
+}
+.cmd-label{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.cmd-sublabel{font-size:11px;color:var(--text3)}
+.cmd-tag{
+  font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 7px;border-radius:9999px;
+  background:rgba(0,212,170,0.10);color:var(--teal);
+  border:1px solid rgba(0,212,170,0.18);
+}
+.cmd-tag.entity{background:rgba(99,102,241,0.10);color:var(--purple2);border-color:rgba(99,102,241,0.2)}
+#cmd-footer{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 20px;
+  border-top:1px solid rgba(255,255,255,0.06);
+}
+.cmd-hint{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3)}
+.cmd-key{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);
+  border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:10px;
+}
+
 /* ── REDUCED MOTION ── */
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.01ms !important}
@@ -2305,6 +2397,138 @@ async function tick(){
   setInterval(tick,15000);
   setInterval(loadTopbar,8000);
 })();
+
+/* ─── COMMAND PALETTE ─── */
+const CMD_NAV=[
+  {label:'Overview',sub:'Dashboard & live metrics',section:'overview',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg>'},
+  {label:'Entity Intel',sub:'Look up any wallet or protocol',section:'entity',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>'},
+  {label:'Live Feed',sub:'Real-time signal stream',section:'feed',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 8h14M1 4h8M1 12h10"/></svg>'},
+  {label:'Attack Simulator',sub:'Replay historical exploits',section:'simulation',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="3,2 13,8 3,14"/></svg>'},
+  {label:'BH Explorer',sub:'Browse behavioral hash ledger',section:'bh',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="2,12 6,7 9,10 14,4"/></svg>'},
+  {label:'FAISS ANIMA',sub:'128-dim vector & archetypes',section:'faiss',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/></svg>'},
+  {label:'0G Network',sub:'Storage, DA & ExecutionGate',section:'zg',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 8h12M8 2l4 6-4 6"/></svg>'},
+  {label:'Security',sub:'Living DNA security system',section:'security',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1L2 4v5c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4z"/></svg>'},
+  {label:'Chain Network',sub:'All 37 indexed chains',section:'chains',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><line x1="6" y1="7" x2="10" y2="5"/><line x1="6" y1="9" x2="10" y2="11"/></svg>'},
+  {label:'About',sub:'Protocol info & author',section:'about',icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".6" fill="currentColor"/></svg>'},
+];
+
+const CMD_ACTIONS=[
+  {label:'Check entity signal',sub:'Look up C(t) for any address or protocol',action:()=>{cmdClose();document.querySelector('[data-section=entity]').click();setTimeout(()=>document.getElementById('ent-input')?.focus(),120)},icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>',tag:'Action'},
+  {label:'Run attack simulation',sub:'Replay an exploit scenario against any entity',action:()=>{cmdClose();document.querySelector('[data-section=simulation]').click()},icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="3,2 13,8 3,14"/></svg>',tag:'Action'},
+  {label:'Refresh live feed',sub:'Force-poll the signal feed now',action:()=>{cmdClose();loadFeedSection&&loadFeedSection()},icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 8A6 6 0 1 1 8 2a6 6 0 0 1 4.9 2.5"/><polyline points="14,2 14,6 10,6"/></svg>',tag:'Action'},
+];
+
+let cmdOpen=false,cmdIdx=0,cmdFiltered=[];
+
+function cmdShow(){
+  document.getElementById('cmd-overlay').classList.add('open');
+  document.getElementById('cmd-input').value='';
+  cmdOpen=true;cmdIdx=0;
+  cmdRender('');
+  requestAnimationFrame(()=>document.getElementById('cmd-input').focus());
+}
+function cmdClose(){
+  document.getElementById('cmd-overlay').classList.remove('open');
+  cmdOpen=false;
+}
+function cmdRender(q){
+  const r=document.getElementById('cmd-results');
+  r.innerHTML='';
+  const lq=q.toLowerCase();
+
+  const navHits=CMD_NAV.filter(x=>x.label.toLowerCase().includes(lq)||x.sub.toLowerCase().includes(lq));
+  const actHits=CMD_ACTIONS.filter(x=>x.label.toLowerCase().includes(lq)||x.sub.toLowerCase().includes(lq));
+  const entHits=q.length>0?KNOWN_ENTITIES.filter(e=>e.includes(lq)).slice(0,6):[];
+
+  cmdFiltered=[];
+
+  if(navHits.length){
+    const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Navigate';r.appendChild(g);
+    navHits.forEach(item=>{
+      const idx=cmdFiltered.length;cmdFiltered.push({type:'nav',item});
+      r.appendChild(cmdItemEl(item.icon,item.label,item.sub,'Nav',idx,()=>{cmdClose();document.querySelector(`[data-section=${item.section}]`)?.click();}));
+    });
+  }
+  if(actHits.length){
+    const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Actions';r.appendChild(g);
+    actHits.forEach(item=>{
+      const idx=cmdFiltered.length;cmdFiltered.push({type:'action',item});
+      r.appendChild(cmdItemEl(item.icon,item.label,item.sub,item.tag,idx,item.action));
+    });
+  }
+  if(entHits.length){
+    const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Known Entities';r.appendChild(g);
+    entHits.forEach(e=>{
+      const idx=cmdFiltered.length;cmdFiltered.push({type:'entity',e});
+      const entityIcon='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>';
+      r.appendChild(cmdItemEl(entityIcon,e,'Look up behavioral signal','Entity',idx,()=>{
+        cmdClose();
+        document.querySelector('[data-section=entity]').click();
+        setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=e;lookupEntity();}},120);
+      },'entity'));
+    });
+  }
+  cmdHighlight();
+}
+function cmdItemEl(icon,label,sub,tag,idx,action,tagClass=''){
+  const el=document.createElement('div');
+  el.className='cmd-item';el.dataset.idx=idx;
+  el.innerHTML=`<div class="cmd-icon">${icon}</div><span class="cmd-label">${label}</span><span class="cmd-sublabel">${sub}</span><span class="cmd-tag ${tagClass}">${tag}</span>`;
+  el.addEventListener('click',action);
+  el.addEventListener('mousemove',()=>{cmdIdx=idx;cmdHighlight();});
+  return el;
+}
+function cmdHighlight(){
+  document.querySelectorAll('.cmd-item').forEach(el=>{
+    el.classList.toggle('selected',+el.dataset.idx===cmdIdx);
+  });
+  const sel=document.querySelector('.cmd-item.selected');
+  if(sel)sel.scrollIntoView({block:'nearest'});
+}
+function cmdExec(){
+  const item=cmdFiltered[cmdIdx];if(!item)return;
+  if(item.type==='nav'){cmdClose();document.querySelector(`[data-section=${item.item.section}]`)?.click();}
+  else if(item.type==='action'){item.item.action();}
+  else if(item.type==='entity'){
+    cmdClose();
+    document.querySelector('[data-section=entity]').click();
+    setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=item.e;lookupEntity();}},120);
+  }
+}
+
+document.getElementById('cmd-input').addEventListener('input',e=>{ cmdIdx=0;cmdRender(e.target.value); });
+document.getElementById('cmd-overlay').addEventListener('click',e=>{ if(e.target===e.currentTarget)cmdClose(); });
+document.getElementById('cmd-esc').addEventListener('click',cmdClose);
+
+document.getElementById('tb-search-hint').addEventListener('click',cmdShow);
+document.getElementById('tb-search').querySelector('input').addEventListener('focus',e=>{e.preventDefault();e.target.blur();cmdShow();});
+
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();cmdOpen?cmdClose():cmdShow();return;}
+  if(!cmdOpen)return;
+  if(e.key==='Escape'){cmdClose();return;}
+  if(e.key==='ArrowDown'){e.preventDefault();cmdIdx=Math.min(cmdIdx+1,cmdFiltered.length-1);cmdHighlight();}
+  else if(e.key==='ArrowUp'){e.preventDefault();cmdIdx=Math.max(cmdIdx-1,0);cmdHighlight();}
+  else if(e.key==='Enter'){e.preventDefault();cmdExec();}
+});
 </script>
+
+<!-- ─── COMMAND PALETTE ─── -->
+<div id="cmd-overlay" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div id="cmd-box">
+    <div id="cmd-input-wrap">
+      <svg id="cmd-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="cmd-input" type="text" placeholder="Search sections, entities, actions…" autocomplete="off" spellcheck="false" aria-label="Command search">
+      <span id="cmd-esc" role="button" aria-label="Close">ESC</span>
+    </div>
+    <div id="cmd-results" role="listbox"></div>
+    <div id="cmd-footer">
+      <span class="cmd-hint"><span class="cmd-key">↑</span><span class="cmd-key">↓</span> navigate</span>
+      <span class="cmd-hint"><span class="cmd-key">↵</span> select</span>
+      <span class="cmd-hint"><span class="cmd-key">ESC</span> close</span>
+      <span class="cmd-hint" style="margin-left:auto;opacity:.5;font-size:9px">⌘K to toggle</span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
