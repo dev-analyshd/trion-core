@@ -2429,6 +2429,34 @@ function cmdScoreColor(v){
   return'#EF4444';
 }
 
+/* ── RECENT HISTORY (localStorage, max 8 entries) ── */
+const CMD_HISTORY_KEY='trion_cmd_history_v1';
+const CMD_HISTORY_MAX=8;
+
+function cmdHistoryLoad(){
+  try{return JSON.parse(localStorage.getItem(CMD_HISTORY_KEY)||'[]');}catch{return[];}
+}
+function cmdHistorySave(entity,score,archetype,signal){
+  let h=cmdHistoryLoad().filter(x=>x.entity!==entity);
+  h.unshift({entity,score,archetype:archetype||'—',signal:signal||'—',ts:Date.now()});
+  if(h.length>CMD_HISTORY_MAX)h=h.slice(0,CMD_HISTORY_MAX);
+  try{localStorage.setItem(CMD_HISTORY_KEY,JSON.stringify(h));}catch{}
+}
+function cmdHistoryRemove(entity){
+  const h=cmdHistoryLoad().filter(x=>x.entity!==entity);
+  try{localStorage.setItem(CMD_HISTORY_KEY,JSON.stringify(h));}catch{}
+}
+function cmdHistoryClearAll(){
+  try{localStorage.removeItem(CMD_HISTORY_KEY);}catch{}
+}
+function cmdRelTime(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return'just now';
+  if(s<3600)return`${Math.floor(s/60)}m ago`;
+  if(s<86400)return`${Math.floor(s/3600)}h ago`;
+  return`${Math.floor(s/86400)}d ago`;
+}
+
 /* ── OPEN / CLOSE ── */
 function cmdShow(){
   const overlay=document.getElementById('cmd-overlay');
@@ -2445,7 +2473,10 @@ function cmdClose(){
   clearTimeout(cmdDebounce);
 }
 
-/* ── STATIC RENDER (nav + actions + known entity shortcuts) ── */
+/* ── HISTORY ICON (clock) ── */
+const CMD_HIST_ICON='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10,10"/></svg>';
+
+/* ── STATIC RENDER (recent + nav + actions + known entity shortcuts) ── */
 function cmdRender(q){
   const r=document.getElementById('cmd-results');
   r.innerHTML='';
@@ -2456,6 +2487,59 @@ function cmdRender(q){
   const entHits=lq.length>0?KNOWN_ENTITIES.filter(e=>e.includes(lq)).slice(0,5):[];
 
   cmdFiltered=[];
+
+  /* ── RECENT HISTORY (empty query only) ── */
+  if(!lq){
+    const hist=cmdHistoryLoad();
+    if(hist.length){
+      const ghdr=document.createElement('div');
+      ghdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 20px 4px';
+      ghdr.innerHTML=`<span class="cmd-group-label" style="padding:0">Recent</span><button id="cmd-clear-hist" style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;transition:color .15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">Clear all</button>`;
+      r.appendChild(ghdr);
+      document.getElementById('cmd-clear-hist')?.addEventListener('click',e=>{
+        e.stopPropagation();cmdHistoryClearAll();cmdRender('');
+      });
+
+      hist.forEach(h=>{
+        const idx=cmdFiltered.length;
+        cmdFiltered.push({type:'recent',h});
+        const scoreColor=cmdScoreColor(h.score);
+        const scoreStr=h.score!=null?h.score.toFixed(3):'—';
+        const sigLabel=(h.signal||'').toUpperCase().slice(0,10);
+        const sigColor=sigLabel.includes('INTERCEPT')?'#EF4444':sigLabel.includes('SILENCE')?'#F59E0B':'#10B981';
+
+        const el=document.createElement('div');
+        el.className='cmd-item';el.dataset.idx=idx;
+        el.innerHTML=`
+          <div class="cmd-icon" style="color:var(--text3)">${CMD_HIST_ICON}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="cmd-label" style="font-family:'Space Grotesk',sans-serif">${h.entity}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${scoreColor}">${scoreStr}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+              <span style="font-size:10px;color:var(--text3)">${h.archetype}</span>
+              <span style="font-size:9px;color:#64748B">·</span>
+              <span style="font-size:10px;font-weight:700;color:${sigColor};letter-spacing:.04em">${sigLabel}</span>
+              <span style="font-size:9px;color:#64748B;margin-left:auto">${cmdRelTime(h.ts)}</span>
+            </div>
+          </div>
+          <button class="cmd-hist-del" data-entity="${h.entity}" title="Remove" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px;line-height:1;transition:all .15s;flex-shrink:0" onmouseover="this.style.color='var(--red)';this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.color='var(--text3)';this.style.background='none'">×</button>`;
+
+        el.addEventListener('click',e=>{
+          if(e.target.classList.contains('cmd-hist-del')){
+            e.stopPropagation();
+            cmdHistoryRemove(h.entity);
+            cmdRender('');
+            return;
+          }
+          cmdOpenEntity(h.entity);
+        });
+        el.addEventListener('mousemove',()=>{cmdIdx=idx;cmdHighlight();});
+        r.appendChild(el);
+      });
+    }
+  }
 
   if(navHits.length&&!lq){
     const g=document.createElement('div');g.className='cmd-group-label';g.textContent='Navigate';r.appendChild(g);
@@ -2565,6 +2649,9 @@ async function cmdLiveSearch(q){
     el.addEventListener('click',()=>cmdOpenEntity(h.entity));
     el.addEventListener('mousemove',()=>{cmdIdx=idx;cmdHighlight();});
 
+    /* update localStorage with fresh signal data */
+    cmdHistorySave(h.entity,h.score,h.archetype,h.signal);
+
     /* also update the matching shortcut item if present */
     document.querySelectorAll('.cmd-item').forEach(shortcut=>{
       if(shortcut.querySelector('.cmd-label')?.textContent===h.entity&&shortcut!==el){
@@ -2584,6 +2671,7 @@ async function cmdLiveSearch(q){
 
 /* ── HELPERS ── */
 function cmdOpenEntity(e){
+  cmdHistorySave(e,null,'—','—');   /* stub entry — score filled in by live fetch or next open */
   cmdClose();
   document.querySelector('[data-section=entity]').click();
   setTimeout(()=>{const i=document.getElementById('ent-input');if(i){i.value=e;lookupEntity();}},120);
