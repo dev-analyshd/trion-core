@@ -22,6 +22,8 @@ import math
 from enum import Enum
 from dataclasses import dataclass
 
+from src.core.moat_engine import MoatEngine, MoatInput
+
 
 THETA_MIN = 0.55
 THETA_MAX = 0.92
@@ -81,6 +83,7 @@ class CoherenceEngine:
     def __init__(self):
         self._history: list = []   # Rolling window of recent C(t) values
         self._HISTORY_MAX = 20
+        self._moat = MoatEngine()  # L9 standalone moat engine
 
     def compute_threshold(self, volatility: float) -> float:
         """Θ(t) = Θ_min + (Θ_max - Θ_min) × V(t)"""
@@ -154,24 +157,15 @@ class CoherenceEngine:
         else:
             eta_blocks = 0
 
-        # Whitepaper L0.5: M_moat(t) = D(t) · Q(t) · R(t) · X(t) · F(t) · N(t)
-        # Six multiplicative factors — each in (0, 1]:
-        #   D = Akashic depth factor  (data moat)
-        #   Q = Quality factor        (signal quality from validator diversity)
-        #   R = Reflexivity factor    (observer-effect resistance)
-        #   X = Cross-chain factor    (multi-chain coverage breadth)
-        #   F = Falsifiability factor (15-condition falsifiability registry)
-        #   N = Network factor        (moat durability over time)
-        D_factor = min(1.0, math.log(1 + inp.akashic_depth / 1000) / math.log(1 + 10.0))
-        Q_factor = min(1.0, inp.k_plane + 0.15)          # k-plane (conscious) as quality proxy
-        R_factor = min(1.0, 1.0 - 0.30 * (inp.m_adj - 0.5) ** 2)
-        X_factor = min(1.0, math.log(1 + inp.akashic_depth / 5000) / math.log(3))   # chain breadth
-        F_factor = 0.90  # falsifiability registry baseline (updated by governance votes)
-        N_factor = math.exp(-inp.moat_time / 1e8) if inp.moat_time > 0 else 1.0      # decay over time
-        moat_factor = D_factor * Q_factor * R_factor * X_factor * F_factor * N_factor
-        moat_factor = min(1.0, max(0.0, moat_factor))
-        # Also expose legacy scalar
-        M_moat = math.log(1 + inp.akashic_depth / 10000)
+        # L9 — Economic Moat: delegated to standalone MoatEngine (src/core/moat_engine.py)
+        # M_moat(t) = D(t) · Q(t) · R(t) · X(t) · F(t) · N(t)
+        moat_result  = self._moat.compute(MoatInput(
+            akashic_depth = inp.akashic_depth,
+            k_plane       = inp.k_plane,
+            m_adj         = inp.m_adj,
+            moat_time     = inp.moat_time,
+        ))
+        moat_factor = moat_result["moat_factor"]
 
         return {
             "C":               C,
@@ -184,14 +178,7 @@ class CoherenceEngine:
             "trend":           trend,
             "eta_blocks":      eta_blocks,
             "moat_factor":     moat_factor,
-            "moat_components": {
-                "D_data":          round(D_factor, 6),
-                "Q_quality":       round(Q_factor, 6),
-                "R_reflexivity":   round(R_factor, 6),
-                "X_crosschain":    round(X_factor, 6),
-                "F_falsifiability": F_factor,
-                "N_network":       round(N_factor, 6),
-            },
+            "moat_components": moat_result["components"],
             "plane_breakdown": {
                 "phi_adj":  inp.phi_adj,
                 "m_adj":    inp.m_adj,
