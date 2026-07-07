@@ -1237,7 +1237,7 @@ def _restore_from_timescaledb():
         if all_vecs:
             vecs_np = np.stack(all_vecs, axis=0)
             index.add(vecs_np)
-            faiss.write_index(index, INDEX_PATH)
+            _persist_all("cold-boot-restore")
             logger.info("[restore] FAISS rebuilt — %d vectors, %d entities",
                         index.ntotal, len(entity_history))
 
@@ -1591,7 +1591,7 @@ def _maybe_promote_to_ivfpq():
     ivfpq.add(training_vecs)
     ivfpq.nprobe = 10
     index = ivfpq
-    faiss.write_index(index, INDEX_PATH)
+    _persist_all("ivfpq-promotion")
     logger.info("IndexIVFPQ promotion complete — %d vectors re-indexed.", index.ntotal)
 
 
@@ -3121,9 +3121,7 @@ def add_vector(payload: VectorPayload):
     # Promote to IndexIVFPQ
     _maybe_promote_to_ivfpq()
 
-    # Persist every 100 vectors
-    if index.ntotal % 100 == 0:
-        faiss.write_index(index, INDEX_PATH)
+    _notify_vectors_added(1)
 
     index_type = type(index).__name__
     tier       = get_storage_tier(ts)
@@ -3380,9 +3378,7 @@ def add_vector_batch(payload: BatchVectorPayload):
         _maybe_learn_phi_weights()
 
     _maybe_promote_to_ivfpq()
-
-    if index.ntotal % 100 == 0:
-        faiss.write_index(index, INDEX_PATH)
+    _notify_vectors_added(added)
 
     return {
         "status":           "ok",
@@ -3592,10 +3588,8 @@ def bulk_backfill(payload: BulkBackfillPayload):
         conn.commit()
         conn.close()
 
-    # Persist FAISS index to disk every backfill call
-    faiss.write_index(index, INDEX_PATH)
-
     added = len(valid_items)
+    _notify_vectors_added(added)
     logger.info("[bulk_backfill] added=%d total_vectors=%d", added, index.ntotal)
     return {
         "added":         added,
@@ -10325,14 +10319,40 @@ import signal as _signal_mod
 
 _persist_shutdown_lock = threading.Lock()
 
+# ── Vector-count threshold save ───────────────────────────────────────────────
+# Incremented every time a batch of vectors is added to the index.
+# When it reaches PERSIST_VECTOR_THRESHOLD, _persist_all is called immediately
+# and the counter resets — so no more than PERSIST_VECTOR_THRESHOLD vectors are
+# ever unprotected between two file saves, regardless of timing.
+_vectors_since_last_save: int = 0
+PERSIST_VECTOR_THRESHOLD: int = 500
+
+
+def _notify_vectors_added(n: int) -> None:
+    """Call after adding n vectors to the FAISS index to trigger threshold saves."""
+    global _vectors_since_last_save
+    _vectors_since_last_save += n
+    if _vectors_since_last_save >= PERSIST_VECTOR_THRESHOLD:
+        _vectors_since_last_save = 0
+        # Run in a separate thread so it never blocks the indexer caller.
+        _t = threading.Thread(target=_persist_all, args=("threshold-500vec",), daemon=True)
+        _t.start()
+
+
 def _persist_all(reason: str = "shutdown") -> None:
-    """Save FAISS index to INDEX_PATH and checkpoint the SQLite WAL."""
+    """Save FAISS index to INDEX_PATH atomically and checkpoint the SQLite WAL.
+
+    Uses write-to-temp-then-rename so a SIGKILL mid-write never corrupts the
+    existing index file — the rename is atomic on Linux (same filesystem).
+    """
     global index
     if not FAISS_AVAILABLE or index is None:
         return
     with _persist_shutdown_lock:
         try:
-            faiss.write_index(index, INDEX_PATH)
+            tmp_path = INDEX_PATH + ".tmp"
+            faiss.write_index(index, tmp_path)
+            os.replace(tmp_path, INDEX_PATH)   # atomic on Linux
             logger.info(
                 "[persist] FAISS index saved → %s  (%d vectors)  reason=%s",
                 INDEX_PATH, index.ntotal, reason,
@@ -10359,10 +10379,16 @@ _signal_mod.signal(_signal_mod.SIGTERM, _sigterm_handler)
 
 
 def _periodic_persist_loop() -> None:
-    """Background daemon: save FAISS index every 5 minutes."""
+    """Background daemon: save FAISS index every 60 seconds (was 5 minutes).
+
+    60s cadence means at most ~60s of new vectors are unprotected between
+    two durable saves — vs the old 300s window that could lose 5 min of data.
+    The threshold-based save (_notify_vectors_added) also fires independently
+    after every 500 new vectors, whichever comes first.
+    """
     while True:
-        _time.sleep(300)
-        _persist_all("periodic-5min")
+        _time.sleep(60)
+        _persist_all("periodic-60s")
 
 
 _bg_persist_thread = threading.Thread(
