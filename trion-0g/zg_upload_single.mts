@@ -2,7 +2,14 @@
 import { ZgFile, Indexer } from '@0glabs/0g-ts-sdk';
 import { ethers } from 'ethers';
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1783518649.json');
+const filePath = process.argv[2] || process.env.ZG_UPLOAD_FILE;
+if (!filePath) {
+  console.error('Usage: node zg_upload_single.mts <path-to-file>');
+  console.error('   or: ZG_UPLOAD_FILE=<path> node zg_upload_single.mts');
+  process.exit(1);
+}
+
+const file     = await ZgFile.fromFilePath(filePath);
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
