@@ -135,13 +135,13 @@ args = "ORACLE_API_URL=http://127.0.0.1:5000 WEBHOOK_PORT=6000 uv run python3 at
 name = "TRION Dashboard"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd dashboard && npm run dev -- -p 3000"
-waitForPort = 3000
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd dashboard && npm run dev"
+waitForPort = 3000
 
 [[ports]]
 localPort = 5000
