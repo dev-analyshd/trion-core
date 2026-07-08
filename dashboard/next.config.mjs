@@ -4,11 +4,11 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:5001/api/:path*',
+        destination: 'http://127.0.0.1:5000/api/:path*',
       },
       {
         source: '/deployments.json',
-        destination: 'http://127.0.0.1:5001/deployments.json',
+        destination: 'http://127.0.0.1:5000/deployments.json',
       },
     ];
   },
