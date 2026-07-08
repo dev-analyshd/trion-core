@@ -5,6 +5,7 @@ description = "TRION Protocol — Multi-Chain Behavioral Truth Oracle"
 requires-python = ">=3.11"
 dependencies = [
     "apscheduler>=3.11.2",
+    "asyncpg>=0.31.0",
     "bit>=0.8.0",
     "bitcoinlib>=0.7.8",
     "cosmpy>=0.11.2",

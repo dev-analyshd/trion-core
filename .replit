@@ -58,7 +58,19 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
+args = "DATABASE_URL=\"$TIMESCALEDB_URL\" ZG_PRIVATE_KEY=\"$DEPLOY_0G_PRIVATE\" ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
+
+[[workflows.workflow]]
+name = "Native Relayer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd native-relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" FAISS_URL=\"http://127.0.0.1:8000\" node native_relayer.js"
 
 [[workflows.workflow]]
 name = "Project"
@@ -92,6 +104,10 @@ args = "Extended Chain Relayer"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "TRION Dashboard"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Native Relayer"
 
 [[workflows.workflow]]
 name = "Rust Indexers"
