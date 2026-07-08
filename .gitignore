@@ -25,6 +25,7 @@ trion-protocol/target/
 dist/
 build/
 node_modules/
+dashboard/.next/
 __pycache__/
 *.pyc
 *.pyo
