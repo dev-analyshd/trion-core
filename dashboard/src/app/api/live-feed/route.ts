@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ORACLE_URL = 'http://127.0.0.1:5001';
+const ORACLE_URL = 'http://127.0.0.1:5000';
 const POLL_MS = 3000;
 const MAX_SEEN = 600;
 const TRIM_TO = 400;
