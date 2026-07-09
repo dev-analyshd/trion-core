@@ -140,13 +140,36 @@ pub fn classify_event_type(selector: &str) -> u8 {
         "c9807539"   // Chainlink OCR transmit
             => 16,
 
+        // ── UPGRADE (12) ─────────────────────────────────────────────────────
+        "3659cfe6" | // EIP-1967/UUPS upgradeTo(address)
+        "4f1ef286"   // UUPS upgradeToAndCall(address,bytes)
+            => 12,
+
+        // ── CLAIM (19) ───────────────────────────────────────────────────────
+        "4e71d92d" | // Generic claim()
+        "1e83409a"   // Generic claim(address)
+            => 19,
+
         // ── TRANSFER (0) / default ────────────────────────────────────────────
         "a9059cbb" | // ERC20 transfer
         "23b872dd"   // ERC20 transferFrom
             => 0,
 
-        // Deploy: empty input → classified by caller checking input length
-        // Everything else defaults to TRANSFER
+        // NOTE on the two remaining whitepaper types (finding S2):
+        //   DEPLOY (11)       — has no method selector at all (empty `to`/`input`
+        //                       on contract creation); classified by the caller
+        //                       via input-length/`to==None` check, not here.
+        //   MEV_CAPTURE (17)  — not a single-call pattern (sandwich/backrun
+        //                       arbitrage spans multiple txs in a block); no
+        //                       4-byte selector can identify it. Left to the
+        //                       existing multi-tx behavioral heuristic in
+        //                       trion-evm/src/main.rs rather than faked here.
+        //   AIRDROP (18)      — claim-style selectors are covered above, but
+        //                       *distribution* txs use bespoke, non-standard
+        //                       selectors per project; genuinely unclassifiable
+        //                       by selector alone without a maintained registry.
+        // Any other selector defaults to TRANSFER rather than silently
+        // misclassifying — this is a deliberate fallback, not a workaround.
         _ => 0,
     }
 }
