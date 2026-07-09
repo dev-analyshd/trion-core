@@ -55,6 +55,7 @@ function resolveTsx(cwd) {
 }
 
 const FAISS_URL        = process.env.FAISS_URL        || "http://127.0.0.1:8000";
+const ORACLE_API_URL   = process.env.ORACLE_API_URL   || "http://127.0.0.1:5000";
 const CYCLE_SLEEP_MS   = parseInt(process.env.NATIVE_CYCLE_SLEEP_MS || "600000", 10); // 10 min between cycles
 const PER_VM_SLEEP_MS  = parseInt(process.env.NATIVE_PER_VM_SLEEP_MS || "30000", 10); // 30 s between VMs
 const NEAR_ACCOUNT_ID  = process.env.NEAR_ACCOUNT_ID  || "trion.near";
@@ -188,6 +189,27 @@ function runOnce(vm) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// ── Reflexive self-halt ────────────────────────────────────────────────────
+// If TRION's own self-verification reports SILENCED, the protocol does not
+// trust its own signal generation right now — skip signing this cycle.
+async function checkSelfHalt() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${ORACLE_API_URL}/api/v1/self`, { signal: controller.signal });
+    clearTimeout(timer);
+    const data = await res.json();
+    if (data?.status === "SILENCED") {
+      console.warn(`[SELF-HALT] TRION self-coherence=${data.coherence} < threshold=${data.threshold} (limiting=${data.limiting_plane}) — skipping this cycle, no transactions will be signed`);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn(`[SELF-HALT] could not reach /api/v1/self (${e.message}) — proceeding without self-halt check`);
+    return false;
+  }
+}
+
 async function main() {
   console.log("════════════════════════════════════════════════════════");
   console.log(" TRION Native VM Relayer — live signing every cycle");
@@ -208,6 +230,11 @@ async function main() {
   while (true) {
     cycle += 1;
     console.log(`\n──── Cycle ${cycle} @ ${new Date().toISOString()} ────`);
+    if (await checkSelfHalt()) {
+      console.log(`──── Cycle ${cycle} halted by self-verification; sleeping ${CYCLE_SLEEP_MS / 1000}s ────`);
+      await sleep(CYCLE_SLEEP_MS);
+      continue;
+    }
     for (const vm of VMS) {
       await runOnce(vm);
       await sleep(PER_VM_SLEEP_MS);
