@@ -73,6 +73,16 @@ except Exception as _proto_err:
     _protocol_available = False
     _log.warning("Protocol intelligence routes unavailable: %s", _proto_err)
 
+# ── Register Reflexive Self-Verification routes ───────────────────────────────
+try:
+    from self_verification_routes import self_verification_bp
+    app.register_blueprint(self_verification_bp)
+    _self_verification_available = True
+    _log.info("Self-verification routes registered")
+except Exception as _self_err:
+    _self_verification_available = False
+    _log.warning("Self-verification routes unavailable: %s", _self_err)
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)
