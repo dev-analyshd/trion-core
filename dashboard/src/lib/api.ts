@@ -14,6 +14,7 @@ export const endpoints = {
   leaderboard: '/api/v1/leaderboard',
   archetypes: '/api/v1/akashic/archetypes',
   animaIntelligence: '/api/v1/anima/intelligence',
+  brt: '/api/v1/brt',
   signal: (id: string) => `/api/v1/signal/${encodeURIComponent(id)}`,
   deployments: '/deployments.json',
   security: '/api/v1/security/sec',

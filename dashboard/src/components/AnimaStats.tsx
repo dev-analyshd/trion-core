@@ -57,8 +57,8 @@ export default function AnimaStats() {
           <p className="text-[10px] text-t3 uppercase tracking-wide mt-0.5">Archetypes</p>
         </div>
         <div className="bg-card2 border border-border rounded p-3 text-center">
-          <p className="text-xl font-bold mono text-amber-400">59</p>
-          <p className="text-[10px] text-t3 uppercase tracking-wide mt-0.5">NLP Languages</p>
+          <p className="text-xl font-bold mono text-amber-400">24</p>
+          <p className="text-[10px] text-t3 uppercase tracking-wide mt-0.5">EN Intel Feeds</p>
         </div>
       </div>
 

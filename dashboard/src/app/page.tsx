@@ -10,6 +10,7 @@ import SystemStatus from '@/components/SystemStatus';
 import ThreatPanel from '@/components/ThreatPanel';
 import LeaderboardTable from '@/components/LeaderboardTable';
 import AnimaStats from '@/components/AnimaStats';
+import BiologicalTime from '@/components/BiologicalTime';
 
 function fmt(n: number | undefined): string {
   if (!n) return '—';
@@ -82,6 +83,7 @@ export default function OverviewPage() {
           {/* Right sidebar */}
           <div className="flex flex-col gap-4 overflow-hidden">
             <SystemStatus />
+            <BiologicalTime />
             <ThreatPanel />
           </div>
         </div>
