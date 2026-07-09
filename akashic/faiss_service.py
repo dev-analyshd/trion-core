@@ -3972,6 +3972,23 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
     else:
         alert = "CLEAN"
 
+    # ── Native FFT cross-check (TRION_AUDIT_REPORT.md P3-14) ─────────────────
+    # Wires the compiled C++ FFT engine (cpp/fft_engine.cpp) into the live
+    # WASH_TRADING detection path as an independent, additive cross-check —
+    # it never overrides the Python-computed mf_score, it only annotates it.
+    # Real periodic-frequency detection over the volume series is orthogonal
+    # to the Python heuristics above (cyclic-flow-ratio) and catches clock-
+    # driven wash patterns those heuristics can miss.
+    fft_check = {"available": False, "reason": "insufficient records"}
+    if len(records) >= 8:
+        try:
+            from src.native_bridge import compute_fft_features
+            volumes = [float(r.get("volume", r.get("amount", 0.0))) for r in records[-64:]]
+            if any(v != 0 for v in volumes):
+                fft_check = compute_fft_features(volumes)
+        except Exception as e:
+            fft_check = {"available": False, "reason": str(e)}
+
     return {
         "entity_id":          entity_id,
         "beo_id":             beo_id,
@@ -3982,6 +3999,7 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
         "dominant_score":     round(dominant_score, 4),
         "fingerprints":       scores,
         "record_count":       len(records),
+        "fft_cross_check":    fft_check,
     }
 
 

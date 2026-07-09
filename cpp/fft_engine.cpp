@@ -20,9 +20,12 @@
 #include <complex>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <string>
+#include <iostream>
 
 using Complex = std::complex<double>;
 using namespace std;
@@ -194,9 +197,54 @@ vector<double> autocorrelation(const vector<double>& signal, int max_lag = -1) {
 }
 
 
+// ── CLI bridge mode ───────────────────────────────────────────────────────────
+//
+// `fft_engine --stdin` reads a JSON array of doubles from stdin (one line) and
+// prints `{"entropy_fft":...,"periodic_anomaly":...,"psd_entropy":...}` to
+// stdout. This is the call boundary used by src/native_bridge.py to invoke
+// this engine from the live Python physical-plane pipeline (see
+// TRION_AUDIT_REPORT.md finding S5 / P3-14 — wiring existing native code into
+// the running services instead of leaving it disconnected).
+static int run_stdin_bridge() {
+    std::string line, all;
+    while (std::getline(std::cin, line)) all += line;
+
+    vector<double> signal;
+    double val = 0.0;
+    bool in_num = false;
+    std::string num_buf;
+    for (char c : all) {
+        if ((c >= '0' && c <= '9') || c == '.' || c == '-' || c == 'e' || c == 'E' || c == '+') {
+            num_buf += c;
+            in_num = true;
+        } else if (in_num) {
+            signal.push_back(atof(num_buf.c_str()));
+            num_buf.clear();
+            in_num = false;
+        }
+    }
+    if (in_num) signal.push_back(atof(num_buf.c_str()));
+
+    if (signal.empty()) {
+        printf("{\"error\":\"empty signal\"}\n");
+        return 1;
+    }
+
+    double h        = compute_entropy_fft(signal);
+    bool anomaly    = detect_periodic_anomaly(signal, 0.15);
+    double psd_h    = power_spectral_entropy(signal);
+    printf("{\"entropy_fft\":%.6f,\"periodic_anomaly\":%s,\"psd_entropy\":%.6f,\"n\":%d}\n",
+           h, anomaly ? "true" : "false", psd_h, static_cast<int>(signal.size()));
+    return 0;
+}
+
+
 // ── Self-test ─────────────────────────────────────────────────────────────────
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc > 1 && std::string(argv[1]) == "--stdin") {
+        return run_stdin_bridge();
+    }
     printf("TRION Protocol — C++ FFT Engine self-test\n");
     printf("─────────────────────────────────────────\n");
 

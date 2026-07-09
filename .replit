@@ -1,4 +1,4 @@
-modules = ["python-3.11", "web", "rust-stable", "nodejs-18"]
+modules = ["python-3.11", "web", "rust-stable", "nodejs-18", "go-1.21", "haskell-ghc9.4"]
 [agent]
 expertMode = true
 stack = "FLASK_VANILLA_JS"
