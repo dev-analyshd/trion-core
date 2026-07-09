@@ -61,6 +61,12 @@ All services are configured as Replit workflows. Start them from the Workflows p
 | `ZG_AKASHIC_CONTRACT` | 0G Akashic contract address |
 | `APTOS_PRIVATE_KEY`, `SUI_PRIVATE_KEY`, etc. | Extended chain relayer |
 
+## Setup notes
+
+- Dependencies are installed: Python via `uv sync`; Node via `npm install` in `dashboard/`, `relayer/`, `native-relayer/`, and the `chains/*` subpackages (svm, near, pvm, starknet, sui).
+- `chains/ton` cannot fully install (`protobufjs` blocked by Replit's package security policy). The Native Relayer already handles this gracefully by skipping TON with a module-not-found error each cycle — this is a known/expected limitation, not a bug.
+- Relayers run in LIVE mode against real chains once their secrets are present. "Insufficient funds" errors mean the signing wallet needs funding on that chain; "no *_ORACLE_ADDR" means no mainnet contract is deployed yet for that chain — both fall back to block-proof recording automatically, per the Notes section below.
+
 ## Notes
 
 - On-chain publishing to mainnet chains requires deploying oracle contracts and setting `*_ORACLE_ADDR` env vars (currently only testnets are configured).
