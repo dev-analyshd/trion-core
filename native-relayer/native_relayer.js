@@ -44,10 +44,13 @@ function resolveTsx(cwd) {
   // 1. Chain-local node_modules (e.g. chains/svm/node_modules/.bin/tsx)
   const local = path.join(ROOT, cwd, "node_modules", ".bin", "tsx");
   try { statSync(local); return local; } catch { /* not there */ }
-  // 2. Workspace root node_modules (installed at workspace level)
+  // 2. This package's own node_modules (native-relayer/node_modules/.bin/tsx)
+  const selfLocal = path.join(__dirname, "node_modules", ".bin", "tsx");
+  try { statSync(selfLocal); return selfLocal; } catch { /* not there */ }
+  // 3. Workspace root node_modules (installed at workspace level)
   const rootLocal = path.join(ROOT, "node_modules", ".bin", "tsx");
   try { statSync(rootLocal); return rootLocal; } catch { /* not there */ }
-  // 3. Global npm install fallback
+  // 4. Global npm install fallback
   return "/home/runner/workspace/.config/npm/node_global/bin/tsx";
 }
 

@@ -1,56 +1,69 @@
 # TRION Protocol
 
-Multi-chain behavioral truth oracle and pre-execution DeFi firewall. Analyzes on-chain behavior across 100+ chains to score entities and block hostile wallets before transactions execute.
+Multi-chain behavioral truth oracle and DeFi firewall. Tracks wallet behavior across 100+ chains via "Behavioral Hashes" (BH), computing a Coherence score C(t) to flag hostile wallets pre-execution.
 
-## Architecture
+## Stack
 
-| Service | Port | Workflow |
-|---|---|---|
-| Oracle API + WebSocket frontend (serve.py) | 5000 | Start application |
-| FAISS ANIMA vector engine (akashic/faiss_service.py) | 8000 | FAISS ANIMA |
-| TRION Dashboard (Next.js) | 3000 | TRION Dashboard |
-| Attack Alert Webhook | 6000 | Attack Alert Webhook |
-| TRION Relayer (EVM multi-chain) | — | TRION Relayer |
-| Extended Chain Relayer (38 non-EVM chains) | — | Extended Chain Relayer |
-| Native Relayer (SVM, NEAR, TON, Polkadot, StarkNet) | — | Native Relayer |
-| Rust Indexers (EVM + SVM) | — | Rust Indexers |
-
-All services start together via the **Project** run button.
+- **Oracle API / Frontend** — Python (Flask + Flask-SocketIO), port 5000
+- **FAISS ANIMA Engine** — Python (FastAPI + FAISS), port 8000
+- **Rust Indexers** — Rust crates in `rust-indexers/`, poll 53+ EVM chains + SVM
+- **EVM Relayer** — Node.js (`relayer/`), publishes signals on-chain
+- **Extended Chain Relayer** — Node.js (`relayer/`), 38 non-EVM chains
+- **Native Relayer** — Node.js (`native-relayer/`), Solana / NEAR / TON / Polkadot / StarkNet
+- **TRION Dashboard** — Next.js (`dashboard/`), port 3000
+- **Attack Alert Webhook** — Python (Flask), port 6000
 
 ## Running
 
-Press the **Run** button (or use the "Project" workflow). Services start in parallel. The preview pane shows the Oracle API dashboard at port 5000. The Next.js monitoring dashboard runs on port 3000.
+All services are configured as Replit workflows. Start them from the Workflows panel:
 
-## Important: Dashboard SWC Workaround
+| Workflow | Purpose |
+|---|---|
+| Start application | Oracle API + frontend (port 5000) |
+| FAISS ANIMA | Vector similarity engine (port 8000) — start first |
+| TRION Relayer | EVM + 0G on-chain signal publisher |
+| Extended Chain Relayer | 38 non-EVM chains (UTXO, Cosmos, Move, etc.) |
+| Native Relayer | Solana, NEAR, TON, Polkadot, StarkNet |
+| Rust Indexers | High-performance per-chain transaction indexers |
+| Attack Alert Webhook | Protocol monitoring webhook (port 6000) |
+| TRION Dashboard | Next.js dashboard (port 3000) |
 
-`dashboard/.babelrc` forces Next.js 14 to use Babel instead of its native SWC compiler. This is required because the SWC binary (`@next/swc-linux-x64-gnu`) was corrupt in the original import. Do not remove `.babelrc` without verifying SWC works (`next build` should complete without SIGBUS).
+**Recommended startup order:** FAISS ANIMA → Start application → everything else.
 
-## Signing Keys (for live on-chain publishing)
+## Dependencies
 
-Relayers default to **DRY_RUN** mode without signing keys — they read and score but don't publish. To activate live mode, add secrets:
+- Python: managed by `uv` (`pyproject.toml`). Run `uv sync` if packages are missing.
+- `relayer/`: `npm install` inside `relayer/`
+- `native-relayer/`: `npm install` inside `native-relayer/`
+- `dashboard/`: `npm install` inside `dashboard/`
+- `trion-0g/`: `npm install --legacy-peer-deps` inside `trion-0g/`
+- `chains/svm|near|ton|pvm|starknet|sui`: each has its own `npm install`
+  - Note: `chains/ton` may fail on `protobufjs` due to security policy; TON VM in the Native Relayer will skip gracefully.
 
-- `RELAYER_PRIVATE_KEY` — EVM private key (hex, no 0x prefix) for TRION Relayer + 0G Gate
-- `DEPLOY_0G_PRIVATE` — 0G chain private key
-- `TRON_PRIVATE_KEY` — Tron chain (Extended Relayer)
-- `XLM_PRIVATE_KEY` — Stellar
-- `XRPL_PRIVATE_KEY` — XRP Ledger
-- `ALGORAND_PRIVATE_KEY` — Algorand
-- `SUI_PRIVATE_KEY` — Sui
-- `COSMOS_MNEMONIC` (or per-chain variants) — Cosmos-family chains
-- Other chain keys: `CARDANO_PRIVATE_KEY`, `FLOW_PRIVATE_KEY`, `HEDERA_PRIVATE_KEY`, `VECHAIN_PRIVATE_KEY`, etc.
-- Native VM chains: `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_MNEMONIC`, `TON_MNEMONIC`, `POLKADOT_MNEMONIC`, `STARKNET_PRIVATE_KEY`
+## Configuration
 
-## Python Dependencies
+- `config/config.yaml` — main settings
+- `zg_config.py` — 0G (ZeroGravity) integration settings
+- Secrets managed via Replit Secrets (see below)
 
-Managed via `uv` and `pyproject.toml`. Run `uv sync` to install.
+## Key Secrets
 
-## Node Dependencies
+| Secret | Used by |
+|---|---|
+| `RELAYER_PRIVATE_KEY` | EVM relayer signing |
+| `DEPLOY_0G_PRIVATE` | 0G gate relayer |
+| `TIMESCALEDB_URL` | TimescaleDB dual-write |
+| `SOLANA_RELAYER_PRIVATE_KEY` | SVM native relayer |
+| `NEAR_PRIVATE_KEY` | NEAR native relayer |
+| `TON_PRIVATE_KEY_HEX` | TON native relayer |
+| `DOT_MNEMONIC` | Polkadot (PVM) native relayer |
+| `STARKNET_PRIVATE_KEY` | StarkNet native relayer |
+| `ZG_AKASHIC_CONTRACT` | 0G Akashic contract address |
+| `APTOS_PRIVATE_KEY`, `SUI_PRIVATE_KEY`, etc. | Extended chain relayer |
 
-- `relayer/` — run `npm install` for ethers, axios, and chain SDKs
-- `native-relayer/` — run `npm install` for Solana, NEAR, TON, Polkadot, StarkNet SDKs
-- `dashboard/` — run `npm install` for Next.js 14, recharts, swr
-- `trion-0g/` — run `npm install --legacy-peer-deps` for 0G storage SDK
+## Notes
 
-## User Preferences
-
-- Keep existing project structure; do not restructure or migrate.
+- On-chain publishing to mainnet chains requires deploying oracle contracts and setting `*_ORACLE_ADDR` env vars (currently only testnets are configured).
+- The 0G Gate wallet needs ETH on the 0G Galileo testnet to submit on-chain proofs.
+- The 0G DA endpoint (`da-rpc.0g.ai`) is currently unreachable from Replit; DA blobs fall back to local hash proofs automatically.
+- Wallet balances (SOL, ETH on testnets) being too low causes "block proof only" mode — top up the respective wallets to enable live signing.
