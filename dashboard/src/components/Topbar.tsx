@@ -2,9 +2,9 @@
 
 import useSWR from 'swr';
 import { endpoints, fetchJSON } from '@/lib/api';
-import type { HealthData } from '@/lib/types';
+import type { HealthData, SelfVerificationData } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, ShieldAlert, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
 
 interface Props {
@@ -13,9 +13,14 @@ interface Props {
 
 export default function Topbar({ title }: Props) {
   const { data } = useSWR<HealthData>(endpoints.health, fetchJSON, { refreshInterval: 5000 });
+  const { data: self } = useSWR<SelfVerificationData>(endpoints.self, fetchJSON, {
+    refreshInterval: 5000,
+    shouldRetryOnError: false,
+  });
 
   const healthy = data?.status === 'healthy';
   const ts = data?.timestamp ? new Date(data.timestamp * 1000) : null;
+  const selfSilenced = self?.status === 'SILENCED';
 
   return (
     <header className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0 bg-sidebar">
@@ -60,6 +65,22 @@ export default function Topbar({ title }: Props) {
           {healthy ? <Wifi size={11} /> : <WifiOff size={11} />}
           {healthy ? 'LIVE' : 'OFFLINE'}
         </div>
+
+        {/* Self-verification status */}
+        {self && typeof self.coherence === 'number' && (
+          <div
+            title={`Self-coherence ${self.coherence.toFixed(3)} (limiting: ${self.limiting_plane ?? 'n/a'})`}
+            className={clsx(
+              'flex items-center gap-1 px-2 py-1 rounded border text-[11px] font-medium',
+              selfSilenced
+                ? 'border-red-500/30 text-red-400 bg-red-500/5'
+                : 'border-cyan/30 text-cyan bg-cyan/5'
+            )}
+          >
+            {selfSilenced ? <ShieldAlert size={11} /> : <ShieldCheck size={11} />}
+            {selfSilenced ? 'SELF-SILENCED' : `SELF ${self.coherence.toFixed(2)}`}
+          </div>
+        )}
 
         {ts && (
           <span className="text-[10px] text-t3 hidden lg:block">

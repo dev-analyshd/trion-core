@@ -153,3 +153,15 @@ export interface Archetype {
 export interface ArchetypesData {
   archetypes: Archetype[];
 }
+
+export interface SelfVerificationData {
+  entity_id: string;
+  status: string;
+  coherence: number;
+  limiting_plane: string;
+  genomic_key: string;
+  genomic_generation: number;
+  parent_key: string;
+  behavioral_event: string;
+  created_at: string;
+}
