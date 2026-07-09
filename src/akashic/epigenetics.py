@@ -32,7 +32,27 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 logger = __import__('logging').getLogger(__name__)
 
-EPIGENETIC_STORE_PATH = "/tmp/trion_epigenetic_state.json"
+def _resolve_epigenetic_store_path() -> str:
+    """
+    Persistent path for epigenetic state, resolved the same way as
+    FAISS_STATE_DB (akashic_state.db) so both survive container restarts
+    together. Previously hardcoded to /tmp, which is wiped on every
+    restart — see TRION_AUDIT_REPORT.md finding C3 (now fixed).
+    """
+    override = os.environ.get("EPIGENETIC_STORE_PATH")
+    if override:
+        return override
+    state_db = os.environ.get("FAISS_STATE_DB")
+    if state_db:
+        return os.path.join(os.path.dirname(os.path.abspath(state_db)) or ".", "trion_epigenetic_state.json")
+    # Match faiss_service.py's own fallback search order for akashic_state.db
+    for candidate_dir in (".", "akashic"):
+        if os.path.exists(os.path.join(candidate_dir, "akashic_state.db")):
+            return os.path.join(candidate_dir, "trion_epigenetic_state.json")
+    return os.path.join("akashic", "trion_epigenetic_state.json")
+
+
+EPIGENETIC_STORE_PATH = _resolve_epigenetic_store_path()
 
 
 @dataclass

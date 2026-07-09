@@ -34,7 +34,7 @@ contract TRIONSignal {
 
     struct Signal {
         bytes32    entity_id;
-        uint256    signal_value;    // fixed-point 1e18 = 1.0
+        uint256    signal_value;    // fixed-point 1e18 = 1.0 — this IS C(t), the five-plane coherence score
         uint256    ci_lo;           // 1e18 = 1.0
         uint256    ci_hi;           // 1e18 = 1.0
         uint256    conf_genesis;    // 1e18 = 1.0
@@ -46,6 +46,19 @@ contract TRIONSignal {
         bytes32    genomic_invariant; // complement_invariant = NOT(anti_raw)
         uint256    timestamp;
         address    publisher;
+        // ── Added to close TRION_AUDIT_REPORT.md finding S1 (13 → 24+ fields) ──
+        uint256    theta;                 // Θ(t) — dynamic silence threshold at emission time
+        uint256    phi_adj;               // Physical plane, 1e18 = 1.0
+        uint256    m_adj;                 // Mental plane, 1e18 = 1.0
+        uint256    sigma;                 // Spiritual/consensus plane, 1e18 = 1.0
+        uint256    k_score;               // Conscious plane, 1e18 = 1.0
+        uint256    a_score;               // ANIMA plane, 1e18 = 1.0
+        bytes32    limiting_plane;        // ascii-packed name of the lowest-scoring plane (L5.2)
+        uint256    mf_score;              // Manipulation fingerprint score, 1e18 = 1.0
+        uint256    validator_hhi;         // Herfindahl-Hirschman index of validator weight distribution
+        uint64     brt_phase;             // Biological Rhythm Timer phase (0-3) at emission
+        uint64     ttl_seconds;           // Signal validity window
+        bytes32    prev_signal_hash;      // Provenance chain: hash of this entity's previous signal
     }
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -112,53 +125,82 @@ contract TRIONSignal {
      * @dev Validates genomic invariant before storage.
      *      Silence signals (c_gap > 0) emit SilenceEmitted instead.
      */
-    function publishSignal(
-        bytes32    entity_id,
-        uint256    signal_value,
-        uint256    ci_lo,
-        uint256    ci_hi,
-        uint256    conf_genesis,
-        uint64     chain_id,
-        uint64     block_height,
-        SignalType signal_type,
-        bytes32    genomic_sense,
-        bytes32    genomic_antisense,
-        bytes32    genomic_invariant
-    ) external onlyOracle {
+    /// @dev Grouped into a struct (rather than 20+ loose parameters) to avoid
+    ///      "stack too deep" compilation errors now that the payload includes
+    ///      the full plane breakdown and provenance fields (finding S1 fix).
+    struct PublishSignalInput {
+        bytes32    entity_id;
+        uint256    signal_value;
+        uint256    ci_lo;
+        uint256    ci_hi;
+        uint256    conf_genesis;
+        uint64     chain_id;
+        uint64     block_height;
+        SignalType signal_type;
+        bytes32    genomic_sense;
+        bytes32    genomic_antisense;
+        bytes32    genomic_invariant;
+        uint256    theta;
+        uint256    phi_adj;
+        uint256    m_adj;
+        uint256    sigma;
+        uint256    k_score;
+        uint256    a_score;
+        bytes32    limiting_plane;
+        uint256    mf_score;
+        uint256    validator_hhi;
+        uint64     brt_phase;
+        uint64     ttl_seconds;
+        bytes32    prev_signal_hash;
+    }
+
+    function publishSignal(PublishSignalInput calldata input) external onlyOracle {
         // Validate signal_value in [0, 1e18]
-        if (signal_value > 1e18) revert InvalidSignalValue(signal_value);
+        if (input.signal_value > 1e18) revert InvalidSignalValue(input.signal_value);
 
         // Validate CI ordering
-        if (ci_lo >= ci_hi) revert CINotOrdered(ci_lo, ci_hi);
+        if (input.ci_lo >= input.ci_hi) revert CINotOrdered(input.ci_lo, input.ci_hi);
 
         // Validate genomic XOR invariant: sense XOR antisense == invariant
-        bytes32 computed_invariant = genomic_sense ^ genomic_antisense;
-        if (computed_invariant != genomic_invariant) revert GenomicInvariantViolated();
+        bytes32 computed_invariant = input.genomic_sense ^ input.genomic_antisense;
+        if (computed_invariant != input.genomic_invariant) revert GenomicInvariantViolated();
 
         Signal memory sig = Signal({
-            entity_id:           entity_id,
-            signal_value:        signal_value,
-            ci_lo:               ci_lo,
-            ci_hi:               ci_hi,
-            conf_genesis:        conf_genesis,
-            chain_id:            chain_id,
-            block_height:        block_height,
-            signal_type:         signal_type,
-            genomic_sense:       genomic_sense,
-            genomic_antisense:   genomic_antisense,
-            genomic_invariant:   genomic_invariant,
+            entity_id:           input.entity_id,
+            signal_value:        input.signal_value,
+            ci_lo:               input.ci_lo,
+            ci_hi:               input.ci_hi,
+            conf_genesis:        input.conf_genesis,
+            chain_id:            input.chain_id,
+            block_height:        input.block_height,
+            signal_type:         input.signal_type,
+            genomic_sense:       input.genomic_sense,
+            genomic_antisense:   input.genomic_antisense,
+            genomic_invariant:   input.genomic_invariant,
             timestamp:           block.timestamp,
-            publisher:           msg.sender
+            publisher:           msg.sender,
+            theta:               input.theta,
+            phi_adj:             input.phi_adj,
+            m_adj:               input.m_adj,
+            sigma:               input.sigma,
+            k_score:             input.k_score,
+            a_score:             input.a_score,
+            limiting_plane:      input.limiting_plane,
+            mf_score:            input.mf_score,
+            validator_hhi:       input.validator_hhi,
+            brt_phase:           input.brt_phase,
+            ttl_seconds:         input.ttl_seconds,
+            prev_signal_hash:    input.prev_signal_hash
         });
 
-        signals[entity_id].push(sig);
-        latestIndex[entity_id] = signals[entity_id].length - 1;
+        signals[input.entity_id].push(sig);
+        latestIndex[input.entity_id] = signals[input.entity_id].length - 1;
         totalSignals++;
 
-        if (signal_type == SignalType.SILENCE) {
-            emit SilenceEmitted(entity_id, block.timestamp, 0);
+        if (input.signal_type == SignalType.SILENCE) {
+            emit SilenceEmitted(input.entity_id, block.timestamp, 0);
         } else {
-            emit SignalPublished(entity_id, signal_type, signal_value, block.timestamp);
+            emit SignalPublished(input.entity_id, input.signal_type, input.signal_value, block.timestamp);
         }
     }
 

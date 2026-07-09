@@ -10,6 +10,27 @@ CREATE TYPE behavioral_event_type AS ENUM (
     'ORACLE_UPDATE', 'MEV_CAPTURE', 'FLASH_LOAN', 'AIRDROP', 'CLAIM'
 );
 
+-- ── Data-Availability Streaming Table ────────────────────────────────────────
+-- Flat, cursor-friendly projection of behavioral events consumed by
+-- zg_da_streamer.py / zg_sync_daemon.py for 0G data-availability export.
+-- Distinct from akashic_bh (the canonical L2.0 hot-tier store below): this
+-- table exists purely as a sequential-id stream for external DA sync and is
+-- populated by the same dual-write path as akashic_bh.
+CREATE TABLE IF NOT EXISTS behavioral_events (
+    id                  BIGSERIAL        PRIMARY KEY,
+    entity_id           TEXT             NOT NULL,
+    event_type          TEXT             NOT NULL,
+    magnitude_norm      DOUBLE PRECISION NOT NULL CHECK (magnitude_norm >= 0 AND magnitude_norm <= 1),
+    chain_id            INTEGER          NOT NULL,
+    block_number        BIGINT           NOT NULL DEFAULT 0,
+    sense_hash          TEXT             NOT NULL,
+    antisense_hash      TEXT             NOT NULL,
+    ts                  TIMESTAMPTZ      NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_behavioral_events_id      ON behavioral_events (id);
+CREATE INDEX IF NOT EXISTS idx_behavioral_events_entity  ON behavioral_events (entity_id, ts DESC);
+
 -- ── L2.0 Core: Akashic Behavioral Hash Table (HOT tier) ──────────────────────
 -- Every BH ever generated is stored permanently. NO pruning. NO skipping.
 CREATE TABLE IF NOT EXISTS akashic_bh (
