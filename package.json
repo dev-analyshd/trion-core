@@ -20,6 +20,9 @@
     "trion:index-pi": "node chains/pi/pi_adapter.mjs",
     "btcp:multichain": "node scripts/btcp_multichain_complete.mjs"
   },
+  "overrides": {
+    "protobufjs": "8.7.0"
+  },
   "dependencies": {
     "@0glabs/0g-ts-sdk": "^0.3.3",
     "@aptos-labs/ts-sdk": "^1.33.1",
@@ -38,7 +41,7 @@
     "@ton/crypto": "^3.3.0",
     "@ton/ton": "^16.2.4",
     "@types/node": "^25.6.0",
-    "axios": "^1.16.0",
+    "axios": "^1.18.1",
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^7.0.1",
     "bs58": "^6.0.0",
@@ -47,7 +50,7 @@
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "ecpair": "^2.1.0",
-    "ethers": "^6.16.0",
+    "ethers": "^6.17.0",
     "express": "^4.22.1",
     "near-sdk-js": "^2.0.0",
     "node-fetch": "^3.3.2",

@@ -125,13 +125,16 @@ async def upload_via_sdk(file_path: str) -> Optional[str]:
 import {{ ZgFile, Indexer }} from '@0glabs/0g-ts-sdk';
 import {{ ethers }} from 'ethers';
 
+const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
+if (!privateKey) {{ console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }}
+
 const file     = await ZgFile.fromFilePath('{abs_path}');
 const [tree, e1] = await file.merkleTree();
 if (e1) {{ console.error('TREE_ERR:' + e1); process.exit(1); }}
 
 const rootHash = tree.rootHash();
 const provider = new ethers.JsonRpcProvider('{ZG.RPC}');
-const signer   = new ethers.Wallet('{ZG.PRIVATE_KEY}', provider);
+const signer   = new ethers.Wallet(privateKey, provider);
 const indexer  = new Indexer('{ZG.INDEXER}');
 
 const [tx, e2] = await indexer.upload(file, '{ZG.RPC}', signer);
@@ -147,11 +150,14 @@ console.log('TX:' + (tx?.txHash || tx?.txHashes?.[0] || ''));
         f.write(script)
 
     try:
+        env = os.environ.copy()
+        env["ZG_UPLOAD_PRIVATE_KEY"] = ZG.PRIVATE_KEY
         result = await asyncio.create_subprocess_exec(
             "npx", "tsx", script_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=sdk_dir,
+            env=env,
         )
         stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=45)
         output = stdout.decode()
