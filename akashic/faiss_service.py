@@ -984,14 +984,30 @@ def _tsdb_write_bh(beo_id: str, record: dict, block_num: int = 0, chain_id: int 
         conn = _tsdb_conn()
         if not conn:
             return
-        ts = datetime.fromtimestamp(record["ts"], tz=timezone.utc)
-        sense_hex = hashlib.sha3_256(
-            (beo_id + str(record["ts"])).encode()
-        ).hexdigest()
-        gk_hash = hashlib.sha3_256((beo_id + "gk" + str(block_num)).encode()).digest()
+        ts_raw = record.get("ts")
+        if ts_raw is None:
+            logger.warning("[_tsdb_write_bh] record missing 'ts' for %s — skipping", beo_id)
+            return
+        ts = datetime.fromtimestamp(float(ts_raw), tz=timezone.utc)
+        # Use canonical_bh() so the dual-strand hashes written to TimescaleDB
+        # are identical to what the Rust indexers and src/core/behavioral_hash.py
+        # produce — fixes P2 non-interoperability finding in TRION_AUDIT_REPORT.md.
+        # We reconstruct a best-effort 93-byte payload from the available record
+        # fields; missing fields default to zero-bytes per the whitepaper §3.1.
+        block_hash_hex = record.get("block_hash", beo_id)  # fallback: entity id
+        sense_hex, antisense_hex = canonical_bh(
+            entity_id_hex=beo_id,
+            event_type=int(record.get("event_type_id", 0)),
+            magnitude_norm=float(record.get("magnitude", 0.0)),
+            context=int(record.get("context_u64", 0)),
+            timestamp_secs=int(record.get("ts", 0)),
+            chain_id=chain_id,
+            block_hash_hex=block_hash_hex,
+        )
+        gk_hash  = hashlib.sha3_256((beo_id + "gk" + str(block_num)).encode()).digest()
         prev_gk  = hashlib.sha3_256((beo_id + "gk" + str(max(0, block_num - 1))).encode()).digest()
         bh_id    = bytes.fromhex(sense_hex)
-        antisense = bytes([b ^ 0xFF for b in bh_id])
+        antisense = bytes.fromhex(antisense_hex)
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO akashic_bh
@@ -1386,7 +1402,8 @@ def canonical_bh(entity_id_hex: str, event_type: int, magnitude_norm: float,
     antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
     Invariant: sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
     """
-    mag_nano = int(round(max(0.0, min(1.0, magnitude_norm)) * 1_000_000_000.0))
+    # Truncate (not round) to match Rust's `as u64` cast — byte-identical payloads.
+    mag_nano = int(max(0.0, min(1.0, magnitude_norm)) * 1_000_000_000.0)
     payload = (
         _hex_to_32bytes(entity_id_hex) +
         bytes([event_type & 0xFF]) +
