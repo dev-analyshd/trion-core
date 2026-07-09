@@ -482,9 +482,35 @@ async function pollOracle(entity) {
   return r.data;
 }
 
+// ── Reflexive self-halt ────────────────────────────────────────────────────
+// Before publishing anything, check TRION's own self-verification status.
+// If TRION's own coherence has dropped below the SILENCE threshold, the
+// protocol does not trust its own signal generation right now — so the
+// relayer must not broadcast anything on-chain this cycle.
+async function checkSelfHalt() {
+  try {
+    const r = await axios.get(`${ORACLE_API_URL}/api/v1/self`, { timeout: 8000 });
+    const status = r.data?.status;
+    if (status === "SILENCED") {
+      console.warn(`[SELF-HALT] TRION self-coherence=${r.data.coherence} < threshold=${r.data.threshold} (limiting=${r.data.limiting_plane}) — skipping this cycle, no signals will be published`);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    // If self-status is unreachable, fail open (don't block the relayer on a
+    // missing endpoint) but log clearly so it's visible in the console.
+    console.warn(`[SELF-HALT] could not reach /api/v1/self (${e.message}) — proceeding without self-halt check`);
+    return false;
+  }
+}
+
 async function tick(wallet) {
   const stamp = new Date().toISOString();
   console.log(`\n[${stamp}] tick — entities=${MONITORED.length}, active_chains=${activeChains.length}, mode=${DRY_RUN ? "DRY_RUN" : "LIVE"}`);
+
+  if (await checkSelfHalt()) {
+    return;
+  }
 
   for (const entity of MONITORED) {
     let signal;

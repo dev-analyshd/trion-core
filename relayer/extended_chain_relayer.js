@@ -1336,7 +1336,28 @@ async function publishLayerZero(signal) {
 // MAIN CYCLE
 // =============================================================================
 
+// ── Reflexive self-halt ────────────────────────────────────────────────────
+// If TRION's own self-verification reports SILENCED, the protocol does not
+// trust its own signal generation right now — skip broadcasting entirely.
+async function checkSelfHalt() {
+  try {
+    const r = await axios.get(`${ORACLE_API_URL}/api/v1/self`, { timeout: 8000 });
+    if (r.data?.status === "SILENCED") {
+      console.warn(`[EXT-RELAYER][SELF-HALT] TRION self-coherence=${r.data.coherence} < threshold=${r.data.threshold} (limiting=${r.data.limiting_plane}) — skipping this cycle`);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn(`[EXT-RELAYER][SELF-HALT] could not reach /api/v1/self (${e.message}) — proceeding without self-halt check`);
+    return false;
+  }
+}
+
 async function runCycle() {
+  if (await checkSelfHalt()) {
+    return;
+  }
+
   const entity  = MONITORED[0];
   const signal  = await fetchSignal(entity);
   const sigType = signal.signal_type ?? "BOOTSTRAP";
