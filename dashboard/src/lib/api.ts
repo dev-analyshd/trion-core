@@ -27,4 +27,5 @@ export const endpoints = {
   protocolDistribution: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/distribution`,
   protocolSubEntities: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/sub-entities`,
   protocolSupportedRoles: '/api/v1/protocol/supported-roles',
+  self: '/api/v1/self',
 };
