@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "main": "relayer.js",
+  "overrides": {
+    "@cosmjs/encoding": {
+      "@scure/base": "1.1.9"
+    }
+  },
   "dependencies": {
     "@aptos-labs/ts-sdk": "^1.33.1",
     "@cosmjs/proto-signing": "^0.38.1",

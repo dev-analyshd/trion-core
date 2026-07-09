@@ -10,13 +10,15 @@
     "lint:contracts": "echo 'Contracts: oracle.fc intent.fc gate.fc liquidity.fc'"
   },
   "dependencies": {
-    "@ton/blueprint": "^0.44.2",
     "@ton/core": "^0.63.1",
     "@ton/crypto": "^3.3.0",
     "@ton/ton": "^16.2.3",
     "node-fetch": "^3.3.2",
-    "ton-compiler": "^2.3.0",
     "tweetnacl": "^1.0.3"
+  },
+  "optionalDependencies": {
+    "@ton/blueprint": "^0.44.2",
+    "ton-compiler": "^2.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
