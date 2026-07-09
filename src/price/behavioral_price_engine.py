@@ -11,6 +11,19 @@ This is the implementation of Section 2.1 / 2.2 of the Inverted Truth Hierarchy:
   TRION STACK (behavioral ground truth):
     Retail ← DeFi ← TRION BTV ← On-chain BH ledger ← 37 chains (1.9M+ tamper-proof records)
 
+ARCHITECTURAL DISCLOSURE (see TRION_AUDIT_REPORT.md finding C4):
+  TRION's CORE behavioral signal pipeline (C(t), Φ, M, Σ, K, A, MF, NL — everything
+  in akashic/faiss_service.py and oracle_api's /api/v1/signal/*) never reads a price
+  feed. That claim is accurate and unaffected by this module.
+  THIS module (BTV / the Chainlink-compatible /api/v1/price/* endpoints) is a
+  DIFFERENT, deliberately price-aware compatibility layer: it is a comparison tool
+  that takes a CEX-derived reference price as an explicit input specifically in
+  order to quantify how much of it is behaviorally unjustified. It is not, and
+  does not claim to be, a price-blind computation — it exists to demonstrate the
+  price/behavior gap for consumers who need a drop-in Chainlink replacement.
+  Treat `/api/v1/price/*` as an integration/demo layer distinct from TRION's core
+  behavioral signal pipeline, not as evidence the core pipeline reads price.
+
 The BTV is NOT a faster pipe carrying CEX data.
 It is derived from the actual behavioral record of what every entity did on every chain,
 stripped of manipulation, weighted by coherence, bounded by liquidity health.
@@ -506,6 +519,12 @@ def get_btv_cached(asset: str, quote: str = "USD") -> dict:
 
     result = asdict(compute_btv(asset, quote))
     result["_fetched_at"] = time.time()
+    result["architectural_disclosure"] = (
+        "This BTV endpoint intentionally takes a CEX-derived reference price as "
+        "an input to measure the price/behavior gap — it is a compatibility/demo "
+        "layer, separate from TRION's core behavioral signal pipeline (C(t), "
+        "signal emission), which never reads a price feed."
+    )
 
     with _btv_cache_lock:
         _btv_cache[key] = result

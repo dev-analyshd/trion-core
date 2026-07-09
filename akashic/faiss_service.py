@@ -1011,6 +1011,24 @@ def _tsdb_write_bh(beo_id: str, record: dict, block_num: int = 0, chain_id: int 
                 block_num,
                 psycopg2.extras.Json({"arch_sim": record.get("arch_sim", 0.0)}),
             ))
+            # Also project into behavioral_events — the flat cursor-friendly
+            # table consumed by zg_da_streamer.py / zg_sync_daemon.py for 0G
+            # data-availability export (see TRION_AUDIT_REPORT.md finding C2).
+            cur.execute("""
+                INSERT INTO behavioral_events
+                    (entity_id, event_type, magnitude_norm, chain_id,
+                     block_number, sense_hash, antisense_hash, ts)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (
+                beo_id,
+                record.get("event_type", "TRANSFER"),
+                float(record.get("magnitude", 0.0)),
+                chain_id,
+                block_num,
+                sense_hex,
+                antisense.hex(),
+                ts,
+            ))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -1314,6 +1332,78 @@ _maybe_auto_train_archetypes()
 
 
 # ── L0.1  Hash_DNA — Behavioral Hash Generation ────────────────────────────────
+#
+# UNIFIED with the Rust canonical implementation
+# (rust-indexers/crates/trion-common/src/hash_dna.rs::canonical_bh).
+# Both sides now hash the identical 93-byte binary payload for the same
+# logical event, so BH entries are cross-verifiable between the Rust
+# indexers and this Python FAISS service. Previously this function used a
+# pipe-delimited UTF-8 string, which produced a DIFFERENT hash than Rust
+# for the same event — see TRION_AUDIT_REPORT.md finding C1 (now fixed).
+
+# EventType byte encoding — whitepaper L0.1 §2 (20 canonical types), must
+# stay in exact lockstep with hash_dna.rs::event_type_name().
+EVENT_TYPE_BYTE = {
+    "TRANSFER": 0, "SWAP": 1, "LIQUIDITY": 2, "BORROW": 3, "REPAY": 4,
+    "LIQUIDATE": 5, "GOVERNANCE": 6, "PROPOSAL": 7, "STAKE": 8, "UNSTAKE": 9,
+    "BRIDGE": 10, "DEPLOY": 11, "UPGRADE": 12, "MINT": 13, "BURN": 14,
+    "FLASH_LOAN": 15, "ORACLE_UPDATE": 16, "MEV_CAPTURE": 17, "AIRDROP": 18,
+    "CLAIM": 19,
+}
+EVENT_TYPE_NAME = {v: k for k, v in EVENT_TYPE_BYTE.items()}
+
+
+def _hex_to_32bytes(s: str) -> bytes:
+    """
+    Byte-for-byte port of Rust's hex_to_32bytes(): parses hex character
+    pairs left-to-right, treats any invalid hex digit as 0, truncates to
+    32 bytes, zero-pads if shorter. Guarantees identical output to Rust
+    for the same input string (including malformed/short hex strings).
+    """
+    s = s[2:] if s.startswith("0x") or s.startswith("0X") else s
+    out = bytearray(32)
+    byte_count = min(len(s) // 2, 32)
+    for i in range(byte_count):
+        hi_ch, lo_ch = s[i * 2], s[i * 2 + 1]
+        hi = int(hi_ch, 16) if hi_ch in "0123456789abcdefABCDEF" else 0
+        lo = int(lo_ch, 16) if lo_ch in "0123456789abcdefABCDEF" else 0
+        out[i] = (hi << 4) | lo
+    return bytes(out)
+
+
+def canonical_bh(entity_id_hex: str, event_type: int, magnitude_norm: float,
+                  context: int, timestamp_secs: int, chain_id: int,
+                  block_hash_hex: str) -> Tuple[str, str]:
+    """
+    L0.1 — whitepaper-exact canonical Behavioral Hash. Byte-identical to
+    Rust's canonical_bh() for the same logical inputs.
+
+    93-byte payload (all big-endian):
+        entity_id(32) || event_type(1) || magnitude_nano(8) ||
+        context(8) || timestamp(8) || chain_id(4) || block_hash(32)
+
+    sense     = SHA3-256(payload || 0x00)
+    antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
+    Invariant: sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
+    """
+    mag_nano = int(round(max(0.0, min(1.0, magnitude_norm)) * 1_000_000_000.0))
+    payload = (
+        _hex_to_32bytes(entity_id_hex) +
+        bytes([event_type & 0xFF]) +
+        mag_nano.to_bytes(8, "big") +
+        int(context).to_bytes(8, "big") +
+        int(timestamp_secs).to_bytes(8, "big") +
+        (int(chain_id) & 0xFFFFFFFF).to_bytes(4, "big") +
+        _hex_to_32bytes(block_hash_hex)
+    )
+    assert len(payload) == 93, f"canonical BH payload must be 93 bytes, got {len(payload)}"
+
+    sense_bytes = hashlib.sha3_256(payload + bytes([0x00])).digest()
+    sha3_ff = hashlib.sha3_256(payload + bytes([0xFF])).digest()
+    antisense_bytes = bytes(sha3_ff[i] ^ (~sense_bytes[i] & 0xFF) for i in range(32))
+
+    return sense_bytes.hex(), antisense_bytes.hex()
+
 
 def compute_hash_dna(entity_id: str, event_type: str, magnitude_normalized: float,
                      context: str, timestamp: float,
@@ -1325,32 +1415,34 @@ def compute_hash_dna(entity_id: str, event_type: str, magnitude_normalized: floa
         || context || timestamp || chain_id || block_hash
     )
 
-    Hash_DNA dual-strand output:
-        sense     = SHA3-256(input || 0x00)
-        antisense = SHA3-256(input || 0xFF) XOR complement_transform(sense)
-        complement_transform = bitwise complement of every byte
-
-    Whitepaper invariant: sense XOR antisense == NOT(SHA3-256(input || 0xFF))
-    Tamper-detectable: breaking either strand breaks complementarity.
+    Thin adapter over canonical_bh(): normalizes the legacy string-typed
+    arguments (event_type name, arbitrary context string, hex/non-hex
+    entity_id and block_hash) into the canonical byte layout, so every
+    caller of this function now produces hashes identical to the Rust
+    indexers for equivalent events, instead of the old pipe-delimited
+    string hash (see TRION_AUDIT_REPORT.md finding C1).
 
     Returns: (sense_hex, antisense_hex)
     """
-    # Canonical concatenation — all fields pipe-delimited for determinism
-    input_bytes = (
-        entity_id.encode("utf-8") +
-        b"|" + event_type.upper().encode("utf-8") +
-        b"|" + f"{magnitude_normalized:.8f}".encode("utf-8") +
-        b"|" + context.encode("utf-8") +
-        b"|" + str(int(timestamp)).encode("utf-8") +
-        b"|" + str(chain_id).encode("utf-8") +
-        b"|" + block_hash.lstrip("0x").lower().encode("utf-8")
+    event_byte = EVENT_TYPE_BYTE.get(event_type.upper(), 0)
+    # Rust's `context` is an 8-byte venue/layer flag field; every current
+    # Rust caller passes 0. Non-empty legacy string contexts are folded
+    # deterministically into a u64 so distinct contexts still produce
+    # distinct hashes; empty/"0"/falsy contexts map to 0 to match Rust.
+    if not context or context in ("0", "context_hash"):
+        context_u64 = 0
+    else:
+        context_u64 = int.from_bytes(hashlib.sha3_256(context.encode("utf-8")).digest()[:8], "big")
+
+    return canonical_bh(
+        entity_id_hex=entity_id,
+        event_type=event_byte,
+        magnitude_norm=magnitude_normalized,
+        context=context_u64,
+        timestamp_secs=int(timestamp),
+        chain_id=chain_id,
+        block_hash_hex=block_hash,
     )
-
-    sense_bytes    = hashlib.sha3_256(input_bytes + bytes([0x00])).digest()
-    sha3_ff        = hashlib.sha3_256(input_bytes + bytes([0xFF])).digest()
-    antisense_bytes = bytes(sha3_ff[i] ^ (~sense_bytes[i] & 0xFF) for i in range(32))
-
-    return sense_bytes.hex(), antisense_bytes.hex()
 
 
 def verify_bh_complementarity(sense_hex: str, antisense_hex: str,
