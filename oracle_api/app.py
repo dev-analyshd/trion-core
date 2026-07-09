@@ -3646,6 +3646,33 @@ def brt(entity_id: str = "system"):
     })
 
 
+# ── Native Stack Bridge (Go / Haskell / C++) — TRION_AUDIT_REPORT.md S5/P3-14 ──
+@app.route("/api/v1/stack/native")
+def native_stack():
+    """
+    Reports live status of the four previously-disconnected stack languages
+    (Go, Haskell, Julia, C++). Unlike a static claim, this endpoint actually
+    invokes the compiled binaries on each call for cpp/go and the Haskell
+    interpreter for formal verification, so "wired" here means "executed
+    successfully just now", not "source file exists".
+    """
+    from src.native_bridge import (
+        native_stack_report, run_formal_verification,
+        run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest,
+        compute_fft_features,
+    )
+    demo_signal = [round(0.5 + 0.4 * math.sin(i * 0.6), 4) for i in range(32)]
+    return jsonify({
+        "report":               native_stack_report(),
+        "haskell_verification": run_formal_verification(),
+        "go_crawler_selftest":  run_go_crawler_coordinator_selftest(),
+        "go_validator_selftest": run_go_validator_mesh_selftest(),
+        "cpp_fft_live_sample":  compute_fft_features(demo_signal),
+        "whitepaper":           "Section 21 Tech Stack",
+        "timestamp":            int(time.time()),
+    })
+
+
 # ── Named Coherence Weight Profiles (L5.2) ────────────────────────────────────
 @app.route("/api/v1/coherence/profiles")
 def coherence_profiles():
