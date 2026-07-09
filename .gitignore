@@ -121,3 +121,4 @@ attached_assets/
 .agents/
 *.db-wal
 *.db-shm
+trion_epigenetic_state.json
