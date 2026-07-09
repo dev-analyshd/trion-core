@@ -23,6 +23,24 @@ export interface StatsData {
   timestamp: number;
 }
 
+export interface BRTData {
+  entity_id: string;
+  timestamp: number;
+  brt: {
+    circadian_phase: number;
+    ultradian_phase: number;
+    lunar_phase: number;
+    seasonal_phase: number;
+  };
+  phase_labels: {
+    circadian: string;
+    ultradian: string;
+    lunar: string;
+    seasonal: string;
+  };
+  formula: string;
+}
+
 export interface FeedEntry {
   entity_id: string;
   short_id: string;
