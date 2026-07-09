@@ -88,15 +88,19 @@ function makeVector(slot: number, txCount: number, fee: number, lamports: number
   return v;
 }
 
-async function ingestToFaiss(entityId: string, vector: number[], phi: number, slot: number) {
+async function ingestToFaiss(entityId: string, vector: number[], phi: number, slot: number,
+    sense_hex?: string, antisense_hex?: string, event_type?: number) {
   const payload = {
     vectors: [{
-      entity_id:  entityId,
+      entity_id:    entityId,
       vector,
-      magnitude:  phi,
-      entropy:    vector[3],
-      chain_id:   CHAIN_ID,
-      vm_type:    VM_TYPE,
+      magnitude:    phi,
+      entropy:      vector[3],
+      chain_id:     CHAIN_ID,
+      vm_type:      VM_TYPE,
+      ...(sense_hex     && { sense_hex }),
+      ...(antisense_hex && { antisense_hex }),
+      ...(event_type !== undefined && { event_type }),
     }]
   };
   const res = await fetch(`${FAISS_URL}/index/add_batch`, {
