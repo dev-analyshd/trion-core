@@ -132,23 +132,60 @@ def _score_component_fitness(faiss_url: str) -> tuple[float, dict]:
     return avg, {"available": True, "components": data["components"]}
 
 
+def _iter_deployment_records(base: str):
+    """Yields every deployment-record dict found in deployments.json and
+    proof-ledger/*.json, regardless of whether they hold one network (dict)
+    or several (dict-of-dicts / list)."""
+    candidates = [os.path.join(base, "deployments.json")]
+    ledger_dir = os.path.join(base, "proof-ledger")
+    if os.path.isdir(ledger_dir):
+        candidates += [
+            os.path.join(ledger_dir, name)
+            for name in sorted(os.listdir(ledger_dir))
+            if name.endswith(".json")
+        ]
+    for path in candidates:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        if isinstance(data, dict) and any(isinstance(v, dict) for v in data.values()):
+            # dict-of-networks, e.g. all_evm_deployments.json
+            yield from (v for v in data.values() if isinstance(v, dict))
+        elif isinstance(data, list):
+            yield from (e for e in data if isinstance(e, dict))
+        elif isinstance(data, dict):
+            yield data
+
+
 def _score_validator_diversity() -> tuple[float, dict]:
     """
     f2 proxy — counterparty/geography diversity of the protocol's own
-    validator/deployment surface, derived from actual deployments.json,
-    not simulated. More independently-configured chain deployments =
-    higher structural diversity = less single-point-of-failure risk.
+    validator/deployment surface, derived from actual on-disk deployment
+    records (deployments.json + proof-ledger/*.json), not simulated.
+    Only records that represent a real, successful deployment (no top-level
+    "error" and at least one contract-address-shaped field) are counted.
+    More independently-deployed chains = higher structural diversity =
+    less single-point-of-failure risk.
     """
     try:
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        path = os.path.join(base, "deployments.json")
-        with open(path) as f:
-            deployments = json.load(f)
-        # deployments.json may be a single dict (one network) or a list
-        entries = deployments if isinstance(deployments, list) else [deployments]
-        chain_ids = {e.get("chainId") for e in entries if e.get("chainId") is not None}
-        diversity = min(1.0, len(chain_ids) / 5.0)  # 5+ independent chains = fully diverse
-        return diversity, {"available": True, "distinct_chains": len(chain_ids)}
+        distinct_chains: set = set()
+        for record in _iter_deployment_records(base):
+            if record.get("error"):
+                continue  # failed deployment attempt, not a live surface
+            has_contract = any(
+                isinstance(v, str) and v.startswith("0x") and len(v) >= 40
+                for v in record.values()
+            )
+            if not has_contract:
+                continue
+            identifier = record.get("chainId") or record.get("network") or record.get("chain")
+            if identifier is not None:
+                distinct_chains.add(str(identifier))
+        diversity = min(1.0, len(distinct_chains) / 5.0)  # 5+ independent chains = fully diverse
+        return diversity, {"available": True, "distinct_chains": len(distinct_chains), "chains": sorted(distinct_chains)}
     except Exception:
         return 0.5, {"available": False}
 
