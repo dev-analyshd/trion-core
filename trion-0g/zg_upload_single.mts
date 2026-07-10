@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
 if (!privateKey) { console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1783689911.json');
+const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/bh_sqlite_delta_1783710272.bin.gz');
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
