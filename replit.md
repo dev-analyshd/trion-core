@@ -63,6 +63,7 @@ All services are configured as Replit workflows. Start them from the Workflows p
 
 ## Setup notes
 
+- All 8 workflows verified running as of 2026-07-11: Start application, FAISS ANIMA, TRION Relayer, Extended Chain Relayer, Native Relayer, Rust Indexers, Attack Alert Webhook, TRION Dashboard.
 - Dependencies are installed: Python via `uv sync`; Node via `npm install` in `dashboard/`, `relayer/`, `native-relayer/`, and the `chains/*` subpackages (svm, near, pvm, starknet, sui).
 - `chains/ton` cannot fully install (`protobufjs` blocked by Replit's package security policy). The Native Relayer already handles this gracefully by skipping TON with a module-not-found error each cycle — this is a known/expected limitation, not a bug.
 - Relayers run in LIVE mode against real chains once their secrets are present. "Insufficient funds" errors mean the signing wallet needs funding on that chain; "no *_ORACLE_ADDR" means no mainnet contract is deployed yet for that chain — both fall back to block-proof recording automatically, per the Notes section below.
