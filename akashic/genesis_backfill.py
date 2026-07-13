@@ -44,9 +44,14 @@ logger = logging.getLogger(__name__)
 DIMENSION      = 128
 FAISS_URL      = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 ARBITRUM_RPC   = os.environ.get("ARBITRUM_RPC_URL",  "https://arb-one.api.pocket.network")
-CHECKPOINT_FILE = "genesis_backfill_checkpoint.json"
 WORKERS        = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE     = int(os.environ.get("BACKFILL_BATCH",   "50"))
+
+# Known EVM chain_ids for the chains this backfill has been run against so far.
+CHAIN_IDS = {
+    "eth-mainnet": 1,
+    "arb-mainnet": 42161,
+}
 
 
 # ── RPC helpers ────────────────────────────────────────────────────────────────
@@ -182,21 +187,22 @@ def compute_entropy(block: dict) -> float:
 
 # ── Checkpoint management ──────────────────────────────────────────────────────
 
-def load_checkpoint() -> dict:
-    if os.path.exists(CHECKPOINT_FILE):
-        with open(CHECKPOINT_FILE) as f:
+def load_checkpoint(checkpoint_file: str) -> dict:
+    if os.path.exists(checkpoint_file):
+        with open(checkpoint_file) as f:
             return json.load(f)
     return {"last_block": -1, "indexed": 0, "gaps": []}
 
 
-def save_checkpoint(cp: dict):
-    with open(CHECKPOINT_FILE, "w") as f:
+def save_checkpoint(cp: dict, checkpoint_file: str):
+    with open(checkpoint_file, "w") as f:
         json.dump(cp, f, indent=2)
 
 
 # ── FAISS ingestion ────────────────────────────────────────────────────────────
 
-def ingest_block(rpc_url: str, block_number: int) -> Optional[dict]:
+def ingest_block(rpc_url: str, block_number: int, chain_name: str = "arb-mainnet",
+                  chain_id: int = 42161) -> Optional[dict]:
     """Fetch a block, extract features, POST to FAISS /index/add."""
     block = get_block(rpc_url, block_number)
     if not block:
@@ -208,8 +214,11 @@ def ingest_block(rpc_url: str, block_number: int) -> Optional[dict]:
 
     ts        = hex_to_int(block.get("timestamp", "0x0"))
     block_hash = block.get("hash", "0x00")
-    entity_id  = f"block_{block_number}"
-    bh_id      = hashlib.sha3_256(block_hash.encode()).hexdigest()
+    # Prefix with chain name so entity_ids never collide across chains that
+    # share overlapping block numbers (each chain's FAISS/TimescaleDB rows
+    # must stay distinguishable — see chain_id column in schema.sql).
+    entity_id  = f"{chain_name}_block_{block_number}"
+    bh_id      = hashlib.sha3_256((chain_name + block_hash).encode()).hexdigest()
 
     payload = {
         "entity_id":  entity_id,
@@ -219,6 +228,8 @@ def ingest_block(rpc_url: str, block_number: int) -> Optional[dict]:
         "timestamp":  float(ts),
         "bh_id":      bh_id,
         "block_num":  block_number,
+        "chain_id":   chain_id,
+        "block_hash": block_hash,
     }
 
     try:
@@ -246,17 +257,23 @@ def validate_no_gaps(start: int, end: int, indexed_blocks: set) -> list:
 
 # ── Main backfill loop ────────────────────────────────────────────────────────
 
-def run_backfill(start_block: int, end_block: int, rpc_url: str):
+def run_backfill(start_block: int, end_block: int, rpc_url: str,
+                  chain_name: str = "arb-mainnet", chain_id: int = 42161,
+                  checkpoint_file: Optional[str] = None):
+    checkpoint_file = checkpoint_file or f"genesis_backfill_checkpoint_{chain_name}.json"
+
     logger.info("=" * 65)
     logger.info(" TRION Akashic Genesis Backfill")
+    logger.info(" Chain       : %s (chain_id=%d)", chain_name, chain_id)
     logger.info(" Start block : %d", start_block)
     logger.info(" End block   : %d", end_block)
     logger.info(" Workers     : %d", WORKERS)
     logger.info(" Batch size  : %d", BATCH_SIZE)
     logger.info(" FAISS URL   : %s", FAISS_URL)
+    logger.info(" Checkpoint  : %s", checkpoint_file)
     logger.info("=" * 65)
 
-    cp = load_checkpoint()
+    cp = load_checkpoint(checkpoint_file)
     resume_from = cp["last_block"] + 1
     if resume_from > start_block:
         logger.info("Resuming from block %d (checkpoint).", resume_from)
@@ -264,14 +281,14 @@ def run_backfill(start_block: int, end_block: int, rpc_url: str):
 
     indexed_blocks  = set()
     total_indexed   = cp["indexed"]
-    total_blocks    = end_block - start_block + 1
+    total_blocks    = max(end_block - start_block + 1, 1)
 
     for batch_start in range(start_block, end_block + 1, BATCH_SIZE):
         batch_end = min(batch_start + BATCH_SIZE - 1, end_block)
         batch     = range(batch_start, batch_end + 1)
 
         with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-            futures = {executor.submit(ingest_block, rpc_url, b): b for b in batch}
+            futures = {executor.submit(ingest_block, rpc_url, b, chain_name, chain_id): b for b in batch}
             for future in as_completed(futures):
                 result = future.result()
                 if result and result.get("indexed"):
@@ -282,10 +299,10 @@ def run_backfill(start_block: int, end_block: int, rpc_url: str):
 
         cp["last_block"] = batch_end
         cp["indexed"]    = total_indexed
-        save_checkpoint(cp)
+        save_checkpoint(cp, checkpoint_file)
 
         pct = (batch_end - start_block + 1) / total_blocks * 100
-        logger.info("Progress: %.1f%%  |  Blocks %d–%d  |  Indexed: %d",
+        logger.info("Progress: %.4f%%  |  Blocks %d–%d  |  Indexed: %d",
                     pct, batch_start, batch_end, total_indexed)
 
         # Rate limiting — avoid hammering the RPC
@@ -295,13 +312,13 @@ def run_backfill(start_block: int, end_block: int, rpc_url: str):
     logger.info("Running gap validation...")
     gaps = validate_no_gaps(start_block, end_block, indexed_blocks)
     cp["gaps"] = gaps
-    save_checkpoint(cp)
+    save_checkpoint(cp, checkpoint_file)
 
     if gaps:
         logger.warning("GAPS DETECTED: %d missing blocks. First 10: %s", len(gaps), gaps[:10])
         logger.info("Re-ingesting gaps...")
         for b in gaps:
-            result = ingest_block(rpc_url, b)
+            result = ingest_block(rpc_url, b, chain_name, chain_id)
             if result and (result.get("indexed") or result.get("skipped")):
                 gaps.remove(b)
 
@@ -326,12 +343,15 @@ def run_backfill(start_block: int, end_block: int, rpc_url: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TRION Akashic Genesis Backfill")
-    parser.add_argument("--start-block", type=int, default=0,       help="First block to index")
+    parser.add_argument("--start-block", type=int, default=0,        help="First block to index")
     parser.add_argument("--end-block",   type=str, default="latest", help="Last block to index (int or 'latest')")
-    parser.add_argument("--rpc",         type=str, default=ARBITRUM_RPC, help="Arbitrum RPC endpoint")
+    parser.add_argument("--rpc",         type=str, default=None,     help="EVM JSON-RPC endpoint")
+    parser.add_argument("--chain-name",  type=str, default="arb-mainnet", help="Chain label, e.g. eth-mainnet")
+    parser.add_argument("--chain-id",    type=int, default=None,     help="EVM chain id, e.g. 1 for Ethereum")
     args = parser.parse_args()
 
-    rpc = args.rpc
+    rpc = args.rpc or ARBITRUM_RPC
+    chain_id = args.chain_id if args.chain_id is not None else CHAIN_IDS.get(args.chain_name, 42161)
     start = args.start_block
 
     if args.end_block == "latest":
@@ -343,4 +363,4 @@ if __name__ == "__main__":
     else:
         end = int(args.end_block)
 
-    run_backfill(start, end, rpc)
+    run_backfill(start, end, rpc, chain_name=args.chain_name, chain_id=chain_id)
