@@ -109,6 +109,10 @@ args = "TRION Dashboard"
 task = "workflow.run"
 args = "Native Relayer"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Genesis Backfill"
+
 [[workflows.workflow]]
 name = "Rust Indexers"
 author = "agent"
@@ -142,6 +146,17 @@ outputType = "console"
 task = "shell.exec"
 args = "cd dashboard && npm run dev"
 waitForPort = 3000
+
+[[workflows.workflow]]
+name = "Genesis Backfill"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/genesis_backfill_runner.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[ports]]
 localPort = 3000
