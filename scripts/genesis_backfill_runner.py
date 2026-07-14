@@ -5,7 +5,7 @@ every integrated L1/L2 and every VM, walked from genesis, zero gaps.
 
 Order: Ethereum -> Solana -> Arbitrum -> [remaining ~50 EVM mainnets] ->
        11 Cosmos-SDK chains -> Aptos/Movement (Move VM) -> NEAR -> StarkNet ->
-       Polkadot -> TON.
+       Polkadot -> TON -> BTC/LTC/DOGE/DASH (UTXO) -> Sui -> Tron -> XRPL.
 
 Each chain/VM has its own independent checkpoint file, so this driver can be
 killed and restarted (or crash mid-chain) without losing progress, and each
@@ -38,6 +38,7 @@ COSMOS_CHAINS = [
     "osmosis", "neutron", "celestia", "terra", "provenance",
 ]
 MOVE_CHAINS = ["aptos", "movement"]
+UTXO_CHAINS = ["btc", "ltc", "doge", "dash"]
 
 # Priority order requested by the user: ETH -> Solana -> Arbitrum first,
 # then everything else.
@@ -97,6 +98,27 @@ def ton_stage():
          "--start-seqno", "1", "--end-seqno", "latest"], "TON mainnet")
 
 
+def utxo_stage(name: str):
+    run([sys.executable, "akashic/genesis_backfill_utxo.py",
+         "--chain-name", name, "--start-height", "0", "--end-height", "latest"],
+        f"UTXO {name}")
+
+
+def sui_stage():
+    run([sys.executable, "akashic/genesis_backfill_sui.py",
+         "--start-checkpoint", "0", "--end-checkpoint", "latest"], "Sui mainnet")
+
+
+def tron_stage():
+    run([sys.executable, "akashic/genesis_backfill_tron.py",
+         "--start-block", "0", "--end-block", "latest"], "Tron mainnet")
+
+
+def xrpl_stage():
+    run([sys.executable, "akashic/genesis_backfill_xrpl.py",
+         "--end-ledger", "latest"], "XRPL mainnet")
+
+
 def full_cycle():
     by_name = {c["chain_name"]: c for c in EVM_REGISTRY}
 
@@ -121,13 +143,21 @@ def full_cycle():
     polkadot_stage()
     ton_stage()
 
+    # 4) UTXO family + remaining long-tail chains with public no-key APIs
+    for name in UTXO_CHAINS:
+        utxo_stage(name)
+    sui_stage()
+    tron_stage()
+    xrpl_stage()
+
 
 if __name__ == "__main__":
     logger.info("=" * 70)
     logger.info(" TRION Genesis Backfill — ALL chains, ALL VMs")
     logger.info(" %d EVM L1/L2s + Solana + %d Cosmos-SDK + %d Move VM + "
-                "NEAR + StarkNet + Polkadot + TON", len(EVM_REGISTRY),
-                len(COSMOS_CHAINS), len(MOVE_CHAINS))
+                "NEAR + StarkNet + Polkadot + TON + %d UTXO chains + "
+                "Sui + Tron + XRPL", len(EVM_REGISTRY),
+                len(COSMOS_CHAINS), len(MOVE_CHAINS), len(UTXO_CHAINS))
     logger.info("=" * 70)
     cycle = 0
     while True:
