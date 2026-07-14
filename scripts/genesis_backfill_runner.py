@@ -5,7 +5,19 @@ every integrated L1/L2 and every VM, walked from genesis, zero gaps.
 
 Order: Ethereum -> Solana -> Arbitrum -> [remaining ~50 EVM mainnets] ->
        11 Cosmos-SDK chains -> Aptos/Movement (Move VM) -> NEAR -> StarkNet ->
-       Polkadot -> TON -> BTC/LTC/DOGE/DASH (UTXO) -> Sui -> Tron -> XRPL.
+       Polkadot -> TON -> BTC/LTC/DOGE/DASH (UTXO) -> Sui -> Tron -> XRPL ->
+       Algorand -> Hedera -> Stellar -> Cardano -> VeChain -> MultiversX -> Waves.
+
+Not covered (no genesis-walkable free public API found, flagged rather than
+silently skipped): Kadena (its public chainweb API host does not resolve
+from this environment), ICP (no public raw-block REST; mirrors report
+metrics, not a walkable block list), Bittensor (public explorers require a
+paid/keyed API for historical blocks), Flow (public REST node only serves a
+recent "spork" window; full history needs multiple archived spork
+endpoints), Canton (permissioned network, no public archive), Quant and
+LayerZero (not standalone L1s with their own genesis block history — Quant
+is an Ethereum-based token/gateway, LayerZero is a messaging protocol
+across other chains' existing block histories).
 
 Each chain/VM has its own independent checkpoint file, so this driver can be
 killed and restarted (or crash mid-chain) without losing progress, and each
@@ -119,6 +131,41 @@ def xrpl_stage():
          "--end-ledger", "latest"], "XRPL mainnet")
 
 
+def algorand_stage():
+    run([sys.executable, "akashic/genesis_backfill_algorand.py",
+         "--start-round", "1", "--end-round", "latest"], "Algorand mainnet")
+
+
+def hedera_stage():
+    run([sys.executable, "akashic/genesis_backfill_hedera.py",
+         "--start-block", "0", "--end-block", "latest"], "Hedera mainnet")
+
+
+def stellar_stage():
+    run([sys.executable, "akashic/genesis_backfill_stellar.py",
+         "--start-ledger", "elder", "--end-ledger", "latest"], "Stellar mainnet")
+
+
+def cardano_stage():
+    run([sys.executable, "akashic/genesis_backfill_cardano.py",
+         "--start-height", "1", "--end-height", "latest"], "Cardano mainnet")
+
+
+def vechain_stage():
+    run([sys.executable, "akashic/genesis_backfill_vechain.py",
+         "--start-block", "0", "--end-block", "latest"], "VeChain mainnet")
+
+
+def multiversx_stage():
+    run([sys.executable, "akashic/genesis_backfill_multiversx.py",
+         "--start-offset", "0", "--end-offset", "latest"], "MultiversX mainnet")
+
+
+def waves_stage():
+    run([sys.executable, "akashic/genesis_backfill_waves.py",
+         "--start-height", "1", "--end-height", "latest"], "Waves mainnet")
+
+
 def full_cycle():
     by_name = {c["chain_name"]: c for c in EVM_REGISTRY}
 
@@ -150,14 +197,26 @@ def full_cycle():
     tron_stage()
     xrpl_stage()
 
+    # 5) Remaining long-tail chains with confirmed free/no-key public APIs
+    algorand_stage()
+    hedera_stage()
+    stellar_stage()
+    cardano_stage()
+    vechain_stage()
+    multiversx_stage()
+    waves_stage()
+
 
 if __name__ == "__main__":
     logger.info("=" * 70)
     logger.info(" TRION Genesis Backfill — ALL chains, ALL VMs")
     logger.info(" %d EVM L1/L2s + Solana + %d Cosmos-SDK + %d Move VM + "
                 "NEAR + StarkNet + Polkadot + TON + %d UTXO chains + "
-                "Sui + Tron + XRPL", len(EVM_REGISTRY),
+                "Sui + Tron + XRPL + Algorand + Hedera + Stellar + Cardano + "
+                "VeChain + MultiversX + Waves", len(EVM_REGISTRY),
                 len(COSMOS_CHAINS), len(MOVE_CHAINS), len(UTXO_CHAINS))
+    logger.info(" Not covered (no genesis-walkable free public API): "
+                "Kadena, ICP, Bittensor, Flow, Canton, Quant, LayerZero")
     logger.info("=" * 70)
     cycle = 0
     while True:
