@@ -1271,7 +1271,12 @@ def _restore_from_timescaledb():
         if all_vecs:
             vecs_np = np.stack(all_vecs, axis=0)
             index.add(vecs_np)
-            _persist_all("cold-boot-restore")
+            # _persist_all is defined later in this module; guard against the
+            # NameError that occurs when restore runs during module init.
+            try:
+                _persist_all("cold-boot-restore")
+            except NameError:
+                pass  # will be persisted by the atexit/SIGTERM handlers
             logger.info("[restore] FAISS rebuilt — %d vectors, %d entities",
                         index.ntotal, len(entity_history))
 
