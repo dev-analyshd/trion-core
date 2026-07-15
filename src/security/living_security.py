@@ -806,10 +806,30 @@ class MitochondrialCore:
 
 @dataclass
 class PQCScore:
-    """CRYSTALS-Kyber + CRYSTALS-Dilithium + SPHINCS+ (whitepaper L4.5)."""
-    kyber_active: bool = True
-    dilithium_active: bool = True
-    sphincs_active: bool = True
+    """
+    CRYSTALS-Kyber (ML-KEM) + CRYSTALS-Dilithium (ML-DSA) + SPHINCS+ (SLH-DSA)
+    (whitepaper L4.5). Flags reflect a REAL cryptographic round-trip performed
+    via `src/security/pqc_layer.py` (kyber-py / dilithium-py / pyspx) — not a
+    static simulation. The round-trip runs once at construction; call
+    `refresh()` to re-verify.
+    """
+    kyber_active: bool = field(default=False)
+    dilithium_active: bool = field(default=False)
+    sphincs_active: bool = field(default=False)
+
+    def __post_init__(self):
+        self.refresh()
+
+    def refresh(self) -> None:
+        try:
+            from src.security.pqc_layer import compute_pqc_score
+            status = compute_pqc_score()
+            self.kyber_active = status.kyber_active
+            self.dilithium_active = status.dilithium_active
+            self.sphincs_active = status.sphincs_active
+        except Exception:
+            # Non-fatal: leave flags as-is (defaults to False = honestly "not verified")
+            pass
 
     @property
     def score(self) -> float:

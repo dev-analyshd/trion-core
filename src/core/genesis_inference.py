@@ -26,14 +26,77 @@ Confidence Convergence (variable λ per whitepaper §6.4):
   Slow-moving assets → smaller λ → wider confidence intervals longer
 """
 
+import os
+import logging
 import numpy as np
 import math
 from typing import List, Optional
 from dataclasses import dataclass, field
 
+logger = logging.getLogger(__name__)
 
 GENESIS_DIM            = 128
 GENESIS_LAMBDA_DEFAULT = 0.001   # fallback when no archetypes available
+
+# ── FAISS Service client (L2.2 archetype matching) ───────────────────────────
+# Base URL follows the same convention as akashic/genesis_backfill*.py:
+#   FAISS_SERVICE_URL env var, defaulting to http://127.0.0.1:8000
+FAISS_SERVICE_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+_ARCHETYPE_MATCH_ENDPOINT = f"{FAISS_SERVICE_URL}/archetypes/match_vector"
+
+# Lazy-import requests so the module stays importable without it installed.
+def _get_requests():
+    try:
+        import requests as _requests
+        return _requests
+    except ImportError:
+        return None
+
+
+def query_faiss_archetype_similarities(
+    feature_vector: np.ndarray,
+    timeout: float = 2.0,
+) -> Optional[List[dict]]:
+    """
+    POST feature_vector to the live FAISS service and return a list of dicts:
+      [{"archetype_id": int, "cosine_similarity": float, "centroid": list}, ...]
+
+    Returns None if the FAISS service is unreachable or returns an error,
+    so callers can fall back to local np.linalg.norm computation.
+    """
+    requests = _get_requests()
+    if requests is None:
+        logger.warning(
+            "[genesis_inference] 'requests' library not available — "
+            "falling back to local cosine similarity computation."
+        )
+        return None
+    try:
+        resp = requests.post(
+            _ARCHETYPE_MATCH_ENDPOINT,
+            json={"vector": feature_vector.tolist()},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("status") not in ("ok",):
+            logger.warning(
+                "[genesis_inference] FAISS /archetypes/match_vector returned "
+                "status=%r (n_archetypes=%d) — falling back to local computation.",
+                data.get("status"),
+                data.get("n_archetypes", 0),
+            )
+            return None
+        return data["archetypes"]   # list of {archetype_id, cosine_similarity, centroid}
+    except Exception as exc:
+        logger.warning(
+            "[genesis_inference] FAISS service unreachable at %s — "
+            "falling back to local np.linalg.norm cosine computation. (%s: %s)",
+            _ARCHETYPE_MATCH_ENDPOINT,
+            type(exc).__name__,
+            exc,
+        )
+        return None
 
 
 # ── Genesis Fingerprint ───────────────────────────────────────────────────────
@@ -237,6 +300,7 @@ def infer_genesis_value(
     genesis:    GenesisVector,
     archetypes: List[Archetype],
     D_asset:    float = 0.0,
+    _use_v2:    bool = True,   # attempt transformer path if available
 ) -> dict:
     """
     Full Genesis Inference per whitepaper §6.3–6.4.
@@ -244,7 +308,22 @@ def infer_genesis_value(
     V₀ = Σₖ sim(G, Aₖ) · Vₖ(stage=0) / Σₖ sim(G, Aₖ)
     λ  = archetype-matched convergence rate (variable, not fixed)
     conf(t) = 1 − e^(−λ · A(t))
+
+    When _use_v2=True (default) and PyTorch is available + model is fitted,
+    delegates to mental_transformer.infer_genesis_value_v2() which uses a real
+    self-attention transformer encoder over behavioral sequences.
+    Falls back to the original harmonic-cosine path transparently.
     """
+    if _use_v2:
+        try:
+            from src.core.mental_transformer import (
+                infer_genesis_value_v2, _TORCH_AVAILABLE, _fitted,
+            )
+            if _TORCH_AVAILABLE and _fitted:
+                return infer_genesis_value_v2(genesis, archetypes, D_asset)
+        except Exception as _exc:
+            logger.debug("[genesis_inference] v2 dispatch failed (%s), using harmonic path", _exc)
+    # ── Original harmonic-cosine path (always preserved as fallback) ────────
     if not archetypes:
         return {
             "genesis_value": 0.50,
@@ -254,10 +333,49 @@ def infer_genesis_value(
             "method":        "no_archetypes",
         }
 
-    sims       = [cosine_similarity(genesis.feature_vector, a.feature_vector) for a in archetypes]
+    # ── Step 1: cosine similarities via FAISS service or local fallback ───────
+    # Try the live FAISS service first (real 127k+ indexed vectors / K-means centroids).
+    # Fall back to local np.linalg.norm only if the service is unreachable.
+    faiss_results = query_faiss_archetype_similarities(genesis.feature_vector)
+    similarity_source = "faiss_service"
+
+    if faiss_results is not None and len(faiss_results) > 0:
+        # FAISS returned centroid similarities.  Map them onto the caller-supplied
+        # Archetype list so the whitepaper formulas (V₀, λ) still use the
+        # per-class metadata (base_value, convergence_rate, genesis_stage_value).
+        # Strategy: for each local Archetype find the FAISS centroid whose vector
+        # is most cosine-similar, then weight by that centroid's FAISS score.
+        faiss_centroids = np.array(
+            [r["centroid"] for r in faiss_results], dtype=np.float32
+        )  # shape [n_faiss, 128]
+        local_vecs = np.array(
+            [a.feature_vector for a in archetypes], dtype=np.float32
+        )  # shape [n_local, 128]
+
+        lv_norms = np.linalg.norm(local_vecs, axis=1, keepdims=True)
+        fc_norms = np.linalg.norm(faiss_centroids, axis=1, keepdims=True)
+        lv_norms = np.where(lv_norms < 1e-10, 1e-10, lv_norms)
+        fc_norms = np.where(fc_norms < 1e-10, 1e-10, fc_norms)
+        # similarity matrix: [n_local × n_faiss]
+        sim_matrix = (local_vecs / lv_norms) @ (faiss_centroids / fc_norms).T
+
+        faiss_scores = np.array(
+            [r["cosine_similarity"] for r in faiss_results], dtype=np.float64
+        )  # shape [n_faiss]
+        # For each local archetype, find the best-matching FAISS centroid
+        best_faiss_idx = np.argmax(sim_matrix, axis=1)          # [n_local]
+        alignment = np.clip(
+            sim_matrix[np.arange(len(archetypes)), best_faiss_idx], 0.0, 1.0
+        )
+        sims = list(alignment * faiss_scores[best_faiss_idx])
+    else:
+        # FAISS service unreachable — fall back to local np.linalg.norm computation.
+        sims = [cosine_similarity(genesis.feature_vector, a.feature_vector) for a in archetypes]
+        similarity_source = "local_cosine_fallback"
+
     total_sim  = sum(sims)
 
-    # Archetype-matched λ (variable per whitepaper §6.4)
+    # ── Step 2: archetype-matched λ (variable per whitepaper §6.4) ───────────
     lam = archetype_matched_lambda(sims, archetypes)
 
     if total_sim <= 0:
@@ -294,10 +412,11 @@ def infer_genesis_value(
         "lambda_source":        "archetype_matched" if total_sim > 0 else "default",
         "best_archetype":       best_archetype,
         "similarities":         dict(zip([a.name for a in archetypes], [round(s, 4) for s in sims])),
+        "similarity_source":    similarity_source,
         "method":               "genesis_inference",
         "disclosure": (
             f"Genesis inference: conf={conf:.3f}, λ={lam:.6f} (archetype-matched). "
-            f"Archetype: {best_archetype}. "
+            f"Archetype: {best_archetype}. Similarity source: {similarity_source}. "
             f"Confidence grows as behavioral history accumulates: conf(t)=1-e^(-{lam:.6f}·D)."
         ),
     }
