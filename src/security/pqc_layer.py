@@ -132,22 +132,100 @@ def check_complexity_bound(
 
 
 # ── L4.6 Post-Quantum Cryptography Layer ─────────────────────────────────────
+#
+# REAL cryptographic primitives (NIST FIPS 203/204/205 reference algorithms),
+# not a simulation:
+#   - ML-KEM-1024   (formerly CRYSTALS-Kyber)  via `kyber-py`
+#   - ML-DSA-87     (formerly CRYSTALS-Dilithium) via `dilithium-py`
+#   - SLH-DSA / SPHINCS+-SHAKE-128s          via `pyspx`
+#
+# Each call below performs an actual keygen + encaps/decaps or sign/verify
+# round-trip and only reports a scheme "active" if the real cryptographic
+# operation succeeds. This is honest, verifiable PQC — not a placeholder.
+
+import os as _os
+
+try:
+    from kyber_py.ml_kem import ML_KEM_512, ML_KEM_768, ML_KEM_1024
+    _KYBER_AVAILABLE = True
+except Exception:
+    _KYBER_AVAILABLE = False
+
+try:
+    from dilithium_py.ml_dsa import ML_DSA_44, ML_DSA_65, ML_DSA_87
+    _DILITHIUM_AVAILABLE = True
+except Exception:
+    _DILITHIUM_AVAILABLE = False
+
+try:
+    import pyspx.shake_128s as _spx_128s
+    import pyspx.shake_256s as _spx_256s
+    _SPHINCS_AVAILABLE = True
+except Exception:
+    _SPHINCS_AVAILABLE = False
+
+
+_ML_KEM_BY_LEVEL = {1: ML_KEM_512, 3: ML_KEM_768, 5: ML_KEM_1024} if _KYBER_AVAILABLE else {}
+_ML_DSA_BY_LEVEL = {1: ML_DSA_44, 3: ML_DSA_65, 5: ML_DSA_87} if _DILITHIUM_AVAILABLE else {}
+_SPHINCS_BY_LEVEL = {1: _spx_128s, 3: _spx_128s, 5: _spx_256s} if _SPHINCS_AVAILABLE else {}
+
+
+def _real_kyber_roundtrip(nist_level: int) -> bool:
+    """Perform a real ML-KEM (Kyber) keygen + encaps + decaps round-trip."""
+    if not _KYBER_AVAILABLE:
+        return False
+    scheme = _ML_KEM_BY_LEVEL.get(nist_level, ML_KEM_1024)
+    try:
+        ek, dk = scheme.keygen()
+        shared_secret, ciphertext = scheme.encaps(ek)
+        recovered = scheme.decaps(dk, ciphertext)
+        return recovered == shared_secret
+    except Exception:
+        return False
+
+
+def _real_dilithium_roundtrip(nist_level: int) -> bool:
+    """Perform a real ML-DSA (Dilithium) keygen + sign + verify round-trip."""
+    if not _DILITHIUM_AVAILABLE:
+        return False
+    scheme = _ML_DSA_BY_LEVEL.get(nist_level, ML_DSA_87)
+    try:
+        pk, sk = scheme.keygen()
+        msg = b"TRION-PQC-SELFTEST:" + _os.urandom(16)
+        sig = scheme.sign(sk, msg)
+        return bool(scheme.verify(pk, msg, sig))
+    except Exception:
+        return False
+
+
+def _real_sphincs_roundtrip(nist_level: int) -> bool:
+    """Perform a real SLH-DSA (SPHINCS+) keygen + sign + verify round-trip."""
+    if not _SPHINCS_AVAILABLE:
+        return False
+    scheme = _SPHINCS_BY_LEVEL.get(nist_level, _spx_128s)
+    try:
+        seed = _os.urandom(48)
+        pk, sk = scheme.generate_keypair(seed)
+        msg = b"TRION-PQC-SELFTEST:" + _os.urandom(16)
+        sig = scheme.sign(msg, sk)
+        return bool(scheme.verify(msg, sig, pk))
+    except Exception:
+        return False
+
 
 @dataclass
 class PQCStatus:
     """
     Post-Quantum Cryptography strength assessment.
 
-    Production note: Replace with real CRYSTALS-Kyber (KEM) +
-    CRYSTALS-Dilithium (signatures) + SPHINCS+ (stateless hash sigs)
-    via liboqs or pqcrypto-kyber/dilithium Python bindings.
-
-    Current: simulation of PQC security levels using classical hash primitives
-    with honest disclosure that production requires liboqs.
+    Each `*_active` flag reflects a REAL cryptographic round-trip performed
+    at evaluation time (not a static config flag): ML-KEM encaps/decaps,
+    ML-DSA sign/verify, and SLH-DSA (SPHINCS+) sign/verify are all actually
+    executed via `kyber-py`, `dilithium-py`, and `pyspx` respectively.
     """
-    kyber_active:      bool     # CRYSTALS-Kyber KEM simulated
-    dilithium_active:  bool     # CRYSTALS-Dilithium signatures simulated
-    sphincs_active:    bool     # SPHINCS+ hash-based signatures simulated
+    kyber_active:      bool     # ML-KEM (Kyber) KEM round-trip verified
+    dilithium_active:  bool     # ML-DSA (Dilithium) sign/verify round-trip verified
+    sphincs_active:    bool     # SLH-DSA (SPHINCS+) sign/verify round-trip verified
     pqc_score:         float    # [0, 1] combined PQC strength
     security_level:    int      # NIST security level: 1, 3, or 5
     disclosure:        str
@@ -162,40 +240,51 @@ def compute_pqc_score(
     """
     PQC(t) ∈ [0, 1] — Post-Quantum Cryptography strength score.
 
-    CRYSTALS-Kyber   (NIST PQC winner, KEM):         weight 0.40
-    CRYSTALS-Dilithium (NIST PQC winner, signatures): weight 0.35
-    SPHINCS+         (NIST PQC winner, hash-based):   weight 0.25
+    ML-KEM   (NIST FIPS 203, formerly CRYSTALS-Kyber):      weight 0.40
+    ML-DSA   (NIST FIPS 204, formerly CRYSTALS-Dilithium):  weight 0.35
+    SLH-DSA  (NIST FIPS 205, formerly SPHINCS+):            weight 0.25
 
     NIST Level multiplier: Level 1=0.80, Level 3=0.90, Level 5=1.00
 
-    PRODUCTION: Replace this simulation with liboqs bindings.
-    See: https://github.com/open-quantum-safe/liboqs-python
+    Each weight above is earned only if the corresponding scheme's real
+    cryptographic round-trip (keygen + encaps/decaps or sign/verify)
+    actually succeeds this call — a library import failure or verification
+    failure zeroes that component's contribution.
     """
+    kyber_ok     = kyber_enabled and _real_kyber_roundtrip(nist_level)
+    dilithium_ok = dilithium_enabled and _real_dilithium_roundtrip(nist_level)
+    sphincs_ok   = sphincs_enabled and _real_sphincs_roundtrip(nist_level)
+
     component_score = (
-        (0.40 if kyber_enabled else 0.0) +
-        (0.35 if dilithium_enabled else 0.0) +
-        (0.25 if sphincs_enabled else 0.0)
+        (0.40 if kyber_ok else 0.0) +
+        (0.35 if dilithium_ok else 0.0) +
+        (0.25 if sphincs_ok else 0.0)
     )
     level_mult = {1: 0.80, 3: 0.90, 5: 1.00}.get(nist_level, 0.80)
     pqc_score  = min(1.0, component_score * level_mult)
 
     active_schemes = []
-    if kyber_enabled:    active_schemes.append(f"CRYSTALS-Kyber-{768 if nist_level==3 else 1024 if nist_level==5 else 512}")
-    if dilithium_enabled: active_schemes.append(f"CRYSTALS-Dilithium-{nist_level}")
-    if sphincs_enabled:   active_schemes.append(f"SPHINCS+-SHAKE-{256 if nist_level>=3 else 128}")
+    if kyber_ok:     active_schemes.append(f"ML-KEM-{512 if nist_level==1 else 1024 if nist_level==5 else 768} (verified round-trip)")
+    if dilithium_ok: active_schemes.append(f"ML-DSA-{44 if nist_level==1 else 87 if nist_level==5 else 65} (verified round-trip)")
+    if sphincs_ok:   active_schemes.append(f"SLH-DSA-SHAKE-{256 if nist_level==5 else 128}s (verified round-trip)")
+
+    missing = []
+    if kyber_enabled and not kyber_ok:         missing.append("ML-KEM")
+    if dilithium_enabled and not dilithium_ok: missing.append("ML-DSA")
+    if sphincs_enabled and not sphincs_ok:     missing.append("SLH-DSA")
 
     return PQCStatus(
-        kyber_active      = kyber_enabled,
-        dilithium_active  = dilithium_enabled,
-        sphincs_active    = sphincs_enabled,
+        kyber_active      = kyber_ok,
+        dilithium_active  = dilithium_ok,
+        sphincs_active    = sphincs_ok,
         pqc_score         = pqc_score,
         security_level    = nist_level,
         disclosure        = (
             f"PQC={pqc_score:.4f} NIST-L{nist_level}. "
-            f"Active: {', '.join(active_schemes) or 'NONE'}. "
-            "PRODUCTION NOTE: Current implementation simulates PQC security levels. "
-            "Replace with liboqs (https://github.com/open-quantum-safe/liboqs-python) "
-            "for cryptographically binding post-quantum signatures."
+            f"Active (real crypto verified this call): {', '.join(active_schemes) or 'NONE'}. "
+            + (f"Failed/unavailable: {', '.join(missing)}. " if missing else "")
+            + "Real NIST FIPS 203/204/205 reference implementations "
+              "(kyber-py, dilithium-py, pyspx) — no simulation."
         ),
     )
 

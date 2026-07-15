@@ -2002,8 +2002,14 @@ def _init_falsifiability_sample_counts():
     except Exception:
         pass
 
-# Run at module import time (non-fatal)
-_init_falsifiability_sample_counts()
+# Run off the main thread — bh_ledger.db has grown large enough (millions of
+# rows) that a synchronous COUNT(*) here can take 20-30+s and was blocking
+# Flask/SocketIO from ever opening the port at startup. Non-fatal either way.
+threading.Thread(
+    target=_init_falsifiability_sample_counts,
+    daemon=True,
+    name="falsifiability-sample-counts",
+).start()
 
 try:
     from src.governance.sba_engine import sba_from_raw_data, compute_sba

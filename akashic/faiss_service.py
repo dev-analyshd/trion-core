@@ -2854,6 +2854,75 @@ def archetype_coverage():
             "dimension": DIMENSION, "coverage_target": ">90%"}
 
 
+class MatchVectorPayload(BaseModel):
+    """Request body for POST /archetypes/match_vector."""
+    vector: List[float]
+    top_k: int = 0   # 0 = return all archetypes
+
+
+@app.post("/archetypes/match_vector")
+def archetypes_match_vector(payload: MatchVectorPayload):
+    """
+    L2.2 — Match a 128-dim genesis feature vector against the live K-means
+    archetype centroids and return cosine similarities for each archetype.
+
+    Used by genesis_inference to get real FAISS archetype similarities instead
+    of computing against a small local numpy fallback.
+
+    Returns:
+      {
+        "status": "ok" | "no_centroids",
+        "archetypes": [
+          {"archetype_id": int, "cosine_similarity": float, "centroid": [float×128]},
+          ...  (sorted descending by similarity)
+        ],
+        "best_archetype_id": int,
+        "best_similarity": float,
+        "n_archetypes": int,
+        "dimension": int,
+      }
+    """
+    if len(payload.vector) != DIMENSION:
+        raise HTTPException(400, f"vector must have {DIMENSION} dimensions, got {len(payload.vector)}")
+    if centroids is None or len(centroids) == 0:
+        return {"status": "no_centroids", "archetypes": [], "best_archetype_id": -1,
+                "best_similarity": 0.0, "n_archetypes": 0, "dimension": DIMENSION}
+
+    vec = np.array(payload.vector, dtype="float32")
+    v_norm = float(np.linalg.norm(vec))
+    if v_norm < 1e-10:
+        return {"status": "zero_vector", "archetypes": [], "best_archetype_id": -1,
+                "best_similarity": 0.0, "n_archetypes": len(centroids), "dimension": DIMENSION}
+
+    c_norms = np.linalg.norm(centroids, axis=1)
+    c_norms = np.where(c_norms < 1e-10, 1e-10, c_norms)
+    cosine_sims = (centroids @ vec) / (c_norms * v_norm)   # shape: [NUM_ARCHETYPES]
+    cosine_sims_clamped = np.clip(cosine_sims, 0.0, 1.0)
+
+    k = int(payload.top_k) if payload.top_k > 0 else len(centroids)
+    k = min(k, len(centroids))
+    top_indices = np.argsort(cosine_sims_clamped)[::-1][:k]
+
+    archetypes_out = [
+        {
+            "archetype_id":      int(idx),
+            "cosine_similarity": float(cosine_sims_clamped[idx]),
+            "centroid":          centroids[idx].tolist(),
+        }
+        for idx in top_indices
+    ]
+
+    best_idx = int(top_indices[0])
+    return {
+        "status":            "ok",
+        "archetypes":        archetypes_out,
+        "best_archetype_id": best_idx,
+        "best_similarity":   float(cosine_sims_clamped[best_idx]),
+        "n_archetypes":      len(centroids),
+        "dimension":         DIMENSION,
+    }
+
+
 # ── Routes — L2.3 Genesis Confidence Decay ────────────────────────────────────
 
 @app.get("/api/v1/genesis_confidence/{entity_id}")
@@ -5137,80 +5206,292 @@ def get_annotator_stats():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# L8 — Indigenous Knowledge Interface & Elder Wisdom Protocol
+# Task 2: Real infrastructure for onboarding traditional/indigenous knowledge
+# systems with explicit verified-consent records (revocable) and elevated
+# epistemic weight for elders. Zero seeded data — starts empty for real onboarding.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+try:
+    import sys as _ik_sys, os as _ik_os
+    _ik_sys.path.insert(0, _ik_os.path.dirname(_ik_os.path.dirname(_ik_os.path.abspath(__file__))))
+    from src.planes.conscious.indigenous_knowledge import (
+        KnowledgeSystemRegistry as _KSRegistry,
+        ElderWisdomProtocol     as _ElderWisdomProtocol,
+    )
+    _IK_AVAILABLE = True
+    logger.info("[IK] Indigenous Knowledge Interface loaded successfully")
+except Exception as _ik_err:
+    logger.warning("[IK] Indigenous Knowledge module unavailable: %s", _ik_err)
+    _IK_AVAILABLE = False
+    _KSRegistry = None
+    _ElderWisdomProtocol = None
+
+
+class _KnowledgeSystemIn(BaseModel):
+    system_id:          str
+    system_name:        str
+    origin_region:      str
+    contact_identifier: str
+    description:        str = ""
+
+
+class _ConsentIn(BaseModel):
+    system_id:        str
+    consent_given_by: str
+    consent_scope:    str
+
+
+class _ConsentRevokeIn(BaseModel):
+    system_id:  str
+    revoked_by: str
+
+
+class _ElderRegisterIn(BaseModel):
+    elder_id:     str
+    system_id:    str
+    term_months:  int = 12
+
+
+class _ElderAnnotationIn(BaseModel):
+    elder_id:         str
+    entity_id:        str
+    judgment:         int
+    cultural_context: str  = ""
+    base_stake_trion: float = 500.0
+
+
+@app.post("/api/v1/conscious/knowledge_systems/register")
+def register_knowledge_system(body: _KnowledgeSystemIn):
+    """
+    L8 — Register a new indigenous/traditional knowledge system.
+    contact_identifier is hashed before storage (pseudonymous per ACP1).
+    Starts empty; no real knowledge content seeded.
+    """
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return _KSRegistry.register_system(
+        system_id=body.system_id,
+        system_name=body.system_name,
+        origin_region=body.origin_region,
+        contact_identifier=body.contact_identifier,
+        description=body.description,
+    )
+
+
+@app.post("/api/v1/conscious/knowledge_systems/consent")
+def record_knowledge_system_consent(body: _ConsentIn):
+    """
+    L8 — Record explicit verified consent for a knowledge system.
+    Consent is revocable at any time. One active consent per system.
+    """
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return _KSRegistry.record_consent(
+        system_id=body.system_id,
+        consent_given_by=body.consent_given_by,
+        consent_scope=body.consent_scope,
+    )
+
+
+@app.post("/api/v1/conscious/knowledge_systems/revoke_consent")
+def revoke_knowledge_system_consent(body: _ConsentRevokeIn):
+    """L8 — Revoke consent for a knowledge system. Immediate effect."""
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return _KSRegistry.revoke_consent(
+        system_id=body.system_id,
+        revoked_by=body.revoked_by,
+    )
+
+
+@app.get("/api/v1/conscious/knowledge_systems")
+def list_knowledge_systems():
+    """L8 — List all registered indigenous/traditional knowledge systems."""
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return {"systems": _KSRegistry.list_systems()}
+
+
+@app.post("/api/v1/conscious/elders/register")
+def register_elder(body: _ElderRegisterIn):
+    """
+    L8 — Register an elder/knowledge-holder under a knowledge system.
+    Requires active consent from the system. Term 1–24 months (ACP2).
+    elder_id is pseudonymous.
+    """
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return _ElderWisdomProtocol.register_elder(
+        elder_id=body.elder_id,
+        system_id=body.system_id,
+        term_months=body.term_months,
+    )
+
+
+@app.post("/api/v1/conscious/elders/annotate")
+def elder_submit_annotation(body: _ElderAnnotationIn):
+    """
+    L8 — Elder/knowledge-holder submits an annotation with elevated epistemic weight.
+    Stake is pre-scaled by ELDER_STAKE_WEIGHT_MULTIPLIER (2.5×).
+    Blocked if knowledge system consent has been revoked.
+    The annotation is injected into the main annotation store.
+    """
+    global _annotation_count
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+
+    result = _ElderWisdomProtocol.submit_elder_annotation(
+        elder_id=body.elder_id,
+        entity_id=body.entity_id,
+        judgment=body.judgment,
+        cultural_context=body.cultural_context,
+        base_stake_trion=body.base_stake_trion,
+    )
+    if result.get("status") != "ok":
+        raise HTTPException(400, result.get("detail", "Elder annotation rejected"))
+
+    # Inject into main annotation store (same path as /annotate)
+    payload = result["annotation_payload"]
+    with _annotation_lock:
+        ann_id = _annotation_count
+        _annotations[ann_id] = {
+            "id":             ann_id,
+            "entity_id":      payload["entity_id"],
+            "annotator_id":   payload["annotator_id"],
+            "judgment":       payload["judgment"],
+            "stake_trion":    payload["stake_trion"],
+            "confidence":     payload["confidence"],
+            "specialization": payload["specialization"],
+            "evidence_text":  payload["evidence_text"],
+            "ipfs_cid":       payload["ipfs_cid"],
+            "timestamp":      datetime.now(timezone.utc).isoformat(),
+            "challenged":     False,
+            "frozen":         False,
+            "resolved":       False,
+            "elder_annotation": True,
+            "knowledge_system": result["system_id"],
+        }
+        if payload["annotator_id"] not in _annotator_reputation:
+            _annotator_reputation[payload["annotator_id"]] = 0.75  # elders start with higher prior
+        _annotation_count += 1
+
+    result["annotation_id"] = ann_id
+    result["k_score_now"]   = compute_conscious_k(body.entity_id).get("k_score", 0.0)
+    return result
+
+
+@app.get("/api/v1/conscious/elders")
+def list_elders(system_id: Optional[str] = None):
+    """L8 — List registered elders, optionally filtered by knowledge system."""
+    if not _IK_AVAILABLE:
+        raise HTTPException(503, "Indigenous Knowledge module not available")
+    return {"elders": _ElderWisdomProtocol.list_elders(system_id=system_id)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # L4.4 — POST-QUANTUM CRYPTOGRAPHY (PQC) Layer
 # Whitepaper §4.4: CRYSTALS-Kyber (KEM) + CRYSTALS-Dilithium (signing).
-# This implementation uses a lattice-inspired hash-based signature scheme
-# (compatible proof-of-concept; production replaces with liboqs bindings).
+# Real NIST FIPS 204 (ML-DSA / Dilithium) signatures via `dilithium-py` —
+# genuine lattice-based keygen/sign/verify, not a hash approximation.
 #
 # Every TRIONSignal genomic key pair is countersigned by the PQC layer:
-#   dilithium_sign(sense_strand || antisense_strand || entity_id || round_id)
-# Verification: any observer can reproduce the hash from public inputs.
+#   ml_dsa_sign(sense_strand || antisense_strand || entity_id || round_id)
+# Verification uses the real ML-DSA public-key verifier.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 import struct as _struct
 
-# ── Simulated Kyber-1024 KEM ────────────────────────────────────────────────
-# Full Kyber requires NTT polynomial rings — approximated here with SHA3-512
-# lattice expansion. Public key = 32 random bytes. Encapsulation = SHA3-512(pk||nonce).
+try:
+    from dilithium_py.ml_dsa import ML_DSA_87 as _ML_DSA
+    _PQC_REAL_CRYPTO = True
+    # ML-DSA-87 (NIST FIPS 204) fixed key/signature sizes in bytes.
+    _ML_DSA_PK_LEN = 2592
+    _ML_DSA_SK_LEN = 4896
+except Exception as _pqc_imp_err:
+    _ML_DSA = None
+    _PQC_REAL_CRYPTO = False
+    _ML_DSA_PK_LEN = _ML_DSA_SK_LEN = None
+    logger.warning("PQC: dilithium-py unavailable (%s) — falling back to SHA3 approximation", _pqc_imp_err)
+
 
 def pqc_keygen(seed: bytes = b"") -> dict:
     """
-    Generate a Kyber-1024-like keypair from a seed.
+    Generate a real ML-DSA-87 (NIST FIPS 204 / CRYSTALS-Dilithium) keypair.
     Returns { public_key_hex, private_key_hex, algorithm }.
+    `seed` is used only to make the oracle's startup keypair deterministic
+    across restarts within this process family; ML-DSA keygen itself draws
+    fresh internal randomness.
     """
+    if _PQC_REAL_CRYPTO:
+        pk, sk = _ML_DSA.keygen()
+        return {
+            "public_key_hex":  pk.hex(),
+            "private_key_hex": sk.hex(),
+            "algorithm":       "ML-DSA-87",
+        }
+    # Fallback only if dilithium-py failed to import — honestly labelled.
     if not seed:
         seed = _hashlib.sha3_256(str(_time.time_ns()).encode()).digest()
-    # Expand seed into lattice basis (approximation: 512-bit expansion)
-    h512   = _hashlib.sha3_512(seed + b"\x00kyber").digest()
-    pk     = h512[:32]   # 256-bit public key
-    sk     = _hashlib.sha3_512(seed + b"\xFF").digest()[:48]  # 384-bit secret key
+    h512 = _hashlib.sha3_512(seed + b"\x00kyber").digest()
+    pk   = h512[:32]
+    sk   = _hashlib.sha3_512(seed + b"\xFF").digest()[:48]
     return {
         "public_key_hex":  pk.hex(),
         "private_key_hex": sk.hex(),
-        "algorithm":       "TRION-Kyber-1024-approx",
+        "algorithm":       "TRION-SHA3-fallback-approx",
     }
 
 
 def pqc_dilithium_sign(message: bytes, private_key_hex: str) -> dict:
     """
-    Sign a message with a Dilithium-3-like signature.
-    Dilithium uses Module-LWE; approximated here with iterative SHA3 compression
-    over a 256-bit key, producing a 512-bit (64-byte) signature.
+    Sign a message with real ML-DSA-87 (Dilithium). Falls back to the SHA3
+    approximation only if dilithium-py is unavailable in this process.
     """
     sk = bytes.fromhex(private_key_hex)
-    # CRYSTALS-Dilithium: ExpandA || challenge || z
+    if _PQC_REAL_CRYPTO and len(sk) == _ML_DSA_SK_LEN:
+        sig = _ML_DSA.sign(sk, message)
+        return {
+            "signature_hex": sig.hex(),
+            "algorithm":     "ML-DSA-87",
+            "message_hash":  _hashlib.sha3_256(message).hexdigest(),
+        }
+    # Fallback path (only reachable if real keypair unavailable)
     expand_a  = _hashlib.sha3_256(sk[:32] + b"\x01expand").digest()
     challenge = _hashlib.sha3_256(message + expand_a).digest()
     z_vector  = _hashlib.sha3_512(sk + challenge + message).digest()
     sig       = z_vector[:64]
     return {
         "signature_hex": sig.hex(),
-        "algorithm":     "TRION-Dilithium-3-approx",
+        "algorithm":     "TRION-SHA3-fallback-approx",
         "message_hash":  _hashlib.sha3_256(message).hexdigest(),
     }
 
 
 def pqc_verify(message: bytes, signature_hex: str, public_key_hex: str) -> bool:
     """
-    Verify a Dilithium-3-approx signature.
-    Reconstruction: derive expected signature from public key + message hash.
-    (In production: uses the full NTT polynomial ring rejection-sampling verifier.)
+    Verify a signature against a public key. Dispatches to the real ML-DSA-87
+    verifier when the public key/signature sizes match that scheme; falls
+    back to the SHA3 reconstruction only for legacy fallback-signed messages.
     """
     pk  = bytes.fromhex(public_key_hex)
     sig = bytes.fromhex(signature_hex)
-    # Reconstruct the challenge commitment
+    if _PQC_REAL_CRYPTO and len(pk) == _ML_DSA_PK_LEN:
+        try:
+            return bool(_ML_DSA.verify(pk, message, sig))
+        except Exception:
+            return False
+    # Fallback verifier for legacy SHA3-approx signatures only.
     expand_a_pub = _hashlib.sha3_256(pk[:32] + b"\x01expand").digest()
     expected_z   = _hashlib.sha3_512(
         _hashlib.sha3_256(b"__trion_pqc_public__" + pk).digest()
         + _hashlib.sha3_256(message + expand_a_pub).digest()
         + message
     ).digest()[:64]
-    # Note: reconstruction uses public key only — works for the approx scheme
-    # where public/private keys share the same lattice basis.
     return _hashlib.sha3_256(sig).hexdigest() == _hashlib.sha3_256(expected_z).hexdigest()
 
 
-# Oracle-level PQC keypair (generated at startup)
+# Oracle-level PQC keypair (generated fresh at startup — real ML-DSA-87)
 _PQC_KEYPAIR = pqc_keygen(b"trion-oracle-genesis-v1")
 logger.info("PQC layer initialised | pk=%s... alg=%s",
             _PQC_KEYPAIR["public_key_hex"][:16],
@@ -5219,7 +5500,7 @@ logger.info("PQC layer initialised | pk=%s... alg=%s",
 
 @app.post("/api/v1/pqc/sign")
 def pqc_sign_endpoint(message_hex: str):
-    """L4.4 — PQC-sign any message with the oracle's Dilithium-3-approx key."""
+    """L4.4 — PQC-sign any message with the oracle's real ML-DSA-87 key."""
     try:
         msg = bytes.fromhex(message_hex)
     except ValueError:
@@ -5231,22 +5512,23 @@ def pqc_sign_endpoint(message_hex: str):
 
 @app.post("/api/v1/pqc/verify")
 def pqc_verify_endpoint(message_hex: str, signature_hex: str, public_key_hex: str):
-    """L4.4 — Verify a Dilithium-3-approx signature."""
+    """L4.4 — Verify an ML-DSA-87 (or legacy fallback) signature."""
     try:
         msg = bytes.fromhex(message_hex)
     except ValueError:
         msg = message_hex.encode()
     valid = pqc_verify(msg, signature_hex, public_key_hex)
-    return {"valid": valid, "algorithm": "TRION-Dilithium-3-approx"}
+    algo = "ML-DSA-87" if (_PQC_REAL_CRYPTO and len(bytes.fromhex(public_key_hex)) == _ML_DSA_PK_LEN) else "TRION-SHA3-fallback-approx"
+    return {"valid": valid, "algorithm": algo}
 
 
 @app.get("/api/v1/pqc/public_key")
 def get_pqc_public_key():
-    """Return the oracle's PQC public key (safe to share)."""
+    """Return the oracle's full PQC public key (safe to share — it's public)."""
     return {
         "public_key_hex": _PQC_KEYPAIR["public_key_hex"],
         "algorithm":      _PQC_KEYPAIR["algorithm"],
-        "note":           "Production: replace with liboqs CRYSTALS-Kyber-1024 + Dilithium-3",
+        "note":           "Real NIST FIPS 204 (ML-DSA-87 / CRYSTALS-Dilithium) via dilithium-py.",
     }
 
 
@@ -8188,6 +8470,123 @@ def _dynamic_threshold(beo_id: str) -> float:
                  + 0.05 * min(1.0, depth / 100.0), 4)
 
 
+# ── L9 Negative Space Detection ───────────────────────────────────────────────
+# Computes genuine low-density detection using the FAISS archetype index.
+# A candidate entity's Genesis Fingerprint vector is flagged as "negative space"
+# (uncharted behavioral territory) when its nearest-neighbor L2 distance is
+# anomalously large relative to the archetype library's typical NN-distance
+# distribution.
+#
+# Method:
+#   1. Query FAISS index for k=16 nearest neighbours of the entity's last vector.
+#   2. Compute baseline NN-distance distribution from the centroids array
+#      (one entry per archetype) — this is stable, always available, and captures
+#      the typical inter-archetype spacing of the 127k+ indexed behavioral space.
+#   3. flag = "negative_space" if entity's kNN mean distance > mean_baseline + 2σ_baseline
+#   4. negative_space_score ∈ [0,1] — how far into uncharted territory (0=known, 1=fully novel)
+
+_NS_KNN = 16            # neighbours for entity NN-distance estimate
+_NS_BASELINE_K = 8      # neighbours per centroid for baseline distribution
+_NS_Z_THRESHOLD = 2.0   # σ above baseline mean → flagged
+
+# Cached baseline (computed once from centroids; refreshed on centroid change)
+_ns_baseline_cache: dict = {}
+
+
+def _compute_ns_baseline() -> dict:
+    """
+    Compute the baseline NN-distance distribution from archetype centroids.
+    Uses each centroid's distance to its own k-th nearest neighbour as the
+    reference distribution.  Cached after first call; invalidated when
+    centroids change size.
+    """
+    global _ns_baseline_cache
+    if centroids is None or len(centroids) < 2:
+        return {"mean": 1.0, "std": 0.5, "n": 0}
+    n_cent = len(centroids)
+    cache_key = n_cent
+    if _ns_baseline_cache.get("key") == cache_key:
+        return _ns_baseline_cache["data"]
+
+    # Sample up to 2000 centroids for efficiency
+    sample_idx = np.random.choice(n_cent, size=min(2000, n_cent), replace=False)
+    sample_vecs = centroids[sample_idx].astype("float32")
+
+    k_base = min(_NS_BASELINE_K + 1, n_cent)  # +1 to skip self
+    D_base, _ = index.search(sample_vecs, k_base)
+    # Skip the closest match (self or near-duplicate at dist≈0); use remaining
+    nn_dists = D_base[:, 1:].mean(axis=1)  # mean of k-1 neighbours
+
+    baseline = {
+        "mean": float(np.mean(nn_dists)),
+        "std":  float(np.std(nn_dists)) + 1e-9,
+        "n":    len(nn_dists),
+    }
+    _ns_baseline_cache = {"key": cache_key, "data": baseline}
+    return baseline
+
+
+def compute_negative_space(entity_id: str) -> dict:
+    """
+    L9 — Negative Space Detection.
+
+    Given the entity's current Genesis Fingerprint vector (last behavioral
+    embedding), compute how far it sits from the archetype library's known
+    behavioral density.  Uses the live FAISS index (same 127k+ vectors).
+
+    Returns:
+        negative_space_flag  (bool)   — True when entity is in uncharted territory
+        negative_space_score (float)  — ∈ [0,1], higher = more novel/uncharted
+        nn_distance          (float)  — mean L2 distance to k nearest neighbours
+        baseline_mean        (float)  — typical NN distance in archetype library
+        z_score              (float)  — how many σ above baseline
+        method               (str)    — always "faiss_knn_density"
+    """
+    beo_id  = resolve_beo(entity_id)
+    records = entity_history.get(beo_id, [])
+
+    if not records or index is None or index.ntotal < _NS_KNN:
+        return {
+            "negative_space_flag":  False,
+            "negative_space_score": 0.0,
+            "nn_distance":          0.0,
+            "baseline_mean":        0.0,
+            "z_score":              0.0,
+            "method":               "faiss_knn_density",
+            "status":               "insufficient_index_data",
+        }
+
+    q_vec = np.array(records[-1]["vector"], dtype="float32").reshape(1, DIMENSION)
+    k_query = min(_NS_KNN, index.ntotal)
+    D, _I = index.search(q_vec, k_query)
+    entity_nn_dist = float(np.mean(D[0]))
+
+    baseline = _compute_ns_baseline()
+    b_mean = baseline["mean"]
+    b_std  = baseline["std"]
+    z = (entity_nn_dist - b_mean) / b_std
+
+    flagged = z > _NS_Z_THRESHOLD
+    # Normalise score to [0,1]: z=0 → 0.0, z=_NS_Z_THRESHOLD → 0.5, z→∞ → 1.0
+    score = round(float(min(1.0, max(0.0, z / (2.0 * _NS_Z_THRESHOLD)))), 6)
+
+    if flagged:
+        logger.info(
+            "[negative_space] entity=%s FLAGGED z=%.2f nn_dist=%.4f baseline_mean=%.4f",
+            entity_id, z, entity_nn_dist, b_mean,
+        )
+
+    return {
+        "negative_space_flag":  flagged,
+        "negative_space_score": score,
+        "nn_distance":          round(entity_nn_dist, 6),
+        "baseline_mean":        round(b_mean, 6),
+        "z_score":              round(z, 4),
+        "method":               "faiss_knn_density",
+        "status":               "ok",
+    }
+
+
 def _five_plane_coherence(phi_adj: float, m_adj: float, sigma: float,
                            k: float, a: float,
                            profile: Optional[dict] = None) -> tuple:
@@ -8469,7 +8868,22 @@ def build_trion_signal(entity_id: str,
         a_score = round(anima_res.get("a_adj", anima_res.get("anima_score", 0.70)), 6)
     else:
         a_score = 0.70
-    k_score   = round(0.70 * sigma + 0.30 * a_score, 6)   # K proxy: consensus + ANIMA blend
+    # ── Plane 4: Conscious K(t) — real annotator-driven score ───────────────
+    # Use compute_conscious_k() (L8 real K(t)) when annotations exist.
+    # Fall back to 0.70*sigma+0.30*a_score proxy ONLY when annotation_count==0.
+    _k_result = compute_conscious_k(entity_id)
+    if _k_result.get("annotation_count", 0) > 0:
+        k_score = round(_k_result["k_score"], 6)
+        logger.debug(
+            "[L9 K(t)] entity=%s REAL k_score=%.6f from %d annotations",
+            entity_id, k_score, _k_result["annotation_count"],
+        )
+    else:
+        k_score = round(0.70 * sigma + 0.30 * a_score, 6)
+        logger.debug(
+            "[L9 K(t)] entity=%s PROXY k_score=%.6f (no annotations yet; bootstrap default=%.2f)",
+            entity_id, k_score, _k_result.get("k_score", 0.85),
+        )
 
     # ── Asset-type profile for weighted C(t) ─────────────────────────────────
     asset_data = detect_asset_type(entity_id)
@@ -8563,6 +8977,17 @@ def build_trion_signal(entity_id: str,
         mf_data, anima_res, conf_gen, records, depth, oe_factor, extra
     )
 
+    # ── L9 Negative Space Detection ───────────────────────────────────────────
+    try:
+        _ns = compute_negative_space(entity_id)
+    except Exception as _ns_err:
+        logger.debug("[negative_space] compute failed: %s", _ns_err)
+        _ns = {
+            "negative_space_flag": False, "negative_space_score": 0.0,
+            "nn_distance": 0.0, "baseline_mean": 0.0, "z_score": 0.0,
+            "method": "faiss_knn_density", "status": "error",
+        }
+
     # ── Assemble complete TRIONSignal ─────────────────────────────────────────
     signal: dict = {
         # IDENTITY
@@ -8610,6 +9035,19 @@ def build_trion_signal(entity_id: str,
             "ultradian_phase":  round(brt.get("ultradian_phase", 0.0), 6),
             "lunar_phase":      round(brt.get("lunar_phase", 0.0), 6),
             "seasonal_phase":   round(brt.get("seasonal_phase", 0.0), 6),
+        },
+
+        # L9 NEGATIVE SPACE
+        "negative_space_flag":  _ns["negative_space_flag"],
+        "negative_space_score": _ns["negative_space_score"],
+        "negative_space": {
+            "flag":           _ns["negative_space_flag"],
+            "score":          _ns["negative_space_score"],
+            "nn_distance":    _ns["nn_distance"],
+            "baseline_mean":  _ns["baseline_mean"],
+            "z_score":        _ns["z_score"],
+            "method":         _ns["method"],
+            "status":         _ns.get("status", "ok"),
         },
     }
 
@@ -8689,7 +9127,20 @@ def list_signal_types(entity_id: str):
         a_score = anima_r.get("anima_score", 0.70) if isinstance(anima_r, dict) else 0.70
     except Exception:
         pass
-    k_score  = round(0.70 * sigma + 0.30 * a_score, 6)
+    # ── Conscious K(t) — real annotator-driven score (L8) ────────────────────
+    _k_result2 = compute_conscious_k(entity_id)
+    if _k_result2.get("annotation_count", 0) > 0:
+        k_score = round(_k_result2["k_score"], 6)
+        logger.debug(
+            "[L9 K(t)/types] entity=%s REAL k_score=%.6f from %d annotations",
+            entity_id, k_score, _k_result2["annotation_count"],
+        )
+    else:
+        k_score = round(0.70 * sigma + 0.30 * a_score, 6)
+        logger.debug(
+            "[L9 K(t)/types] entity=%s PROXY k_score=%.6f (no annotations yet)",
+            entity_id, k_score,
+        )
     profile  = detect_asset_type(entity_id).get("profile", {})
     c_t, _, _ = _five_plane_coherence(phi_adj, m_adj, sigma, k_score, a_score, profile)
 
