@@ -113,8 +113,8 @@ const UTXO_CHAINS = [
   {
     key: "doge", name: "Dogecoin", envKey: "DOGE_PRIVATE_KEY",
     network: "dogecoin",
-    utxoApi: addr => `https://dogechain.info/api/v1/address/unspent/${addr}`,
-    broadcastUrl: "https://dogechain.info/api/v1/transaction/broadcast",
+    utxoApi: addr => `https://api.blockcypher.com/v1/doge/main/addrs/${addr}?unspentOnly=true&limit=5`,
+    broadcastUrl: "https://api.blockcypher.com/v1/doge/main/txs/push",
     addressType: "p2pkh",
   },
   {
@@ -201,10 +201,9 @@ async function publishUtxo(chain, signal) {
       // Normalize different API response formats
       if (chain.key === "btc") {
         utxos = utxoResp.data || [];
-      } else if (chain.key === "doge") {
-        utxos = utxoResp.data?.unspent_outputs || [];
       } else {
-        utxos = utxoResp.data?.txs || utxoResp.data?.utxos || utxoResp.data || [];
+        // BlockCypher format (used for DOGE, LTC): txrefs array
+        utxos = utxoResp.data?.txrefs || utxoResp.data?.unspent_outputs || utxoResp.data?.txs || utxoResp.data?.utxos || utxoResp.data || [];
       }
     } catch (e) {
       console.warn(`  [${chain.key.toUpperCase()}] UTXO fetch error: ${e.message}`);
