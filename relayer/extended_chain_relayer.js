@@ -389,8 +389,12 @@ async function publishMove(chain, signal) {
       Aptos, AptosConfig, Network, Account, Ed25519PrivateKey,
     } = await import("@aptos-labs/ts-sdk");
 
+    // Use AIP-80 formatted key directly to suppress the deprecation warning.
+    // AIP-80 format: "ed25519-priv-0x<hex>". If the env var already carries the
+    // prefix we pass it through unchanged; otherwise we normalise to AIP-80.
     const hexKey     = rawKey.replace(/^ed25519-priv-/, "").replace(/^0x/, "");
-    const privateKey = new Ed25519PrivateKey("0x" + hexKey);
+    const aip80Key   = `ed25519-priv-0x${hexKey}`;
+    const privateKey = new Ed25519PrivateKey(aip80Key);
     const account    = Account.fromPrivateKey({ privateKey });
 
     const config = new AptosConfig({

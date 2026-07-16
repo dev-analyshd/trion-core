@@ -1695,7 +1695,10 @@ def _maybe_promote_to_ivfpq():
     if index.ntotal < MIN_TRAIN:
         return
     logger.info("Promoting index to IndexIVFPQ (NLIST=%d, M=%d, NBITS=%d) — %d vectors", NLIST, M, NBITS, index.ntotal)
-    all_vecs = [r["vector"] for recs in entity_history.values() for r in recs]
+    # Snapshot values() into a list before iteration to prevent
+    # "RuntimeError: dictionary changed size during iteration" when
+    # concurrent ingest threads append to entity_history mid-promotion.
+    all_vecs = [r["vector"] for recs in list(entity_history.values()) for r in recs]
     if len(all_vecs) < MIN_TRAIN:
         return
     training_vecs = np.array(all_vecs, dtype="float32")
@@ -1789,8 +1792,9 @@ def train_archetypes() -> dict:
         return {"status": "faiss_unavailable", "vectors": 0, "required": NUM_ARCHETYPES}
 
     # Collect all vectors from entity_history (works on both FlatL2 and IndexIVFPQ)
+    # Snapshot to list() first to avoid dict-size-changed errors under concurrent ingest.
     all_vecs = []
-    for records in entity_history.values():
+    for records in list(entity_history.values()):
         for r in records:
             all_vecs.append(r["vector"])
     n_vecs = len(all_vecs)
