@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Activity, Layers, Network, Shield, Database,
   Cpu, GitBranch, ChevronLeft, ChevronRight, Brain, Building2,
-  Radio, BellRing, DownloadCloud,
+  Radio, BellRing, DownloadCloud, Compass,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
@@ -14,28 +14,29 @@ const NAV = [
   {
     section: 'Intelligence',
     items: [
-      { href: '/',         label: 'Overview',      icon: Activity   },
-      { href: '/entity',   label: 'Entity Intel',  icon: Brain      },
-      { href: '/protocol', label: 'Protocol Intel', icon: Building2 },
-      { href: '/feed',     label: 'Live Feed',     icon: Layers     },
+      { href: '/',          label: 'Overview',       icon: Activity   },
+      { href: '/entity',    label: 'Entity Intel',   icon: Brain      },
+      { href: '/protocol',  label: 'Protocol Intel', icon: Building2  },
+      { href: '/feed',      label: 'Live Feed',      icon: Layers     },
     ],
   },
   {
-    section: 'Analytics',
+    section: 'Explorer',
     items: [
-      { href: '/chains',      label: 'Chain Network', icon: Network   },
-      { href: '/leaderboard', label: 'Leaderboard',   icon: GitBranch },
-      { href: '/anima',       label: 'ANIMA Engine',  icon: Cpu       },
+      { href: '/explorer',    label: 'BH Explorer',    icon: Compass    },
+      { href: '/chains',      label: 'Chain Network',  icon: Network    },
+      { href: '/leaderboard', label: 'Leaderboard',    icon: GitBranch  },
+      { href: '/anima',       label: 'ANIMA Engine',   icon: Cpu        },
     ],
   },
   {
     section: 'Infrastructure',
     items: [
-      { href: '/relayers',  label: 'Relayer Status', icon: Radio        },
-      { href: '/alerts',    label: 'Attack Alerts',  icon: BellRing     },
+      { href: '/relayers',  label: 'Relayer Status',   icon: Radio        },
+      { href: '/alerts',    label: 'Attack Alerts',    icon: BellRing     },
       { href: '/backfill',  label: 'Genesis Backfill', icon: DownloadCloud },
-      { href: '/contracts', label: 'Contracts',      icon: Shield       },
-      { href: '/zg',        label: '0G Network',     icon: Database     },
+      { href: '/contracts', label: 'Contracts',        icon: Shield       },
+      { href: '/zg',        label: '0G Network',       icon: Database     },
     ],
   },
 ];
@@ -77,6 +78,7 @@ export default function Sidebar() {
             )}
             {group.items.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
+              const isExplorer = href === '/explorer';
               return (
                 <Link
                   key={href}
@@ -84,20 +86,36 @@ export default function Sidebar() {
                   className={clsx(
                     'flex items-center gap-2.5 px-3 py-2 mx-1 rounded relative transition-all duration-150',
                     active
-                      ? 'bg-[rgba(0,194,255,0.08)] text-cyan'
+                      ? isExplorer
+                        ? 'bg-[rgba(91,72,220,0.12)] text-[#8B7EFF]'
+                        : 'bg-[rgba(0,194,255,0.08)] text-cyan'
                       : 'text-t2 hover:bg-border hover:text-t1'
                   )}
                   title={collapsed ? label : undefined}
                 >
                   {active && (
-                    <span className="absolute left-0 top-0.5 bottom-0.5 w-0.5 bg-cyan rounded-full" />
+                    <span className={clsx(
+                      'absolute left-0 top-0.5 bottom-0.5 w-0.5 rounded-full',
+                      isExplorer ? 'bg-[#8B7EFF]' : 'bg-cyan'
+                    )} />
                   )}
                   <Icon
                     size={15}
-                    className={clsx('flex-shrink-0', active ? 'text-cyan' : 'opacity-60')}
+                    className={clsx(
+                      'flex-shrink-0',
+                      active
+                        ? isExplorer ? 'text-[#8B7EFF]' : 'text-cyan'
+                        : 'opacity-60'
+                    )}
                   />
                   {!collapsed && (
                     <span className="text-[12px] font-medium whitespace-nowrap">{label}</span>
+                  )}
+                  {/* Explorer pill */}
+                  {!collapsed && isExplorer && !active && (
+                    <span className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[rgba(91,72,220,0.15)] text-[#8B7EFF] uppercase tracking-wide">
+                      New
+                    </span>
                   )}
                 </Link>
               );
