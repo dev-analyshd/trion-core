@@ -28,4 +28,9 @@ export const endpoints = {
   protocolSubEntities: (addr: string) => `/api/v1/protocol/${encodeURIComponent(addr)}/sub-entities`,
   protocolSupportedRoles: '/api/v1/protocol/supported-roles',
   self: '/api/v1/self',
+  // Infrastructure
+  backfillStatus: '/api/v1/backfill/status',
+  alerts: '/api/v1/alerts',
+  alertsStats: '/api/v1/alerts/stats',
+  relayersStatus: '/api/v1/relayers/status',
 };

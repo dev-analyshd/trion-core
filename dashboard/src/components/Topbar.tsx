@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { endpoints, fetchJSON } from '@/lib/api';
-import type { HealthData, SelfVerificationData } from '@/lib/types';
+import type { HealthData, SelfVerificationData, ChainsData } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Wifi, WifiOff, ShieldAlert, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
@@ -17,10 +17,17 @@ export default function Topbar({ title }: Props) {
     refreshInterval: 5000,
     shouldRetryOnError: false,
   });
+  const { data: chains } = useSWR<ChainsData>(endpoints.chains, fetchJSON, {
+    refreshInterval: 60000,
+    shouldRetryOnError: false,
+  });
 
   const healthy = data?.status === 'healthy';
   const ts = data?.timestamp ? new Date(data.timestamp * 1000) : null;
   const selfSilenced = self?.status === 'SILENCED';
+  const liveChains = chains?.chains?.filter(c => c.status === 'live').length;
+  const totalChains = chains?.chains?.length;
+  const chainsLabel = totalChains ? `${liveChains ?? totalChains}/${totalChains} Chains` : 'Chains Live';
 
   return (
     <header className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0 bg-sidebar">
@@ -32,7 +39,7 @@ export default function Topbar({ title }: Props) {
         {/* Chains live pill */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 border border-border rounded text-[11px] text-t2">
           <span className={clsx('w-1.5 h-1.5 rounded-full animate-blink', healthy ? 'bg-green-400' : 'bg-amber-400')} />
-          37 Chains Live
+          {chainsLabel}
         </div>
 
         {/* Block */}
