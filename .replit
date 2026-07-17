@@ -58,7 +58,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "DATABASE_URL=\"$TIMESCALEDB_URL\" RELAYER_PRIVATE_KEY=\"$RELAYER_PRIVATE_KEY\" ZG_PRIVATE_KEY=\"$DEPLOY_0G_PRIVATE\" ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
+args = "ORACLE_API_URL=\"http://127.0.0.1:5000\" POLL_INTERVAL_MS=60000 ZG_EXECUTION_GATE_ADDR=\"0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b\" ZG_POLL_INTERVAL_MS=120000 ZG_CHAIN_ID=16661 ZERO_G_RPC=\"https://evmrpc.0g.ai\" bash supervisors/trion_and_zg_relayer.sh"
 
 [[workflows.workflow]]
 name = "Native Relayer"

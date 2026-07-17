@@ -9402,3 +9402,133 @@ def manipulation_attack_cost(entity_id: str):
 def favicon():
     """Serve favicon — prevents 404 in browser console."""
     return app.send_static_file("favicon.svg"), 200, {"Content-Type": "image/svg+xml"}
+
+
+# ── System / Infrastructure routes ────────────────────────────────────────────
+
+@app.route("/api/v1/backfill/status")
+def backfill_status():
+    """Return genesis backfill progress for all chains from checkpoint files."""
+    import glob as _glob
+    checkpoints = []
+    for path in sorted(_glob.glob("genesis_backfill_checkpoint_*.json")):
+        chain_key = path.replace("genesis_backfill_checkpoint_", "").replace(".json", "")
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            data["chain"] = chain_key
+            checkpoints.append(data)
+        except Exception:
+            checkpoints.append({"chain": chain_key, "error": "unreadable"})
+    total_indexed = sum(c.get("indexed", 0) for c in checkpoints if "indexed" in c)
+    return jsonify({
+        "chains": checkpoints,
+        "total_chains": len(checkpoints),
+        "total_indexed": total_indexed,
+        "timestamp": int(time.time()),
+    })
+
+
+@app.route("/api/v1/alerts")
+def alerts_proxy():
+    """Proxy attack alerts from the webhook service (port 6000)."""
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen("http://127.0.0.1:6000/alerts", timeout=4) as r:
+            return app.response_class(r.read(), status=200, mimetype="application/json")
+    except Exception as e:
+        return jsonify({"alerts": [], "error": str(e)}), 200
+
+
+@app.route("/api/v1/alerts/stats")
+def alerts_stats_proxy():
+    """Proxy alert stats from the webhook service (port 6000)."""
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen("http://127.0.0.1:6000/alerts/stats", timeout=4) as r:
+            return app.response_class(r.read(), status=200, mimetype="application/json")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 200
+
+
+@app.route("/api/v1/relayers/status")
+def relayers_status():
+    """Return live/dry-run status for each relayer by inspecting env var presence."""
+    def _set(key):
+        v = os.environ.get(key, "").strip()
+        return bool(v)
+
+    evm_live = _set("RELAYER_PRIVATE_KEY")
+    zg_live  = _set("DEPLOY_0G_PRIVATE")
+
+    utxo = [
+        {"chain": "BTC",  "live": _set("BTC_TAPROOT_WIF")},
+        {"chain": "LTC",  "live": _set("LITECOIN_PRIVATE_KEY")},
+        {"chain": "DOGE", "live": _set("DOGE_PRIVATE_KEY")},
+        {"chain": "DASH", "live": _set("DASH_PRIVATE_KEY")},
+    ]
+    cosmos = [
+        {"chain": "COSMOS-HUB", "live": _set("COSMOS_PRIVATE_KEY")},
+        {"chain": "KAVA",       "live": _set("KAVA_PRIVATE_KEY")},
+        {"chain": "INJECTIVE",  "live": _set("INJECTIVE_PRIVATE_KEY")},
+        {"chain": "SEI",        "live": _set("SEI_PRIVATE_KEY")},
+        {"chain": "DYDX",       "live": _set("DYDX_PRIVATE_KEY")},
+        {"chain": "INITIA",     "live": _set("INITIA_PRIVATE_KEY")},
+    ]
+    move_sui = [
+        {"chain": "APTOS",    "live": _set("APTOS_PRIVATE_KEY")},
+        {"chain": "MOVEMENT", "live": _set("MOVEMENT_PRIVATE_KEY")},
+        {"chain": "SUI",      "live": _set("SUI_PRIVATE_KEY")},
+    ]
+    other_ext = [
+        {"chain": "TRON", "live": _set("TRON_PRIVATE_KEY")},
+        {"chain": "PI",   "live": _set("PI_SECRET_KEY")},
+        {"chain": "XRPL", "live": _set("XRPL_PRIVATE_KEY")},
+        {"chain": "ALGO", "live": _set("ALGORAND_PRIVATE_KEY")},
+        {"chain": "TAO",  "live": _set("TAO_PRIVATE_KEY")},
+        {"chain": "XLM",  "live": _set("XLM_PRIVATE_KEY")},
+        {"chain": "EGLD", "live": _set("EGLD_PRIVATE_KEY")},
+        {"chain": "ZIL",  "live": _set("ZIL_PRIVATE_KEY")},
+        {"chain": "WAVES","live": _set("WAVES_PRIVATE_KEY")},
+    ]
+    native = [
+        {"vm": "SVM (Solana)",  "live": _set("SOLANA_RELAYER_PRIVATE_KEY")},
+        {"vm": "NEAR",         "live": _set("NEAR_PRIVATE_KEY")},
+        {"vm": "TON",          "live": _set("TON_PRIVATE_KEY_HEX")},
+        {"vm": "Polkadot",     "live": _set("DOT_MNEMONIC")},
+        {"vm": "StarkNet",     "live": _set("STARKNET_PRIVATE_KEY")},
+    ]
+
+    ext_all = utxo + cosmos + move_sui + other_ext
+    ext_live = sum(1 for c in ext_all if c["live"])
+    native_live = sum(1 for v in native if v["live"])
+
+    return jsonify({
+        "trion_evm": {
+            "mode": "LIVE" if evm_live else "DRY_RUN",
+            "live": evm_live,
+            "chains": 53,
+            "description": "EVM relayer — publishes to 53+ mainnet chains",
+        },
+        "zg_gate": {
+            "mode": "LIVE" if zg_live else "DRY_RUN",
+            "live": zg_live,
+            "description": "0G ExecutionGate relayer",
+        },
+        "extended": {
+            "mode": "LIVE" if ext_live > 0 else "DRY_RUN",
+            "live_chains": ext_live,
+            "total_chains": len(ext_all),
+            "utxo": utxo,
+            "cosmos": cosmos,
+            "move_sui": move_sui,
+            "other": other_ext,
+        },
+        "native": {
+            "mode": "LIVE" if native_live > 0 else "DRY_RUN",
+            "live_vms": native_live,
+            "total_vms": len(native),
+            "vms": native,
+        },
+        "timestamp": int(time.time()),
+    })

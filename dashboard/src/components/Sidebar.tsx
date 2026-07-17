@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity, Layers, Network, Shield, Database,
-  Cpu, GitBranch, ChevronLeft, ChevronRight, Brain, Building2
+  Cpu, GitBranch, ChevronLeft, ChevronRight, Brain, Building2,
+  Radio, BellRing, DownloadCloud,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
@@ -13,25 +14,28 @@ const NAV = [
   {
     section: 'Intelligence',
     items: [
-      { href: '/', label: 'Overview', icon: Activity },
-      { href: '/entity', label: 'Entity Intel', icon: Brain },
+      { href: '/',         label: 'Overview',      icon: Activity   },
+      { href: '/entity',   label: 'Entity Intel',  icon: Brain      },
       { href: '/protocol', label: 'Protocol Intel', icon: Building2 },
-      { href: '/feed', label: 'Live Feed', icon: Layers },
+      { href: '/feed',     label: 'Live Feed',     icon: Layers     },
     ],
   },
   {
-    section: 'Data Layers',
+    section: 'Analytics',
     items: [
-      { href: '/chains', label: 'Chain Network', icon: Network },
-      { href: '/anima', label: 'FAISS ANIMA', icon: Cpu },
-      { href: '/leaderboard', label: 'Leaderboard', icon: GitBranch },
+      { href: '/chains',      label: 'Chain Network', icon: Network   },
+      { href: '/leaderboard', label: 'Leaderboard',   icon: GitBranch },
+      { href: '/anima',       label: 'ANIMA Engine',  icon: Cpu       },
     ],
   },
   {
     section: 'Infrastructure',
     items: [
-      { href: '/contracts', label: 'Contracts', icon: Shield },
-      { href: '/zg', label: '0G Network', icon: Database },
+      { href: '/relayers',  label: 'Relayer Status', icon: Radio        },
+      { href: '/alerts',    label: 'Attack Alerts',  icon: BellRing     },
+      { href: '/backfill',  label: 'Genesis Backfill', icon: DownloadCloud },
+      { href: '/contracts', label: 'Contracts',      icon: Shield       },
+      { href: '/zg',        label: '0G Network',     icon: Database     },
     ],
   },
 ];
@@ -111,7 +115,7 @@ export default function Sidebar() {
             </div>
             <div className="overflow-hidden">
               <p className="text-[12px] font-semibold text-t1 truncate">Hudu Yusuf</p>
-              <p className="text-[10px] text-t3">Analys · Creator</p>
+              <p className="text-[10px] text-t3">Analyst · Creator</p>
             </div>
           </div>
         </div>
