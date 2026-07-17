@@ -50,7 +50,6 @@ export interface FeedEntry {
   threshold: number;
   limiting_plane: string;
   timestamp: number;
-  // Protocol health events (kind === "PROTOCOL_HEALTH")
   kind?: string;
   grade?: string;
   threat_level?: string;
@@ -164,4 +163,82 @@ export interface SelfVerificationData {
   parent_key: string;
   behavioral_event: string;
   created_at: string;
+}
+
+// ── Infrastructure ────────────────────────────────────────────────────────────
+
+export interface BackfillChain {
+  chain: string;
+  last_block?: number;
+  last_height?: number;
+  indexed?: number;
+  gaps?: unknown[];
+  error?: string;
+}
+
+export interface BackfillStatus {
+  chains: BackfillChain[];
+  total_chains: number;
+  total_indexed: number;
+  timestamp: number;
+}
+
+export interface AlertEntry {
+  entity_id: string;
+  entity_label?: string;
+  event: string;
+  message: string;
+  fired_at: string;
+  coherence?: number;
+  threshold?: number;
+  limiting_plane?: string;
+  prev_limiting?: string;
+  archetype?: string;
+  planes?: Record<string, number>;
+  status?: string;
+}
+
+export interface AlertsData {
+  alerts: AlertEntry[];
+  error?: string;
+}
+
+export interface RelayerChainStatus {
+  chain: string;
+  live: boolean;
+}
+
+export interface RelayerVmStatus {
+  vm: string;
+  live: boolean;
+}
+
+export interface RelayersStatus {
+  trion_evm: {
+    mode: string;
+    live: boolean;
+    chains: number;
+    description: string;
+  };
+  zg_gate: {
+    mode: string;
+    live: boolean;
+    description: string;
+  };
+  extended: {
+    mode: string;
+    live_chains: number;
+    total_chains: number;
+    utxo: RelayerChainStatus[];
+    cosmos: RelayerChainStatus[];
+    move_sui: RelayerChainStatus[];
+    other: RelayerChainStatus[];
+  };
+  native: {
+    mode: string;
+    live_vms: number;
+    total_vms: number;
+    vms: RelayerVmStatus[];
+  };
+  timestamp: number;
 }
