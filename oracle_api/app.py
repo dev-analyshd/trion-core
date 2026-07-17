@@ -226,62 +226,30 @@ def faiss_stats():
 
 @app.route("/api/v1/chains")
 def chain_status():
-    """Live status of all 40 indexed chains across 13 VM families."""
-    chains = [
-        # ── 0G Networks (primary hackathon target) ─────────────────────────────
-        {"id": "0g-mainnet",   "name": "0G Mainnet",         "vm": "EVM",        "chain_id": 16661,    "status": "live", "color": "blue",   "note": "TRIONExecutionGate LIVE on mainnet — 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b — deployed block 33234152"},
-        {"id": "0g-galileo",   "name": "0G Galileo Testnet", "vm": "EVM",        "chain_id": 16602,    "status": "live", "color": "cyan",   "note": "Testnet contracts: OracleV3, Liquidity, TravelRule, Escrow"},
-        # ── EVM Mainnets ───────────────────────────────────────────────────────
-        {"id": "eth-mainnet",  "name": "Ethereum Mainnet",  "vm": "EVM",        "chain_id": 1,        "status": "live", "color": "green",  "note": "Rust EVM indexer — per-tx BH live"},
-        {"id": "arb-mainnet",  "name": "Arbitrum One",      "vm": "EVM",        "chain_id": 42161,    "status": "live", "color": "green",  "note": "Rust EVM indexer — 462M+ blocks, per-tx BH live"},
-        {"id": "base-mainnet", "name": "Base Mainnet",      "vm": "EVM",        "chain_id": 8453,     "status": "live", "color": "green",  "note": "Rust EVM indexer — 45M+ blocks, per-tx BH live"},
-        {"id": "op-mainnet",   "name": "Optimism Mainnet",  "vm": "EVM",        "chain_id": 10,       "status": "live", "color": "green",  "note": "Rust EVM indexer — 151M+ blocks, per-tx BH live"},
-        {"id": "polygon",      "name": "Polygon Mainnet",   "vm": "EVM",        "chain_id": 137,      "status": "live", "color": "green",  "note": "Rust EVM indexer live"},
-        {"id": "mantle",       "name": "Mantle Mainnet",    "vm": "EVM",        "chain_id": 5000,     "status": "live", "color": "green",  "note": "Rust EVM indexer — 95M+ blocks"},
-        {"id": "linea",        "name": "Linea Mainnet",     "vm": "EVM",        "chain_id": 59144,    "status": "live", "color": "green",  "note": "Rust EVM indexer — 30M+ blocks"},
-        {"id": "scroll",       "name": "Scroll Mainnet",    "vm": "EVM",        "chain_id": 534352,   "status": "live", "color": "green",  "note": "Rust EVM indexer — 33M+ blocks"},
-        {"id": "hashkey",      "name": "HashKey Mainnet",   "vm": "EVM",        "chain_id": 177,      "status": "live", "color": "green",  "note": "Rust EVM indexer live"},
-        # ── EVM Testnets ───────────────────────────────────────────────────────
-        {"id": "arb-sepolia",  "name": "Arbitrum Sepolia",  "vm": "EVM",        "chain_id": 421614,   "status": "live", "color": "green"},
-        {"id": "base-sepolia", "name": "Base Sepolia",      "vm": "EVM",        "chain_id": 84532,    "status": "live", "color": "green"},
-        {"id": "op-sepolia",   "name": "Optimism Sepolia",  "vm": "EVM",        "chain_id": 11155420, "status": "live", "color": "green"},
-        {"id": "eth-sepolia",  "name": "Ethereum Sepolia",  "vm": "EVM",        "chain_id": 11155111, "status": "live", "color": "green"},
-        {"id": "bnb-testnet",  "name": "BNB Testnet",       "vm": "EVM",        "chain_id": 97,       "status": "live", "color": "green",  "note": "Rust EVM indexer live"},
-        # ── SVM ────────────────────────────────────────────────────────────────
-        {"id": "solana",       "name": "Solana Mainnet",    "vm": "SVM",        "chain_id": 101,      "status": "live", "color": "green",  "note": "Rust SVM indexer live"},
-        {"id": "solana-dev",   "name": "Solana Devnet",     "vm": "SVM",        "chain_id": 103,      "status": "live", "color": "green",  "note": "4.95 SOL — 5 TXs/cycle confirmed"},
-        # ── Cairo VM ───────────────────────────────────────────────────────────
-        {"id": "starknet",     "name": "StarkNet Sepolia",  "vm": "Cairo VM",   "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust StarkNet indexer live"},
-        # ── NEAR VM ────────────────────────────────────────────────────────────
-        {"id": "near",         "name": "NEAR Testnet",      "vm": "NEAR VM",    "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust NEAR indexer — 249M+ blocks"},
-        # ── TVM ────────────────────────────────────────────────────────────────
-        {"id": "ton",          "name": "TON Testnet",       "vm": "TVM",        "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust TON indexer live"},
-        {"id": "tron",         "name": "TRON Mainnet",      "vm": "TVM",        "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust TRON indexer live"},
-        # ── PVM ────────────────────────────────────────────────────────────────
-        {"id": "dot",          "name": "Polkadot Westend",  "vm": "PVM",        "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust PVM indexer live"},
-        # ── Move VM ────────────────────────────────────────────────────────────
-        {"id": "aptos",        "name": "Aptos Mainnet",     "vm": "Move VM",    "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Aptos indexer live"},
-        {"id": "movement",     "name": "Movement Mainnet",  "vm": "Move VM",    "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Movement indexer live"},
-        # ── Sui VM ─────────────────────────────────────────────────────────────
-        {"id": "sui",          "name": "SUI Mainnet",       "vm": "Sui VM",     "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust SUI indexer live"},
-        # ── Cosmos SDK ─────────────────────────────────────────────────────────
-        {"id": "cosmos",       "name": "Cosmos Hub",        "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        {"id": "kava",         "name": "Kava Mainnet",      "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        {"id": "inj",          "name": "Injective",         "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        {"id": "sei",          "name": "SEI Network",       "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        {"id": "dydx",         "name": "dYdX Chain",        "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        {"id": "initia",       "name": "Initia Mainnet",    "vm": "Cosmos SDK", "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Cosmos indexer live"},
-        # ── UTXO ───────────────────────────────────────────────────────────────
-        {"id": "btc",          "name": "Bitcoin Mainnet",   "vm": "UTXO",       "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust UTXO indexer live"},
-        {"id": "ltc",          "name": "Litecoin Mainnet",  "vm": "UTXO",       "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust UTXO indexer live"},
-        {"id": "doge",         "name": "Dogecoin Mainnet",  "vm": "UTXO",       "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust UTXO indexer live"},
-        {"id": "dash",         "name": "Dash Mainnet",      "vm": "UTXO",       "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust UTXO indexer live"},
-        # ── Stellar/Pi ─────────────────────────────────────────────────────────
-        {"id": "pi",           "name": "Pi Network",        "vm": "Stellar",    "chain_id": 0,        "status": "live", "color": "green",  "note": "Rust Pi indexer live"},
-    ]
+    """Live status of all 100+ indexed chains across 14 VM families."""
+    from oracle_api.chains_registry import get_all_chains
+    chains = get_all_chains()
     live_count = sum(1 for c in chains if c["status"] == "live")
     vm_families = len(set(c["vm"] for c in chains))
     return jsonify({"chains": chains, "total": len(chains), "live": live_count, "indexed": len(chains), "vm_families": vm_families, "timestamp": int(time.time())})
+
+
+@app.route("/api/v1/explorer/chains")
+def explorer_chains():
+    """BH Explorer — 100+ chains enriched with BH FAISS stats per chain."""
+    from oracle_api.chains_registry import get_enriched_chains
+    chains = get_enriched_chains()
+    live = sum(1 for c in chains if c["status"] == "live")
+    total_bh = sum(c["bh_proofs"] for c in chains)
+    vm_families = len(set(c["vm"] for c in chains))
+    return jsonify({
+        "chains": chains,
+        "total": len(chains),
+        "live": live,
+        "total_bh_proofs": total_bh,
+        "vm_families": vm_families,
+        "timestamp": int(time.time()),
+    })
 
 # ── Behavioral plane computation — hash-seeded + live FAISS enrichment ───────
 # Hash gives stable deterministic base values per entity.
