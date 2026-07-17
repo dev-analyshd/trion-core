@@ -1,67 +1,39 @@
 # TRION Protocol
 
-Multi-chain behavioral truth oracle and DeFi firewall. Analyzes transaction patterns across 100+ chains and 13 VM families, computes Behavioral Hashes (BH) and a multi-dimensional Coherence score $C(t)$, then blocks hostile wallets pre-execution.
+## Overview
+TRION is a multi-chain behavioral truth oracle and pre-execution DeFi firewall. It derives cryptographically verified behavioral signals from on-chain activity across 100+ chains and 13 VM families to identify and block attackers (flash loans, oracle manipulation, etc.) before they execute.
 
-## Architecture
+## Stack
+- **Core / API**: Python (Flask + Flask-SocketIO), port 5000 — `serve.py` / `oracle_api/app.py`
+- **FAISS ANIMA engine**: Python (FastAPI), port 8000 — `akashic/faiss_service.py`; 64 trained behavioral archetypes, k-NN vector search
+- **Relayers** (Node.js / ESM): `relayer/` — EVM + 0G; `native-relayer/` — SVM/NEAR/TON/PVM/StarkNet; `relayer/extended_chain_relayer.js` — 38 non-EVM chains (UTXO, Cosmos, Move, etc.)
+- **Rust indexers**: `rust-indexers/` — EVM (53 chains) + Solana mainnet
+- **Dashboard**: Next.js 14, port 3000 — `dashboard/`
+- **Attack Alert Webhook**: Python, port 6000 — `attack_alert_webhook.py`
+- **Genesis Backfill**: `scripts/genesis_backfill_runner.sh`
+- **Package management**: `uv` (Python), `npm` (Node.js), `cargo` (Rust)
 
-| Component | Runtime | Port | Workflow |
-|---|---|---|---|
-| Oracle API + Frontend | Python/Flask + SocketIO | 5000 | `Start application` |
-| FAISS ANIMA Engine | Python/FastAPI | 8000 | `FAISS ANIMA` |
-| Dashboard | Next.js | 3000 | `TRION Dashboard` |
-| EVM + 0G Relayer | Node.js | — | `TRION Relayer` |
-| Extended Chain Relayer | Node.js | — | `Extended Chain Relayer` |
-| Native VM Relayer | Node.js (tsx) | — | `Native Relayer` |
-| Rust Indexers (EVM + SVM) | Rust | — | `Rust Indexers` |
-| Attack Alert Webhook | Python/Flask | 6000 | `Attack Alert Webhook` |
-| Genesis Backfill | Python | — | `Genesis Backfill` |
+## Running on Replit
+All 9 services are configured as Replit workflows and start automatically:
 
-## Entry Points
+| Workflow | Port | Notes |
+|---|---|---|
+| Start application | 5000 | Oracle API + frontend |
+| FAISS ANIMA | 8000 | Vector DB; must start before Rust Indexers |
+| TRION Relayer | — | EVM + 0G relayer supervisor |
+| Extended Chain Relayer | — | 38 non-EVM chains |
+| Native Relayer | — | SVM/NEAR/TON/PVM/StarkNet |
+| Rust Indexers | — | Waits for FAISS on port 8000 |
+| Attack Alert Webhook | 6000 | Monitors entities every 30s |
+| TRION Dashboard | 3000 | Next.js UI |
+| Genesis Backfill | — | Historical block indexer |
 
-- `serve.py` — Oracle API with WebSocket support (imports from `oracle_api/socket_push.py`)
-- `akashic/faiss_service.py` — FAISS vector engine (FastAPI)
-- `dashboard/` — Next.js monitoring UI
-- `relayer/relayer.js` — EVM signal publisher
-- `relayer/extended_chain_relayer.js` — 38 non-EVM chain relayer
-- `native-relayer/native_relayer.js` — Solana, NEAR, TON, Polkadot, StarkNet relayer
-- `supervisors/trion_and_zg_relayer.sh` — Supervisor for TRION + 0G relayer stack
-- `supervisors/rust_indexers.sh` — Rust indexer supervisor (builds on first run ~2 min)
+## Secrets required to go live
+All relayers run in **DRY_RUN** mode until private keys are configured:
+- `RELAYER_PRIVATE_KEY` — EVM relayer signing key
+- `DEPLOY_0G_PRIVATE` — 0G chain signing key
+- Per-chain keys for native relayer: `SVM_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_MNEMONIC`, `PVM_MNEMONIC`, `STK_PRIVATE_KEY`
+- Per-chain keys for extended relayer: BTC/LTC/DOGE/DASH/CARDANO/Cosmos ecosystem/APTOS/MOVEMENT/SUI/TRON/etc.
 
-## Python Dependencies
-
-Managed by `uv`. Root environment has `oracle_api/requirements.txt` installed.
-FAISS ANIMA has its own `uv` virtualenv (`.pythonlibs/`).
-
-## Node Dependencies
-
-Each subdirectory has its own `node_modules`:
-- `relayer/` — ethers, axios, bitcoinjs-lib, @cosmjs/stargate, @mysten/sui, @aptos-labs/ts-sdk
-- `native-relayer/` — @polkadot/api, @solana/web3.js, @ton/ton, near-api-js, starknet, tsx
-- `dashboard/` — Next.js 14, React, recharts, swr
-
-`tsx` is installed globally at `.config/npm/node_global/bin/tsx` and used by the native relayer.
-
-## Key Data Paths
-
-- `./akashic/akashic_faiss.index` — FAISS vector index (128-dim, up to 100k+ vectors)
-- `./akashic/faiss_state.db` — SQLite entity state
-- `./akashic/bh_ledger.db` — Behavioral Hash ledger (symlinked to workspace root for Oracle API)
-- `./data/trion_gk_state.json` — L0 daemon chain state
-
-## Notes
-
-- `bh_ledger.db` is symlinked from `./akashic/bh_ledger.db` → `./bh_ledger.db` (Oracle API expects it at root)
-- FAISS restore: `_persist_all` is guarded with `try/except NameError` in `_restore_from_timescaledb()` because it's called during module init before the function definition at line ~10920 is reached
-- Several EVM oracle contract addresses (`ETH_MAINNET_ORACLE_ADDR`, `ARB_MAINNET_ORACLE_ADDR`, etc.) are not set — relayer logs DRY_RUN for those chains
-- Some testnet wallets (eth-sepolia, bnb-testnet, 0g-galileo) show "insufficient funds" — fund them to enable those chains
-- Cardano, OSMOSIS, XRPL, ALGO, ICP, etc. run in DRY_RUN mode — keys not configured
-
-## Environment Variables
-
-All set as Replit shared env vars. See `.env.example` for the full reference.
-Key secrets (in Replit Secrets): `RELAYER_PRIVATE_KEY`, `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, `STARKNET_PRIVATE_KEY`, `APTOS_PRIVATE_KEY`, `SUI_PRIVATE_KEY`, `COSMOS_PRIVATE_KEY`, `TRON_PRIVATE_KEY`, `TIMESCALEDB_URL`, `DEPLOY_0G_PRIVATE`, `ZG_AKASHIC_CONTRACT`, plus BTC/UTXO WIF keys and other chain keys.
-
-## User Preferences
-
-- All private keys and secrets managed via Replit Secrets (never in `.env` files)
-- RPC endpoints use public defaults from `.env.example`; override via Replit shared env vars for production
+## User preferences
+<!-- Add user preferences here -->
