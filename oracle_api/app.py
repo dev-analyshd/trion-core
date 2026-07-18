@@ -112,7 +112,8 @@ def explorer():
 
 @app.route("/pitch")
 def pitch():
-    return render_template("pitch.html")
+    from flask import redirect
+    return redirect("/")
 
 
 @app.route("/api/v1/zg")
@@ -4408,7 +4409,7 @@ def bh_chains():
     })
 
 
-@app.route("/chains")
+@app.route("/chains-legacy")
 def chains_page():
     return render_template("chains.html")
 
