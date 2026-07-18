@@ -144,8 +144,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd dashboard && npm run dev"
-waitForPort = 3000
+args = "echo 'Dashboard served by Oracle API at http://0.0.0.0:5000 — navigate to the webview' && sleep infinity"
 
 [[workflows.workflow]]
 name = "Genesis Backfill"
