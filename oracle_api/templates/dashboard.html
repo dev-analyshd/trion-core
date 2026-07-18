@@ -765,6 +765,12 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
       <svg class="ni-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 7v5"/><circle cx="8" cy="4.5" r=".6" fill="currentColor"/></svg>
       <span class="ni-label">About</span>
     </div>
+    <div class="nav-section">Tools</div>
+    <a href="/judge" target="_blank" style="display:flex;align-items:center;gap:9px;padding:7px 10px 7px 14px;border-radius:8px;margin:1px 8px;color:var(--text2);transition:all .18s;text-decoration:none" onmouseover="this.style.background='var(--teal-glow)';this.style.color='var(--teal)'" onmouseout="this.style.background='';this.style.color=''">
+      <svg style="width:16px;height:16px;flex-shrink:0;opacity:.55" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v7H2z"/><path d="M5 10v3M11 10v3M3 13h10"/></svg>
+      <span style="font-size:12px;font-weight:500">Judge</span>
+      <svg style="width:9px;height:9px;opacity:.3;margin-left:auto" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </a>
   </nav>
 
   <div id="sb-footer">
@@ -983,7 +989,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
             <div class="card-body">
               <div class="score-row"><span class="s-label">Θ(t) Current</span><span class="s-val text-cyan" id="ov-theta">—</span></div>
               <div class="score-row"><span class="s-label">Volatility V(t)</span><span class="s-val" id="ov-vt">—</span></div>
-              <div class="score-row"><span class="s-label">Formula</span><span class="s-val mono" style="font-size:10px">Θ = 0.55 + 0.37×V(t)</span></div>
+              <div class="score-row"><span class="s-label">Base</span><span class="s-val mono">0.55 + volatility factor</span></div>
               <div class="progress mt8"><div class="progress-fill" id="ov-theta-bar" style="width:70%"></div></div>
             </div>
           </div>
@@ -1642,7 +1648,7 @@ async function loadFeed() {
   if(!items.length) { el.innerHTML='<div class="loading" style="padding:30px"><p>Waiting for signals…</p></div>'; return; }
   // Render as table
   el.innerHTML = `<table class="feed-table">
-    <thead><tr><th>Time</th><th>Entity</th><th>Archetype</th><th>Signal</th><th>Φ Score</th></tr></thead>
+    <thead><tr><th>Time</th><th>Entity</th><th>Archetype</th><th>Signal</th><th>Score</th></tr></thead>
     <tbody>${items.slice(0,10).map(it => {
       const st = (it.signal_type||'SILENCE').toUpperCase();
       const dotClass = st==='INTERCEPT'||st==='HOSTILE'?'intercept':st==='ACTIVE'?'active':'silence';
@@ -1667,7 +1673,7 @@ async function loadLeaderboard() {
   const rows = (data&&data.leaderboard)||[];
   if(!rows.length) { el.innerHTML='<div class="loading" style="padding:20px"><p>No data</p></div>'; return; }
   el.innerHTML = `<table>
-    <thead><tr><th>#</th><th>Entity</th><th>Archetype</th><th>C(t)</th><th>Signal</th></tr></thead>
+    <thead><tr><th>#</th><th>Entity</th><th>Archetype</th><th>Score</th><th>Signal</th></tr></thead>
     <tbody>${rows.slice(0,10).map((r,i) => {
       const score = r.coherence_score||r.coherence||0;
       const sig = r.coherent?'ACTIVE':'SILENCE';
@@ -1726,11 +1732,11 @@ async function lookupEntity() {
   const sigBadge = sigType==='INTERCEPT'||sigType==='HOSTILE'?'red':isCoherent?'green':'amber';
   const plData = planes&&planes.planes?planes.planes:{};
   const planesDef = [
-    {key:'physical',  name:'Physical Φ',  cls:'phi',      w:'α=0.25'},
-    {key:'mental',    name:'Mental M',    cls:'mental',   w:'β=0.30'},
-    {key:'spiritual', name:'Spiritual Σ', cls:'sigma',    w:'γ=0.25'},
-    {key:'conscious', name:'Conscious K', cls:'conscious',w:'δ=0.10'},
-    {key:'anima',     name:'ANIMA A',     cls:'anima',    w:'ε=0.10'},
+    {key:'physical',  name:'Physical',   cls:'phi',      w:'25%'},
+    {key:'mental',    name:'Mental',     cls:'mental',   w:'30%'},
+    {key:'spiritual', name:'Spiritual',  cls:'sigma',    w:'25%'},
+    {key:'conscious', name:'Conscious',  cls:'conscious',w:'10%'},
+    {key:'anima',     name:'ANIMA',      cls:'anima',    w:'10%'},
   ];
   const planesHTML = planesDef.map(p => {
     const d = plData[p.key]||{};
@@ -2107,11 +2113,9 @@ async function loadFAISS() {
         <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Living Security progress</div>
         <div class="progress"><div class="progress-fill" style="width:${lw.toFixed(0)}%"></div></div>
       </div>
-      <div style="margin-top:8px;font-size:10px;color:var(--text3)">${boot.formula||''}</div>`;
+      <div style="margin-top:8px;font-size:10px;color:var(--text3)">${boot.disclosure||''}</div>`;
     $('fa-depth-panel').innerHTML = `
       <div class="score-row"><span class="s-label">Akashic Depth D(t)</span><span class="s-val text-cyan mono">${fmt(boot.akashic_depth)}</span></div>
-      <div class="score-row"><span class="s-label">Formula</span><span class="s-val mono" style="font-size:10px">e^(−λ×D(t))</span></div>
-      <div class="score-row"><span class="s-label">λ</span><span class="s-val mono">${boot.lambda||'0.0001'}</span></div>
       <div style="margin-top:10px;padding:10px;background:var(--card2);border-radius:8px;font-size:10px;color:var(--text2);line-height:1.6">${boot.disclosure||''}</div>`;
   }
   setTimeout(() => { if(activeSec==='faiss') loadFAISS(); }, 30000);
