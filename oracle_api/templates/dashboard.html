@@ -810,7 +810,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
     <div id="tb-right">
       <div class="tb-pill">
         <div class="live-dot" id="live-dot"></div>
-        Live &nbsp;·&nbsp; <span id="chain-count">37</span>&nbsp;chains
+        Live &nbsp;·&nbsp; <span id="chain-count">100+</span>&nbsp;chains
       </div>
       <div class="tb-pill" style="display:none" id="block-pill">
         Block&nbsp;<span class="mono text-cyan" id="live-block">—</span>
@@ -846,7 +846,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
       <div class="metrics-row">
         <div class="metric-card">
           <div class="mc-label">Chains Monitored</div>
-          <div class="mc-value text-cyan" id="ov-chains">37</div>
+          <div class="mc-value text-cyan" id="ov-chains">100+</div>
           <svg class="mc-sparkline" id="spark-chains" viewBox="0 0 120 32" preserveAspectRatio="none"></svg>
           <div class="mc-sub">100+ chains · 13 VM families</div>
         </div>
@@ -1155,7 +1155,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
         <div class="metric-card"><div class="mc-label">0G Chain</div><div class="mc-value text-cyan" id="zg-chain-id">16661</div><div class="mc-sub">0G Mainnet</div></div>
         <div class="metric-card"><div class="mc-label">Gate Contract</div><div class="mc-value mono" style="font-size:11px;color:var(--purple2)" id="zg-gate">0xA85B4…199b</div><div class="mc-sub">TRIONExecutionGate</div></div>
         <div class="metric-card"><div class="mc-label">DA Proof</div><div class="mc-value text-green" id="zg-da-status">Live</div><div class="mc-sub">Reed-Solomon 2×</div></div>
-        <div class="metric-card"><div class="mc-label">Chains Indexed</div><div class="mc-value" id="zg-chains">37</div><div class="mc-sub">Behavioral coverage</div></div>
+        <div class="metric-card"><div class="mc-label">Chains Indexed</div><div class="mc-value" id="zg-chains">100+</div><div class="mc-sub">Behavioral coverage</div></div>
       </div>
       <div class="two-col mb12">
         <div class="card">
@@ -1490,7 +1490,7 @@ function seedSparklines() {
     for(let i=1;i<steps;i++) d.push(Math.max(0, d[i-1] + (Math.random()-0.48)*variance));
     return d;
   }
-  drawSparkline('spark-chains',   Array(12).fill(37),                       'var(--teal)');
+  drawSparkline('spark-chains',   Array(12).fill(100),                      'var(--teal)');
   drawSparkline('spark-bh',       randWalk(100000, 14, 2000),               'var(--green)');
   drawSparkline('spark-entities', randWalk(100000, 14, 1500),               'var(--purple2)');
   drawSparkline('spark-vol',      randWalk(0.42, 14, 0.03),                 'var(--amber)');
@@ -2149,7 +2149,7 @@ async function loadZG() {
         <div class="zc-status text-${c.status==='ACTIVE'?'green':'amber'}">${c.status||'—'}</div>
         ${c.role?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${c.role}</div>`:''}
       </div>`).join('');
-    if(full.bh_records) $('zg-chains').textContent = full.chains_indexed||37;
+    if(full.bh_records) $('zg-chains').textContent = full.chains_indexed||'100+';
   } else {
     $('zg-components').innerHTML = `<div class="kv-list">
       <div class="kv-row"><span class="kv-key">Chain Gate</span><span class="kv-val text-green">Active</span></div>
@@ -2199,7 +2199,7 @@ async function loadSecurity() {
     $('wp-pct').textContent   = pct+'%';
     $('wp-badge').textContent = `${wp.formulas?wp.formulas.length:84}/84`;
     $('wp-stats').innerHTML   = `
-      <div class="kv-row"><span class="kv-key">Chains Indexed</span><span class="kv-val">${wp.chains_indexed||37}</span></div>
+      <div class="kv-row"><span class="kv-key">Chains Indexed</span><span class="kv-val">${wp.chains_indexed||'100+'}</span></div>
       <div class="kv-row"><span class="kv-key">Falsifiability Conds</span><span class="kv-val">${wp.falsifiability_conditions||15}</span></div>
       <div class="kv-row"><span class="kv-key">Coverage</span><span class="kv-val text-green">${pct}%</span></div>`;
   }
@@ -2487,7 +2487,7 @@ const CMD_NAV = [
   {label:'FAISS ANIMA',    sub:'128-dim vector & archetypes',     section:'faiss',      icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/></svg>'},
   {label:'0G Network',     sub:'Storage, DA & ExecutionGate',     section:'zg',         icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 8h12M8 2l4 6-4 6"/></svg>'},
   {label:'Security',       sub:'Living DNA security system',       section:'security',   icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1L2 4v5c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4z"/></svg>'},
-  {label:'Chain Network',  sub:'All 37 indexed chains',           section:'chains',     icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><line x1="6" y1="7" x2="10" y2="5"/><line x1="6" y1="9" x2="10" y2="11"/></svg>'},
+  {label:'Chain Network',  sub:'100+ indexed chains',             section:'chains',     icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><line x1="6" y1="7" x2="10" y2="5"/><line x1="6" y1="9" x2="10" y2="11"/></svg>'},
   {label:'About',          sub:'Protocol info & author',          section:'about',      icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".6" fill="currentColor"/></svg>'},
 ];
 const CMD_ACTIONS = [
