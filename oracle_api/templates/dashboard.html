@@ -848,7 +848,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
           <div class="mc-label">Chains Monitored</div>
           <div class="mc-value text-cyan" id="ov-chains">37</div>
           <svg class="mc-sparkline" id="spark-chains" viewBox="0 0 120 32" preserveAspectRatio="none"></svg>
-          <div class="mc-sub">37 chains · 11 VM families</div>
+          <div class="mc-sub">100+ chains · 13 VM families</div>
         </div>
         <div class="metric-card">
           <div class="mc-label">Behavioral Records</div>
@@ -911,7 +911,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
               <div class="pn-status-dot"></div>
             </div>
             <div class="pn-label">Security Gate</div>
-            <div class="pn-sublabel">Θ(t) = <span id="pipe-theta">—</span></div>
+            <div class="pn-sublabel">Gate: <span id="pipe-theta">—</span></div>
           </div>
           <div class="pipeline-arrow">
             <svg viewBox="0 0 60 12"><line x1="0" y1="6" x2="52" y2="6" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 3"/><polyline points="48,2 56,6 48,10" fill="none" stroke="var(--border2)" stroke-width="1.5"/></svg>
@@ -987,9 +987,9 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
           <div class="card">
             <div class="card-header"><h3>Security Threshold</h3><span class="badge purple">Dynamic</span></div>
             <div class="card-body">
-              <div class="score-row"><span class="s-label">Θ(t) Current</span><span class="s-val text-cyan" id="ov-theta">—</span></div>
-              <div class="score-row"><span class="s-label">Volatility V(t)</span><span class="s-val" id="ov-vt">—</span></div>
-              <div class="score-row"><span class="s-label">Base</span><span class="s-val mono">0.55 + volatility factor</span></div>
+              <div class="score-row"><span class="s-label">Threshold</span><span class="s-val text-cyan" id="ov-theta">—</span></div>
+              <div class="score-row"><span class="s-label">Volatility</span><span class="s-val" id="ov-vt">—</span></div>
+              <div class="score-row"><span class="s-label">Base</span><span class="s-val mono">Dynamic — adjusts to market</span></div>
               <div class="progress mt8"><div class="progress-fill" id="ov-theta-bar" style="width:70%"></div></div>
             </div>
           </div>
@@ -1012,7 +1012,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="50,4 91,27.5 91,72.5 50,96 9,72.5 9,27.5"/><polygon points="50,19 75,33.5 75,62.5 50,77 25,62.5 25,33.5"/></svg>
           <p>Enter any entity to retrieve its full behavioral intelligence profile</p>
-          <div class="sub">37 chains · 5 behavioral planes · FAISS ANIMA enrichment</div>
+          <div class="sub">100+ chains · 5 behavioral planes · FAISS ANIMA enrichment</div>
         </div>
       </div>
     </section>
@@ -1079,13 +1079,13 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
           <div id="bh-live-feed" class="card-body no-pad"><div class="loading"><div class="spinner"></div></div></div>
         </div>
         <div class="card">
-          <div class="card-header"><h3>BH Formula</h3><span class="badge gray">L0.1</span></div>
+          <div class="card-header"><h3>BH Structure</h3><span class="badge gray">L0.1</span></div>
           <div class="card-body">
             <div class="kv-list">
               <div class="kv-row"><span class="kv-key">Payload</span><span class="kv-val mono">93 bytes</span></div>
-              <div class="kv-row"><span class="kv-key">Canonical order</span><span class="kv-val mono" style="font-size:9px">entity(32)‖event(1)‖mag(8)‖ctx(8)‖ts(8)‖chain(4)‖block(32)</span></div>
-              <div class="kv-row"><span class="kv-key">sense</span><span class="kv-val mono" style="font-size:9px">SHA3-256(payload‖0x00)</span></div>
-              <div class="kv-row"><span class="kv-key">antisense</span><span class="kv-val mono" style="font-size:9px">SHA3(payload‖0xFF)⊕NOT(sense)</span></div>
+              <div class="kv-row"><span class="kv-key">Canonical order</span><span class="kv-val mono" style="font-size:9px">entity(32) event(1) mag(8) ctx(8) ts(8) chain(4) block(32)</span></div>
+              <div class="kv-row"><span class="kv-key">Hash A</span><span class="kv-val mono" style="font-size:9px">SHA3-256(payload + 0x00)</span></div>
+              <div class="kv-row"><span class="kv-key">Hash B</span><span class="kv-val mono" style="font-size:9px">SHA3-256(payload + 0xFF) XOR NOT(Hash A)</span></div>
             </div>
             <div style="margin-top:14px">
               <div class="score-row mb8"><span class="s-label">Event Types</span><span class="badge cyan" id="bh-event-count">20 types</span></div>
@@ -1106,7 +1106,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
         <div class="metric-card"><div class="mc-label">Indexed Vectors</div><div class="mc-value text-cyan" id="fa-vectors">—</div><div class="mc-sub">128-dim FAISS space</div></div>
         <div class="metric-card"><div class="mc-label">Entities Tracked</div><div class="mc-value text-green" id="fa-entities">—</div><div class="mc-sub">Unique BEO profiles</div></div>
         <div class="metric-card"><div class="mc-label">Index Type</div><div class="mc-value" style="font-size:16px;color:var(--purple2)" id="fa-index-type">—</div><div class="mc-sub">Compression type</div></div>
-        <div class="metric-card"><div class="mc-label">Intelligence Score</div><div class="mc-value text-green" id="fa-im">—</div><div class="mc-sub">IM(t) health</div></div>
+        <div class="metric-card"><div class="mc-label">Intelligence Score</div><div class="mc-value text-green" id="fa-im">—</div><div class="mc-sub">ANIMA health index</div></div>
       </div>
       <div class="main-aside mb12">
         <div>
@@ -1125,15 +1125,15 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
             <div class="card-body" id="fa-bootstrap"><div class="loading"><div class="spinner"></div></div></div>
           </div>
           <div class="card mb12">
-            <div class="card-header"><h3>Five-Plane Formula</h3><span class="badge gray">C(t)</span></div>
+            <div class="card-header"><h3>Behavioral Planes</h3><span class="badge gray">Coherence</span></div>
             <div class="card-body">
-              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal);text-align:center;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:12px">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A</div>
+              <div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:12px">Weighted score across 5 behavioral planes</div>
               <div class="kv-list">
-                <div class="kv-row"><span class="kv-key">Φ Physical (α=0.25)</span><span class="kv-val">9 Shannon entropy features</span></div>
-                <div class="kv-row"><span class="kv-key">M Mental (β=0.30)</span><span class="kv-val">Observer-effect corrected</span></div>
-                <div class="kv-row"><span class="kv-key">Σ Spiritual (γ=0.25)</span><span class="kv-val">DW-BFT consensus diversity</span></div>
-                <div class="kv-row"><span class="kv-key">K Conscious (δ=0.10)</span><span class="kv-val">Commit-reveal stake vote</span></div>
-                <div class="kv-row"><span class="kv-key">A ANIMA (ε=0.10)</span><span class="kv-val">k-NN archetype distance</span></div>
+                <div class="kv-row"><span class="kv-key">Physical <span style="color:var(--text4);font-size:9px">25%</span></span><span class="kv-val">9 entropy features</span></div>
+                <div class="kv-row"><span class="kv-key">Mental <span style="color:var(--text4);font-size:9px">30%</span></span><span class="kv-val">Observer-effect corrected</span></div>
+                <div class="kv-row"><span class="kv-key">Spiritual <span style="color:var(--text4);font-size:9px">25%</span></span><span class="kv-val">BFT consensus diversity</span></div>
+                <div class="kv-row"><span class="kv-key">Conscious <span style="color:var(--text4);font-size:9px">10%</span></span><span class="kv-val">Commit-reveal stake vote</span></div>
+                <div class="kv-row"><span class="kv-key">ANIMA <span style="color:var(--text4);font-size:9px">10%</span></span><span class="kv-val">Archetype distance</span></div>
               </div>
             </div>
           </div>
@@ -1200,11 +1200,11 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
             <div class="tier" id="sec-tier">—</div>
           </div>
           <div class="card-body" style="padding-top:0">
-            <div class="score-row"><span class="s-label">SEC(t) = LSS × PQC × CC</span><span></span></div>
-            <div class="score-row"><span class="s-label">LSS (Living Security)</span><span class="s-val" id="sec-lss">—</span></div>
-            <div class="score-row"><span class="s-label">PQC (Post-Quantum)</span><span class="s-val" id="sec-pqc">—</span></div>
-            <div class="score-row"><span class="s-label">CC (Cross-Chain)</span><span class="s-val" id="sec-cc">—</span></div>
-            <div class="score-row"><span class="s-label">Effective SEC</span><span class="s-val text-green" id="sec-eff">—</span></div>
+            <div class="score-row"><span class="s-label" style="color:var(--text3);font-size:10px">Living · Post-Quantum · Cross-Chain</span><span></span></div>
+            <div class="score-row"><span class="s-label">Living Security</span><span class="s-val" id="sec-lss">—</span></div>
+            <div class="score-row"><span class="s-label">Post-Quantum</span><span class="s-val" id="sec-pqc">—</span></div>
+            <div class="score-row"><span class="s-label">Cross-Chain</span><span class="s-val" id="sec-cc">—</span></div>
+            <div class="score-row"><span class="s-label">Effective Score</span><span class="s-val text-green" id="sec-eff">—</span></div>
           </div>
         </div>
         <div class="card">
@@ -1305,7 +1305,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
     <section class="section" id="s-about">
       <div class="page-header">
         <h1>About TRION</h1>
-        <p>Multi-chain behavioral truth oracle — protocol overview, author, and whitepaper formula index</p>
+        <p>Multi-chain behavioral truth oracle — protocol overview and author</p>
       </div>
       <div class="about-hero">
         <div>
@@ -1321,9 +1321,9 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
               <p style="font-size:12px;line-height:1.8;color:var(--text2)">TRION is a multi-chain behavioral truth oracle. It derives cryptographically verified behavioral signals from the actual record of what every entity did on every chain — stripped of manipulation, weighted by coherence, bounded by liquidity health.</p>
               <p style="font-size:12px;line-height:1.8;color:var(--text2);margin-top:10px">It provides a pre-execution firewall: any DeFi protocol can call <code>TRIONExecutionGate.checkExecution(address)</code> before a trade executes to block wallets exhibiting attack fingerprints.</p>
               <div class="kv-list" style="margin-top:14px">
-                <div class="kv-row"><span class="kv-key">Whitepaper</span><span class="kv-val">v1.0 — 84 formulas, 100% live coverage</span></div>
+                <div class="kv-row"><span class="kv-key">Whitepaper</span><span class="kv-val">v1.0 — 100% live coverage</span></div>
                 <div class="kv-row"><span class="kv-key">Historical exploits blocked</span><span class="kv-val text-green">$44B+ (simulated)</span></div>
-                <div class="kv-row"><span class="kv-key">Chains indexed</span><span class="kv-val">37 across 11 VM families</span></div>
+                <div class="kv-row"><span class="kv-key">Chains indexed</span><span class="kv-val">100+ across 13 VM families</span></div>
                 <div class="kv-row"><span class="kv-key">License</span><span class="kv-val">CC0 — Public Domain</span></div>
               </div>
             </div>
@@ -1363,7 +1363,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><h3>Live Coverage — All 84 Whitepaper Formulas</h3><span class="badge green">100% Live</span></div>
+        <div class="card-header"><h3>Protocol Coverage</h3><span class="badge green">100% Live</span></div>
         <div class="card-body no-pad">
           <div id="wp-formula-list"><div class="loading"><div class="spinner"></div></div></div>
         </div>
@@ -2491,7 +2491,7 @@ const CMD_NAV = [
   {label:'About',          sub:'Protocol info & author',          section:'about',      icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".6" fill="currentColor"/></svg>'},
 ];
 const CMD_ACTIONS = [
-  {label:'Check entity signal',    sub:'Look up C(t) for any address',    action:()=>{cmdClose();document.querySelector('[data-section=entity]').click();setTimeout(()=>document.getElementById('ent-input')?.focus(),120)}, icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>', tag:'Action'},
+  {label:'Check entity signal',    sub:'Look up coherence score for any address',    action:()=>{cmdClose();document.querySelector('[data-section=entity]').click();setTimeout(()=>document.getElementById('ent-input')?.focus(),120)}, icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>', tag:'Action'},
   {label:'Run attack simulation',  sub:'Replay an exploit scenario',       action:()=>{cmdClose();document.querySelector('[data-section=simulation]').click()}, icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="3,2 13,8 3,14"/></svg>', tag:'Action'},
   {label:'Refresh live feed',      sub:'Force-poll the signal feed now',   action:()=>{cmdClose();loadFeedSection&&loadFeedSection()}, icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 8A6 6 0 1 1 8 2a6 6 0 0 1 4.9 2.5"/><polyline points="14,2 14,6 10,6"/></svg>', tag:'Action'},
   {label:'Toggle theme',           sub:'Switch dark / light mode',         action:()=>{cmdClose();toggleTheme()}, icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><line x1="8" y1="1" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="1" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="15" y2="8"/></svg>', tag:'Action'},

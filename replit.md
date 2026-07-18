@@ -1,39 +1,73 @@
 # TRION Protocol
 
-## Overview
-TRION is a multi-chain behavioral truth oracle and pre-execution DeFi firewall. It derives cryptographically verified behavioral signals from on-chain activity across 100+ chains and 13 VM families to identify and block attackers (flash loans, oracle manipulation, etc.) before they execute.
+Multi-chain behavioral truth oracle and DeFi pre-execution firewall. Ingests live on-chain data across 100+ chains, computes 5-plane behavioral coherence scores, and blocks attacks before execution.
 
-## Stack
-- **Core / API**: Python (Flask + Flask-SocketIO), port 5000 — `serve.py` / `oracle_api/app.py`
-- **FAISS ANIMA engine**: Python (FastAPI), port 8000 — `akashic/faiss_service.py`; 64 trained behavioral archetypes, k-NN vector search
-- **Relayers** (Node.js / ESM): `relayer/` — EVM + 0G; `native-relayer/` — SVM/NEAR/TON/PVM/StarkNet; `relayer/extended_chain_relayer.js` — 38 non-EVM chains (UTXO, Cosmos, Move, etc.)
-- **Rust indexers**: `rust-indexers/` — EVM (53 chains) + Solana mainnet
-- **Dashboard**: Next.js 14, port 3000 — `dashboard/`
-- **Attack Alert Webhook**: Python, port 6000 — `attack_alert_webhook.py`
-- **Genesis Backfill**: `scripts/genesis_backfill_runner.sh`
-- **Package management**: `uv` (Python), `npm` (Node.js), `cargo` (Rust)
+## Architecture
 
-## Running on Replit
-All 9 services are configured as Replit workflows and start automatically:
+| Layer | Technology | Role |
+|-------|-----------|------|
+| Oracle API | Python / Flask | Scoring engine, REST + WebSocket, port 5000 |
+| FAISS ANIMA | Python / FastAPI | 128-dim vector intelligence, port 8000 |
+| L0 Indexers | Rust (13 crates) | Per-VM live BH ingestion |
+| TRION Relayer | Node.js / ESM | EVM multi-chain signal publisher + 0G gate |
+| Extended Chain Relayer | Node.js / ESM | 38 non-EVM chains (UTXO, Cosmos, Move, SUI, TRON …) |
+| Native VM Relayer | Node.js / ESM | SVM, NEAR, TON, PVM, StarkNet signing |
+| Akashic Ledger | SQLite + FAISS | BH dual-strand storage, behavioral archive |
+| 0G Network | Solidity | On-chain ExecutionGate + DA storage |
 
-| Workflow | Port | Notes |
-|---|---|---|
-| Start application | 5000 | Oracle API + frontend |
-| FAISS ANIMA | 8000 | Vector DB; must start before Rust Indexers |
-| TRION Relayer | — | EVM + 0G relayer supervisor |
-| Extended Chain Relayer | — | 38 non-EVM chains |
-| Native Relayer | — | SVM/NEAR/TON/PVM/StarkNet |
-| Rust Indexers | — | Waits for FAISS on port 8000 |
-| Attack Alert Webhook | 6000 | Monitors entities every 30s |
-| TRION Dashboard | 3000 | Next.js UI |
-| Genesis Backfill | — | Historical block indexer |
+## Running the Project
 
-## Secrets required to go live
-All relayers run in **DRY_RUN** mode until private keys are configured:
-- `RELAYER_PRIVATE_KEY` — EVM relayer signing key
-- `DEPLOY_0G_PRIVATE` — 0G chain signing key
-- Per-chain keys for native relayer: `SVM_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_MNEMONIC`, `PVM_MNEMONIC`, `STK_PRIVATE_KEY`
-- Per-chain keys for extended relayer: BTC/LTC/DOGE/DASH/CARDANO/Cosmos ecosystem/APTOS/MOVEMENT/SUI/TRON/etc.
+All services are managed as Replit workflows. Start them from the Workflows panel:
 
-## User preferences
-<!-- Add user preferences here -->
+1. **Start application** — Oracle API + WebSocket at `http://0.0.0.0:5000`
+2. **FAISS ANIMA** — Vector intelligence service at port 8000
+3. **Rust Indexers** — 13 L0 crates indexing EVM, SVM, and more
+4. **TRION Relayer** — EVM signal publisher + 0G ExecutionGate
+5. **Extended Chain Relayer** — 38 non-EVM chain relayer
+6. **Native Relayer** — SVM/NEAR/TON/PVM/StarkNet VM signing
+7. **Attack Alert Webhook** — Threat webhook at port 6000
+8. **Genesis Backfill** — Historical BH accumulation
+9. **TRION Dashboard** — Points to the Oracle API dashboard (port 5000)
+
+The unified dashboard is served by the Oracle API at `/` — navigate to the webview after starting **Start application**.
+
+## Key Paths
+
+```
+oracle_api/          Flask app, routes, templates
+oracle_api/templates/dashboard.html   Single-page unified dashboard
+akashic/             FAISS service + BH ledger SQLite + FAISS index
+chains/              Per-VM execute.ts scripts (SVM, NEAR, TON, PVM, StarkNet, SUI)
+relayer/             TRION multi-chain EVM relayer + 0G gate
+native-relayer/      Native VM signing relayer
+indexers/            Rust L0 crates (one per VM family)
+tests/               Full test suite (E2E, stress, planes, BH, backtest)
+backtest/            Historical exploit scoring → backtest_report.json
+scripts/             Utility + genesis backfill runner
+supervisors/         Shell supervisors for Rust indexers + TRION relayer stack
+```
+
+## Test Results (last run)
+
+| Suite | Result |
+|-------|--------|
+| All Planes (52 tests) | ✅ 52/52 passed |
+| Stress (17 tests) | ✅ 17/17 passed |
+| BH Collision Resistance (2M samples) | ✅ 0 collisions |
+| Trading Signals | ✅ 8/8 passed |
+| Backtest (30 exploits, $3.3B) | ✅ 100% recall, 85.71% F1 |
+| E2E Full Suite | ✅ 130/137 (94%) |
+| Attack Simulation | ✅ All attacks blocked |
+
+## Secrets Required
+
+All signing keys are stored as Replit Secrets. The relayers pick them up automatically by name — no `.env` file needed. Key names:
+
+`RELAYER_PRIVATE_KEY`, `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, `DOT_MNEMONIC`, `STARKNET_PRIVATE_KEY`, `APTOS_PRIVATE_KEY`, `SUI_PRIVATE_KEY`, `TRON_PRIVATE_KEY`, `COSMOS_PRIVATE_KEY`, `KAVA_PRIVATE_KEY`, `INJECTIVE_PRIVATE_KEY`, `SEI_PRIVATE_KEY`, `DYDX_PRIVATE_KEY`, `INITIA_PRIVATE_KEY`, `MOVEMENT_PRIVATE_KEY`, `BTC_TAPROOT_WIF`, `BTC_SEGWIT_NATIVE_WIF`, `BTC_SEGWIT_NESTED_WIF`, `BTC_LEGACY_WIF`, `LITECOIN_PRIVATE_KEY`, `DOGE_PRIVATE_KEY`, `DASH_PRIVATE_KEY`, `DEPLOY_0G_PRIVATE`, `ZG_AKASHIC_CONTRACT`, `TIMESCALEDB_URL`, `SESSION_SECRET`, `PI_SECRET_KEY`
+
+## User Preferences
+
+- Keep all math symbols and Greek-letter formulas out of the frontend — use plain English labels
+- `judge.html` is a permanent route at `/judge` — do not delete
+- BH Explorer stays as a section in the main dashboard (not a separate page)
+- Dashboard is the single-page SPA at `oracle_api/templates/dashboard.html` — do not split into multiple HTML files
