@@ -462,7 +462,7 @@ code {
 .plane-state { font-size:8px; flex-shrink:0; }
 
 /* ═══════════════════════════════════════════════════════════
-   CHAIN GRID
+   CHAIN GRID / TABLE
 ═══════════════════════════════════════════════════════════ */
 .chain-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; }
 .chain-chip {
@@ -473,6 +473,14 @@ code {
 .chain-chip .cc-label { font-size:10px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .chain-chip .cc-vm   { font-size:9px; color:var(--text3); margin-top:2px; }
 .chain-chip .cc-count{ font-size:12px; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--teal); margin-top:4px; }
+/* VM filter pills */
+.vm-pill {
+  padding:4px 12px; border-radius:99px; font-size:10px; font-weight:600;
+  border:1px solid var(--border); color:var(--text3); background:var(--card2);
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.vm-pill:hover { border-color:rgba(0,212,170,.3); color:var(--teal); }
+.vm-pill.active { background:var(--teal-glow); border-color:rgba(0,212,170,.3); color:var(--teal); }
 
 /* ═══════════════════════════════════════════════════════════
    BH RECORD ROW
@@ -730,10 +738,6 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
     <div class="nav-item" data-section="feed">
       <svg class="ni-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
       <span class="ni-label">Live Feed</span>
-    </div>
-    <div class="nav-item" data-section="simulation">
-      <svg class="ni-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 5-10 5V3z"/></svg>
-      <span class="ni-label">Attack Simulator</span>
     </div>
     <div class="nav-section">Data Layers</div>
     <div class="nav-item" data-section="bh">
@@ -1041,43 +1045,6 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
     </section>
 
     <!-- ══════════ ATTACK SIMULATOR ══════════ -->
-    <section class="section" id="s-simulation">
-      <div class="page-header">
-        <h1>Attack Simulator</h1>
-        <p>Replay historical DeFi exploits against the behavioral engine and see exactly when TRION would have fired</p>
-      </div>
-      <div class="metrics-row-4 mb12" id="sim-summary-row">
-        <div class="metric-card"><div class="mc-label">Attacks in DB</div><div class="mc-value text-red" id="sim-count">32</div><div class="mc-sub">Historical DeFi exploits</div></div>
-        <div class="metric-card"><div class="mc-label">Total Protected</div><div class="mc-value text-green" id="sim-total">$43.6B</div><div class="mc-sub">USD modeled losses</div></div>
-        <div class="metric-card"><div class="mc-label">Patterns Indexed</div><div class="mc-value" style="color:var(--purple2)" id="sim-patterns">9</div><div class="mc-sub">Attack fingerprints</div></div>
-        <div class="metric-card"><div class="mc-label">Avg Detection Lead</div><div class="mc-value text-amber" id="sim-lead">112h</div><div class="mc-sub">Before exploit executes</div></div>
-      </div>
-      <div class="sim-layout">
-        <div class="card">
-          <div class="card-header">
-            <h3>Select Attack</h3>
-            <select id="sim-filter" onchange="filterAttacks()" style="background:var(--card2);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:3px 8px;font-size:10px;outline:none">
-              <option value="">All patterns</option>
-              <option value="FLASH_LOAN_ATTACKER">Flash Loan</option>
-              <option value="BRIDGE_EXPLOIT">Bridge Exploit</option>
-              <option value="AMM_MANIPULATION">AMM Manipulation</option>
-              <option value="ORACLE_MANIPULATION">Oracle Manipulation</option>
-              <option value="COORDINATED_PUMP">Coordinated Pump</option>
-              <option value="GOVERNANCE_CAPTURE">Governance</option>
-            </select>
-          </div>
-          <div id="sim-attack-list" style="max-height:620px;overflow-y:auto"><div class="loading"><div class="spinner"></div></div></div>
-        </div>
-        <div id="sim-output">
-          <div class="card" style="text-align:center;padding:60px 20px">
-            <svg style="width:52px;height:52px;margin:0 auto 16px;display:block;opacity:.2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 3l10 5-10 5V3z"/></svg>
-            <div style="font-size:14px;font-weight:600;color:var(--text2)">Select an attack to run simulation</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px">TRION replays each phase against the behavioral engine<br>and shows exactly when the gate would have fired</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- ══════════ BH EXPLORER ══════════ -->
     <section class="section" id="s-bh">
       <div class="page-header">
@@ -1102,7 +1069,7 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
       </div>
       <div class="two-col">
         <div class="card">
-          <div class="card-header"><h3>Live BH Records</h3><span class="badge green"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;animation:blink 2s infinite"></span>&nbsp;Streaming</span></div>
+          <div class="card-header"><h3>Live BH Records — All Chains</h3><span id="bh-feed-hdr" class="badge cyan" style="font-size:9px">Loading…</span></div>
           <div id="bh-live-feed" class="card-body no-pad"><div class="loading"><div class="spinner"></div></div></div>
         </div>
         <div class="card">
@@ -1279,24 +1246,51 @@ kbd { background:var(--card2); border:1px solid var(--border); border-radius:4px
     <section class="section" id="s-chains">
       <div class="page-header">
         <h1>Chain Network</h1>
-        <p>All 37 indexed chains across 11 VM families — EVM, SVM, CosmWasm, Move, TON, StarkNet and more</p>
+        <p>100+ chains across 13 VM families — real-time BH indexing from live SQLite ledger</p>
       </div>
       <div class="metrics-row-4">
-        <div class="metric-card"><div class="mc-label">Total Chains</div><div class="mc-value text-cyan" id="cn-total">37</div><div class="mc-sub">Active monitoring</div></div>
-        <div class="metric-card"><div class="mc-label">VM Families</div><div class="mc-value text-green">11</div><div class="mc-sub">EVM/SVM/CosmWasm/Move…</div></div>
-        <div class="metric-card"><div class="mc-label">Relayers Active</div><div class="mc-value text-green">3</div><div class="mc-sub">EVM · Native VM · Extended</div></div>
-        <div class="metric-card"><div class="mc-label">Rust Indexers</div><div class="mc-value" style="color:var(--purple2)">13</div><div class="mc-sub">L0 canonical BH crates</div></div>
+        <div class="metric-card"><div class="mc-label">Total Chains</div><div class="mc-value text-cyan" id="cn-total">—</div><div class="mc-sub">Indexed and monitored</div></div>
+        <div class="metric-card"><div class="mc-label">VM Families</div><div class="mc-value text-green" id="cn-vms">—</div><div class="mc-sub">EVM/SVM/Move/Cairo/TVM…</div></div>
+        <div class="metric-card"><div class="mc-label">Live Chains</div><div class="mc-value text-green" id="cn-live">—</div><div class="mc-sub">Status: live</div></div>
+        <div class="metric-card"><div class="mc-label">Total BH Records</div><div class="mc-value text-cyan" id="cn-bh-total">—</div><div class="mc-sub">All chains combined</div></div>
       </div>
-      <div class="card mb12">
-        <div class="card-header"><h3>Chain Network</h3><span class="badge cyan" id="cn-badge">All 37 Chains</span></div>
-        <div class="card-body">
-          <div id="cn-grid" class="chain-grid"><div class="loading"><div class="spinner"></div></div></div>
-        </div>
+      <!-- VM filter pills -->
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="vm-filter-pills">
+        <button class="vm-pill active" data-vm="">All VMs</button>
+        <button class="vm-pill" data-vm="EVM">EVM</button>
+        <button class="vm-pill" data-vm="SVM">SVM</button>
+        <button class="vm-pill" data-vm="Cosmos SDK">Cosmos SDK</button>
+        <button class="vm-pill" data-vm="Move VM">Move VM</button>
+        <button class="vm-pill" data-vm="TVM">TVM</button>
+        <button class="vm-pill" data-vm="Cairo VM">Cairo VM</button>
+        <button class="vm-pill" data-vm="UTXO">UTXO</button>
+        <button class="vm-pill" data-vm="Sui VM">Sui VM</button>
+        <button class="vm-pill" data-vm="PVM">PVM</button>
       </div>
       <div class="card">
-        <div class="card-header"><h3>VM Family Groups</h3></div>
-        <div class="card-body">
-          <div class="arch-grid" id="vm-groups"></div>
+        <div class="card-header">
+          <h3>All Chains</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="cn-search" placeholder="Filter chains…" style="background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;outline:none;width:180px;transition:border-color .15s" onfocus="this.style.borderColor='rgba(0,212,170,.4)'" onblur="this.style.borderColor=''">
+            <span class="badge cyan" id="cn-badge">Loading…</span>
+          </div>
+        </div>
+        <div style="max-height:580px;overflow-y:auto">
+          <table id="cn-table">
+            <thead><tr>
+              <th>Chain</th>
+              <th>VM</th>
+              <th>Chain ID</th>
+              <th>Status</th>
+              <th>BH Records</th>
+              <th>Indexer</th>
+            </tr></thead>
+            <tbody id="cn-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:40px">
+                <div class="loading"><div class="spinner"></div></div>
+              </td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1501,12 +1495,12 @@ seedSparklines();
 /* ─── NAVIGATION ─── */
 const sections = {
   overview:'s-overview', entity:'s-entity', feed:'s-feed',
-  simulation:'s-simulation', bh:'s-bh', faiss:'s-faiss',
+  bh:'s-bh', faiss:'s-faiss',
   zg:'s-zg', security:'s-security', chains:'s-chains', about:'s-about'
 };
 const sectionTitles = {
   overview:'Overview', entity:'Entity Intelligence', feed:'Live Signal Feed',
-  simulation:'Attack Simulator', bh:'BH Explorer', faiss:'FAISS ANIMA',
+  bh:'BH Ledger', faiss:'FAISS ANIMA',
   zg:'0G Network', security:'Security', chains:'Chain Network', about:'About'
 };
 let activeSec = 'overview';
@@ -1531,7 +1525,6 @@ document.querySelectorAll('.nav-item').forEach(el => {
     if(sec==='chains'&&!chainsLoaded) loadChains();
     if(sec==='about'&&!aboutLoaded)   loadAbout();
     if(sec==='feed'&&!feedLoaded)     loadFeedSection();
-    if(sec==='simulation'&&!simLoaded) loadSimulation();
   });
 });
 
@@ -1974,42 +1967,82 @@ async function loadFeedSection() {
 let bhLoaded=false, bhChainChartInst=null, bhEventChartInst=null;
 async function loadBH() {
   bhLoaded = true;
-  const [stats,feed] = await Promise.all([apiFetch('/api/v1/bh/stats'), apiFetch('/api/v1/bh/recent_feed')]);
+  await _refreshBH();
+  // Auto-refresh BH feed every 30 s so all chains stream continuously
+  if(!window._bhRefreshTimer) window._bhRefreshTimer = setInterval(_refreshBH, 30000);
+}
+async function _refreshBH() {
+  const [stats, feed] = await Promise.all([
+    apiFetch('/api/v1/bh/stats'),
+    apiFetch('/api/v1/bh/recent_feed?limit=50')
+  ]);
   if(stats) {
-    const total = Object.values(stats.per_chain||{}).reduce((a,b)=>a+b,0);
+    const total = stats.total_tx_bhs || Object.values(stats.per_chain||{}).reduce((a,b)=>a+b,0);
     $('bh-total').textContent  = fmt(total);
-    $('bh-chains').textContent = Object.keys(stats.per_chain||{}).length;
-    $('bh-mev').textContent    = fmt((stats.per_event_type||{})['MEV_CAPTURE']||0);
-    $('bh-gov').textContent    = fmt((stats.per_event_type||{})['GOVERNANCE']||0);
+    $('bh-chains').textContent = stats.chains_with_data || Object.keys(stats.per_chain||{}).length;
+    $('bh-mev').textContent    = fmt(stats.mev_captures || (stats.per_event_type||{})['MEV_CAPTURE'] || 0);
+    $('bh-gov').textContent    = fmt((stats.per_event_type||{})['GOVERNANCE'] || 0);
     const chainData = Object.entries(stats.per_chain||{}).sort((a,b)=>b[1]-a[1]);
-    $('bh-chain-count').textContent = chainData.length+' chains';
+    $('bh-chain-count').textContent = chainData.length + ' chains';
+    window._bhPerChain = stats.per_chain || {};
     const t = chartTheme();
     const ctx1 = document.getElementById('bh-chain-chart');
     if(ctx1) {
+      // Show top 14 chains so smaller chains are visible alongside Solana
+      const top = chainData.slice(0, 14);
       if(bhChainChartInst) bhChainChartInst.destroy();
-      bhChainChartInst = new Chart(ctx1,{type:'bar',data:{labels:chainData.map(x=>x[0].replace('_MAINNET','').replace('_','')),datasets:[{data:chainData.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0,borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}},y:{ticks:{color:t.tick,font:{size:9}},grid:{display:false}}}}});
+      bhChainChartInst = new Chart(ctx1,{type:'bar',data:{
+        labels: top.map(x=>x[0].replace('_MAINNET','').replace('_DEVNET',' dev').replace(/_/g,' ')),
+        datasets:[{data:top.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0,borderRadius:4}]
+      },options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{
+        x:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}},
+        y:{ticks:{color:t.tick,font:{size:9}},grid:{display:false}}
+      }}});
     }
     const evtData = Object.entries(stats.per_event_type||{}).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const ctx2 = document.getElementById('bh-event-chart');
     if(ctx2) {
       if(bhEventChartInst) bhEventChartInst.destroy();
-      bhEventChartInst = new Chart(ctx2,{type:'doughnut',data:{labels:evtData.map(x=>x[0]),datasets:[{data:evtData.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0}]},options:{...chartDef(),cutout:'55%'}});
+      bhEventChartInst = new Chart(ctx2,{type:'doughnut',data:{
+        labels: evtData.map(x=>x[0]),
+        datasets:[{data:evtData.map(x=>x[1]),backgroundColor:CHART_COLORS.map(c=>c+'CC'),borderWidth:0}]
+      },options:{...chartDef(),cutout:'55%'}});
     }
     const allTypes = Object.keys(stats.per_event_type||{});
-    $('bh-event-count').textContent = allTypes.length+' types';
+    $('bh-event-count').textContent = allTypes.length + ' types';
     $('bh-event-list').innerHTML = allTypes.map(t=>`<span class="badge gray" style="font-size:8px">${t}</span>`).join(' ');
   }
-  const records = (feed&&feed.records)||[];
+  const records = (feed && feed.records) || [];
+  const chainsActive = (feed && feed.chains_active) || '—';
   const el = $('bh-live-feed');
-  if(!records.length) { el.innerHTML='<div class="loading" style="padding:30px"><p>No recent BH records</p></div>'; return; }
-  el.innerHTML = records.slice(0,15).map(r=>{
-    const verdict=(r.verdict||'SAFE').toUpperCase();
-    const vColor=verdict==='INTERCEPT'?'var(--red)':verdict==='SAFE'?'var(--green)':'var(--amber)';
+  const feedHdr = $('bh-feed-hdr');
+  if(feedHdr) feedHdr.textContent = `${records.length} records · ${chainsActive} chains`;
+  if(!records.length) {
+    el.innerHTML = '<div class="loading" style="padding:30px"><p>No BH records yet — indexers initialising</p></div>';
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const verdict = (r.verdict || 'SAFE').toUpperCase();
+    const vColor  = verdict==='INTERCEPT'||verdict==='HOSTILE' ? 'var(--red)'
+                  : verdict==='WATCH'||verdict==='ELEVATED'    ? 'var(--amber)'
+                  : 'var(--green)';
+    const vBg     = verdict==='INTERCEPT'||verdict==='HOSTILE' ? 'rgba(239,68,68,.12)'
+                  : verdict==='WATCH'||verdict==='ELEVATED'    ? 'rgba(245,158,11,.10)'
+                  : 'rgba(16,185,129,.10)';
+    const chainShort = (r.chain||'—').replace('_MAINNET','').replace('_DEVNET',' DEV').replace(/_/g,' ');
+    const evtColor = r.event_type==='MEV_CAPTURE' ? 'var(--red)'
+                   : r.event_type==='GOVERNANCE'  ? 'var(--purple2)'
+                   : r.event_type==='FLASH_LOAN'  ? 'var(--red)'
+                   : 'var(--text2)';
     return `<div class="bh-row">
-      <div><span class="badge" style="background:${verdict==='INTERCEPT'?'rgba(239,68,68,.12)':'rgba(34,197,94,.1)'};color:${vColor};border-color:${vColor+'33'};font-size:8px">${verdict}</span></div>
-      <div class="bh-hash" title="${r.tx_hash||''}">${r.tx_hash?r.tx_hash.slice(0,18)+'…':r.sense_hex?r.sense_hex.slice(0,16)+'…':'—'}</div>
-      <div class="bh-chain">${r.chain||'—'}</div>
-      <div class="bh-event" style="color:${r.event_type==='MEV_CAPTURE'?'var(--red)':r.event_type==='GOVERNANCE'?'var(--purple2)':'var(--text2)'}">${r.event_type||'—'}</div>
+      <div style="width:76px;flex-shrink:0">
+        <span class="badge" style="background:${vBg};color:${vColor};border-color:${vColor}33;font-size:8px">${verdict}</span>
+      </div>
+      <div class="bh-hash" title="${r.tx_hash||''}">
+        ${r.tx_hash ? r.tx_hash.slice(0,18)+'…' : r.sense_hex || '—'}
+      </div>
+      <div style="min-width:110px;font-size:10px;color:var(--text2);font-weight:500;white-space:nowrap">${chainShort}</div>
+      <div style="min-width:90px;font-size:10px;font-weight:600;color:${evtColor}">${r.event_type||'—'}</div>
       <div class="bh-ts">${age(r.ts||0)}</div>
     </div>`;
   }).join('');
@@ -2180,28 +2213,76 @@ async function loadSecurity() {
 let chainsLoaded=false;
 async function loadChains() {
   chainsLoaded = true;
-  const [chains,bhchains] = await Promise.all([apiFetch('/api/v1/chains'), apiFetch('/api/v1/bh/chains')]);
-  const el = $('cn-grid');
+  const [explorerData, bhStats] = await Promise.all([
+    apiFetch('/api/v1/explorer/chains'),
+    apiFetch('/api/v1/bh/stats')
+  ]);
   let chainList = [];
-  if(chains&&chains.chains) chainList = chains.chains;
-  else if(bhchains&&bhchains.chains) chainList = bhchains.chains.map(c=>({name:c.chain,vm:c.vm,chain_id:c.chain_id,bh_count:c.count,live:c.live}));
-  $('cn-total').textContent = chainList.length||37;
-  $('cn-badge').textContent = 'All '+(chainList.length||37)+' Chains';
-  if(!chainList.length) { el.innerHTML='<div class="loading"><p>No chain data</p></div>'; return; }
-  el.innerHTML = chainList.map(c => {
-    const name = (c.name||c.chain||'—').replace('_MAINNET','').replace('_CHAIN','');
-    return `<div class="chain-chip">
-      <div class="cc-label">${name}</div>
-      <div class="cc-vm">${c.vm||'—'}</div>
-      ${c.bh_count?`<div class="cc-count">${fmt(c.bh_count)}</div>`:''}
-    </div>`;
-  }).join('');
-  const vmEl = $('vm-groups');
-  const bhVm = bhchains&&bhchains.vm_groups?bhchains.vm_groups:{};
-  const vmList = Object.entries(bhVm);
-  if(vmList.length) {
-    vmEl.innerHTML = vmList.map(([vm,d])=>`<div class="arch-card"><div class="ac-name">${vm}</div><div class="ac-conf">${(d.chains||[]).slice(0,5).join(', ')}</div></div>`).join('');
+  if(explorerData && explorerData.chains) chainList = explorerData.chains;
+  else if(Array.isArray(explorerData))    chainList = explorerData;
+  const perChain = (bhStats && bhStats.per_chain) || {};
+  window._bhPerChain = perChain;
+  window._allChains  = chainList;
+  const live = chainList.filter(c => c.status === 'live').length;
+  const vms  = new Set(chainList.map(c => c.vm).filter(Boolean)).size;
+  $('cn-total').textContent    = chainList.length || '—';
+  $('cn-live').textContent     = live;
+  $('cn-vms').textContent      = vms;
+  if(bhStats) $('cn-bh-total').textContent = fmt(bhStats.total_tx_bhs || 0);
+  renderChainTable(chainList);
+  // VM filter pills
+  document.querySelectorAll('.vm-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.vm-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const vm  = btn.dataset.vm;
+      const src = window._allChains || [];
+      renderChainTable(vm ? src.filter(c => c.vm === vm) : src);
+    });
+  });
+  // Search
+  const srch = $('cn-search');
+  if(srch) srch.addEventListener('input', e => filterChainTable(e.target.value));
+}
+function renderChainTable(list) {
+  const perChain = window._bhPerChain || {};
+  $('cn-badge').textContent = list.length + ' chains';
+  if(!list.length) {
+    $('cn-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">No chains match filter</td></tr>';
+    return;
   }
+  $('cn-tbody').innerHTML = list.map(c => {
+    const statusCls = c.status==='live'?'green':c.status==='testnet'?'amber':'gray';
+    // Match BH count: chain_label in ledger is UPPER_SNAKE of the chain id
+    const label   = (c.id||'').toUpperCase().replace(/-/g,'_');
+    const live    = perChain[label] || c.bh_records_live || 0;
+    const seed    = c.bh_proofs || 0;
+    const bhTxt   = live ? fmt(live) : seed ? fmt(seed) : '—';
+    const bhColor = live ? 'var(--teal)' : 'var(--text3)';
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:9px;height:9px;border-radius:50%;background:${c.color||'#666'};flex-shrink:0"></div>
+          <span style="font-weight:600;color:var(--text)">${c.name||c.id}</span>
+          ${c.note?`<span title="${c.note}" style="font-size:9px;color:var(--text4);margin-left:3px">✦</span>`:''}
+        </div>
+      </td>
+      <td><span class="badge gray" style="font-size:8px">${c.vm||'—'}</span></td>
+      <td class="mono" style="color:var(--text3);font-size:10px">${c.chain_id||'—'}</td>
+      <td><span class="badge ${statusCls}" style="font-size:8px">${c.status||'—'}</span></td>
+      <td class="mono" style="color:${bhColor};font-size:11px;font-weight:700">${bhTxt}</td>
+      <td style="color:var(--text3);font-size:10px">${c.indexer||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+function filterChainTable(q) {
+  const lq  = (q||'').toLowerCase();
+  const src = window._allChains || [];
+  renderChainTable(lq
+    ? src.filter(c => (c.name||'').toLowerCase().includes(lq)
+                   || (c.vm||'').toLowerCase().includes(lq)
+                   || (c.id||'').toLowerCase().includes(lq))
+    : src);
 }
 
 /* ─── ABOUT ─── */
