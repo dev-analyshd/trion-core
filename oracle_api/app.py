@@ -105,32 +105,14 @@ def index():
 
 @app.route("/explorer")
 def explorer():
-    return render_template("explorer.html")
-
-
-@app.route("/book")
-def book():
-    return render_template("book.html")
-
-
-@app.route("/book/print")
-def book_print():
-    return render_template("book_print.html")
+    # Explorer merged into the main dashboard — redirect to root
+    from flask import redirect
+    return redirect("/")
 
 
 @app.route("/pitch")
 def pitch():
     return render_template("pitch.html")
-
-
-@app.route("/pitch/print")
-def pitch_print():
-    return render_template("pitch_print.html")
-
-
-@app.route("/download")
-def download():
-    return render_template("download.html")
 
 
 @app.route("/api/v1/zg")
@@ -4126,49 +4108,89 @@ def tsdb_stats():
 @app.route("/api/v1/bh/recent_feed")
 def bh_recent_feed():
     """
-    L0.1 — Live Behavioral Hash feed: last N per-transaction BH records across all chains.
+    L0.1 — Live Behavioral Hash feed across ALL chains.
+    Uses stratified sampling so high-volume chains (SOLANA_DEVNET) don't crowd
+    out lower-volume chains (ETH, BASE, ARB, BNB, etc.).  Every active chain
+    gets up to per_chain_max slots, then results are merged and re-sorted by ts.
     Returns tx_hash, chain, event_type, verdict, sense_hex, timestamp.
-    Designed for real-time dashboard display and judge verification.
     """
     import sqlite3 as _sq
-    limit = min(request.args.get("limit", 25, type=int), 100)
+    from collections import defaultdict as _dd
+    limit        = min(request.args.get("limit", 50, type=int), 200)
+    chain_filter = request.args.get("chain", None)
     db_path = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
     VERDICT_MAP = {
-        "MEV_CAPTURE":    "INTERCEPT",
-        "FLASH_LOAN":     "HOSTILE",
-        "GOVERNANCE":     "WATCH",
-        "ORACLE_UPDATE":  "WATCH",
-        "DEPLOY":         "WATCH",
-        "MINT":           "WATCH",
-        "BORROW":         "ELEVATED",
-        "TRANSFER":       "SAFE",
-        "SWAP":           "SAFE",
-        "STAKE":          "SAFE",
-        "UNSTAKE":        "SAFE",
-        "LIQUIDITY":      "SAFE",
-        "BURN":           "SAFE",
-        "CLAIM":          "SAFE",
-        "AIRDROP":        "SAFE",
+        "MEV_CAPTURE":   "INTERCEPT",
+        "FLASH_LOAN":    "HOSTILE",
+        "GOVERNANCE":    "WATCH",
+        "ORACLE_UPDATE": "WATCH",
+        "DEPLOY":        "WATCH",
+        "MINT":          "WATCH",
+        "BORROW":        "ELEVATED",
+        "TRANSFER":      "SAFE",
+        "SWAP":          "SAFE",
+        "STAKE":         "SAFE",
+        "UNSTAKE":       "SAFE",
+        "LIQUIDITY":     "SAFE",
+        "BURN":          "SAFE",
+        "CLAIM":         "SAFE",
+        "AIRDROP":       "SAFE",
     }
     try:
         conn = _sq.connect(db_path, timeout=4.0)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA query_only=1")
-        rows = conn.execute(
+        # Pull a large window so we have records from every active chain
+        raw_rows = conn.execute(
             "SELECT tx_hash, chain_label, event_type_name, sense_hex, entity_id, ts "
-            "FROM bh_ledger ORDER BY ts DESC LIMIT ?", (limit,)
+            "FROM bh_ledger ORDER BY ts DESC LIMIT 2000"
         ).fetchall()
         total = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
         mev_total = conn.execute(
             "SELECT COUNT(*) FROM bh_ledger WHERE event_type_name='MEV_CAPTURE'"
         ).fetchone()[0]
+        distinct_chains = conn.execute(
+            "SELECT COUNT(DISTINCT chain_label) FROM bh_ledger"
+        ).fetchone()[0]
         conn.close()
     except Exception as exc:
         return jsonify({"error": str(exc), "records": [], "total_bh_records": 0}), 503
 
+    # Stratified sampling: query each chain independently so high-volume chains
+    # (SOLANA_DEVNET with 1000+ tx/cycle) cannot crowd out lower-volume ones.
+    # A simple ORDER BY ts DESC LIMIT N window would be dominated by Solana.
+    per_chain_max = max(3, limit // max(1, distinct_chains))
+    all_rows = []
+    try:
+        conn2 = _sq.connect(db_path, timeout=4.0)
+        conn2.execute("PRAGMA journal_mode=WAL")
+        conn2.execute("PRAGMA query_only=1")
+        chain_labels = [r[0] for r in conn2.execute(
+            "SELECT DISTINCT chain_label FROM bh_ledger"
+        ).fetchall()]
+        for cl in chain_labels:
+            if chain_filter and cl != chain_filter:
+                continue
+            rows = conn2.execute(
+                "SELECT tx_hash, chain_label, event_type_name, sense_hex, entity_id, ts "
+                "FROM bh_ledger WHERE chain_label=? ORDER BY ts DESC LIMIT ?",
+                (cl, per_chain_max)
+            ).fetchall()
+            all_rows.extend(rows)
+        conn2.close()
+    except Exception:
+        all_rows = raw_rows  # fall back to the bulk window already fetched
+
+    # Re-sort merged results by ts DESC and take limit
+    stratified = sorted(all_rows, key=lambda r: r[5], reverse=True)[:limit]
+    # Track which chains contributed
+    chain_buckets = {}
+    for r in stratified:
+        chain_buckets[r[1]] = True
+
     records = []
-    for row in rows:
+    for row in stratified:
         tx_hash, chain, event_type, sense_hex, entity_id, ts = row
         verdict = VERDICT_MAP.get(event_type, "SAFE")
         records.append({
@@ -4185,6 +4207,7 @@ def bh_recent_feed():
         "records":          records,
         "total_bh_records": total,
         "mev_captures":     mev_total,
+        "chains_active":    len(chain_buckets),
         "whitepaper":       "L0.1 — per-transaction canonical BH dual-strand",
         "formula":          "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
         "payload_bytes":    93,
