@@ -200,9 +200,64 @@ def enrich(chain: dict) -> dict:
     return {**chain, **get_bh_stats(chain)}
 
 
+def get_live_chain_stats() -> dict:
+    """
+    Query bh_ledger.db for real per-chain BH record counts.
+    Returns {chain_label: count} from live SQLite data.
+    Falls back to empty dict if the DB is unavailable.
+    Result is cached for 60 s to avoid per-request DB hits.
+    """
+    import sqlite3 as _sql
+    import os as _os
+    import time as _t
+    import threading as _th
+    _f = get_live_chain_stats
+    if not hasattr(_f, "_cache"):
+        _f._cache = {}
+        _f._ts    = 0.0
+        _f._lock  = _th.Lock()
+    now = _t.time()
+    with _f._lock:
+        if _f._cache and (now - _f._ts) < 60:
+            return dict(_f._cache)
+    db_path = _os.path.normpath(
+        _os.path.join(_os.path.dirname(__file__), "..", "bh_ledger.db")
+    )
+    try:
+        conn = _sql.connect(db_path, timeout=3.0)
+        conn.execute("PRAGMA query_only=1")
+        rows = conn.execute(
+            "SELECT chain_label, COUNT(*) FROM bh_ledger GROUP BY chain_label"
+        ).fetchall()
+        conn.close()
+        result = {r[0]: r[1] for r in rows}
+    except Exception:
+        result = {}
+    with _f._lock:
+        _f._cache = result
+        _f._ts    = now
+    return result
+
+
 def get_all_chains():
     return CHAINS
 
 
 def get_enriched_chains():
-    return [enrich(c) for c in CHAINS]
+    """Return all chains enriched with BH FAISS stats and live SQLite counts."""
+    live_stats = get_live_chain_stats()
+    enriched = []
+    for c in CHAINS:
+        e = enrich(c)
+        # Overlay real bh_records count from SQLite if available.
+        # The chain_label convention in bh_ledger uses UPPER_SNAKE_CASE of the chain id.
+        label_candidates = [
+            c["id"].upper().replace("-", "_"),
+            c["name"].upper().replace(" ", "_").replace("-", "_"),
+        ]
+        for lbl in label_candidates:
+            if lbl in live_stats:
+                e["bh_records_live"] = live_stats[lbl]
+                break
+        enriched.append(e)
+    return enriched
