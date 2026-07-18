@@ -10,7 +10,7 @@ import time
 # ── Chain catalog ─────────────────────────────────────────────────────────────
 CHAINS = [
     # ── 0G Networks ────────────────────────────────────────────────────────────
-    {"id": "0g-mainnet",    "name": "0G Mainnet",          "vm": "EVM",        "chain_id": 16661,       "status": "live",    "color": "#1B7CE5", "indexer": "trion-evm",     "note": "TRIONExecutionGate LIVE — 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"},
+    {"id": "0g-mainnet",    "name": "0G Mainnet",          "vm": "EVM",        "chain_id": 16661,       "status": "live",    "color": "#1B7CE5", "indexer": "trion-evm",     "bh_label": "ZG_MAINNET", "note": "TRIONExecutionGate LIVE — 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"},
     {"id": "0g-galileo",    "name": "0G Galileo",          "vm": "EVM",        "chain_id": 16602,       "status": "testnet", "color": "#1B7CE5", "indexer": "trion-evm",     "note": "Testnet — OracleV3, Liquidity, TravelRule, Escrow"},
     # ── EVM Mainnets ───────────────────────────────────────────────────────────
     {"id": "eth-mainnet",   "name": "Ethereum",            "vm": "EVM",        "chain_id": 1,           "status": "live",    "color": "#627EEA", "indexer": "trion-evm",     "note": "Per-tx BH live — Rust EVM indexer"},
@@ -32,7 +32,7 @@ CHAINS = [
     {"id": "xdc",           "name": "XDC Network",         "vm": "EVM",        "chain_id": 50,          "status": "live",    "color": "#2550A4", "indexer": "trion-evm"},
     {"id": "story-ip",      "name": "Story Protocol",      "vm": "EVM",        "chain_id": 1514,        "status": "live",    "color": "#3DDC97", "indexer": "trion-evm"},
     {"id": "blast",         "name": "Blast",               "vm": "EVM",        "chain_id": 81457,       "status": "live",    "color": "#D4AC0D", "indexer": "trion-evm"},
-    {"id": "manta",         "name": "Manta Pacific",       "vm": "EVM",        "chain_id": 169,         "status": "live",    "color": "#50CECA", "indexer": "trion-evm"},
+    {"id": "manta",         "name": "Manta Pacific",       "vm": "EVM",        "chain_id": 169,         "status": "live",    "color": "#50CECA", "indexer": "trion-evm",     "bh_label": "MANTA_PACIFIC"},
     {"id": "mode",          "name": "Mode Network",        "vm": "EVM",        "chain_id": 34443,       "status": "live",    "color": "#9FB300", "indexer": "trion-evm"},
     {"id": "taiko",         "name": "Taiko",               "vm": "EVM",        "chain_id": 167000,      "status": "live",    "color": "#E91E8C", "indexer": "trion-evm"},
     {"id": "fraxtal",       "name": "Fraxtal",             "vm": "EVM",        "chain_id": 252,         "status": "live",    "color": "#555555", "indexer": "trion-evm"},
@@ -50,7 +50,7 @@ CHAINS = [
     {"id": "harmony",       "name": "Harmony ONE",         "vm": "EVM",        "chain_id": 1666600000,  "status": "live",    "color": "#00AEE9", "indexer": "trion-evm"},
     {"id": "iotex",         "name": "IoTeX",               "vm": "EVM",        "chain_id": 4689,        "status": "live",    "color": "#44B8B1", "indexer": "trion-evm"},
     {"id": "conflux",       "name": "Conflux eSpace",      "vm": "EVM",        "chain_id": 1030,        "status": "live",    "color": "#44B0F5", "indexer": "trion-evm"},
-    {"id": "monad",         "name": "Monad",               "vm": "EVM",        "chain_id": 10143,       "status": "live",    "color": "#7C3AED", "indexer": "trion-evm"},
+    {"id": "monad",         "name": "Monad",               "vm": "EVM",        "chain_id": 10143,       "status": "live",    "color": "#7C3AED", "indexer": "trion-evm",     "bh_label": "MONAD_MAINNET"},
     {"id": "filecoin",      "name": "Filecoin FEVM",       "vm": "EVM",        "chain_id": 314,         "status": "live",    "color": "#0090FF", "indexer": "trion-evm"},
     {"id": "hyperliquid",   "name": "HyperLiquid EVM",     "vm": "EVM",        "chain_id": 999,         "status": "live",    "color": "#00D6BC", "indexer": "trion-evm"},
     {"id": "abstract",      "name": "Abstract",            "vm": "EVM",        "chain_id": 2741,        "status": "live",    "color": "#22C55E", "indexer": "trion-evm"},
@@ -82,7 +82,7 @@ CHAINS = [
     {"id": "bnb-testnet",   "name": "BNB Testnet",         "vm": "EVM",        "chain_id": 97,          "status": "testnet", "color": "#F3BA2F", "indexer": "trion-evm"},
     # ── SVM ────────────────────────────────────────────────────────────────────
     {"id": "solana",        "name": "Solana",              "vm": "SVM",        "chain_id": 101,         "status": "live",    "color": "#9945FF", "indexer": "trion-svm"},
-    {"id": "solana-dev",    "name": "Solana Devnet",       "vm": "SVM",        "chain_id": 103,         "status": "testnet", "color": "#9945FF", "indexer": "trion-svm"},
+    {"id": "solana-dev",    "name": "Solana Devnet",       "vm": "SVM",        "chain_id": 103,         "status": "testnet", "color": "#9945FF", "indexer": "trion-svm",     "bh_label": "SOLANA_DEVNET"},
     # ── UTXO ───────────────────────────────────────────────────────────────────
     {"id": "btc",           "name": "Bitcoin",             "vm": "UTXO",       "chain_id": 0,           "status": "live",    "color": "#F7931A", "indexer": "native-vm"},
     {"id": "ltc",           "name": "Litecoin",            "vm": "UTXO",       "chain_id": 0,           "status": "live",    "color": "#A0A0A0", "indexer": "native-vm"},
@@ -251,10 +251,18 @@ def get_enriched_chains():
         e = enrich(c)
         # Overlay real bh_records count from SQLite if available.
         # The chain_label convention in bh_ledger uses UPPER_SNAKE_CASE of the chain id.
-        label_candidates = [
-            c["id"].upper().replace("-", "_"),
-            c["name"].upper().replace(" ", "_").replace("-", "_"),
-        ]
+            # Use explicit bh_label if set, otherwise try id and name transforms
+        explicit = c.get("bh_label")
+        if explicit:
+            label_candidates = [explicit]
+        else:
+            label_candidates = [
+                c["id"].upper().replace("-", "_"),
+                c["name"].upper().replace(" ", "_").replace("-", "_"),
+                # Additional fuzzy: strip common suffixes
+                c["id"].upper().replace("-", "_") + "_MAINNET",
+                c["id"].upper().replace("-", "_") + "_DEVNET",
+            ]
         for lbl in label_candidates:
             if lbl in live_stats:
                 e["bh_records_live"] = live_stats[lbl]
