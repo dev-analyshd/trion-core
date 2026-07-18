@@ -122,3 +122,6 @@ attached_assets/
 *.db-wal
 *.db-shm
 trion_epigenetic_state.json
+
+# Runtime progress state — environment-specific, not setup config
+genesis_backfill_checkpoint_*.json
