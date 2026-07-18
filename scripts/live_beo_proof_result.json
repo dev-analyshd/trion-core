@@ -1,0 +1,77 @@
+{
+  "entity": "TRION_CROSSCHAIN_PROOF_v1",
+  "entity_id": "9c9815128de3e33b65ad70eebcb2f2bbc1c17098994ec0e6cafb5de8c4f4db94",
+  "timestamp": 1784339483,
+  "proofs": [
+    {
+      "vm": "EVM",
+      "label": "EVM \u2014 Arbitrum Sepolia",
+      "chain_id": 421614,
+      "block_number": 288611885,
+      "block_hash": "85e5d765d3f82d6ca425d81e4270744f2d287c6e1762c256ce0673cb5e082fc4",
+      "timestamp": 1784339477,
+      "event_type": "SWAP",
+      "magnitude": 0.5965885978780819,
+      "sense": "669a290216e529323e69b3c475938e41ad4245809fb6f58caf07006bf983765f",
+      "antisense": "d0a21c760c3c622cc8707cf10332e79d7a60971f74b938b7a2d55b5387ebac56",
+      "proof_valid": true,
+      "tamper_clean": true
+    },
+    {
+      "vm": "SVM",
+      "label": "SVM \u2014 Solana Mainnet",
+      "chain_id": 900,
+      "block_number": 433597042,
+      "block_hash": "bea10843b99affe428efa13ceabde6ae065b6c66eb98eb2268c81f8eb09a86c0",
+      "timestamp": 1784339478,
+      "event_type": "SWAP",
+      "magnitude": 0.561352855971178,
+      "sense": "fccf9663b6a72b82f2204c08a0f084c52a2f961ad761cda3742825cbcce14a03",
+      "antisense": "3bfabfe6c52f99a05a627b3cbb7fc95850b069b38bbef2c9e271abc51f6040c5",
+      "proof_valid": true,
+      "tamper_clean": true
+    },
+    {
+      "vm": "Cosmos SDK",
+      "label": "Cosmos Hub",
+      "chain_id": 118,
+      "block_number": 32081151,
+      "block_hash": "b4409402174a331eb177f692f0bc4f562d0e9f5c77b7b9d8629addd9f3e17998",
+      "timestamp": 1784339467,
+      "event_type": "BRIDGE",
+      "magnitude": 0.5842142367372066,
+      "sense": "30eaf9b75ab70b87f6dbcc657746a44800fac68b89fded2a4f7a1b18f16dc7f5",
+      "antisense": "8692fb9ffa5b37d037432fccdd4016d3515ae0c9c6a5b573869aaebf205fd1f9",
+      "proof_valid": true,
+      "tamper_clean": true
+    },
+    {
+      "vm": "NEAR VM",
+      "label": "NEAR Mainnet",
+      "chain_id": 397,
+      "block_number": 207429884,
+      "block_hash": "865e5e3622cbb94b9192c1ba9cb32d24dada43bb7192b6a298ec5795deef28e4",
+      "timestamp": 1784339479,
+      "event_type": "STAKE",
+      "magnitude": 0.5264869999133388,
+      "sense": "153bb18ff83fd875b4f54a44430432de1e80c3d31195abd0025ad06b57009f48",
+      "antisense": "8aaa8f84dba056bf860539f8489c98784780e8862362eec15ae2907570f55e66",
+      "proof_valid": true,
+      "tamper_clean": true
+    },
+    {
+      "vm": "TVM",
+      "label": "TON Mainnet",
+      "chain_id": 607,
+      "block_number": 80372433,
+      "block_hash": "3dde0ce6303451ed2f252c47c3e5e6e33db581fd52d7d2d00ae109a1ecc9d748",
+      "timestamp": 1784339482,
+      "event_type": "TRANSFER",
+      "magnitude": 0.5093041582746062,
+      "sense": "51679dfa8973ee426c4474267062852a08a1b87cc0ea1a41c4b18465291d20ac",
+      "antisense": "94d097ad13de21276d1624a9b323273d92f19e2403ee58c8979eee40a9b996c3",
+      "proof_valid": true,
+      "tamper_clean": true
+    }
+  ]
+}
