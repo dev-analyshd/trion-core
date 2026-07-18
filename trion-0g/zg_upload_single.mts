@@ -5,15 +5,7 @@ import { ethers } from 'ethers';
 const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
 if (!privateKey) { console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }
 
-// File path from CLI arg or env var — no hardcoded paths
-const filePath = process.argv[2] || process.env.ZG_UPLOAD_FILE;
-if (!filePath) {
-  console.error('USAGE: ZG_UPLOAD_PRIVATE_KEY=<key> npx tsx zg_upload_single.mts <path-to-file>');
-  console.error('   or: ZG_UPLOAD_FILE=<path> ZG_UPLOAD_PRIVATE_KEY=<key> npx tsx zg_upload_single.mts');
-  process.exit(1);
-}
-
-const file     = await ZgFile.fromFilePath(filePath);
+const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1784340399.json');
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
