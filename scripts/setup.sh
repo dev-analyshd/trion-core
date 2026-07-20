@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # TRION Protocol — Replit Setup Script
-# Run once after cloning/importing to install all Node.js dependencies.
+# Run once after cloning/importing to install all Node.js dependencies across
+# every subproject in the workspace.
+#
 # Python dependencies are managed via uv (pyproject.toml) and are installed
-# automatically when the workflows start.
+# automatically when the workflows start (via `uv run`).
 #
 # Usage:
 #   bash scripts/setup.sh
@@ -16,46 +18,47 @@ echo "========================================================"
 echo " TRION Protocol — Dependency Setup"
 echo "========================================================"
 
-# ── Node.js: EVM relayer ──────────────────────────────────
-echo ""
-echo "[1/8] relayer/ (EVM + 0G relayer)"
-cd "$ROOT/relayer" && npm install
+install_node() {
+  local label="$1"
+  local dir="$2"
+  local flags="${3:-}"
+  echo ""
+  echo ">>> $label"
+  cd "$ROOT/$dir" && npm install $flags
+}
 
-# ── Node.js: Native VM relayer ────────────────────────────
-echo ""
-echo "[2/8] native-relayer/ (SVM / NEAR / TON / PVM / StarkNet)"
-cd "$ROOT/native-relayer" && npm install
+# ── Root workspace ────────────────────────────────────────
+install_node "[1/11] root (ArbiLink agent + multi-chain adapters)" "." "--legacy-peer-deps"
 
-# ── Node.js: per-VM chain executor scripts ───────────────
-echo ""
-echo "[3/8] chains/svm/"
-cd "$ROOT/chains/svm" && npm install
+# ── EVM & 0G relayer ─────────────────────────────────────
+install_node "[2/11] relayer/ (EVM + 0G relayer)" "relayer"
 
-echo ""
-echo "[4/8] chains/near/"
-cd "$ROOT/chains/near" && npm install
+# ── Native VM relayer ─────────────────────────────────────
+install_node "[3/11] native-relayer/ (SVM / NEAR / TON / PVM / StarkNet)" "native-relayer"
 
-echo ""
-echo "[5/8] chains/ton/"
-cd "$ROOT/chains/ton" && npm install
+# ── Per-VM chain executor scripts ─────────────────────────
+install_node "[4/11] chains/svm/"      "chains/svm"
+install_node "[5/11] chains/near/"     "chains/near"
+install_node "[6/11] chains/ton/"      "chains/ton"
+install_node "[7/11] chains/pvm/"      "chains/pvm"
+install_node "[8/11] chains/starknet/" "chains/starknet"
+install_node "[9/11] chains/sui/"      "chains/sui"
 
-echo ""
-echo "[6/8] chains/pvm/"
-cd "$ROOT/chains/pvm" && npm install
+# ── 0G integration module ─────────────────────────────────
+install_node "[10/11] trion-0g/ (0G storage / DA / compute)" "trion-0g" "--legacy-peer-deps"
 
-echo ""
-echo "[7/8] chains/starknet/"
-cd "$ROOT/chains/starknet" && npm install
-
-echo ""
-echo "[8/8] chains/sui/"
-cd "$ROOT/chains/sui" && npm install
+# ── Backtest suite ────────────────────────────────────────
+install_node "[11/11] backtest/" "backtest"
 
 echo ""
 echo "========================================================"
 echo " All Node.js dependencies installed."
 echo ""
-echo " Next: add Replit Secrets for your signing keys"
-echo " (see 'Secrets Required' section in replit.md),"
-echo " then start the workflows from the Workflows panel."
+echo " Next steps:"
+echo "  1. Add Replit Secrets for your signing keys"
+echo "     (see 'Secrets Required' section in replit.md)"
+echo "  2. Start all workflows from the Replit Workflows panel:"
+echo "     Start application → FAISS ANIMA → Rust Indexers →"
+echo "     TRION Relayer → Extended Chain Relayer → Native Relayer →"
+echo "     Attack Alert Webhook → Genesis Backfill"
 echo "========================================================"
