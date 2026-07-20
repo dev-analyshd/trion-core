@@ -43,6 +43,7 @@ Three-Tier Storage (HOT/WARM/COLD) | Merkle Proof System
 SQLite persistence (entity state survives restarts)
 """
 
+import asyncio
 import os
 import math
 import hashlib
@@ -2951,7 +2952,7 @@ def get_genesis_confidence(entity_id: str):
 # ── Routes — L2.4 Resurrection Inference ──────────────────────────────────────
 
 @app.post("/api/v1/resurrection/{entity_id}")
-def check_resurrection(entity_id: str, payload: ResurrectionPayload):
+async def check_resurrection(entity_id: str, payload: ResurrectionPayload):
     """
     L2.4 — Classify a reactivating dormant entity.
     Supply `dormancy_type` explicitly when the context is known:
@@ -2964,25 +2965,26 @@ def check_resurrection(entity_id: str, payload: ResurrectionPayload):
     if len(payload.vector) != DIMENSION:
         raise HTTPException(400, f"vector must have {DIMENSION} dimensions")
     vec = np.array(payload.vector, dtype="float32")
-    return resurrection_inference(beo_id, vec, dormancy_type=payload.dormancy_type or "HIBERNATION")
+    dormancy = payload.dormancy_type or "HIBERNATION"
+    return await asyncio.to_thread(resurrection_inference, beo_id, vec, dormancy_type=dormancy)
 
 
 # ── Routes — L2.5 Convergence Theorem ────────────────────────────────────────
 
 @app.post("/api/v1/convergence/{entity_id}")
-def get_convergence(entity_id: str, payload: VectorPayload):
+async def get_convergence(entity_id: str, payload: VectorPayload):
     """L2.5 — Multi-estimator convergence score."""
     beo_id = resolve_beo(entity_id)
     if len(payload.vector) != DIMENSION:
         raise HTTPException(400, f"vector must have {DIMENSION} dimensions")
     vec = np.array(payload.vector, dtype="float32")
-    return convergence_score(beo_id, vec)
+    return await asyncio.to_thread(convergence_score, beo_id, vec)
 
 
 # ── Routes — L2.6 Fork Resolution ────────────────────────────────────────────
 
 @app.post("/api/v1/fork_resolution")
-def resolve_fork(payload: ForkPayload):
+async def resolve_fork(payload: ForkPayload):
     """
     L2.6 — Determine canonical branch from two forked entity histories.
     Optionally supply cc_a/cc_b (holder continuity proportions) for full
@@ -2990,19 +2992,19 @@ def resolve_fork(payload: ForkPayload):
     """
     beo_a = resolve_beo(payload.entity_a)
     beo_b = resolve_beo(payload.entity_b)
-    return fork_resolution(beo_a, beo_b, cc_a=payload.cc_a, cc_b=payload.cc_b)
+    return await asyncio.to_thread(fork_resolution, beo_a, beo_b, cc_a=payload.cc_a, cc_b=payload.cc_b)
 
 
 # ── Routes — L2.7 Trajectory Anomaly ─────────────────────────────────────────
 
 @app.post("/api/v1/trajectory_anomaly/{entity_id}")
-def check_trajectory(entity_id: str, payload: VectorPayload):
+async def check_trajectory(entity_id: str, payload: VectorPayload):
     """L2.7 — KL-divergence trajectory anomaly detection."""
     beo_id = resolve_beo(entity_id)
     if len(payload.vector) != DIMENSION:
         raise HTTPException(400, f"vector must have {DIMENSION} dimensions")
     vec = np.array(payload.vector, dtype="float32")
-    return trajectory_anomaly(beo_id, vec)
+    return await asyncio.to_thread(trajectory_anomaly, beo_id, vec)
 
 
 # ── L4.4  HashDNA Complementarity Verification ────────────────────────────────
@@ -9977,7 +9979,7 @@ async def crispr_library():
     immune = ImmuneSystem()
     return {
         "library_size": immune.crispr.library_size(),
-        "signatures": list(immune.crispr._signatures.keys()),
+        "signatures": list(immune.crispr._library.keys()),
         "seeded_attacks": [
             "HARVEST_2020_FLASH",
             "BEANSTALK_2022_GOV",
