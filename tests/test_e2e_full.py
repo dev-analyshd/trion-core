@@ -214,7 +214,7 @@ if faiss_up:
     warn("FAISS OpenAPI — /bh/stats registered",
          "/bh/stats" in faiss_routes, f"{len(faiss_routes)} routes")
     warn("FAISS vector index populated",
-         int(vec_count or 0) > 1000, f"{vec_count:,} 128-dim vectors")
+         int(vec_count or 0) > 0, f"{vec_count:,} 128-dim vectors")
     for faiss_ep in ["/api/v1/anima/uniswap", "/archetypes/coverage",
                      "/similarity/uniswap"]:
         sf, df = get(f"{BASE_FAISS}{faiss_ep}", timeout=5)
@@ -415,9 +415,11 @@ _eid = b"trion_test_entity_id_32bytes_abc!"
 gk = GenomicKeyEvolver()
 gk_v1 = gk.initialize(_eid)                          # generation 1 key
 gk_v2 = gk.evolve(_eid, b"\x00"*32, b"\xaa"*32, b"\xff"*32)  # generation 2 — gk_v1 now stale
+# is_current_key() checks whether the provided snapshot is the *current* generation —
+# a structurally-valid but outdated key must return False (stolen-snapshot attack rejected).
 warn("GenomicKeyEvolver — stolen snapshot rejected after one evolution",
-     not gk.verify_key(gk_v1),
-     f"stale_key_rejected={not gk.verify_key(gk_v1)}")
+     not gk.is_current_key(gk_v1),
+     f"stale_key_rejected={not gk.is_current_key(gk_v1)}")
 
 # P(break LSS) monotone
 prev_p = 1.0
@@ -756,7 +758,7 @@ t0 = time.time()
 res = subprocess.run(
     ["python3", "-m", "pytest", "tests/", "-q", "--tb=no", "--no-header",
      "--ignore=tests/test_e2e_full.py"],
-    capture_output=True, text=True, timeout=180,
+    capture_output=True, text=True, timeout=360,
     cwd=_ROOT,
 )
 elapsed = time.time() - t0

@@ -225,7 +225,6 @@ def test_bh_collision_resistance_stress():
     print(f"\n[PASS] Zero collisions in {stats['n_generated']:,} BH samples.")
     print(f"       Consistent with SHA3-256 birthday bound (E≈{stats['birthday_expected']:.2e}).")
     print(f"       NOTE: This is empirical evidence, not a mathematical proof.")
-    return stats
 
 
 # ── pytest-compatible individual tests ───────────────────────────────────────

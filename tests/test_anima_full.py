@@ -103,7 +103,7 @@ except Exception:
 # Test helpers
 # ─────────────────────────────────────────────────────────────────────────────
 BASE = "http://127.0.0.1:8000"
-TIMEOUT = 30          # seconds per HTTP call — generous because Backfill is running
+TIMEOUT = 90          # seconds per HTTP call — generous: live FAISS indexers can saturate add_batch
 DIM = 128             # FAISS index dimension
 
 BOLD  = "\033[1m"

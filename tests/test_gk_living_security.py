@@ -288,7 +288,6 @@ def test_gk_evolution_chain():
     print(f"  Determinism check (same inputs → same final GK): ✅")
 
     print(f"\n  ✅ PASS — 10 unique GK states, fully deterministic")
-    return gk_chain     # used by §3
 
 
 # ══════════════════════════════════════════════════════════════════════════════
