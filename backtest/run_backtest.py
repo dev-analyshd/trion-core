@@ -253,7 +253,7 @@ def main():
                      zip(exploits, [res["signal"] for res in results if res["entity_type"]=="ATTACKER"])
                      if r["trion_flagged"])
     print(f"  Total exploit value tested : ${total_val:>15,}")
-    print(f"  Value TRION would catch    : ${caught_val:>15,}  ({caught_val/total_val*100:.1f}%)")
+    print(f"  Value TRION would catch    : ${caught_val:>15,}  ({caught_val/total_val*100:.1f}%)" if total_val > 0 else f"  Value TRION would catch    : ${caught_val:>15,}  (N/A)")
     print(f"  Exploits tested            : {len(exploits)}")
     print(f"  Attack types covered       : FLASH_LOAN, REENTRANCY, ORACLE_MANIP,")
     print(f"                               GOVERNANCE_ATTACK, BRIDGE_DRAIN,")
@@ -281,7 +281,7 @@ def main():
             "separation_delta":       round(separation,   6),
             "total_exploit_usd":      total_val,
             "caught_exploit_usd":     caught_val,
-            "catch_rate_pct":         round(caught_val/total_val*100, 2),
+            "catch_rate_pct":         round(caught_val/total_val*100, 2) if total_val > 0 else 0.0,
         },
         "merkle": {
             "root":   merkle_root,
@@ -313,7 +313,7 @@ def main():
         f.write(f"Precision={precision:.4f} Recall={recall:.4f} F1={f1:.4f}\n")
         f.write(f"Accuracy={accuracy:.4f} FPR={fpr:.4f} FNR={fnr:.4f}\n")
         f.write(f"Separation={separation:+.6f}\n")
-        f.write(f"Catch rate: {caught_val/total_val*100:.1f}% of ${total_val:,}\n")
+        f.write(f"Catch rate: {caught_val/total_val*100:.1f}% of ${total_val:,}\n" if total_val > 0 else f"Catch rate: N/A of ${total_val:,}\n")
         f.write(f"Merkle root: {merkle_root}\n")
 
     print(f"\n{GRN}✓ Report saved    → {report_path}{RST}")
