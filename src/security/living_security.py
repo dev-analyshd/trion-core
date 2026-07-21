@@ -146,6 +146,25 @@ class GenomicKeyEvolver:
         """Backward-compat structural integrity check on a GenomicKey."""
         return gk.verify()
 
+    def is_current_key(self, gk: "GenomicKey") -> bool:
+        """
+        Returns True iff `gk` is the *current* (latest-evolved) key for its
+        entity — i.e. it has NOT been superseded by a subsequent evolution.
+
+        Stolen-snapshot attack: an attacker captures GK at generation N.
+        After one more legitimate event by the real entity the evolver stores
+        GK(N+1).  is_current_key(GK_N) → False — the stolen key is rejected.
+
+        This is the correct check for temporal key validity; verify_key() only
+        checks structural integrity (strand is not all-zeros) and cannot detect
+        stale snapshots.
+        """
+        current = self._keys.get(gk.entity_id)
+        if current is None:
+            return False
+        return (current.sense == gk.sense
+                and current.generation == gk.generation)
+
     def kolmogorov_bound(self, n_chains: int, n_validators: int) -> float:
         """
         K(H(TRION, t)) >= Ω(t · N_chains · N_validators · H_environment)

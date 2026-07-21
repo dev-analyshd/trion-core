@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# TRION Protocol — Whitepaper Scaffold Test Runner
-# Tests all L0–L10 whitepaper implementations (trion-protocol/ + src/).
-# Run from workspace root: bash scripts/run_whitepaper_tests.sh
-set -e
+# TRION Protocol — Whitepaper Test Runner (L0–L10)
+# Tests every whitepaper implementation in the live repo: Rust L0 core,
+# Python src/ modules (L1–L9), Solidity contracts, and the full pytest suite.
+#
+# Usage: bash scripts/run_whitepaper_tests.sh
+# Requires: uv (Python), cargo (Rust), pytest installed via pyproject.toml
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PASS=0; FAIL=0; RESULTS=()
 
 run_test() {
-    local label="$1" cmd="$2" cwd="$3"
+    local label="$1" cmd="$2" cwd="${3:-$ROOT}"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  $label"
@@ -28,92 +31,109 @@ run_test() {
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║    TRION Whitepaper Test Runner (L0–L10 scaffold)    ║"
+echo "║    TRION Whitepaper Test Runner (L0–L10 live repo)   ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
-# ── Rust L0 core (trion-protocol/core) ───────────────────────────────────────
-run_test "L0 Rust: BehavioralHash + Physical (15 tests)" \
-    "cargo test -- --nocapture 2>&1" \
-    "$ROOT/trion-protocol"
+# ── Rust L0 core (rust-indexers/crates/trion-common) ─────────────────────────
+run_test "L0 Rust: BehavioralHash + DualStrand + LivingSecurity (23 tests)" \
+    "cargo test --workspace --lib -- --nocapture" \
+    "$ROOT/rust-indexers"
 
-# ── Python src/ modules (main repo) ─────────────────────────────────────────
-run_test "L1 Python: phi_engine — 9 Shannon entropy features (src/planes/physical/phi_engine.py)" \
-    "python3 tests/trion_protocol/test_feature_extractor.py" \
+# ── Python: trion_protocol unit tests (L0–L5 scaffold) ──────────────────────
+run_test "L1 Python: phi_engine — 9 Shannon entropy features" \
+    "uv run python3 -m pytest tests/trion_protocol/test_feature_extractor.py -q" \
     "$ROOT"
 
-run_test "L2 Python: archetypes — 12 Akashic archetypes + match_archetype (src/akashic/archetypes.py)" \
-    "python3 tests/trion_protocol/test_archetype_engine.py" \
+run_test "L2 Python: archetypes — 12 Akashic archetypes + match_archetype" \
+    "uv run python3 -m pytest tests/trion_protocol/test_archetype_engine.py -q" \
     "$ROOT"
 
-run_test "L3 Python: m_engine — M(t) prediction interval + observer effect (src/planes/mental/m_engine.py)" \
-    "python3 tests/trion_protocol/test_conformal_predictor.py" \
+run_test "L3 Python: m_engine — M(t) conformal prediction + observer effect" \
+    "uv run python3 -m pytest tests/trion_protocol/test_conformal_predictor.py -q" \
     "$ROOT"
 
-run_test "L4 Python: sigma_engine — Σ diversity-weighted BFT + HHI (src/planes/spiritual/sigma_engine.py)" \
-    "python3 tests/trion_protocol/test_consensus_bft.py" \
+run_test "L4 Python: sigma_engine — Σ diversity-weighted BFT + HHI" \
+    "uv run python3 -m pytest tests/trion_protocol/test_consensus_bft.py -q" \
     "$ROOT"
 
-run_test "L5 Python: coherence_engine — C(t) master equation + moat (src/core/coherence_engine.py)" \
-    "python3 tests/trion_protocol/test_five_plane_c.py" \
+run_test "L5 Python: coherence_engine — C(t) master equation + moat" \
+    "uv run python3 -m pytest tests/trion_protocol/test_five_plane_c.py -q" \
     "$ROOT"
 
-# ── trion-protocol/ scaffold phases (full suite) ─────────────────────────────
-run_test "P2 trion-protocol: Physical Feature Extractor" \
-    "PYTHONPATH=src python3 tests/test_features.py" \
-    "$ROOT/trion-protocol/akashic"
+run_test "L0 Python: BH collision resistance" \
+    "uv run python3 -m pytest tests/trion_protocol/test_bh_collision_resistance.py -q" \
+    "$ROOT"
 
-run_test "P3 trion-protocol: Akashic Index + Resurrection" \
-    "PYTHONPATH=src python3 tests/test_akashic.py" \
-    "$ROOT/trion-protocol/akashic"
+# ── Python: integration plane tests ──────────────────────────────────────────
+run_test "Integration: all planes (physical/mental/spiritual/conscious/anima)" \
+    "uv run python3 -m pytest tests/test_all_planes.py -q" \
+    "$ROOT"
 
-run_test "P4 trion-protocol: Mental M(t) + Conformal + IM Protocol" \
-    "PYTHONPATH=src python3 tests/test_mental.py" \
-    "$ROOT/trion-protocol/anima"
+run_test "Integration: BTCP/BITP/SBA/BIBL engines" \
+    "uv run python3 -m pytest tests/test_btcp_bitp_sba_bibl.py -q" \
+    "$ROOT"
 
-run_test "P5 trion-protocol: BFT + Living Security + INIT" \
-    "PYTHONPATH=src python3 tests/test_spiritual.py" \
-    "$ROOT/trion-protocol/validator"
+run_test "Integration: GK + Living Security" \
+    "uv run python3 -m pytest tests/test_gk_living_security.py -q" \
+    "$ROOT"
 
-run_test "P6 trion-protocol: First Signal C(t) + 19 types" \
-    "PYTHONPATH=src python3 tests/test_first_signal.py" \
-    "$ROOT/trion-protocol/anima"
+run_test "Integration: BEO cross-chain + VM routing" \
+    "uv run python3 -m pytest tests/test_beo_cross_chain_vm.py -q" \
+    "$ROOT"
 
-run_test "P7 trion-protocol: ANIMA v1 (BC + NL + EP)" \
-    "PYTHONPATH=src python3 tests/phase7/test_anima_v1.py" \
-    "$ROOT/trion-protocol/anima"
+run_test "Integration: deep VM + 0G" \
+    "uv run python3 -m pytest tests/test_deep_vm_and_zg.py -q" \
+    "$ROOT"
 
-run_test "P8 trion-protocol: Conscious K(t) + SBA" \
-    "PYTHONPATH=src python3 tests/test_conscious.py" \
-    "$ROOT/trion-protocol/anima"
+run_test "Integration: trading signals" \
+    "uv run python3 -m pytest tests/test_trading_signals.py -q" \
+    "$ROOT"
 
-run_test "P9 trion-protocol: Five-Plane + Emergence + Conservation" \
-    "PYTHONPATH=src python3 tests/test_five_plane.py" \
-    "$ROOT/trion-protocol/anima"
+run_test "Integration: vision expansion (chain coverage)" \
+    "uv run python3 -m pytest tests/test_vision_expansion.py -q" \
+    "$ROOT"
 
-run_test "P6b trion-protocol: Python SDK v1.0" \
-    "PYTHONPATH=src python3 tests/test_sdk.py" \
-    "$ROOT/trion-protocol/sdk"
+run_test "Integration: whitepaper gap coverage" \
+    "uv run python3 -m pytest tests/test_whitepaper_gaps.py -q" \
+    "$ROOT"
+
+# ── Chain integration tests ───────────────────────────────────────────────────
+run_test "Chain: multi-chain integration (mock RPC)" \
+    "uv run python3 -m pytest tests/test_chain_integrations.py -q" \
+    "$ROOT"
+
+# ── Protocol health check ─────────────────────────────────────────────────────
+run_test "Protocol: health + role classifier + segmentation + distribution" \
+    "uv run python3 -m pytest tests/test_protocol_health.py tests/test_protocol_role_classifier.py tests/test_protocol_segmentation.py tests/test_protocol_distribution_coherence.py -q" \
+    "$ROOT"
+
+# ── Stress test ───────────────────────────────────────────────────────────────
+run_test "Stress: 1000-entity ANIMA + behavioral stress" \
+    "uv run python3 -m pytest tests/test_stress.py -q" \
+    "$ROOT"
 
 # ── Solidity contracts syntax check ──────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  P10: Solidity Contracts (hardhat/contracts/)"
+echo "  L10: Solidity Contracts (contracts/)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-SOL_OK=true
-for f in TRIONSignal.sol TRIONToken.sol TRIONGovernance.sol; do
-    path="$ROOT/hardhat/contracts/$f"
-    if [ -f "$path" ] && grep -q "pragma solidity" "$path" && grep -q "contract " "$path"; then
+SOL_PASS=0; SOL_FAIL=0
+for f in TRIONExecutionGate.sol TRIONOracleV3.sol TRIONSensingOracle.sol \
+         TRIONFirewall.sol AkashicProof.sol TRIONOracle.sol; do
+    path="$ROOT/contracts/$f"
+    if [ -f "$path" ] && grep -q "pragma solidity" "$path" && grep -q "contract \|interface " "$path"; then
         echo "  ✓ $f"
+        SOL_PASS=$((SOL_PASS+1))
     else
         echo "  ✗ $f — MISSING or INVALID"
-        SOL_OK=false
+        SOL_FAIL=$((SOL_FAIL+1))
     fi
 done
-if $SOL_OK; then
-    RESULTS+=("PASS  P10: Solidity contracts (TRIONSignal + TRIONToken + TRIONGovernance)")
+if [ $SOL_FAIL -eq 0 ]; then
+    RESULTS+=("PASS  L10: Solidity contracts ($SOL_PASS found)")
     PASS=$((PASS+1))
 else
-    RESULTS+=("FAIL  P10: Solidity contracts")
+    RESULTS+=("FAIL  L10: Solidity contracts ($SOL_FAIL missing)")
     FAIL=$((FAIL+1))
 fi
 
@@ -128,7 +148,7 @@ echo "  Total: $PASS passed, $FAIL failed"
 echo ""
 if [ $FAIL -eq 0 ]; then
     echo "╔══════════════════════════════════════════════════════╗"
-    echo "║       ALL WHITEPAPER TESTS GREEN — L0–L10 LIVE      ║"
+    echo "║     ALL WHITEPAPER TESTS GREEN — L0–L10 LIVE        ║"
     echo "╚══════════════════════════════════════════════════════╝"
     exit 0
 else

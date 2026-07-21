@@ -232,8 +232,6 @@ def test_beo_same_entity_six_vm_families():
     print(f"\n  Akashic depth after each chain submission: {[round(d, 3) for d in depths]}")
     assert depths[-1] >= depths[0], "Depth should grow as more chain evidence accumulates"
 
-    return beo_ids[0]   # used by downstream tests implicitly via fixture pattern
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §3  BEO merge — distinct wallet addresses, same funding source
