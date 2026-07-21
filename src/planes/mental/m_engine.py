@@ -68,7 +68,9 @@ def compute_observer_effect(
         return 0.0
 
     corr = float(np.corrcoef(s, b)[0, 1])
-    return max(0.0, corr) if not np.isnan(corr) else 0.0
+    # Use abs(corr): both positive and negative correlations indicate observer effect.
+    # A negative correlation (inverse response to signal publication) is still reflexivity.
+    return abs(corr) if not np.isnan(corr) else 0.0
 
 
 def compute_m_adj(m_base: float, oe_factor: float) -> float:

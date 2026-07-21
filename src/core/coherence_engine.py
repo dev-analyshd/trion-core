@@ -223,7 +223,7 @@ class CoherenceEngine:
         if h_future <= 0.0:
             return 0.0
         if h_irreducible <= 0.0:
-            return 1.0
+            return 0.9999  # PC_limit < 1 invariant: perfect prediction is impossible
         pc = 1.0 - (h_irreducible / h_future)
         return max(0.0, min(0.9999, pc))
 

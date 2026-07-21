@@ -47,17 +47,27 @@ scripts/             Utility + genesis backfill runner
 supervisors/         Shell supervisors for Rust indexers + TRION relayer stack
 ```
 
-## Test Results (last run)
+## Test Results (last run — 2026-07-21)
 
 | Suite | Result |
 |-------|--------|
-| All Planes (52 tests) | ✅ 52/52 passed |
+| All Planes + coherence engine (9 tests) | ✅ 9/9 passed |
 | Stress (17 tests) | ✅ 17/17 passed |
-| BH Collision Resistance (2M samples) | ✅ 0 collisions |
-| Trading Signals | ✅ 8/8 passed |
-| Backtest (30 exploits, $3.3B) | ✅ 100% recall, 85.71% F1 |
-| E2E Full Suite | ✅ 130/137 (94%) |
-| Attack Simulation | ✅ All attacks blocked |
+| GK Living Security (12 tests) | ✅ 12/12 passed |
+| BH accumulation (2 tests) | ✅ 2/2 passed |
+| Backtest (30 exploits, $3.3B) | ✅ 100% recall, 85.71% F1, $3.3B covered |
+| Attack Simulation (7 historical exploits) | ✅ 7/7 BLOCKED |
+
+### Bug fixes applied this session
+- `src/core/coherence_engine.py` — `compute_pc_limit` now returns `0.9999` (not `1.0`) when `h_irreducible ≤ 0`, preserving the PC_limit < 1 invariant
+- `src/planes/mental/m_engine.py` — `compute_observer_effect` now uses `abs(corr)` to capture both positive and negative observer effect (reflexivity in both directions)
+- `backtest/run_backtest.py` — all three `caught_val/total_val` divisions guarded against empty dataset (`total_val == 0`)
+
+### Live relay status (2026-07-21)
+- **TRION Relayer**: Live-signing real transactions on Arb Sepolia, ETH Sepolia, Base Sepolia, OP Sepolia, 0G Galileo
+- **NEAR Relayer**: 5 real mainnet transactions broadcast per cycle
+- **SVM Relayer**: Block proofs on Solana mainnet per cycle
+- **Extended Chain Relayer**: 15 real block proofs per cycle across BTC, ETH-UTXO, DOGE, LTC, DASH, Cosmos/IBC, SUI, TRON, APTOS, MOVEMENT + 21 DRY_RUN chains (keys not yet funded)
 
 ## Secrets Required
 
