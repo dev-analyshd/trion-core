@@ -1,63 +1,73 @@
-# TRION Protocol — Multi-Chain Behavioral Truth Oracle
+# TRION Sensing Oracle
 
-## Overview
-TRION is a pre-execution DeFi firewall and behavioral oracle that monitors entity behavior across 100+ chains and 13 VM families. It identifies attackers (flash loans, governance capture, MEV) and can block them before transactions execute via the `TRIONExecutionGate` smart contract.
+## Project Overview
 
-## Architecture
+TRION is a multi-language, multi-service behavioral intelligence oracle for DeFi. It indexes on-chain activity from 100+ blockchains, extracts behavioral feature vectors via Rust L0 indexers, stores them in a FAISS vector database, and publishes signed oracle signals on-chain via Node.js relayers.
 
-| Layer | Stack | Port |
-|---|---|---|
-| Oracle API (intelligence engine) | Python / Flask + SocketIO | 5000 |
-| FAISS ANIMA (behavioral memory) | Python / FastAPI + PyTorch | 8000 |
-| Attack Alert Webhook | Python / Flask | 6000 |
-| EVM Rust Indexers (53 chains) | Rust | — |
-| TRION Relayer + 0G stack | Node.js (ethers v6) | — |
-| Extended Chain Relayer (38 non-EVM chains) | Node.js | — |
-| Native VM Relayer (SVM/NEAR/TON/PVM/StarkNet) | Node.js + chain SDKs | — |
+### Architecture
 
-## How to Run
+| Layer | Technology | Port | Purpose |
+|-------|-----------|------|---------|
+| Oracle API | Python / Flask | 5000 | 194 REST routes + WebSocket dashboard |
+| FAISS ANIMA | Python / FastAPI | 8000 | 128-dim behavioral vector index, 64 archetypes |
+| Rust L0 Indexers | Rust (13 binaries) | — | 100+ chains, 93-byte BH pipeline |
+| EVM Relayer | Node.js | — | 57 EVM chains, 60s poll |
+| Extended Relayer | Node.js | — | 38 non-EVM chains, 90s poll |
+| Native VM Relayer | Node.js | — | Solana, NEAR, TON, Polkadot, StarkNet |
+| 0G Gate Relayer | Node.js | — | 0G Mainnet ExecutionGate |
+| Attack Alert Webhook | Python / Flask | 6000 | Real-time attack alerting |
+| Genesis Backfill | Python | — | Historical chain indexing |
 
-All services are configured as Replit workflows. Start them via the **Run** button or the Workflows panel:
+### Languages in Use
+- **Python** — Oracle API, FAISS ANIMA engine, Attack Alert Webhook, Genesis Backfill, chain adapters
+- **Rust** — 13 L0 indexer binaries (trion-evm, trion-svm, trion-cosmos, trion-ton, trion-near, trion-pvm, trion-starknet, trion-aptos, trion-sui, trion-tron, trion-utxo, trion-pi, trion-movement)
+- **Node.js / JavaScript** — EVM relayer, Extended chain relayer, Native VM relayer, 0G gate relayer, 0G DA/sync daemons, SDK
+- **Solidity** — TRIONExecutionGate contract, oracle contracts
 
-1. **Start application** — Oracle API (`serve.py`) on port 5000 — this is the main entry point / dashboard
-2. **FAISS ANIMA** — Behavioral vector engine on port 8000 (start before relayers)
-3. **Rust Indexers** — Builds & runs EVM + SVM indexers; waits for FAISS to be ready
-4. **TRION Relayer** — EVM relayer + 0G ExecutionGate + DA streamer + sync daemon
-5. **Extended Chain Relayer** — 38 non-EVM chain relayer (UTXO, Cosmos, Move, etc.)
-6. **Native Relayer** — Live signing for Solana, NEAR, TON, Polkadot, StarkNet
-7. **Attack Alert Webhook** — Webhook service polling Oracle API every 30s
-8. **Genesis Backfill** — Background backfill of historical behavioral data
-9. **TRION Dashboard** — Label-only workflow; dashboard is served by the Oracle API
+### How to Run
 
-## Secrets Configured
+The project uses `uv` for Python package management. All workflows are pre-configured in Replit.
 
-All private keys, RPC URLs, and contract addresses are stored as Replit Secrets. Key secrets include:
-- `RELAYER_PRIVATE_KEY` — EVM relayer signing key
-- `ZG_AKASHIC_CONTRACT` — 0G Akashic contract address
-- `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, `DOT_MNEMONIC`, `STARKNET_PRIVATE_KEY` — native VM signing keys
-- Chain-specific private keys for UTXO/Cosmos/Move VMs
-- `TIMESCALEDB_URL` — TimescaleDB for vector persistence
+**Start all services** via the Replit workflow panel:
+1. **Start application** — Oracle API + WebSocket dashboard (`uv run python serve.py`, port 5000)
+2. **FAISS ANIMA** — Vector engine (`uv run python3 akashic/faiss_service.py`, port 8000)
+3. **Rust Indexers** — Builds and runs all 13 Rust binaries
+4. **TRION Relayer** — EVM + 0G relayer stack
+5. **Extended Chain Relayer** — 38 non-EVM chains
+6. **Native Relayer** — SVM/NEAR/TON/PVM/StarkNet
+7. **Attack Alert Webhook** — port 6000
+8. **Genesis Backfill** — Historical indexing
+9. **TRION Dashboard** — Served by Oracle API at port 5000
 
-## Known Limitations (as of setup)
+### Tests
 
-- **On-chain contract addresses for mainnet EVM chains are not set** — the TRION Relayer operates in `would publish` mode for most EVM chains; only testnets (Arb Sepolia, ETH Sepolia, Base Sepolia, 0G Galileo) and HashKey Mainnet have deployed contracts
-- **0G DA node** (`da-node.0g.ai`) is unreachable — the relayer falls back to local proof hashes
-- **Native VM accounts have zero balance** — SVM, TON, NEAR, Cosmos-SDK wallets record block proofs instead of live transactions until funded
-- **`bh_ledger.db`** — symlinked from `akashic/bh_ledger.db` to workspace root for the Oracle API's protocol segmentation module
-- **`@0glabs/0g-ts-sdk`** — installed in `trion-0g/` for the 0G upload scripts
+```bash
+# Full test suite (all components)
+uv run python -m pytest tests/ tests/trion_protocol/ -v
 
-## Dependencies Installed
-
+# Key test files
+tests/test_e2e_full.py           # End-to-end
+tests/test_anima_full.py         # FAISS ANIMA (201 tests)
+tests/test_stress.py             # Stress / security (17 tests)
+tests/test_gk_living_security.py # Living security system (64 tests)
+tests/test_all_planes.py         # All behavioral planes (148 tests)
+tests/test_chain_integrations.py # Chain wiring (148 tests)
+tests/trion_protocol/            # Core protocol math (52 tests)
 ```
-relayer/          npm install   (ethers, axios, @cosmjs/*, @aptos-labs/ts-sdk, etc.)
-native-relayer/   npm install   (@polkadot/api, @solana/web3.js, near-api-js, starknet, etc.)
-chains/svm/       npm install   (@solana/web3.js, @coral-xyz/anchor, bs58)
-chains/near/      npm install   (near-api-js, bs58, tweetnacl)
-chains/ton/       npm install   (@ton/ton, @ton/crypto, @ton/core)
-chains/pvm/       npm install   (@polkadot/api, @polkadot/keyring)
-chains/starknet/  npm install   (starknet, axios, dotenv)
-chains/sui/       npm install   (@mysten/sui, tsx, typescript)
-trion-0g/         npm install   (@0glabs/0g-ts-sdk, ethers, crypto-js)
-```
+
+### Key Environment Variables
+
+See `.env.example` for the full list. Key ones:
+- `TIMESCALEDB_URL` / `DATABASE_URL` — TimescaleDB/Postgres (required for signal persistence)
+- `FAISS_SERVICE_URL` — FAISS engine URL (default: `http://127.0.0.1:8000`)
+- `RELAYER_PRIVATE_KEY` — EVM relayer signing key (dry-run mode if unset)
+- `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, etc. — Native VM relayer keys
+- `ZG_AKASHIC_CONTRACT` — 0G ExecutionGate contract address
+
+### Notes
+- Node packages must be installed at three roots: root `/`, `relayer/`, and `native-relayer/` — run `npm install --legacy-peer-deps` in each (the `@0glabs/0g-ts-sdk` peer dep conflict with ethers requires `--legacy-peer-deps`).
+- `bh_ledger.db` symlink: `serve.py` auto-creates `bh_ledger.db → akashic/bh_ledger.db` at startup. If missing, recreate with: `ln -sf akashic/bh_ledger.db bh_ledger.db`
+- The TRION relayer runs in **LIVE mode** with `RELAYER_PRIVATE_KEY` set; it needs deployed oracle contract addresses (`ETH_MAINNET_ORACLE_ADDR`, etc.) to publish on-chain — otherwise logs `would publishSignal(...)`.
 
 ## User Preferences
+- Run comprehensive component-by-component live system tests when asked.

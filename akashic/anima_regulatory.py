@@ -107,6 +107,7 @@ class ZKBehavioralProof:
     privacy_mode:              str
     kyc_level:                 int      # 0=none, 1=basic, 2=full, 3=institutional
     is_stub:                   bool = False
+    travel_rule_triggered:     bool = False
 
 
 class BehavioralZKProver:
@@ -196,6 +197,16 @@ class BehavioralZKProver:
         pred_json = json.dumps(predicates, sort_keys=True)
         pred_hash = hmac.new(self._key, pred_json.encode(), hashlib.sha3_256).hexdigest()
 
+        # Determine travel-rule threshold for this jurisdiction
+        _jur_cfg = _DEFAULT_JURISDICTIONS.get(jurisdiction, _DEFAULT_JURISDICTIONS.get("OPEN"))
+        _threshold = _jur_cfg.travel_rule_threshold if _jur_cfg else float("inf")
+        _travel_rule_triggered = (
+            _jur_cfg is not None
+            and _jur_cfg.fatf_member
+            and not math.isinf(_threshold)
+            and amount_usd >= _threshold
+        )
+
         return ZKBehavioralProof(
             proof_id                  = proof_id,
             entity_id                 = entity_id,
@@ -210,6 +221,7 @@ class BehavioralZKProver:
             privacy_mode              = privacy_mode,
             kyc_level                 = kyc_level,
             is_stub                   = False,
+            travel_rule_triggered     = _travel_rule_triggered,
         )
 
     def verify_proof(
