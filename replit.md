@@ -64,10 +64,20 @@ See `.env.example` for the full list. Key ones:
 - `SOLANA_RELAYER_PRIVATE_KEY`, `NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, etc. — Native VM relayer keys
 - `ZG_AKASHIC_CONTRACT` — 0G ExecutionGate contract address
 
+### First-Time Setup (run once after import)
+
+```bash
+bash scripts/setup.sh          # installs npm packages in all 11 subprojects
+psql "$TIMESCALEDB_URL" -f schema.sql  # initialises TimescaleDB schema
+ln -sf akashic/bh_ledger.db bh_ledger.db  # create root symlink (serve.py also does this on startup)
+```
+
 ### Notes
-- Node packages must be installed at three roots: root `/`, `relayer/`, and `native-relayer/` — run `npm install --legacy-peer-deps` in each (the `@0glabs/0g-ts-sdk` peer dep conflict with ethers requires `--legacy-peer-deps`).
-- `bh_ledger.db` symlink: `serve.py` auto-creates `bh_ledger.db → akashic/bh_ledger.db` at startup. If missing, recreate with: `ln -sf akashic/bh_ledger.db bh_ledger.db`
-- The TRION relayer runs in **LIVE mode** with `RELAYER_PRIVATE_KEY` set; it needs deployed oracle contract addresses (`ETH_MAINNET_ORACLE_ADDR`, etc.) to publish on-chain — otherwise logs `would publishSignal(...)`.
+- **Node packages**: `scripts/setup.sh` runs `npm install` in all 11 subprojects (root, `relayer/`, `native-relayer/`, `chains/svm`, `chains/near`, `chains/ton`, `chains/pvm`, `chains/starknet`, `chains/sui`, `trion-0g`, `backtest`). Must be run before starting the relayer workflows.
+- **`bh_ledger.db` symlink**: `serve.py` auto-creates `bh_ledger.db → akashic/bh_ledger.db` at startup. If missing before serve.py runs, recreate with: `ln -sf akashic/bh_ledger.db bh_ledger.db`
+- **TimescaleDB**: Set `TIMESCALEDB_URL` secret, then run `psql "$TIMESCALEDB_URL" -f schema.sql` once. FAISS ANIMA logs `[TimescaleDB] Connected and schema applied — dual-write ACTIVE` when connected.
+- **EVM Relayer LIVE mode**: The TRION Relayer runs in `DRY_RUN` without `RELAYER_PRIVATE_KEY`. With the key set, it also needs deployed oracle contract addresses (`ETH_MAINNET_ORACLE_ADDR`, etc.) per chain to publish on-chain signals.
+- **Native VM keys**: The Native Relayer accepts both canonical names (`NEAR_PRIVATE_KEY`, `TON_PRIVATE_KEY_HEX`, `DOT_MNEMONIC`, `SOLANA_RELAYER_PRIVATE_KEY`, `STARKNET_PRIVATE_KEY`) and relayer-prefixed variants. With zero balance, it falls back to cryptographic block proofs ingested into FAISS.
 
 ## User Preferences
 - Run comprehensive component-by-component live system tests when asked.
