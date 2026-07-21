@@ -1819,7 +1819,7 @@ class TestTrading:
         d = assert_ok(r, "/trading/signal values")
         signal = d.get("signal", d.get("action", ""))
         if isinstance(signal, str):
-            assert signal in ("BUY", "AVOID", "SHORT", "HOLD", "NEUTRAL", "UNKNOWN", "")
+            assert signal in ("BUY", "AVOID", "SHORT", "HOLD", "NEUTRAL", "UNKNOWN", "SILENCE", "")
             info("Signal value", signal)
         ok("PASS — trading signal is valid categorical value")
 
@@ -1866,7 +1866,7 @@ class TestSlash:
         sep("§36a — POST /api/v1/slash — submit slashing event")
         r = post("/api/v1/slash", {
             "validator_id": uid("val"),
-            "condition": "DOUBLE_SIGN",
+            "condition": "SLASH_DOUBLE_SIGN",
             "evidence": "0x" + uuid.uuid4().hex,
             "signal_value": 0.85,
             "consensus_value": 0.50,
@@ -1891,7 +1891,7 @@ class TestSlash:
         # Submit slash
         r_slash = post("/api/v1/slash", {
             "validator_id": uid("disp_val"),
-            "condition": "LIVENESS_FAULT",
+            "condition": "SLASH_DOWNTIME",
             "evidence": "0x" + uuid.uuid4().hex,
             "signal_value": 0.80,
             "consensus_value": 0.75,
@@ -1931,7 +1931,7 @@ class TestSlash:
         sep("§36d — Slash: expires_at is ~72h from submission")
         r = post("/api/v1/slash", {
             "validator_id": uid("expire_val"),
-            "condition": "EQUIVOCATION",
+            "condition": "SLASH_OUTLIER",
             "evidence": "0x" + uuid.uuid4().hex,
             "signal_value": 0.90,
             "consensus_value": 0.55,
@@ -1940,7 +1940,17 @@ class TestSlash:
         d = assert_ok(r, "/slash 72h")
         expires_at = d.get("expires_at", 0)
         now = time.time()
-        delta_h = (float(expires_at) - now) / 3600 if expires_at else 72
+        # expires_at may be a Unix timestamp (float) or an ISO-8601 string
+        if isinstance(expires_at, str) and expires_at:
+            from datetime import datetime, timezone
+            try:
+                dt = datetime.fromisoformat(expires_at)
+                expires_ts = dt.timestamp()
+            except ValueError:
+                expires_ts = 0.0
+        else:
+            expires_ts = float(expires_at) if expires_at else 0.0
+        delta_h = (expires_ts - now) / 3600 if expires_ts else 72
         info("expires_at (h from now)", f"{delta_h:.1f}h")
         assert 60 <= delta_h <= 84, f"expires_at should be ~72h from now, got {delta_h:.1f}h"
         ok("PASS — slash expiry is within 60–84h window")
@@ -2039,7 +2049,7 @@ class TestJurisdiction:
         for code in ("US", "EU", "UK", "SG"):
             cfg = registry.get(code)
             if cfg:
-                info(f"  {code}", f"threshold=${cfg.travel_rule_threshold_usd}")
+                info(f"  {code}", f"threshold=${cfg.travel_rule_threshold}")
         ok("PASS — known jurisdiction codes return configs")
 
     @pytest.mark.skipif(not _ZK_OK, reason="anima_regulatory not importable")
@@ -2047,7 +2057,7 @@ class TestJurisdiction:
         sep("§38b — JurisdictionRegistry.resolve_chain() maps chain_id → jurisdiction")
         registry = JurisdictionRegistry()
         cfg = registry.resolve_chain(1)  # Ethereum mainnet
-        info("chain 1 → jurisdiction", cfg.jurisdiction_code if cfg else "NOT_FOUND")
+        info("chain 1 → jurisdiction", cfg.code if cfg else "NOT_FOUND")
         ok("PASS — resolve_chain returns a jurisdiction config")
 
     @pytest.mark.skipif(not _ZK_OK, reason="anima_regulatory not importable")
@@ -2067,7 +2077,7 @@ class TestJurisdiction:
         for code in ("US", "EU", "SG", "FATF"):
             cfg = registry.get(code)
             if cfg:
-                thresholds[code] = cfg.travel_rule_threshold_usd
+                thresholds[code] = cfg.travel_rule_threshold
         info("Thresholds", thresholds)
         if len(thresholds) >= 2:
             # Not all must be equal — jurisdictions differ
