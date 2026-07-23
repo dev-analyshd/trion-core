@@ -95,12 +95,20 @@ import hashlib as _hashlib
 def _genomic_signature(entity_id_str: str, generation: int = 0) -> str:
     """
     Compute genomic_signature: bytes64 (128 hex chars) from sense+antisense strands.
-    Uses SHA3-256 dual-strand schema from living_security.py L4.3.
+    Whitepaper L0.1 dual-strand DNA schema:
+      sense     = SHA3-256(payload || 0x00)
+      antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
+
+    The XOR-complement construction binds antisense to sense cryptographically:
+    any tampering with either strand breaks the invariant, enabling tamper detection.
+    Two independent hashes would NOT provide this property.
     """
-    payload  = (entity_id_str + str(generation)).encode()
-    sense    = _hashlib.sha3_256(payload + b'\x00').hexdigest()
-    antisense = _hashlib.sha3_256(payload + b'\xff').hexdigest()
-    return sense + antisense   # 128 hex chars = 64 bytes
+    payload     = (entity_id_str + str(generation)).encode()
+    sense_b     = _hashlib.sha3_256(payload + b'\x00').digest()
+    sha3ff_b    = _hashlib.sha3_256(payload + b'\xFF').digest()
+    # antisense = SHA3(payload||0xFF) XOR NOT(sense)
+    antisense_b = bytes(s ^ (f ^ 0xFF) for s, f in zip(sha3ff_b, sense_b))
+    return sense_b.hex() + antisense_b.hex()   # 128 hex chars = 64 bytes
 
 
 def build_signal(

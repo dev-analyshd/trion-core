@@ -929,21 +929,34 @@ class LivingSecuritySystem:
             gk = self.evolver.initialize(eid)
         return gk
 
-    def evolve_entity(self, entity_id: str, behavioral_context: Optional[bytes] = None) -> GenomicKey:
+    def evolve_entity(self, entity_id: str, behavioral_context: Optional[bytes] = None,
+                      consensus_view: Optional[bytes] = None) -> GenomicKey:
         eid = entity_id.encode()[:32].ljust(32, b'\x00')
         ctx = behavioral_context or os.urandom(32)
         be_hash = _sha3(ctx)
         tm_hash = _sha3(str(time.time()).encode())
-        cv_hash = _sha3(b"consensus_view_placeholder")
+        # cv_hash must carry real entropy (not a static placeholder).
+        # If the caller provides a consensus_view (e.g. latest block hash or
+        # validator set hash), use it.  Otherwise derive from OS entropy + time
+        # so each evolution is always cryptographically distinct.
+        cv_input = consensus_view if consensus_view is not None else (
+            os.urandom(16) + str(time.time()).encode()
+        )
+        cv_hash = _sha3(cv_input)
         return self.evolver.evolve(eid, be_hash, tm_hash, cv_hash)
 
-    def compute_sec(self, entity_id: str, akashic_depth: int = 0) -> dict:
+    def compute_sec(self, entity_id: str, akashic_depth: int = 0,
+                    external_threat: Optional[float] = None) -> dict:
         """Compute full SEC(t) = LSS(t) · PQC(t) · CC(t) for an entity."""
         gk = self.get_or_init_entity(entity_id)
 
-        # Update epigenetic layer with current system state
-        threat = min(1.0, self.crispr.library_size() * 0.01)  # more sigs = more threat awareness
-        self.epigenetic.update(threat * 0.1, 1.0, 1.0)  # healthy baseline
+        # Update epigenetic layer with current system state.
+        # Threat level must come from external signals (oracle detections, MF scores,
+        # CRISPR matches) — NOT derived from CRISPR library size, which is a static
+        # property of known attack signatures and has no causal link to current threat.
+        # Callers pass external_threat ∈ [0,1] when a real threat has been observed.
+        threat = external_threat if external_threat is not None else self.epigenetic.threat_level
+        self.epigenetic.update(max(0.0, min(1.0, threat)), 1.0, 1.0)
 
         # Mitochondrial check
         mito_ok = self.mito.verify_integrity()
@@ -1105,12 +1118,21 @@ class ImmuneSystem:
 
 # ── Module singleton ──────────────────────────────────────────────────────────
 
+import threading as _threading
+
 _lss_instance: Optional[LivingSecuritySystem] = None
+_lss_lock = _threading.Lock()
 
 def get_lss() -> LivingSecuritySystem:
+    """
+    Thread-safe double-checked locking singleton for LivingSecuritySystem.
+    Safe to call from multiple threads concurrently (e.g. Flask worker threads).
+    """
     global _lss_instance
     if _lss_instance is None:
-        _lss_instance = LivingSecuritySystem(protocol_version=3, chain_count=31)
+        with _lss_lock:
+            if _lss_instance is None:
+                _lss_instance = LivingSecuritySystem(protocol_version=3, chain_count=31)
     return _lss_instance
 
 

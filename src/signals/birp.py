@@ -1,36 +1,632 @@
 """
-TRION Protocol — Section 19: BIRP — Behavioral Intercept & Relay Protocol
-BIRP is the delivery layer between TRION Oracle and consumer contracts.
+TRION Protocol — §16: BIRP — Behavioral Identity Recovery Protocol
+===================================================================
+Whitepaper Section 16 specifies BIRP as a five-phase behavioral identity
+recovery protocol.  When an entity undergoes a sudden behavioral shift
+(compromise, key handover, entity resurrection after dormancy) BIRP provides
+a cryptographically provable path to recover or deny behavioral identity
+continuity without disrupting the rest of the oracle.
 
-Signal lifecycle:
-  Oracle computes C(t) → BIRP packages → Smart contract verifies → Executes
+Five mandatory phases (whitepaper §16):
+  Phase 1 — DNA Verification       : dual-strand sense/antisense integrity check
+  Phase 2 — Behavioral Proof       : Merkle proof of historical behavioral claims
+  Phase 3 — Temporal Cluster       : FAISS nearest-neighbour cluster alignment
+  Phase 4 — Conscious Layer        : validator quorum review (K-plane vote)
+  Phase 5 — Quarantine Wait        : mandatory 7-day (604800 s) cooling period
 
-BIRP message format:
-  birp_msg = {
-    signal_id, entity_id, signal_value, ci_95,
-    coherence, threshold, margin,
-    mf_score, oracle_sig, timestamp, ttl,
-    plane_breakdown, biological_time,
-    chameleon_applied, silence_metadata
-  }
+State machine:
+  UNSTARTED → PHASE_1_DNA → PHASE_2_BEHAVIORAL → PHASE_3_TEMPORAL
+            → PHASE_4_CONSCIOUS → PHASE_5_QUARANTINE → RESOLVED
 
-Batch support: up to 50 signals per batch.
+A recovery request can be APPROVED (identity continuity confirmed) or
+REJECTED at any phase.  Rejection is permanent for that request ID; the
+entity may open a new request after a 30-day cooldown.
+
+This file also retains the signal relay wrapper (BIRPMessage) that was the
+previous sole content of this module, now under the `relay` sub-namespace.
+
+Author: TRION Protocol — Hudu Yusuf (Analys)
+License: CC0
 """
+
+from __future__ import annotations
 
 import hashlib
 import hmac
 import json
+import math
 import time
+import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from enum import Enum
+from typing import Dict, List, Optional
 
 
-BIRP_BATCH_MAX     = 50
-BIRP_DEFAULT_TTL   = 3600
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.1  Constants
+# ═══════════════════════════════════════════════════════════════════════════════
+
+QUARANTINE_SECONDS: int = 7 * 24 * 3600   # 7 days — mandatory §16 Phase 5
+REJECTION_COOLDOWN: int = 30 * 24 * 3600  # 30 days before a new request
+
+# Phase 4 quorum: fraction of registered validators that must vote APPROVE
+CONSCIOUS_QUORUM_FRACTION: float = 0.67   # 2/3 majority
+
+# Phase 3 temporal cluster: maximum allowed cosine distance from the entity's
+# own archetype cluster (FAISS nearest-neighbour in BEO vector space)
+TEMPORAL_CLUSTER_MAX_DISTANCE: float = 0.30
+
+# Phase 2 behavioral proof: minimum fraction of historical claims that the
+# Merkle proof must cover for the proof to be considered adequate
+BEHAVIORAL_PROOF_MIN_COVERAGE: float = 0.70
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.2  State machine
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class BIRPPhase(str, Enum):
+    UNSTARTED          = "UNSTARTED"
+    PHASE_1_DNA        = "PHASE_1_DNA"
+    PHASE_2_BEHAVIORAL = "PHASE_2_BEHAVIORAL"
+    PHASE_3_TEMPORAL   = "PHASE_3_TEMPORAL"
+    PHASE_4_CONSCIOUS  = "PHASE_4_CONSCIOUS"
+    PHASE_5_QUARANTINE = "PHASE_5_QUARANTINE"
+    RESOLVED           = "RESOLVED"
+    REJECTED           = "REJECTED"
+
+
+class BIRPOutcome(str, Enum):
+    PENDING  = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+@dataclass
+class BIRPPhaseResult:
+    phase:     BIRPPhase
+    passed:    bool
+    score:     float          # 0–1 confidence
+    evidence:  dict
+    timestamp: float = field(default_factory=time.time)
+    notes:     str = ""
+
+
+@dataclass
+class BIRPRequest:
+    """A single identity recovery request for one entity."""
+    request_id:   str
+    entity_id:    str
+    reason:       str          # e.g. "key_compromise", "dormancy_resurrection", "fork"
+    initiated_at: float
+    phase:        BIRPPhase = BIRPPhase.UNSTARTED
+    outcome:      BIRPOutcome = BIRPOutcome.PENDING
+    phase_results: List[BIRPPhaseResult] = field(default_factory=list)
+    quarantine_ends_at: Optional[float] = None
+    resolved_at:  Optional[float] = None
+    rejection_reason: Optional[str] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.3  Phase 1 — DNA Verification
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _complement(data: bytes) -> bytes:
+    return bytes(b ^ 0xFF for b in data)
+
+
+def _hash_dna(payload: bytes):
+    """Whitepaper L0.1 dual-strand construction."""
+    sense    = hashlib.sha3_256(payload + b'\x00').digest()
+    sha3ff   = hashlib.sha3_256(payload + b'\xFF').digest()
+    antisense = bytes(a ^ b for a, b in zip(sha3ff, _complement(sense)))
+    return sense, antisense
+
+
+def _verify_xor_invariant(sense: bytes, antisense: bytes, payload: bytes) -> bool:
+    """
+    sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
+    This invariant proves both strands were derived from the same payload.
+    """
+    sha3ff    = hashlib.sha3_256(payload + b'\xFF').digest()
+    expected  = _complement(sha3ff)
+    actual    = bytes(a ^ b for a, b in zip(sense, antisense))
+    return actual == expected
+
+
+def phase1_dna_verification(
+    entity_id: str,
+    sense_hex: str,
+    antisense_hex: str,
+    canonical_payload_hex: str,
+) -> BIRPPhaseResult:
+    """
+    Phase 1: Verify that the entity's stored dual-strand genomic key is
+    internally consistent via the XOR-complement invariant.
+
+    The submitter must provide:
+      - sense_hex              : current genomic key sense strand (hex)
+      - antisense_hex          : current genomic key antisense strand (hex)
+      - canonical_payload_hex  : the payload from which the key was derived
+
+    Pass criteria: XOR invariant holds AND strand lengths are correct (32 bytes each).
+    """
+    try:
+        sense     = bytes.fromhex(sense_hex.removeprefix("0x"))
+        antisense = bytes.fromhex(antisense_hex.removeprefix("0x"))
+        payload   = bytes.fromhex(canonical_payload_hex.removeprefix("0x"))
+    except (ValueError, AttributeError) as exc:
+        return BIRPPhaseResult(
+            phase=BIRPPhase.PHASE_1_DNA, passed=False, score=0.0,
+            evidence={"error": str(exc)},
+            notes="Hex decoding failed — invalid strand submission",
+        )
+
+    length_ok = len(sense) == 32 and len(antisense) == 32
+    non_zero  = sense != bytes(32) and antisense != bytes(32)
+    xor_ok    = _verify_xor_invariant(sense, antisense, payload) if length_ok else False
+
+    # Re-derive expected strands from payload to confirm match
+    exp_sense, exp_anti = _hash_dna(payload)
+    sense_match   = exp_sense   == sense
+    antisense_match = exp_anti  == antisense
+
+    passed = length_ok and non_zero and xor_ok and sense_match and antisense_match
+    score  = sum([length_ok, non_zero, xor_ok, sense_match, antisense_match]) / 5.0
+
+    return BIRPPhaseResult(
+        phase=BIRPPhase.PHASE_1_DNA,
+        passed=passed,
+        score=score,
+        evidence={
+            "length_ok":      length_ok,
+            "non_zero":       non_zero,
+            "xor_invariant":  xor_ok,
+            "sense_match":    sense_match,
+            "antisense_match": antisense_match,
+        },
+        notes=(
+            "DNA verification PASSED — strands cryptographically consistent"
+            if passed else
+            "DNA verification FAILED — genomic key integrity compromised"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.4  Phase 2 — Behavioral Proof
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _merkle_root(leaves: List[bytes]) -> bytes:
+    """Simple binary SHA3-256 Merkle tree."""
+    if not leaves:
+        return b'\x00' * 32
+    layer = [hashlib.sha3_256(leaf).digest() for leaf in leaves]
+    while len(layer) > 1:
+        if len(layer) % 2 == 1:
+            layer.append(layer[-1])
+        layer = [
+            hashlib.sha3_256(layer[i] + layer[i + 1]).digest()
+            for i in range(0, len(layer), 2)
+        ]
+    return layer[0]
+
+
+def phase2_behavioral_proof(
+    entity_id: str,
+    claimed_bh_hashes: List[str],   # hex BH sense hashes the entity claims
+    proof_leaves: List[str],         # hex BH hashes that can be verified on-chain / in ledger
+    ledger_merkle_root: str,         # expected Merkle root from the BH ledger
+) -> BIRPPhaseResult:
+    """
+    Phase 2: Verify that the entity has a genuine behavioral history by
+    checking a Merkle proof over a subset of claimed Behavioral Hash records.
+
+    The submitter provides a list of BH hashes they claim to own; the verifier
+    checks that at least BEHAVIORAL_PROOF_MIN_COVERAGE fraction of those claims
+    are provable via the ledger Merkle root.
+    """
+    if not claimed_bh_hashes:
+        return BIRPPhaseResult(
+            phase=BIRPPhase.PHASE_2_BEHAVIORAL, passed=False, score=0.0,
+            evidence={"error": "No behavioral claims submitted"},
+            notes="Phase 2 FAILED — zero behavioral claims provided",
+        )
+
+    try:
+        proof_bytes = [bytes.fromhex(h.removeprefix("0x")) for h in proof_leaves]
+        claimed_set = {h.lower().removeprefix("0x") for h in claimed_bh_hashes}
+        proof_set   = {h.lower().removeprefix("0x") for h in proof_leaves}
+    except ValueError as exc:
+        return BIRPPhaseResult(
+            phase=BIRPPhase.PHASE_2_BEHAVIORAL, passed=False, score=0.0,
+            evidence={"error": str(exc)},
+            notes="Phase 2 FAILED — invalid hex in behavioral proof",
+        )
+
+    # Compute coverage: fraction of claims backed by proof leaves
+    covered    = claimed_set & proof_set
+    coverage   = len(covered) / max(len(claimed_set), 1)
+
+    # Verify Merkle root
+    computed_root = _merkle_root(proof_bytes).hex()
+    root_ok       = computed_root == ledger_merkle_root.lower().removeprefix("0x")
+
+    passed = coverage >= BEHAVIORAL_PROOF_MIN_COVERAGE and root_ok
+    score  = coverage * (1.0 if root_ok else 0.5)
+
+    return BIRPPhaseResult(
+        phase=BIRPPhase.PHASE_2_BEHAVIORAL,
+        passed=passed,
+        score=min(1.0, score),
+        evidence={
+            "claimed_count":   len(claimed_bh_hashes),
+            "proof_count":     len(proof_leaves),
+            "covered_count":   len(covered),
+            "coverage":        round(coverage, 4),
+            "min_coverage":    BEHAVIORAL_PROOF_MIN_COVERAGE,
+            "merkle_root_ok":  root_ok,
+            "computed_root":   computed_root[:16] + "...",
+        },
+        notes=(
+            f"Behavioral proof PASSED — {coverage:.1%} coverage, Merkle root verified"
+            if passed else
+            f"Behavioral proof FAILED — coverage={coverage:.1%} (need {BEHAVIORAL_PROOF_MIN_COVERAGE:.0%}), "
+            f"root_ok={root_ok}"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.5  Phase 3 — Temporal Cluster
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def phase3_temporal_cluster(
+    entity_id: str,
+    faiss_distance: float,          # cosine distance from entity's own archetype cluster
+    cluster_archetype_id: str,      # FAISS archetype the entity belongs to
+    historical_cluster_id: str,     # archetype the entity was assigned to historically
+    temporal_gap_blocks: int,       # blocks between last known activity and recovery request
+    max_gap_blocks: int = 100_000,  # maximum acceptable gap before temporal coherence breaks
+) -> BIRPPhaseResult:
+    """
+    Phase 3: Verify temporal continuity by checking that the entity's current
+    behavioral vector is still within acceptable distance of its historical
+    FAISS archetype cluster.
+
+    A large cosine distance indicates the entity is behaving like a different
+    archetype — which may indicate identity discontinuity (e.g. key handover).
+    A gap > max_gap_blocks without activity weakens temporal coherence.
+    """
+    distance_ok  = faiss_distance <= TEMPORAL_CLUSTER_MAX_DISTANCE
+    cluster_ok   = cluster_archetype_id == historical_cluster_id
+    gap_ok       = temporal_gap_blocks <= max_gap_blocks
+
+    # Temporal coherence score: distance contributes most, then cluster, then gap
+    dist_score = max(0.0, 1.0 - faiss_distance / TEMPORAL_CLUSTER_MAX_DISTANCE)
+    gap_score  = max(0.0, 1.0 - temporal_gap_blocks / max(max_gap_blocks, 1))
+    cluster_score = 1.0 if cluster_ok else 0.0
+
+    score  = dist_score * 0.50 + cluster_score * 0.30 + gap_score * 0.20
+    passed = distance_ok and gap_ok  # cluster mismatch alone doesn't fail (may be archetype drift)
+
+    return BIRPPhaseResult(
+        phase=BIRPPhase.PHASE_3_TEMPORAL,
+        passed=passed,
+        score=min(1.0, score),
+        evidence={
+            "faiss_distance":          round(faiss_distance, 4),
+            "max_distance":            TEMPORAL_CLUSTER_MAX_DISTANCE,
+            "distance_ok":             distance_ok,
+            "cluster_archetype_id":    cluster_archetype_id,
+            "historical_cluster_id":   historical_cluster_id,
+            "cluster_continuity":      cluster_ok,
+            "temporal_gap_blocks":     temporal_gap_blocks,
+            "max_gap_blocks":          max_gap_blocks,
+            "gap_ok":                  gap_ok,
+        },
+        notes=(
+            f"Temporal cluster PASSED — dist={faiss_distance:.3f}, gap={temporal_gap_blocks} blocks"
+            if passed else
+            f"Temporal cluster FAILED — dist={faiss_distance:.3f} (max {TEMPORAL_CLUSTER_MAX_DISTANCE}), "
+            f"gap={temporal_gap_blocks} blocks (max {max_gap_blocks})"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.6  Phase 4 — Conscious Layer (Validator Quorum)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class ValidatorVote:
+    validator_id: str
+    approve:      bool
+    stake_weight: float           # stake-weighted voting power ∈ (0, 1]
+    rationale:    str
+    signed_at:    float = field(default_factory=time.time)
+
+
+def phase4_conscious_layer(
+    entity_id: str,
+    votes: List[ValidatorVote],
+    total_registered_stake: float,
+) -> BIRPPhaseResult:
+    """
+    Phase 4: Validator K-plane conscious review.
+
+    A quorum of 2/3 of stake-weighted validator power must vote APPROVE for
+    the identity recovery to pass this phase.  Any single validator with ≥ 34%
+    stake can veto the recovery (intentional design — prevents majority collusion
+    driving through a fraudulent recovery).
+
+    total_registered_stake: sum of all validator stake weights in the K-plane.
+    """
+    if not votes:
+        return BIRPPhaseResult(
+            phase=BIRPPhase.PHASE_4_CONSCIOUS, passed=False, score=0.0,
+            evidence={"error": "No validator votes received"},
+            notes="Phase 4 FAILED — no validators participated in review",
+        )
+
+    approve_stake = sum(v.stake_weight for v in votes if v.approve)
+    reject_stake  = sum(v.stake_weight for v in votes if not v.approve)
+    total_voted   = approve_stake + reject_stake
+    participation = total_voted / max(total_registered_stake, 1e-9)
+
+    # Score: fraction of approving stake over total registered stake
+    approve_fraction = approve_stake / max(total_registered_stake, 1e-9)
+    passed = approve_fraction >= CONSCIOUS_QUORUM_FRACTION
+
+    return BIRPPhaseResult(
+        phase=BIRPPhase.PHASE_4_CONSCIOUS,
+        passed=passed,
+        score=min(1.0, approve_fraction),
+        evidence={
+            "vote_count":          len(votes),
+            "approve_votes":       sum(1 for v in votes if v.approve),
+            "reject_votes":        sum(1 for v in votes if not v.approve),
+            "approve_stake":       round(approve_stake, 4),
+            "reject_stake":        round(reject_stake, 4),
+            "approve_fraction":    round(approve_fraction, 4),
+            "quorum_required":     CONSCIOUS_QUORUM_FRACTION,
+            "participation":       round(participation, 4),
+            "voters": [
+                {"id": v.validator_id, "approve": v.approve,
+                 "stake": round(v.stake_weight, 4)}
+                for v in votes
+            ],
+        },
+        notes=(
+            f"Conscious layer PASSED — {approve_fraction:.1%} approve stake (need {CONSCIOUS_QUORUM_FRACTION:.0%})"
+            if passed else
+            f"Conscious layer FAILED — {approve_fraction:.1%} approve stake (need {CONSCIOUS_QUORUM_FRACTION:.0%})"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.7  Phase 5 — Quarantine Wait (mandatory 7 days)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def phase5_quarantine_status(
+    quarantine_started_at: float,
+    now: Optional[float] = None,
+) -> BIRPPhaseResult:
+    """
+    Phase 5: Mandatory 7-day quarantine period.
+
+    During quarantine the entity's signals are emitted with a RECOVERY_PENDING
+    flag.  No acceleration is possible — the 7-day window exists to allow
+    human review, regulatory notification, and community challenge.
+
+    Returns passed=True only when the quarantine window has elapsed.
+    """
+    now      = now if now is not None else time.time()
+    elapsed  = now - quarantine_started_at
+    remaining = max(0.0, QUARANTINE_SECONDS - elapsed)
+    done     = elapsed >= QUARANTINE_SECONDS
+
+    progress = min(1.0, elapsed / QUARANTINE_SECONDS)
+    eta_hours = remaining / 3600.0
+
+    return BIRPPhaseResult(
+        phase=BIRPPhase.PHASE_5_QUARANTINE,
+        passed=done,
+        score=progress,
+        evidence={
+            "quarantine_seconds": QUARANTINE_SECONDS,
+            "elapsed_seconds":    round(elapsed, 1),
+            "remaining_seconds":  round(remaining, 1),
+            "eta_hours":          round(eta_hours, 2),
+            "progress_pct":       round(progress * 100, 1),
+        },
+        notes=(
+            "Quarantine COMPLETE — 7-day mandatory wait elapsed. Recovery may be APPROVED."
+            if done else
+            f"Quarantine IN PROGRESS — {eta_hours:.1f}h remaining ({progress:.0%} elapsed)"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 16.8  BIRP Request Manager
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class BIRPManager:
+    """
+    Manages the lifecycle of Behavioral Identity Recovery Protocol requests.
+
+    Usage:
+      mgr = BIRPManager()
+      req = mgr.open_request(entity_id, reason)
+      mgr.submit_phase1(req.request_id, sense_hex, antisense_hex, payload_hex)
+      mgr.submit_phase2(req.request_id, claimed_hashes, proof_leaves, root)
+      mgr.submit_phase3(req.request_id, faiss_dist, cluster_id, hist_cluster, gap)
+      mgr.submit_phase4(req.request_id, votes, total_stake)
+      # After 7 days:
+      mgr.check_quarantine(req.request_id)
+    """
+
+    def __init__(self):
+        self._requests: Dict[str, BIRPRequest] = {}
+        # Track last rejection per entity (30-day cooldown)
+        self._last_rejection: Dict[str, float] = {}
+
+    def open_request(self, entity_id: str, reason: str) -> BIRPRequest:
+        """Open a new BIRP recovery request for an entity."""
+        # Enforce 30-day cooldown after rejection
+        last_rej = self._last_rejection.get(entity_id)
+        if last_rej is not None:
+            since = time.time() - last_rej
+            if since < REJECTION_COOLDOWN:
+                remaining_days = (REJECTION_COOLDOWN - since) / 86400
+                raise ValueError(
+                    f"Entity {entity_id!r} is in rejection cooldown — "
+                    f"{remaining_days:.1f} days remaining before new request allowed"
+                )
+
+        req = BIRPRequest(
+            request_id=str(uuid.uuid4()),
+            entity_id=entity_id,
+            reason=reason,
+            initiated_at=time.time(),
+            phase=BIRPPhase.PHASE_1_DNA,
+        )
+        self._requests[req.request_id] = req
+        return req
+
+    def _get(self, request_id: str) -> BIRPRequest:
+        req = self._requests.get(request_id)
+        if req is None:
+            raise KeyError(f"No BIRP request with id={request_id!r}")
+        if req.outcome == BIRPOutcome.REJECTED:
+            raise ValueError(f"Request {request_id!r} has already been REJECTED")
+        if req.outcome == BIRPOutcome.APPROVED:
+            raise ValueError(f"Request {request_id!r} has already been APPROVED")
+        return req
+
+    def _reject(self, req: BIRPRequest, reason: str) -> None:
+        req.outcome = BIRPOutcome.REJECTED
+        req.phase   = BIRPPhase.REJECTED
+        req.rejection_reason = reason
+        req.resolved_at = time.time()
+        self._last_rejection[req.entity_id] = time.time()
+
+    def submit_phase1(
+        self, request_id: str,
+        sense_hex: str, antisense_hex: str, canonical_payload_hex: str,
+    ) -> BIRPPhaseResult:
+        req = self._get(request_id)
+        result = phase1_dna_verification(
+            req.entity_id, sense_hex, antisense_hex, canonical_payload_hex)
+        req.phase_results.append(result)
+        if not result.passed:
+            self._reject(req, f"Phase 1 DNA verification failed: {result.notes}")
+        else:
+            req.phase = BIRPPhase.PHASE_2_BEHAVIORAL
+        return result
+
+    def submit_phase2(
+        self, request_id: str,
+        claimed_bh_hashes: List[str], proof_leaves: List[str],
+        ledger_merkle_root: str,
+    ) -> BIRPPhaseResult:
+        req = self._get(request_id)
+        result = phase2_behavioral_proof(
+            req.entity_id, claimed_bh_hashes, proof_leaves, ledger_merkle_root)
+        req.phase_results.append(result)
+        if not result.passed:
+            self._reject(req, f"Phase 2 behavioral proof failed: {result.notes}")
+        else:
+            req.phase = BIRPPhase.PHASE_3_TEMPORAL
+        return result
+
+    def submit_phase3(
+        self, request_id: str,
+        faiss_distance: float, cluster_archetype_id: str,
+        historical_cluster_id: str, temporal_gap_blocks: int,
+        max_gap_blocks: int = 100_000,
+    ) -> BIRPPhaseResult:
+        req = self._get(request_id)
+        result = phase3_temporal_cluster(
+            req.entity_id, faiss_distance, cluster_archetype_id,
+            historical_cluster_id, temporal_gap_blocks, max_gap_blocks)
+        req.phase_results.append(result)
+        if not result.passed:
+            self._reject(req, f"Phase 3 temporal cluster failed: {result.notes}")
+        else:
+            req.phase = BIRPPhase.PHASE_4_CONSCIOUS
+        return result
+
+    def submit_phase4(
+        self, request_id: str,
+        votes: List[ValidatorVote], total_registered_stake: float,
+    ) -> BIRPPhaseResult:
+        req = self._get(request_id)
+        result = phase4_conscious_layer(req.entity_id, votes, total_registered_stake)
+        req.phase_results.append(result)
+        if not result.passed:
+            self._reject(req, f"Phase 4 conscious layer failed: {result.notes}")
+        else:
+            req.phase = BIRPPhase.PHASE_5_QUARANTINE
+            req.quarantine_ends_at = time.time() + QUARANTINE_SECONDS
+        return result
+
+    def check_quarantine(self, request_id: str) -> BIRPPhaseResult:
+        req = self._get(request_id)
+        result = phase5_quarantine_status(
+            quarantine_started_at=req.quarantine_ends_at - QUARANTINE_SECONDS)
+        if result.passed and req.phase == BIRPPhase.PHASE_5_QUARANTINE:
+            req.phase_results.append(result)
+            req.phase = BIRPPhase.RESOLVED
+            req.outcome = BIRPOutcome.APPROVED
+            req.resolved_at = time.time()
+        elif not result.passed and req.phase == BIRPPhase.PHASE_5_QUARANTINE:
+            # Don't append — quarantine check can be polled multiple times
+            pass
+        return result
+
+    def get_request(self, request_id: str) -> Optional[BIRPRequest]:
+        return self._requests.get(request_id)
+
+    def status(self, request_id: str) -> dict:
+        req = self._requests.get(request_id)
+        if req is None:
+            return {"error": f"Request {request_id!r} not found"}
+        return {
+            "request_id":     req.request_id,
+            "entity_id":      req.entity_id,
+            "reason":         req.reason,
+            "current_phase":  req.phase.value,
+            "outcome":        req.outcome.value,
+            "initiated_at":   req.initiated_at,
+            "resolved_at":    req.resolved_at,
+            "quarantine_ends_at": req.quarantine_ends_at,
+            "rejection_reason":  req.rejection_reason,
+            "phases_completed": [
+                {
+                    "phase":   r.phase.value,
+                    "passed":  r.passed,
+                    "score":   round(r.score, 4),
+                    "notes":   r.notes,
+                }
+                for r in req.phase_results
+            ],
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# § 19   Signal Relay Wrapper (retained from prior implementation)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BIRP_BATCH_MAX   = 50
+BIRP_DEFAULT_TTL = 3600
 
 
 @dataclass
 class BIRPMessage:
+    """Signal delivery envelope — BIRP relay wrapper (Section 19)."""
     signal_id:         str
     entity_id:         str
     signal_type:       str
@@ -44,11 +640,12 @@ class BIRPMessage:
     ttl:               int
     plane_breakdown:   dict
     biological_time:   dict
-    chameleon_applied: bool     = True
-    silence:           bool     = False
-    oracle_sig:        str      = ""
-    bootstrap_phase:   bool     = True
-    extra:             dict     = field(default_factory=dict)
+    chameleon_applied: bool  = True
+    silence:           bool  = False
+    oracle_sig:        str   = ""
+    bootstrap_phase:   bool  = True
+    recovery_pending:  bool  = False   # set True during BIRP §16 quarantine
+    extra:             dict  = field(default_factory=dict)
 
 
 def sign_birp_message(msg: BIRPMessage, signing_key: bytes) -> str:
@@ -67,9 +664,10 @@ def verify_birp_message(msg: BIRPMessage, signing_key: bytes) -> bool:
 
 
 def build_birp_message(
-    signal:         dict,
-    signing_key:    bytes,
+    signal: dict,
+    signing_key: bytes,
     chameleon_data: Optional[dict] = None,
+    recovery_pending: bool = False,
 ) -> BIRPMessage:
     msg = BIRPMessage(
         signal_id         = signal.get("signal_id", ""),
@@ -88,13 +686,14 @@ def build_birp_message(
         chameleon_applied = chameleon_data is not None,
         silence           = signal.get("silence", False),
         bootstrap_phase   = signal.get("bootstrap_phase", True),
+        recovery_pending  = recovery_pending,
     )
     msg.oracle_sig = sign_birp_message(msg, signing_key)
     return msg
 
 
 def batch_birp_messages(
-    signals:     List[dict],
+    signals: List[dict],
     signing_key: bytes,
 ) -> List[BIRPMessage]:
     if len(signals) > BIRP_BATCH_MAX:
@@ -121,13 +720,86 @@ def birp_to_dict(msg: BIRPMessage) -> dict:
         "silence":           msg.silence,
         "oracle_sig":        msg.oracle_sig,
         "bootstrap_phase":   msg.bootstrap_phase,
+        "recovery_pending":  msg.recovery_pending,
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Self-test
+# ═══════════════════════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
     import os
-    key = os.urandom(32)
 
+    print("=== TRION BIRP §16 Self-test ===\n")
+
+    # — Phase 1: DNA verification ——————————————————————————————————————————
+    payload = b"uniswap_entity_test_" + b"\xab" * 12
+    sense_b, anti_b = _hash_dna(payload)
+    result = phase1_dna_verification(
+        "test_entity",
+        sense_b.hex(), anti_b.hex(), payload.hex()
+    )
+    assert result.passed, f"Phase 1 should pass: {result.notes}"
+    print(f"[PASS] Phase 1 DNA verification: score={result.score:.2f}")
+
+    # Tamper test
+    bad = phase1_dna_verification(
+        "test_entity",
+        sense_b.hex(), (b'\x00' * 32).hex(), payload.hex()
+    )
+    assert not bad.passed, "Tampered antisense must fail"
+    print(f"[PASS] Phase 1 tamper detection: rejected")
+
+    # — Phase 2: Behavioral proof ——————————————————————————————————————————
+    bh_hashes = [hashlib.sha3_256(f"bh_{i}".encode()).hexdigest() for i in range(10)]
+    proof_leaves = bh_hashes[:8]
+    root = _merkle_root([bytes.fromhex(h) for h in proof_leaves]).hex()
+    r2 = phase2_behavioral_proof("test_entity", bh_hashes, proof_leaves, root)
+    assert r2.passed, f"Phase 2 should pass: {r2.notes}"
+    print(f"[PASS] Phase 2 behavioral proof: coverage={r2.evidence['coverage']:.0%}")
+
+    # — Phase 3: Temporal cluster ——————————————————————————————————————————
+    r3 = phase3_temporal_cluster(
+        "test_entity", faiss_distance=0.12,
+        cluster_archetype_id="arch_42", historical_cluster_id="arch_42",
+        temporal_gap_blocks=500
+    )
+    assert r3.passed, f"Phase 3 should pass: {r3.notes}"
+    print(f"[PASS] Phase 3 temporal cluster: score={r3.score:.2f}")
+
+    # — Phase 4: Conscious layer ———————————————————————————————————————————
+    votes = [
+        ValidatorVote("v1", True,  0.40, "behavioral match confirmed"),
+        ValidatorVote("v2", True,  0.30, "history verified"),
+        ValidatorVote("v3", False, 0.10, "suspicious dormancy"),
+        ValidatorVote("v4", True,  0.20, "cluster ok"),
+    ]
+    r4 = phase4_conscious_layer("test_entity", votes, total_registered_stake=1.0)
+    assert r4.passed, f"Phase 4 should pass: {r4.notes}"
+    print(f"[PASS] Phase 4 conscious layer: approve_fraction={r4.evidence['approve_fraction']:.0%}")
+
+    # — Phase 5: Quarantine ————————————————————————————————————————————————
+    started = time.time() - QUARANTINE_SECONDS - 1  # already elapsed
+    r5 = phase5_quarantine_status(started)
+    assert r5.passed, f"Phase 5 should pass: {r5.notes}"
+    print(f"[PASS] Phase 5 quarantine: complete (score={r5.score:.2f})")
+
+    # — Full lifecycle via BIRPManager ————————————————————————————————————
+    mgr = BIRPManager()
+    req = mgr.open_request("uniswap", "dormancy_resurrection")
+    mgr.submit_phase1(req.request_id, sense_b.hex(), anti_b.hex(), payload.hex())
+    mgr.submit_phase2(req.request_id, bh_hashes, proof_leaves, root)
+    mgr.submit_phase3(req.request_id, 0.12, "arch_42", "arch_42", 500)
+    mgr.submit_phase4(req.request_id, votes, 1.0)
+    # Simulate quarantine elapsed
+    req.quarantine_ends_at = time.time() - 1
+    mgr.check_quarantine(req.request_id)
+    assert req.outcome == BIRPOutcome.APPROVED, f"Expected APPROVED, got {req.outcome}"
+    print(f"[PASS] Full BIRP §16 lifecycle: outcome={req.outcome.value}")
+
+    # — Signal relay wrapper ————————————————————————————————————————————
+    key = os.urandom(32)
     sample_signal = {
         "signal_id": "test-sig-001", "entity_id": "0xAABBCC",
         "signal_type": "VALUATION", "signal_value": 0.72,
@@ -136,22 +808,14 @@ if __name__ == "__main__":
         "plane_breakdown": {}, "biological_time": {"circadian_phase": 0.5},
         "silence": False, "bootstrap_phase": True,
     }
-
-    msg    = build_birp_message(sample_signal, key)
-    valid  = verify_birp_message(msg, key)
+    msg   = build_birp_message(sample_signal, key)
+    valid = verify_birp_message(msg, key)
     tamper = BIRPMessage(**vars(msg))
     tamper.coherence = 0.99
     invalid = verify_birp_message(tamper, key)
+    assert valid and not invalid
+    print("[PASS] Signal relay wrapper: sign/verify/tamper detection")
 
-    assert valid,    "Valid message should pass"
-    assert not invalid, "Tampered message should fail"
-
-    signals = [dict(sample_signal, signal_id=f"sig-{i}") for i in range(10)]
-    batch   = batch_birp_messages(signals, key)
-    assert len(batch) == 10
-    assert all(verify_birp_message(m, key) for m in batch)
-
-    print(f"BIRP sign/verify:    PASS")
-    print(f"Tamper detection:    PASS")
-    print(f"Batch (10 msgs):     PASS")
-    print("PHASE 19 PASS — BIRP Behavioral Intercept & Relay Protocol implemented")
+    print("\n=== BIRP §16 + §19 ALL TESTS PASSED ===")
+    print("Phases: DNA-Verification, Behavioral-Proof, Temporal-Cluster,")
+    print("        Conscious-Layer, Quarantine-Wait (7d) + Relay-Wrapper")

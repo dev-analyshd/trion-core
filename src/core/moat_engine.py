@@ -35,10 +35,12 @@ from dataclasses import dataclass
 # registered; can decrease if registered conditions are shown to be invalid.
 F_REGISTRY_BASELINE: float = 0.90
 
-# Time-decay constant for the Network factor N(t).
-# At t = 1e8 "time units" (approx. 3 years of block-time in seconds) the
-# N factor decays to e^(-1) ≈ 0.368.  This encodes the reality that
-# competitive pressure erodes a first-mover moat over multi-year horizons.
+# Time-scaling constant for the Network factor N(t).
+# Whitepaper §2.3 mandates logarithmic GROWTH (not decay):
+#   N(t) = log(1 + t/τ) / log(11)
+# At t = τ  ≈ 3 years:  N ≈ 0.289
+# At t = 10τ ≈ 30 years: N = 1.0  (mature network moat)
+# Genesis (t=0): N = 0 (no network moat yet — must be earned over time)
 N_DECAY_TAU: float = 1e8
 
 # Depth scaling constants for D and X factors.
@@ -151,15 +153,19 @@ class MoatEngine:
         """
         N — Network / durability factor.
 
-        N(t) = exp(-t / τ)     when t > 0
-        N(t) = 1.0             at genesis (t = 0)
+        Whitepaper §2.3 canonical formula:
+            N(t) = log(1 + t/τ) / log(11)
 
-        Encodes competitive erosion: as years pass, competitors emerge and
-        the first-mover network advantage decays.  τ = 1e8 seconds ≈ 3 years.
+        Encodes logarithmic network-effect GROWTH: the protocol moat
+        strengthens as cumulative adoption and behavioral history accumulate.
+        At genesis (t=0) there is no network moat.  At t=10τ (≈30 years)
+        N reaches 1.0 (full network-effect saturation).
+
+        τ = 1e8 seconds ≈ 3.17 years.  N(τ) ≈ 0.289.
         """
         if moat_time <= 0.0:
-            return 1.0
-        return math.exp(-moat_time / N_DECAY_TAU)
+            return 0.0
+        return min(1.0, math.log1p(moat_time / N_DECAY_TAU) / math.log(11.0))
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -232,9 +238,11 @@ if __name__ == "__main__":
               f"  F={comp['F_falsifiability']:.3f}  N={comp['N_network']:.3f}"
               f"  [{status}]")
 
-    # Invariant: moat is strictly monotone in depth (all other inputs equal)
-    base = MoatInput(akashic_depth=1_000, k_plane=0.5, m_adj=0.5, moat_time=0)
-    deep = MoatInput(akashic_depth=100_000, k_plane=0.5, m_adj=0.5, moat_time=0)
+    # Invariant: moat is strictly monotone in depth (all other inputs equal).
+    # Use a non-zero moat_time so N(t) > 0; at t=0 the product is always 0
+    # regardless of depth (genesis state has no network moat yet — correct).
+    base = MoatInput(akashic_depth=1_000, k_plane=0.5, m_adj=0.5, moat_time=1e7)
+    deep = MoatInput(akashic_depth=100_000, k_plane=0.5, m_adj=0.5, moat_time=1e7)
     moat_base = engine.compute(base)["moat_factor"]
     moat_deep = engine.compute(deep)["moat_factor"]
     monotone_ok = moat_deep > moat_base
