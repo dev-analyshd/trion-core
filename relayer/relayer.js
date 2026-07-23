@@ -497,10 +497,11 @@ async function checkSelfHalt() {
     }
     return false;
   } catch (e) {
-    // If self-status is unreachable, fail open (don't block the relayer on a
-    // missing endpoint) but log clearly so it's visible in the console.
-    console.warn(`[SELF-HALT] could not reach /api/v1/self (${e.message}) — proceeding without self-halt check`);
-    return false;
+    // If self-status is unreachable the relayer cannot confirm its own oracle
+    // is healthy — HALT this cycle (fail-closed).  Publishing signals from an
+    // oracle whose health is unknown risks propagating incorrect data on-chain.
+    console.warn(`[SELF-HALT] could not reach /api/v1/self (${e.message}) — HALTING this cycle (fail-closed)`);
+    return true;
   }
 }
 

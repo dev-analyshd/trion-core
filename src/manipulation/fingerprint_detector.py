@@ -148,38 +148,41 @@ def detect_sybil_liquidity(
 def detect_governance_capture(
     vote_hhi: float,             # Herfindahl-Hirschman Index of vote distribution (0–10000)
     proposal_age_hours: float,   # time between proposal and vote execution
-    hhi_threshold: float = 2500,
+    hhi_threshold: float = 4000,
     min_proposal_age_hours: float = 48.0,
 ) -> MFResult:
     """
     GOVERNANCE_CAPTURE (Whitepaper L2.1 TYPE 5):
-    MF = 0.50 × (vote_HHI - 2500) / 7500
-    Threshold: vote_HHI > 2500 AND proposal_age < 48h
+    MF = 0.50 × (vote_HHI - 4000) / 6000
+    Threshold: vote_HHI > 4000 AND proposal_age < 48h
     Beanstalk scenario: same-block governance execution (HHI → 10000).
+
+    AWA (Adversarial Warning Alert) triggers at HHI > 4000 per whitepaper L1.2 TYPE 5.
     """
     detected = vote_hhi > hhi_threshold and proposal_age_hours < min_proposal_age_hours
     if detected:
-        mf_score = min(1.0, max(0.0, 0.50 * (vote_hhi - 2500) / 7500))
+        mf_score = min(1.0, max(0.0, 0.50 * (vote_hhi - 4000) / 6000))
         return MFResult(
             pattern_type="GOVERNANCE_CAPTURE",
             detected=True,
             mf_score=mf_score,
             confidence=0.92,
             description=(
-                f"Governance capture: HHI={vote_hhi:.0f} > 2500, "
+                f"Governance capture: HHI={vote_hhi:.0f} > 4000 (AWA threshold), "
                 f"proposal age={proposal_age_hours:.1f}h < 48h. "
-                f"MF = 0.50 × ({vote_hhi:.0f} - 2500) / 7500 = {mf_score:.4f}."
+                f"MF = 0.50 × ({vote_hhi:.0f} - 4000) / 6000 = {mf_score:.4f}."
             ),
             evidence={
                 "vote_hhi": vote_hhi,
                 "proposal_age_hours": proposal_age_hours,
-                "formula": "0.50 × (vote_HHI - 2500) / 7500",
+                "awa_threshold": 4000,
+                "formula": "0.50 × (vote_HHI - 4000) / 6000",
             }
         )
     return MFResult(
         pattern_type="GOVERNANCE_CAPTURE", detected=False,
         mf_score=0.0, confidence=0.88,
-        description=f"No governance capture: HHI={vote_hhi:.0f} (need >2500) age={proposal_age_hours:.1f}h.",
+        description=f"No governance capture: HHI={vote_hhi:.0f} (need >4000) age={proposal_age_hours:.1f}h.",
         evidence={"vote_hhi": vote_hhi}
     )
 

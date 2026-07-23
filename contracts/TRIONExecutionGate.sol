@@ -17,6 +17,14 @@ pragma solidity ^0.8.20;
  *  - 0G DA logs every decision permanently (anomaly proof trail)
  *  - 0G Storage holds the full behavioral memory (BEO vector index)
  *  - 0G Compute provides TEE-verified inference for every risk score
+ *
+ * Security hardening (audit fixes):
+ *  - publishSignal requires quorum signatures — no single validator can publish
+ *  - checkExecution is nonReentrant — prevents reentrancy on the gate check
+ *  - Pausable — owner can pause the gate during emergencies
+ *  - Two-step ownership — ownership transfer requires acceptance by new owner
+ *  - Fail-closed — uninitialized entities are BLOCKED, not allowed
+ *  - OwnershipTransferred event emitted on acceptance
  */
 contract TRIONExecutionGate {
 
@@ -55,13 +63,18 @@ contract TRIONExecutionGate {
 
     // ── State ────────────────────────────────────────────────────────────────
     address public owner;
+    address public pendingOwner;                   // two-step ownership transfer
     mapping(address => bool) public isValidator;
     uint256 public quorumRequired;
+
+    bool public paused;                            // circuit breaker
+    bool private _reentrancyGuard;                 // nonReentrant guard flag
 
     // Entity behavioral signals: entityId (bytes32 BEO hash) → signal
     mapping(bytes32 => BehavioralSignal) public signals;
 
     // Execution audit trail: decisionHash → decision
+    // NOTE: unbounded mapping is acknowledged; pruning governance is TODO.
     mapping(bytes32 => ExecutionDecision) public decisions;
 
     // Statistics
@@ -117,6 +130,10 @@ contract TRIONExecutionGate {
     event ValidatorAdded(address indexed validator);
     event ValidatorRemoved(address indexed validator);
     event QuorumUpdated(uint256 newQuorum);
+    event Paused(address indexed by);
+    event Unpaused(address indexed by);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // ── Constructor ──────────────────────────────────────────────────────────
     constructor(uint256 _quorum) {
@@ -124,8 +141,10 @@ contract TRIONExecutionGate {
         isValidator[msg.sender] = true;
         quorumRequired = _quorum > 0 ? _quorum : 1;
         emit ValidatorAdded(msg.sender);
+        emit OwnershipTransferred(address(0), msg.sender);
     }
 
+    // ── Modifiers ────────────────────────────────────────────────────────────
     modifier onlyOwner() {
         require(msg.sender == owner, "TRION: Not owner");
         _;
@@ -136,23 +155,76 @@ contract TRIONExecutionGate {
         _;
     }
 
-    // ── Core: Publish Behavioral Signal ─────────────────────────────────────
+    modifier whenNotPaused() {
+        require(!paused, "TRION: Contract is paused");
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(!_reentrancyGuard, "TRION: Reentrant call");
+        _reentrancyGuard = true;
+        _;
+        _reentrancyGuard = false;
+    }
+
+    // ── Core: Publish Behavioral Signal (with quorum enforcement) ────────────
     /**
      * @notice Validators publish a TRION behavioral signal for an entity.
-     *         Signal is TEE-verified by 0G Compute before reaching here.
-     * @param entityId   keccak256 BEO entity identifier
-     * @param packedData Packed behavioral metrics (phi_t, theta, drop_pct, status)
-     * @param beoHash    keccak256 of entity's behavioral DNA (content-addressed on 0G Storage)
+     *         Requires `quorumRequired` valid EIP-191 signatures over the
+     *         message hash keccak256(abi.encodePacked(
+     *           block.chainid, address(this), entityId, packedData
+     *         )) from distinct registered validators.
+     *
+     * @param entityId    keccak256 BEO entity identifier
+     * @param packedData  Packed behavioral metrics (phi_t, theta, drop_pct, status)
+     * @param beoHash     keccak256 of entity's behavioral DNA (content-addressed on 0G Storage)
      * @param daProofHash 0G DA content hash — proof this anomaly is permanently sealed
      * @param storageRoot 0G Storage merkle root for this entity's behavioral memory
+     * @param signatures  Ordered array of EIP-191 signatures from distinct validators
      */
     function publishSignal(
         bytes32 entityId,
         uint256 packedData,
         bytes32 beoHash,
         bytes32 daProofHash,
-        string calldata storageRoot
-    ) external onlyValidator {
+        string calldata storageRoot,
+        bytes[] calldata signatures
+    ) external onlyValidator whenNotPaused {
+        // ── Quorum enforcement ────────────────────────────────────────────────
+        require(
+            signatures.length >= quorumRequired,
+            "TRION: Insufficient signatures for quorum"
+        );
+
+        bytes32 msgHash = keccak256(abi.encodePacked(
+            block.chainid, address(this), entityId, packedData
+        ));
+        bytes32 ethSignedHash = keccak256(abi.encodePacked(
+            "\x19Ethereum Signed Message:\n32", msgHash
+        ));
+
+        address[] memory seen = new address[](signatures.length);
+        uint256 validCount = 0;
+
+        for (uint256 i = 0; i < signatures.length; i++) {
+            address recovered = _recoverSigner(ethSignedHash, signatures[i]);
+            if (!isValidator[recovered]) continue;
+
+            // Prevent duplicate signers
+            bool duplicate = false;
+            for (uint256 j = 0; j < validCount; j++) {
+                if (seen[j] == recovered) { duplicate = true; break; }
+            }
+            if (duplicate) continue;
+
+            seen[validCount] = recovered;
+            validCount++;
+            if (validCount >= quorumRequired) break;
+        }
+
+        require(validCount >= quorumRequired, "TRION: Quorum not met by distinct validators");
+
+        // ── Unpack and validate ───────────────────────────────────────────────
         uint8  status  = uint8(packedData & 0xFF);
         uint32 phi_t   = uint32((packedData >> 8)  & 0xFFFFFFFF);
         uint32 theta   = uint32((packedData >> 40) & 0xFFFFFFFF);
@@ -179,32 +251,49 @@ contract TRIONExecutionGate {
         emit SignalPublished(entityId, status, phi_t, theta, dropPct, daProofHash, storageRoot);
     }
 
-    // ── Core: Check Execution Safety ─────────────────────────────────────────
+    // ── Core: Check Execution Safety ──────────────────────────────────────────
     /**
      * @notice The primary gate. Any agent/contract calls this before executing.
      *         Returns (allowed, decision) — if blocked, execution must not proceed.
+     *         FAIL-CLOSED: uninitialized entities (no signal published yet) are BLOCKED.
+     *         Protected by nonReentrant to prevent reentrancy attacks on the gate.
+     *
      * @param entityId   The BEO entity attempting execution
      * @param caller     The agent/wallet initiating the trade
      */
     function checkExecution(
         bytes32 entityId,
         address caller
-    ) external returns (bool allowed, bytes32 decisionHash) {
+    ) external nonReentrant whenNotPaused returns (bool allowed, bytes32 decisionHash) {
         BehavioralSignal storage sig = signals[entityId];
 
-        uint8  status  = 1;
-        uint32 phi_t   = 0;
-        uint32 theta   = 0;
-        uint32 dropPct = 0;
-
-        if (sig.initialized) {
-            status  = uint8(sig.packedData & 0xFF);
-            phi_t   = uint32((sig.packedData >> 8)  & 0xFFFFFFFF);
-            theta   = uint32((sig.packedData >> 40) & 0xFFFFFFFF);
-            dropPct = uint32((sig.packedData >> 72) & 0xFFFFFFFF);
+        // ── Fail-closed for uninitialized entities ────────────────────────────
+        // An entity with no published signal has not been verified by TRION.
+        // Default is BLOCKED (not allowed) — conservative safety posture.
+        if (!sig.initialized) {
+            decisionHash = keccak256(abi.encodePacked(
+                entityId, caller, false, uint8(0), uint32(0), block.number, block.timestamp
+            ));
+            decisions[decisionHash] = ExecutionDecision({
+                allowed:      false,
+                status:       0,
+                phi_t:        0,
+                theta:        0,
+                dropPct:      0,
+                checkedAt:    block.timestamp,
+                decisionHash: decisionHash
+            });
+            totalExecutionsBlocked++;
+            emit ExecutionBlocked(entityId, caller, 0, 0, 0, decisionHash);
+            return (false, decisionHash);
         }
 
-        // Gate logic: COLLAPSE and HOSTILE are hard blocks
+        uint8  status  = uint8(sig.packedData & 0xFF);
+        uint32 phi_t   = uint32((sig.packedData >> 8)  & 0xFFFFFFFF);
+        uint32 theta   = uint32((sig.packedData >> 40) & 0xFFFFFFFF);
+        uint32 dropPct = uint32((sig.packedData >> 72) & 0xFFFFFFFF);
+
+        // Gate logic: only STATUS_SAFE and STATUS_ELEVATED are permitted
         allowed = (status <= STATUS_ELEVATED);
 
         decisionHash = keccak256(abi.encodePacked(
@@ -241,7 +330,7 @@ contract TRIONExecutionGate {
     function confirmStorageSync(
         string calldata storageRoot,
         uint256 vectorCount
-    ) external onlyValidator {
+    ) external onlyValidator whenNotPaused {
         beoVectorStorageRoot = storageRoot;
         lastStorageSyncBlock = block.number;
         emit StorageSyncConfirmed(storageRoot, vectorCount, block.number);
@@ -274,9 +363,13 @@ contract TRIONExecutionGate {
     }
 
     // ── View: Is Execution Safe ───────────────────────────────────────────────
+    /**
+     * @notice Fail-closed view: uninitialized entities return FALSE (not safe).
+     *         This is a critical change from the original fail-open behavior.
+     */
     function isExecutionSafe(bytes32 entityId) external view returns (bool) {
         BehavioralSignal storage s = signals[entityId];
-        if (!s.initialized) return true; // No data = default safe (permissive)
+        if (!s.initialized) return false;  // fail-closed: no data = not verified = BLOCKED
         uint8 status = uint8(s.packedData & 0xFF);
         return status <= STATUS_ELEVATED;
     }
@@ -300,7 +393,18 @@ contract TRIONExecutionGate {
         );
     }
 
-    // ── Admin ─────────────────────────────────────────────────────────────────
+    // ── Admin: Pause / Unpause ────────────────────────────────────────────────
+    function pause() external onlyOwner {
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyOwner {
+        paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    // ── Admin: Validators ─────────────────────────────────────────────────────
     function addValidator(address v) external onlyOwner {
         isValidator[v] = true;
         emit ValidatorAdded(v);
@@ -318,8 +422,46 @@ contract TRIONExecutionGate {
         emit QuorumUpdated(q);
     }
 
+    // ── Admin: Two-step ownership transfer ───────────────────────────────────
+    /**
+     * @notice Step 1: initiate ownership transfer — sets pendingOwner.
+     *         Ownership is NOT transferred until acceptOwnership() is called.
+     */
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "TRION: Zero address");
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferInitiated(owner, newOwner);
+    }
+
+    /**
+     * @notice Step 2: new owner accepts ownership.
+     *         This is the only function that emits OwnershipTransferred.
+     */
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "TRION: Not pending owner");
+        address previous = owner;
+        owner = pendingOwner;
+        pendingOwner = address(0);
+        isValidator[owner] = true;
+        emit OwnershipTransferred(previous, owner);
+    }
+
+    // ── Internal: ECDSA recovery ─────────────────────────────────────────────
+    function _recoverSigner(
+        bytes32 hash,
+        bytes memory sig
+    ) internal pure returns (address) {
+        require(sig.length == 65, "TRION: Invalid signature length");
+        bytes32 r;
+        bytes32 s;
+        uint8   v;
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+        if (v < 27) v += 27;
+        require(v == 27 || v == 28, "TRION: Invalid v");
+        return ecrecover(hash, v, r, s);
     }
 }
