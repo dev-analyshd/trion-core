@@ -1,28 +1,32 @@
 """
-src/price/behavioral_price_engine.py
-=====================================
-Behavioral True Value (BTV) Engine — TRION Protocol
+src/price/behavioral_price_engine.py  [LEGACY COMPATIBILITY LAYER]
+====================================================================
 
-This is the implementation of Section 2.1 / 2.2 of the Inverted Truth Hierarchy:
+WARNING: The Core TRION Engine is strictly behavioral and price-agnostic.
+This module exists solely to map Behavioral Coherence Scores onto legacy
+CEX price feeds for TradFi integration. It is not part of the core
+epistemological pipeline.
+
+Concretely: C(t), Φ, M, Σ, K, A, MF, NL — everything in
+akashic/faiss_service.py and oracle_api's /api/v1/signal/* — never reads
+a price feed. This module (served at /api/v1/price/*) is a SEPARATE,
+deliberately price-aware compatibility shim that takes a CEX-derived
+reference price as an explicit input specifically in order to quantify
+how much of it is behaviorally unjustified.
+
+Do not import this module from within the core behavioral pipeline.
+src/core/coherence_engine.py and all five plane engines must remain
+price-blind. Any import of this module from those files is a defect.
+
+──────────────────────────────────────────────────────────────────────
+Behavioral True Value (BTV) Engine — TRION Protocol
+Implementation of Section 2.1 / 2.2 of the Inverted Truth Hierarchy:
 
   CURRENT STACK (corrupted):
     Retail ← DeFi ← Oracle (Chainlink) ← CEX price feeds ← CEX order matching ← (no ground truth)
 
   TRION STACK (behavioral ground truth):
     Retail ← DeFi ← TRION BTV ← On-chain BH ledger ← 37 chains (1.9M+ tamper-proof records)
-
-ARCHITECTURAL DISCLOSURE (see TRION_AUDIT_REPORT.md finding C4):
-  TRION's CORE behavioral signal pipeline (C(t), Φ, M, Σ, K, A, MF, NL — everything
-  in akashic/faiss_service.py and oracle_api's /api/v1/signal/*) never reads a price
-  feed. That claim is accurate and unaffected by this module.
-  THIS module (BTV / the Chainlink-compatible /api/v1/price/* endpoints) is a
-  DIFFERENT, deliberately price-aware compatibility layer: it is a comparison tool
-  that takes a CEX-derived reference price as an explicit input specifically in
-  order to quantify how much of it is behaviorally unjustified. It is not, and
-  does not claim to be, a price-blind computation — it exists to demonstrate the
-  price/behavior gap for consumers who need a drop-in Chainlink replacement.
-  Treat `/api/v1/price/*` as an integration/demo layer distinct from TRION's core
-  behavioral signal pipeline, not as evidence the core pipeline reads price.
 
 The BTV is NOT a faster pipe carrying CEX data.
 It is derived from the actual behavioral record of what every entity did on every chain,
@@ -41,6 +45,10 @@ BTV Formula (L0.7):
   manipulation_discount_pct = (P_cex − BTV) / P_cex × 100
   "How much of the CEX price is behaviorally unjustified"
 """
+
+# Module-level flag — importers can check this to confirm they are loading
+# the compatibility layer and not the core behavioral pipeline.
+LEGACY_COMPATIBILITY_LAYER: bool = True
 
 import math
 import time

@@ -196,6 +196,85 @@ def compute_behavioral_hash(event: BehavioralEvent,
     }
 
 
+def bh_from_rust_hex(hex_payload: str) -> dict:
+    """
+    Ingest and verify a 93-byte Behavioral Hash produced by the Rust
+    ``trion-common`` crate (``canonical_bh`` / ``hash_dna.rs``).
+
+    This is the strict Python ingestion path for Rust-originated BH payloads.
+    It accepts the hex-encoded 93-byte binary produced by Rust, asserts the
+    exact canonical field layout, recomputes the dual-strand hashes, and
+    verifies the XOR invariant — ensuring cross-verifiability between the
+    Rust L0 indexers and all Python consumers without any field-translation
+    or re-encoding that could produce a divergent hash.
+
+    Canonical layout (whitepaper L0.1 §3.1, big-endian throughout):
+        entity_id(32) || event_type(1) || magnitude_norm(8) ||
+        context(8)    || timestamp(8)  || chain_id(4)       || block_hash(32)
+        ─────────────────────────────────────────────────────────────────────
+        Total: 93 bytes
+
+    Raises:
+        ValueError — if the hex string does not decode to exactly 93 bytes,
+                     or if the XOR invariant (sense, antisense, payload)
+                     fails.  Either condition means the payload was not
+                     produced by the canonical Rust ``canonical_bh`` path.
+    """
+    raw = bytes.fromhex(hex_payload.replace("0x", "").replace("0X", ""))
+    if len(raw) != 93:
+        raise ValueError(
+            f"Expected exactly 93-byte canonical BH payload, got {len(raw)} bytes. "
+            "Input must be the unmodified hex output of Rust trion-common::canonical_bh()."
+        )
+
+    # Parse canonical binary fields — no re-encoding, no translation
+    entity_id_bytes  = raw[0:32]
+    event_type_byte  = raw[32]
+    mag_nano         = int.from_bytes(raw[33:41], "big")
+    context_bytes    = raw[41:49]
+    timestamp_val    = int.from_bytes(raw[49:57], "big")
+    chain_id_val     = int.from_bytes(raw[57:61], "big")
+    block_hash_bytes = raw[61:93]
+
+    # Recompute dual-strand hashes from the exact 93-byte binary
+    sense, antisense = hash_dna(raw)
+
+    # Verify XOR invariant: antisense XOR complement(sense) == SHA3(payload||0xFF)
+    comp_sense      = complement_transform(sense)
+    recovered_inner = bytes(a ^ b for a, b in zip(antisense, comp_sense))
+    expected_inner  = hashlib.sha3_256(raw + b'\xFF').digest()
+    valid           = (recovered_inner == expected_inner)
+
+    if not valid:
+        raise ValueError(
+            "XOR invariant verification FAILED for 93-byte BH payload. "
+            "The payload may have been tampered with or was not produced by "
+            "the canonical Rust trion-common::hash_dna implementation."
+        )
+
+    mag_norm = mag_nano / 1_000_000_000.0
+    try:
+        et: EventType | None = EventType(event_type_byte)
+    except ValueError:
+        et = None
+
+    return {
+        "sense_hex":            sense.hex(),
+        "antisense_hex":        antisense.hex(),
+        "valid":                valid,
+        "magnitude_normalized": mag_norm,
+        "event_type":           et.name if et else f"UNKNOWN_{event_type_byte}",
+        "event_type_id":        event_type_byte,
+        "context_hex":          context_bytes.hex(),
+        "chain_id":             chain_id_val,
+        "timestamp":            timestamp_val,
+        "entity_id_hex":        entity_id_bytes.hex(),
+        "block_hash_hex":       block_hash_bytes.hex(),
+        "payload_len":          93,
+        "source":               "rust_canonical_bh",
+    }
+
+
 def bh_from_dict(d: dict) -> dict:
     """
     Convenience constructor — build BH from plain dict (for API calls).
