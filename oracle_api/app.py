@@ -243,6 +243,11 @@ def _entity_seed(eid: str) -> float:
     h = hashlib.sha256(eid.encode()).digest()
     return int.from_bytes(h[:4], "big") / 0xFFFFFFFF
 
+# Minimum coherence threshold used in COLD_START SILENCE signals ────────────
+# Mirrors THETA_MIN from src/core/coherence_engine.py (0.55) so COLD_START
+# responses carry a meaningful threshold field without importing the engine.
+THETA_MIN_COLD_START: float = 0.55
+
 # FAISS enrichment cache  ──────────────────────────────────────────────────
 _faiss_plane_cache: dict = {}
 _faiss_plane_ts:    dict = {}
@@ -295,7 +300,8 @@ def _query_faiss_planes(eid: str) -> dict | None:
         depth = float(depth_d.get("akashic_depth", 0.0))
         phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
 
-        result = {"m": m_val, "anima": a_val, "phi_live": phi_live}
+        result = {"m": m_val, "anima": a_val, "phi_live": phi_live,
+                  "akashic_depth": depth}
         _faiss_plane_cache[eid] = result
         _faiss_plane_ts[eid]    = now
         return result
@@ -306,23 +312,40 @@ def _query_faiss_planes(eid: str) -> dict | None:
 
 
 def _plane_values(eid: str) -> dict:
-    """Return 5-plane behavioral values, enriched from live FAISS when available."""
-    h     = hashlib.sha3_256(eid.encode()).digest()
-    phi   = 0.40 + 0.55 * (h[0] / 255.0)
-    m     = 0.35 + 0.60 * (h[1] / 255.0)
-    sigma = 0.45 + 0.50 * (h[2] / 255.0)
-    k     = 0.40 + 0.55 * (h[3] / 255.0)
-    anima = 0.35 + 0.60 * (h[4] / 255.0)
+    """
+    Return 5-plane behavioral values sourced exclusively from live FAISS data.
 
+    COLD_START enforcement (audit finding — Bootstrap Phase):
+      When FAISS reports no behavioral history for this entity, this function
+      returns a sentinel dict with _cold_start=True.  The caller
+      (_compute_signal) must detect this and emit a typed SILENCE/COLD_START
+      signal rather than computing a coherence score.
+
+      Previously this function seeded phi/m/sigma/k/anima deterministically
+      from the entity's SHA3-256 hash when FAISS returned nothing.  That
+      silently fabricated a behavioral record that does not exist — violating
+      the core guarantee that TRION scores are grounded in observed on-chain
+      activity.  That fallback has been removed.
+
+    Sigma (Σ) and K remain at the neutral bootstrap prior (0.50) because
+    they are consensus/annotation planes that FAISS does not supply directly;
+    they will be overridden once a live validator/annotator network is active.
+    """
     faiss = _query_faiss_planes(eid)
-    if faiss:
-        m     = faiss["m"]
-        anima = faiss["anima"]
-        if faiss["phi_live"] is not None:
-            phi = faiss["phi_live"]
+    if not faiss:
+        # No behavioral sediment in FAISS — return COLD_START sentinel.
+        # _compute_signal will emit SILENCE / COLD_START without computing C(t).
+        return {"_cold_start": True, "_faiss_enriched": False}
+
+    phi   = faiss["phi_live"] if faiss["phi_live"] is not None else 0.50
+    m     = faiss["m"]
+    anima = faiss["anima"]
+    sigma = 0.50   # bootstrap prior — no hash seeding (see docstring)
+    k     = 0.50   # bootstrap prior — no hash seeding (see docstring)
 
     return {"phi": phi, "m": m, "sigma": sigma, "k": k, "anima": anima,
-            "_faiss_enriched": faiss is not None}
+            "_faiss_enriched": True, "_cold_start": False,
+            "akashic_depth": faiss.get("akashic_depth", 0.0)}
 
 def _plane_values_staleness_s(eid: str):
     """Return seconds since last successful FAISS plane fetch for *eid*, or None if never enriched."""
@@ -357,14 +380,11 @@ def _compute_signal(entity_id: str) -> dict:
       L4.3  GK genomic signature (SHA3 dual-strand)
       L2.4  conf_genesis = 1 - e^(-0.001·D)
     """
-    import uuid, random
+    import uuid
     from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile
     from src.core.temporal_coherence import (
         compute_temporal_coherence, PlaneTimestamp,
         compute_transduction_integrity, SensorCalibration,
-    )
-    from src.planes.mental.m_engine import (
-        compute_m_score, compute_observer_effect, compute_m_adj,
     )
     from src.signals.signal_factory import (
         SignalType, compute_brt, _genomic_signature,
@@ -372,22 +392,48 @@ def _compute_signal(entity_id: str) -> dict:
 
     now    = time.time()
     planes = _plane_values(entity_id)
+
+    # ── COLD_START guard ───────────────────────────────────────────────────────
+    # If FAISS has no behavioral history for this entity, emit a typed
+    # SILENCE/COLD_START signal and return immediately.  Never compute or
+    # publish a coherence score when no observed behavioral sediment exists.
+    if planes.get("_cold_start"):
+        return {
+            "entity_id":        entity_id,
+            "signal_type":      "SILENCE",
+            "signal_subtype":   "COLD_START",
+            "signal_type_id":   99,
+            "coherent":         False,
+            "silence":          True,
+            "coherence_score":  0.0,
+            "threshold":        THETA_MIN_COLD_START,
+            "margin":           -THETA_MIN_COLD_START,
+            "timestamp":        int(now),
+            "version":          "3.0.0",
+            "degraded_mode":    True,
+            "faiss_enriched":   False,
+            "bootstrap_phase":  True,
+            "calibration_note": (
+                "Insufficient behavioral sediment for coherence evaluation. "
+                "TRION requires observed on-chain activity indexed in FAISS "
+                "before publishing a coherence score for this entity."
+            ),
+        }
+
     mf     = _mf_score(entity_id)
     vol    = _market_volatility()
     h      = hashlib.sha3_256(entity_id.encode()).digest()
 
-    # ── L3.1 M(t) = 1 - PI_t/PI_baseline ─────────────────────────────────────
-    # Seed from entity hash for deterministic pseudo-history per entity
-    rng = random.Random(int.from_bytes(h[:4], "big"))
-    baseline_preds = [rng.gauss(0.50, 0.28) for _ in range(60)]
-    recent_preds   = [rng.gauss(planes["m"], 0.06 + 0.10 * (1.0 - planes["m"])) for _ in range(20)]
-    m_base = compute_m_score(recent_preds, baseline_preds)
-
-    # ── L3.2 OE_factor = corr(signal_pub(t-1), behavioral_change(t)) ──────────
-    sig_strengths = [rng.uniform(0.45, 0.90) for _ in range(12)]
-    bhv_changes   = [s * rng.gauss(0.75, 0.08) + rng.gauss(0, 0.04) for s in sig_strengths]
-    oe_factor = compute_observer_effect(sig_strengths, bhv_changes)
-    m_adj     = compute_m_adj(m_base, oe_factor)
+    # ── L3.1 M(t) — FAISS mental confidence as authoritative m_base ───────────
+    # Previously this block seeded a random.Random from the entity hash and
+    # generated fake prediction intervals (baseline_preds / recent_preds),
+    # fabricating behavioral history that does not exist.  That synthetic
+    # seeding has been removed.  The FAISS-provided mental score is now used
+    # directly as m_base; observer-effect corrections (OE_factor) will
+    # accumulate as real signal publication history grows.
+    m_base    = planes["m"]
+    oe_factor = 0.0   # No reflexivity history yet; grows with accumulated signals
+    m_adj     = m_base
 
     # ── L1.4 TI(sensor) = Calibration · Drift · CrossVerification ─────────────
     sensor = SensorCalibration(
@@ -399,8 +445,11 @@ def _compute_signal(entity_id: str) -> dict:
     ti = compute_transduction_integrity(sensor)
     phi_adjusted = max(0.0, min(1.0, planes["phi"] * (1.0 - mf) * ti.ti))
 
-    # ── Akashic depth D(t) estimate ───────────────────────────────────────────
-    depth_val = round(5000.0 + 2000.0 * (h[8] / 255.0), 2)
+    # ── Akashic depth D(t) — sourced from FAISS ──────────────────────────────
+    # Previously hash-derived (5000 + 2000·h[8]/255), which fabricated a depth
+    # that has no relation to the entity's actual indexed history.  Now uses
+    # the depth value returned by the FAISS service alongside the plane values.
+    depth_val = round(planes.get("akashic_depth", 0.0), 2)
 
     # ── L5.2 C(t) via CoherenceEngine ─────────────────────────────────────────
     engine    = CoherenceEngine()

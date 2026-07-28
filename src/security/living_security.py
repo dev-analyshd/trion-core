@@ -661,6 +661,11 @@ class EpigeneticLayer:
     EL_state(t) = f(threat_level, validator_health, network_entropy)
     Architecture unchanged. Only expression changes.
     Same DNA, different phenotype per environment.
+
+    Persistence: threat level and phenotype are written to SQLite on every
+    update() call so the immune system's escalation state survives server
+    restarts. Database path: $EPIGENETIC_IMMUNITY_DB or
+    akashic/epigenetic_immunity.db by default.
     """
     state: EpigeneticState = EpigeneticState.NORMAL
     threat_level: float = 0.0
@@ -669,6 +674,82 @@ class EpigeneticLayer:
     coherence_threshold_modifier: float = 0.0
     emission_rate_modifier: float = 1.0
     last_updated: float = field(default_factory=time.time)
+
+    def __post_init__(self) -> None:
+        """Establish SQLite path and load any previously-persisted state."""
+        import sqlite3 as _sqlite3
+        self._sqlite3 = _sqlite3
+        self._db_path: str = os.environ.get(
+            "EPIGENETIC_IMMUNITY_DB",
+            os.path.join("akashic", "epigenetic_immunity.db"),
+        )
+        self._load()
+
+    def _load(self) -> None:
+        """Load persisted epigenetic state from SQLite, creating schema if absent."""
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self._db_path)), exist_ok=True)
+            with self._sqlite3.connect(self._db_path) as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS epigenetic_immunity (
+                        id                            INTEGER PRIMARY KEY CHECK (id = 1),
+                        state                         TEXT    NOT NULL,
+                        threat_level                  REAL    NOT NULL,
+                        validator_health              REAL    NOT NULL,
+                        network_entropy               REAL    NOT NULL,
+                        coherence_threshold_modifier  REAL    NOT NULL,
+                        emission_rate_modifier        REAL    NOT NULL,
+                        last_updated                  REAL    NOT NULL
+                    )
+                """)
+                conn.commit()
+                row = conn.execute(
+                    "SELECT state, threat_level, validator_health, network_entropy, "
+                    "coherence_threshold_modifier, emission_rate_modifier, last_updated "
+                    "FROM epigenetic_immunity WHERE id = 1"
+                ).fetchone()
+                if row:
+                    self.state                        = EpigeneticState(row[0])
+                    self.threat_level                 = float(row[1])
+                    self.validator_health             = float(row[2])
+                    self.network_entropy              = float(row[3])
+                    self.coherence_threshold_modifier = float(row[4])
+                    self.emission_rate_modifier       = float(row[5])
+                    self.last_updated                 = float(row[6])
+        except Exception:
+            # DB load failure is non-fatal — defaults remain active.
+            pass
+
+    def _save(self) -> None:
+        """Persist current epigenetic state to SQLite."""
+        try:
+            with self._sqlite3.connect(self._db_path) as conn:
+                conn.execute("""
+                    INSERT INTO epigenetic_immunity
+                        (id, state, threat_level, validator_health, network_entropy,
+                         coherence_threshold_modifier, emission_rate_modifier, last_updated)
+                    VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        state                        = excluded.state,
+                        threat_level                 = excluded.threat_level,
+                        validator_health             = excluded.validator_health,
+                        network_entropy              = excluded.network_entropy,
+                        coherence_threshold_modifier = excluded.coherence_threshold_modifier,
+                        emission_rate_modifier       = excluded.emission_rate_modifier,
+                        last_updated                 = excluded.last_updated
+                """, (
+                    self.state.value,
+                    self.threat_level,
+                    self.validator_health,
+                    self.network_entropy,
+                    self.coherence_threshold_modifier,
+                    self.emission_rate_modifier,
+                    self.last_updated,
+                ))
+                conn.commit()
+        except Exception:
+            # DB write failure is non-fatal; in-memory state remains correct.
+            pass
 
     def update(self, threat_level: float, validator_health: float,
                network_entropy: float) -> None:
@@ -697,6 +778,8 @@ class EpigeneticLayer:
             self.state = EpigeneticState.LOCKDOWN
             self.coherence_threshold_modifier = 0.25
             self.emission_rate_modifier = 0.40
+
+        self._save()
 
 
 # ── Component 5: Genetic Recombination ───────────────────────────────────────
