@@ -202,9 +202,10 @@ const ZG_GATE_CHAIN = 16661; // 0G Mainnet (was 16602 Galileo testnet)
 const ZG_GATE_EXPLORER = "https://chainscan.0g.ai";
 
 const ZG_GATE_ABI = [
-  "function publishSignal(bytes32 entityId, uint256 packedData, bytes32 beoHash, bytes32 daProofHash, string calldata storageRoot) external",
+  "function publishSignal(bytes32 entityId, uint256 packedData, bytes32 beoHash, bytes32 daProofHash, string calldata storageRoot, bytes[] calldata signatures) external",
   "function isValidator(address) external view returns (bool)",
   "function beoVectorStorageRoot() external view returns (string memory)",
+  "function quorumRequired() external view returns (uint256)",
 ];
 
 // Persistent 0G gate relayer state
@@ -294,9 +295,17 @@ async function pushToZGGate(entity, signal) {
     const beoHash     = deriveBeoHash(entity, signal);
     const daProofHash = deriveDAProofHash(entity, signal, statusLabel);
 
+    // Build EIP-191 quorum signature for TRIONExecutionGate.publishSignal.
+    // Contract reconstructs: keccak256(abi.encodePacked(block.chainid, address(this), entityId, packedData))
+    const zgInner = ethers.solidityPackedKeccak256(
+      ["uint256", "address", "bytes32", "uint256"],
+      [ZG_GATE_CHAIN, ZG_GATE_ADDR, entityId, packed]
+    );
+    const zgSig = await zgWallet.signMessage(ethers.getBytes(zgInner));
+
     const feeData = await zgProvider.getFeeData();
     const tx = await zgGate.publishSignal(
-      entityId, packed, beoHash, daProofHash, zgStorageRoot,
+      entityId, packed, beoHash, daProofHash, zgStorageRoot, [zgSig],
       { gasLimit: 300_000, gasPrice: feeData.gasPrice }
     );
     const receipt = await tx.wait(1);

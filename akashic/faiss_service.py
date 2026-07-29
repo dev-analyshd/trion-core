@@ -1366,10 +1366,10 @@ _maybe_auto_train_archetypes()
 # EventType byte encoding — whitepaper L0.1 §2 (20 canonical types), must
 # stay in exact lockstep with hash_dna.rs::event_type_name().
 EVENT_TYPE_BYTE = {
-    "TRANSFER": 0, "SWAP": 1, "LIQUIDITY": 2, "BORROW": 3, "REPAY": 4,
-    "LIQUIDATE": 5, "GOVERNANCE": 6, "PROPOSAL": 7, "STAKE": 8, "UNSTAKE": 9,
+    "TRANSFER": 0, "SWAP": 1, "LIQUIDITY": 2, "STAKE": 3, "UNSTAKE": 4,
+    "GOVERNANCE": 5, "PROPOSAL": 6, "BORROW": 7, "REPAY": 8, "LIQUIDATE": 9,
     "BRIDGE": 10, "DEPLOY": 11, "UPGRADE": 12, "MINT": 13, "BURN": 14,
-    "FLASH_LOAN": 15, "ORACLE_UPDATE": 16, "MEV_CAPTURE": 17, "AIRDROP": 18,
+    "ORACLE_UPDATE": 15, "MEV_CAPTURE": 16, "FLASH_LOAN": 17, "AIRDROP": 18,
     "CLAIM": 19,
 }
 EVENT_TYPE_NAME = {v: k for k, v in EVENT_TYPE_BYTE.items()}
@@ -3454,10 +3454,10 @@ def add_vector_batch(payload: BatchVectorPayload):
             # Compute canonical BH using available fields (whitepaper-aligned fallback)
             _sense, _ = compute_hash_dna(
                 effective_entity_id,
-                ["TRANSFER","SWAP","LIQUIDITY","BORROW","REPAY","LIQUIDATE",
-                 "GOVERNANCE","PROPOSAL","STAKE","UNSTAKE","BRIDGE","DEPLOY",
-                 "UPGRADE","MINT","BURN","FLASH_LOAN","ORACLE_UPDATE",
-                 "MEV_CAPTURE","AIRDROP","CLAIM"][int(item.event_type or 0)
+                ["TRANSFER","SWAP","LIQUIDITY","STAKE","UNSTAKE",
+                 "GOVERNANCE","PROPOSAL","BORROW","REPAY","LIQUIDATE","BRIDGE","DEPLOY",
+                 "UPGRADE","MINT","BURN","ORACLE_UPDATE",
+                 "MEV_CAPTURE","FLASH_LOAN","AIRDROP","CLAIM"][int(item.event_type or 0)
                     if item.event_type is not None and 0 <= (item.event_type or 0) <= 19 else 0],
                 float(item.magnitude),
                 str(item.chain_id or DEFAULT_CHAIN_ID),
@@ -3599,10 +3599,10 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
         return {"stored": 0, "verified": 0, "block_num": payload.block_num, "chain_label": payload.chain_label}
 
     EVENT_NAMES = [
-        "TRANSFER","SWAP","LIQUIDITY","BORROW","REPAY","LIQUIDATE",
-        "GOVERNANCE","PROPOSAL","STAKE","UNSTAKE","BRIDGE","DEPLOY",
-        "UPGRADE","MINT","BURN","FLASH_LOAN","ORACLE_UPDATE",
-        "MEV_CAPTURE","AIRDROP","CLAIM",
+        "TRANSFER","SWAP","LIQUIDITY","STAKE","UNSTAKE",
+        "GOVERNANCE","PROPOSAL","BORROW","REPAY","LIQUIDATE","BRIDGE","DEPLOY",
+        "UPGRADE","MINT","BURN","ORACLE_UPDATE",
+        "MEV_CAPTURE","FLASH_LOAN","AIRDROP","CLAIM",
     ]
 
     stored   = 0

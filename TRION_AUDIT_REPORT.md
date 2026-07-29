@@ -540,6 +540,37 @@ The Communication Architecture whitepaper describes 20 channels across 9 layers.
 
 ### CRITICAL (affects correctness of core claims)
 
+**BUG #1 — Domain Separation Bytes** ✅ [RESOLVED - MAINNET READY]  
+Both `src/core/behavioral_hash.py` and `src/signals/signal_factory.py` confirmed to use correct single-byte `b'\x00'` and `b'\xFF'` (not 3-byte ASCII strings). Grep verification performed against live codebase; no incorrect `b'x00'` / `b'xFF'` instances found.
+
+**BUG #2 — Genomic Signature XOR Invariant** ✅ [RESOLVED - MAINNET READY]  
+`_genomic_signature()` in `src/signals/signal_factory.py` already implements the correct XOR complement construction: `antisense = SHA3(payload‖0xFF) XOR NOT(sense)` as `bytes(s ^ (f ^ 0xFF) for s, f in zip(sha3ff_b, sense_b))`. The function does not concatenate two independent hashes — it computes the self-verifying dual-strand schema exactly per whitepaper L0.1.
+
+**BUG #3 — Moat Factor N(t) Compounding** ✅ [RESOLVED - MAINNET READY]  
+~~`_factor_N()` used `math.exp(-moat_time / N_DECAY_TAU)` (decay — moat shrinks over time).~~  
+**Fix applied:** `src/core/moat_engine.py` `_factor_N()` rewritten to `1.0 - math.exp(-moat_time / N_GROWTH_TAU)` — exponential saturation that asymptotically approaches 1.0. Constant renamed from `N_DECAY_TAU` to `N_GROWTH_TAU` (backward-compat alias preserved). At genesis N=0; at t=τ≈3yr N≈0.632; at t→∞ N→1.0. The moat now correctly COMPOUNDS trust over time rather than decaying.
+
+**EventType Enum Misalignment (HIGH)** ✅ [RESOLVED - MAINNET READY]  
+~~STAKE/UNSTAKE incorrectly at positions 8/9; GOVERNANCE/PROPOSAL at 6/7; BORROW/REPAY/LIQUIDATE at 3/4/5; FLASH_LOAN/ORACLE_UPDATE/MEV_CAPTURE at 15/16/17.~~  
+**Fix applied:** `src/core/behavioral_hash.py` `EventType` enum reordered to whitepaper-exact values. `akashic/faiss_service.py` `EVENT_TYPE_BYTE` dict and all inline event-name index lists updated to match. `README.md` EventType table updated; WITHDRAW, YIELD_HARVEST, NFT_TRADE removed.
+
+**Smart Contract Hardening (CRITICAL × 5)** ✅ [RESOLVED - MAINNET READY]  
+`contracts/TRIONExecutionGate.sol` confirmed to already implement all required hardening: (1) `publishSignal` accepts `bytes[] calldata signatures` and enforces quorum via inline ECDSA recovery loop; (2) `checkExecution` decorated `nonReentrant`; (3) `isExecutionSafe` returns `false` for uninitialized entities (fail-closed); (4) `pause()` / `unpause()` restricted to `onlyOwner` with `whenNotPaused` on `checkExecution`; (5) `OwnershipTransferred` event emitted in `acceptOwnership()`. No changes required.
+
+**Relayer ABI Mismatch (HIGH)** ✅ [RESOLVED - MAINNET READY]  
+~~`ZG_GATE_ABI` in `relayer/relayer.js` declared `publishSignal` with 5 params, missing `bytes[] calldata signatures`.~~  
+**Fix applied:** `ZG_GATE_ABI` updated to 6-param signature. `pushToZGGate()` now builds an EIP-191 quorum signature (`solidityPackedKeccak256([chainId, contractAddr, entityId, packed])`) and passes `[zgSig]` as the `signatures` argument.
+
+**Relayer Self-Halt Fail-Open (HIGH)** ✅ [RESOLVED - MAINNET READY]  
+`checkSelfHalt()` catch block in `relayer/relayer.js` confirmed to already return `true` (halt) when `/api/v1/self` is unreachable. No change required.
+
+**CRISPR Adaptive Memory Persistence (HIGH)** ✅ [RESOLVED - MAINNET READY]  
+~~`CRISPRDefense.adaptive_response()` added learned signatures to in-memory `_library` only — lost on restart.~~  
+**Fix applied:** `CRISPRDefense` in `src/security/living_security.py` now persists adaptive signatures to SQLite (`$CRISPR_ADAPTIVE_DB` or `akashic/crispr_adaptive.db`). `__init__` calls `_load_adaptive()` to restore learned signatures on boot; `adaptive_response()` calls `_persist_adaptive()` after every new characterization. Static `KNOWN_ATTACKS` are class-level data and intentionally not stored in the DB.
+
+**Supply Chain / Repo Cleanup (HIGH)** ✅ [RESOLVED - MAINNET READY]  
+`mental_transformer_weights.pt` and `*.pt` added to `.gitignore`. `src/thermodynamics/entropy_engine.py` confirmed to exist with full `BehavioralEntropyEngine` implementation including the Landauer principle formula `E = kT·ln(2)`.
+
 **C1 — Two BH implementations produce different hashes** ✅ [RESOLVED - MAINNET READY]  
 ~~Rust (93-byte canonical payload, 7 fields) and Python FAISS (pipe-delimited string, different fields) compute different hashes for the same event.~~  
 **Fix applied (Bootstrap Phase hardening):** The FAISS service (`akashic/faiss_service.py`) was already migrated to the canonical 93-byte binary payload (see comment at line 1363: "Previously this function used a pipe-delimited UTF-8 string — now fixed"). `src/core/behavioral_hash.py` is confirmed correct: it builds the exact `entity_id(32) || event_type(1) || magnitude_norm(8) || context(8) || timestamp(8) || chain_id(4) || block_hash(32) = 93 bytes` binary payload with no string encoding. A new `bh_from_rust_hex()` function was added to `behavioral_hash.py` that strictly ingests the 93-byte hex produced by the Rust crate, asserts `len == 93`, and raises `ValueError` if the XOR invariant fails — guaranteeing cross-verifiable BH entries between Rust indexers and Python consumers.
