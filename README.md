@@ -235,11 +235,11 @@ timestamp(8)  ‖ chain_id(4)   ‖ block_hash(32)
 
 | ID | Type | ID | Type | ID | Type | ID | Type |
 |----|------|----|------|----|------|----|------|
-| 0  | TRANSFER | 5 | WITHDRAW | 10 | NFT_TRADE | 15 | FLASH_LOAN |
-| 1  | SWAP | 6 | LIQUIDATE | 11 | STAKE | 16 | ORACLE_UPDATE |
-| 2  | LIQUIDITY | 7 | BRIDGE | 12 | UNSTAKE | 17 | MEV_CAPTURE |
-| 3  | BORROW | 8 | GOVERNANCE | 13 | MINT | 18 | AIRDROP |
-| 4  | REPAY | 9 | YIELD_HARVEST | 14 | BURN | 19 | CLAIM |
+| 0  | TRANSFER | 5 | GOVERNANCE | 10 | BRIDGE | 15 | ORACLE_UPDATE |
+| 1  | SWAP | 6 | PROPOSAL | 11 | DEPLOY | 16 | MEV_CAPTURE |
+| 2  | LIQUIDITY | 7 | BORROW | 12 | UPGRADE | 17 | FLASH_LOAN |
+| 3  | STAKE | 8 | REPAY | 13 | MINT | 18 | AIRDROP |
+| 4  | UNSTAKE | 9 | LIQUIDATE | 14 | BURN | 19 | CLAIM |
 
 ### Magnitude Normalization
 

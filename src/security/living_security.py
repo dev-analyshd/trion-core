@@ -606,11 +606,63 @@ class CRISPRDefense:
          "GOVERNANCE_CAPTURE"),
     ]
 
+    # SQLite database path for adaptive signature persistence.
+    # Only ADAPTIVE_* signatures (runtime-learned) are persisted; KNOWN_ATTACKS
+    # are static class-level data and never written to the DB.
+    _ADAPTIVE_DB: str = os.environ.get(
+        "CRISPR_ADAPTIVE_DB",
+        os.path.join("akashic", "crispr_adaptive.db"),
+    )
+
     def __init__(self):
+        import sqlite3 as _sq3
+        self._sq3 = _sq3
         self._library: Dict[str, AttackSignature] = {}
         for aid, sig, desc, atype in self.KNOWN_ATTACKS:
             self._library[aid] = AttackSignature(
                 id=aid, signature=sig, description=desc, attack_type=atype)
+        self._load_adaptive()
+
+    def _load_adaptive(self) -> None:
+        """Load previously-learned adaptive signatures from SQLite on startup."""
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self._ADAPTIVE_DB)), exist_ok=True)
+            with self._sq3.connect(self._ADAPTIVE_DB) as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS adaptive_signatures (
+                        attack_id   TEXT PRIMARY KEY,
+                        signature   BLOB NOT NULL,
+                        description TEXT NOT NULL,
+                        attack_type TEXT NOT NULL,
+                        added_at    REAL NOT NULL
+                    )
+                """)
+                conn.commit()
+                for row in conn.execute(
+                    "SELECT attack_id, signature, description, attack_type, added_at "
+                    "FROM adaptive_signatures"
+                ).fetchall():
+                    aid, sig_blob, desc, atype, ts = row
+                    if aid not in self._library:
+                        self._library[aid] = AttackSignature(
+                            id=aid, signature=bytes(sig_blob),
+                            description=desc, attack_type=atype, added_at=ts,
+                        )
+        except Exception:
+            pass  # DB load failure is non-fatal; static KNOWN_ATTACKS remain
+
+    def _persist_adaptive(self, sig: AttackSignature) -> None:
+        """Persist a newly-learned adaptive signature to SQLite."""
+        try:
+            with self._sq3.connect(self._ADAPTIVE_DB) as conn:
+                conn.execute("""
+                    INSERT OR IGNORE INTO adaptive_signatures
+                        (attack_id, signature, description, attack_type, added_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (sig.id, sig.signature, sig.description, sig.attack_type, sig.added_at))
+                conn.commit()
+        except Exception:
+            pass  # DB write failure is non-fatal; signature still active in memory
 
     def innate_check(self, tx_data: bytes) -> Optional[dict]:
         """Pattern match against known attack library."""
@@ -626,14 +678,16 @@ class CRISPRDefense:
         return None
 
     def adaptive_response(self, new_attack_data: bytes, attack_type: str) -> str:
-        """Characterize new attack, add to permanent library."""
+        """Characterize new attack, add to permanent library (memory + SQLite)."""
         sig_hash = hashlib.sha3_256(new_attack_data).digest()
         attack_id = f"ADAPTIVE_{sig_hash[:8].hex()}"
-        self._library[attack_id] = AttackSignature(
+        new_sig = AttackSignature(
             id=attack_id, signature=sig_hash[:16],
             description=f"Auto-characterized: {attack_type}",
             attack_type=attack_type,
         )
+        self._library[attack_id] = new_sig
+        self._persist_adaptive(new_sig)
         return attack_id
 
     def library_size(self) -> int:

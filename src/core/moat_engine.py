@@ -36,12 +36,16 @@ from dataclasses import dataclass
 F_REGISTRY_BASELINE: float = 0.90
 
 # Time-scaling constant for the Network factor N(t).
-# Whitepaper §2.3 mandates logarithmic GROWTH (not decay):
-#   N(t) = log(1 + t/τ) / log(11)
-# At t = τ  ≈ 3 years:  N ≈ 0.289
-# At t = 10τ ≈ 30 years: N = 1.0  (mature network moat)
-# Genesis (t=0): N = 0 (no network moat yet — must be earned over time)
-N_DECAY_TAU: float = 1e8
+# Whitepaper §2.3 — exponential saturation (asymptotic compounding):
+#   N(t) = 1 − e^(−t / τ)
+# At genesis (t=0):  N = 0   (no network moat yet)
+# At t = τ ≈ 3 yr:  N ≈ 0.632 (inflection point)
+# At t → ∞:         N → 1.0  (full network-effect saturation)
+# The exponential saturation formula encodes compounding trust: each unit of
+# time adds more moat than linearly expected at early stages, then tapers as
+# the protocol approaches full maturity.
+N_GROWTH_TAU: float = 1e8
+N_DECAY_TAU:  float = N_GROWTH_TAU  # backward-compat alias
 
 # Depth scaling constants for D and X factors.
 D_DEPTH_SCALE:  float = 1_000.0    # entities needed for D to reach ~0.5
@@ -153,19 +157,19 @@ class MoatEngine:
         """
         N — Network / durability factor.
 
-        Whitepaper §2.3 canonical formula:
-            N(t) = log(1 + t/τ) / log(11)
+        Whitepaper §2.3 canonical formula (exponential saturation):
+            N(t) = 1 − e^(−t / τ)
 
-        Encodes logarithmic network-effect GROWTH: the protocol moat
-        strengthens as cumulative adoption and behavioral history accumulate.
-        At genesis (t=0) there is no network moat.  At t=10τ (≈30 years)
-        N reaches 1.0 (full network-effect saturation).
+        Encodes compounding trust: the protocol moat asymptotically approaches
+        1.0 as cumulative adoption, behavioral history, and network effects
+        accumulate over time.  At genesis (t=0) there is no network moat.
+        At t=τ ≈ 3 years N ≈ 0.632 (inflection point).  At t → ∞, N → 1.0.
 
-        τ = 1e8 seconds ≈ 3.17 years.  N(τ) ≈ 0.289.
+        τ = N_GROWTH_TAU = 1e8 seconds ≈ 3.17 years.
         """
         if moat_time <= 0.0:
             return 0.0
-        return min(1.0, math.log1p(moat_time / N_DECAY_TAU) / math.log(11.0))
+        return 1.0 - math.exp(-moat_time / N_GROWTH_TAU)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
