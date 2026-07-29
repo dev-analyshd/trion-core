@@ -5,7 +5,10 @@ import { ethers } from 'ethers';
 const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
 if (!privateKey) { console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1785284501.json');
+const filePath = process.argv[2] || process.env.ZG_UPLOAD_FILE;
+if (!filePath) { console.error('USAGE: ZG_UPLOAD_PRIVATE_KEY=<key> npx ts-node zg_upload_single.mts <file_path>'); process.exit(1); }
+
+const file     = await ZgFile.fromFilePath(filePath);
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
