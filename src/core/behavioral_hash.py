@@ -14,14 +14,14 @@ magnitude_normalized (L0.1 §3.2, log10 formula):
   Falls back to linear ratio when USD conversion unavailable.
 
 EventType (whitepaper L0.1 §2 — 20 canonical types):
-  0  TRANSFER         8  STAKE           16 ORACLE_UPDATE
-  1  SWAP             9  UNSTAKE         17 MEV_CAPTURE
+  0  TRANSFER         8  REPAY           16 MEV_CAPTURE
+  1  SWAP             9  LIQUIDATE       17 FLASH_LOAN
   2  LIQUIDITY       10  BRIDGE          18 AIRDROP
-  3  BORROW          11  DEPLOY          19 CLAIM
-  4  REPAY           12  UPGRADE
-  5  LIQUIDATE       13  MINT
-  6  GOVERNANCE      14  BURN
-  7  PROPOSAL        15  FLASH_LOAN
+  3  STAKE           11  DEPLOY          19 CLAIM
+  4  UNSTAKE         12  UPGRADE
+  5  GOVERNANCE      13  MINT
+  6  PROPOSAL        14  BURN
+  7  BORROW          15  ORACLE_UPDATE
 
 Backward-compat aliases kept for existing indexer code:
   LIQUIDITY_ADD = LIQUIDITY, LIQUIDITY_REMOVE = LIQUIDITY,
@@ -40,21 +40,21 @@ class EventType(IntEnum):
     TRANSFER       = 0
     SWAP           = 1
     LIQUIDITY      = 2
-    BORROW         = 3
-    REPAY          = 4
-    LIQUIDATE      = 5
-    GOVERNANCE     = 6
-    PROPOSAL       = 7
-    STAKE          = 8
-    UNSTAKE        = 9
+    STAKE          = 3
+    UNSTAKE        = 4
+    GOVERNANCE     = 5
+    PROPOSAL       = 6
+    BORROW         = 7
+    REPAY          = 8
+    LIQUIDATE      = 9
     BRIDGE         = 10
     DEPLOY         = 11
     UPGRADE        = 12
     MINT           = 13
     BURN           = 14
-    FLASH_LOAN     = 15
-    ORACLE_UPDATE  = 16
-    MEV_CAPTURE    = 17
+    ORACLE_UPDATE  = 15
+    MEV_CAPTURE    = 16
+    FLASH_LOAN     = 17
     AIRDROP        = 18
     CLAIM          = 19
 
