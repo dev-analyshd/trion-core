@@ -408,6 +408,8 @@ def _compute_signal(entity_id: str) -> dict:
             "coherence_score":  0.0,
             "threshold":        THETA_MIN_COLD_START,
             "margin":           -THETA_MIN_COLD_START,
+            "limiting_plane":   "physical",
+            "archetype":        "Explorer",
             "timestamp":        int(now),
             "version":          "3.0.0",
             "degraded_mode":    True,
