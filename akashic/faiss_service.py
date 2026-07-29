@@ -6335,11 +6335,15 @@ def record_adaptive_threat(pattern_name: str, attack_vector_hex: str,
     }
 
 
+class _AdaptiveImmuneIn(BaseModel):
+    pattern_name:      str
+    attack_vector_hex: str  = ""
+    counter_response:  str  = "REJECT"
+
 @app.post("/api/v1/living_security/immune/adaptive")
-def adaptive_immune_endpoint(pattern_name: str, attack_vector_hex: str = "",
-                              counter_response: str = "REJECT"):
+def adaptive_immune_endpoint(body: _AdaptiveImmuneIn):
     """L5.1 Component 3 — Record a new attack pattern into permanent adaptive immune memory."""
-    return record_adaptive_threat(pattern_name, attack_vector_hex, counter_response)
+    return record_adaptive_threat(body.pattern_name, body.attack_vector_hex, body.counter_response)
 
 
 @app.get("/api/v1/living_security/immune/memory")
@@ -6414,11 +6418,15 @@ def compute_epigenetic_state(threat_level: float,
     return dict(_epigenetic_state)
 
 
+class _EpigeneticUpdateIn(BaseModel):
+    threat_level:     float = 0.0
+    validator_health: float = 1.0
+    network_entropy:  float = 1.0
+
 @app.post("/api/v1/living_security/epigenetic/update")
-def update_epigenetic(threat_level: float = 0.0, validator_health: float = 1.0,
-                       network_entropy: float = 1.0):
+def update_epigenetic(body: _EpigeneticUpdateIn):
     """L5.1 Component 4 — Update epigenetic expression state."""
-    return compute_epigenetic_state(threat_level, validator_health, network_entropy)
+    return compute_epigenetic_state(body.threat_level, body.validator_health, body.network_entropy)
 
 
 @app.get("/api/v1/living_security/epigenetic")
