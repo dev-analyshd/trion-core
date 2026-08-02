@@ -53,6 +53,25 @@ install_node "[11/11] backtest/" "backtest"
 echo ""
 echo "========================================================"
 echo " All Node.js dependencies installed."
+echo "========================================================"
+
+# ── bh_ledger.db symlink ──────────────────────────────────
+# The Oracle API and protocol segmentation module expect a root-level
+# bh_ledger.db symlink pointing into akashic/.  serve.py also recreates
+# it at startup, but creating it here ensures it survives container resets
+# and is present before any workflow starts.
+echo ""
+echo ">>> Creating bh_ledger.db → akashic/bh_ledger.db symlink"
+if [ ! -e "$ROOT/bh_ledger.db" ]; then
+  ln -sf akashic/bh_ledger.db "$ROOT/bh_ledger.db"
+  echo "    Created."
+else
+  echo "    Already exists — skipping."
+fi
+
+echo ""
+echo "========================================================"
+echo " Setup complete."
 echo ""
 echo " Next steps:"
 echo "  1. Add Replit Secrets for your signing keys"
