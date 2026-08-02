@@ -5,7 +5,14 @@ import { ethers } from 'ethers';
 const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
 if (!privateKey) { console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }
 
-const file     = await ZgFile.fromFilePath('/home/runner/workspace/0g-state/exports/kv_snapshot_1785639877.json');
+// Accept snapshot path from env var or first CLI argument
+const snapshotPath = process.env.ZG_SNAPSHOT_PATH || process.argv[2];
+if (!snapshotPath) {
+  console.error('CONFIG_ERR: snapshot path required — set ZG_SNAPSHOT_PATH or pass as first argument');
+  process.exit(1);
+}
+
+const file     = await ZgFile.fromFilePath(snapshotPath);
 const [tree, e1] = await file.merkleTree();
 if (e1) { console.error('TREE_ERR:' + e1); process.exit(1); }
 
