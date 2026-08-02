@@ -1,8 +1,8 @@
-TRION Backtest — 2026-07-21T00:25:22.108005+00:00
+TRION Backtest — 2026-08-02T02:26:37.965613+00:00
 Exploits: 30 | Controls: 10
 TP=30 FP=10 TN=0 FN=0
 Precision=0.7500 Recall=1.0000 F1=0.8571
 Accuracy=0.7500 FPR=1.0000 FNR=0.0000
-Separation=+0.030439
+Separation=+0.000000
 Catch rate: 100.0% of $3,315,800,000
-Merkle root: 78c1d0bf5a23d9d2d9057bc67b131c924871d1387f85f8fe9536c3ae64e853aa
+Merkle root: b4132f0f8234b9e0404fafc92596e675b26819c6fd8ec134ca3fbc6cb4f9edcb
