@@ -1255,6 +1255,9 @@ def thermodynamics(entity_id: str):
         return jsonify({"error": "thermodynamics module unavailable"}), 503
     engine = get_thermo_engine()
     planes = _plane_values(entity_id)
+    if planes.get("_cold_start"):
+        return jsonify({"error": "cold_start", "entity_id": entity_id,
+                        "note": "No behavioral sediment in FAISS yet — thermodynamics unavailable"}), 202
     vol = _market_volatility()
     phi = [planes["phi"], planes["m"], planes["sigma"],
            planes["k"], planes["anima"],
@@ -1286,6 +1289,9 @@ def lifecycle(entity_id: str):
         return jsonify({"error": "lifecycle module unavailable"}), 503
     engine = get_lifecycle_engine()
     planes = _plane_values(entity_id)
+    if planes.get("_cold_start"):
+        return jsonify({"error": "cold_start", "entity_id": entity_id,
+                        "note": "No behavioral sediment in FAISS yet — lifecycle unavailable"}), 202
     mf = _mf_score(entity_id)
     import math as _math
     tx_count = int(100 + 900 * planes["phi"])
@@ -1308,6 +1314,9 @@ def ubl_encode(entity_id: str):
         return jsonify({"error": "UBL module unavailable"}), 503
     encoder = get_ubl_encoder()
     planes = _plane_values(entity_id)
+    if planes.get("_cold_start"):
+        return jsonify({"error": "cold_start", "entity_id": entity_id,
+                        "note": "No behavioral sediment in FAISS yet — UBL unavailable"}), 202
     mf = _mf_score(entity_id)
     sig = _compute_signal(entity_id)
     phi = [planes["phi"], planes["m"], planes["sigma"],
