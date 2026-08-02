@@ -21,6 +21,63 @@ _log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
 
+# ── In-process rate limiter (sliding window, per-IP) ─────────────────────────
+# Default: 300 requests / 60 seconds per IP.  Configurable via env vars.
+# Exempts /health and the static dashboard assets to allow monitoring probes.
+_RL_WINDOW   = int(os.environ.get("RATE_LIMIT_WINDOW_SEC", 60))
+_RL_MAX_REQS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", 300))
+_rl_lock     = threading.Lock()
+_rl_buckets: dict = {}   # ip → deque of request timestamps
+
+def _get_client_ip() -> str:
+    """Return the real client IP, respecting X-Forwarded-For if behind a proxy."""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+@app.before_request
+def _rate_limit():
+    # Allow health probes and static files through without counting
+    path = request.path
+    if path in ("/api/v1/health", "/favicon.ico") or path.startswith("/static/"):
+        return None
+
+    ip  = _get_client_ip()
+    now = time.time()
+
+    with _rl_lock:
+        bucket = _rl_buckets.setdefault(ip, deque())
+        # Evict timestamps outside the current window
+        cutoff = now - _RL_WINDOW
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+
+        if len(bucket) >= _RL_MAX_REQS:
+            retry_after = int(_RL_WINDOW - (now - bucket[0])) + 1
+            _log.warning("Rate limit exceeded: ip=%s requests=%d window=%ds", ip, len(bucket), _RL_WINDOW)
+            from flask import Response
+            return Response(
+                json.dumps({"error": "rate_limit_exceeded",
+                            "message": f"Too many requests — limit is {_RL_MAX_REQS} per {_RL_WINDOW}s",
+                            "retry_after_seconds": retry_after}),
+                status=429,
+                mimetype="application/json",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        bucket.append(now)
+
+        # Evict IPs not seen in the last 5 minutes to prevent unbounded memory growth
+        if len(_rl_buckets) > 10_000:
+            stale_cutoff = now - 300
+            stale_keys = [k for k, v in _rl_buckets.items() if not v or v[-1] < stale_cutoff]
+            for k in stale_keys[:1000]:
+                del _rl_buckets[k]
+
+    return None
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ── Import chain relay (non-fatal if web3 not available) ─────────────────────
 try:
     from blockchain import get_relay
