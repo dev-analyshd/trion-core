@@ -134,6 +134,7 @@ contract TRIONExecutionGate {
     event Unpaused(address indexed by);
     event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event DecisionsPruned(uint256 count, uint256 timestamp);
 
     // ── Constructor ──────────────────────────────────────────────────────────
     constructor(uint256 _quorum) {
@@ -444,6 +445,27 @@ contract TRIONExecutionGate {
         pendingOwner = address(0);
         isValidator[owner] = true;
         emit OwnershipTransferred(previous, owner);
+    }
+
+    // ── Admin: Decision pruning ───────────────────────────────────────────────
+    /**
+     * @notice Prune stale decision records from the mapping.
+     * @dev    The `decisions` mapping grows unboundedly without pruning.
+     *         The owner (or a keeper) should call this periodically with a batch
+     *         of old decision hashes to free storage.  Pruning is voluntary —
+     *         existing decisions are only deleted when explicitly passed here.
+     * @param  hashes  Array of decisionHash values to delete (up to 500 per call).
+     */
+    function pruneDecisions(bytes32[] calldata hashes) external onlyOwner {
+        require(hashes.length <= 500, "TRION: Batch too large (max 500)");
+        uint256 pruned = 0;
+        for (uint256 i = 0; i < hashes.length; i++) {
+            if (decisions[hashes[i]].checkedAt != 0) {
+                delete decisions[hashes[i]];
+                pruned++;
+            }
+        }
+        emit DecisionsPruned(pruned, block.timestamp);
     }
 
     // ── Internal: ECDSA recovery ─────────────────────────────────────────────
