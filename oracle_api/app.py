@@ -903,10 +903,13 @@ def leaderboard():
     theta = 0.55 + 0.37 * vol
     weights = {"phi": 0.25, "m": 0.30, "sigma": 0.25, "k": 0.10, "anima": 0.10}
 
+    _neutral = {"phi": 0.50, "m": 0.50, "sigma": 0.50, "k": 0.50, "anima": 0.50}
     entries = []
     for seed in seeds:
         eid    = "0x" + hashlib.sha256(seed.encode()).hexdigest()
-        planes = _plane_values(eid)
+        raw    = _plane_values(eid)
+        # Cold-start sentinel has no plane values; fall back to neutral priors
+        planes = raw if not raw.get("_cold_start") else _neutral
         mf     = _mf_score(eid)
         phi_adj = max(0.0, min(1.0, planes["phi"] * (1.0 - mf)))
         c_t = (weights["phi"]*phi_adj + weights["m"]*planes["m"]
