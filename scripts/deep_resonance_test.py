@@ -197,7 +197,7 @@ print(f"  Dominant        : {result.dominant_channel.name}")
 section(4, "Symmetry — R(A,B) == R(B,A) for All Pairs")
 
 subsection("Testing 100 random entity pairs …")
-rng = random.Random(0xRES0)
+rng = random.Random(4444)
 
 asymmetric_count = 0
 for _ in range(100):
@@ -250,7 +250,7 @@ ok("Score is non-decreasing as shared frequency count increases", monotone,
 # ── §6  Score bounds [0, 1] ───────────────────────────────────────────────────
 section(6, "Score Bounds — All Resonance Results in [0, 1]")
 
-rng2 = random.Random(0xB0UND)
+rng2 = random.Random(5555)
 out_of_bounds = 0
 for _ in range(500):
     n_a = rng2.randint(1, 20)
@@ -293,13 +293,14 @@ ok("Phase alignment is 0 when no shared frequencies", r_no.phase_alignment == 0.
 section(8, "Dominant Channel — Highest-Weight Shared Event Type")
 
 # CONTRACT_DEPLOY (w=2.0) should dominate over SWAP (w=1.1)
+# Use equal counts so the weight difference alone determines the dominant channel
 high_weight_a = {
-    UniversalEventType.CONTRACT_DEPLOY: 50,
-    UniversalEventType.SWAP: 1000,
+    UniversalEventType.CONTRACT_DEPLOY: 100,
+    UniversalEventType.SWAP: 100,
 }
 high_weight_b = {
-    UniversalEventType.CONTRACT_DEPLOY: 30,
-    UniversalEventType.SWAP: 800,
+    UniversalEventType.CONTRACT_DEPLOY: 100,
+    UniversalEventType.SWAP: 100,
 }
 rf_hw_a = compute_resonance_frequencies("HW_A", high_weight_a)
 rf_hw_b = compute_resonance_frequencies("HW_B", high_weight_b)
@@ -311,9 +312,9 @@ ok("Dominant channel is CONTRACT_DEPLOY (highest weight×amplitude product)",
    r_hw.dominant_channel == UniversalEventType.CONTRACT_DEPLOY,
    f"got {r_hw.dominant_channel.name}")
 
-# MEV (w=1.8) dominates STAKE (w=1.2) when both shared
-mev_dom_a = {UniversalEventType.MEV_EXTRACTION: 100, UniversalEventType.STAKE: 200}
-mev_dom_b = {UniversalEventType.MEV_EXTRACTION: 80,  UniversalEventType.STAKE: 300}
+# MEV (w=1.8) dominates STAKE (w=1.2) when both shared — equal counts let weight decide
+mev_dom_a = {UniversalEventType.MEV_EXTRACTION: 100, UniversalEventType.STAKE: 100}
+mev_dom_b = {UniversalEventType.MEV_EXTRACTION: 100, UniversalEventType.STAKE: 100}
 rf_mev_a = compute_resonance_frequencies("MEV_A", mev_dom_a)
 rf_mev_b = compute_resonance_frequencies("MEV_B", mev_dom_b)
 r_mev = compute_channel_resonance(rf_mev_a, rf_mev_b)
@@ -591,8 +592,8 @@ def inject_entity(label, active_dims, n=5):
                 "chain_id": 1,
                 "chain_label": "ETH_MAINNET",
                 "vm_type": "EVM",
-                "event_type": "SWAP",
-                "block_number": 20000000 + i,
+                "event_type": 3,        # SWAP = 3 (int, not string)
+                "block_num": 20000000 + i,  # correct field name per VectorPayload
             }, timeout=5)
         except Exception:
             pass
@@ -630,7 +631,7 @@ ok("ALPHA ↔ BETA resonance_strength > 0",
 # ── §16 Stress test — 1,000 random entity pairs ───────────────────────────────
 section(16, "Stress Test — 1,000 Random Entity Pairs Through Core Library")
 
-rng4 = random.Random(0x5TRE55)
+rng4 = random.Random(7777)
 stress_fails = []
 t0 = time.time()
 
