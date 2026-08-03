@@ -1,12 +1,23 @@
 import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-ethers";
-import "@nomicfoundation/hardhat-verify";
+import "@nomicfoundation/hardhat-toolbox";
 
-const RELAYER_PRIVATE_KEY = process.env["RELAYER_PRIVATE_KEY"];
-if (!RELAYER_PRIVATE_KEY) {
-  throw new Error(
-    "RELAYER_PRIVATE_KEY environment variable is required but not set. " +
-    "Add it via Replit Secrets. Never commit private keys to source."
+// When running tests on the built-in Hardhat network no private key is needed.
+// We use a well-known Hardhat dev account as a safe fallback so `npx hardhat test`
+// works without any secrets configured.  For any live-network task (deploy,
+// verify) RELAYER_PRIVATE_KEY must be set via Replit Secrets.
+const HARDHAT_DEFAULT_PRIVKEY =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Hardhat #0 — never use on mainnet
+
+const RELAYER_PRIVATE_KEY =
+  process.env["RELAYER_PRIVATE_KEY"] || HARDHAT_DEFAULT_PRIVKEY;
+
+if (!process.env["RELAYER_PRIVATE_KEY"] &&
+    !process.argv.includes("test") &&
+    !process.argv.includes("compile") &&
+    !process.argv.includes("node")) {
+  console.warn(
+    "[hardhat] RELAYER_PRIVATE_KEY is not set — using Hardhat dev account. " +
+    "Set via Replit Secrets before deploying to any live network."
   );
 }
 
@@ -71,8 +82,16 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
+    // Self-contained: only the two import-free contracts needed for the test suite.
+    // hardhat/contracts/ holds copies of TRIONExecutionGate.sol and ReentrantAttacker.sol.
+    sources:   "./contracts",
+    tests:     "./test",
     artifacts: "./hardhat-artifacts",
-    cache: "./hardhat-cache",
+    cache:     "./hardhat-cache",
+  },
+  typechain: {
+    outDir:  "./hardhat-artifacts/typechain-types",
+    target:  "ethers-v6",
   },
   networks: {
     arbitrumSepolia: {

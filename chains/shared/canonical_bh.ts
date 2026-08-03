@@ -19,25 +19,28 @@
 import { createHash } from "node:crypto";
 
 // ── EventType byte encoding (whitepaper L0.1 §2 — 20 canonical types) ────────
+// CANONICAL order — must match src/core/behavioral_hash.py (EventType enum)
+// and rust-indexers/crates/trion-common/src/hash_dna.rs (event_type_name).
+// A single cross-language test vector is defined in bh_schema_v1.json.
 export const EventType = {
   TRANSFER:      0,
   SWAP:          1,
   LIQUIDITY:     2,
-  BORROW:        3,
-  REPAY:         4,
-  LIQUIDATE:     5,
-  GOVERNANCE:    6,
-  PROPOSAL:      7,
-  STAKE:         8,
-  UNSTAKE:       9,
+  STAKE:         3,
+  UNSTAKE:       4,
+  GOVERNANCE:    5,
+  PROPOSAL:      6,
+  BORROW:        7,
+  REPAY:         8,
+  LIQUIDATE:     9,
   BRIDGE:        10,
   DEPLOY:        11,
   UPGRADE:       12,
   MINT:          13,
   BURN:          14,
-  FLASH_LOAN:    15,
-  ORACLE_UPDATE: 16,
-  MEV_CAPTURE:   17,
+  ORACLE_UPDATE: 15,
+  MEV_CAPTURE:   16,
+  FLASH_LOAN:    17,
   AIRDROP:       18,
   CLAIM:         19,
 } as const;
