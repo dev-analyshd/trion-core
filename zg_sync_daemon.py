@@ -119,41 +119,20 @@ async def upload_via_sdk(file_path: str) -> Optional[str]:
     """
     Attempt 0G Storage upload via @0glabs/0g-ts-sdk.
     Timeout: 45s — fails fast so daemon doesn't stall for 5 minutes.
+    Invokes trion-0g/zg_upload_single.mts directly, passing the snapshot
+    path as a CLI argument so the source file is never overwritten at runtime.
     """
     abs_path = os.path.abspath(file_path)
-    script = f"""
-import {{ ZgFile, Indexer }} from '@0glabs/0g-ts-sdk';
-import {{ ethers }} from 'ethers';
-
-const privateKey = process.env.ZG_UPLOAD_PRIVATE_KEY;
-if (!privateKey) {{ console.error('CONFIG_ERR: ZG_UPLOAD_PRIVATE_KEY not set'); process.exit(1); }}
-
-const file     = await ZgFile.fromFilePath('{abs_path}');
-const [tree, e1] = await file.merkleTree();
-if (e1) {{ console.error('TREE_ERR:' + e1); process.exit(1); }}
-
-const rootHash = tree.rootHash();
-const provider = new ethers.JsonRpcProvider('{ZG.RPC}');
-const signer   = new ethers.Wallet(privateKey, provider);
-const indexer  = new Indexer('{ZG.INDEXER}');
-
-const [tx, e2] = await indexer.upload(file, '{ZG.RPC}', signer);
-if (e2) {{ console.error('UPLOAD_ERR:' + e2); process.exit(1); }}
-await file.close();
-
-console.log('ROOT:' + rootHash);
-console.log('TX:' + (tx?.txHash || tx?.txHashes?.[0] || ''));
-"""
     sdk_dir     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trion-0g")
     script_path = os.path.join(sdk_dir, "zg_upload_single.mts")
-    with open(script_path, "w") as f:
-        f.write(script)
 
     try:
         env = os.environ.copy()
         env["ZG_UPLOAD_PRIVATE_KEY"] = ZG.PRIVATE_KEY
+        env["ZG_RPC"]     = ZG.RPC
+        env["ZG_INDEXER"] = ZG.INDEXER
         result = await asyncio.create_subprocess_exec(
-            "npx", "tsx", script_path,
+            "npx", "tsx", script_path, abs_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=sdk_dir,
