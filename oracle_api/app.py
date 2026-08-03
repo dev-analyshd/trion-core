@@ -9,6 +9,7 @@ All signals are published on-chain via publishBehavioralTruth().
 import os
 import time
 import hashlib
+import hmac
 import json
 import math
 import logging
@@ -75,6 +76,46 @@ def _rate_limit():
             for k in stale_keys[:1000]:
                 del _rl_buckets[k]
 
+    return None
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── API key authentication (write/admin operations) ───────────────────────────
+# Set TRION_API_KEY in Replit Secrets to enable.  When the var is absent auth
+# is disabled so read-only public deployments need no config change.
+# All GET/HEAD/OPTIONS requests are always public — oracle data is intentionally
+# world-readable.  POST/PUT/PATCH/DELETE require a valid X-API-Key header.
+_TRION_API_KEY = os.environ.get("TRION_API_KEY", "").strip()
+
+@app.before_request
+def _require_api_key():
+    if not _TRION_API_KEY:
+        return None  # auth disabled — set TRION_API_KEY secret to enable
+
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return None  # read-only traffic is always public
+
+    # Exempt the health probe even on non-GET (monitoring tools use POST health checks)
+    if request.path in ("/api/v1/health",):
+        return None
+
+    provided = request.headers.get("X-API-Key", "").strip()
+    if not provided:
+        from flask import Response as _R
+        return _R(
+            json.dumps({"error": "unauthorized",
+                        "message": "X-API-Key header is required for write operations",
+                        "hint": "Pass your TRION_API_KEY value in the X-API-Key request header"}),
+            status=401,
+            mimetype="application/json",
+        )
+    # Constant-time comparison prevents timing attacks
+    if not hmac.compare_digest(provided, _TRION_API_KEY):
+        from flask import Response as _R
+        return _R(
+            json.dumps({"error": "forbidden", "message": "Invalid API key"}),
+            status=403,
+            mimetype="application/json",
+        )
     return None
 # ─────────────────────────────────────────────────────────────────────────────
 

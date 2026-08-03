@@ -18,10 +18,13 @@
  *    canonical whitepaper EventType byte (0-19).
  *
  * EventType byte encoding (whitepaper L0.1 §2 — 20 canonical types):
- *   0=TRANSFER  1=SWAP       2=LIQUIDITY  3=BORROW    4=REPAY
- *   5=LIQUIDATE 6=GOVERNANCE 7=PROPOSAL   8=STAKE     9=UNSTAKE
+ *   0=TRANSFER  1=SWAP       2=LIQUIDITY  3=STAKE     4=UNSTAKE
+ *   5=GOVERNANCE 6=PROPOSAL  7=BORROW     8=REPAY     9=LIQUIDATE
  *  10=BRIDGE   11=DEPLOY    12=UPGRADE   13=MINT     14=BURN
- *  15=FLASH_LOAN 16=ORACLE_UPDATE 17=MEV_CAPTURE 18=AIRDROP 19=CLAIM
+ *  15=ORACLE_UPDATE 16=MEV_CAPTURE 17=FLASH_LOAN 18=AIRDROP 19=CLAIM
+ *
+ * IMPORTANT: This ordering matches src/core/behavioral_hash.py (EventType enum).
+ * The Python Oracle API is the canonical reference — all indexers must agree.
  */
 
 use sha3::{Digest, Sha3_256};
@@ -68,47 +71,47 @@ pub fn classify_event_type(selector: &str) -> u8 {
         "2e1a7d4d"   // WETH unwrap / remove liquidity
             => 2,
 
-        // ── BORROW (3) ───────────────────────────────────────────────────────
-        "a415bcad" | // AAVE V2/V3 borrow
-        "c5ebeaec" | // Compound borrow
-        "1249c58b" | // Compound borrow (V2 alt)
-        "4b8a3529"   // MakerDAO draw (DAI)
-            => 3,
-
-        // ── REPAY (4) ────────────────────────────────────────────────────────
-        "573ade81" | // AAVE repay
-        "0e752702" | // Compound repay
-        "4e4d9fea" | // Compound repayBorrow (V2)
-        "83cc71c7"   // MakerDAO wipe
-            => 4,
-
-        // ── LIQUIDATE (5) ────────────────────────────────────────────────────
-        "e6b43c49" | // AAVE liquidationCall
-        "e7c77cb8"   // Compound liquidateBorrow
-            => 5,
-
-        // ── GOVERNANCE (6) ───────────────────────────────────────────────────
-        "56781388" | // Compound Governor castVote
-        "15373e3d" | // Governor Bravo castVote
-        "7df5bd3b" | // Uniswap Governor castVote
-        "095ea7b3"   // ERC20 approve (governance-adjacent signal)
-            => 6,
-
-        // ── PROPOSAL (7) ─────────────────────────────────────────────────────
-        "7d5e81e2" | // OpenZeppelin Governor propose
-        "da95691a"   // Governor Bravo propose
-            => 7,
-
-        // ── STAKE (8) ────────────────────────────────────────────────────────
+        // ── STAKE (3) ────────────────────────────────────────────────────────
         "a1903eab" | // Lido submit (ETH→stETH)
         "3a4b66f1" | // Generic stake()
         "e2bbb158" | // MasterChef deposit
         "b6b55f25"   // Generic deposit/stake
-            => 8,
+            => 3,
 
-        // ── UNSTAKE (9) ──────────────────────────────────────────────────────
+        // ── UNSTAKE (4) ──────────────────────────────────────────────────────
         "441a3e70" | // MasterChef withdraw
         "38d07436"   // Generic unstake
+            => 4,
+
+        // ── GOVERNANCE (5) ───────────────────────────────────────────────────
+        "56781388" | // Compound Governor castVote
+        "15373e3d" | // Governor Bravo castVote
+        "7df5bd3b" | // Uniswap Governor castVote
+        "095ea7b3"   // ERC20 approve (governance-adjacent signal)
+            => 5,
+
+        // ── PROPOSAL (6) ─────────────────────────────────────────────────────
+        "7d5e81e2" | // OpenZeppelin Governor propose
+        "da95691a"   // Governor Bravo propose
+            => 6,
+
+        // ── BORROW (7) ───────────────────────────────────────────────────────
+        "a415bcad" | // AAVE V2/V3 borrow
+        "c5ebeaec" | // Compound borrow
+        "1249c58b" | // Compound borrow (V2 alt)
+        "4b8a3529"   // MakerDAO draw (DAI)
+            => 7,
+
+        // ── REPAY (8) ────────────────────────────────────────────────────────
+        "573ade81" | // AAVE repay
+        "0e752702" | // Compound repay
+        "4e4d9fea" | // Compound repayBorrow (V2)
+        "83cc71c7"   // MakerDAO wipe
+            => 8,
+
+        // ── LIQUIDATE (9) ────────────────────────────────────────────────────
+        "e6b43c49" | // AAVE liquidationCall
+        "e7c77cb8"   // Compound liquidateBorrow
             => 9,
 
         // ── BRIDGE (10) ──────────────────────────────────────────────────────
@@ -130,15 +133,15 @@ pub fn classify_event_type(selector: &str) -> u8 {
         "9dc29fac"   // ERC20 burnFrom
             => 14,
 
-        // ── FLASH_LOAN (15) ──────────────────────────────────────────────────
-        "ab9c4b5d" | // AAVE flashLoan
-        "5cffe9de"   // AAVE flashLoanSimple
-            => 15,
-
-        // ── ORACLE_UPDATE (16) ───────────────────────────────────────────────
+        // ── ORACLE_UPDATE (15) ───────────────────────────────────────────────
         "a2e62045" | // Chainlink updateAnswer
         "c9807539"   // Chainlink OCR transmit
-            => 16,
+            => 15,
+
+        // ── FLASH_LOAN (17) ──────────────────────────────────────────────────
+        "ab9c4b5d" | // AAVE flashLoan
+        "5cffe9de"   // AAVE flashLoanSimple
+            => 17,
 
         // ── UPGRADE (12) ─────────────────────────────────────────────────────
         "3659cfe6" | // EIP-1967/UUPS upgradeTo(address)
@@ -180,21 +183,21 @@ pub fn event_type_name(et: u8) -> &'static str {
         0  => "TRANSFER",
         1  => "SWAP",
         2  => "LIQUIDITY",
-        3  => "BORROW",
-        4  => "REPAY",
-        5  => "LIQUIDATE",
-        6  => "GOVERNANCE",
-        7  => "PROPOSAL",
-        8  => "STAKE",
-        9  => "UNSTAKE",
+        3  => "STAKE",
+        4  => "UNSTAKE",
+        5  => "GOVERNANCE",
+        6  => "PROPOSAL",
+        7  => "BORROW",
+        8  => "REPAY",
+        9  => "LIQUIDATE",
         10 => "BRIDGE",
         11 => "DEPLOY",
         12 => "UPGRADE",
         13 => "MINT",
         14 => "BURN",
-        15 => "FLASH_LOAN",
-        16 => "ORACLE_UPDATE",
-        17 => "MEV_CAPTURE",
+        15 => "ORACLE_UPDATE",
+        16 => "MEV_CAPTURE",
+        17 => "FLASH_LOAN",
         18 => "AIRDROP",
         19 => "CLAIM",
         _  => "TRANSFER",
@@ -378,8 +381,10 @@ mod tests {
     fn classify_selectors() {
         assert_eq!(classify_event_type("38ed1739"), 1);  // SWAP
         assert_eq!(classify_event_type("a9059cbb"), 0);  // TRANSFER
-        assert_eq!(classify_event_type("a415bcad"), 3);  // BORROW
-        assert_eq!(classify_event_type("ab9c4b5d"), 15); // FLASH_LOAN
+        assert_eq!(classify_event_type("a415bcad"), 7);  // BORROW (canonical index 7)
+        assert_eq!(classify_event_type("ab9c4b5d"), 17); // FLASH_LOAN (canonical index 17)
+        assert_eq!(classify_event_type("3a4b66f1"), 3);  // STAKE (canonical index 3)
+        assert_eq!(classify_event_type("a2e62045"), 15); // ORACLE_UPDATE (canonical index 15)
         assert_eq!(classify_event_type(""),         0);  // default TRANSFER
     }
 
@@ -387,7 +392,13 @@ mod tests {
     fn event_type_names() {
         assert_eq!(event_type_name(0),  "TRANSFER");
         assert_eq!(event_type_name(1),  "SWAP");
-        assert_eq!(event_type_name(15), "FLASH_LOAN");
+        assert_eq!(event_type_name(3),  "STAKE");
+        assert_eq!(event_type_name(4),  "UNSTAKE");
+        assert_eq!(event_type_name(5),  "GOVERNANCE");
+        assert_eq!(event_type_name(7),  "BORROW");
+        assert_eq!(event_type_name(9),  "LIQUIDATE");
+        assert_eq!(event_type_name(15), "ORACLE_UPDATE");
+        assert_eq!(event_type_name(17), "FLASH_LOAN");
         assert_eq!(event_type_name(19), "CLAIM");
         assert_eq!(event_type_name(20), "TRANSFER"); // out-of-range → default
     }

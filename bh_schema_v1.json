@@ -1,0 +1,66 @@
+{
+  "_comment": "TRION Protocol — Canonical Behavioral Hash payload schema v1",
+  "_doc": "This is the single-source-of-truth for the 93-byte BH payload. All language implementations (Python, Rust, TypeScript) must produce identical hashes for the same inputs. See tests/test_whitepaper_gaps.py (Python), rust-indexers/crates/trion-common/src/hash_dna.rs #[cfg(test)] (Rust), and tests/bh_cross_language.test.ts (TypeScript) for cross-language vector verification.",
+
+  "version": 1,
+  "payload_bytes": 93,
+  "hash_algorithm": "SHA3-256",
+
+  "payload_layout": [
+    { "field": "entity_id",      "offset": 0,  "length": 32, "encoding": "bytes",  "description": "32-byte entity routing key: SHA3-256(normalised_address)" },
+    { "field": "event_type",     "offset": 32, "length": 1,  "encoding": "uint8",  "description": "EventType byte (0-19 per canonical table below)" },
+    { "field": "magnitude_nano", "offset": 33, "length": 8,  "encoding": "uint64_be", "description": "magnitude_norm * 1e9, clamped to [0, 1e9]" },
+    { "field": "context",        "offset": 41, "length": 8,  "encoding": "uint64_be", "description": "Venue/layer flags bitmask" },
+    { "field": "timestamp_secs", "offset": 49, "length": 8,  "encoding": "uint64_be", "description": "Unix timestamp in seconds" },
+    { "field": "chain_id",       "offset": 57, "length": 4,  "encoding": "uint32_be", "description": "EVM chain ID (truncated to u32)" },
+    { "field": "block_hash",     "offset": 61, "length": 32, "encoding": "bytes",  "description": "32-byte block hash (zero-padded from hex)" }
+  ],
+
+  "dual_strand": {
+    "sense":     "SHA3-256(payload || 0x00)",
+    "antisense": "SHA3-256(payload || 0xFF) XOR NOT(sense)",
+    "invariant": "sense XOR antisense == NOT(SHA3-256(payload || 0xFF))"
+  },
+
+  "event_types": [
+    { "value": 0,  "name": "TRANSFER"     },
+    { "value": 1,  "name": "SWAP"         },
+    { "value": 2,  "name": "LIQUIDITY"    },
+    { "value": 3,  "name": "STAKE"        },
+    { "value": 4,  "name": "UNSTAKE"      },
+    { "value": 5,  "name": "GOVERNANCE"   },
+    { "value": 6,  "name": "PROPOSAL"     },
+    { "value": 7,  "name": "BORROW"       },
+    { "value": 8,  "name": "REPAY"        },
+    { "value": 9,  "name": "LIQUIDATE"    },
+    { "value": 10, "name": "BRIDGE"       },
+    { "value": 11, "name": "DEPLOY"       },
+    { "value": 12, "name": "UPGRADE"      },
+    { "value": 13, "name": "MINT"         },
+    { "value": 14, "name": "BURN"         },
+    { "value": 15, "name": "ORACLE_UPDATE"},
+    { "value": 16, "name": "MEV_CAPTURE"  },
+    { "value": 17, "name": "FLASH_LOAN"   },
+    { "value": 18, "name": "AIRDROP"      },
+    { "value": 19, "name": "CLAIM"        }
+  ],
+
+  "cross_language_test_vector": {
+    "_comment": "All three implementations must produce these exact hex strings for this input.",
+    "input": {
+      "entity_id_hex":   "abababababababababababababababababababababababababababababababababab",
+      "event_type":      7,
+      "event_type_name": "BORROW",
+      "magnitude_norm":  0.5,
+      "context":         0,
+      "timestamp_secs":  1700000000,
+      "chain_id":        421614,
+      "block_hash_hex":  "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "expected": {
+      "_note": "Regenerate by running: python3 tests/bh_cross_language_vector.py",
+      "sense":     "7060238abdea90bae178e94f0672d8c10742718456eb0b34315d7466010d0bba",
+      "antisense": "e739204873a080f002bc7cbe2858d02513d373b60aa0941a79cd4403f4405b68"
+    }
+  }
+}
