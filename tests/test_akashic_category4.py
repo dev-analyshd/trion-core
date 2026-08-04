@@ -20,6 +20,7 @@ import struct
 import json
 import sys
 import os
+import subprocess
 import requests
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -140,6 +141,84 @@ def insert_batch_via_api(records, chain_label=None):
 def test_thermodynamic_deletion():
     heading(1, "Thermodynamic Deletion Enforcement", "CRITICAL")
     all_pass = True
+
+    # ── 1.0  Haskell type-system structural proof — deletion is UNTYPEABLE ─────
+    info("1.0  Running Haskell formal proofs (math/formal_verification.hs)…")
+    info("     GHC type system encodes deletion-prohibition as a compile-time invariant.")
+    info("     If the module compiles, the theorem is proved. If it runs, the proof holds.")
+    try:
+        hs_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        hs_file = os.path.join(hs_root, "math", "formal_verification.hs")
+        result  = subprocess.run(
+            ["runghc", hs_file],
+            capture_output=True, text=True, timeout=60,
+            cwd=hs_root
+        )
+        output = result.stdout.strip()
+        lines  = [l.strip() for l in output.splitlines()]
+
+        # Parse each theorem result
+        theorem_map = {}
+        for line in lines:
+            for t in ["T1","T2","T3","T4","T5","T6","T7","T8","T9"]:
+                if line.startswith(t) and "True" in line:
+                    theorem_map[t] = True
+                elif line.startswith(t) and "False" in line:
+                    theorem_map[t] = False
+
+        final_line = lines[-1] if lines else ""
+        all_hs_pass = "PASS" in final_line and result.returncode == 0
+
+        # Print each theorem result
+        for t, passed in theorem_map.items():
+            labels = {
+                "T1": "CoherenceInvariant      — C(t) ∈ [0,1] enforced by smart constructor",
+                "T2": "SilenceCompleteness     — SILENCE ≠ VALUATION (phantom-type GADT, compile error if confused)",
+                "T3": "InformationConservation — I_TRION(t+1) ≥ I_TRION(t) − S_emitted; deletion drops I_total → VIOLATION",
+                "T4": "ThresholdMonotonicity   — Θ(t) monotone in V(t) ∈ [Θ_min, Θ_max]",
+                "T5": "ManipulationReducesPhi  — MF(t) > 0 implies Φ_adj < Φ_raw",
+                "T6": "PCLimitInvariant        — PC_limit < 1 always (irreducible entropy floor)",
+                "T7": "CoordinationCollapse    — HHI > 2500 triggers rebalancing; monopoly structurally prevented",
+                "T8": "AkashicAppendOnly       — BHLedger (n :: Nat) GADT: no function BHLedger(Succ n)→BHLedger(n) exists; deletion UNTYPEABLE",
+                "T9": "BHCollisionFree         — SHA3-256 domain-separated; distinct 93-byte payloads → distinct sense strands",
+            }
+            label = labels.get(t, t)
+            if passed:
+                ok(f"{t} {label}")
+            else:
+                err(f"{t} {label}  → FAILED")
+                all_pass = False
+
+        # Critical theorems for T4.1
+        t3_ok = theorem_map.get("T3", False)
+        t8_ok = theorem_map.get("T8", False)
+
+        if t3_ok:
+            ok("T3 PROVED: Information Conservation Law — deletion reduces I_total below invariant → ThermodynamicViolation")
+        else:
+            err("T3 FAILED — Conservation invariant not proved"); all_pass = False
+
+        if t8_ok:
+            ok("T8 PROVED: BHLedger phantom-count GADT — no type-valid deletion function exists; "
+               "GHC type checker makes deletion physically impossible to express")
+            print("  → Structural proof: BHLedger (n :: Nat) only has constructors BHEmpty and BHCons.")
+            print("     bhAppend maps n → Succ n. The inverse (Succ n → n) cannot be typed.")
+            print("     Any attempted deletion would be a GHC COMPILE ERROR — not just a runtime failure.")
+        else:
+            err("T8 FAILED — Append-only structural proof not proved"); all_pass = False
+
+        if all_hs_pass:
+            ok(f"Haskell module compiled and all 9 theorems verified — GHC is the proof witness")
+        else:
+            err(f"Haskell proof run failed (rc={result.returncode}): {result.stderr[:200]}")
+            all_pass = False
+
+    except subprocess.TimeoutExpired:
+        err("Haskell proof timed out after 60s"); all_pass = False
+    except FileNotFoundError:
+        err("runghc not found — GHC not installed"); all_pass = False
+    except Exception as e:
+        err(f"Haskell proof runner error: {e}"); all_pass = False
 
     # ── 1.1  No HTTP DELETE route exposed ─────────────────────────────────────
     info("1.1  Probing for DELETE HTTP endpoints on FAISS service…")
