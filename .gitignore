@@ -130,3 +130,4 @@ genesis_backfill_checkpoint_*.json
 # ML model weights — do not commit large binary files
 mental_transformer_weights.pt
 *.pt
+bin/*

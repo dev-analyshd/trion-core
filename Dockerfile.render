@@ -52,9 +52,7 @@ RUN npm install --omit=dev --legacy-peer-deps --silent
 
 # Relayers
 COPY relayer/package.json        relayer/package-lock.json        ./relayer/
-COPY native-relayer/package.json native-relayer/package-lock.json ./native-relayer/
 RUN cd relayer        && npm install --omit=dev --legacy-peer-deps --silent
-RUN cd native-relayer && npm install --omit=dev --legacy-peer-deps --silent
 
 # 0G integration
 COPY trion-0g/package.json trion-0g/package-lock.json ./trion-0g/
@@ -100,7 +98,6 @@ RUN chmod +x /app/bin/trion-* 2>/dev/null || true
 # ── Node modules from stage 2 ─────────────────────────────────────────────────
 COPY --from=node-builder /build/node_modules          /app/node_modules
 COPY --from=node-builder /build/relayer/node_modules  /app/relayer/node_modules
-COPY --from=node-builder /build/native-relayer/node_modules /app/native-relayer/node_modules
 COPY --from=node-builder /build/trion-0g/node_modules /app/trion-0g/node_modules
 COPY --from=node-builder /build/chains/near/node_modules      /app/chains/near/node_modules
 COPY --from=node-builder /build/chains/pvm/node_modules       /app/chains/pvm/node_modules
@@ -124,7 +121,6 @@ COPY oracle_api/      ./oracle_api/
 COPY akashic/         ./akashic/
 COPY src/             ./src/
 COPY relayer/         ./relayer/
-COPY native-relayer/  ./native-relayer/
 COPY chains/          ./chains/
 COPY trion-0g/        ./trion-0g/
 COPY contracts/       ./contracts/
