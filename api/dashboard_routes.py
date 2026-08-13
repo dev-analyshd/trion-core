@@ -33,6 +33,11 @@ import time
 
 dashboard_bp = Blueprint("dashboard_bp", __name__, url_prefix="/app")
 
+def _redirect_to_react():
+    """Redirect to React frontend."""
+    from flask import redirect
+    return redirect("/")
+
 FAISS_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 ORACLE_URL = os.environ.get("ORACLE_INTERNAL_URL", "http://127.0.0.1:5000")
 
@@ -51,103 +56,103 @@ def _proxy(url, timeout=10):
 @dashboard_bp.route("/")
 def main_dashboard():
     """Main institutional dashboard — overview."""
-    return render_template("pages/main.html", active_page="main")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/akashic")
 def akashic_page():
     """Akashic Index — behavioral memory, depth, archetypes."""
-    return render_template("pages/akashic.html", active_page="akashic")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/bh-explorer")
 def bh_explorer_page():
     """Behavioral Hash live stream explorer."""
-    return render_template("pages/bh_explorer.html", active_page="bh")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/anima")
 def anima_page():
     """ANIMA Intelligence — 4 data streams, 54 languages."""
-    return render_template("pages/anima.html", active_page="anima")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/beo")
 def beo_page():
     """Behavioral Entity Object resolution."""
-    return render_template("pages/beo.html", active_page="beo")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/living-security")
 def living_security_page():
     """8-component DNA-mimetic Living Security."""
-    return render_template("pages/living_security.html", active_page="security")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/validators")
 def validators_page():
     """Diversity-Weighted BFT validator mesh."""
-    return render_template("pages/validators.html", active_page="validators")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/annotators")
 def annotators_page():
     """Conscious plane K(t) annotation network."""
-    return render_template("pages/annotators.html", active_page="annotators")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/evolutionary")
 def evolutionary_page():
     """Evolutionary Fitness + Love Protocol."""
-    return render_template("pages/evolutionary.html", active_page="evolutionary")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/continuum")
 def continuum_page():
     """CONTINUUM DEX — behavioral clearing network."""
-    return render_template("pages/continuum.html", active_page="continuum")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/btcp")
 def btcp_page():
     """BTCP routing & escrow."""
-    return render_template("pages/btcp.html", active_page="btcp")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/marketplace")
 def marketplace_page():
     """Behavioral Data Marketplace."""
-    return render_template("pages/marketplace.html", active_page="marketplace")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/agent-id")
 def agent_id_page():
     """AI Agent Identity."""
-    return render_template("pages/agent_id.html", active_page="agent_id")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/timescale")
 def timescale_page():
     """TimescaleDB live data."""
-    return render_template("pages/timescale.html", active_page="timescale")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/chains")
 def chains_page():
     """100-chain coverage matrix."""
-    return render_template("pages/chains.html", active_page="chains")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/settings")
 def settings_page():
     """Configuration & deployment settings."""
-    return render_template("pages/settings.html", active_page="settings")
+    return _redirect_to_react()
 
 
 @dashboard_bp.route("/architecture")
 def architecture_page():
     """System architecture — all 12+ programming languages live status."""
-    return render_template("pages/architecture.html", active_page="architecture")
+    return _redirect_to_react()
 
 
 # ── Live data endpoints (aggregated for dashboard) ────────────────────────────
