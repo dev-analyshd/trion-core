@@ -55,7 +55,7 @@ services:
       ZERO_G_RPC: "https://evmrpc.0g.ai"
       ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
     volumes:
-      - faiss-data:/app/akashic       # FAISS index + SQLite BH ledger — persists across restarts
+      - faiss-data:/app/anima-service       # FAISS index + SQLite BH ledger — persists across restarts
       - zg-state:/app/0g-state
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:5000/api/v1/health"]
@@ -107,7 +107,7 @@ services:
       TRION_ENABLE_ZG_SYNC: "1"
       TRION_ENABLE_ZG_DA: "1"
     volumes:
-      - faiss-data:/app/akashic       # FAISS index + SQLite BH ledger — persists across restarts
+      - faiss-data:/app/anima-service       # FAISS index + SQLite BH ledger — persists across restarts
       - zg-state:/app/0g-state
       - rust-logs:/tmp/trion-rust-logs
     healthcheck:

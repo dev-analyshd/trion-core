@@ -40,9 +40,9 @@ for dir in "${NPM_DIRS[@]}"; do
 done
 
 # ── bh_ledger.db symlink ───────────────────────────────────────────────────────
-# FAISS ANIMA writes the DB to akashic/bh_ledger.db; the Oracle API (via
+# FAISS ANIMA writes the DB to anima-service/bh_ledger.db; the Oracle API (via
 # src/protocol/segmentation.py) looks for it at the workspace root.
-BH_SRC="akashic/bh_ledger.db"
+BH_SRC="anima-service/bh_ledger.db"
 BH_LINK="bh_ledger.db"
 
 if [ ! -e "$ROOT/$BH_LINK" ]; then

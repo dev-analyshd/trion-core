@@ -27,9 +27,9 @@ python3 serve.py   # Flask on port 5000 (frontend + all /api/v1/* endpoints)
 
 | File | Purpose |
 |---|---|
-| `oracle_api/app.py` | Flask API — signal compute, live chain reads/writes |
-| `oracle_api/blockchain.py` | web3.py relay — publishBehavioralTruth + event fetching |
-| `oracle_api/requirements.txt` | flask, gunicorn, web3==7.15.0 |
+| `api/app.py` | Flask API — signal compute, live chain reads/writes |
+| `api/blockchain.py` | web3.py relay — publishBehavioralTruth + event fetching |
+| `api/requirements.txt` | flask, gunicorn, web3==7.15.0 |
 | `contracts/TRIONSensingOracle.sol` | On-chain oracle (deployed Arb Sepolia) |
 | `contracts/ConfidentialCoherenceVault.sol` | ERC-20 vault gated by behavioral coherence |
 | `contracts/ITRIONSensingOracle.sol` | DeFi integration interface |
@@ -85,11 +85,11 @@ Both are fetched by `blockchain.py::get_recent_events()` and shown in the live f
 - **GitHub repo**: `dev-analyshd/trion-core` (main branch)
 - **Production**: https://trionprotocol.onrender.com
 - **Docker**: `Dockerfile.render` (includes gcc for web3 build deps)
-- **Run command**: `gunicorn -w 2 -b 0.0.0.0:10000 oracle_api.app:app --timeout 60`
+- **Run command**: `gunicorn -w 2 -b 0.0.0.0:10000 api.app:app --timeout 60`
 
 ## Dependencies
 
-- Python: flask, gunicorn, web3==7.15.0 (oracle_api/requirements.txt)
+- Python: flask, gunicorn, web3==7.15.0 (api/requirements.txt)
 - Node: hardhat, ethers (package.json)
 
 ## Deployment Checklist

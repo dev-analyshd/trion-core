@@ -1,0 +1,11 @@
+name: CI Haskell
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.4.8'
+      - run: runghc formal/src/TRION/Theorems.hs

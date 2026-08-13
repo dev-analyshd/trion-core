@@ -52,8 +52,8 @@ for _seed_src in \
     "/app/trion_archetype_centroids.npy:${FAISS_CENTROIDS_PATH}" \
     "/app/akashic_state.db:${FAISS_STATE_DB}" \
     "/app/bh_ledger.db:${BH_LEDGER_DB}" \
-    "/app/akashic/akashic_faiss.index:${FAISS_INDEX_PATH}" \
-    "/app/akashic/akashic_state.db:${FAISS_STATE_DB}"; do
+    "/app/anima-service/akashic_faiss.index:${FAISS_INDEX_PATH}" \
+    "/app/anima-service/akashic_state.db:${FAISS_STATE_DB}"; do
     _src="${_seed_src%%:*}"
     _dst="${_seed_src##*:}"
     if [[ -f "$_src" && ! -f "$_dst" ]]; then
@@ -82,7 +82,7 @@ spawn() {
 if [[ "${TRION_ENABLE_FAISS:-1}" == "1" ]]; then
     log "FAISS ANIMA on :${FAISS_PORT}"
     (
-        cd /app/akashic
+        cd /app/anima-service
         OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
         PORT="${FAISS_PORT}" FAISS_PORT="${FAISS_PORT}" \
         python3 faiss_service.py
@@ -163,4 +163,4 @@ exec gunicorn \
     --access-logfile - \
     --error-logfile - \
     --log-level info \
-    "oracle_api.app:app"
+    "api.app:app"

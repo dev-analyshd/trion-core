@@ -95,7 +95,7 @@ jobs:
           toolchain: stable
 
       - name: Build Rust indexers
-        run: cargo build --manifest-path rust-indexers/Cargo.toml
+        run: cargo build --manifest-path indexers/Cargo.toml
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stress — runs only after Python suite is green

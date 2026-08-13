@@ -7,15 +7,15 @@
 #   docker compose up --build
 #
 # Endpoints:
-#   http://localhost:5000/              Dashboard
-#   http://localhost:5000/api/v1/health Oracle API health
-#   http://localhost:8000/health        FAISS ANIMA health
+#   http://localhost:5000/app/           Dashboard
+#   http://localhost:5000/api/v1/health  Oracle API health
+#   http://localhost:8000/health         FAISS ANIMA health
 # =============================================================================
 FROM python:3.11-slim
 
 LABEL maintainer="TRION Protocol"
 LABEL description="TRION Protocol — Dev image (Oracle API + FAISS ANIMA)"
-LABEL version="3.2.0"
+LABEL version="4.0.0"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,30 +25,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # ── Python deps ───────────────────────────────────────────────────────────────
-COPY oracle_api/requirements.txt  ./oracle_api/requirements.txt
-COPY akashic/requirements.txt     ./akashic/requirements.txt
+COPY api/requirements.txt              ./api/requirements.txt
+COPY anima-service/requirements.txt    ./anima-service/requirements.txt
 RUN pip install --no-cache-dir \
-        -r oracle_api/requirements.txt \
-        -r akashic/requirements.txt \
+        -r api/requirements.txt \
+        -r anima-service/requirements.txt \
         numpy scipy scikit-learn
 
 # ── Source ────────────────────────────────────────────────────────────────────
-COPY oracle_api/      ./oracle_api/
-COPY akashic/         ./akashic/
-COPY src/             ./src/
-COPY trion-0g/        ./trion-0g/
-COPY contracts/       ./contracts/
-COPY config/          ./config/
-COPY shared/          ./shared/
-COPY serve.py         ./serve.py
-COPY main.py          ./main.py
-COPY deployments.json ./deployments.json
-COPY zg/              ./zg/
-COPY schema.sql       ./schema.sql
-COPY proof-ledger/    ./proof-ledger/
+COPY api/              ./api/
+COPY anima-service/    ./anima-service/
+COPY core/             ./core/
+COPY src/              ./src/
+COPY trion-0g/         ./trion-0g/
+COPY contracts/        ./contracts/
+COPY config/           ./config/
+COPY shared/           ./shared/
+COPY serve.py          ./serve.py
+COPY main.py           ./main.py
+COPY deployments.json  ./deployments.json
+COPY zg/               ./zg/
+COPY schema.sql        ./schema.sql
+COPY proof-ledger/     ./proof-ledger/
 
-# Runtime dirs (faiss-persist is the volume mount point for FAISS index survival)
-RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs akashic/data
+# Runtime dirs
+RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs anima-service/data
 
 # ── Environment ───────────────────────────────────────────────────────────────
 ENV PORT=5000 \
