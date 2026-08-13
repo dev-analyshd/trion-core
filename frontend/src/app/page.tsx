@@ -50,6 +50,10 @@ import {
   SYMBOL_TRANSLATIONS, BTCP_DATA, CONTINUUM_DATA, BOTCHAIN_DATA,
 } from '../views/spec_pages';
 import {
+  BEOLookupPage, LiveEventStreamPage, TimeSeriesPage,
+  BTCPVisualizationPage, ContinuumVisualizationPage,
+} from '../views/ui_assessment';
+import {
   ValidatorsPage, ValidatorHHIPage, AnnotatorsPage, BootstrapPage, ReputationPage,
   ZeroGFullStackPage, ZeroGStoragePage, ZeroGDAPage, ZeroGComputePage, ZeroGChainPage,
   ZeroGProofPage, ZeroGVMFamiliesPage,
@@ -152,6 +156,11 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: BTCPPipelinePage,
+  beo_lookup: BEOLookupPage,
+  live_events: LiveEventStreamPage,
+  time_series: TimeSeriesPage,
+  btcp_viz: BTCPVisualizationPage,
+  continuum_viz: ContinuumVisualizationPage,
   btcp_spec: BTCPSpecPage,
   continuum_spec: ContinuumSpecPage,
   botchain_spec: BotChainSpecPage,
@@ -292,6 +301,11 @@ const PAGE_TITLES: Record<string, string> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: 'BTCP Pipeline Status',
+  beo_lookup: 'BEO Lookup Toolbox',
+  live_events: 'Live Event Stream',
+  time_series: 'Time-Series Charts',
+  btcp_viz: 'BTCP Visualization',
+  continuum_viz: 'Continuum Visualization',
   btcp_spec: 'BTCP Protocol',
   continuum_spec: 'Continuum Network',
   botchain_spec: 'BOT Chain Integration',

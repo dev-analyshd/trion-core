@@ -111,7 +111,12 @@ export const NAV: NavGroup[] = [
     label: 'BTCP + CONTINUUM',
     items: [
       { id: 'btcp_pipeline', label: 'Pipeline Status', icon: Icons.GitBranch },
-      { id: 'btcp_spec', label: 'BTCP Protocol', icon: Icons.Route },
+      { id: 'beo_lookup', label: 'BEO Lookup Toolbox', icon: Icons.Search },
+      { id: 'live_events', label: 'Live Event Stream', icon: Icons.Radio },
+      { id: 'time_series', label: 'Time-Series Charts', icon: Icons.LineChart },
+      { id: 'btcp_viz', label: 'BTCP Visualization', icon: Icons.Route },
+      { id: 'continuum_viz', label: 'Continuum Viz', icon: Icons.Waves },
+      { id: 'btcp_spec', label: 'BTCP Protocol', icon: Icons.GitBranch },
       { id: 'continuum_spec', label: 'Continuum Network', icon: Icons.Waves },
       { id: 'botchain_spec', label: 'BOT Chain', icon: Icons.Bot },
       { id: 'hash_dna', label: 'Hash_DNA Explorer', icon: Icons.Hash },
