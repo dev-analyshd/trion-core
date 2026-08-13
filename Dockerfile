@@ -43,8 +43,7 @@ COPY shared/          ./shared/
 COPY serve.py         ./serve.py
 COPY main.py          ./main.py
 COPY deployments.json ./deployments.json
-COPY zg_api_routes.py ./zg_api_routes.py
-COPY zg_config.py     ./zg_config.py
+COPY zg/              ./zg/
 COPY schema.sql       ./schema.sql
 COPY proof-ledger/    ./proof-ledger/
 

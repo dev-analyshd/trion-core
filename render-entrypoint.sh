@@ -124,39 +124,28 @@ if [[ "${TRION_ENABLE_EXTENDED:-1}" == "1" ]]; then
     spawn "ext-vm" bash /app/supervisors/extended_vm_indexers.sh
 fi
 
-# ── 6. TRION EVM Relayer (C(t) signals on EVM + 0G ExecutionGate) ─────────────
+# ── 6. TRION Unified Relayer Supervisor (EVM + Non-EVM + 0G) ──────────────────
 if [[ "${TRION_ENABLE_RELAYER:-1}" == "1" ]]; then
-    spawn "evm-relayer" env \
+    spawn "relayer-supervisor" env \
         ORACLE_API_URL="${ORACLE_API_URL}" \
+        FAISS_URL="${FAISS_URL:-http://127.0.0.1:8000}" \
         POLL_INTERVAL_MS="${POLL_INTERVAL_MS:-60000}" \
-        ZG_EXECUTION_GATE_ADDR="${ZG_EXECUTION_GATE_ADDR:-0xDB5910Dc6CfD219D00F64be1F23DA0289901356d}" \
-        ZG_POLL_INTERVAL_MS="${ZG_POLL_INTERVAL_MS:-120000}" \
+        EXTENDED_POLL_INTERVAL_MS="${EXTENDED_POLL_INTERVAL_MS:-90000}" \
+        NATIVE_CYCLE_SLEEP_MS="${NATIVE_CYCLE_SLEEP_MS:-600000}" \
+        ZG_EXECUTION_GATE_ADDR="${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}" \
+        ZG_CHAIN_ID="${ZG_CHAIN_ID:-16661}" \
+        ZERO_G_RPC="${ZERO_G_RPC:-https://evmrpc.0g.ai}" \
         bash /app/supervisors/trion_and_zg_relayer.sh
 fi
 
-# ── 7. Native VM Relayer (NEAR/TON/Polkadot/StarkNet signed txs) ──────────────
-if [[ "${TRION_ENABLE_NATIVE_RELAYER:-1}" == "1" ]]; then
-    spawn "native-relayer" env \
-        ORACLE_API_URL="${ORACLE_API_URL}" \
-        node /app/native-relayer/native_relayer.js
-fi
-
-# ── 8. Extended Chain Relayer (15 non-EVM chains every 90s) ──────────────────
-if [[ "${TRION_ENABLE_EXT_RELAYER:-1}" == "1" ]]; then
-    spawn "ext-relayer" env \
-        ORACLE_API_URL="${ORACLE_API_URL}" \
-        EXTENDED_POLL_INTERVAL_MS="${EXTENDED_POLL_INTERVAL_MS:-90000}" \
-        node /app/relayer/extended_chain_relayer.js
-fi
-
-# ── 9. 0G Sync Daemon (hourly FAISS delta → 0G Storage) ──────────────────────
+# ── 7. 0G Sync Daemon (hourly FAISS delta → 0G Storage) ──────────────────────
 if [[ "${TRION_ENABLE_ZG_SYNC:-1}" == "1" ]]; then
-    spawn "zg-sync" python3 /app/zg_sync_daemon.py
+    spawn "zg-sync" python3 /app/zg/zg_sync_daemon.py
 fi
 
-# ── 10. 0G DA Streamer (60s behavioral blobs → 0G DA) ────────────────────────
+# ── 8. 0G DA Streamer (60s behavioral blobs → 0G DA) ──────────────────────────
 if [[ "${TRION_ENABLE_ZG_DA:-1}" == "1" ]]; then
-    spawn "zg-da" python3 /app/zg_da_streamer.py
+    spawn "zg-da" python3 /app/zg/zg_da_streamer.py
 fi
 
 # ── 11. Oracle API + Frontend (gunicorn, foreground PID 1) ───────────────────
