@@ -1,0 +1,307 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Living Security — TRION{% endblock %}
+{% block page_title %}Living Security{% endblock %}
+{% block page_subtitle %}Eight-component DNA-mimetic defense with post-quantum cryptography{% endblock %}
+
+{% block content %}
+<!-- Composite SEC score -->
+<div class="grid grid-4 mb-16">
+  <div class="stat" id="stat-sec" style="grid-column:span 2;">
+    <div class="stat-label">Composite Security Score</div>
+    <div class="stat-value skeleton" style="height:48px;width:140px;"> </div>
+    <div class="stat-delta flat">Combined 8-component security score</div>
+  </div>
+  <div class="stat" id="stat-gk-gen">
+    <div class="stat-label">Genomic Key Generation</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Current evolution</div>
+  </div>
+  <div class="stat" id="stat-crispr">
+    <div class="stat-label">CRISPR Library</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Attack signatures</div>
+  </div>
+</div>
+
+<!-- 8 component cards -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">Eight Living-Security Components</div>
+    <span class="live-indicator">Live</span>
+  </div>
+  <div class="grid grid-4" id="components-grid">
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Genomic Key Evolution</div><span class="badge badge-info">1</span></div>
+      <div class="flex-col gap-8" id="comp-gk"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Complementary Strand</div><span class="badge badge-info">2</span></div>
+      <div class="flex-col gap-8" id="comp-strand"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Immune System</div><span class="badge badge-info">3</span></div>
+      <div class="flex-col gap-8" id="comp-immune"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Epigenetic Layer</div><span class="badge badge-info">4</span></div>
+      <div class="flex-col gap-8" id="comp-epi"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Genetic Recombination</div><span class="badge badge-info">5</span></div>
+      <div class="flex-col gap-8" id="comp-recomb"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Cryptographic Noise</div><span class="badge badge-info">6</span></div>
+      <div class="flex-col gap-8" id="comp-noise"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Mitochondrial Core</div><span class="badge badge-info">7</span></div>
+      <div class="flex-col gap-8" id="comp-mito"></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">CRISPR Defense</div><span class="badge badge-info">8</span></div>
+      <div class="flex-col gap-8" id="comp-crispr"></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- PQC layer status -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Post-Quantum Cryptography</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="flex-col gap-16">
+      <div class="flex-between">
+        <div>
+          <div style="font-weight:600;font-size:13px;">Kyber</div>
+          <div class="text-muted" style="font-size:11px;">Key encapsulation — NIST Level</div>
+        </div>
+        <span class="text-mono" id="pqc-kyber">—</span>
+      </div>
+      <div class="flex-between">
+        <div>
+          <div style="font-weight:600;font-size:13px;">Dilithium</div>
+          <div class="text-muted" style="font-size:11px;">Digital signatures — NIST Level</div>
+        </div>
+        <span class="text-mono" id="pqc-dilithium">—</span>
+      </div>
+      <div class="flex-between">
+        <div>
+          <div style="font-weight:600;font-size:13px;">SPHINCS+</div>
+          <div class="text-muted" style="font-size:11px;">Hash-based signatures — NIST Level</div>
+        </div>
+        <span class="text-mono" id="pqc-sphincs">—</span>
+      </div>
+    </div>
+    <div class="card-subtitle mt-24 mb-16">Composite Security Gauge</div>
+    <div class="chart-container" style="height:180px;"><canvas id="secChart"></canvas></div>
+  </div>
+
+  <!-- Live GK evolution stream -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Live Genomic Key Evolution</div>
+      <span class="live-indicator">Streaming</span>
+    </div>
+    <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+      <table id="gk-stream">
+        <thead><tr><th>Time</th><th>Generation</th><th>Trigger</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CRISPR attack signature library -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">CRISPR Attack Signature Library</div>
+    <div class="flex gap-8">
+      <input type="text" class="search-input" id="sig-search" placeholder="Filter signatures…" style="width:240px;">
+      <span class="live-indicator">112 entries</span>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+    <table id="sig-table">
+      <thead><tr><th>Name</th><th>Category</th><th>Date Detected</th><th>Loss Prevented</th><th>Matches</th></tr></thead>
+      <tbody><tr><td colspan="5" class="text-muted text-center">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ORACLE = TRION.ORACLE_API;
+let secChart = null;
+let allSigs = [];
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.innerHTML = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+function row(label, value) {
+  return `<div class="flex-between"><span class="text-muted">${label}</span><span class="text-mono">${value || '—'}</span></div>`;
+}
+
+function gauge(canvasId, value, label) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const v = Math.max(0, Math.min(1, value || 0));
+  let color = '#00d4aa';
+  if (v < 0.4) color = '#ff4d4d';
+  else if (v < 0.7) color = '#f5a623';
+  return new Chart(ctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [v, 1 - v], backgroundColor: [color, '#1f2229'], borderWidth: 0, circumference: 270, rotation: 225 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+    plugins: [{ id: 'center', afterDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom } } = chart;
+      ctx.save();
+      ctx.fillStyle = '#e8eaed'; ctx.font = '700 22px JetBrains Mono, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText((v * 100).toFixed(1) + '%', (left + right) / 2, (top + bottom) / 2);
+      ctx.restore();
+    }}]
+  });
+}
+
+async function loadSecurity() {
+  const data = await TRION.fetch(ORACLE + '/app/api/living-security-live?entity=TRION_PROTOCOL');
+  if (!data) return;
+
+  const composite = data.composite || {};
+  const gk = data.genomic_key || {};
+  const immune = data.immune || {};
+  const epi = data.epigenetic || {};
+  const mito = data.mitochondrial || {};
+  const crispr = data.crispr_library || {};
+
+  const sec = composite.sec_score || composite.composite_score || composite.sec || 0;
+  setStat('stat-sec', TRION.formatPercent(sec, 2), 'Combined 8-component security score');
+  setStat('stat-gk-gen', TRION.formatNumber(gk.generation || gk.current_generation || 0), 'Current evolution');
+  const libSize = (crispr.signatures || crispr.library || []).length;
+  setStat('stat-crispr', TRION.formatNumber(libSize), 'Attack signatures');
+
+  // Components
+  document.getElementById('comp-gk').innerHTML = [
+    row('Generation', gk.generation || gk.current_generation),
+    row('Last evolution', gk.last_evolution ? TRION.formatRelative(gk.last_evolution) : '—'),
+    TRION.statusBadge(gk.status || 'ACTIVE'),
+  ].join('');
+
+  document.getElementById('comp-strand').innerHTML = [
+    row('XOR invariant', composite.xor_verified ? 'Verified' : (composite.xor_invariant ? 'Verified' : 'Pending')),
+    row('Sense strand', composite.sense_hash ? 'Active' : '—'),
+    row('Antisense strand', composite.antisense_hash ? 'Active' : '—'),
+    TRION.statusBadge(composite.strand_status || 'VERIFIED'),
+  ].join('');
+
+  const immState = immune.state || immune.status || 'INNATE';
+  document.getElementById('comp-immune').innerHTML = [
+    row('Innate layer', immune.innate_active !== false ? 'Active' : 'Standby'),
+    row('Adaptive layer', immune.adaptive_active !== false ? 'Active' : 'Standby'),
+    row('Memory layer', immune.memory_count || immune.memory_entries || 0),
+    TRION.statusBadge(immState),
+  ].join('');
+
+  const epiState = epi.state || epi.status || 'NORMAL';
+  document.getElementById('comp-epi').innerHTML = [
+    row('Current state', epiState),
+    row('Pressure level', epi.pressure !== undefined ? Number(epi.pressure).toFixed(3) : '—'),
+    row('Last transition', epi.last_transition ? TRION.formatRelative(epi.last_transition) : '—'),
+    TRION.statusBadge(epiState),
+  ].join('');
+
+  document.getElementById('comp-recomb').innerHTML = [
+    row('Next scheduled', gk.next_recombination ? TRION.formatRelative(gk.next_recombination) : (gk.next_recombination_time || 'Scheduled')),
+    row('Last recombination', gk.last_recombination ? TRION.formatRelative(gk.last_recombination) : '—'),
+    row('Recombination count', gk.recombination_count || 0),
+    TRION.statusBadge(gk.recombination_status || 'SCHEDULED'),
+  ].join('');
+
+  document.getElementById('comp-noise').innerHTML = [
+    row('Decoy count', composite.decoy_count || 0),
+    row('Probe detections', composite.probe_detections || 0),
+    row('Noise floor', composite.noise_floor !== undefined ? Number(composite.noise_floor).toFixed(3) : '—'),
+    TRION.statusBadge(composite.noise_status || 'ACTIVE'),
+  ].join('');
+
+  const mitoInt = mito.integrity !== undefined ? mito.integrity : (mito.integrity_score || 0);
+  document.getElementById('comp-mito').innerHTML = [
+    row('Integrity score', TRION.formatPercent(mitoInt, 2)),
+    row('ATP analog', mito.atp_analog !== undefined ? Number(mito.atp_analog).toFixed(3) : '—'),
+    row('Membrane potential', mito.membrane_potential !== undefined ? Number(mito.membrane_potential).toFixed(3) : '—'),
+    TRION.statusBadge(mitoInt > 0.8 ? 'HEALTHY' : (mitoInt > 0.5 ? 'WARNING' : 'CRITICAL')),
+  ].join('');
+
+  const matches = crispr.recent_matches || crispr.matches || 0;
+  document.getElementById('comp-crispr').innerHTML = [
+    row('Library size', libSize),
+    row('Recent matches', matches),
+    row('Last scan', crispr.last_scan ? TRION.formatRelative(crispr.last_scan) : '—'),
+    TRION.statusBadge(crispr.status || 'ACTIVE'),
+  ].join('');
+
+  // PQC
+  document.getElementById('pqc-kyber').textContent = composite.pqc_kyber || composite.kyber_level || 'Level 5';
+  document.getElementById('pqc-dilithium').textContent = composite.pqc_dilithium || composite.dilithium_level || 'Level 5';
+  document.getElementById('pqc-sphincs').textContent = composite.pqc_sphincs || composite.sphincs_level || 'Level 5';
+
+  // SEC gauge
+  if (secChart) secChart.destroy();
+  secChart = gauge('secChart', sec);
+
+  // GK evolution stream
+  const stream = gk.evolution_log || gk.history || gk.events || [];
+  const sbody = document.querySelector('#gk-stream tbody');
+  if (!stream.length) {
+    sbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No evolution events yet</td></tr>';
+  } else {
+    sbody.innerHTML = stream.slice(0, 30).map(e => {
+      const ts = e.timestamp || e.ts || e.time;
+      const gen = e.generation || e.gen || '—';
+      const trig = e.trigger || e.reason || 'SCHEDULED';
+      const st = e.status || 'COMPLETED';
+      return `<tr><td class="text-muted">${TRION.formatTime(ts)}</td><td>${gen}</td><td>${trig}</td><td>${TRION.statusBadge(st)}</td></tr>`;
+    }).join('');
+  }
+
+  // CRISPR signature library
+  allSigs = crispr.signatures || crispr.library || [];
+  renderSigs(allSigs);
+}
+
+function renderSigs(list) {
+  const tbody = document.querySelector('#sig-table tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No signatures in library</td></tr>'; return; }
+  tbody.innerHTML = list.slice(0, 100).map(s => {
+    const name = s.name || s.signature || s.id || '—';
+    const cat = s.category || s.type || '—';
+    const date = s.date_detected || s.first_seen;
+    const loss = s.loss_prevented || s.loss || 0;
+    const matches = s.matches || s.match_count || 0;
+    return `<tr>
+      <td>${name}</td>
+      <td>${cat}</td>
+      <td>${date ? TRION.formatTime(date) : '—'}</td>
+      <td>$${TRION.formatNumber(loss)}</td>
+      <td>${TRION.formatNumber(matches)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('sig-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  const filtered = allSigs.filter(s => String(s.name || s.signature || s.id || '').toLowerCase().includes(q));
+  renderSigs(filtered);
+});
+
+loadSecurity();
+setInterval(loadSecurity, 10000);
+</script>
+{% endblock %}

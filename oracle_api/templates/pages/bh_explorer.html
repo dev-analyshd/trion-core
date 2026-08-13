@@ -1,0 +1,325 @@
+{% extends "base_dashboard.html" %}
+{% block title %}BH Explorer — TRION{% endblock %}
+{% block page_title %}Behavioral Hash Explorer{% endblock %}
+{% block page_subtitle %}Live stream of dual-strand behavioral hashes across 100+ chains{% endblock %}
+
+{% block content %}
+<!-- Stat row -->
+<div class="grid grid-6 mb-16">
+  <div class="stat" id="stat-total">
+    <div class="stat-label">Total BHs</div>
+    <div class="stat-value skeleton" style="height:32px;width:90px;"> </div>
+    <div class="stat-delta flat">All chains</div>
+  </div>
+  <div class="stat" id="stat-rate">
+    <div class="stat-label">BHs / second</div>
+    <div class="stat-value skeleton" style="height:32px;width:70px;"> </div>
+    <div class="stat-delta flat">Live throughput</div>
+  </div>
+  <div class="stat" id="stat-chains">
+    <div class="stat-label">Active Chains</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">With BHs in last hour</div>
+  </div>
+  <div class="stat" id="stat-vm">
+    <div class="stat-label">VM Families</div>
+    <div class="stat-value skeleton" style="height:32px;width:40px;"> </div>
+    <div class="stat-delta flat">EVM / SVM / UTXO / Move…</div>
+  </div>
+  <div class="stat" id="stat-sense">
+    <div class="stat-label">Sense Hashes</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Primary strand</div>
+  </div>
+  <div class="stat" id="stat-anti">
+    <div class="stat-label">Antisense Hashes</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Complementary strand</div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- VM family distribution chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">VM Family Distribution</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="chart-container"><canvas id="vmChart"></canvas></div>
+  </div>
+
+  <!-- Per-chain breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Per-Chain Breakdown</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="table-wrap" style="max-height:240px;overflow-y:auto;">
+      <table id="chain-table">
+        <thead><tr><th>Chain</th><th>VM</th><th>BH Count</th><th>Share</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">Live BH Stream</div>
+    <div class="flex gap-8 flex-wrap">
+      <input type="text" class="search-input" id="filter-search" placeholder="Search entity or tx hash…" style="width:240px;">
+      <select class="search-input" id="filter-chain" style="width:160px;">
+        <option value="">All chains</option>
+      </select>
+      <select class="search-input" id="filter-vm" style="width:140px;">
+        <option value="">All VMs</option>
+        <option value="EVM">EVM</option>
+        <option value="SVM">SVM</option>
+        <option value="UTXO">UTXO</option>
+        <option value="COSMOS">Cosmos</option>
+        <option value="MOVE">Move</option>
+      </select>
+      <select class="search-input" id="filter-event" style="width:160px;">
+        <option value="">All events</option>
+        <option value="TRANSFER">Transfer</option>
+        <option value="CONTRACT_CALL">Contract Call</option>
+        <option value="VALIDATOR">Validator</option>
+        <option value="LIQUIDITY">Liquidity</option>
+        <option value="GOVERNANCE">Governance</option>
+      </select>
+      <span class="live-indicator">Stream 2s</span>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:480px;overflow-y:auto;">
+    <table id="bh-table">
+      <thead>
+        <tr>
+          <th>Time</th><th>Tx Hash</th><th>Entity</th><th>Event</th><th>Chain</th><th>VM</th><th>Magnitude</th><th>Sense Hash</th><th></th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="9" class="text-muted text-center">Loading live stream…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- BH detail panel -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">BH Detail — 93-byte Payload Breakdown</div>
+    <span class="text-muted" id="detail-empty">Select a row to inspect</span>
+  </div>
+  <div id="detail-panel" class="grid grid-2" style="display:none;">
+    <div>
+      <div class="card-subtitle mb-16">Full Hash</div>
+      <div class="code-block mb-16" id="detail-hash">—</div>
+      <div class="card-subtitle mb-16">Payload Fields</div>
+      <div class="flex-col gap-8" id="detail-fields"></div>
+    </div>
+    <div>
+      <div class="card-subtitle mb-16">Dual-Strand Verification</div>
+      <div class="flex-col gap-8" id="detail-strands"></div>
+      <div class="card-subtitle mt-16 mb-16">XOR Invariant</div>
+      <div class="code-block" id="detail-xor">—</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ORACLE = TRION.ORACLE_API;
+let allBHs = [];
+let vmChart = null;
+const chainSet = new Set();
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.textContent = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+async function loadStats() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/bh/stats');
+  if (!data) return;
+  const total = data.total_records || data.total_bhs || 0;
+  const rate = data.bh_per_sec || data.bhs_per_second || data.rate || 0;
+  const chains = data.active_chains || data.chains_with_bhs || 0;
+  const vms = data.vm_families || data.vm_count || 0;
+  const sense = data.sense_hashes || data.sense_count || 0;
+  const anti = data.antisense_hashes || data.antisense_count || 0;
+  setStat('stat-total', TRION.formatNumber(total), 'All chains');
+  setStat('stat-rate', Number(rate).toFixed(2), 'Live throughput');
+  setStat('stat-chains', TRION.formatNumber(chains), 'With BHs in last hour');
+  setStat('stat-vm', TRION.formatNumber(vms), 'EVM / SVM / UTXO / Move…');
+  setStat('stat-sense', TRION.formatNumber(sense), 'Primary strand');
+  setStat('stat-anti', TRION.formatNumber(anti), 'Complementary strand');
+}
+
+async function loadVMFeed() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/bh/vm_feed');
+  const list = (data && (data.feed || data.entries || data.data || [])) || [];
+  // Aggregate by VM family
+  const counts = {};
+  list.forEach(b => {
+    const vm = b.vm_family || b.vm || 'UNKNOWN';
+    counts[vm] = (counts[vm] || 0) + 1;
+  });
+  const labels = Object.keys(counts);
+  const values = labels.map(k => counts[k]);
+  const ctx = document.getElementById('vmChart').getContext('2d');
+  if (vmChart) vmChart.destroy();
+  vmChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: ['#00d4aa', '#4d9fff', '#a855f7', '#f5a623', '#ff4d4d', '#6b7280', '#00a8ff', '#ec4899'],
+        borderColor: '#13151b',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#a0a4ad', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+async function loadChainTable() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/explorer/chains');
+  const tbody = document.querySelector('#chain-table tbody');
+  const select = document.getElementById('filter-chain');
+  if (!data) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">Data unavailable</td></tr>'; return; }
+  const chains = data.chains || data.data || [];
+  if (!chains.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No chains</td></tr>'; return; }
+  const totalBH = chains.reduce((s, c) => s + (c.bh_count || c.bhs || 0), 0) || 1;
+  // Sort descending
+  const sorted = [...chains].sort((a, b) => (b.bh_count || b.bhs || 0) - (a.bh_count || a.bhs || 0));
+  tbody.innerHTML = sorted.slice(0, 20).map(c => {
+    const name = c.name || c.chain || c.id || '—';
+    const vm = c.vm_family || c.vm || '—';
+    const bh = c.bh_count || c.bhs || 0;
+    const share = (bh / totalBH * 100).toFixed(2) + '%';
+    return `<tr><td>${name}</td><td>${vm}</td><td>${TRION.formatNumber(bh)}</td><td>${share}</td></tr>`;
+  }).join('');
+  // Populate filter
+  const existing = new Set(Array.from(select.options).map(o => o.value));
+  chains.forEach(c => {
+    const name = c.name || c.chain || c.id;
+    if (name && !existing.has(name)) {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      select.appendChild(opt);
+      existing.add(name);
+    }
+  });
+}
+
+async function loadBHStream() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/bh/recent_feed');
+  const tbody = document.querySelector('#bh-table tbody');
+  if (!data) { tbody.innerHTML = '<tr><td colspan="9" class="text-muted text-center">Data unavailable</td></tr>'; return; }
+  allBHs = data.feed || data.entries || data.recent || data.bhs || [];
+  renderBHs();
+}
+
+function renderBHs() {
+  const tbody = document.querySelector('#bh-table tbody');
+  const q = document.getElementById('filter-search').value.toLowerCase().trim();
+  const fc = document.getElementById('filter-chain').value;
+  const fv = document.getElementById('filter-vm').value;
+  const fe = document.getElementById('filter-event').value;
+  const filtered = allBHs.filter(b => {
+    const ent = String(b.entity_id || b.entity || '').toLowerCase();
+    const tx = String(b.tx_hash || b.hash || '').toLowerCase();
+    if (q && !ent.includes(q) && !tx.includes(q)) return false;
+    if (fc && (b.chain || b.chain_id) !== fc) return false;
+    if (fv && (b.vm_family || b.vm) !== fv) return false;
+    if (fe && (b.event_type || b.event) !== fe) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-muted text-center">No matching BHs</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.slice(0, 50).map((b, i) => {
+    const ts = b.timestamp || b.ts || b.time;
+    const tx = b.tx_hash || b.hash || '—';
+    const ent = b.entity_id || b.entity || '—';
+    const evt = b.event_type || b.event || '—';
+    const chain = b.chain || b.chain_id || '—';
+    const vm = b.vm_family || b.vm || '—';
+    const mag = b.magnitude !== undefined ? Number(b.magnitude).toFixed(2) : '—';
+    const sense = b.sense_hash || b.sense || '—';
+    return `<tr style="cursor:pointer;" onclick="showDetail(${i})">
+      <td class="text-muted">${TRION.formatTime(ts)}</td>
+      <td>${TRION.formatHash(tx)}</td>
+      <td>${ent}</td>
+      <td>${evt}</td>
+      <td>${chain}</td>
+      <td>${vm}</td>
+      <td>${mag}</td>
+      <td>${TRION.formatHash(sense, 8)}</td>
+      <td><button class="btn btn-sm">Inspect</button></td>
+    </tr>`;
+  }).join('');
+  // Cache filtered for detail view
+  window._filteredBHs = filtered;
+}
+
+window.showDetail = function(idx) {
+  const b = (window._filteredBHs || [])[idx];
+  if (!b) return;
+  document.getElementById('detail-empty').style.display = 'none';
+  document.getElementById('detail-panel').style.display = 'grid';
+  const hash = b.tx_hash || b.hash || b.full_hash || '—';
+  document.getElementById('detail-hash').textContent = hash;
+  // Fields
+  const fields = [
+    ['Version', b.version],
+    ['Chain ID', b.chain || b.chain_id],
+    ['Block Number', b.block_number || b.block],
+    ['Entity ID', b.entity_id || b.entity],
+    ['Event Type', b.event_type || b.event],
+    ['Magnitude', b.magnitude],
+    ['Timestamp', b.timestamp || b.ts],
+    ['Payload Size', b.payload_size || 93],
+  ];
+  document.getElementById('detail-fields').innerHTML = fields.map(([k, v]) =>
+    `<div class="flex-between"><span class="text-muted">${k}</span><span class="text-mono">${v !== undefined && v !== null ? v : '—'}</span></div>`
+  ).join('');
+  // Strands
+  const strands = [
+    ['Sense Hash', b.sense_hash || b.sense],
+    ['Antisense Hash', b.antisense_hash || b.antisense],
+    ['Sense Magnitude', b.sense_magnitude !== undefined ? Number(b.sense_magnitude).toFixed(4) : null],
+    ['Antisense Magnitude', b.antisense_magnitude !== undefined ? Number(b.antisense_magnitude).toFixed(4) : null],
+  ];
+  document.getElementById('detail-strands').innerHTML = strands.map(([k, v]) =>
+    `<div class="flex-between"><span class="text-muted">${k}</span><span class="text-mono">${v || '—'}</span></div>`
+  ).join('');
+  // XOR invariant
+  const xor = b.xor_hash || b.xor_invariant;
+  document.getElementById('detail-xor').textContent = xor || (b.sense_hash && b.antisense_hash ? 'Verified ✓ (sense XOR antisense = root)' : 'Awaiting strand data');
+};
+
+['filter-search', 'filter-chain', 'filter-vm', 'filter-event'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderBHs);
+  document.getElementById(id).addEventListener('change', renderBHs);
+});
+
+async function loadAll() {
+  await Promise.all([loadStats(), loadVMFeed(), loadChainTable(), loadBHStream()]);
+}
+loadAll();
+setInterval(loadStats, 10000);
+setInterval(loadVMFeed, 15000);
+setInterval(loadChainTable, 30000);
+setInterval(loadBHStream, 2000);
+</script>
+{% endblock %}

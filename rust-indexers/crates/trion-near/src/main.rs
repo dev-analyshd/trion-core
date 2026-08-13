@@ -130,16 +130,18 @@ fn classify_near_event(actions: &[Value]) -> u8 {
         match kind.as_str() {
             "Transfer"       => return 0,   // TRANSFER
             "DeployContract" => return 11,  // DEPLOY
-            "Stake"          => return 8,   // STAKE
+            // Canonical event types per whitepaper L0.1 §2:
+            //   3=STAKE, 4=UNSTAKE, 7=BORROW, 8=REPAY, 9=LIQUIDATE
+            "Stake"          => return 3,   // STAKE
             "FunctionCall"   => {
                 let m = action["FunctionCall"]["method_name"]
                     .as_str().unwrap_or("").to_lowercase();
                 if m.contains("swap") || m.contains("exchange")           { return 1;  } // SWAP
                 if m.contains("add_liquidity") || m.contains("add_pool")  { return 2;  } // LIQUIDITY
-                if m.contains("stake") && !m.contains("unstake")          { return 8;  } // STAKE
-                if m.contains("unstake") || m.contains("withdraw")        { return 9;  } // UNSTAKE
-                if m.contains("borrow")                                    { return 3;  } // BORROW
-                if m.contains("repay") || m.contains("return_loan")       { return 4;  } // REPAY
+                if m.contains("stake") && !m.contains("unstake")          { return 3;  } // STAKE
+                if m.contains("unstake") || m.contains("withdraw")        { return 4;  } // UNSTAKE
+                if m.contains("borrow")                                    { return 7;  } // BORROW
+                if m.contains("repay") || m.contains("return_loan")       { return 8;  } // REPAY
                 if m.contains("vote") || m.contains("proposal") || m.contains("governance") { return 6; } // GOVERNANCE
                 if m.contains("oracle") || m.contains("price_update")     { return 16; } // ORACLE_UPDATE
                 if m.contains("flash")                                     { return 15; } // FLASH_LOAN

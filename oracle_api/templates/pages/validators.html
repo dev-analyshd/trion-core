@@ -1,0 +1,329 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Validator Mesh — TRION{% endblock %}
+{% block page_title %}Validator Mesh{% endblock %}
+{% block page_subtitle %}Diversity-Weighted BFT — geographic, jurisdictional, and behavioral diversity enforced{% endblock %}
+
+{% block content %}
+<!-- Stat row -->
+<div class="grid grid-6 mb-16">
+  <div class="stat" id="stat-count">
+    <div class="stat-label">Active Validators</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Diversity-Weighted BFT</div>
+  </div>
+  <div class="stat" id="stat-stake">
+    <div class="stat-label">Total Stake</div>
+    <div class="stat-value skeleton" style="height:32px;width:90px;"> </div>
+    <div class="stat-delta flat">Staked TRION</div>
+  </div>
+  <div class="stat" id="stat-hhi">
+    <div class="stat-label">HHI Concentration</div>
+    <div class="stat-value skeleton" style="height:32px;width:70px;"> </div>
+    <div class="stat-delta flat">Herfindahl-Hirschman Index</div>
+  </div>
+  <div class="stat" id="stat-geo">
+    <div class="stat-label">Geographic Spread</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Continents covered</div>
+  </div>
+  <div class="stat" id="stat-uptime">
+    <div class="stat-label">Network Uptime</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Rolling 30-day</div>
+  </div>
+  <div class="stat" id="stat-accuracy">
+    <div class="stat-label">Mean Accuracy</div>
+    <div class="stat-value skeleton" style="height:32px;width:70px;"> </div>
+    <div class="stat-delta flat">Attestation correctness</div>
+  </div>
+</div>
+
+<div class="grid grid-3 mb-16">
+  <!-- HHI gauge -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">HHI Concentration Gauge</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="chart-container"><canvas id="hhiChart"></canvas></div>
+    <div class="text-center mt-8">
+      <span id="hhi-tier" class="badge badge-muted">—</span>
+    </div>
+    <div class="text-muted text-center mt-8" style="font-size:11px;">
+      Healthy below 0.15 · Warning below 0.25 · Danger below 0.40 · Critical at or above 0.40
+    </div>
+  </div>
+
+  <!-- Geographic enforcement -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Geographic Enforcement</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="flex-col gap-8" id="geo-panel">
+      <div class="flex-between"><span class="text-muted">Continents</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Regions</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Jurisdictions</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Max share per jurisdiction</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Enforcement status</span><span class="badge badge-muted">Checking…</span></div>
+    </div>
+    <div class="card-subtitle mt-24 mb-16">Diversity-Weighted BFT</div>
+    <div class="text-muted" style="font-size:11px;line-height:1.5;">
+      Consensus weight scales with stake multiplied by geographic, jurisdictional, and behavioral diversity factors — preventing plutocratic capture.
+    </div>
+  </div>
+
+  <!-- Reward calculator -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Reward Calculator</div>
+    </div>
+    <div class="flex-col gap-8 mb-16">
+      <div class="flex-between"><span class="text-muted">Base reward</span><span class="text-mono" id="rwd-base">—</span></div>
+      <div class="flex-between"><span class="text-muted">Multiplier: Accuracy</span><span class="text-mono" id="rwd-acc">—</span></div>
+      <div class="flex-between"><span class="text-muted">Multiplier: Diversity</span><span class="text-mono" id="rwd-div">—</span></div>
+      <div class="flex-between"><span class="text-muted">Multiplier: Uptime</span><span class="text-mono" id="rwd-up">—</span></div>
+    </div>
+    <div class="progress mb-16"><div class="progress-bar" id="rwd-bar" style="width:0%"></div></div>
+    <div class="flex-between">
+      <span style="font-weight:600;">Effective reward</span>
+      <span class="text-mono" id="rwd-total" style="font-size:18px;font-weight:700;">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Validator table -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">Validator Registry</div>
+    <div class="flex gap-8">
+      <input type="text" class="search-input" id="val-search" placeholder="Filter by ID…" style="width:240px;">
+      <span class="live-indicator">Live</span>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:480px;overflow-y:auto;">
+    <table id="validators-table">
+      <thead>
+        <tr>
+          <th>Validator ID</th><th>Stake</th><th>Diversity Weight</th><th>Geography</th><th>Uptime</th><th>Accuracy</th><th>HHI Contribution</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="8" class="text-muted text-center">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <!-- Slashing conditions -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Slashing Conditions</div>
+      <span class="badge badge-info">5 conditions</span>
+    </div>
+    <div class="table-wrap">
+      <table id="slashing-table">
+        <thead><tr><th>Condition</th><th>Slash %</th><th>Dispute Window</th></tr></thead>
+        <tbody><tr><td colspan="3" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Live attestations -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Live Attestations</div>
+      <span class="live-indicator">Streaming</span>
+    </div>
+    <div class="table-wrap" style="max-height:320px;overflow-y:auto;">
+      <table id="attest-table">
+        <thead><tr><th>Time</th><th>Validator</th><th>Entity</th><th>Verdict</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ORACLE = TRION.ORACLE_API;
+let hhiChart = null;
+let allValidators = [];
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.textContent = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+function hhiTier(hhi) {
+  if (hhi < 0.15) return { tier: 'HEALTHY', cls: 'badge-success' };
+  if (hhi < 0.25) return { tier: 'WARNING', cls: 'badge-warning' };
+  if (hhi < 0.40) return { tier: 'DANGER', cls: 'badge-danger' };
+  return { tier: 'CRITICAL', cls: 'badge-danger' };
+}
+
+async function loadValidators() {
+  const data = await TRION.fetch(ORACLE + '/app/api/validators-live');
+  if (!data) return;
+
+  const validators = data.validators || {};
+  const hhi = data.hhi || {};
+  const diversity = data.diversity || {};
+  const geo = data.geographic || {};
+
+  const vList = validators.validators || validators.list || validators.data || [];
+  allValidators = Array.isArray(vList) ? vList : [];
+  setStat('stat-count', TRION.formatNumber(allValidators.length), 'Diversity-Weighted BFT');
+
+  const totalStake = allValidators.reduce((s, v) => s + (v.stake || 0), 0);
+  setStat('stat-stake', TRION.formatNumber(totalStake), 'Staked TRION');
+
+  const hhiVal = hhi.hhi || hhi.value || hhi.score || 0;
+  setStat('stat-hhi', Number(hhiVal).toFixed(4), 'Herfindahl-Hirschman Index');
+
+  const continents = geo.continents || geo.continent_count || diversity.continents || 0;
+  setStat('stat-geo', TRION.formatNumber(continents), 'Continents covered');
+
+  const meanUptime = allValidators.length ? allValidators.reduce((s, v) => s + (v.uptime || 0), 0) / allValidators.length : 0;
+  setStat('stat-uptime', TRION.formatPercent(meanUptime, 2), 'Rolling 30-day');
+
+  const meanAcc = allValidators.length ? allValidators.reduce((s, v) => s + (v.accuracy || 0), 0) / allValidators.length : 0;
+  setStat('stat-accuracy', TRION.formatPercent(meanAcc, 2), 'Attestation correctness');
+
+  // HHI chart
+  const tier = hhiTier(hhiVal);
+  document.getElementById('hhi-tier').className = 'badge ' + tier.cls;
+  document.getElementById('hhi-tier').textContent = tier.tier;
+  const ctx = document.getElementById('hhiChart').getContext('2d');
+  if (hhiChart) hhiChart.destroy();
+  hhiChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [hhiVal, 1 - hhiVal], backgroundColor: [tier.cls === 'badge-success' ? '#00d4aa' : (tier.cls === 'badge-warning' ? '#f5a623' : '#ff4d4d'), '#1f2229'], borderWidth: 0, circumference: 270, rotation: 225 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+    plugins: [{ id: 'center', afterDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom } } = chart;
+      ctx.save(); ctx.fillStyle = '#e8eaed'; ctx.font = '700 22px JetBrains Mono, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(Number(hhiVal).toFixed(3), (left + right) / 2, (top + bottom) / 2);
+      ctx.restore();
+    }}]
+  });
+
+  // Geographic panel
+  const regions = geo.regions || geo.region_count || diversity.regions || 0;
+  const jurisdictions = geo.jurisdictions || geo.jurisdiction_count || diversity.jurisdictions || 0;
+  const maxShare = geo.max_share_per_jurisdiction || geo.max_jurisdiction_share || 0;
+  document.getElementById('geo-panel').innerHTML = `
+    <div class="flex-between"><span class="text-muted">Continents</span><span class="text-mono">${TRION.formatNumber(continents)}</span></div>
+    <div class="flex-between"><span class="text-muted">Regions</span><span class="text-mono">${TRION.formatNumber(regions)}</span></div>
+    <div class="flex-between"><span class="text-muted">Jurisdictions</span><span class="text-mono">${TRION.formatNumber(jurisdictions)}</span></div>
+    <div class="flex-between"><span class="text-muted">Max share per jurisdiction</span><span class="text-mono">${TRION.formatPercent(maxShare, 2)}</span></div>
+    <div class="flex-between"><span class="text-muted">Enforcement status</span>${maxShare < 0.25 ? '<span class="badge badge-success">Enforced</span>' : '<span class="badge badge-warning">Borderline</span>'}</div>
+  `;
+
+  // Reward calculator (use first validator or mean)
+  const sample = allValidators[0] || {};
+  const base = sample.base_reward || 1000;
+  const acc = sample.accuracy || meanAcc;
+  const div = sample.diversity_weight || diversity.mean_diversity || 0.5;
+  const up = sample.uptime || meanUptime;
+  const total = base * acc * div * up;
+  document.getElementById('rwd-base').textContent = TRION.formatNumber(base);
+  document.getElementById('rwd-acc').textContent = TRION.formatPercent(acc, 2);
+  document.getElementById('rwd-div').textContent = TRION.formatPercent(div, 2);
+  document.getElementById('rwd-up').textContent = TRION.formatPercent(up, 2);
+  document.getElementById('rwd-total').textContent = TRION.formatNumber(total, 2);
+  document.getElementById('rwd-bar').style.width = ((acc * div * up) * 100).toFixed(1) + '%';
+
+  renderValidators(allValidators);
+}
+
+function renderValidators(list) {
+  const tbody = document.querySelector('#validators-table tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-muted text-center">No validators registered</td></tr>'; return; }
+  tbody.innerHTML = list.slice(0, 100).map(v => {
+    const id = v.validator_id || v.id || '—';
+    const stake = v.stake || 0;
+    const div = v.diversity_weight || v.diversity || 0;
+    const geo = v.geography || v.jurisdiction || v.region || '—';
+    const up = v.uptime || 0;
+    const acc = v.accuracy || 0;
+    const hhi = v.hhi_contribution || v.concentration || 0;
+    const status = v.status || 'ACTIVE';
+    return `<tr>
+      <td>${TRION.formatHash(id, 8)}</td>
+      <td>${TRION.formatNumber(stake)}</td>
+      <td>${TRION.formatPercent(div, 2)}</td>
+      <td>${geo}</td>
+      <td>${TRION.formatPercent(up, 2)}</td>
+      <td>${TRION.formatPercent(acc, 2)}</td>
+      <td>${Number(hhi).toFixed(4)}</td>
+      <td>${TRION.statusBadge(status)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('val-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  const filtered = allValidators.filter(v => String(v.validator_id || v.id || '').toLowerCase().includes(q));
+  renderValidators(filtered);
+});
+
+async function loadSlashing() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/governance/slashing/conditions');
+  const tbody = document.querySelector('#slashing-table tbody');
+  if (!data) { tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">Data unavailable</td></tr>'; return; }
+  const list = data.conditions || data.data || [];
+  if (!list.length) {
+    // Fallback to canonical 5 conditions
+    tbody.innerHTML = [
+      ['Double signing', '100%', '7 days'],
+      ['Downtime > 1 hour', '0.5%', '3 days'],
+      ['False attestation', '5%', '14 days'],
+      ['Censorship violation', '10%', '21 days'],
+      ['Geographic concentration', '2%', '7 days'],
+    ].map(([n, p, w]) => `<tr><td>${n}</td><td>${p}</td><td>${w}</td></tr>`).join('');
+    return;
+  }
+  tbody.innerHTML = list.slice(0, 10).map(c => {
+    const name = c.name || c.condition || c.id || '—';
+    const slash = c.slash_percent || c.slash_pct || c.percentage || '—';
+    const window = c.dispute_window || c.window || '—';
+    return `<tr><td>${name}</td><td>${slash}</td><td>${window}</td></tr>`;
+  }).join('');
+}
+
+async function loadAttestations() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/feed');
+  const tbody = document.querySelector('#attest-table tbody');
+  if (!data) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">Data unavailable</td></tr>'; return; }
+  const list = (data.feed || data.signals || data.entries || []).filter(s => s.attestations || s.validator_verdict);
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No recent attestations</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.slice(0, 30).map(s => {
+    const ts = s.timestamp || s.ts;
+    const val = s.validator_id || s.validator || '—';
+    const ent = s.entity_id || s.entity || '—';
+    const verdict = s.validator_verdict || s.attestations || '—';
+    return `<tr>
+      <td class="text-muted">${TRION.formatTime(ts)}</td>
+      <td>${TRION.formatHash(val, 8)}</td>
+      <td>${ent}</td>
+      <td>${TRION.statusBadge(verdict)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadAll() {
+  await Promise.all([loadValidators(), loadSlashing(), loadAttestations()]);
+}
+loadAll();
+setInterval(loadValidators, 15000);
+setInterval(loadSlashing, 60000);
+setInterval(loadAttestations, 8000);
+</script>
+{% endblock %}

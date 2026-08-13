@@ -1,0 +1,285 @@
+{% extends "base_dashboard.html" %}
+{% block title %}ANIMA Intelligence — TRION{% endblock %}
+{% block page_title %}ANIMA Intelligence{% endblock %}
+{% block page_subtitle %}Four data streams, 54 languages, 28 sources — Intelligence Maintenance Protocol{% endblock %}
+
+{% block content %}
+<!-- Stat row -->
+<div class="grid grid-6 mb-16">
+  <div class="stat" id="stat-pcr">
+    <div class="stat-label">Pattern Coherence Ratio</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Cross-source coherence</div>
+  </div>
+  <div class="stat" id="stat-acc">
+    <div class="stat-label">Historical Accuracy</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Disable threshold 60%</div>
+  </div>
+  <div class="stat" id="stat-xsrc">
+    <div class="stat-label">Cross-Source Agreement</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Consensus ratio</div>
+  </div>
+  <div class="stat" id="stat-reflex">
+    <div class="stat-label">Reflexivity Dampening</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Feedback suppression</div>
+  </div>
+  <div class="stat" id="stat-mg">
+    <div class="stat-label">Manifestation Gap</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Reality drift</div>
+  </div>
+  <div class="stat" id="stat-im">
+    <div class="stat-label">Intelligence Status</div>
+    <div class="stat-value skeleton" style="height:32px;width:90px;"> </div>
+    <div class="stat-delta flat">Maintenance protocol</div>
+  </div>
+</div>
+
+<!-- Four data streams -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">Four Data Streams</div>
+    <span class="live-indicator">Live</span>
+  </div>
+  <div class="grid grid-4" id="streams-grid">
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Onchain Behavioral</div><span class="badge badge-success">Active</span></div>
+      <div class="text-muted" style="font-size:11px;">Direct from 100+ chains via Rust indexers</div>
+      <div class="mt-8 text-mono" id="stream-onchain">Loading…</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Structured Offchain</div><span class="badge badge-success">Active</span></div>
+      <div class="text-muted" style="font-size:11px;">CEX APIs, DeFiLlama, governance forums</div>
+      <div class="mt-8 text-mono" id="stream-offchain">Loading…</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">NLP — 54 Languages</div><span class="badge badge-success">Active</span></div>
+      <div class="text-muted" style="font-size:11px;">Multilingual sentiment, news, social</div>
+      <div class="mt-8 text-mono" id="stream-nlp">Loading…</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Biological / Ecological</div><span class="badge badge-success">Active</span></div>
+      <div class="text-muted" style="font-size:11px;">Genomic, ecological, climate analogues</div>
+      <div class="mt-8 text-mono" id="stream-bio">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-3 mb-16">
+  <!-- Pattern Coherence gauge -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Pattern Coherence Ratio</div></div>
+    <div class="chart-container"><canvas id="pcrChart"></canvas></div>
+  </div>
+  <!-- Historical Accuracy gauge -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Historical Accuracy</div></div>
+    <div class="chart-container"><canvas id="accChart"></canvas></div>
+    <div class="text-muted text-center mt-8" style="font-size:11px;">Disable threshold: 60%</div>
+  </div>
+  <!-- Cross-Source Agreement -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Cross-Source Agreement</div></div>
+    <div class="chart-container"><canvas id="xsrcChart"></canvas></div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- Source credibility table -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Source Credibility (28 Sources)</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+      <table id="sources-table">
+        <thead><tr><th>Source</th><th>Stream</th><th>CRED</th><th>Decay</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="5" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Crawl activity + maintenance -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Crawl Activity & Maintenance</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="flex-col gap-8 mb-16" id="maintenance-panel">
+      <div class="flex-between"><span class="text-muted">Intelligence Maintenance Protocol</span><span class="badge badge-muted">Checking…</span></div>
+      <div class="flex-between"><span class="text-muted">Reflexivity Dampening</span><span class="badge badge-muted">Checking…</span></div>
+      <div class="flex-between"><span class="text-muted">Manifestation Gap</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Disable threshold</span><span class="text-mono">0.60</span></div>
+    </div>
+    <div class="card-subtitle mb-16">Recent Crawl Activity</div>
+    <div class="table-wrap" style="max-height:200px;overflow-y:auto;">
+      <table id="crawl-table">
+        <thead><tr><th>Time</th><th>Source</th><th>Items</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ORACLE = TRION.ORACLE_API;
+let pcrChart = null, accChart = null, xsrcChart = null;
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.innerHTML = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+function gauge(canvasId, value, threshold, label) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  const v = Math.max(0, Math.min(1, value || 0));
+  let color = '#00d4aa';
+  if (threshold !== undefined && v < threshold) color = '#ff4d4d';
+  else if (v < 0.5) color = '#f5a623';
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [v, 1 - v],
+        backgroundColor: [color, '#1f2229'],
+        borderWidth: 0,
+        circumference: 270,
+        rotation: 225,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '75%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    },
+    plugins: [{
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom } } = chart;
+        const cx = (left + right) / 2;
+        const cy = (top + bottom) / 2;
+        ctx.save();
+        ctx.fillStyle = '#e8eaed';
+        ctx.font = '700 24px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((v * 100).toFixed(1) + '%', cx, cy);
+        ctx.restore();
+      }
+    }]
+  });
+  return chart;
+}
+
+function decayBadge(decay) {
+  if (decay === undefined || decay === null) return '<span class="badge badge-muted">—</span>';
+  if (decay < 0.1) return '<span class="badge badge-success">Fresh</span>';
+  if (decay < 0.3) return '<span class="badge badge-warning">Aging</span>';
+  return '<span class="badge badge-danger">Stale</span>';
+}
+
+async function loadANIMA() {
+  const data = await TRION.fetch(ORACLE + '/app/api/anima-live');
+  if (!data) return;
+  const im = data.intelligence_maintenance || {};
+  const sources = data.sources || {};
+  const mg = data.manifestation_gap || {};
+  const crawl = data.crawl || {};
+
+  // Stats
+  const pcr = im.pattern_coherence || im.pcr || sources.pattern_coherence || 0;
+  const acc = im.historical_accuracy || im.accuracy || sources.historical_accuracy || 0;
+  const xsrc = im.cross_source_agreement || sources.cross_source_agreement || 0;
+  const reflex = im.reflexivity_dampening || im.reflexivity || 0;
+  const mgVal = mg.manifestation_gap || im.manifestation_gap || 0;
+  const status = im.status || im.health || 'UNKNOWN';
+  setStat('stat-pcr', TRION.formatPercent(pcr, 2), 'Cross-source coherence');
+  setStat('stat-acc', TRION.formatPercent(acc, 2), (acc < 0.6 ? 'BELOW disable threshold' : 'Above disable threshold'));
+  setStat('stat-xsrc', TRION.formatPercent(xsrc, 2), 'Consensus ratio');
+  setStat('stat-reflex', TRION.formatPercent(reflex, 2), 'Feedback suppression');
+  setStat('stat-mg', Number(mgVal).toFixed(4), 'Reality drift');
+  setStat('stat-im', TRION.statusBadge(status), 'Maintenance protocol');
+
+  // Streams
+  const sList = sources.sources || sources.list || [];
+  const byStream = { onchain: 0, offchain: 0, nlp: 0, bio: 0 };
+  (sList).forEach(s => {
+    const t = String(s.stream || s.type || '').toLowerCase();
+    if (t.includes('onchain') || t.includes('chain')) byStream.onchain++;
+    else if (t.includes('offchain') || t.includes('structured')) byStream.offchain++;
+    else if (t.includes('nlp') || t.includes('language')) byStream.nlp++;
+    else if (t.includes('bio') || t.includes('eco')) byStream.bio++;
+  });
+  document.getElementById('stream-onchain').textContent = TRION.formatNumber(byStream.onchain) + ' sources';
+  document.getElementById('stream-offchain').textContent = TRION.formatNumber(byStream.offchain) + ' sources';
+  document.getElementById('stream-nlp').textContent = TRION.formatNumber(byStream.nlp) + ' sources · 54 languages';
+  document.getElementById('stream-bio').textContent = TRION.formatNumber(byStream.bio) + ' sources';
+
+  // Source credibility table
+  const tbody = document.querySelector('#sources-table tbody');
+  if (!sList.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No sources registered</td></tr>';
+  } else {
+    tbody.innerHTML = sList.slice(0, 50).map(s => {
+      const name = s.name || s.id || '—';
+      const stream = s.stream || s.type || '—';
+      const cred = s.cred || s.credibility || s.score;
+      const decay = s.decay || s.decay_rate;
+      return `<tr>
+        <td>${name}</td>
+        <td>${stream}</td>
+        <td>${cred !== undefined ? Number(cred).toFixed(3) : '—'}</td>
+        <td>${decayBadge(decay)}</td>
+        <td>${TRION.statusBadge(s.status || 'ACTIVE')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Gauges
+  if (pcrChart) pcrChart.destroy();
+  if (accChart) accChart.destroy();
+  if (xsrcChart) xsrcChart.destroy();
+  pcrChart = gauge('pcrChart', pcr);
+  accChart = gauge('accChart', acc, 0.6);
+  xsrcChart = gauge('xsrcChart', xsrc);
+
+  // Maintenance panel
+  document.getElementById('maintenance-panel').innerHTML = `
+    <div class="flex-between"><span class="text-muted">Intelligence Maintenance Protocol</span>${TRION.statusBadge(status)}</div>
+    <div class="flex-between"><span class="text-muted">Reflexivity Dampening</span>${reflex > 0.7 ? '<span class="badge badge-success">Engaged</span>' : '<span class="badge badge-warning">Standby</span>'}</div>
+    <div class="flex-between"><span class="text-muted">Manifestation Gap</span><span class="text-mono">${Number(mgVal).toFixed(4)}</span></div>
+    <div class="flex-between"><span class="text-muted">Disable threshold</span><span class="text-mono">0.60</span></div>
+  `;
+
+  // Crawl activity
+  const cList = crawl.entries || crawl.log || crawl.events || [];
+  const cbody = document.querySelector('#crawl-table tbody');
+  if (!cList.length) {
+    cbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No recent activity</td></tr>';
+  } else {
+    cbody.innerHTML = cList.slice(0, 20).map(c => {
+      const ts = c.timestamp || c.ts || c.time;
+      const src = c.source || c.id || '—';
+      const items = c.items || c.items_crawled || 0;
+      const status = c.status || 'OK';
+      return `<tr>
+        <td class="text-muted">${TRION.formatTime(ts)}</td>
+        <td>${src}</td>
+        <td>${TRION.formatNumber(items)}</td>
+        <td>${TRION.statusBadge(status)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+loadANIMA();
+setInterval(loadANIMA, 15000);
+</script>
+{% endblock %}

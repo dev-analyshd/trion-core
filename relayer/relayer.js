@@ -174,6 +174,9 @@ const CHAINS = [
   { key: "neon-evm",       name: "Neon EVM (Solana)",     chainId: 245022934, rpcEnv: "NEON_RPC_URL",         rpcDefault: "https://neon-proxy-mainnet.solana.p2p.org",  addrEnv: "NEON_ORACLE_ADDR",         addrDefault: null },
   { key: "iota-evm",       name: "IOTA EVM",              chainId: 8822,      rpcEnv: "IOTA_RPC_URL",         rpcDefault: "https://json-rpc.evm.iotaledger.net",        addrEnv: "IOTA_ORACLE_ADDR",         addrDefault: null },
 
+  // ── BOT Chain (AI-agent EVM L1) ──────────────────────────────────────────
+  { key: "bot-chain",      name: "BOT Chain",             chainId: 677,       rpcEnv: "BOT_CHAIN_RPC_URL",    rpcDefault: "https://rpc.botchain.ai",                    addrEnv: "BOT_CHAIN_ORACLE_ADDR",    addrDefault: null },
+
   // ── Testnets (deployed oracle contracts — active for testing) ────────────
   { key: "arb-sepolia",  name: "Arbitrum Sepolia",    chainId: 421614, rpcEnv: "ARB_SEPOLIA_RPC_URL",  rpcDefault: "https://sepolia-rollup.arbitrum.io/rpc", addrEnv: "ARB_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3" },
   { key: "eth-sepolia",  name: "Ethereum Sepolia",    chainId: 11155111, rpcEnv: "ETH_SEPOLIA_RPC_URL", rpcDefault: "https://ethereum-sepolia.publicnode.com", addrEnv: "ETH_SEPOLIA_ORACLE_ADDR",  addrDefault: "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39" },
