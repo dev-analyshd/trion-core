@@ -131,3 +131,12 @@ genesis_backfill_checkpoint_*.json
 mental_transformer_weights.pt
 *.pt
 bin/*
+
+# Next.js build output
+frontend/.next/
+frontend/node_modules/
+bh_ledger.db
+akashic/*.db
+akashic/validator_registry.db
+akashic/invisibility_petitions.db
+akashic/elder_wisdom.db
