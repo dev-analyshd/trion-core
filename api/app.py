@@ -192,6 +192,16 @@ except Exception as _dash_err:
     _dashboard_available = False
     _log.warning("Dashboard routes unavailable: %s", _dash_err)
 
+# ── Register BTCP + CONTINUUM routes ─────────────────────────────────────────
+try:
+    from btcp_continuum_routes import btcp_bp
+    app.register_blueprint(btcp_bp)
+    _btcp_continuum_available = True
+    _log.info("BTCP + CONTINUUM routes registered")
+except Exception as _btcp_err:
+    _btcp_continuum_available = False
+    _log.warning("BTCP + CONTINUUM routes unavailable: %s", _btcp_err)
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)

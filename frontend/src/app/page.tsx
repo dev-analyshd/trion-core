@@ -42,6 +42,10 @@ import {
   InversionPage, PredictiveLimitPage, InformationPage, PhaseSignalPage,
 } from '../views/primitives';
 import {
+  BTCPPipelinePage, HashDNAExplorerPage, SevenPlanePage, MFFingerprintsPage,
+  BTCPModulesPage, EscrowStateMachinePage, PrivateBIBLPage, ContinuumEnginesPage,
+} from '../views/btcp_continuum';
+import {
   ValidatorsPage, ValidatorHHIPage, AnnotatorsPage, BootstrapPage, ReputationPage,
   ZeroGFullStackPage, ZeroGStoragePage, ZeroGDAPage, ZeroGComputePage, ZeroGChainPage,
   ZeroGProofPage, ZeroGVMFamiliesPage,
@@ -141,6 +145,16 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   predictive_limit: PredictiveLimitPage,
   information: InformationPage,
   phase_signal: PhaseSignalPage,
+
+  // BTCP + CONTINUUM
+  btcp_pipeline: BTCPPipelinePage,
+  hash_dna: HashDNAExplorerPage,
+  seven_plane: SevenPlanePage,
+  mf_fingerprints: MFFingerprintsPage,
+  btcp_modules: BTCPModulesPage,
+  escrow_state: EscrowStateMachinePage,
+  private_bibl: PrivateBIBLPage,
+  continuum_engines: ContinuumEnginesPage,
 
   // Validators & Consensus
   validators: ValidatorsPage,
@@ -268,6 +282,16 @@ const PAGE_TITLES: Record<string, string> = {
   predictive_limit: 'Predictive Limit',
   information: 'Information Conservation',
   phase_signal: 'Phase Signal',
+
+  // BTCP + CONTINUUM
+  btcp_pipeline: 'BTCP Pipeline Status',
+  hash_dna: 'Hash_DNA Explorer',
+  seven_plane: '7-Plane Coherence',
+  mf_fingerprints: '7 MF Fingerprints',
+  btcp_modules: 'BTCP Modules',
+  escrow_state: 'Escrow State Machine',
+  private_bibl: 'Private BIBL',
+  continuum_engines: 'CONTINUUM Engines',
   validators: 'Validator Registry',
   validator_hhi: 'HHI Distribution',
   annotators: 'K Annotators',
