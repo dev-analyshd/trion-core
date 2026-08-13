@@ -144,6 +144,12 @@ def settings_page():
     return render_template("pages/settings.html", active_page="settings")
 
 
+@dashboard_bp.route("/architecture")
+def architecture_page():
+    """System architecture — all 12+ programming languages live status."""
+    return render_template("pages/architecture.html", active_page="architecture")
+
+
 # ── Live data endpoints (aggregated for dashboard) ────────────────────────────
 
 @dashboard_bp.route("/api/overview")
@@ -310,5 +316,23 @@ def api_chains_live():
     chains = _proxy(f"{ORACLE_URL}/api/v1/explorer/chains") or {}
     return jsonify({
         "chains": chains,
+        "timestamp": int(time.time()),
+    })
+
+
+@dashboard_bp.route("/api/architecture-live")
+def api_architecture_live():
+    """Live status of all 12+ programming languages."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from src.native_bridge import native_stack_report, run_formal_verification, run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest, compute_fft_features
+    import math
+    demo_signal = [round(0.5 + 0.4 * math.sin(i * 0.6), 4) for i in range(32)]
+    return jsonify({
+        "languages": native_stack_report(),
+        "haskell_verification": run_formal_verification(),
+        "go_crawler_selftest": run_go_crawler_coordinator_selftest(),
+        "go_validator_selftest": run_go_validator_mesh_selftest(),
+        "cpp_fft_live_sample": compute_fft_features(demo_signal),
         "timestamp": int(time.time()),
     })

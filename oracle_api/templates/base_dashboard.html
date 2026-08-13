@@ -74,6 +74,9 @@
         </div>
         <div class="nav-group">
           <div class="nav-group-label">Infrastructure</div>
+          <a href="/app/architecture" class="nav-item {{ 'active' if active_page == 'architecture' else '' }}">
+            <span class="nav-icon">⬡</span> Architecture
+          </a>
           <a href="/app/agent-id" class="nav-item {{ 'active' if active_page == 'agent_id' else '' }}">
             <span class="nav-icon">⦿</span> AI Agent ID
           </a>
@@ -86,8 +89,8 @@
         </div>
       </nav>
       <div class="sidebar-footer">
-        <a href="/" class="nav-item legacy-link">
-          <span class="nav-icon">←</span> Legacy Dashboard
+        <a href="/api/v1/health" class="nav-item legacy-link" target="_blank">
+          <span class="nav-icon">↗</span> API Health Check
         </a>
       </div>
     </aside>

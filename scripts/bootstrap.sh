@@ -18,13 +18,13 @@ echo "=== TRION Bootstrap ==="
 
 declare -a NPM_DIRS=(
   "relayer"
-  "native-relayer"
   "chains/svm"
   "chains/near"
   "chains/ton"
   "chains/pvm"
   "chains/starknet"
   "chains/sui"
+  "chains/botchain"
   "trion-0g"
 )
 

@@ -244,9 +244,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println("[PASS] L1.1 Shannon entropy: uniform=2.0, degenerate=0.0")
 
     # 2. Magnitude normalization
-    m1 = magnitude_norm(1000.0, 10000.0)
-    m2 = magnitude_norm(0.0, 10000.0)
-    m3 = magnitude_norm(10000.0, 10000.0)
+    m1 = magnitude_norm(Float64(1000.0), Float64(10000.0))
+    m2 = magnitude_norm(Float64(0.0), Float64(10000.0))
+    m3 = magnitude_norm(Float64(10000.0), Float64(10000.0))
     @assert 0.0 <= m1 <= 1.0 "magnitude_norm must be ∈ [0,1]"
     @assert m2 ≈ 0.0 atol=1e-10
     @assert m3 ≈ 1.0 atol=1e-10
