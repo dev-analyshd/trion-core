@@ -67,7 +67,7 @@ WORKDIR /build
 
 # Copy the frontend package.json and install deps
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --legacy-peer-deps --silent
+RUN npm install --legacy-peer-deps
 
 # Copy frontend source
 COPY frontend/ ./
@@ -117,9 +117,10 @@ COPY --from=node-builder /build/chains/ton/node_modules       /app/chains/ton/no
 COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botchain/node_modules
 
 # ── Next.js standalone build ─────────────────────────────────────────────────
-# standalone output produces: .next/standalone/frontend/server.js (because the
-# build context is frontend/). We copy the inner frontend/ dir to /app/frontend/
-COPY --from=next-builder /build/.next/standalone/frontend/ /app/frontend/
+# In Docker, the build root is /build/ (WORKDIR). Since there's no monorepo
+# parent, standalone output is FLAT at /build/.next/standalone/server.js
+# (NOT nested under frontend/ like in local builds).
+COPY --from=next-builder /build/.next/standalone/ /app/frontend/
 COPY --from=next-builder /build/.next/static /app/frontend/.next/static
 COPY --from=next-builder /build/public /app/frontend/public
 # Also copy the Next.js config so rewrites() work at runtime

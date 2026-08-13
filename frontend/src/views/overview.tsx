@@ -28,7 +28,13 @@ export function DashboardPage() {
 
   // Compute total BHs from per_chain sum (the streamer also tracks this)
   const bhTotal = streamer?.total_bhs || Object.values(bhStats?.per_chain || {}).reduce((a: number, b: any) => a + Number(b), 0) || 0;
-  const vectorCount = useCounter(faiss?.indexed_vectors || streamer?.faiss_vectors_accumulated || 0);
+  // Use max of FAISS index count and live streamer count so counter always grows
+  const liveVectorCount = Math.max(
+    faiss?.indexed_vectors || 0,
+    faiss?.live_streamer_vectors || 0,
+    streamer?.faiss_vectors_accumulated || 0
+  );
+  const vectorCount = useCounter(liveVectorCount);
   const totalBH = useCounter(bhTotal);
   const isLive = health?.status === 'healthy';
   const streamerLive = streamer?.status === 'RUNNING';
