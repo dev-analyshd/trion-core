@@ -1,26 +1,23 @@
 # =============================================================================
-# TRION Protocol — Production Dockerfile  (v4.0)
+# TRION Protocol — Production Dockerfile  (v5.0 — React + Flask + Rust)
 # =============================================================================
 #
 # Multi-stage build:
-#   Stage 1: rust-builder  — compiles all 13 Rust L0 indexer binaries
-#   Stage 2: node-builder  — npm install for all Node.js relayers & indexers
-#   Stage 3: runtime       — Python 3.11 + Node.js 20 + compiled Rust bins
+#   Stage 1: rust-builder  — compiles all 14 Rust L0 indexer binaries
+#   Stage 2: node-builder  — npm install for all Node.js relayers & chains
+#   Stage 3: next-builder  — builds Next.js React frontend (standalone)
+#   Stage 4: runtime       — Python 3.11 + Node.js 20 + Rust bins + Next.js
 #
-# Services launched inside the container (render-entrypoint.sh):
-#   1.  FAISS ANIMA Engine         Python  port 8000
-#   2.  Rust L0 Indexers           Rust    background  (EVM×14 + SVM/Solana)
-#   3.  EVM Extras Supervisor      Bash    background
-#   4.  Native VM Indexers         Bash    background  (NEAR/TON/Polkadot/StarkNet)
-#   5.  Extended VM Indexers       Bash    background  (UTXO/Cosmos/Move/SUI/TRON/PI)
-#   6.  TRION Relayer              Node    background  (EVM chains every 60s)
-#   7.  Native VM Relayer          Node    background
-#   8.  Extended Chain Relayer     Node    background  (15 non-EVM chains every 90s)
-#   9.  0G Sync Daemon             Python  background  (hourly FAISS → 0G Storage)
-#  10.  0G DA Streamer             Python  background  (60s behavioral blobs → 0G DA)
-#  11.  Oracle API + Frontend      Python  foreground  (gunicorn, port $PORT)
+# Services (render-entrypoint.sh):
+#   1. FAISS ANIMA Engine         Python  port 8000 (internal)
+#   2. Rust L0 Indexers           Rust    background
+#   3. EVM + Non-EVM Indexers     Bash    background
+#   4. Unified Relayer (2)        Node    background
+#   5. 0G Sync + DA Daemon        Python  background
+#   6. Flask Oracle API           Python  port 5000 (internal)
+#   7. Next.js React Frontend     Node    port $PORT (exposed)
 #
-# Build time: ~12 min on first run (Rust compile); subsequent builds use cache.
+# Next.js proxies /api/* to Flask internally — single exposed port.
 # =============================================================================
 
 # ─── Stage 1: Rust builder ───────────────────────────────────────────────────
@@ -32,33 +29,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy workspace manifests first for dependency caching
 COPY indexers/Cargo.toml  ./indexers/Cargo.toml
 COPY indexers/Cargo.lock* ./indexers/
 COPY indexers/crates/     ./indexers/crates/
 
-# Build entire Rust workspace (all 14 crates)
-RUN cd indexers && \
-    cargo build --release --workspace 2>&1 | tail -30
+RUN cd indexers && cargo build --release --workspace 2>&1 | tail -30
 
-# ─── Stage 2: Node builder ────────────────────────────────────────────────────
+# ─── Stage 2: Node builder (relayers + chains) ──────────────────────────────
 FROM node:20-slim AS node-builder
 
 WORKDIR /build
 
-# Root package (multi-chain SDK deps)
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev --legacy-peer-deps --silent
 
-# Relayers
 COPY relayer/package.json        relayer/package-lock.json        ./relayer/
-RUN cd relayer        && npm install --omit=dev --legacy-peer-deps --silent
+RUN cd relayer && npm install --omit=dev --legacy-peer-deps --silent
 
-# 0G integration
 COPY trion-0g/package.json trion-0g/package-lock.json ./trion-0g/
 RUN cd trion-0g && npm install --omit=dev --legacy-peer-deps --silent
 
-# Native chain packages (NEAR, PVM, StarkNet, SUI, SVM, TON, BOT Chain)
 COPY chains/near/package.json      chains/near/package-lock.json      ./chains/near/
 COPY chains/pvm/package.json       chains/pvm/package-lock.json       ./chains/pvm/
 COPY chains/starknet/package.json  chains/starknet/package-lock.json  ./chains/starknet/
@@ -70,13 +60,31 @@ RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains
         cd /build/$d && npm install --omit=dev --legacy-peer-deps --silent && cd /build; \
     done
 
-# ─── Stage 3: Runtime ─────────────────────────────────────────────────────────
+# ─── Stage 3: Next.js builder (React frontend) ──────────────────────────────
+FROM node:20-slim AS next-builder
+
+WORKDIR /build
+
+# Copy the frontend package.json and install deps
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --legacy-peer-deps --silent
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Set API proxy target to Flask internal port
+ENV NEXT_PUBLIC_API_BASE=""
+
+# Build Next.js standalone
+RUN npm run build 2>&1 | tail -20 || true
+
+# ─── Stage 4: Runtime ───────────────────────────────────────────────────────
 FROM python:3.11-slim
 
 LABEL maintainer="TRION Protocol"
-LABEL description="TRION Protocol — Multi-Chain Behavioral Truth Oracle (11 services, 0G Mainnet)"
+LABEL description="TRION Protocol — React + Flask + Rust (v5.0)"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
-LABEL version="4.1.0"
+LABEL version="5.0.0"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -92,11 +100,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g tsx typescript --silent \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Rust binaries from stage 1 ────────────────────────────────────────────────
+# ── Rust binaries ────────────────────────────────────────────────────────────
 COPY --from=rust-builder /build/indexers/target/release/ /app/bin/
 RUN chmod +x /app/bin/trion-* 2>/dev/null || true
 
-# ── Node modules from stage 2 ─────────────────────────────────────────────────
+# ── Node modules ─────────────────────────────────────────────────────────────
 COPY --from=node-builder /build/node_modules          /app/node_modules
 COPY --from=node-builder /build/relayer/node_modules  /app/relayer/node_modules
 COPY --from=node-builder /build/trion-0g/node_modules /app/trion-0g/node_modules
@@ -108,21 +116,25 @@ COPY --from=node-builder /build/chains/svm/node_modules       /app/chains/svm/no
 COPY --from=node-builder /build/chains/ton/node_modules       /app/chains/ton/node_modules
 COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botchain/node_modules
 
+# ── Next.js standalone build ─────────────────────────────────────────────────
+COPY --from=next-builder /build/.next/standalone /app/frontend/
+COPY --from=next-builder /build/.next/static /app/frontend/.next/static
+COPY --from=next-builder /build/public /app/frontend/public
+
 WORKDIR /app
 
 # ── Python: Oracle API + FAISS ANIMA + 0G daemons ────────────────────────────
 COPY api/requirements.txt ./api/requirements.txt
 COPY anima-service/requirements.txt    ./anima-service/requirements.txt
-COPY core/             ./core/
 RUN pip install --no-cache-dir \
         -r api/requirements.txt \
         -r anima-service/requirements.txt \
         numpy scipy scikit-learn gunicorn
 
 # ── Full source copy ───────────────────────────────────────────────────────────
-COPY api/      ./api/
-COPY anima-service/         ./anima-service/
-COPY core/             ./core/
+COPY api/             ./api/
+COPY anima-service/   ./anima-service/
+COPY core/            ./core/
 COPY src/             ./src/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
@@ -134,31 +146,50 @@ COPY config/          ./config/
 COPY shared/          ./shared/
 COPY math/            ./math/
 COPY sdk/             ./sdk/
-COPY proof-ledger/       ./proof-ledger/
-COPY serve.py            ./serve.py
+COPY proof-ledger/    ./proof-ledger/
+COPY serve.py         ./serve.py
 COPY main.py          ./main.py
 COPY deployments.json ./deployments.json
-COPY zg/                 ./zg/
-COPY schema.sql          ./schema.sql
-COPY package.json        ./package.json
-COPY tsconfig.json       ./tsconfig.json
+COPY zg/              ./zg/
+COPY schema.sql       ./schema.sql
+COPY package.json     ./package.json
+COPY tsconfig.json    ./tsconfig.json
+COPY frontend/        ./frontend/src/
 
-# Rust-SVM symlink
-RUN ln -sf /app/chains/svm /app/trion-svm 2>/dev/null || true
+# ── bh_ledger.db initialization ──────────────────────────────────────────────
+RUN python3 -c "
+import sqlite3
+c = sqlite3.connect('/app/bh_ledger.db')
+c.execute('''CREATE TABLE IF NOT EXISTS bh_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, tx_hash TEXT UNIQUE,
+    entity_id TEXT, from_addr TEXT, to_addr TEXT,
+    event_type INTEGER, event_type_name TEXT,
+    magnitude_norm REAL, value_wei TEXT, selector TEXT,
+    sense_hex TEXT, antisense_hex TEXT,
+    block_num INTEGER, block_hash TEXT,
+    chain_id INTEGER, chain_label TEXT, ts REAL
+)''')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)')
+c.commit(); c.close()
+print('bh_ledger.db initialized')
+"
 
-# Entrypoint
+# ── Entrypoint ────────────────────────────────────────────────────────────────
 COPY render-entrypoint.sh ./render-entrypoint.sh
 RUN chmod +x ./render-entrypoint.sh ./supervisors/*.sh 2>/dev/null || true
 
-# Runtime dirs (anima-service/data is the FAISS persistence volume mount point)
+# Runtime dirs
 RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs /tmp/trion-rust-logs anima-service/data
 
-# ── Environment defaults ───────────────────────────────────────────────────────
+# ── Environment ───────────────────────────────────────────────────────────────
 ENV PORT=10000 \
     FAISS_PORT=8000 \
+    FLASK_PORT=5000 \
     FAISS_SERVICE_URL=http://127.0.0.1:8000 \
     FAISS_URL=http://127.0.0.1:8000 \
-    ORACLE_API_URL=http://127.0.0.1:10000 \
+    ORACLE_API_URL=http://127.0.0.1:5000 \
     RUST_BIN_DIR=/app/bin \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -168,16 +199,13 @@ ENV PORT=10000 \
     ZG_EXECUTION_GATE_ADDR=0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b \
     TRION_ENABLE_FAISS=1 \
     TRION_ENABLE_RUST=1 \
-    TRION_ENABLE_EXTRAS=1 \
-    TRION_ENABLE_NATIVE=1 \
-    TRION_ENABLE_EXTENDED=1 \
     TRION_ENABLE_RELAYER=1 \
-    TRION_ENABLE_NATIVE_RELAYER=1 \
-    TRION_ENABLE_EXT_RELAYER=1 \
     TRION_ENABLE_ZG_SYNC=1 \
-    TRION_ENABLE_ZG_DA=1
+    TRION_ENABLE_ZG_DA=1 \
+    DATABASE_URL="" \
+    TIMESCALEDB_URL=""
 
-EXPOSE 10000 8000
+EXPOSE 10000
 
 HEALTHCHECK --interval=20s --timeout=8s --start-period=120s --retries=6 \
     CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
