@@ -18,12 +18,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "[0G-SUPERVISOR] Starting 0G DA Streamer..."
-uv run python3 "$ROOT/zg_da_streamer.py" >"$LOG_DIR/da_streamer.log" 2>&1 &
+uv run python3 "$ROOT/zg/zg_da_streamer.py" >"$LOG_DIR/da_streamer.log" 2>&1 &
 DA_PID=$!
 echo "[0G-SUPERVISOR] DA Streamer PID: $DA_PID"
 
 echo "[0G-SUPERVISOR] Starting 0G Sync Daemon..."
-uv run python3 "$ROOT/zg_sync_daemon.py" >"$LOG_DIR/sync_daemon.log" 2>&1 &
+uv run python3 "$ROOT/zg/zg_sync_daemon.py" >"$LOG_DIR/sync_daemon.log" 2>&1 &
 SYNC_PID=$!
 echo "[0G-SUPERVISOR] Sync Daemon PID: $SYNC_PID"
 
@@ -35,13 +35,13 @@ while true; do
     sleep 30
     if ! kill -0 "$DA_PID" 2>/dev/null; then
         echo "[0G-SUPERVISOR] DA Streamer crashed — restarting..."
-        uv run python3 "$ROOT/zg_da_streamer.py" >"$LOG_DIR/da_streamer.log" 2>&1 &
+        uv run python3 "$ROOT/zg/zg_da_streamer.py" >"$LOG_DIR/da_streamer.log" 2>&1 &
         DA_PID=$!
         echo "[0G-SUPERVISOR] DA Streamer restarted. PID: $DA_PID"
     fi
     if ! kill -0 "$SYNC_PID" 2>/dev/null; then
         echo "[0G-SUPERVISOR] Sync Daemon crashed — restarting..."
-        uv run python3 "$ROOT/zg_sync_daemon.py" >"$LOG_DIR/sync_daemon.log" 2>&1 &
+        uv run python3 "$ROOT/zg/zg_sync_daemon.py" >"$LOG_DIR/sync_daemon.log" 2>&1 &
         SYNC_PID=$!
         echo "[0G-SUPERVISOR] Sync Daemon restarted. PID: $SYNC_PID"
     fi

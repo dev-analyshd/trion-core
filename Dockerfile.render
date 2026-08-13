@@ -58,14 +58,15 @@ RUN cd relayer        && npm install --omit=dev --legacy-peer-deps --silent
 COPY trion-0g/package.json trion-0g/package-lock.json ./trion-0g/
 RUN cd trion-0g && npm install --omit=dev --legacy-peer-deps --silent
 
-# Native chain packages (NEAR, PVM, StarkNet, SUI, SVM, TON)
+# Native chain packages (NEAR, PVM, StarkNet, SUI, SVM, TON, BOT Chain)
 COPY chains/near/package.json      chains/near/package-lock.json      ./chains/near/
 COPY chains/pvm/package.json       chains/pvm/package-lock.json       ./chains/pvm/
 COPY chains/starknet/package.json  chains/starknet/package-lock.json  ./chains/starknet/
 COPY chains/sui/package.json       chains/sui/package-lock.json       ./chains/sui/
 COPY chains/svm/package.json       chains/svm/package-lock.json       ./chains/svm/
 COPY chains/ton/package.json       chains/ton/package-lock.json       ./chains/ton/
-RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains/ton; do \
+COPY chains/botchain/package.json                                    ./chains/botchain/
+RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains/ton chains/botchain; do \
         cd /build/$d && npm install --omit=dev --legacy-peer-deps --silent && cd /build; \
     done
 
@@ -105,6 +106,7 @@ COPY --from=node-builder /build/chains/starknet/node_modules  /app/chains/starkn
 COPY --from=node-builder /build/chains/sui/node_modules       /app/chains/sui/node_modules
 COPY --from=node-builder /build/chains/svm/node_modules       /app/chains/svm/node_modules
 COPY --from=node-builder /build/chains/ton/node_modules       /app/chains/ton/node_modules
+COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botchain/node_modules
 
 WORKDIR /app
 
@@ -134,10 +136,7 @@ COPY proof-ledger/       ./proof-ledger/
 COPY serve.py            ./serve.py
 COPY main.py          ./main.py
 COPY deployments.json ./deployments.json
-COPY zg_api_routes.py ./zg_api_routes.py
-COPY zg_config.py     ./zg_config.py
-COPY zg_sync_daemon.py   ./zg_sync_daemon.py
-COPY zg_da_streamer.py   ./zg_da_streamer.py
+COPY zg/                 ./zg/
 COPY schema.sql          ./schema.sql
 COPY package.json        ./package.json
 COPY tsconfig.json       ./tsconfig.json
