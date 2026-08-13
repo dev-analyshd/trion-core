@@ -66,7 +66,7 @@ if [[ "${TRION_ENABLE_ZG_DA:-1}" == "1" ]]; then
         env FAISS_SERVICE_URL="$FAISS_URL" \
         ORACLE_API_URL="$ORACLE_API_URL" \
         ZG_CHAIN_ID="$ZG_CHAIN_ID" \
-            "$ROOT/.venv/bin/python3" "$ROOT/zg_da_streamer.py" &
+            "$ROOT/.venv/bin/python3" "$ROOT/zg/zg_da_streamer.py" &
     pids+=($!)
 fi
 
@@ -76,7 +76,7 @@ if [[ "${TRION_ENABLE_ZG_SYNC:-1}" == "1" ]]; then
         env FAISS_SERVICE_URL="$FAISS_URL" \
         ORACLE_API_URL="$ORACLE_API_URL" \
         ZG_EXECUTION_GATE_ADDR="$ZG_EXECUTION_GATE_ADDR" \
-            "$ROOT/.venv/bin/python3" "$ROOT/zg_sync_daemon.py" &
+            "$ROOT/.venv/bin/python3" "$ROOT/zg/zg_sync_daemon.py" &
     pids+=($!)
 fi
 
