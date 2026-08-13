@@ -75,8 +75,8 @@ COPY frontend/ ./
 # Set API proxy target to Flask internal port
 ENV NEXT_PUBLIC_API_BASE=""
 
-# Build Next.js standalone
-RUN npm run build 2>&1 | tail -20 || true
+# Build Next.js standalone (must succeed — no || true)
+RUN npm run build
 
 # ─── Stage 4: Runtime ───────────────────────────────────────────────────────
 FROM python:3.11-slim
@@ -117,9 +117,13 @@ COPY --from=node-builder /build/chains/ton/node_modules       /app/chains/ton/no
 COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botchain/node_modules
 
 # ── Next.js standalone build ─────────────────────────────────────────────────
-COPY --from=next-builder /build/.next/standalone /app/frontend/
+# standalone output produces: .next/standalone/frontend/server.js (because the
+# build context is frontend/). We copy the inner frontend/ dir to /app/frontend/
+COPY --from=next-builder /build/.next/standalone/frontend/ /app/frontend/
 COPY --from=next-builder /build/.next/static /app/frontend/.next/static
 COPY --from=next-builder /build/public /app/frontend/public
+# Also copy the Next.js config so rewrites() work at runtime
+COPY --from=next-builder /build/next.config.js /app/frontend/next.config.js
 
 WORKDIR /app
 
@@ -154,7 +158,9 @@ COPY zg/              ./zg/
 COPY schema.sql       ./schema.sql
 COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
-COPY frontend/        ./frontend/src/
+# NOTE: Do NOT copy frontend/ source over the standalone build.
+# The standalone server.js + .next/static are already copied above.
+# Copying frontend/src/ here would overwrite the standalone output.
 
 # ── bh_ledger.db initialization ──────────────────────────────────────────────
 RUN python3 -c "
@@ -190,6 +196,7 @@ ENV PORT=10000 \
     FAISS_SERVICE_URL=http://127.0.0.1:8000 \
     FAISS_URL=http://127.0.0.1:8000 \
     ORACLE_API_URL=http://127.0.0.1:5000 \
+    FLASK_URL=http://127.0.0.1:5000 \
     RUST_BIN_DIR=/app/bin \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
