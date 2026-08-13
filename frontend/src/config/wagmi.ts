@@ -3,7 +3,10 @@
  * Supports 11 chains including BOT Chain (677)
  */
 import { createConfig, http, cookieStorage, createStorage } from 'wagmi';
-import { mainnet, base, arbitrum, optimism, polygon, bsc, avalanche, zksync, linea, scroll } from 'wagmi/chains';
+import {
+  mainnet, base, arbitrum, optimism, polygon, bsc, avalanche,
+  zksync, linea, scroll,
+} from 'wagmi/chains';
 import { metaMask, injected, coinbaseWallet } from 'wagmi/connectors';
 import { defineChain } from 'viem';
 
@@ -23,20 +26,28 @@ export const botChain = defineChain({
 
 // Contract addresses — AUTO-DETECT pattern
 // null = not deployed yet; UI shows "Contracts deploying soon" gracefully
-export const CONTRACTS = {
-  btcpEscrow: { [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null },
-  btcpIntent: { [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null },
-  btcpRoute: { [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null },
-  pmoRegistry: { [mainnet.id]: null, [base.id]: null, [botChain.id]: null },
+export const CONTRACTS: Record<string, Record<number, string | null>> = {
+  btcpEscrow: {
+    [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null,
+  },
+  btcpIntent: {
+    [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null,
+  },
+  btcpRoute: {
+    [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null, [botChain.id]: null,
+  },
+  pmoRegistry: {
+    [mainnet.id]: null, [base.id]: null, [botChain.id]: null,
+  },
   beoIdentity: {
     [mainnet.id]: null, [base.id]: null,
-    [botChain.id]: '0xdbd3C2f67A9eD118F9c8e7aE4B4c4a446D00E',
+    [botChain.id]: null,
   },
   oracleV3: {
-    [botChain.id]: '0x714Ea58861F3e4221f83f9e0a3e682Ba4be682Ba4b',
+    [botChain.id]: null,
   },
   bhLedger: {
-    [botChain.id]: '0xf4420893A27a5B6F9e8D7c3E5b9A6Dc6D4',
+    [botChain.id]: null,
   },
 };
 
@@ -48,10 +59,16 @@ export function isBTCPDeployed(chainId: number): boolean {
   return !!(CONTRACTS.btcpEscrow[chainId] || CONTRACTS.btcpIntent[chainId] || CONTRACTS.btcpRoute[chainId]);
 }
 
-export const supportedChains = [mainnet, base, arbitrum, optimism, polygon, bsc, avalanche, zksync, linea, scroll, botChain] as const;
+export const supportedChains = [
+  mainnet, base, arbitrum, optimism, polygon, bsc, avalanche,
+  zksync, linea, scroll, botChain,
+] as const;
 
 export const wagmiConfig = createConfig({
-  chains: [mainnet, base, arbitrum, optimism, polygon, bsc, avalanche, zksync, linea, scroll, botChain],
+  chains: [
+    mainnet, base, arbitrum, optimism, polygon, bsc, avalanche,
+    zksync, linea, scroll, botChain,
+  ],
   connectors: [
     metaMask(),
     coinbaseWallet({ appName: 'TRION Protocol' }),
