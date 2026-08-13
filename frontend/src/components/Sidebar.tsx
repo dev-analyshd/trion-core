@@ -108,6 +108,19 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    label: 'BTCP + CONTINUUM',
+    items: [
+      { id: 'btcp_pipeline', label: 'Pipeline Status', icon: Icons.GitBranch },
+      { id: 'hash_dna', label: 'Hash_DNA Explorer', icon: Icons.Hash },
+      { id: 'seven_plane', label: '7-Plane Coherence', icon: Icons.Layers },
+      { id: 'mf_fingerprints', label: '7 MF Fingerprints', icon: Icons.AlertTriangle },
+      { id: 'btcp_modules', label: 'BTCP Modules (18)', icon: Icons.Boxes },
+      { id: 'escrow_state', label: 'Escrow State Machine', icon: Icons.Lock },
+      { id: 'private_bibl', label: 'Private BIBL', icon: Icons.EyeOff },
+      { id: 'continuum_engines', label: 'CONTINUUM Engines', icon: Icons.Cpu },
+    ],
+  },
+  {
     label: 'Novel Primitives',
     items: [
       { id: 'birp', label: 'BIRP Recovery', icon: Icons.Key },
