@@ -29,51 +29,66 @@ from typing import Dict, List, Tuple
 # behavioral comparison.
 
 class UniversalEventType(IntEnum):
-    TRANSFER              = 0   # Any value movement between entities
-    STAKE                 = 1   # Value locked for protocol participation
-    UNSTAKE               = 2   # Value unlocked from protocol
-    SWAP                  = 3   # Value exchange: asset A → asset B
-    LIQUIDITY_ADD         = 4   # Provision of liquidity to shared pool
-    LIQUIDITY_REMOVE      = 5   # Withdrawal of liquidity from pool
-    BORROW                = 6   # Debt creation against collateral
-    REPAY                 = 7   # Debt reduction / elimination
-    LIQUIDATE             = 8   # Forced collateral seizure
-    GOVERNANCE_VOTE       = 9   # On-chain governance participation
-    GOVERNANCE_PROPOSE    = 10  # Governance proposal creation
-    CONTRACT_DEPLOY       = 11  # New contract / program deployment
-    CONTRACT_UPGRADE      = 12  # Upgrade of existing contract
-    BRIDGE_DEPOSIT        = 13  # Cross-chain value lock
-    BRIDGE_WITHDRAW       = 14  # Cross-chain value release
-    MEV_EXTRACTION        = 15  # Maximal extractable value event
-    REWARD_CLAIM          = 16  # Earned reward withdrawal
-    NFT_MINT              = 17  # Non-fungible token creation
-    NFT_TRANSFER          = 18  # Non-fungible token movement
-    SYSTEM_INTERNAL       = 19  # Protocol-internal bookkeeping (lowest weight)
+    """Canonical 20 event types — aligned with L0.1 EventType in behavioral_hash.py."""
+    TRANSFER              = 0
+    SWAP                  = 1
+    LIQUIDITY             = 2
+    STAKE                 = 3
+    UNSTAKE               = 4
+    GOVERNANCE            = 5
+    PROPOSAL              = 6
+    BORROW                = 7
+    REPAY                 = 8
+    LIQUIDATE             = 9
+    BRIDGE                = 10
+    DEPLOY                = 11
+    UPGRADE               = 12
+    MINT                  = 13
+    BURN                  = 14
+    ORACLE_UPDATE         = 15
+    MEV_CAPTURE           = 16
+    FLASH_LOAN            = 17
+    AIRDROP               = 18
+    CLAIM                 = 19
+    # Backward-compatible aliases
+    LIQUIDITY_ADD         = 2
+    LIQUIDITY_REMOVE      = 2
+    GOVERNANCE_VOTE       = 5
+    GOVERNANCE_PROPOSE    = 6
+    CONTRACT_DEPLOY       = 11
+    CONTRACT_UPGRADE      = 12
+    BRIDGE_DEPOSIT        = 10
+    BRIDGE_WITHDRAW       = 10
+    MEV_EXTRACTION        = 16
+    REWARD_CLAIM          = 19
+    NFT_MINT              = 13
+    NFT_TRANSFER          = 0
+    SYSTEM_INTERNAL       = 19
 
 
 # Behavioral weights per event type (sum normalized per entity over time)
 # Higher weight = more behaviorally informative
 EVENT_WEIGHTS: Dict[UniversalEventType, float] = {
     UniversalEventType.TRANSFER:           1.00,
+    UniversalEventType.SWAP:               1.10,
+    UniversalEventType.LIQUIDITY:          1.30,
     UniversalEventType.STAKE:              1.20,
     UniversalEventType.UNSTAKE:            1.20,
-    UniversalEventType.SWAP:               1.10,
-    UniversalEventType.LIQUIDITY_ADD:      1.30,
-    UniversalEventType.LIQUIDITY_REMOVE:   1.30,
+    UniversalEventType.GOVERNANCE:         1.50,
+    UniversalEventType.PROPOSAL:           1.70,
     UniversalEventType.BORROW:             1.40,
     UniversalEventType.REPAY:              1.40,
-    UniversalEventType.LIQUIDATE:          1.60,  # High information content
-    UniversalEventType.GOVERNANCE_VOTE:    1.50,
-    UniversalEventType.GOVERNANCE_PROPOSE: 1.70,
-    UniversalEventType.CONTRACT_DEPLOY:    2.00,  # Very high — identity defining
-    UniversalEventType.CONTRACT_UPGRADE:   2.00,
-    UniversalEventType.BRIDGE_DEPOSIT:     1.10,
-    UniversalEventType.BRIDGE_WITHDRAW:    1.10,
-    UniversalEventType.MEV_EXTRACTION:     1.80,  # High — reveals behavioral intent
-    UniversalEventType.REWARD_CLAIM:       0.90,
-    UniversalEventType.NFT_MINT:           0.80,
-    UniversalEventType.NFT_TRANSFER:       0.80,
-    UniversalEventType.SYSTEM_INTERNAL:    0.10,  # Very low — bookkeeping
+    UniversalEventType.LIQUIDATE:          1.60,
+    UniversalEventType.BRIDGE:             1.10,
+    UniversalEventType.DEPLOY:             2.00,
+    UniversalEventType.UPGRADE:            2.00,
+    UniversalEventType.MINT:               1.10,
+    UniversalEventType.BURN:               1.10,
+    UniversalEventType.ORACLE_UPDATE:      1.50,
+    UniversalEventType.MEV_CAPTURE:        1.80,
+    UniversalEventType.FLASH_LOAN:         1.80,
+    UniversalEventType.AIRDROP:            1.20,
+    UniversalEventType.CLAIM:              0.90,
 }
 
 

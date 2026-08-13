@@ -15,6 +15,7 @@
 --   T6: PCLimitInvariant       — PC_limit(t) < 1 always (irreducible entropy > 0)
 --   T7: CoordinationCollapse   — HHI enforcement prevents validator monopoly
 --   T8: AkashicAppendOnly      — BH ledger is structurally deletion-proof (L0.4)
+--   T9: BehavioralHashCollisionFree — BH collision resistance inherited from SHA3-256
 --
 -- Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 -- License: CC0
