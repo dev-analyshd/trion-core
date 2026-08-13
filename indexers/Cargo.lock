@@ -1248,6 +1248,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "trion-btcp"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha3",
+]
+
+[[package]]
 name = "trion-common"
 version = "0.1.0"
 dependencies = [

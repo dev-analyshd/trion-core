@@ -111,6 +111,9 @@ export const NAV: NavGroup[] = [
     label: 'BTCP + CONTINUUM',
     items: [
       { id: 'btcp_pipeline', label: 'Pipeline Status', icon: Icons.GitBranch },
+      { id: 'btcp_spec', label: 'BTCP Protocol', icon: Icons.Route },
+      { id: 'continuum_spec', label: 'Continuum Network', icon: Icons.Waves },
+      { id: 'botchain_spec', label: 'BOT Chain', icon: Icons.Bot },
       { id: 'hash_dna', label: 'Hash_DNA Explorer', icon: Icons.Hash },
       { id: 'seven_plane', label: '7-Plane Coherence', icon: Icons.Layers },
       { id: 'mf_fingerprints', label: '7 MF Fingerprints', icon: Icons.AlertTriangle },
