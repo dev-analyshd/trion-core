@@ -53,7 +53,8 @@ for _seed_src in \
     "/app/akashic_state.db:${FAISS_STATE_DB}" \
     "/app/bh_ledger.db:${BH_LEDGER_DB}" \
     "/app/anima-service/akashic_faiss.index:${FAISS_INDEX_PATH}" \
-    "/app/anima-service/akashic_state.db:${FAISS_STATE_DB}"; do
+    "/app/anima-service/akashic_state.db:${FAISS_STATE_DB}" \
+    "/app/anima-service/bh_ledger.db:${BH_LEDGER_DB}"; do
     _src="${_seed_src%%:*}"
     _dst="${_seed_src##*:}"
     if [[ -f "$_src" && ! -f "$_dst" ]]; then
@@ -61,6 +62,33 @@ for _seed_src in \
         log "seeded ${_dst} from ${_src} ($(du -sh "$_dst" | cut -f1))"
     fi
 done
+
+# Ensure /app/bh_ledger.db exists (copy from /data if needed, or create empty)
+if [[ ! -f "/app/bh_ledger.db" ]]; then
+    if [[ -f "${BH_LEDGER_DB}" ]]; then
+        cp "${BH_LEDGER_DB}" /app/bh_ledger.db
+        log "copied bh_ledger.db from ${BH_LEDGER_DB} to /app/"
+    else
+        python3 -c "
+import sqlite3
+c = sqlite3.connect('/app/bh_ledger.db')
+c.execute('''CREATE TABLE IF NOT EXISTS bh_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, tx_hash TEXT UNIQUE,
+    entity_id TEXT, from_addr TEXT, to_addr TEXT,
+    event_type INTEGER, event_type_name TEXT,
+    magnitude_norm REAL, value_wei TEXT, selector TEXT,
+    sense_hex TEXT, antisense_hex TEXT,
+    block_num INTEGER, block_hash TEXT,
+    chain_id INTEGER, chain_label TEXT, ts REAL
+)''')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)')
+c.commit(); c.close()
+print('created empty bh_ledger.db at /app/')
+" 2>/dev/null || log "WARN: could not create bh_ledger.db"
+    fi
+fi
 
 # ── Restart wrapper (exponential backoff 5s → 120s) ──────────────────────────
 spawn() {
