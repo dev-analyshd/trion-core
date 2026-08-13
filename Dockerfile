@@ -48,8 +48,9 @@ COPY zg/               ./zg/
 COPY schema.sql        ./schema.sql
 COPY proof-ledger/     ./proof-ledger/
 
-# Runtime dirs
-RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs anima-service/data
+# Runtime dirs + ensure bh_ledger.db exists at root
+RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs anima-service/data && \
+    python3 -c "import sqlite3; c=sqlite3.connect('/app/bh_ledger.db'); c.execute('CREATE TABLE IF NOT EXISTS bh_ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, tx_hash TEXT UNIQUE, entity_id TEXT, from_addr TEXT, to_addr TEXT, event_type INTEGER, event_type_name TEXT, magnitude_norm REAL, value_wei TEXT, selector TEXT, sense_hex TEXT, antisense_hex TEXT, block_num INTEGER, block_hash TEXT, chain_id INTEGER, chain_label TEXT, ts REAL)'); c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)'); c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)'); c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)'); c.commit(); c.close(); print('bh_ledger.db initialized')"
 
 # ── Environment ───────────────────────────────────────────────────────────────
 ENV PORT=5000 \
