@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, CodeBlock, EmptyState, Tag, StreamView, EntityInput } from '../components/ui';
 import { useAPI, useStream, useCounter } from '../lib/hooks';
 import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms } from '../lib/api';
+// fetchAPI returns APIResult<T>; r.ok tells us success.
 import * as Icons from 'lucide-react';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -99,7 +100,7 @@ export function BHv2ExtendedPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const r = await fetchAPI('/api/v1/bh/v2/extended', {
+    const r = await fetchAPI<any>('/api/v1/bh/v2/extended', {
       method: 'POST',
       body: JSON.stringify({
         entity_id_hex: 'ab'.repeat(32),
@@ -118,7 +119,7 @@ export function BHv2ExtendedPage() {
         btcp_version: 1,
       }),
     });
-    setResult(r);
+    setResult(r.ok ? r.data : { error: r.error, type: r.type });
     setLoading(false);
   };
 

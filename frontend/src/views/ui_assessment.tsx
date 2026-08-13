@@ -32,11 +32,16 @@ export function BEOLookupPage() {
     if (!query || query.length < 10) return;
     setLoading(true);
     // Query the signal endpoint for coherence + the BH ledger for history
-    const [signal, bhHistory] = await Promise.all([
-      fetchAPI(`/api/v1/signal/${query}`),
-      fetchAPI(`/api/v1/bh/ledger/${query}`),
+    const [signalRes, bhRes] = await Promise.all([
+      fetchAPI<any>(`/api/v1/signal/${query}`),
+      fetchAPI<any>(`/api/v1/bh/ledger/${query}`),
     ]);
-    setResult({ signal, bhHistory, address: query });
+    setResult({
+      signal: signalRes.ok ? signalRes.data : null,
+      bhHistory: bhRes.ok ? bhRes.data : null,
+      address: query,
+      error: !signalRes.ok && !bhRes.ok ? signalRes.error : null,
+    });
     setLoading(false);
   };
 

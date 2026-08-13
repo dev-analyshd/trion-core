@@ -1,31 +1,113 @@
 /**
  * TRION API client — fetches live data from the Flask backend.
  * Backend runs at http://127.0.0.1:5000 (proxied via Next.js rewrites).
+ *
+ * Phase 1.6: fetchAPI now returns a discriminated union APIResult<T>:
+ *   - { ok: true,  data: T,    status: number }
+ *   - { ok: false, error: string, status?: number, type: APIErrorType }
+ *
+ * The legacy null-on-error pattern is preserved via `fetchAPIOrNull` so
+ * existing callers don't break, but new code should use `fetchAPI` and
+ * check `data.ok`.
  */
+import { config } from './config';
 
-const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
+const API_BASE = typeof window !== 'undefined'
+  ? (config.apiBase || window.location.origin)
+  : '';
 
-export async function fetchAPI<T = any>(path: string, opts?: RequestInit): Promise<T | null> {
+// ── Discriminated union ────────────────────────────────────────────────────
+export type APIErrorType = 'network' | 'timeout' | 'invalid_json' | 'server' | 'aborted';
+
+export type APIResult<T> =
+  | { ok: true;  data: T;     status: number }
+  | { ok: false; error: string; status?: number; type: APIErrorType };
+
+const DEFAULT_TIMEOUT_MS = 12000;
+
+/**
+ * fetchAPI — returns discriminated union.
+ * Use as: `const r = await fetchAPI<T>('/api/v1/health'); if (r.ok) { ... r.data ... }`
+ */
+export async function fetchAPI<T = any>(path: string, opts?: RequestInit): Promise<APIResult<T>> {
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...opts,
-      signal: AbortSignal.timeout(12000),
+      signal: opts?.signal || controller.signal,
       headers: { 'Content-Type': 'application/json', ...(opts?.headers || {}) },
     });
-    if (!res.ok) return null;
+    clearTimeout(timeoutId);
+
     const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) return null;
-    return await res.json() as T;
-  } catch {
-    return null;
+    if (!ct.includes('application/json')) {
+      const text = await res.text().catch(() => '');
+      return {
+        ok: false,
+        error: `Expected JSON, got: ${ct || 'empty'}${text ? ` (${text.slice(0, 80)})` : ''}`,
+        status: res.status,
+        type: 'invalid_json',
+      };
+    }
+    const data = await res.json() as T;
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: (data as any)?.error || (data as any)?.message || `HTTP ${res.status}`,
+        status: res.status,
+        type: 'server',
+      };
+    }
+    return { ok: true, data, status: res.status };
+  } catch (e: any) {
+    clearTimeout(timeoutId);
+    if (e?.name === 'AbortError') {
+      return { ok: false, error: 'Request timed out', type: 'timeout' };
+    }
+    return { ok: false, error: e?.message || 'Network error', type: 'network' };
   }
 }
 
-export async function postAPI<T = any>(path: string, body: any): Promise<T | null> {
+/**
+ * fetchAPIOrNull — legacy wrapper that returns `T | null`.
+ * Use this in callers that haven't been migrated to the discriminated union yet.
+ * New code should prefer `fetchAPI<T>` + `r.ok` check.
+ */
+export async function fetchAPIOrNull<T = any>(path: string, opts?: RequestInit): Promise<T | null> {
+  const r = await fetchAPI<T>(path, opts);
+  return r.ok ? r.data : null;
+}
+
+/**
+ * postAPI — POST JSON, returns discriminated union.
+ * Automatically attaches X-API-Key header if set in localStorage (Phase 5.4).
+ */
+export async function postAPI<T = any>(path: string, body: any, opts?: RequestInit): Promise<APIResult<T>> {
   return fetchAPI<T>(path, {
     method: 'POST',
     body: JSON.stringify(body),
+    ...opts,
+    headers: {
+      ...opts?.headers,
+      ...getAPIKeyHeaders(),  // Phase 5.4: auto-attach X-API-Key
+    },
   });
+}
+
+/**
+ * postAPIOrNull — legacy wrapper for postAPI returning `T | null`.
+ */
+export async function postAPIOrNull<T = any>(path: string, body: any, opts?: RequestInit): Promise<T | null> {
+  const r = await postAPI<T>(path, body, opts);
+  return r.ok ? r.data : null;
+}
+
+// ── API key header helper (Phase 5.4 will populate this) ────────────────────
+export function getAPIKeyHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const key = localStorage.getItem('trion-api-key');
+  return key ? { 'X-API-Key': key } : {};
 }
 
 /** Formatting helpers */

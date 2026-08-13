@@ -75,6 +75,7 @@ export const NAV: NavGroup[] = [
       { id: 'adaptive_consensus', label: 'Adaptive Consensus', icon: Icons.SlidersHorizontal },
       { id: 'right_to_invisibility', label: 'Right to Invisibility', icon: Icons.EyeOff },
       { id: 'elder_wisdom', label: 'Elder Wisdom', icon: Icons.Crown },
+      { id: 'dw_bft', label: 'DW-BFT', icon: Icons.Users },
     ],
   },
   {
@@ -233,10 +234,53 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
+  // Phase 8.3: Collapsible nav groups — track which groups are collapsed
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Phase 8.3: Recently visited pages
+  const [recent, setRecent] = useState<string[]>([]);
+
+  // Load recent from localStorage on mount
+  useEffect(() => {
+    try {
+      const r = JSON.parse(localStorage.getItem('trion-recent-pages') || '[]');
+      if (Array.isArray(r)) setRecent(r.slice(0, 5));
+    } catch {}
+  }, []);
+
+  // Track page visits — update recent when activePage changes
+  useEffect(() => {
+    if (!activePage) return;
+    setRecent(prev => {
+      const next = [activePage, ...prev.filter(p => p !== activePage)].slice(0, 5);
+      try { localStorage.setItem('trion-recent-pages', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [activePage]);
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
   const filtered = NAV.map(g => ({
     ...g,
     items: g.items.filter(i => i.label.toLowerCase().includes(search.toLowerCase())),
   })).filter(g => g.items.length > 0);
+
+  // Recent items as NavItem[] (only when no search query)
+  const recentItems = search ? [] : recent
+    .map(id => {
+      for (const g of NAV) {
+        const item = g.items.find(i => i.id === id);
+        if (item) return item;
+      }
+      return null;
+    })
+    .filter((x): x is NavItem => x !== null);
 
   return (
     <>
@@ -284,13 +328,53 @@ export function Sidebar({
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto p-2">
-          {filtered.map(group => (
-            <div key={group.label} className="mb-3">
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {group.label}
+        <nav className="flex-1 overflow-y-auto p-2" role="navigation" aria-label="Main navigation">
+          {/* Phase 8.3: Recently Visited section */}
+          {recentItems.length > 0 && (
+            <div className="mb-3">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <Icons.Clock className="w-3 h-3" />
+                Recently Visited
               </div>
-              {group.items.map(item => {
+              {recentItems.map(item => {
+                const Icon = item.icon;
+                const isActive = activePage === item.id;
+                return (
+                  <button
+                    key={`recent-${item.id}`}
+                    onClick={() => { onPageChange(item.id); onClose(); }}
+                    className={`
+                      w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm
+                      transition-colors
+                      ${isActive
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'text-foreground hover:bg-muted'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+              <div className="my-2 border-t border-border" />
+            </div>
+          )}
+
+          {filtered.map(group => {
+            const isCollapsed = collapsedGroups.has(group.label);
+            return (
+            <div key={group.label} className="mb-3">
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className="w-full px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between hover:text-foreground transition-colors"
+                aria-expanded={!isCollapsed}
+                aria-label={`Toggle ${group.label} group`}
+              >
+                <span>{group.label}</span>
+                <Icons.ChevronRight className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+              </button>
+              {!isCollapsed && group.items.map(item => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
                 return (
@@ -315,7 +399,8 @@ export function Sidebar({
                 );
               })}
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Footer */}

@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
+/* Phase 4.2: Explicit dark variant — Tailwind v4 needs this to make
+   `.dark:` utilities respond to the `.dark` class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Phase 4.1: Font variables wired to next/font/google (Inter + JetBrains Mono) */
 @theme {
+  --font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
   --color-background: #ffffff;
   --color-foreground: #0a0a0a;
   --color-card: #ffffff;
@@ -48,9 +56,30 @@
 html, body {
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  /* Phase 4.1: Use Inter (next/font) with system fallback */
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Phase 4.1: Monospace font for code, addresses, hashes */
+.font-mono, code, pre, kbd, .font-mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Phase 4.4: Visible focus styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 * {

@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import * as Icons from 'lucide-react';
-import { Sidebar } from '../components/Sidebar';
+import { Sidebar, NAV } from '../components/Sidebar';
 import { LiveClock } from '../components/ui';
+import { CommandPalette } from '../components/CommandPalette';
+import { SettingsModal } from '../components/SettingsModal';
 import { WalletButton } from '../components/wallet/WalletButton';
 import { useAPI, useTheme } from '../lib/hooks';
 import { WalletBTCPPage, WalletContinuumPage } from '../views/wallet_pages';
@@ -28,7 +31,7 @@ import {
 import {
   GovernancePage, AWAPage, GratitudePage, LovePage, FalsifiabilityPage,
   SlashingPage, UnknownProvisionPage, AdaptiveConsensusPage,
-  RightToInvisibilityPage, ElderWisdomPage,
+  RightToInvisibilityPage, ElderWisdomPage, DWBFTPage,
 } from '../views/governance';
 import {
   EpigeneticsPage, ForkResolutionPage, ResurrectionPage, TrajectoryPage,
@@ -119,6 +122,7 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   adaptive_consensus: AdaptiveConsensusPage,
   right_to_invisibility: RightToInvisibilityPage,
   elder_wisdom: ElderWisdomPage,
+  dw_bft: DWBFTPage,
 
   // Akashic
   epigenetics: EpigeneticsPage,
@@ -272,6 +276,7 @@ const PAGE_TITLES: Record<string, string> = {
   adaptive_consensus: 'Adaptive Consensus',
   right_to_invisibility: 'Right to Invisibility',
   elder_wisdom: 'Elder Wisdom',
+  dw_bft: 'Diversity-Weighted BFT',
   epigenetics: 'Epigenetics',
   fork_resolution: 'Fork Resolution',
   resurrection: 'Resurrection Inference',
@@ -364,10 +369,70 @@ const PAGE_TITLES: Record<string, string> = {
 
 export const dynamic = 'force-dynamic';
 
-export default function Home() {
-  const [activePage, setActivePage] = useState('dashboard');
+// Phase 3.4: useSearchParams requires a Suspense boundary in Next.js 16.
+// The default export wraps Home in <Suspense> so static rendering doesn't bail.
+export default function HomeWithSuspense() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>}>
+      <Home />
+    </Suspense>
+  );
+}
+
+function Home() {
+  // Phase 3.4: URL state persistence — read ?page= on mount, write back on change.
+  // Bookmarkable/shareable URLs: /?page=btcp, /?page=dw_bft, etc.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialPage = searchParams.get('page') || 'dashboard';
+  const [activePage, setActivePage] = useState(
+    PAGE_MAP[initialPage] ? initialPage : 'dashboard'
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, toggleTheme] = useTheme();
+
+  // Update URL when page changes — preserves browser history, shareable
+  const changePage = useCallback((p: string) => {
+    setActivePage(p);
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', p);
+    router.push(`${url.pathname}?${url.searchParams.toString()}`, { scroll: false });
+  }, [router]);
+
+  // Sync from URL on back/forward navigation
+  useEffect(() => {
+    const p = searchParams.get('page');
+    if (p && PAGE_MAP[p] && p !== activePage) {
+      setActivePage(p);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Phase 4.4: keyboard shortcuts — ? shows help, ⌘B toggles sidebar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ignore when typing in input/textarea
+      const t = e.target as HTMLElement;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        alert(
+          'TRION Keyboard Shortcuts\n\n' +
+          '⌘K / Ctrl+K    Command palette\n' +
+          '⌘B / Ctrl+B    Toggle sidebar (desktop)\n' +
+          '?                This help\n' +
+          'Esc             Close overlays\n'
+        );
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setSidebarOpen(v => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Health check for live indicator
   const { data: health } = useAPI('/api/v1/health', 5000);
@@ -376,11 +441,22 @@ export default function Home() {
   const PageComponent = PAGE_MAP[activePage] || DashboardPage;
   const pageTitle = PAGE_TITLES[activePage] || 'Dashboard';
 
+  // Flatten NAV for the command palette
+  const palettePages = useMemo(
+    () => NAV.flatMap(g => g.items.map(item => ({
+      id: item.id,
+      label: item.label,
+      group: g.label,
+    }))),
+    [],
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <CommandPalette pages={palettePages} onSelect={changePage} />
       <Sidebar
         activePage={activePage}
-        onPageChange={setActivePage}
+        onPageChange={changePage}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -412,14 +488,25 @@ export default function Home() {
             </span>
             <WalletButton variant="nav" />
             <button
+              onClick={() => setSettingsOpen(true)}
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground"
+              title="Settings"
+              aria-label="Open settings"
+            >
+              <Icons.Settings className="w-5 h-5" />
+            </button>
+            <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-accent text-muted-foreground"
               title="Toggle theme"
+              aria-label="Toggle dark mode"
             >
               {theme === 'dark' ? <Icons.Sun className="w-5 h-5" /> : <Icons.Moon className="w-5 h-5" />}
             </button>
           </div>
         </header>
+
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
         {/* Page content */}
         <div className="flex-1 overflow-y-auto bg-background p-4 md:p-6 lg:p-8">

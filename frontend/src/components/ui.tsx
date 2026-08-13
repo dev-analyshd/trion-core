@@ -157,44 +157,174 @@ export function DataTable({
   rows,
   maxHeight = 320,
   emptyMessage = 'Loading…',
+  sortable = false,
+  exportable = false,
+  exportName = 'trion_export',
+  onRowClick,
+  copyableColumns,
 }: {
   headers: string[];
   rows: (string | React.ReactNode)[][];
   maxHeight?: number;
   emptyMessage?: string;
+  sortable?: boolean;
+  exportable?: boolean;
+  exportName?: string;
+  onRowClick?: (rowIdx: number) => void;
+  copyableColumns?: number[]; // column indices that should show a copy button
 }) {
+  const [sortCol, setSortCol] = useState<number | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+
+  // Apply sort
+  let displayRows = rows;
+  if (sortable && sortCol !== null && sortDir !== null) {
+    displayRows = [...rows].sort((a, b) => {
+      const av = a[sortCol];
+      const bv = b[sortCol];
+      // Try numeric compare first
+      const an = typeof av === 'string' ? parseFloat(av.replace(/[^0-9.-]/g, '')) : NaN;
+      const bn = typeof bv === 'string' ? parseFloat(bv.replace(/[^0-9.-]/g, '')) : NaN;
+      if (!isNaN(an) && !isNaN(bn)) {
+        return sortDir === 'asc' ? an - bn : bn - an;
+      }
+      const as = String(av ?? '');
+      const bs = String(bv ?? '');
+      return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+    });
+  }
+
+  const handleSort = (colIdx: number) => {
+    if (!sortable) return;
+    if (sortCol === colIdx) {
+      // Cycle: asc → desc → null
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') { setSortCol(null); setSortDir(null); }
+    } else {
+      setSortCol(colIdx);
+      setSortDir('asc');
+    }
+  };
+
+  const exportCSV = () => {
+    const csv = [
+      headers.join(','),
+      ...rows.map(r => r.map(c => {
+        const s = typeof c === 'string' ? c : String(c ?? '');
+        return `"${s.replace(/"/g, '""')}"`;
+      }).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exportName}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportJSON = () => {
+    const data = rows.map(r => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => { obj[h] = r[i]; });
+      return obj;
+    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exportName}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copyCell = (val: React.ReactNode) => {
+    const s = typeof val === 'string' ? val : String(val ?? '');
+    navigator.clipboard?.writeText(s).catch(() => {});
+  };
+
   return (
-    <div className="overflow-auto" style={{ maxHeight }}>
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 sticky top-0 backdrop-blur">
-          <tr>
-            {headers.map((h, i) => (
-              <th key={i} className="text-left p-2 md:p-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
+    <div>
+      {exportable && rows.length > 0 && (
+        <div className="flex justify-end gap-2 mb-2">
+          <button
+            onClick={exportCSV}
+            className="text-xs px-2 py-1 rounded border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Export as CSV"
+          >
+            ↓ CSV
+          </button>
+          <button
+            onClick={exportJSON}
+            className="text-xs px-2 py-1 rounded border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Export as JSON"
+          >
+            ↓ JSON
+          </button>
+        </div>
+      )}
+      <div className="overflow-auto" style={{ maxHeight }}>
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 sticky top-0 backdrop-blur">
             <tr>
-              <td colSpan={headers.length} className="p-8 text-center text-muted-foreground">
-                {emptyMessage}
-              </td>
+              {headers.map((h, i) => (
+                <th
+                  key={i}
+                  onClick={() => handleSort(i)}
+                  className={`text-left p-2 md:p-3 text-xs font-semibold text-muted-foreground whitespace-nowrap ${
+                    sortable ? 'cursor-pointer hover:text-foreground select-none' : ''
+                  }`}
+                  aria-sort={sortCol === i ? (sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none') : undefined}
+                >
+                  {h}
+                  {sortable && sortCol === i && (
+                    <span className="ml-1" aria-hidden>
+                      {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : ''}
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
-          ) : (
-            rows.map((row, i) => (
-              <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                {row.map((cell, j) => (
-                  <td key={j} className="p-2 md:p-3 whitespace-nowrap">
-                    {cell}
-                  </td>
-                ))}
+          </thead>
+          <tbody>
+            {displayRows.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} className="p-8 text-center text-muted-foreground">
+                  {emptyMessage}
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              displayRows.map((row, i) => (
+                <tr
+                  key={i}
+                  className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  }`}
+                  onClick={onRowClick ? () => onRowClick(i) : undefined}
+                >
+                  {row.map((cell, j) => (
+                    <td key={j} className="p-2 md:p-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span>{cell}</span>
+                        {copyableColumns?.includes(j) && cell && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); copyCell(cell); }}
+                            className="text-[10px] opacity-30 hover:opacity-100 transition-opacity text-muted-foreground"
+                            title="Copy to clipboard"
+                            aria-label="Copy value"
+                          >
+                            ⧉
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -227,28 +357,51 @@ export function EntityInput({
   onSubmit,
   placeholder = 'Entity ID or address…',
   defaultValue,
+  samples,
 }: {
   onSubmit: (id: string) => void;
   placeholder?: string;
   defaultValue?: string;
+  samples?: string[]; // quick-fill sample entity IDs
 }) {
   const [val, setVal] = useState(defaultValue || '');
   return (
-    <form
-      onSubmit={e => { e.preventDefault(); onSubmit(val); }}
-      className="flex gap-2"
-    >
-      <input
-        type="text"
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        placeholder={placeholder}
-        className="flex-1 px-3 py-2 rounded-lg border border-border bg-input text-sm font-mono"
-      />
-      <button type="submit" className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-        Load
-      </button>
-    </form>
+    <div className="space-y-2">
+      <form
+        onSubmit={e => { e.preventDefault(); onSubmit(val); }}
+        className="flex gap-2"
+      >
+        <input
+          type="text"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder={placeholder}
+          aria-label="Entity ID or address"
+          className="flex-1 px-3 py-2 rounded-lg border border-border bg-input text-sm font-mono"
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+        >
+          Load
+        </button>
+      </form>
+      {samples && samples.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Try:</span>
+          {samples.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => { setVal(s); onSubmit(s); }}
+              className="px-2 py-1 rounded text-xs font-mono bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              title={s}
+            >
+              {s.slice(0, 10)}…{s.slice(-4)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -266,6 +419,83 @@ export function EmptyState({ message }: { message: string }) {
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
       <div className="text-4xl mb-2 opacity-30">∅</div>
       <div className="text-sm">{message}</div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Phase 3.2: Loading & Error States
+// ════════════════════════════════════════════════════════════════════════════
+
+export function Skeleton({ className = '', count = 1 }: { className?: string; count?: number }) {
+  // Render `count` skeleton bars stacked vertically — useful for lists/tables
+  if (count > 1) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className={`animate-pulse bg-muted rounded ${className || 'h-4 w-full'}`} />
+        ))}
+      </div>
+    );
+  }
+  return <div className={`animate-pulse bg-muted rounded ${className || 'h-4 w-full'}`} />;
+}
+
+export function SkeletonCard({ lines = 3 }: { lines?: number }) {
+  // A full Card skeleton for dashboard loading states
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: lines }).map((_, i) => (
+          <Skeleton key={i} className={`h-4 ${i === 0 ? 'w-full' : i === 1 ? 'w-5/6' : 'w-4/6'}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ErrorState({
+  message,
+  onRetry,
+  type,
+}: {
+  message: string;
+  onRetry?: () => void;
+  type?: 'network' | 'timeout' | 'invalid_json' | 'server' | 'aborted';
+}) {
+  const icon = type === 'timeout' ? '⏱' : type === 'server' ? '⚠' : type === 'network' ? '📡' : '⚠';
+  const label = type
+    ? `${type.toUpperCase()} ERROR`
+    : 'ERROR';
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center py-12 px-4 text-center"
+    >
+      <div className="text-4xl mb-3 opacity-50" aria-hidden>{icon}</div>
+      <div className="text-xs font-mono uppercase tracking-wider text-red-500 mb-2">{label}</div>
+      <div className="text-sm text-muted-foreground mb-4 max-w-md break-words">{message}</div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 transition-opacity"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function LoadingState({ message = 'Loading…' }: { message?: string }) {
+  return (
+    <div className="flex items-center justify-center py-12 text-muted-foreground">
+      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-3" />
+      <span className="text-sm">{message}</span>
     </div>
   );
 }
@@ -311,7 +541,7 @@ export function StreamView({
           <span className="text-muted-foreground">{items.length} records buffered</span>
         </div>
         <div className="flex items-center gap-3 font-mono">
-          <span className="text-green-500">⚡ {ms(speedMs)}</span>
+          <span className="text-green-500" title="API round-trip latency (not BH computation speed)">⚡ API {ms(speedMs)}</span>
           <span className="text-muted-foreground">{(1000 / Math.max(speedMs, 1)).toFixed(0)} Hz</span>
         </div>
       </div>
@@ -386,8 +616,8 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <g>
         <rect x="160" y="100" width="120" height="100" rx="8" fill="url(#grad1)" stroke="#3b82f6" strokeOpacity="0.6" filter="url(#glow)" />
         <text x="220" y="125" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">RUST INDEXERS</text>
-        <text x="220" y="145" textAnchor="middle" className="fill-muted-foreground text-[9px]">14 crates</text>
-        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">57 chains</text>
+        <text x="220" y="145" textAnchor="middle" className="fill-muted-foreground text-[9px]">16 crates</text>
+        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">100+ chains</text>
         <text x="220" y="175" textAnchor="middle" className="fill-muted-foreground text-[9px]">14 VM families</text>
         <text x="220" y="190" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">LIVE</text>
       </g>
