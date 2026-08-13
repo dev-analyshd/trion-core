@@ -20,14 +20,18 @@ export function DashboardPage() {
   const { data: sec } = useAPI('/api/v1/security/sec', 10000);
   const { data: wp } = useAPI('/api/v1/whitepaper/coverage', 30000);
   const { data: lb } = useAPI('/api/v1/leaderboard', 10000);
-  const { data: faiss } = useAPI('/api/v1/faiss', 10000);
-  const { data: bhStats } = useAPI('/api/v1/bh/stats', 5000);
+  const { data: faiss } = useAPI('/api/v1/faiss', 5000);
+  const { data: bhStats } = useAPI('/api/v1/bh/stats', 3000);
+  const { data: streamer } = useAPI('/api/v1/btcp/streamer/status', 2000);
   const { items: feedItems, speedMs } = useStream('/api/v1/feed', 3000);
   const { items: bhItems } = useStream('/api/v1/bh/recent_feed', 2000);
 
-  const vectorCount = useCounter(faiss?.indexed_vectors || 0);
-  const totalBH = useCounter(bhStats?.total_records || bhStats?.total_tx_bhs || 0);
+  // Compute total BHs from per_chain sum (the streamer also tracks this)
+  const bhTotal = streamer?.total_bhs || Object.values(bhStats?.per_chain || {}).reduce((a: number, b: any) => a + Number(b), 0) || 0;
+  const vectorCount = useCounter(faiss?.indexed_vectors || streamer?.faiss_vectors_accumulated || 0);
+  const totalBH = useCounter(bhTotal);
   const isLive = health?.status === 'healthy';
+  const streamerLive = streamer?.status === 'RUNNING';
 
   return (
     <div className="space-y-6">
@@ -41,27 +45,58 @@ export function DashboardPage() {
           icon={<Icons.Cpu className="w-5 h-5" />}
         />
         <StatCard
-          label="BH Records"
+          label="BH Records (Live)"
           value={fmt(totalBH, 0)}
-          sub="93-byte canonical"
-          color="green"
+          sub={streamerLive ? `${streamer?.bhs_per_second?.toFixed(0)} BHs/sec` : 'streaming...'}
+          color={streamerLive ? 'green' : 'amber'}
           icon={<Icons.Database className="w-5 h-5" />}
         />
         <StatCard
-          label="Chains Indexed"
-          value={fmt(moat?.chains_indexed || 0)}
-          sub={`of ${moat?.total_chains_whitepaper || 55}`}
-          color="amber"
+          label="Chains Streaming"
+          value={fmt(streamer?.chains_active || 0)}
+          sub="real-time RPC polling"
+          color="purple"
           icon={<Icons.Globe className="w-5 h-5" />}
         />
         <StatCard
           label="Formula Coverage"
           value={`${wp?.coverage_pct?.toFixed(0) || 100}%`}
-          sub={`${wp?.live_count || 84}/${wp?.falsifiability_conditions ? 84 : 84}`}
+          sub={`${wp?.live_count || 84}/84 formulas`}
           color="green"
           icon={<Icons.CheckCircle className="w-5 h-5" />}
         />
       </div>
+
+      {/* Live streamer status bar */}
+      {streamerLive && (
+        <Card title="Real-Time BH Streamer — Live Data Pipeline" live>
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+            {Object.entries(streamer?.per_chain || {}).map(([chain, cs]: any) => (
+              <div key={chain} className="p-3 rounded-lg border border-border bg-card text-center">
+                <div className="text-xs text-muted-foreground uppercase">{chain}</div>
+                <div className="text-xl font-bold font-mono">{fmt(cs.bhs)}</div>
+                <div className="text-xs text-muted-foreground">{cs.blocks} blocks</div>
+                <div className="mt-1 h-1 bg-muted rounded">
+                  <div className="h-full bg-green-500 rounded animate-pulse" style={{ width: '100%' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-green-500 font-medium">STREAMING LIVE</span>
+              <span className="text-muted-foreground">— {streamer?.bhs_per_second?.toFixed(0)} BHs/sec from {streamer?.chains_active} chains</span>
+            </div>
+            <span className="font-mono text-muted-foreground">
+              Uptime: {Math.floor((streamer?.uptime_seconds || 0) / 60)}m {Math.floor((streamer?.uptime_seconds || 0) % 60)}s
+            </span>
+          </div>
+        </Card>
+      )}
 
       {/* Network status row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -149,23 +184,24 @@ export function DashboardPage() {
       </div>
 
       {/* Live BH stream */}
-      <Card title="Behavioral Hash Stream" subtitle={`Live ingestion · ~${ms(speedMs)} per hash`} live>
+      <Card title="Behavioral Hash Stream — Real-Time from 7 Chains" subtitle={`Live ingestion · ${streamer?.bhs_per_second?.toFixed(0) || 0} BHs/sec · ${streamer?.chains_active || 0} chains`} live>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <StatCard label="Total BHs" value={fmt(totalBH, 0)} color="blue" />
-          <StatCard label="Chains Active" value={fmt(bhStats?.chains_with_data || 0)} />
-          <StatCard label="Payload Size" value="93 bytes" sub="canonical v1" />
-          <StatCard label="Hash Speed" value={ms(speedMs)} sub="streaming" color="green" />
+          <StatCard label="Total BHs (Live)" value={fmt(totalBH, 0)} color="green" sub={streamerLive ? 'growing' : 'static'} />
+          <StatCard label="Chains Active" value={fmt(bhStats?.chains_with_data || streamer?.chains_active || 0)} color="blue" />
+          <StatCard label="FAISS Vectors" value={fmt(vectorCount, 0)} color="purple" sub="128-dim" />
+          <StatCard label="Stream Rate" value={`${streamer?.bhs_per_second?.toFixed(0) || 0}/s`} sub="BHs per second" color="green" />
         </div>
         <DataTable
-          headers={['Time', 'Entity', 'Chain', 'Event', 'Verdict']}
-          rows={bhItems.slice(0, 15).map((b: any) => [
+          headers={['Time', 'Entity', 'Chain', 'Event', 'Tx Hash', 'Valid']}
+          rows={bhItems.slice(0, 20).map((b: any) => [
             tfmt(b.ts || b.timestamp),
-            <span className="font-mono text-xs">{hex(b.entity_id, 10)}</span>,
+            <span className="font-mono text-xs text-cyan-500">{hex(b.entity_id, 10)}</span>,
             <Badge status={b.chain} />,
-            b.event_type || '—',
-            <Badge status={b.verdict || (b.valid ? 'VALID' : 'INVALID')} />,
+            <Tag color="blue">{b.event_type || '—'}</Tag>,
+            <span className="font-mono text-xs text-muted-foreground">{hex(b.tx_hash, 12)}</span>,
+            <Badge status={b.valid !== false ? 'VALID' : 'INVALID'} />,
           ])}
-          emptyMessage="Awaiting BH stream…"
+          emptyMessage="Connecting to live RPCs..."
         />
       </Card>
 

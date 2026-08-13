@@ -198,6 +198,15 @@ try:
     app.register_blueprint(btcp_bp)
     _btcp_continuum_available = True
     _log.info("BTCP + CONTINUUM routes registered")
+
+    # ── Auto-start the real-time BH streamer ──────────────────────────────────
+    try:
+        from core.realtime.bh_streamer import start_streamer as _start_bh_streamer
+        _start_bh_streamer()
+        _log.info("Real-time BH streamer started — indexing 7 EVM chains via public RPCs")
+    except Exception as _streamer_err:
+        _log.warning("BH streamer auto-start failed: %s", _streamer_err)
+
 except Exception as _btcp_err:
     _btcp_continuum_available = False
     _log.warning("BTCP + CONTINUUM routes unavailable: %s", _btcp_err)
