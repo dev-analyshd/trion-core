@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
 import { LiveClock } from '../components/ui';
+import { WalletButton } from '../components/wallet/WalletButton';
 import { useAPI, useTheme } from '../lib/hooks';
+import { WalletBTCPPage, WalletContinuumPage } from '../views/wallet_pages';
 
 // All page imports
 import {
@@ -156,6 +158,8 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: BTCPPipelinePage,
+  wallet_btcp: WalletBTCPPage,
+  wallet_continuum: WalletContinuumPage,
   beo_lookup: BEOLookupPage,
   live_events: LiveEventStreamPage,
   time_series: TimeSeriesPage,
@@ -301,6 +305,8 @@ const PAGE_TITLES: Record<string, string> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: 'BTCP Pipeline Status',
+  wallet_btcp: 'BTCP + Wallet',
+  wallet_continuum: 'Continuum + Wallet',
   beo_lookup: 'BEO Lookup Toolbox',
   live_events: 'Live Event Stream',
   time_series: 'Time-Series Charts',
@@ -356,6 +362,8 @@ const PAGE_TITLES: Record<string, string> = {
   demo: 'Demo Attacks',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -402,6 +410,7 @@ export default function Home() {
             <span className="font-mono text-xs text-muted-foreground hidden md:block">
               <LiveClock />
             </span>
+            <WalletButton variant="nav" />
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-accent text-muted-foreground"
