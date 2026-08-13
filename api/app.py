@@ -4650,6 +4650,109 @@ def behavioral_hash_compute():
         return jsonify({"error": str(e), "whitepaper": "L0.1"}), 400
 
 
+@app.route("/api/v1/bh/v2/extended", methods=["POST"])
+def behavioral_hash_extended_compute():
+    """
+    L0.1 Behavioral Hash — Extended v2 payload (176 bytes).
+
+    Whitepaper "Protocol Whitepaper" specifies an OPTIONAL extended payload
+    format with replay protection and cross-chain domain separation. This
+    endpoint computes the extended BH; the canonical 93-byte v1 payload
+    (see /api/v1/bh) remains the default for backward compatibility.
+
+    Extended fields (beyond v1):
+      magnitude_currency_id int    ISO 4217-like numeric code (0=USD, 1=ETH, …)
+      counterparty_id_hex   str    32-byte BEO identifier of the counterparty
+      protocol_id           int    TRION-registered protocol ID
+      btcp_version          int    BTCP transport version (default 1)
+      nonce                 int    8-byte replay-protection nonce
+                                   (omit to auto-generate a CSPRNG nonce)
+
+    Layout (176 bytes, big-endian):
+      DOMAIN_MAGIC(4) || entity_id(32) || event_type(1) ||
+      magnitude_norm(8) || magnitude_currency_id(2) || timestamp(8) ||
+      block_number(8) || block_hash(32) || chain_id(4) ||
+      counterparty_id(32) || protocol_id(4) || context_hash(32) ||
+      btcp_version(1) || nonce(8)
+    """
+    from core.primitives.extended_payload import (
+        ExtendedBehavioralEvent,
+        compute_extended_bh,
+        generate_nonce,
+        BTCP_VERSION,
+        DOMAIN_MAGIC,
+        EXTENDED_PAYLOAD_LEN,
+    )
+    from core.primitives.behavioral_hash import EventType
+
+    data = request.get_json(force=True, silent=True) or {}
+
+    try:
+        et_raw = data.get("event_type", "TRANSFER")
+        if isinstance(et_raw, str):
+            et = EventType[et_raw.upper()]
+        else:
+            et = EventType(int(et_raw))
+
+        entity_hex = data.get("entity_id_hex", "").replace("0x", "")
+        if len(entity_hex) != 64:
+            return jsonify({
+                "error": "entity_id_hex must be 32 bytes (64 hex chars)",
+                "whitepaper": "L0.1-v2",
+            }), 400
+
+        counterparty_hex = data.get("counterparty_id_hex", "00" * 32).replace("0x", "")
+        if len(counterparty_hex) != 64:
+            return jsonify({
+                "error": "counterparty_id_hex must be 32 bytes (64 hex chars)",
+                "whitepaper": "L0.1-v2",
+            }), 400
+
+        block_hex = data.get("block_hash_hex", "").replace("0x", "")
+        if len(block_hex) != 64:
+            return jsonify({
+                "error": "block_hash_hex must be 32 bytes (64 hex chars)",
+                "whitepaper": "L0.1-v2",
+            }), 400
+
+        ctx_hex = data.get("context_hex", "00" * 8).replace("0x", "")
+        context_bytes = bytes.fromhex(ctx_hex) if ctx_hex else b"\x00" * 8
+
+        nonce_val = data.get("nonce")
+        if nonce_val is None:
+            nonce_val = generate_nonce()
+
+        event = ExtendedBehavioralEvent(
+            entity_id=bytes.fromhex(entity_hex),
+            event_type=et,
+            magnitude_raw=int(data.get("magnitude_raw", 0)),
+            magnitude_decimals=int(data.get("magnitude_decimals", 18)),
+            magnitude_max_90d=int(data.get("magnitude_max_90d", int(1e18))),
+            magnitude_currency_id=int(data.get("magnitude_currency_id", 0)),
+            timestamp=int(data.get("timestamp", 0)),
+            block_number=int(data.get("block_number", 0)),
+            block_hash=bytes.fromhex(block_hex),
+            chain_id=int(data.get("chain_id", 1)),
+            counterparty_id=bytes.fromhex(counterparty_hex),
+            protocol_id=int(data.get("protocol_id", 0)),
+            context=context_bytes,
+            btcp_version=int(data.get("btcp_version", BTCP_VERSION)),
+            nonce=int(nonce_val),
+            usd_value=data.get("usd_value"),
+            usd_max_90d=data.get("usd_max_90d"),
+        )
+        result = compute_extended_bh(event)
+        return jsonify({
+            "bh":              result,
+            "payload_version": "v2_extended",
+            "payload_len":     EXTENDED_PAYLOAD_LEN,
+            "domain_magic":    DOMAIN_MAGIC.hex(),
+            "whitepaper":      "L0.1-v2 (Protocol Whitepaper extended payload)",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "whitepaper": "L0.1-v2"}), 400
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # WHITEPAPER COMPLETENESS BLOCK — All remaining L0–L9 formula endpoints
 # Added: L5.3 T(t), 19 signal types, L4.1/4.2 Σ(t), L4.3 GK, L4.7 bootstrap

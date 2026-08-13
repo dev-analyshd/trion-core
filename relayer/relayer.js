@@ -556,7 +556,8 @@ async function main() {
   console.log(` Oracle API     : ${ORACLE_API_URL}`);
   console.log(` Monitored      : ${MONITORED.join(", ")}`);
   console.log(` Poll interval  : ${POLL_INTERVAL_MS}ms`);
-  console.log(` Mode           : ${DRY_RUN ? "DRY_RUN (set RELAYER_PRIVATE_KEY to push on-chain)" : "LIVE"}`);
+  console.log(` Mode           : ${DRY_RUN ? "DRY_RUN (set RELAYER_PRIVATE_KEY or KMS_PROVIDER to push on-chain)" : "LIVE"}`);
+  console.log(` KMS provider   : ${process.env.KMS_PROVIDER || "env"}`);
   console.log("");
   console.log(" Chain registry:");
   for (const c of activeChains) {
@@ -565,8 +566,55 @@ async function main() {
   }
   console.log("");
 
-  const wallet = DRY_RUN ? null : new ethers.Wallet(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : "0x" + PRIVATE_KEY);
-  if (wallet) console.log(` Validator addr : ${wallet.address}\n`);
+  // ── Wallet / signer creation ──────────────────────────────────────────────
+  // Whitepaper Finding #10: "HSM (Thales Luna 7 / YubiHSM 2) — NON-NEGOTIABLE"
+  // The relayer now uses the KMS abstraction layer to support:
+  //   KMS_PROVIDER=env (dev)        — RELAYER_PRIVATE_KEY plaintext
+  //   KMS_PROVIDER=aws (production) — AWS KMS
+  //   KMS_PROVIDER=gcp (production) — Google Cloud KMS
+  //   KMS_PROVIDER=yubihsm (prod)   — YubiHSM 2 hardware
+  //   KMS_PROVIDER=pkcs11 (prod)    — Thales Luna 7 / generic PKCS#11 HSM
+  //
+  // NOTE: Full HSM-backed transaction signing requires an ethers
+  // AbstractSigner adapter per provider. For now, the env provider
+  // supports both quorum-signature AND transaction signing; HSM
+  // providers support quorum-signature only (transaction signing
+  // still requires a relayer operational key). The KMS abstraction
+  // layer (relayer/kms_provider.js) is the foundation for the full
+  // HSM-backed flow.
+  let wallet = null;
+  if (!DRY_RUN) {
+    const kmsProvider = (process.env.KMS_PROVIDER || "env").toLowerCase();
+    if (kmsProvider === "env") {
+      // Backward-compatible path: use ethers.Wallet directly
+      wallet = new ethers.Wallet(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : "0x" + PRIVATE_KEY);
+      console.log(` Validator addr : ${wallet.address}`);
+      console.log(` KMS provider   : env (plaintext — dev only)`);
+    } else {
+      // HSM/KMS path: load the abstraction layer to verify configuration
+      try {
+        const { createSigner } = await import("./kms_provider.js");
+        const signer = await createSigner();
+        console.log(` Validator addr : ${signer.address}`);
+        console.log(` KMS provider   : ${signer.provider}`);
+        console.log(` NOTE           : HSM-backed tx signing requires ethers AbstractSigner adapter.`);
+        console.log(`                  Using env-var wallet for tx signing, KMS for quorum signatures.`);
+        // Fall back to env-var wallet for actual tx signing if RELAYER_PRIVATE_KEY is also set
+        if (PRIVATE_KEY) {
+          wallet = new ethers.Wallet(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : "0x" + PRIVATE_KEY);
+        } else {
+          console.error("FATAL: KMS_PROVIDER=" + kmsProvider + " requires RELAYER_PRIVATE_KEY for tx signing");
+          console.error("       (Full HSM tx-signing support is on the roadmap)");
+          process.exit(1);
+        }
+      } catch (e) {
+        console.error(`FATAL: KMS signer creation failed: ${e.message}`);
+        console.error("Set RELAYER_PRIVATE_KEY for dev or KMS_PROVIDER + provider-specific env for production.");
+        process.exit(1);
+      }
+    }
+  }
+  console.log("");
 
   // Initialise 0G ExecutionGate connection (reads storageRoot from chain)
   await initZGGate(wallet);
