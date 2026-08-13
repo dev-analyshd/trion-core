@@ -705,3 +705,49 @@ def streamer_start():
         return jsonify({"status": "STARTED", "message": "BH streamer started for 7 chains"})
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
+
+
+# ── Orchestrator & RPC Health (Phase 2 Step 2.3 + 2.4) ────────────────────────
+
+@btcp_bp.route("/api/v1/btcp/orchestrator/status")
+def orchestrator_status():
+    """Unified indexer orchestrator status + RPC health monitor."""
+    from core.realtime.bh_streamer import CHAIN_RPCS, get_streamer
+    streamer = get_streamer()
+    stats = streamer.get_stats() if streamer and streamer.is_running() else {}
+
+    # RPC health from streamer's per-chain stats
+    rpc_health = {}
+    for chain_id, config in CHAIN_RPCS.items():
+        chain_name = config["name"]
+        chain_stats = stats.get("per_chain", {}).get(chain_name, {})
+        last_block = stats.get("last_blocks", {}).get(str(chain_id))
+        rpc_health[str(chain_id)] = {
+            "chain": chain_name,
+            "label": config["label"],
+            "rpc": config["rpc"],
+            "block_time": config["block_time"],
+            "last_block": last_block,
+            "bhs_indexed": chain_stats.get("bhs", 0),
+            "blocks_processed": chain_stats.get("blocks", 0),
+            "status": "ok" if chain_stats.get("blocks", 0) > 0 else "waiting",
+        }
+
+    healthy = sum(1 for v in rpc_health.values() if v["status"] == "ok")
+    return jsonify({
+        "orchestrator_status": "RUNNING" if streamer and streamer.is_running() else "STOPPED",
+        "total_chains": len(CHAIN_RPCS),
+        "healthy_chains": healthy,
+        "rpc_health": rpc_health,
+        "streamer_stats": stats,
+        "processes": {
+            "bh_streamer": {
+                "status": "RUNNING" if streamer and streamer.is_running() else "STOPPED",
+                "total_bhs": stats.get("total_bhs", 0),
+                "bhs_per_second": stats.get("bhs_per_second", 0),
+                "chains_active": stats.get("chains_active", 0),
+                "uptime_seconds": stats.get("uptime_seconds", 0),
+            },
+        },
+        "timestamp": int(time.time()),
+    })
