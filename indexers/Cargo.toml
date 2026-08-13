@@ -16,6 +16,7 @@ members = [
     "crates/trion-pi",
     "crates/trion-starknet",
     "crates/trion-botchain",
+    "crates/trion-btcp",
 ]
 
 [workspace.dependencies]
