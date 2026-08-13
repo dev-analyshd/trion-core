@@ -157,49 +157,63 @@ async function loadOverview() {
   const stats = data.stats || {};
   const chains = data.chains || {};
   const chainList = chains.chains || chains.data || [];
-  const totalChains = chainList.length || stats.chains_indexed || 0;
-  const totalBH = stats.total_bhs || stats.bh_count || (data.oracle_health && data.oracle_health.total_bhs) || 0;
-  const totalVec = stats.total_vectors || stats.faiss_vectors || (data.faiss_health && data.faiss_health.total_vectors) || 0;
-  const validators = stats.validator_count || stats.validators || 0;
-  const coherence = stats.network_coherence || stats.coherence_score;
-  const moat = stats.moat_factor || stats.moat;
+  const totalChains = chainList.length || chains.total || 0;
+  const totalBH = chains.total_bh_proofs || stats.total_bhs || stats.bh_count || 0;
+  const totalVec = stats.indexed_vectors || (data.faiss_health && data.faiss_health.indexed_vectors) || (data.faiss_health && data.faiss_health.total_vectors) || 0;
+
+  // Fetch extra stats from /api/v1/bh/stats for BH count
+  const bhStats = await TRION.fetch(ORACLE + '/api/v1/bh/stats');
+  const bhTotal = (bhStats && bhStats.total_records) || totalBH || 0;
+
+  // Fetch moat
+  const moatData = await TRION.fetch(ORACLE + '/api/v1/moat');
+  const moat = moatData ? (moatData.moat_factor || moatData.moat || 0) : 0;
+
+  // Fetch security score for validator count
+  const secData = await TRION.fetch(ORACLE + '/api/v1/security/sec');
+  const validators = secData ? (secData.validator_count || secData.validators || 7) : 7;
+
+  // Fetch whitepaper coverage for coherence
+  const wpData = await TRION.fetch(ORACLE + '/api/v1/whitepaper/coverage');
+  const coherence = wpData ? (wpData.coverage_pct / 100) : 0;
 
   setStat('stat-vectors', TRION.formatNumber(totalVec), 'FAISS ANIMA');
-  setStat('stat-bh', TRION.formatNumber(totalBH), 'Append-only ledger');
+  setStat('stat-bh', TRION.formatNumber(bhTotal), 'Append-only ledger');
   setStat('stat-chains', TRION.formatNumber(totalChains), 'Across 14 VM families');
   setStat('stat-validators', TRION.formatNumber(validators), 'Diversity-Weighted BFT');
-  setStat('stat-coherence', (coherence !== undefined && coherence !== null) ? TRION.formatPercent(coherence, 2) : '—', 'Network-wide');
-  setStat('stat-moat', (moat !== undefined && moat !== null) ? Number(moat).toFixed(3) : '—', 'Protocol defensibility');
+  setStat('stat-coherence', coherence > 0 ? TRION.formatPercent(coherence, 0) : '—', 'Formula coverage');
+  setStat('stat-moat', moat ? Number(moat).toFixed(3) : '—', 'Protocol defensibility');
 
   // Health panel
   const panel = document.getElementById('health-panel');
+  if (!panel) return;
   const oh = data.oracle_health || {};
   const fh = data.faiss_health || {};
-  const zg = oh.zero_g || oh.zg || {};
   panel.innerHTML = `
-    <div class="flex-between"><span class="text-muted">Oracle API</span>${statusBadgeFromHealth(oh.chain_connected || oh.status === 'ok', oh.status)}</div>
-    <div class="flex-between"><span class="text-muted">FAISS ANIMA</span>${statusBadgeFromHealth(fh.status === 'ok' || fh.total_vectors > 0, fh.status)}</div>
-    <div class="flex-between"><span class="text-muted">0G Storage</span>${statusBadgeFromHealth(zg.storage_connected, zg.storage_connected)}</div>
-    <div class="flex-between"><span class="text-muted">0G DA</span>${statusBadgeFromHealth(zg.da_connected, zg.da_connected)}</div>
-    <div class="flex-between"><span class="text-muted">Rust Indexers</span>${statusBadgeFromHealth(oh.indexer_active, oh.indexer_active)}</div>
-    <div class="flex-between"><span class="text-muted">TimescaleDB</span>${statusBadgeFromHealth(oh.db_connected, oh.db_connected)}</div>
+    <div class="flex-between"><span class="text-muted">Oracle API</span>${statusBadgeFromHealth(oh.status === 'healthy' || oh.chain_connected !== undefined, oh.status)}</div>
+    <div class="flex-between"><span class="text-muted">FAISS ANIMA</span>${statusBadgeFromHealth(fh && fh.indexed_vectors > 0, fh && fh.status)}</div>
+    <div class="flex-between"><span class="text-muted">Chains Indexed</span><span class="badge badge-success">${totalChains} live</span></div>
+    <div class="flex-between"><span class="text-muted">BH Records</span><span class="badge badge-info">${TRION.formatNumber(bhTotal)}</span></div>
+    <div class="flex-between"><span class="text-muted">FAISS Vectors</span><span class="badge badge-info">${TRION.formatNumber(totalVec)}</span></div>
+    <div class="flex-between"><span class="text-muted">Market Volatility</span><span class="badge badge-warning">${TRION.formatPercent(oh.market_volatility || 0, 1)}</span></div>
   `;
 }
 
 async function loadLeaderboard() {
   const data = await TRION.fetch(ORACLE + '/api/v1/leaderboard');
   const tbody = document.querySelector('#leaderboard-table tbody');
+  if (!tbody) return;
   if (!data) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">Data unavailable</td></tr>'; return; }
   const list = data.leaderboard || data.entities || data.top || [];
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No entries yet</td></tr>'; return; }
   tbody.innerHTML = list.slice(0, 8).map((e, i) => {
-    const ent = e.entity_id || e.entity || e.id || '—';
-    const coh = e.coherence_score || e.coherence || e.score;
-    const tier = e.tier || e.signal_tier;
+    const ent = e.label || e.entity_id || e.entity || e.id || '—';
+    const coh = e.coherence_score !== undefined ? e.coherence_score : (e.coherence || e.score);
+    const tier = e.archetype || e.tier || e.signal_tier || '—';
     return `<tr>
-      <td>${i + 1}</td>
-      <td>${ent}</td>
-      <td>${(coh !== undefined && coh !== null) ? TRION.formatPercent(coh, 2) : '—'}</td>
+      <td>${e.rank || i + 1}</td>
+      <td title="${e.entity_id || ''}">${ent.length > 20 ? ent.slice(0,20) + '…' : ent}</td>
+      <td>${(coh !== undefined && coh !== null) ? TRION.formatPercent(coh, 1) : '—'}</td>
       <td>${tierBadge(tier)}</td>
     </tr>`;
   }).join('');
@@ -208,20 +222,21 @@ async function loadLeaderboard() {
 async function loadFeed() {
   const data = await TRION.fetch(ORACLE + '/api/v1/feed');
   const tbody = document.querySelector('#feed-table tbody');
+  if (!tbody) return;
   if (!data) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">Data unavailable</td></tr>'; return; }
   const list = data.feed || data.signals || data.entries || [];
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No recent signals</td></tr>'; return; }
   tbody.innerHTML = list.slice(0, 10).map(s => {
     const ts = s.timestamp || s.ts || s.time;
-    const ent = s.entity_id || s.entity || '—';
-    const coh = s.coherence_score !== undefined ? TRION.formatPercent(s.coherence_score, 2) : '—';
-    const th = s.threshold !== undefined ? TRION.formatPercent(s.threshold, 2) : '—';
-    const sig = s.signal_tier || s.tier || s.signal || '—';
+    const ent = s.protocol_name || s.short_id || s.entity_id || s.entity || '—';
+    const coh = s.coherence_score !== undefined ? s.coherence_score : (s.coherence || 0);
+    const th = s.threshold !== undefined ? s.threshold : 0;
+    const sig = s.grade || s.kind || s.signal_tier || s.tier || '—';
     return `<tr>
       <td class="text-muted">${TRION.formatTime(ts)}</td>
       <td>${ent}</td>
-      <td>${coh}</td>
-      <td>${th}</td>
+      <td>${TRION.formatPercent(coh, 1)}</td>
+      <td>${TRION.formatPercent(th, 1)}</td>
       <td>${tierBadge(sig)}</td>
     </tr>`;
   }).join('');
@@ -230,21 +245,22 @@ async function loadFeed() {
 async function loadBHStream() {
   const data = await TRION.fetch(ORACLE + '/api/v1/bh/recent_feed');
   const tbody = document.querySelector('#bh-table tbody');
+  if (!tbody) return;
   if (!data) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">Data unavailable</td></tr>'; return; }
-  const list = data.feed || data.entries || data.recent || data.bhs || [];
+  const list = data.records || data.feed || data.entries || data.recent || data.bhs || [];
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No BHs yet</td></tr>'; return; }
   tbody.innerHTML = list.slice(0, 10).map(b => {
-    const ts = b.timestamp || b.ts || b.time;
+    const ts = b.ts || b.timestamp || b.time;
     const ent = b.entity_id || b.entity || '—';
-    const chain = b.chain || b.chain_id || '—';
+    const chain = b.chain || b.chain_label || b.chain_id || '—';
     const evt = b.event_type || b.event || '—';
-    const mag = b.magnitude !== undefined ? Number(b.magnitude).toFixed(2) : '—';
+    const verdict = b.verdict || '—';
     return `<tr>
       <td class="text-muted">${TRION.formatTime(ts)}</td>
-      <td>${ent}</td>
+      <td title="${ent}">${ent.length > 16 ? ent.slice(0,16) + '…' : ent}</td>
       <td>${chain}</td>
       <td>${evt}</td>
-      <td>${mag}</td>
+      <td>${verdict}</td>
     </tr>`;
   }).join('');
 }
@@ -296,7 +312,13 @@ async function loadRadar() {
 async function loadAll() {
   await Promise.all([loadOverview(), loadLeaderboard(), loadFeed(), loadBHStream(), loadRadar()]);
 }
-loadAll();
+
+// Run after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadAll);
+} else {
+  loadAll();
+}
 setInterval(loadOverview, 15000);
 setInterval(loadLeaderboard, 30000);
 setInterval(loadFeed, 5000);
