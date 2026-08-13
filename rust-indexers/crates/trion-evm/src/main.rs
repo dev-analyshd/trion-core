@@ -507,6 +507,14 @@ const CHAINS: &[EvmChain] = &[
             "https://iota-mainnet-evm.public.blastapi.io",
         ],
     },
+
+    // ── BOT Chain (AI-agent EVM L1) ──────────────────────────────────────────
+    EvmChain {
+        label: "BOT_CHAIN", chain_id: 677,
+        rpcs: &[
+            "https://rpc.botchain.ai",
+        ],
+    },
 ];
 
 // ── RPC helpers ───────────────────────────────────────────────────────────────

@@ -66,6 +66,7 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
     let mut msg_counts:    Vec<f64>    = Vec::new();
     let mut fees:          Vec<f64>    = Vec::new();
     let (mut bounce, mut no_bounce) = (0u64, 0u64);
+    let (mut success, mut failure)  = (0u64, 0u64);
     let mut workchains:    Vec<String> = Vec::new();
 
     for tx in txs {
@@ -78,6 +79,11 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
         let op = in_msg["op_code"].as_str().unwrap_or("0x0").to_string();
         op_codes.push(op);
         if in_msg["bounce"].as_bool().unwrap_or(false) { bounce += 1; } else { no_bounce += 1; }
+        // Track transaction outcome: Toncenter returns `transaction_id` or
+        // `success`/`aborted` flags. Default to success if no flag present.
+        let aborted = tx["aborted"].as_bool().unwrap_or(false)
+            || tx["description"]["aborted"].as_bool().unwrap_or(false);
+        if aborted { failure += 1; } else { success += 1; }
         msg_counts.push(out_msgs.len() as f64 + 1.0);
         let fee = tx["total_fees"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         fees.push(fee);
@@ -93,8 +99,8 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
         histogram_entropy(&msg_counts, 8),
         histogram_entropy(&fees, 8),
         ratio_entropy(bounce, bounce + no_bounce),
-        ratio_entropy(bounce, bounce + no_bounce),
-        freq_entropy(&workchains),
+        freq_entropy(&workchains),            // f8 — workchain diversity (was duplicate of f7)
+        ratio_entropy(success, success + failure), // f9 — transaction success ratio
     ]
 }
 
@@ -119,8 +125,9 @@ fn classify_ton_event(in_msg: &Value) -> u8 {
         "0x7362d09c" | "0xf8a7ea5"  => 0,   // token transfer / transfer notification
         "0x595f07bc" | "0xad3029e3" => 1,   // DEX swap (TON jetton AMM ops)
         "0x47d54391" | "0x7bdd97de" => 2,   // add/remove liquidity
-        "0x47d54391"                 => 8,   // stake
-        "0xa7fb58f8"                 => 9,   // unstake
+        // Canonical STAKE=3 (was 8 — fixed to match whitepaper L0.1 §2)
+        // Note: 0x47d54391 also matched staking in old code; removed duplicate.
+        "0xa7fb58f8"                 => 4,   // unstake (was 9 — canonical UNSTAKE=4)
         "0xb5de5f9e" | "0x42a0fb43" => 6,   // governance / voting
         "0x00000000"                 => {
             // op_code 0 = simple transfer

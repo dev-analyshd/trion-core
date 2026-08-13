@@ -1231,6 +1231,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "trion-botchain"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha3",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
 name = "trion-common"
 version = "0.1.0"
 dependencies = [

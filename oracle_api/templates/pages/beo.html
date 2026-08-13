@@ -1,0 +1,302 @@
+{% extends "base_dashboard.html" %}
+{% block title %}BEO Resolution — TRION{% endblock %}
+{% block page_title %}BEO Resolution{% endblock %}
+{% block page_subtitle %}Behavioral Entity Object — resolving forks, resurrections, and sybil clusters{% endblock %}
+
+{% block content %}
+<!-- Stat row -->
+<div class="grid grid-6 mb-16">
+  <div class="stat" id="stat-arch">
+    <div class="stat-label">Archetypes</div>
+    <div class="stat-value skeleton" style="height:32px;width:50px;"> </div>
+    <div class="stat-delta flat">Behavioral classes</div>
+  </div>
+  <div class="stat" id="stat-resolved">
+    <div class="stat-label">Entities Resolved</div>
+    <div class="stat-value skeleton" style="height:32px;width:70px;"> </div>
+    <div class="stat-delta flat">Total BEO calls</div>
+  </div>
+  <div class="stat" id="stat-forks">
+    <div class="stat-label">Fork Cases</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Resolved chain forks</div>
+  </div>
+  <div class="stat" id="stat-resurr">
+    <div class="stat-label">Resurrections</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Continuation verdicts</div>
+  </div>
+  <div class="stat" id="stat-vuln">
+    <div class="stat-label">Vulnerability Patterns</div>
+    <div class="stat-value skeleton" style="height:32px;width:50px;"> </div>
+    <div class="stat-delta flat">Contract audit library</div>
+  </div>
+  <div class="stat" id="stat-clusters">
+    <div class="stat-label">Sybil Clusters</div>
+    <div class="stat-value skeleton" style="height:32px;width:60px;"> </div>
+    <div class="stat-delta flat">Detected & merged</div>
+  </div>
+</div>
+
+<!-- Resolution factors -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">BEO Resolution Factors</div>
+    <span class="live-indicator">Live</span>
+  </div>
+  <div class="grid grid-4" id="factors-grid">
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Common Funding</div><span class="badge badge-info">Factor 1</span></div>
+      <div class="text-muted" style="font-size:11px;">Shared funding sources / wallets</div>
+      <div class="mt-8 text-mono" id="factor-funding">—</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Synchronized Timing</div><span class="badge badge-info">Factor 2</span></div>
+      <div class="text-muted" style="font-size:11px;">Correlated action timestamps</div>
+      <div class="mt-8 text-mono" id="factor-timing">—</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Shared Contracts</div><span class="badge badge-info">Factor 3</span></div>
+      <div class="text-muted" style="font-size:11px;">Common contract interactions</div>
+      <div class="mt-8 text-mono" id="factor-contracts">—</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:13px;">Behavioral Pattern</div><span class="badge badge-info">Factor 4</span></div>
+      <div class="text-muted" style="font-size:11px;">Archetype vector similarity</div>
+      <div class="mt-8 text-mono" id="factor-pattern">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- 12 archetype cards -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Behavioral Archetypes</div>
+      <input type="text" class="search-input" id="arch-search" placeholder="Filter…" style="width:200px;">
+    </div>
+    <div class="grid grid-2" id="archetype-grid" style="gap:8px;">
+      <div class="card text-muted text-center" style="padding:16px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Recent BEO resolutions -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent BEO Resolutions</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
+      <table id="resolutions-table">
+        <thead><tr><th>Time</th><th>Entity</th><th>Verdict</th><th>Confidence</th><th>Cluster Size</th></tr></thead>
+        <tbody><tr><td colspan="5" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- Contract audit patterns -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Contract Audit Patterns</div>
+      <span class="live-indicator">20 patterns</span>
+    </div>
+    <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+      <table id="audit-table">
+        <thead><tr><th>Pattern</th><th>Category</th><th>Severity</th></tr></thead>
+        <tbody><tr><td colspan="3" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Resurrection classifications -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Resurrection Classifications</div>
+    </div>
+    <div class="flex-col gap-8" id="resurr-panel">
+      <div class="flex-between"><span class="text-muted">Genuine Continuation</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">New Entity, Old Shell</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Hostile Takeover</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Abandoned Revival</span><span class="text-mono">—</span></div>
+      <div class="flex-between"><span class="text-muted">Sybil Resurrection</span><span class="text-mono">—</span></div>
+    </div>
+    <div class="card-subtitle mt-24 mb-16">Fork Resolution Cases</div>
+    <div class="table-wrap" style="max-height:200px;overflow-y:auto;">
+      <table id="forks-table">
+        <thead><tr><th>Time</th><th>Entity</th><th>Verdict</th></tr></thead>
+        <tbody><tr><td colspan="3" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ORACLE = TRION.ORACLE_API;
+let allArchetypes = [];
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.textContent = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+function riskBadge(level) {
+  const l = String(level || '').toUpperCase();
+  if (['LOW','SAFE','MINIMAL'].includes(l)) return '<span class="badge badge-success">' + (level || 'LOW') + '</span>';
+  if (['MEDIUM','MODERATE','WATCH'].includes(l)) return '<span class="badge badge-warning">' + (level || 'MEDIUM') + '</span>';
+  if (['HIGH','SEVERE','CRITICAL'].includes(l)) return '<span class="badge badge-danger">' + (level || 'HIGH') + '</span>';
+  return '<span class="badge badge-muted">' + (level || '—') + '</span>';
+}
+
+function verdictBadge(v) {
+  const t = String(v || '').toUpperCase();
+  if (t.includes('GENUINE') || t.includes('CONTINUATION')) return '<span class="badge badge-success">' + v + '</span>';
+  if (t.includes('SYBIL') || t.includes('HOSTILE') || t.includes('ABANDONED')) return '<span class="badge badge-danger">' + v + '</span>';
+  if (t.includes('NEW') || t.includes('SHELL')) return '<span class="badge badge-warning">' + v + '</span>';
+  return '<span class="badge badge-info">' + (v || '—') + '</span>';
+}
+
+async function loadBEO() {
+  const data = await TRION.fetch(ORACLE + '/app/api/beo-live');
+  if (!data) return;
+  const archetypes = data.archetypes || {};
+  const audit = data.audit_patterns || {};
+  const archList = archetypes.archetypes || archetypes.data || archetypes.list || [];
+  allArchetypes = Array.isArray(archList) ? archList : [];
+  setStat('stat-arch', TRION.formatNumber(allArchetypes.length), 'Behavioral classes');
+  renderArchetypes(allArchetypes);
+
+  // Audit patterns
+  const auditList = audit.patterns || audit.data || audit.list || [];
+  setStat('stat-vuln', TRION.formatNumber(auditList.length), 'Contract audit library');
+  const tbody = document.querySelector('#audit-table tbody');
+  if (!auditList.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No patterns loaded</td></tr>';
+  } else {
+    tbody.innerHTML = auditList.slice(0, 50).map(p => {
+      const name = p.name || p.pattern || p.id || '—';
+      const cat = p.category || p.type || '—';
+      const sev = p.severity || p.risk;
+      return `<tr><td>${name}</td><td>${cat}</td><td>${riskBadge(sev)}</td></tr>`;
+    }).join('');
+  }
+}
+
+function renderArchetypes(list) {
+  const grid = document.getElementById('archetype-grid');
+  if (!list.length) { grid.innerHTML = '<div class="card text-muted text-center" style="padding:16px;">No matches</div>'; return; }
+  grid.innerHTML = list.slice(0, 12).map(a => {
+    const name = a.name || a.archetype || a.id || '—';
+    const risk = a.risk_level || a.risk || a.tier;
+    const sig = a.investment_signal || a.signal || '—';
+    const examples = (a.example_entities || a.examples || []).slice(0, 2).join(', ');
+    return `<div class="card" style="padding:12px;">
+      <div class="flex-between mb-16">
+        <div style="font-weight:600;font-size:12px;">${name}</div>
+        ${riskBadge(risk)}
+      </div>
+      <div class="flex-between" style="font-size:11px;">
+        <span class="text-muted">Signal</span>
+        <span class="text-mono">${sig}</span>
+      </div>
+      ${examples ? `<div class="text-muted mt-8" style="font-size:10px;">e.g. ${examples}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('arch-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  const filtered = allArchetypes.filter(a => String(a.name || a.archetype || a.id || '').toLowerCase().includes(q));
+  renderArchetypes(filtered);
+});
+
+async function loadResolutions() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/feed');
+  const tbody = document.querySelector('#resolutions-table tbody');
+  if (!data) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">Data unavailable</td></tr>'; return; }
+  const list = (data.feed || data.signals || data.entries || []).filter(s => s.beo_verdict || s.resolution);
+  setStat('stat-resolved', TRION.formatNumber(list.length), 'Total BEO calls');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No recent BEO resolutions</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.slice(0, 30).map(s => {
+    const ts = s.timestamp || s.ts;
+    const ent = s.entity_id || s.entity || '—';
+    const verdict = s.beo_verdict || s.resolution || '—';
+    const conf = s.beo_confidence !== undefined ? TRION.formatPercent(s.beo_confidence, 2) : '—';
+    const size = s.cluster_size || 1;
+    return `<tr>
+      <td class="text-muted">${TRION.formatTime(ts)}</td>
+      <td>${ent}</td>
+      <td>${verdictBadge(verdict)}</td>
+      <td>${conf}</td>
+      <td>${size}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadForks() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/feed');
+  const tbody = document.querySelector('#forks-table tbody');
+  const list = data ? (data.feed || data.signals || data.entries || []).filter(s => s.fork_verdict || s.fork_resolution) : [];
+  setStat('stat-forks', TRION.formatNumber(list.length), 'Resolved chain forks');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No fork cases</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.slice(0, 20).map(s => {
+    const ts = s.timestamp || s.ts;
+    const ent = s.entity_id || s.entity || '—';
+    const v = s.fork_verdict || s.fork_resolution || '—';
+    return `<tr><td class="text-muted">${TRION.formatTime(ts)}</td><td>${ent}</td><td>${verdictBadge(v)}</td></tr>`;
+  }).join('');
+}
+
+// Resurrection classifications placeholder counts (no dedicated endpoint — derive from feed if available)
+async function loadResurrections() {
+  const data = await TRION.fetch(ORACLE + '/api/v1/feed');
+  const panel = document.getElementById('resurr-panel');
+  if (!data) { panel.innerHTML = '<div class="text-muted">Data unavailable</div>'; return; }
+  const list = data.feed || data.signals || data.entries || [];
+  const counts = { GENUINE_CONTINUATION: 0, NEW_ENTITY_OLD_SHELL: 0, HOSTILE_TAKEOVER: 0, ABANDONED_REVIVAL: 0, SYBIL_RESURRECTION: 0 };
+  list.forEach(s => {
+    const v = String(s.resurrection_class || s.beo_verdict || '').toUpperCase();
+    Object.keys(counts).forEach(k => { if (v.includes(k)) counts[k]++; });
+  });
+  setStat('stat-resurr', TRION.formatNumber(Object.values(counts).reduce((a, b) => a + b, 0)), 'Continuation verdicts');
+  setStat('stat-clusters', TRION.formatNumber(list.filter(s => s.cluster_size && s.cluster_size > 1).length), 'Detected & merged');
+  panel.innerHTML = `
+    <div class="flex-between"><span class="text-muted">Genuine Continuation</span><span class="text-mono">${counts.GENUINE_CONTINUATION}</span></div>
+    <div class="flex-between"><span class="text-muted">New Entity, Old Shell</span><span class="text-mono">${counts.NEW_ENTITY_OLD_SHELL}</span></div>
+    <div class="flex-between"><span class="text-muted">Hostile Takeover</span><span class="text-mono">${counts.HOSTILE_TAKEOVER}</span></div>
+    <div class="flex-between"><span class="text-muted">Abandoned Revival</span><span class="text-mono">${counts.ABANDONED_REVIVAL}</span></div>
+    <div class="flex-between"><span class="text-muted">Sybil Resurrection</span><span class="text-mono">${counts.SYBIL_RESURRECTION}</span></div>
+  `;
+}
+
+async function loadFactors() {
+  // Derive from signal feed
+  const data = await TRION.fetch(ORACLE + '/api/v1/signal/TRION_PROTOCOL');
+  if (!data) return;
+  document.getElementById('factor-funding').textContent = data.beo_factor_funding !== undefined ? Number(data.beo_factor_funding).toFixed(3) : 'Available';
+  document.getElementById('factor-timing').textContent = data.beo_factor_timing !== undefined ? Number(data.beo_factor_timing).toFixed(3) : 'Available';
+  document.getElementById('factor-contracts').textContent = data.beo_factor_contracts !== undefined ? Number(data.beo_factor_contracts).toFixed(3) : 'Available';
+  document.getElementById('factor-pattern').textContent = data.beo_factor_pattern !== undefined ? Number(data.beo_factor_pattern).toFixed(3) : 'Available';
+}
+
+async function loadAll() {
+  await Promise.all([loadBEO(), loadResolutions(), loadForks(), loadResurrections(), loadFactors()]);
+}
+loadAll();
+setInterval(loadBEO, 60000);
+setInterval(loadResolutions, 10000);
+setInterval(loadForks, 15000);
+setInterval(loadResurrections, 15000);
+setInterval(loadFactors, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+[package]
+name = "trion-botchain"
+version = "0.1.0"
+edition = "2021"
+description = "TRION L0 Behavioral Indexer for BOT Chain (chain_id 677, EVM-compatible)"
+
+[dependencies]
+trion-common = { path = "../trion-common" }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha3 = { workspace = true }
+hex = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+
+[[bin]]
+name = "trion-botchain"
+path = "src/main.rs"

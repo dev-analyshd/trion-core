@@ -181,6 +181,16 @@ except Exception as _self_err:
     _self_verification_available = False
     _log.warning("Self-verification routes unavailable: %s", _self_err)
 
+# ── Register Institutional Dashboard routes ──────────────────────────────────
+try:
+    from dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)
+    _dashboard_available = True
+    _log.info("Institutional dashboard routes registered at /app/*")
+except Exception as _dash_err:
+    _dashboard_available = False
+    _log.warning("Dashboard routes unavailable: %s", _dash_err)
+
 # ── Signal feed ring buffer (thread-safe, last 50 computations) ──────────────
 _feed_lock = threading.Lock()
 _feed_buffer: deque = deque(maxlen=50)

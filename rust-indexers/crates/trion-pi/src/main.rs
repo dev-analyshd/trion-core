@@ -28,7 +28,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 7001;
+const CHAIN_ID:  u64  = 8001;
 const CHAIN_LBL: &str = "PI_MVM";
 const VM_TYPE:   &str = "MVM";
 

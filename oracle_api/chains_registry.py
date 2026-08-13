@@ -65,6 +65,7 @@ CHAINS = [
     {"id": "canto",         "name": "Canto",               "vm": "EVM",        "chain_id": 7700,        "status": "live",    "color": "#06FC99", "indexer": "trion-evm"},
     {"id": "neon-evm",      "name": "Neon EVM",            "vm": "EVM",        "chain_id": 245022934,   "status": "live",    "color": "#663399", "indexer": "trion-evm"},
     {"id": "iota-evm",      "name": "IOTA EVM",            "vm": "EVM",        "chain_id": 8822,        "status": "live",    "color": "#0FC1B7", "indexer": "trion-evm"},
+    {"id": "bot-chain",     "name": "BOT Chain",           "vm": "EVM",        "chain_id": 677,         "status": "live",    "color": "#00FFA3", "indexer": "trion-botchain", "note": "AI-agent EVM L1"},
     {"id": "polygon-zkevm", "name": "Polygon zkEVM",       "vm": "EVM",        "chain_id": 1101,        "status": "live",    "color": "#7B3FE4", "indexer": "trion-evm"},
     {"id": "immutable-x",   "name": "Immutable X",         "vm": "EVM",        "chain_id": 13371,       "status": "live",    "color": "#17B5CB", "indexer": "trion-evm"},
     {"id": "gravity",       "name": "Gravity",             "vm": "EVM",        "chain_id": 1625,        "status": "live",    "color": "#6B5EFF", "indexer": "trion-evm"},
@@ -116,7 +117,7 @@ CHAINS = [
     # ── NEAR VM ────────────────────────────────────────────────────────────────
     {"id": "near",          "name": "NEAR Protocol",       "vm": "NEAR VM",    "chain_id": 0,           "status": "live",    "color": "#00C08B", "indexer": "trion-near"},
     # ── Stellar / Pi ───────────────────────────────────────────────────────────
-    {"id": "pi",            "name": "Pi Network",          "vm": "Stellar",    "chain_id": 0,           "status": "live",    "color": "#9D4EDD", "indexer": "trion-pi"},
+    {"id": "pi",            "name": "Pi Network",          "vm": "Stellar",    "chain_id": 8001,        "status": "live",    "color": "#9D4EDD", "indexer": "trion-pi"},
     # ── XRP Ledger ─────────────────────────────────────────────────────────────
     {"id": "xrpl",          "name": "XRP Ledger",          "vm": "XRP Ledger", "chain_id": 0,           "status": "indexed", "color": "#00AAE4", "indexer": "trion-xrpl"},
     # ── AVM ────────────────────────────────────────────────────────────────────

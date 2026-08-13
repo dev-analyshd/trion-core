@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}TRION Protocol{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-mark"></div>
+          <div class="logo-text">
+            <span class="logo-title">TRION</span>
+            <span class="logo-sub">Behavioral Truth Oracle</span>
+          </div>
+        </div>
+      </div>
+      <nav class="nav">
+        <div class="nav-group">
+          <div class="nav-group-label">Overview</div>
+          <a href="/app" class="nav-item {{ 'active' if active_page == 'main' else '' }}">
+            <span class="nav-icon">▣</span> Dashboard
+          </a>
+          <a href="/app/chains" class="nav-item {{ 'active' if active_page == 'chains' else '' }}">
+            <span class="nav-icon">⬡</span> Chain Coverage
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-label">Behavioral Engine</div>
+          <a href="/app/akashic" class="nav-item {{ 'active' if active_page == 'akashic' else '' }}">
+            <span class="nav-icon">◆</span> Akashic Index
+          </a>
+          <a href="/app/bh-explorer" class="nav-item {{ 'active' if active_page == 'bh' else '' }}">
+            <span class="nav-icon">▓</span> BH Explorer
+          </a>
+          <a href="/app/anima" class="nav-item {{ 'active' if active_page == 'anima' else '' }}">
+            <span class="nav-icon">✦</span> ANIMA Intelligence
+          </a>
+          <a href="/app/beo" class="nav-item {{ 'active' if active_page == 'beo' else '' }}">
+            <span class="nav-icon">⬟</span> BEO Resolution
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-label">Security & Consensus</div>
+          <a href="/app/living-security" class="nav-item {{ 'active' if active_page == 'security' else '' }}">
+            <span class="nav-icon">◈</span> Living Security
+          </a>
+          <a href="/app/validators" class="nav-item {{ 'active' if active_page == 'validators' else '' }}">
+            <span class="nav-icon">⬢</span> Validators
+          </a>
+          <a href="/app/annotators" class="nav-item {{ 'active' if active_page == 'annotators' else '' }}">
+            <span class="nav-icon">◑</span> Annotators
+          </a>
+          <a href="/app/evolutionary" class="nav-item {{ 'active' if active_page == 'evolutionary' else '' }}">
+            <span class="nav-icon">❂</span> Evolutionary Fitness
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-label">Markets</div>
+          <a href="/app/continuum" class="nav-item {{ 'active' if active_page == 'continuum' else '' }}">
+            <span class="nav-icon">⬡</span> Continuum DEX
+          </a>
+          <a href="/app/btcp" class="nav-item {{ 'active' if active_page == 'btcp' else '' }}">
+            <span class="nav-icon">⇄</span> BTCP Routing
+          </a>
+          <a href="/app/marketplace" class="nav-item {{ 'active' if active_page == 'marketplace' else '' }}">
+            <span class="nav-icon">$</span> Data Marketplace
+          </a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-label">Infrastructure</div>
+          <a href="/app/agent-id" class="nav-item {{ 'active' if active_page == 'agent_id' else '' }}">
+            <span class="nav-icon">⦿</span> AI Agent ID
+          </a>
+          <a href="/app/timescale" class="nav-item {{ 'active' if active_page == 'timescale' else '' }}">
+            <span class="nav-icon">▤</span> TimescaleDB
+          </a>
+          <a href="/app/settings" class="nav-item {{ 'active' if active_page == 'settings' else '' }}">
+            <span class="nav-icon">⚙</span> Settings
+          </a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/" class="nav-item legacy-link">
+          <span class="nav-icon">←</span> Legacy Dashboard
+        </a>
+      </div>
+    </aside>
+
+    <!-- ── Main content ────────────────────────────────────────────────── -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+          <span class="page-subtitle">{% block page_subtitle %}{% endblock %}</span>
+        </div>
+        <div class="topbar-right">
+          <div class="status-pill" id="system-status">
+            <span class="status-dot"></span>
+            <span class="status-text">Connecting…</span>
+          </div>
+          <div class="clock" id="clock">--:--:--</div>
+        </div>
+      </header>
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
