@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   // Proxy API requests to Flask backend (internal port 5000)
   async rewrites() {
     return [

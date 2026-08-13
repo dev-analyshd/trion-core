@@ -187,16 +187,24 @@ done
 log "═══════════════════════════════════════════════════════════════"
 log "TRION Protocol — React Frontend starting on :${PORT}"
 log "Dashboard:  http://0.0.0.0:${PORT}/"
-log "API:        http://0.0.0.1:${PORT}/api/v1/health (proxied to Flask:${FLASK_PORT})"
+log "API:        http://0.0.0.0:${PORT}/api/v1/health (proxied to Flask:${FLASK_PORT})"
 log "═══════════════════════════════════════════════════════════════"
 
-# Check if Next.js standalone build exists
+# Set FLASK_URL so Next.js rewrites() can proxy to Flask
+export FLASK_URL="http://127.0.0.1:${FLASK_PORT}"
+# Next.js standalone server reads HOSTNAME and PORT env vars
+export HOSTNAME="0.0.0.0"
+export PORT="${PORT:-10000}"
+
+# Check if Next.js standalone build exists (preferred — uses server.js)
 if [[ -f "/app/frontend/server.js" ]]; then
+    log "Starting Next.js standalone server (server.js)"
     cd /app/frontend
     exec node server.js
-elif [[ -d "/app/frontend/.next" ]]; then
+elif [[ -d "/app/frontend/.next" ]] && [[ -f "/app/frontend/package.json" ]]; then
+    log "Starting Next.js via 'npx next start' (non-standalone)"
     cd /app/frontend
-    exec npx next start -p "${PORT}"
+    exec npx next start -p "${PORT}" -H 0.0.0.0
 else
     log "WARN: Next.js build not found — falling back to Flask-only mode"
     log "Serving Flask directly on :${PORT}"
