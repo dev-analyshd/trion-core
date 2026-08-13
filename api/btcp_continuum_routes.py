@@ -663,3 +663,45 @@ def btcp_mainnet_bootstrap():
         "whitepaper": "BTCP Master Spec Phase 6 — Bootstrap & Mainnet Launch",
         "timestamp": int(time.time()),
     })
+
+
+# ── Real-Time Streamer Endpoints ───────────────────────────────────────────────
+
+@btcp_bp.route("/api/v1/btcp/streamer/status")
+def streamer_status():
+    """Real-time BH streamer status and stats."""
+    try:
+        from core.realtime.bh_streamer import get_streamer, get_faiss_accumulator
+        streamer = get_streamer()
+        acc = get_faiss_accumulator()
+        if streamer and streamer.is_running():
+            stats = streamer.get_stats()
+            return jsonify({
+                **stats,
+                "faiss_vectors_accumulated": acc.vector_count if acc else 0,
+                "chains": list(streamer.chains.keys()),
+                "chain_configs": {str(k): v for k, v in streamer.chains.items()},
+                "status": "RUNNING",
+            })
+        else:
+            return jsonify({
+                "status": "STOPPED",
+                "total_bhs": 0,
+                "message": "Streamer not started. Call /api/v1/btcp/streamer/start",
+            })
+    except Exception as e:
+        return jsonify({"status": "ERROR", "error": str(e)}), 500
+
+
+@btcp_bp.route("/api/v1/btcp/streamer/start", methods=["POST"])
+def streamer_start():
+    """Start the real-time BH streamer."""
+    try:
+        from core.realtime.bh_streamer import start_streamer, get_streamer
+        streamer = get_streamer()
+        if streamer and streamer.is_running():
+            return jsonify({"status": "ALREADY_RUNNING", "stats": streamer.get_stats()})
+        start_streamer()
+        return jsonify({"status": "STARTED", "message": "BH streamer started for 7 chains"})
+    except Exception as e:
+        return jsonify({"status": "ERROR", "error": str(e)}), 500
