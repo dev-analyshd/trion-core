@@ -2,110 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="description" content="TRION Protocol — Multi-Chain Behavioral Truth Oracle">
   <title>{% block title %}TRION Protocol{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='trion_logo.png') }}">
 </head>
 <body>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
   <div class="app-shell">
-    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
-    <aside class="sidebar">
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <div class="logo">
-          <div class="logo-mark"></div>
-          <div class="logo-text">
-            <span class="logo-title">TRION</span>
-            <span class="logo-sub">Behavioral Truth Oracle</span>
-          </div>
+        <img src="{{ url_for('static', filename='trion_logo.png') }}" alt="TRION" class="sidebar-logo">
+        <div class="sidebar-brand">
+          <span class="sidebar-brand-name">TRION</span>
+          <span class="sidebar-brand-tag">Behavioral Truth Oracle</span>
         </div>
       </div>
       <nav class="nav">
         <div class="nav-group">
           <div class="nav-group-label">Overview</div>
-          <a href="/app" class="nav-item {{ 'active' if active_page == 'main' else '' }}">
-            <span class="nav-icon">▣</span> Dashboard
+          <a href="/app/" class="nav-item {{ 'active' if active_page == 'main' else '' }}">
+            <span class="nav-icon">▣</span> <span>Dashboard</span>
           </a>
           <a href="/app/chains" class="nav-item {{ 'active' if active_page == 'chains' else '' }}">
-            <span class="nav-icon">⬡</span> Chain Coverage
+            <span class="nav-icon">⬡</span> <span>Chain Coverage</span>
+          </a>
+          <a href="/app/architecture" class="nav-item {{ 'active' if active_page == 'architecture' else '' }}">
+            <span class="nav-icon">⬢</span> <span>Architecture</span>
           </a>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">Behavioral Engine</div>
           <a href="/app/akashic" class="nav-item {{ 'active' if active_page == 'akashic' else '' }}">
-            <span class="nav-icon">◆</span> Akashic Index
+            <span class="nav-icon">◆</span> <span>Akashic Index</span>
           </a>
           <a href="/app/bh-explorer" class="nav-item {{ 'active' if active_page == 'bh' else '' }}">
-            <span class="nav-icon">▓</span> BH Explorer
+            <span class="nav-icon">▓</span> <span>BH Explorer</span>
           </a>
           <a href="/app/anima" class="nav-item {{ 'active' if active_page == 'anima' else '' }}">
-            <span class="nav-icon">✦</span> ANIMA Intelligence
+            <span class="nav-icon">✦</span> <span>ANIMA Intelligence</span>
           </a>
           <a href="/app/beo" class="nav-item {{ 'active' if active_page == 'beo' else '' }}">
-            <span class="nav-icon">⬟</span> BEO Resolution
+            <span class="nav-icon">⬟</span> <span>BEO Resolution</span>
           </a>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">Security & Consensus</div>
           <a href="/app/living-security" class="nav-item {{ 'active' if active_page == 'security' else '' }}">
-            <span class="nav-icon">◈</span> Living Security
+            <span class="nav-icon">◈</span> <span>Living Security</span>
           </a>
           <a href="/app/validators" class="nav-item {{ 'active' if active_page == 'validators' else '' }}">
-            <span class="nav-icon">⬢</span> Validators
+            <span class="nav-icon">⬢</span> <span>Validators</span>
           </a>
           <a href="/app/annotators" class="nav-item {{ 'active' if active_page == 'annotators' else '' }}">
-            <span class="nav-icon">◑</span> Annotators
+            <span class="nav-icon">◑</span> <span>Annotators</span>
           </a>
           <a href="/app/evolutionary" class="nav-item {{ 'active' if active_page == 'evolutionary' else '' }}">
-            <span class="nav-icon">❂</span> Evolutionary Fitness
+            <span class="nav-icon">❂</span> <span>Evolutionary Fitness</span>
           </a>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">Markets</div>
           <a href="/app/continuum" class="nav-item {{ 'active' if active_page == 'continuum' else '' }}">
-            <span class="nav-icon">⬡</span> Continuum DEX
+            <span class="nav-icon">⬡</span> <span>Continuum DEX</span>
           </a>
           <a href="/app/btcp" class="nav-item {{ 'active' if active_page == 'btcp' else '' }}">
-            <span class="nav-icon">⇄</span> BTCP Routing
+            <span class="nav-icon">⇄</span> <span>BTCP Routing</span>
           </a>
           <a href="/app/marketplace" class="nav-item {{ 'active' if active_page == 'marketplace' else '' }}">
-            <span class="nav-icon">$</span> Data Marketplace
+            <span class="nav-icon">$</span> <span>Data Marketplace</span>
           </a>
         </div>
         <div class="nav-group">
           <div class="nav-group-label">Infrastructure</div>
-          <a href="/app/architecture" class="nav-item {{ 'active' if active_page == 'architecture' else '' }}">
-            <span class="nav-icon">⬡</span> Architecture
-          </a>
           <a href="/app/agent-id" class="nav-item {{ 'active' if active_page == 'agent_id' else '' }}">
-            <span class="nav-icon">⦿</span> AI Agent ID
+            <span class="nav-icon">⦿</span> <span>AI Agent ID</span>
           </a>
           <a href="/app/timescale" class="nav-item {{ 'active' if active_page == 'timescale' else '' }}">
-            <span class="nav-icon">▤</span> TimescaleDB
+            <span class="nav-icon">▤</span> <span>TimescaleDB</span>
           </a>
           <a href="/app/settings" class="nav-item {{ 'active' if active_page == 'settings' else '' }}">
-            <span class="nav-icon">⚙</span> Settings
+            <span class="nav-icon">⚙</span> <span>Settings</span>
           </a>
         </div>
       </nav>
       <div class="sidebar-footer">
-        <a href="/api/v1/health" class="nav-item legacy-link" target="_blank">
-          <span class="nav-icon">↗</span> API Health Check
+        <a href="/api/v1/health" class="nav-item" target="_blank">
+          <span class="nav-icon">↗</span> <span>API Health</span>
         </a>
       </div>
     </aside>
 
-    <!-- ── Main content ────────────────────────────────────────────────── -->
+    <!-- ── Main content ────────────────────────────────────────────── -->
     <main class="main">
       <header class="topbar">
-        <div class="topbar-left">
-          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
-          <span class="page-subtitle">{% block page_subtitle %}{% endblock %}</span>
+        <div class="flex-center gap-16">
+          <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+          <div class="topbar-left">
+            <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+            <span class="page-subtitle">{% block page_subtitle %}{% endblock %}</span>
+          </div>
         </div>
         <div class="topbar-right">
           <div class="status-pill" id="system-status">
             <span class="status-dot"></span>
-            <span class="status-text">Connecting…</span>
+            <span class="status-text">Connecting</span>
           </div>
           <div class="clock" id="clock">--:--:--</div>
         </div>
@@ -117,6 +120,23 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('active');
+    }
+    // Close sidebar on nav click (mobile)
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        if (window.innerWidth < 768) {
+          document.getElementById('sidebar').classList.remove('open');
+          document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+      });
+    });
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
