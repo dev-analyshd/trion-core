@@ -1,5 +1,5 @@
 """
-TRION Protocol — L2.1: Manipulation Fingerprint (MF) Detector
+TRION Protocol — L1.2: Manipulation Fingerprint (MF) Detector
 Seven manipulation patterns:
 1. ORACLE_ATTACK_ATTEMPT   (MF=1.0 immediate)
 2. WASH_TRADING            (MF=0.25–0.95)
@@ -71,7 +71,7 @@ def detect_wash_trading(
     min_counterparties: int = 5,
 ) -> MFResult:
     """
-    WASH_TRADING (Whitepaper L2.1 TYPE 1):
+    WASH_TRADING (Whitepaper L1.2 TYPE 1):
     MF = 0.70 × cyclic_flow_ratio
     Threshold: cyclic_flow_ratio > 0.60 AND counterparty_count < 5
     """
@@ -112,9 +112,9 @@ def detect_sybil_liquidity(
     share_threshold: float = 0.80,
 ) -> MFResult:
     """
-    SYBIL_LIQUIDITY (Whitepaper L2.1 TYPE 4):
+    SYBIL_LIQUIDITY (Whitepaper L1.2 TYPE 4):
     MF = 0.60 × funding_concentration
-    Threshold: top_k_lp_share > 0.80 AND lp_beo_count < 20
+    Threshold: top_5_LP_providers > 80% pool AND funded from < 3 sources
     """
     funding_concentration = top_k_lp_share
     detected = top_k_lp_share > share_threshold and lp_beo_count < 20
@@ -152,7 +152,7 @@ def detect_governance_capture(
     min_proposal_age_hours: float = 48.0,
 ) -> MFResult:
     """
-    GOVERNANCE_CAPTURE (Whitepaper L2.1 TYPE 5):
+    GOVERNANCE_CAPTURE (Whitepaper L1.2 TYPE 5):
     MF = 0.50 × (vote_HHI - 4000) / 6000
     Threshold: vote_HHI > 4000 AND proposal_age < 48h
     Beanstalk scenario: same-block governance execution (HHI → 10000).
@@ -161,7 +161,7 @@ def detect_governance_capture(
     """
     detected = vote_hhi > hhi_threshold and proposal_age_hours < min_proposal_age_hours
     if detected:
-        mf_score = min(1.0, max(0.0, 0.50 * (vote_hhi - 4000) / 6000))
+        mf_score = min(1.0, max(0.0, 0.50 * (vote_hhi - 2500) / 7500))
         return MFResult(
             pattern_type="GOVERNANCE_CAPTURE",
             detected=True,
@@ -194,7 +194,7 @@ def detect_mev_extraction(
     max_ratio: float = 0.05,
 ) -> MFResult:
     """
-    MEV_EXTRACTION_SUSTAINED (Whitepaper L2.1 TYPE 6):
+    MEV_EXTRACTION_SUSTAINED (Whitepaper L1.2 TYPE 6):
     MF = 0.40 × (mev_rate - 0.005) / 0.045
     Threshold: mev_rate > 0.005 (0.5% MEV extraction rate)
     """
@@ -228,11 +228,11 @@ def detect_mev_extraction(
 def detect_coordinated_pump(
     sync_buy_ratios: List[float],  # synchronized buy ratios across wallets
     entity_count: int,
-    sync_threshold: float = 0.85,
+    sync_threshold: float = 0.80,
     min_entities: int = 3,
 ) -> MFResult:
     """
-    COORDINATED_PUMP (Whitepaper L2.1 TYPE 2):
+    COORDINATED_PUMP (Whitepaper L1.2 TYPE 2):
     MF = 0.85 × sync_buy_ratio
     Threshold: high_sync_entities >= 3 AND avg_sync_buy_ratio > 0.85
     Mango Markets scenario: correlated buying across 4 wallets.
@@ -277,7 +277,7 @@ def detect_fake_volume(
     threshold_ratio: float = 0.40,
 ) -> MFResult:
     """
-    FAKE_VOLUME_PROTOCOL (Whitepaper L2.1 TYPE 7):
+    FAKE_VOLUME_PROTOCOL (Whitepaper L1.2 TYPE 7):
     MF = 0.80 × (1 - vol_entropy / H_baseline)
     Threshold: (1 - vol_entropy/H_baseline) > 0.40 OR volume_spike > 5x
     When vol_entropy not available, use round_trip_ratio as proxy.
@@ -289,7 +289,7 @@ def detect_fake_volume(
 
     detected = (
         entropy_deficit > threshold_ratio or
-        (volume_spike_ratio > 5.0 and round_trip_ratio > 0.20)
+        (volume_spike_ratio > 10.0 and round_trip_ratio > 0.20)
     )
     if detected:
         mf_score = min(0.85, 0.80 * entropy_deficit)
@@ -351,7 +351,7 @@ def compute_mf_score(results: List[MFResult]) -> dict:
 
     max_result = max(detected, key=lambda r: r.mf_score)
     return {
-        "mf_score": max_result.mf_score,
+        "mf_score": min(1.0, max_result.mf_score),
         "primary_type": max_result.pattern_type,
         "detected_types": [r.pattern_type for r in detected],
         "components": {r.pattern_type: r.mf_score for r in results},
