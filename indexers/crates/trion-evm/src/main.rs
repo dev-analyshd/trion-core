@@ -515,6 +515,14 @@ const CHAINS: &[EvmChain] = &[
             "https://rpc.botchain.ai",
         ],
     },
+
+    // ── 0G Newton Testnet ─────────────────────────────────────────────────────
+    EvmChain {
+        label: "ZG_NEWTON", chain_id: 16602,
+        rpcs: &[
+            "https://rpc.newton.0g.ai",
+        ],
+    },
 ];
 
 // ── RPC helpers ───────────────────────────────────────────────────────────────
