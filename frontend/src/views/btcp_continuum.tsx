@@ -61,7 +61,7 @@ export function HashDNAExplorerPage() {
   const compute = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const r = await fetchAPI('/api/v1/btcp/hash_dna', {
+    const r = await fetchAPI<any>('/api/v1/btcp/hash_dna', {
       method: 'POST',
       body: JSON.stringify({
         entity_id_hex: '01' + '02'.repeat(31),
@@ -79,7 +79,7 @@ export function HashDNAExplorerPage() {
         nonce: 0,
       }),
     });
-    setResult(r);
+    setResult(r.ok ? r.data : { error: r.error, type: r.type });
     setLoading(false);
   };
 
