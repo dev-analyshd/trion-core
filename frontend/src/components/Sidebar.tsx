@@ -111,6 +111,8 @@ export const NAV: NavGroup[] = [
     label: 'BTCP + CONTINUUM',
     items: [
       { id: 'btcp_pipeline', label: 'Pipeline Status', icon: Icons.GitBranch },
+      { id: 'wallet_btcp', label: 'BTCP + Wallet', icon: Icons.Wallet },
+      { id: 'wallet_continuum', label: 'Continuum + Wallet', icon: Icons.Waves },
       { id: 'beo_lookup', label: 'BEO Lookup Toolbox', icon: Icons.Search },
       { id: 'live_events', label: 'Live Event Stream', icon: Icons.Radio },
       { id: 'time_series', label: 'Time-Series Charts', icon: Icons.LineChart },
