@@ -46,6 +46,10 @@ import {
   BTCPModulesPage, EscrowStateMachinePage, PrivateBIBLPage, ContinuumEnginesPage,
 } from '../views/btcp_continuum';
 import {
+  BTCPSpecPage, ContinuumSpecPage, BotChainSpecPage,
+  SYMBOL_TRANSLATIONS, BTCP_DATA, CONTINUUM_DATA, BOTCHAIN_DATA,
+} from '../views/spec_pages';
+import {
   ValidatorsPage, ValidatorHHIPage, AnnotatorsPage, BootstrapPage, ReputationPage,
   ZeroGFullStackPage, ZeroGStoragePage, ZeroGDAPage, ZeroGComputePage, ZeroGChainPage,
   ZeroGProofPage, ZeroGVMFamiliesPage,
@@ -148,6 +152,9 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: BTCPPipelinePage,
+  btcp_spec: BTCPSpecPage,
+  continuum_spec: ContinuumSpecPage,
+  botchain_spec: BotChainSpecPage,
   hash_dna: HashDNAExplorerPage,
   seven_plane: SevenPlanePage,
   mf_fingerprints: MFFingerprintsPage,
@@ -285,6 +292,9 @@ const PAGE_TITLES: Record<string, string> = {
 
   // BTCP + CONTINUUM
   btcp_pipeline: 'BTCP Pipeline Status',
+  btcp_spec: 'BTCP Protocol',
+  continuum_spec: 'Continuum Network',
+  botchain_spec: 'BOT Chain Integration',
   hash_dna: 'Hash_DNA Explorer',
   seven_plane: '7-Plane Coherence',
   mf_fingerprints: '7 MF Fingerprints',

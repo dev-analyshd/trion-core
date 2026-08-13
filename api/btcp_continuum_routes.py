@@ -646,3 +646,20 @@ def btcp_pipeline_status():
         "whitepaper": "BTCP Master Implementation Spec — All 6 Phases",
         "timestamp": int(time.time()),
     })
+
+
+# ── Mainnet Bootstrap (Phase 2) ────────────────────────────────────────────────
+
+@btcp_bp.route("/api/v1/btcp/mainnet_bootstrap")
+def btcp_mainnet_bootstrap():
+    """Mainnet bootstrap sequence for 100+ chains across 14 VM families."""
+    from core.btcp.mainnet_bootstrap import build_chain_registry, get_bootstrap_status
+    chains = build_chain_registry()
+    status = get_bootstrap_status(chains)
+    return jsonify({
+        **status,
+        "chains": [c.to_dict() for c in chains[:20]],  # first 20 for display
+        "total_chains_in_registry": len(chains),
+        "whitepaper": "BTCP Master Spec Phase 6 — Bootstrap & Mainnet Launch",
+        "timestamp": int(time.time()),
+    })
