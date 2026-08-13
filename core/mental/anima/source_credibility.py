@@ -59,20 +59,22 @@ CRED_INITIAL: Dict[SourceType, float] = {
 
 # Verification event values (by event type)
 VERIFICATION_VALUES: Dict[str, float] = {
-    "correct_prediction":          0.10,  # Source predicted outcome correctly
-    "peer_review_accepted":        0.15,  # Academic peer review acceptance
-    "sec_filing_verified":         0.12,  # SEC filing cross-verified
-    "onchain_corroborated":        0.08,  # Off-chain claim verified on-chain
-    "wrong_prediction":           -0.20,  # Source predicted incorrectly
-    "misinformation_detected":    -0.35,  # Source published known false info
-    "manipulation_detected":      -0.50,  # Source used for coordinated manipulation
-    "sybil_identified":           -0.80,  # Source is a Sybil account
+    "correct_prediction":          1.0,  # Source predicted outcome correctly
+    "peer_review_accepted":        1.5,  # Academic peer review acceptance
+    "sec_filing_verified":         1.2,  # SEC filing cross-verified
+    "onchain_corroborated":        0.8,  # Off-chain claim verified on-chain
+    "wrong_prediction":           -2.0,  # Source predicted incorrectly
+    "misinformation_detected":    -3.0,  # Source published known false info
+    "manipulation_detected":      -3.0,  # Source used for coordinated manipulation
+    "sybil_identified":           -5.0,  # Source is a Sybil account
 }
 
 ALPHA_DECAY   = 0.99   # Per-day credibility decay
-BETA_UPDATE   = 1.00   # Multiplier for verification event values
+BETA_UPDATE   = 0.10   # Multiplier for verification event values
 CRED_MIN      = 0.00
 CRED_MAX      = 1.00
+CRED_FLAG_THRESHOLD  = 0.30  # CRED < 0.30 → flagged, human review (WP1 L3.4)
+CRED_EXCLUDE_THRESHOLD = 0.10  # CRED < 0.10 → excluded from CA(t) (WP1 L3.4)
 
 
 @dataclass
@@ -177,6 +179,22 @@ def apply_time_decay_only(
     )
 
 
+
+def is_flagged(source: 'SourceCredibility') -> bool:
+    """CRED < 0.30 → source flagged, human review required (WP1 L3.4)."""
+    return source.cred < CRED_FLAG_THRESHOLD
+
+
+def is_excluded(source: 'SourceCredibility') -> bool:
+    """CRED < 0.10 → source excluded from CA(t) until reviewed (WP1 L3.4)."""
+    return source.cred < CRED_EXCLUDE_THRESHOLD
+
+
+def filter_active_sources(sources):
+    """Filter out excluded sources (CRED < 0.10) per WP1 L3.4."""
+    return [s for s in sources if not is_excluded(s)]
+
+
 def credibility_weighted_signal(
     signals:    List[float],
     sources:    List[SourceCredibility],
@@ -189,11 +207,16 @@ def credibility_weighted_signal(
     if not signals or not sources or len(signals) != len(sources):
         return 0.0
 
-    total_weight = sum(s.cred for s in sources)
-    if total_weight <= 0:
-        return sum(signals) / len(signals)
+    # WP1 L3.4: Exclude sources with CRED < 0.10
+    active = [(sig, src) for sig, src in zip(signals, sources) if not is_excluded(src)]
+    if not active:
+        return 0.0
 
-    weighted_sum = sum(sig * src.cred for sig, src in zip(signals, sources))
+    total_weight = sum(src.cred for _, src in active)
+    if total_weight <= 0:
+        return sum(sig for sig, _ in active) / len(active)
+
+    weighted_sum = sum(sig * src.cred for sig, src in active)
     return weighted_sum / total_weight
 
 
