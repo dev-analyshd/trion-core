@@ -1,0 +1,85 @@
+{
+  "version": "1.0.0",
+  "event_types": [
+    {
+      "id": 0,
+      "name": "TRANSFER"
+    },
+    {
+      "id": 1,
+      "name": "SWAP"
+    },
+    {
+      "id": 2,
+      "name": "LIQUIDITY"
+    },
+    {
+      "id": 3,
+      "name": "STAKE"
+    },
+    {
+      "id": 4,
+      "name": "UNSTAKE"
+    },
+    {
+      "id": 5,
+      "name": "GOVERNANCE"
+    },
+    {
+      "id": 6,
+      "name": "PROPOSAL"
+    },
+    {
+      "id": 7,
+      "name": "BORROW"
+    },
+    {
+      "id": 8,
+      "name": "REPAY"
+    },
+    {
+      "id": 9,
+      "name": "LIQUIDATE"
+    },
+    {
+      "id": 10,
+      "name": "BRIDGE"
+    },
+    {
+      "id": 11,
+      "name": "DEPLOY"
+    },
+    {
+      "id": 12,
+      "name": "UPGRADE"
+    },
+    {
+      "id": 13,
+      "name": "MINT"
+    },
+    {
+      "id": 14,
+      "name": "BURN"
+    },
+    {
+      "id": 15,
+      "name": "ORACLE_UPDATE"
+    },
+    {
+      "id": 16,
+      "name": "MEV_CAPTURE"
+    },
+    {
+      "id": 17,
+      "name": "FLASH_LOAN"
+    },
+    {
+      "id": 18,
+      "name": "AIRDROP"
+    },
+    {
+      "id": 19,
+      "name": "CLAIM"
+    }
+  ]
+}

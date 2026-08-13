@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0.0",
+  "canonical_name": "TRION Behavioral Hash Payload v1",
+  "description": "Canonical 93-byte BH payload — the single source of truth for all implementations (Python, Rust, TypeScript, Solidity)",
+  "total_bytes": 93,
+  "fields": [
+    {
+      "name": "entity_id",
+      "offset": 0,
+      "length": 32,
+      "type": "bytes",
+      "description": "BEO identifier (SHA3-256 of normalized address, zero-padded to 32 bytes)",
+      "endian": "big"
+    },
+    {
+      "name": "event_type",
+      "offset": 32,
+      "length": 1,
+      "type": "uint8",
+      "description": "Canonical event type ID (0-19)",
+      "endian": "big"
+    },
+    {
+      "name": "magnitude_nano",
+      "offset": 33,
+      "length": 8,
+      "type": "uint64",
+      "description": "Magnitude normalized to [0,1] × 1e9 (nano-scale fixed-point)",
+      "endian": "big"
+    },
+    {
+      "name": "context",
+      "offset": 41,
+      "length": 8,
+      "type": "uint64",
+      "description": "Context flags (bits 0-1: venue, bits 2-3: settlement, bits 4-7: reserved)",
+      "endian": "big"
+    },
+    {
+      "name": "timestamp_secs",
+      "offset": 49,
+      "length": 8,
+      "type": "uint64",
+      "description": "Unix timestamp in seconds",
+      "endian": "big"
+    },
+    {
+      "name": "chain_id",
+      "offset": 57,
+      "length": 4,
+      "type": "uint32",
+      "description": "TRION internal chain ID",
+      "endian": "big"
+    },
+    {
+      "name": "block_hash",
+      "offset": 61,
+      "length": 32,
+      "type": "bytes",
+      "description": "Block hash from chain header (32 bytes)",
+      "endian": "big"
+    }
+  ],
+  "dual_strand_hashing": {
+    "algorithm": "SHA3-256",
+    "sense": "SHA3-256(payload || 0x00)",
+    "antisense": "SHA3-256(payload || 0xFF) XOR NOT(sense)",
+    "invariant": "sense XOR antisense == NOT(SHA3-256(payload || 0xFF))",
+    "complement_transform": "bitwise NOT (b ^ 0xFF for each byte)"
+  },
+  "event_types": [
+    {"id": 0, "name": "TRANSFER"},
+    {"id": 1, "name": "SWAP"},
+    {"id": 2, "name": "LIQUIDITY"},
+    {"id": 3, "name": "STAKE"},
+    {"id": 4, "name": "UNSTAKE"},
+    {"id": 5, "name": "GOVERNANCE"},
+    {"id": 6, "name": "PROPOSAL"},
+    {"id": 7, "name": "BORROW"},
+    {"id": 8, "name": "REPAY"},
+    {"id": 9, "name": "LIQUIDATE"},
+    {"id": 10, "name": "BRIDGE"},
+    {"id": 11, "name": "DEPLOY"},
+    {"id": 12, "name": "UPGRADE"},
+    {"id": 13, "name": "MINT"},
+    {"id": 14, "name": "BURN"},
+    {"id": 15, "name": "ORACLE_UPDATE"},
+    {"id": 16, "name": "MEV_CAPTURE"},
+    {"id": 17, "name": "FLASH_LOAN"},
+    {"id": 18, "name": "AIRDROP"},
+    {"id": 19, "name": "CLAIM"}
+  ],
+  "test_vector": {
+    "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+    "event_type": 7,
+    "magnitude_norm": 0.5,
+    "context": 0,
+    "timestamp": 1700000000,
+    "chain_id": 421614,
+    "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "expected_sense": "7060238abdea90bae178e94f0672d8c10742718456eb0b34315d7466010d0bba",
+    "expected_antisense": "e739204873a080f002bc7cbe2858d02513d373b60aa0941a79cd4403f4405b68"
+  },
+  "notes": [
+    "The 93-byte payload is the CANONICAL production schema (v1).",
+    "The expanded whitepaper payload (with DOMAIN_SEPARATOR, counterparty_id, protocol_id, etc.) is a future v2 extension.",
+    "All implementations (Python, Rust, TypeScript, Solidity) MUST use the 93-byte v1 schema.",
+    "Cross-language consistency is verified by bh_cross_language_vector.py test.",
+    "Version field is implicit in the schema_version of this file."
+  ]
+}
