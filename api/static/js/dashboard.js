@@ -1,13 +1,11 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   TRION Dashboard — Shared JavaScript
+   TRION Dashboard — Shared JavaScript v2.0
    ════════════════════════════════════════════════════════════════════════════ */
 
 const TRION = {
-  // API base URLs (same-origin for Oracle API, internal for FAISS)
   ORACLE_API: window.location.origin,
   FAISS_API: window.location.origin.replace(':5000', ':8000').replace(':5001', ':8000'),
 
-  // ── Fetch with timeout & graceful fallback ────────────────────────────
   async fetch(url, options = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeout || 10000);
@@ -22,7 +20,6 @@ const TRION = {
     }
   },
 
-  // ── Format numbers ───────────────────────────────────────────────────
   formatNumber(n, decimals = 0) {
     if (n === null || n === undefined) return '—';
     if (typeof n !== 'number') n = parseFloat(n);
@@ -57,7 +54,6 @@ const TRION = {
     return Math.floor(diff / 86400) + 'd ago';
   },
 
-  // ── Status helpers ───────────────────────────────────────────────────
   statusBadge(status) {
     const map = {
       'LIVE': 'success', 'HEALTHY': 'success', 'SAFE': 'success', 'OPERATIONAL': 'success',
@@ -70,7 +66,6 @@ const TRION = {
     return `<span class="badge badge-${cls}">${status || 'UNKNOWN'}</span>`;
   },
 
-  // ── Update system status pill ────────────────────────────────────────
   async updateSystemStatus() {
     const pill = document.getElementById('system-status');
     if (!pill) return;
@@ -90,7 +85,6 @@ const TRION = {
     }
   },
 
-  // ── Update clock ─────────────────────────────────────────────────────
   startClock() {
     const el = document.getElementById('clock');
     if (!el) return;
@@ -103,7 +97,6 @@ const TRION = {
   },
 };
 
-// ── Initialize on every page ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   TRION.updateSystemStatus();
   TRION.startClock();
