@@ -70,7 +70,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd native-relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" FAISS_URL=\"http://127.0.0.1:8000\" node native_relayer.js"
+args = "cd relayer && ORACLE_API_URL=\"http://127.0.0.1:5000\" FAISS_URL=\"http://127.0.0.1:8000\" node relayer_non_evm.js"
 
 [[workflows.workflow]]
 name = "Project"

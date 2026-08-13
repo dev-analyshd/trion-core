@@ -30,18 +30,15 @@ install_node() {
 # ── Root workspace ────────────────────────────────────────
 install_node "[1/11] root (ArbiLink agent + multi-chain adapters)" "." "--legacy-peer-deps"
 
-# ── EVM & 0G relayer ─────────────────────────────────────
-install_node "[2/11] relayer/ (EVM + 0G relayer)" "relayer"
-
-# ── Native VM relayer ─────────────────────────────────────
-install_node "[3/11] native-relayer/ (SVM / NEAR / TON / PVM / StarkNet)" "native-relayer"
+# ── Unified relayers (2) ─────────────────────────────────
+install_node "[2/11] relayer/ (EVM + non-EVM unified relayers)" "relayer"
 
 # ── Per-VM chain executor scripts ─────────────────────────
-install_node "[4/11] chains/svm/"      "chains/svm"
-install_node "[5/11] chains/near/"     "chains/near"
-install_node "[6/11] chains/ton/"      "chains/ton"
-install_node "[7/11] chains/pvm/"      "chains/pvm"
-install_node "[8/11] chains/starknet/" "chains/starknet"
+install_node "[3/11] chains/svm/"      "chains/svm"
+install_node "[4/11] chains/near/"     "chains/near"
+install_node "[5/11] chains/ton/"      "chains/ton"
+install_node "[6/11] chains/pvm/"      "chains/pvm"
+install_node "[7/11] chains/starknet/" "chains/starknet"
 install_node "[9/11] chains/sui/"      "chains/sui"
 
 # ── 0G integration module ─────────────────────────────────

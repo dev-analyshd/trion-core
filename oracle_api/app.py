@@ -133,6 +133,7 @@ except ImportError:
 try:
     import sys as _sys
     _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "zg"))
     from zg_api_routes import zg_bp
     app.register_blueprint(zg_bp)
     _zg_available = True
@@ -208,20 +209,21 @@ def add_cors(response):
 
 @app.route("/")
 def index():
-    return render_template("dashboard.html")
+    # Unified frontend — single dashboard at /app/
+    from flask import redirect
+    return redirect("/app/")
 
 
 @app.route("/explorer")
 def explorer():
-    # Explorer merged into the main dashboard — redirect to root
     from flask import redirect
-    return redirect("/")
+    return redirect("/app/")
 
 
 @app.route("/pitch")
 def pitch():
     from flask import redirect
-    return redirect("/")
+    return redirect("/app/")
 
 
 @app.route("/api/v1/zg")
@@ -6919,12 +6921,14 @@ def phases_roadmap():
 
 @app.route("/judge")
 def judge_page():
-    return render_template("judge.html")
+    # Legacy judge page merged into unified dashboard
+    from flask import redirect
+    return redirect("/app/")
 
 @app.route("/demo")
 def demo_redirect():
     from flask import redirect
-    return redirect("/judge")
+    return redirect("/app/")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
