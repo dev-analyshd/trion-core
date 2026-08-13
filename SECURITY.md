@@ -28,7 +28,7 @@ We will respond within 48 hours and work with you on a coordinated disclosure.
 - `src/manipulation/fingerprint_detector.py` — MF detection logic
 - `src/planes/physical/nl_engine.py` — Natural Liquidity computation
 - `contracts/` — all Solidity contracts
-- `akashic/faiss_service.py` — FAISS API endpoints
+- `anima-service/faiss_service.py` — FAISS API endpoints
 
 ### Out of Scope
 - Testnet keys / wallets (use testnet funds only, no real value)

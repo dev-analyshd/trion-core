@@ -815,7 +815,7 @@ def s18_fork_resurrection_1000(pool):
 # § 19  HTTP — Oracle API × 1 000  [SLOW ~877ms]
 # ═══════════════════════════════════════════════════════════════════════════
 
-def s19_oracle_api_1000(pool):
+def s19_api_1000(pool):
     hdr("§19 — HTTP: Oracle API (port 5000) × 1 000  [SLOW ~877ms]")
     oracle_eps = [
         "/api/v1/signal/uniswap","/api/v1/signal/aave",
@@ -1147,7 +1147,7 @@ SECTIONS = [
     ("§16 BH Ledger ×1000 [MEDIUM]",   lambda pool: s16_ledger_1000(pool)),
     ("§17 Trading ×1000 [TRIVIAL]",    lambda pool: s17_trading_1000(pool)),
     ("§18 Fork/Resurrection ×1000",    lambda pool: s18_fork_resurrection_1000(pool)),
-    ("§19 Oracle API ×1000 [SLOW]",    lambda pool: s19_oracle_api_1000(pool)),
+    ("§19 Oracle API ×1000 [SLOW]",    lambda pool: s19_api_1000(pool)),
     ("§20 Thundering herd",            lambda pool: s20_thundering_herd()),
     ("§21 Mixed storm ×1000",          lambda pool: s21_mixed_storm_1000(pool)),
     ("§22 Ramp 100→500→1000",          lambda pool: s22_ramp_test(pool)),

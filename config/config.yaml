@@ -12,7 +12,7 @@ faiss:
   service_url: http://127.0.0.1:8000
   index_dim: 128
   n_list: 64
-  index_path: ./akashic/akashic_faiss.index
+  index_path: ./anima-service/akashic_faiss.index
   state_db: ./akashic/akashic_state.db
 
 planes:
@@ -109,7 +109,7 @@ indexers:
 
 relayer:
   poll_interval_ms: 60000
-  oracle_api_url: http://127.0.0.1:5000
+  api_url: http://127.0.0.1:5000
   chains:
     - name: arbitrum_sepolia
       chain_id: 421614

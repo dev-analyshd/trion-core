@@ -48,7 +48,7 @@ BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σweights
 CF w=0.40, ST w=0.25, SC w=0.25, BP w=0.10 — threshold 0.75
 ```
 
-**Code (`src/core/entity_resolution.py`, `akashic/faiss_service.py`):**  
+**Code (`src/core/entity_resolution.py`, `anima-service/faiss_service.py`):**  
 Formula matches but adds a **fifth component GX (graph co-occurrence, w=0.10)** not in the spec. Weights: CF=0.40, ST=0.25, SC=0.25, BP=0.10, GX=0.10. The sum exceeds 1.0 before normalization, which is correct (divided by Σweights), but the addition of GX changes the relative weighting of spec-defined components. The 0.75 threshold and BEO_confidence formula are otherwise correct.
 
 ---
@@ -162,7 +162,7 @@ Five dormancy types (ABANDONED, HIBERNATION, MIGRATION, REGULATORY_PAUSE, EXPLOI
 ### L3.2 — Observer Effect Adjustment ✅
 `M_adj(t) = M_base(t) · (1 - OE_factor(t))`  
 `OE_factor = corr(signal_publication(t-1), behavioral_change(t))`  
-Implemented in both `m_engine.py` and `akashic/faiss_service.py`. OE_factor published with every signal as specified. Reflexivity flag emitted when OE > 0.3.
+Implemented in both `m_engine.py` and `anima-service/faiss_service.py`. OE_factor published with every signal as specified. Reflexivity flag emitted when OE > 0.3.
 
 ---
 
@@ -270,7 +270,7 @@ C(t) = α·Φ_adj(t) + β·M_adj(t) + γ·Σ(t) + δ·K(t) + ε·A(t)   [ADDITIV
 Default balanced: α=0.25, β=0.30, γ=0.25, δ=0.10, ε=0.10
 ```
 
-**Code (`akashic/faiss_service.py` — `_five_plane_coherence()`, verified at line 8064):**
+**Code (`anima-service/faiss_service.py` — `_five_plane_coherence()`, verified at line 8064):**
 ```python
 w = [0.25, 0.30, 0.25, 0.10, 0.10]   # L5.2 Default balanced
 c_t = sum(wi * pi for wi, pi in zip(w, planes))   # ADDITIVE weighted average ✅
@@ -552,7 +552,7 @@ Both `src/core/behavioral_hash.py` and `src/signals/signal_factory.py` confirmed
 
 **EventType Enum Misalignment (HIGH)** ✅ [RESOLVED - MAINNET READY]  
 ~~STAKE/UNSTAKE incorrectly at positions 8/9; GOVERNANCE/PROPOSAL at 6/7; BORROW/REPAY/LIQUIDATE at 3/4/5; FLASH_LOAN/ORACLE_UPDATE/MEV_CAPTURE at 15/16/17.~~  
-**Fix applied:** `src/core/behavioral_hash.py` `EventType` enum reordered to whitepaper-exact values. `akashic/faiss_service.py` `EVENT_TYPE_BYTE` dict and all inline event-name index lists updated to match. `README.md` EventType table updated; WITHDRAW, YIELD_HARVEST, NFT_TRADE removed.
+**Fix applied:** `src/core/behavioral_hash.py` `EventType` enum reordered to whitepaper-exact values. `anima-service/faiss_service.py` `EVENT_TYPE_BYTE` dict and all inline event-name index lists updated to match. `README.md` EventType table updated; WITHDRAW, YIELD_HARVEST, NFT_TRADE removed.
 
 **Smart Contract Hardening (CRITICAL × 5)** ✅ [RESOLVED - MAINNET READY]  
 `contracts/TRIONExecutionGate.sol` confirmed to already implement all required hardening: (1) `publishSignal` accepts `bytes[] calldata signatures` and enforces quorum via inline ECDSA recovery loop; (2) `checkExecution` decorated `nonReentrant`; (3) `isExecutionSafe` returns `false` for uninitialized entities (fail-closed); (4) `pause()` / `unpause()` restricted to `onlyOwner` with `whenNotPaused` on `checkExecution`; (5) `OwnershipTransferred` event emitted in `acceptOwnership()`. No changes required.
@@ -566,14 +566,14 @@ Both `src/core/behavioral_hash.py` and `src/signals/signal_factory.py` confirmed
 
 **CRISPR Adaptive Memory Persistence (HIGH)** ✅ [RESOLVED - MAINNET READY]  
 ~~`CRISPRDefense.adaptive_response()` added learned signatures to in-memory `_library` only — lost on restart.~~  
-**Fix applied:** `CRISPRDefense` in `src/security/living_security.py` now persists adaptive signatures to SQLite (`$CRISPR_ADAPTIVE_DB` or `akashic/crispr_adaptive.db`). `__init__` calls `_load_adaptive()` to restore learned signatures on boot; `adaptive_response()` calls `_persist_adaptive()` after every new characterization. Static `KNOWN_ATTACKS` are class-level data and intentionally not stored in the DB.
+**Fix applied:** `CRISPRDefense` in `src/security/living_security.py` now persists adaptive signatures to SQLite (`$CRISPR_ADAPTIVE_DB` or `anima-service/crispr_adaptive.db`). `__init__` calls `_load_adaptive()` to restore learned signatures on boot; `adaptive_response()` calls `_persist_adaptive()` after every new characterization. Static `KNOWN_ATTACKS` are class-level data and intentionally not stored in the DB.
 
 **Supply Chain / Repo Cleanup (HIGH)** ✅ [RESOLVED - MAINNET READY]  
 `mental_transformer_weights.pt` and `*.pt` added to `.gitignore`. `src/thermodynamics/entropy_engine.py` confirmed to exist with full `BehavioralEntropyEngine` implementation including the Landauer principle formula `E = kT·ln(2)`.
 
 **C1 — Two BH implementations produce different hashes** ✅ [RESOLVED - MAINNET READY]  
 ~~Rust (93-byte canonical payload, 7 fields) and Python FAISS (pipe-delimited string, different fields) compute different hashes for the same event.~~  
-**Fix applied (Bootstrap Phase hardening):** The FAISS service (`akashic/faiss_service.py`) was already migrated to the canonical 93-byte binary payload (see comment at line 1363: "Previously this function used a pipe-delimited UTF-8 string — now fixed"). `src/core/behavioral_hash.py` is confirmed correct: it builds the exact `entity_id(32) || event_type(1) || magnitude_norm(8) || context(8) || timestamp(8) || chain_id(4) || block_hash(32) = 93 bytes` binary payload with no string encoding. A new `bh_from_rust_hex()` function was added to `behavioral_hash.py` that strictly ingests the 93-byte hex produced by the Rust crate, asserts `len == 93`, and raises `ValueError` if the XOR invariant fails — guaranteeing cross-verifiable BH entries between Rust indexers and Python consumers.
+**Fix applied (Bootstrap Phase hardening):** The FAISS service (`anima-service/faiss_service.py`) was already migrated to the canonical 93-byte binary payload (see comment at line 1363: "Previously this function used a pipe-delimited UTF-8 string — now fixed"). `src/core/behavioral_hash.py` is confirmed correct: it builds the exact `entity_id(32) || event_type(1) || magnitude_norm(8) || context(8) || timestamp(8) || chain_id(4) || block_hash(32) = 93 bytes` binary payload with no string encoding. A new `bh_from_rust_hex()` function was added to `behavioral_hash.py` that strictly ingests the 93-byte hex produced by the Rust crate, asserts `len == 93`, and raises `ValueError` if the XOR invariant fails — guaranteeing cross-verifiable BH entries between Rust indexers and Python consumers.
 
 **C2 — TimescaleDB schema not applied**  
 The primary Akashic storage tier is non-functional. All behavioral history is currently in SQLite + FAISS (ephemeral/local). The spec's billions-of-events, microsecond-query behavioral memory is not operational.
@@ -582,7 +582,7 @@ The primary Akashic storage tier is non-functional. All behavioral history is cu
 ~~`/tmp/trion_epigenetic_state.json` is lost on every container restart. The spec's "permanent, never decays" immune memory and epigenetic state cannot survive service restarts.~~  
 **Fix applied (Bootstrap Phase hardening):** Two persistence layers now cover both epigenetic implementations:  
 1. `src/akashic/epigenetics.py` (`EpigeneticEngine`) — path already migrated from `/tmp` to a persistent `akashic/trion_epigenetic_state.json` (via `_resolve_epigenetic_store_path()`, overridable by `$EPIGENETIC_STORE_PATH`).  
-2. `src/security/living_security.py` (`EpigeneticLayer`) — was a pure in-memory dataclass with zero persistence. Now writes the full phenotype state (state, threat_level, validator_health, network_entropy, coherence_threshold_modifier, emission_rate_modifier, last_updated) to SQLite on every `update()` call via `__post_init__` / `_load()` / `_save()`. Database path: `$EPIGENETIC_IMMUNITY_DB` or `akashic/epigenetic_immunity.db`. Schema is auto-created on first startup. Threat level and escalation state (NORMAL → ELEVATED → DEFENSIVE → LOCKDOWN) now survive server restarts.
+2. `src/security/living_security.py` (`EpigeneticLayer`) — was a pure in-memory dataclass with zero persistence. Now writes the full phenotype state (state, threat_level, validator_health, network_entropy, coherence_threshold_modifier, emission_rate_modifier, last_updated) to SQLite on every `update()` call via `__post_init__` / `_load()` / `_save()`. Database path: `$EPIGENETIC_IMMUNITY_DB` or `anima-service/epigenetic_immunity.db`. Schema is auto-created on first startup. Threat level and escalation state (NORMAL → ELEVATED → DEFENSIVE → LOCKDOWN) now survive server restarts.
 
 **C4 — BTV price feed incorporates CEX price** ✅ [RESOLVED - MAINNET READY]  
 ~~The Oracle API's Behavioral True Value computes `BTV = CEX_Price × (1 - manipulation_discount)`. The whitepaper's fundamental premise is "TRION does not read price." Exposing a Chainlink-compatible price feed endpoint directly contradicts the whitepaper's architectural identity claim — even if labeled as compatibility.~~  

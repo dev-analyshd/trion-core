@@ -58,8 +58,8 @@ Set secrets via the Replit Secrets panel (not in `.env` committed to git).
 
 ## Architecture
 
-- **Oracle API** (`oracle_api/app.py`) — 194 Flask routes, port 5000
-- **FAISS ANIMA** (`akashic/faiss_service.py`) — 156 FastAPI routes, port 8000; 128-dim behavioral vector index
+- **Oracle API** (`api/app.py`) — 194 Flask routes, port 5000
+- **FAISS ANIMA** (`anima-service/faiss_service.py`) — 156 FastAPI routes, port 8000; 128-dim behavioral vector index
 - **Behavioral Engine** (`src/`) — 15 module families, L0–L10 signal formulas
 - **Relayers** (`relayer/`, `native-relayer/`) — publish signals on-chain
 - **Rust Indexers** (`bin/`, compiled from workspace) — high-throughput EVM block streaming
