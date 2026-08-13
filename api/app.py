@@ -4152,9 +4152,40 @@ def tsdb_stats():
         if _c._cache and (now - _c._ts) < 30:
             return jsonify(_c._cache)
 
-    tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
-    if not tsdb_url:
-        return jsonify({"error": "TIMESCALEDB_URL not configured", "connected": False}), 503
+    tsdb_url = os.environ.get("TIMESCALEDB_URL", "") or os.environ.get("DATABASE_URL", "")
+
+    # Only use PostgreSQL if the URL looks like a PG connection string
+    _is_pg = tsdb_url and (tsdb_url.startswith("postgres://") or tsdb_url.startswith("postgresql://"))
+
+    # ── Fallback: if no TimescaleDB/PostgreSQL, return SQLite stats ──────────
+    if not _is_pg:
+        import sqlite3 as _sql3
+        _bh_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bh_ledger.db")
+        try:
+            _conn = _sql3.connect(_bh_path, timeout=3)
+            _conn.row_factory = _sql3.Row
+            _cur = _conn.cursor()
+            _cur.execute("SELECT COUNT(*) FROM bh_ledger")
+            _total = _cur.fetchone()[0]
+            _cur.execute("SELECT COUNT(DISTINCT chain_label) FROM bh_ledger")
+            _chains = _cur.fetchone()[0]
+            _cur.execute("SELECT MAX(ts) FROM bh_ledger")
+            _last_ts = _cur.fetchone()[0]
+            _conn.close()
+            _result = {
+                "connected": False,
+                "backend": "SQLite (fallback)",
+                "total_records": _total,
+                "chains_with_data": _chains,
+                "last_record_ts": _last_ts,
+                "message": "TIMESCALEDB_URL not set — using SQLite. Set DATABASE_URL to enable TimescaleDB dual-write.",
+            }
+            with _c._lock:
+                _c._cache = _result
+                _c._ts = now
+            return jsonify(_result)
+        except Exception:
+            return jsonify({"connected": False, "backend": "none", "total_records": 0, "message": "No database available"}), 200
 
     try:
         import psycopg2 as _pg
