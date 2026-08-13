@@ -157,6 +157,22 @@ const VMS = [
       return env;
     },
   },
+  {
+    label: "BOT Chain Mainnet",
+    cwd:   "chains/botchain",
+    cmd:   [resolveTsx("chains/botchain"), "execute.ts"],
+    envBuilder: () => {
+      const k = (pickEnv("BOT_CHAIN_PRIVATE_KEY", "BOT_CHAIN_RELAYER_PRIVATE_KEY", "RELAYER_PRIVATE_KEY") ?? "").trim();
+      // BOT Chain runs in block-proof mode if no key — still produces BH vectors
+      const env = {
+        BOT_CHAIN_RPC_URL: process.env.BOT_CHAIN_RPC_URL || "https://rpc.botchain.ai",
+        FAISS_SERVICE_URL: FAISS_URL,
+        ORACLE_API_URL,
+      };
+      if (k) env.BOT_CHAIN_PRIVATE_KEY = k;
+      return env;
+    },
+  },
 ];
 
 // ── Runner ───────────────────────────────────────────────────────────────────

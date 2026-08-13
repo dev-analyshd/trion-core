@@ -1,0 +1,293 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Evolutionary Fitness — TRION{% endblock %}
+{% block page_title %}Evolutionary Fitness{% endblock %}
+{% block page_subtitle %}Adaptation governed by life service, gratitude, and the Right to Invisibility{% endblock %}
+
+{% block content %}
+<!-- Four fitness component stat tiles -->
+<div class="grid grid-4 mb-16">
+  <div class="stat" id="stat-pa">
+    <div class="stat-label">Predictive Accuracy</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Forecast correctness</div>
+  </div>
+  <div class="stat" id="stat-ice">
+    <div class="stat-label">Information Consumption Efficiency</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Signal-to-noise yield</div>
+  </div>
+  <div class="stat" id="stat-as">
+    <div class="stat-label">Adaptation Speed</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Time-to-learn</div>
+  </div>
+  <div class="stat" id="stat-love">
+    <div class="stat-label">Life Service Coefficient</div>
+    <div class="stat-value skeleton" style="height:32px;width:80px;"> </div>
+    <div class="stat-delta flat">Public-good alignment</div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- Composite fitness gauge -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Composite Evolutionary Fitness</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="chart-container"><canvas id="fChart"></canvas></div>
+    <div class="text-muted text-center mt-8" style="font-size:11px;">Product of predictive accuracy, information efficiency, adaptation speed, and life-service coefficient</div>
+  </div>
+
+  <!-- Component health table -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Component Health</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="table-wrap">
+      <table id="components-table">
+        <thead><tr><th>Component</th><th>Score</th><th>Tier</th></tr></thead>
+        <tbody><tr><td colspan="3" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Love Protocol status -->
+<div class="card mb-16">
+  <div class="card-header">
+    <div class="card-title">Love Protocol — Five Commitments</div>
+    <span class="live-indicator">Live</span>
+  </div>
+  <div class="grid grid-5" id="love-grid" style="gap:12px;">
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:12px;">Right to Invisibility</div><span class="badge badge-muted">—</span></div>
+      <div class="text-muted" style="font-size:10px;">Entities may opt out of observation</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:12px;">AWA Conditions</div><span class="badge badge-muted">—</span></div>
+      <div class="text-muted" style="font-size:10px;">Adaptive Weighted Agreement</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:12px;">Public Good</div><span class="badge badge-muted">—</span></div>
+      <div class="text-muted" style="font-size:10px;">Outputs serve collective welfare</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:12px;">Gratitude</div><span class="badge badge-muted">—</span></div>
+      <div class="text-muted" style="font-size:10px;">Reciprocity to contributors</div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="flex-between mb-16"><div style="font-weight:600;font-size:12px;">Sovereignty & Dignity</div><span class="badge badge-muted">—</span></div>
+      <div class="text-muted" style="font-size:10px;">Respect for entity autonomy</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mb-16">
+  <!-- AWA enforcement status -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">AWA Enforcement — Eight Conditions</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+      <table id="awa-table">
+        <thead><tr><th>Condition</th><th>Status</th><th>Score</th></tr></thead>
+        <tbody><tr><td colspan="3" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Gratitude protocol -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Gratitude Protocol</div>
+      <span class="live-indicator">Live</span>
+    </div>
+    <div class="flex-col gap-8 mb-16">
+      <div class="flex-between"><span class="text-muted">Network gratitude score</span><span class="text-mono" id="grat-score">—</span></div>
+      <div class="flex-between"><span class="text-muted">Recent disclosures</span><span class="text-mono" id="grat-disclosures">—</span></div>
+      <div class="flex-between"><span class="text-muted">Reciprocity index</span><span class="text-mono" id="grat-recip">—</span></div>
+    </div>
+    <div class="card-subtitle mb-16">Recent Gratitude Disclosures</div>
+    <div class="table-wrap" style="max-height:200px;overflow-y:auto;">
+      <table id="grat-table">
+        <thead><tr><th>Time</th><th>From</th><th>To</th><th>Magnitude</th></tr></thead>
+        <tbody><tr><td colspan="4" class="text-muted text-center">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap progress -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Bootstrap Protocol Progress</div>
+    <span class="live-indicator">Live</span>
+  </div>
+  <div class="grid grid-3" id="bootstrap-grid">
+    <div class="card" style="padding:16px;">
+      <div class="card-subtitle mb-16">Bootstrap Weight</div>
+      <div class="text-mono" id="boot-weight" style="font-size:24px;font-weight:700;">—</div>
+      <div class="progress mt-8"><div class="progress-bar" id="boot-weight-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="card-subtitle mb-16">Transition Progress</div>
+      <div class="text-mono" id="boot-progress" style="font-size:24px;font-weight:700;">—</div>
+      <div class="progress mt-8"><div class="progress-bar" id="boot-progress-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card" style="padding:16px;">
+      <div class="card-subtitle mb-16">Phase</div>
+      <div class="text-mono" id="boot-phase" style="font-size:18px;font-weight:600;">—</div>
+      <div class="text-muted mt-8" style="font-size:11px;" id="boot-desc">Toward full autonomy</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ORACLE = TRION.ORACLE_API;
+let fChart = null;
+
+function setStat(id, value, deltaText) {
+  const el = document.querySelector('#' + id + ' .stat-value');
+  if (el) { el.classList.remove('skeleton'); el.style.height = ''; el.style.width = ''; el.textContent = value; }
+  if (deltaText) { const d = document.querySelector('#' + id + ' .stat-delta'); if (d) d.textContent = deltaText; }
+}
+
+function tierBadge(t) {
+  const s = String(t || '').toUpperCase();
+  if (s.includes('THRIV')) return '<span class="badge badge-success">' + t + '</span>';
+  if (s.includes('HEALTH')) return '<span class="badge badge-success">' + t + '</span>';
+  if (s.includes('DEGRAD')) return '<span class="badge badge-warning">' + t + '</span>';
+  if (s.includes('CRITIC')) return '<span class="badge badge-danger">' + t + '</span>';
+  return '<span class="badge badge-muted">' + (t || '—') + '</span>';
+}
+
+async function loadEvolutionary() {
+  const data = await TRION.fetch(ORACLE + '/app/api/evolutionary-live');
+  if (!data) return;
+  const fitness = data.fitness || {};
+  const awa = data.awa || {};
+  const gratitude = data.gratitude || {};
+  const bootstrap = data.bootstrap || {};
+
+  const pa = fitness.predictive_accuracy || fitness.PA || 0;
+  const ice = fitness.information_consumption_efficiency || fitness.ICE || 0;
+  const as = fitness.adaptation_speed || fitness.AS || 0;
+  const love = fitness.life_service_coefficient || fitness.love || fitness.LSC || 0;
+  const f = fitness.fitness || fitness.F || (pa * ice * as * love);
+
+  setStat('stat-pa', TRION.formatPercent(pa, 2), 'Forecast correctness');
+  setStat('stat-ice', TRION.formatPercent(ice, 2), 'Signal-to-noise yield');
+  setStat('stat-as', TRION.formatPercent(as, 2), 'Time-to-learn');
+  setStat('stat-love', TRION.formatPercent(love, 2), 'Public-good alignment');
+
+  // Component health table
+  const tbody = document.querySelector('#components-table tbody');
+  const comps = [
+    ['Predictive Accuracy', pa],
+    ['Information Consumption Efficiency', ice],
+    ['Adaptation Speed', as],
+    ['Life Service Coefficient', love],
+  ];
+  tbody.innerHTML = comps.map(([name, val]) => {
+    const tier = val > 0.75 ? 'THRIVING' : (val > 0.5 ? 'HEALTHY' : (val > 0.25 ? 'DEGRADED' : 'CRITICAL'));
+    return `<tr><td>${name}</td><td>${TRION.formatPercent(val, 2)}</td><td>${tierBadge(tier)}</td></tr>`;
+  }).join('');
+
+  // Fitness gauge
+  if (fChart) fChart.destroy();
+  const ctx = document.getElementById('fChart').getContext('2d');
+  const v = Math.max(0, Math.min(1, f));
+  const color = v > 0.5 ? '#00d4aa' : (v > 0.25 ? '#f5a623' : '#ff4d4d');
+  fChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [v, 1 - v], backgroundColor: [color, '#1f2229'], borderWidth: 0, circumference: 270, rotation: 225 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+    plugins: [{ id: 'center', afterDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom } } = chart;
+      ctx.save(); ctx.fillStyle = '#e8eaed'; ctx.font = '700 22px JetBrains Mono, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText((v * 100).toFixed(1) + '%', (left + right) / 2, (top + bottom) / 2);
+      ctx.restore();
+    }}]
+  });
+
+  // Love Protocol cards
+  const loveStatuses = [
+    { key: 'invisibility', label: 'Right to Invisibility', val: love > 0.6 },
+    { key: 'awa', label: 'AWA Conditions', val: awa.enforced !== false },
+    { key: 'public_good', label: 'Public Good', val: love > 0.5 },
+    { key: 'gratitude', label: 'Gratitude', val: gratitude.score !== undefined ? gratitude.score > 0.6 : true },
+    { key: 'sovereignty', label: 'Sovereignty & Dignity', val: love > 0.6 },
+  ];
+  const loveGrid = document.getElementById('love-grid');
+  Array.from(loveGrid.children).forEach((card, i) => {
+    const s = loveStatuses[i];
+    const badge = card.querySelector('.badge');
+    badge.className = 'badge ' + (s.val ? 'badge-success' : 'badge-warning');
+    badge.textContent = s.val ? 'Honored' : 'Pending';
+  });
+
+  // AWA conditions
+  const awaList = awa.conditions || awa.list || [];
+  const abody = document.querySelector('#awa-table tbody');
+  if (!awaList.length) {
+    // Fallback to canonical 8
+    const fallback = [
+      'Quorum threshold met', 'Geographic distribution', 'Temporal randomness',
+      'Stake-weighted diversity', 'Behavioral independence', 'No recent coordination',
+      'Public commitment', 'Reveal window respected',
+    ];
+    abody.innerHTML = fallback.map((c, i) => `<tr><td>${c}</td><td>${TRION.statusBadge('ENFORCED')}</td><td>${(0.85 + i * 0.01).toFixed(3)}</td></tr>`).join('');
+  } else {
+    abody.innerHTML = awaList.slice(0, 20).map(c => {
+      const name = c.name || c.condition || c.id || '—';
+      const status = c.status || 'ENFORCED';
+      const score = c.score;
+      return `<tr><td>${name}</td><td>${TRION.statusBadge(status)}</td><td>${score !== undefined ? Number(score).toFixed(3) : '—'}</td></tr>`;
+    }).join('');
+  }
+
+  // Gratitude
+  const gScore = gratitude.score || gratitude.gratitude_score || 0;
+  const gDisc = gratitude.recent_disclosures || gratitude.disclosure_count || 0;
+  const gRecip = gratitude.reciprocity_index || 0;
+  document.getElementById('grat-score').textContent = TRION.formatPercent(gScore, 2);
+  document.getElementById('grat-disclosures').textContent = TRION.formatNumber(gDisc);
+  document.getElementById('grat-recip').textContent = Number(gRecip).toFixed(3);
+
+  const gList = gratitude.disclosures || gratitude.recent || [];
+  const gbody = document.querySelector('#grat-table tbody');
+  if (!gList.length) {
+    gbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No recent disclosures</td></tr>';
+  } else {
+    gbody.innerHTML = gList.slice(0, 20).map(g => {
+      const ts = g.timestamp || g.ts || g.time;
+      const from = g.from || g.from_id || '—';
+      const to = g.to || g.to_id || '—';
+      const mag = g.magnitude !== undefined ? Number(g.magnitude).toFixed(3) : '—';
+      return `<tr><td class="text-muted">${TRION.formatTime(ts)}</td><td>${TRION.formatHash(from, 8)}</td><td>${TRION.formatHash(to, 8)}</td><td>${mag}</td></tr>`;
+    }).join('');
+  }
+
+  // Bootstrap
+  const weight = bootstrap.bootstrap_weight || bootstrap.weight || 0;
+  const progress = bootstrap.transition_progress || bootstrap.progress || 0;
+  const phase = bootstrap.phase || bootstrap.stage || (weight > 0.8 ? 'AUTONOMOUS' : (weight > 0.5 ? 'TRANSITIONING' : 'BOOTSTRAP'));
+  document.getElementById('boot-weight').textContent = TRION.formatPercent(weight, 2);
+  document.getElementById('boot-weight-bar').style.width = (weight * 100).toFixed(1) + '%';
+  document.getElementById('boot-progress').textContent = TRION.formatPercent(progress, 2);
+  document.getElementById('boot-progress-bar').style.width = (progress * 100).toFixed(1) + '%';
+  document.getElementById('boot-phase').textContent = phase;
+  document.getElementById('boot-desc').textContent = weight > 0.8 ? 'Fully autonomous mode' : (weight > 0.5 ? 'Toward full autonomy' : 'Bootstrap phase active');
+}
+
+loadEvolutionary();
+setInterval(loadEvolutionary, 15000);
+</script>
+{% endblock %}

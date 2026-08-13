@@ -1,0 +1,20 @@
+{
+  "name": "@workspace/trion-botchain",
+  "version": "1.0.0",
+  "description": "TRION BOT Chain adapter — EVM-compatible AI-agent chain (chainId 677)",
+  "type": "module",
+  "scripts": {
+    "indexer": "tsx execute.ts",
+    "dev": "tsx execute.ts",
+    "start": "tsx execute.ts"
+  },
+  "dependencies": {
+    "ethers": "^6.16.0",
+    "node-fetch": "^3.3.2",
+    "tsx": "^4.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.0"
+  }
+}

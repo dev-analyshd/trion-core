@@ -15,6 +15,7 @@ members = [
     "crates/trion-movement",
     "crates/trion-pi",
     "crates/trion-starknet",
+    "crates/trion-botchain",
 ]
 
 [workspace.dependencies]
