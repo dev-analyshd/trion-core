@@ -33,12 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Copy workspace manifests first for dependency caching
-COPY rust-indexers/Cargo.toml  ./rust-indexers/Cargo.toml
-COPY rust-indexers/Cargo.lock* ./rust-indexers/
-COPY rust-indexers/crates/     ./rust-indexers/crates/
+COPY indexers/Cargo.toml  ./indexers/Cargo.toml
+COPY indexers/Cargo.lock* ./indexers/
+COPY indexers/crates/     ./indexers/crates/
 
 # Build entire Rust workspace (all 14 crates)
-RUN cd rust-indexers && \
+RUN cd indexers && \
     cargo build --release --workspace 2>&1 | tail -30
 
 # ─── Stage 2: Node builder ────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Rust binaries from stage 1 ────────────────────────────────────────────────
-COPY --from=rust-builder /build/rust-indexers/target/release/ /app/bin/
+COPY --from=rust-builder /build/indexers/target/release/ /app/bin/
 RUN chmod +x /app/bin/trion-* 2>/dev/null || true
 
 # ── Node modules from stage 2 ─────────────────────────────────────────────────
@@ -111,16 +111,18 @@ COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botch
 WORKDIR /app
 
 # ── Python: Oracle API + FAISS ANIMA + 0G daemons ────────────────────────────
-COPY oracle_api/requirements.txt ./oracle_api/requirements.txt
-COPY akashic/requirements.txt    ./akashic/requirements.txt
+COPY api/requirements.txt ./api/requirements.txt
+COPY anima-service/requirements.txt    ./anima-service/requirements.txt
+COPY core/             ./core/
 RUN pip install --no-cache-dir \
-        -r oracle_api/requirements.txt \
-        -r akashic/requirements.txt \
+        -r api/requirements.txt \
+        -r anima-service/requirements.txt \
         numpy scipy scikit-learn gunicorn
 
 # ── Full source copy ───────────────────────────────────────────────────────────
-COPY oracle_api/      ./oracle_api/
-COPY akashic/         ./akashic/
+COPY api/      ./api/
+COPY anima-service/         ./anima-service/
+COPY core/             ./core/
 COPY src/             ./src/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
@@ -148,8 +150,8 @@ RUN ln -sf /app/chains/svm /app/trion-svm 2>/dev/null || true
 COPY render-entrypoint.sh ./render-entrypoint.sh
 RUN chmod +x ./render-entrypoint.sh ./supervisors/*.sh 2>/dev/null || true
 
-# Runtime dirs (akashic/data is the FAISS persistence volume mount point)
-RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs /tmp/trion-rust-logs akashic/data
+# Runtime dirs (anima-service/data is the FAISS persistence volume mount point)
+RUN mkdir -p 0g-state/logs 0g-state/exports 0g-state/proofs /tmp/trion-rust-logs anima-service/data
 
 # ── Environment defaults ───────────────────────────────────────────────────────
 ENV PORT=10000 \

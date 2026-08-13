@@ -11,7 +11,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Production binaries live at /app/bin (set via RUST_BIN_DIR in Dockerfile.render).
 # In Replit dev mode RUST_BIN_DIR is unset, so fall back to the local debug build.
-BIN_DIR="${RUST_BIN_DIR:-$ROOT/rust-indexers/target/debug}"
+BIN_DIR="${RUST_BIN_DIR:-$ROOT/indexers/target/debug}"
 FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
@@ -26,7 +26,7 @@ log "All 12 EVM mainnet chains covered (see CHAINS array in trion-evm/src/main.r
 if [[ ! -x "$BIN_DIR/trion-evm" ]]; then
     if command -v cargo > /dev/null 2>&1; then
         log "trion-evm binary not found — building with cargo..."
-        cd "$ROOT/rust-indexers" && cargo build -p trion-evm 2>&1 | tail -20
+        cd "$ROOT/indexers" && cargo build -p trion-evm 2>&1 | tail -20
         log "Build complete."
     else
         log "WARN: trion-evm not found at $BIN_DIR/trion-evm and cargo is not available."

@@ -30,7 +30,7 @@ services:
       - key: ORACLE_API_URL
         value: "http://127.0.0.1:10000"
       - key: ORACLE_PUBLIC_DIR
-        value: "/app/akashic-oracle/public"
+        value: "/app/anima-service/public"
 
       # ── Persistent data paths (Render disk at /data) ───────────────────────
       - key: FAISS_INDEX_PATH

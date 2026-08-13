@@ -9,7 +9,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN_DIR="$ROOT/rust-indexers/target/debug"
+BIN_DIR="$ROOT/indexers/target/debug"
 FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
@@ -31,7 +31,7 @@ build_if_needed() {
     local bin="$1"
     if [[ ! -x "$BIN_DIR/$bin" ]]; then
         log "Binary $bin not found — building workspace (this may take ~2 min)..."
-        cd "$ROOT/rust-indexers" && cargo build --workspace 2>&1 | tail -20
+        cd "$ROOT/indexers" && cargo build --workspace 2>&1 | tail -20
         log "Build complete."
     fi
 }

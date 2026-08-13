@@ -58,9 +58,9 @@ echo "========================================================"
 # it at startup, but creating it here ensures it survives container resets
 # and is present before any workflow starts.
 echo ""
-echo ">>> Creating bh_ledger.db → akashic/bh_ledger.db symlink"
+echo ">>> Creating bh_ledger.db → anima-service/bh_ledger.db symlink"
 if [ ! -e "$ROOT/bh_ledger.db" ]; then
-  ln -sf akashic/bh_ledger.db "$ROOT/bh_ledger.db"
+  ln -sf anima-service/bh_ledger.db "$ROOT/bh_ledger.db"
   echo "    Created."
 else
   echo "    Already exists — skipping."

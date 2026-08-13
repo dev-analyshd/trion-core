@@ -1,0 +1,10 @@
+name: CI Rust
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cd indexers && cargo check --workspace
+      - run: cd indexers && cargo test -p trion-common --lib

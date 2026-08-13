@@ -2,7 +2,7 @@
 # ============================================================
 # TRION Extended VM Indexers Supervisor — Pure Rust L0
 # Runs UTXO, Cosmos, Aptos, Movement, SUI, TRON, PI indexers.
-# All binaries compiled from rust-indexers/crates/.
+# All binaries compiled from indexers/crates/.
 # Usage: bash supervisors/extended_vm_indexers.sh
 # ============================================================
 set -euo pipefail
@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Production binaries live at /app/bin (set via RUST_BIN_DIR in Dockerfile.render).
 # In Replit dev mode RUST_BIN_DIR is unset, so fall back to the local debug build.
-BIN_DIR="${RUST_BIN_DIR:-$ROOT/rust-indexers/target/debug}"
+BIN_DIR="${RUST_BIN_DIR:-$ROOT/indexers/target/debug}"
 FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
@@ -33,7 +33,7 @@ build_if_needed() {
     if [[ ! -x "$BIN_DIR/$bin" ]]; then
         if command -v cargo > /dev/null 2>&1; then
             log "Binary $bin not found — building workspace with cargo..."
-            cd "$ROOT/rust-indexers" && cargo build --workspace 2>&1 | tail -20
+            cd "$ROOT/indexers" && cargo build --workspace 2>&1 | tail -20
             log "Build complete."
         else
             log "WARN: $bin not found at $BIN_DIR/$bin and cargo is not available (production image). Skipping."

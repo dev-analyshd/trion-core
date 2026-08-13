@@ -33,7 +33,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 PORT=8000 FAISS_PORT=8000 uv run python3 akashic/faiss_service.py"
+args = "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 PORT=8000 FAISS_PORT=8000 uv run python3 anima-service/faiss_service.py"
 waitForPort = 8000
 
 [[workflows.workflow]]
@@ -194,7 +194,7 @@ BACKFILL_WORKERS = "4"
 CHAIN_ID = "42161"
 EXTENDED_POLL_INTERVAL_MS = "90000"
 FAISS_CENTROIDS_PATH = "./akashic/archetype_centroids.npy"
-FAISS_INDEX_PATH = "./akashic/akashic_faiss.index"
+FAISS_INDEX_PATH = "./anima-service/akashic_faiss.index"
 FAISS_PORT = "8000"
 FAISS_SERVICE_URL = "http://127.0.0.1:8000"
 FAISS_STATE_DB = "./akashic/faiss_state.db"

@@ -65,7 +65,7 @@ node backtest/publish_proof.js
                        │
           ┌────────────▼──────────────────────────────────┐
           │         ORACLE API  —  Port 5001               │
-          │   Flask · 194 routes · oracle_api/app.py       │
+          │   Flask · 194 routes · api/app.py       │
           │   9,361 lines · 4 blueprints registered        │
           └──────────┬────────────────────┬────────────────┘
                      │                    │
@@ -81,7 +81,7 @@ node backtest/publish_proof.js
           └──────────┬──────┘   └─────────────────────────┘
                      │ POST /add_tx_bh_batch
           ┌──────────▼──────────────────────────────────────┐
-          │   Rust L0 Indexers  —  rust-indexers/crates/    │
+          │   Rust L0 Indexers  —  indexers/crates/    │
           │   13 binaries · 100 chains · 13 VM families     │
           │   Per-tx canonical 93-byte BH pipeline          │
           │   trion-evm (57 chains) · trion-svm · +11 more  │
@@ -404,7 +404,7 @@ TRION indexes and publishes across 100 chains spanning 13 VM families.
 
 ## Rust L0 Indexer Pipeline
 
-Each of the 13 Rust crates in `rust-indexers/crates/` implements the same canonical per-transaction pipeline defined in `trion-common`:
+Each of the 13 Rust crates in `indexers/crates/` implements the same canonical per-transaction pipeline defined in `trion-common`:
 
 ```rust
 // Per-transaction, in parallel across all chains:
@@ -463,7 +463,7 @@ FAISS index growth rate: **+486 vectors / 60s** sustained. FAISS index size as o
 
 ## FAISS ANIMA Engine
 
-The ANIMA engine (`akashic/faiss_service.py`, 10,476 lines) is TRION's persistent behavioral memory. It runs as an independent FastAPI service on port 8000 with 156 routes.
+The ANIMA engine (`anima-service/faiss_service.py`, 10,476 lines) is TRION's persistent behavioral memory. It runs as an independent FastAPI service on port 8000 with 156 routes.
 
 ### Index Architecture
 
@@ -527,7 +527,7 @@ O(log N) proofs for any historical behavioral hash. Anchored on 0G Mainnet.
 
 ## Living Security System
 
-Eight DNA-mimetic security components (`src/security/living_security.py` + `rust-indexers/crates/trion-common/src/living_security.rs`):
+Eight DNA-mimetic security components (`src/security/living_security.py` + `indexers/crates/trion-common/src/living_security.rs`):
 
 | Component | Formula | Purpose |
 |-----------|---------|---------|
@@ -851,7 +851,7 @@ GET  /healthz                      # Minimal liveness probe
 
 ## Behavioral True Value (BTV)
 
-The BTV engine (`oracle_api/price_feed_routes.py`, 532 lines) implements TRION's "Truth Hierarchy" — an alternative price that accounts for behavioral evidence:
+The BTV engine (`api/price_feed_routes.py`, 532 lines) implements TRION's "Truth Hierarchy" — an alternative price that accounts for behavioral evidence:
 
 ```
 BTV(asset, t) = CEX_price(asset, t) × (1 − MF(entity, t))
@@ -867,7 +867,7 @@ The **Inverted Truth Hierarchy** compares BTV against market consensus price to 
 
 ## CEX Integration
 
-The CEX integration (`oracle_api/cex_integration.py`, 1,024 lines) handles bidirectional data exchange with centralized exchanges:
+The CEX integration (`api/cex_integration.py`, 1,024 lines) handles bidirectional data exchange with centralized exchanges:
 
 **Ingest direction (CEX → TRION):** Anonymized trade/order/liquidation data is mapped to canonical EventTypes and converted to 93-byte BHs, enriching the behavioral record with off-chain activity.
 
@@ -908,7 +908,7 @@ curl http://127.0.0.1:5001/api/v1/whitepaper/coverage
 
 ## Protocol Intelligence Routes
 
-The Protocol Intelligence blueprint (`oracle_api/protocol_routes.py`) monitors live DeFi protocols:
+The Protocol Intelligence blueprint (`api/protocol_routes.py`) monitors live DeFi protocols:
 
 ```bash
 GET /api/v1/protocol/health/<protocol>   # H(t) health score
@@ -977,8 +977,8 @@ Set in Replit Secrets. Without private keys, all relayers run in `DRY_RUN` mode 
 
 | Service | Port | Entry Point | Size |
 |---------|------|------------|------|
-| Oracle API + Dashboard | **5001** | `oracle_api/app.py` | 9,361 lines |
-| FAISS ANIMA Engine | **8000** | `akashic/faiss_service.py` | 10,476 lines |
+| Oracle API + Dashboard | **5001** | `api/app.py` | 9,361 lines |
+| FAISS ANIMA Engine | **8000** | `anima-service/faiss_service.py` | 10,476 lines |
 | TRION Dashboard (Next.js) | **5000** | `dashboard/` | — |
 | Attack Alert Webhook | **6000** | `attack_alert_webhook.py` | — |
 
@@ -1002,8 +1002,8 @@ Set in Replit Secrets. Without private keys, all relayers run in `DRY_RUN` mode 
 
 | Language | Version | Role | Key Files |
 |----------|---------|------|-----------|
-| **Python** | 3.11 | Oracle API (Flask, 194 routes), FAISS ANIMA engine (FastAPI, 156 routes), behavioral engine (15 module families), 0G daemons | `oracle_api/app.py`, `akashic/faiss_service.py`, `src/` |
-| **Rust** | stable | 13 L0 indexer crates — canonical 93-byte BH pipeline across all 100 chains; NEAR/PVM WASM contracts | `rust-indexers/crates/` |
+| **Python** | 3.11 | Oracle API (Flask, 194 routes), FAISS ANIMA engine (FastAPI, 156 routes), behavioral engine (15 module families), 0G daemons | `api/app.py`, `anima-service/faiss_service.py`, `src/` |
+| **Rust** | stable | 13 L0 indexer crates — canonical 93-byte BH pipeline across all 100 chains; NEAR/PVM WASM contracts | `indexers/crates/` |
 | **JavaScript** | ESM / Node 18 | 4 relayers: EVM multi-chain, extended non-EVM, 0G ExecutionGate, supervisor orchestration | `relayer/`, `supervisors/` |
 | **TypeScript** | 5.x | Native VM chain adapters, TRION SDK | `chains/*/execute.ts` |
 | **Solidity** | 0.8.x | 15 smart contracts across 6 deployed networks | `contracts/`, `hardhat/contracts/` |
@@ -1076,7 +1076,7 @@ uv run python3 -m pytest tests/ -q \
 
 ```
 /
-├── oracle_api/               # Flask Oracle API (9,361 lines, 194 routes)
+├── api/               # Flask Oracle API (9,361 lines, 194 routes)
 │   ├── app.py               # Main application — 172 direct routes
 │   ├── price_feed_routes.py # BTV engine (532 lines)
 │   ├── cex_integration.py   # CEX bidirectional feed (1,024 lines)
@@ -1096,7 +1096,7 @@ uv run python3 -m pytest tests/ -q \
 │   ├── manipulation/        # MF fingerprint detector, FFT spectral engine bridge
 │   ├── governance/          # Slashing, falsifiability registry, AWA
 │   └── thermodynamics/      # Entropy, phase transition monitoring
-├── rust-indexers/
+├── indexers/
 │   └── crates/              # 13 Rust indexer crates
 │       ├── trion-common/    # Shared BH pipeline, FAISS client, entropy, DNA
 │       ├── trion-evm/       # 57-chain EVM indexer

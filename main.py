@@ -5,7 +5,7 @@ Serves the Oracle API + static frontend on port 5000.
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "oracle_api"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
 from app import app  # noqa: F401 — imported for gunicorn
 
 if __name__ == "__main__":

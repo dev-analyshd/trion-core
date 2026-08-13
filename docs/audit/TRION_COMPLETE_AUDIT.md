@@ -23,17 +23,17 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 ### Build Level L0: Behavioral Foundation (11 formulas)
 | ID | Formula | Status | Implementation |
 |----|---------|--------|---------------|
-| L0.1 | `BH(event,t) = Hash_DNA(entity_id ‖ event_type ‖ magnitude_norm ‖ ctx ‖ ts ‖ chain_id ‖ block_hash)` | ✅ LIVE | `rust-indexers/crates/trion-common/src/hash_dna.rs` — 93-byte canonical format, dual-strand sense/antisense |
+| L0.1 | `BH(event,t) = Hash_DNA(entity_id ‖ event_type ‖ magnitude_norm ‖ ctx ‖ ts ‖ chain_id ‖ block_hash)` | ✅ LIVE | `indexers/crates/trion-common/src/hash_dna.rs` — 93-byte canonical format, dual-strand sense/antisense |
 | L0.2 | `BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σweights` | ✅ LIVE | `src/core/entity_resolution.py` — 4-signal clustering, threshold 0.75 |
-| L0.3 | Resonance Communication — shared RF(chain,f) > 0 | ✅ LIVE | `rust-indexers/crates/trion-common/src/event_types.rs` — 20 VM-agnostic event types |
+| L0.3 | Resonance Communication — shared RF(chain,f) > 0 | ✅ LIVE | `indexers/crates/trion-common/src/event_types.rs` — 20 VM-agnostic event types |
 | L0.4 | `I_TRION(t) = BH_generated + A_absorbed - S_emitted - E_lost; E_lost = Landauer minimum` | ✅ LIVE | `src/core/information_conservation.py` |
 | L0.5 | Signal selection: `dI/dS > θ_selection` (entropy budget) | ✅ LIVE | `src/core/bibl.py` — BIBL runs this in the inter-block window |
 | L0.6 | `F(entity,t) = ∂P(survival)/∂t` (evolutionary fitness) | ✅ LIVE | `src/core/evolutionary_fitness.py` |
-| L0.7 | BTV (Behavioral True Value): multi-signal weighted derivation | ✅ LIVE | `oracle_api/price_feed_routes.py` — 532 lines |
-| L0.8 | BTCV correlation with on-chain behavioral signal | ✅ LIVE | `oracle_api/price_feed_routes.py` |
-| L0.9 | `sense = SHA3-256(payload‖0x00); antisense = SHA3-256(payload‖0xFF) ⊕ NOT(sense)` | ✅ LIVE | `rust-indexers/crates/trion-common/src/hash_dna.rs` |
+| L0.7 | BTV (Behavioral True Value): multi-signal weighted derivation | ✅ LIVE | `api/price_feed_routes.py` — 532 lines |
+| L0.8 | BTCV correlation with on-chain behavioral signal | ✅ LIVE | `api/price_feed_routes.py` |
+| L0.9 | `sense = SHA3-256(payload‖0x00); antisense = SHA3-256(payload‖0xFF) ⊕ NOT(sense)` | ✅ LIVE | `indexers/crates/trion-common/src/hash_dna.rs` |
 | L0.10 | `M_moat(t) = D·Q·R·X·F·N` (data moat compound) | ✅ LIVE | `src/core/coherence_engine.py` — 6-factor moat calculation |
-| L0.11 | `magnitude_norm = log₁₀(USD+1) / log₁₀(max_90d+1)` with AtomicU64 running max | ✅ LIVE | `rust-indexers/crates/trion-common/src/magnitude.rs` |
+| L0.11 | `magnitude_norm = log₁₀(USD+1) / log₁₀(max_90d+1)` with AtomicU64 running max | ✅ LIVE | `indexers/crates/trion-common/src/magnitude.rs` |
 
 ### Build Level L1: Physical Plane Φ (7 formulas)
 | ID | Formula | Status | Implementation |
@@ -49,11 +49,11 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 ### Build Level L2: Akashic Depth (5 formulas)
 | ID | Formula | Status | Implementation |
 |----|---------|--------|---------------|
-| L2.1 | `D(t) = log₁₀(1 + N_BH(t)) / log₁₀(1 + D_minimum)` (Akashic Depth) | ✅ LIVE | `akashic/faiss_service.py` — 128-dim FAISS vector index |
-| L2.2 | `sim(G, A_k) = (G·A_k)/(‖G‖·‖A_k‖)` (Genesis Inference) | ✅ LIVE | `akashic/faiss_service.py` — k-NN archetype matching |
+| L2.1 | `D(t) = log₁₀(1 + N_BH(t)) / log₁₀(1 + D_minimum)` (Akashic Depth) | ✅ LIVE | `anima-service/faiss_service.py` — 128-dim FAISS vector index |
+| L2.2 | `sim(G, A_k) = (G·A_k)/(‖G‖·‖A_k‖)` (Genesis Inference) | ✅ LIVE | `anima-service/faiss_service.py` — k-NN archetype matching |
 | L2.3 | Fork Resolution via divergence score and archetype distance | ✅ LIVE | FAISS service fork resolution routes |
 | L2.4 | TRAJ_ANOMALY trajectory signal | ✅ LIVE | `src/planes/physical/trajectory_anomaly.py` |
-| L2.5 | `CA(t) = P(A_predicted = A_actual) over 90d rolling window` | ✅ LIVE | `akashic/faiss_service.py` calibration accuracy tracking |
+| L2.5 | `CA(t) = P(A_predicted = A_actual) over 90d rolling window` | ✅ LIVE | `anima-service/faiss_service.py` calibration accuracy tracking |
 
 ### Build Level L3: ANIMA Plane A(t) (6 formulas)
 | ID | Formula | Status | Implementation |
@@ -61,7 +61,7 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 | L3.1 | `A(t) = PCR(t) · HA(t) · CA(t)` | ✅ LIVE | `src/planes/anima/` — 59 languages, LANGUAGE_TIER_WEIGHTS |
 | L3.2 | Observer Effect Correction on intent consistency | ✅ LIVE | `src/planes/anima/anima_data_streams.py` |
 | L3.3 | `CRED(source,t) = CRED·α + verification·β_update` | ✅ LIVE | `src/planes/anima/anima_data_streams.py` — +1 verified, -2 falsified |
-| L3.4 | Regulatory Behavioral Signal (SEC EDGAR, on-chain compliance pattern) | ✅ LIVE | `oracle_api/app.py` — REGULATORY_BHV signal |
+| L3.4 | Regulatory Behavioral Signal (SEC EDGAR, on-chain compliance pattern) | ✅ LIVE | `api/app.py` — REGULATORY_BHV signal |
 | L3.5 | 59-language NLP pipeline (whitepaper mandates ≥50 languages) | ✅ LIVE | `src/planes/anima/anima_data_streams.py` — SUPPORTED_NLP_LANGUAGES, 59 entries |
 | L3.6 | `PC_limit = Σ_i P(C_i) · w_i < 1.0` (information capacity bound) | ✅ LIVE | `src/core/coherence_engine.py` — PC_limit computed, 11 weight profiles |
 
@@ -93,13 +93,13 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 |----|---------|--------|---------------|
 | L6.1 | `BC(ecosystem,t) = Flow·Resilience·Uniqueness·Interdependence` | ✅ LIVE | `src/planes/extended/biological_capital.py` |
 | L6.2 | BRT 4-phase timer (circadian/ultradian/lunar/seasonal) | ✅ LIVE | `cpp/sensor_interface.cpp`, `wasm/signal_processor.wat`, every TRIONSignal |
-| L7.1 | `NL(pool,t) = Organic·Resilience·Efficiency·Participation` (Natural Liquidity) | ✅ LIVE | `oracle_api/app.py` — /api/v1/liquidity/* routes |
+| L7.1 | `NL(pool,t) = Organic·Resilience·Efficiency·Participation` (Natural Liquidity) | ✅ LIVE | `api/app.py` — /api/v1/liquidity/* routes |
 | L7.2 | `BITP(route,t) = NL_source · NL_dest · Path_coherence / (1+MEV_risk)` | ✅ LIVE | `src/core/btcp_score.py` |
 | L8.1 | `SBA(entity,t) = Sovereignty·Dignity·Cultural_coherence·Behavioral_integrity` | ✅ LIVE | `src/planes/extended/sba.py` |
 | L9.1 | `XSL(species,t) = TerritoryViability·FoodSecurity·ReproductionRate/(1+ThreatPressure)` | ✅ LIVE | `src/planes/extended/xsl.py` |
 | L9.2 | `ΔI_transformed ≥ 0` (Information Conservation Law, Landauer) | ✅ LIVE | `src/core/information_conservation.py` |
 | L10 | Bootstrap decay: `bootstrap_weight(t) = e^(-λ_boot · D(t))` | ✅ LIVE | `src/governance/awa_state.py` — BootstrapProtocol class |
-| — | CEX bidirectional feed (§7.3) | ✅ LIVE | `oracle_api/cex_integration.py` — 1,024 lines |
+| — | CEX bidirectional feed (§7.3) | ✅ LIVE | `api/cex_integration.py` — 1,024 lines |
 | — | BRT-gas correlation (F14) | ⚠️ CONJECTURE | Empirical validation pending (F14 monitoring active) |
 
 **FORMULA COVERAGE: 84/84 ✅**
@@ -147,7 +147,7 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 |---|---------|--------|---------------|
 | P1 | Behavioral Hash (BH) | ✅ LIVE | Rust `hash_dna.rs` — 93-byte canonical |
 | P2 | Entity Resolution (BEO) | ✅ LIVE | `src/core/entity_resolution.py` |
-| P3 | Akashic Index | ✅ LIVE | `akashic/faiss_service.py` — FAISS 128-dim, append-only |
+| P3 | Akashic Index | ✅ LIVE | `anima-service/faiss_service.py` — FAISS 128-dim, append-only |
 | P4 | Behavioral ZK Sovereignty | ⚠️ PARTIAL | BIRP commit/reveal/verify implemented. Full ZK circuit (Q2) not yet — blocked on proof aggregation over multi-year time series |
 | P5 | Living Security | ✅ LIVE | `src/security/living_security.py` + `genomic_genealogy.py` + `chameleon_protocol.py` + `pqc_layer.py` |
 | P6 | BIRP Identity Recovery | ✅ LIVE | `src/signals/behavioral_identity_recovery.py` — 7-feature fingerprint, NIZK commitment, cosine distance, multi-party attestation |

@@ -161,7 +161,7 @@ Verification that the L2.6 fork resolution algorithm correctly identifies the ca
 
 ### Key Findings
 
-- `fork_resolution` (`akashic/faiss_service.py` line 2107) computes Akashic depth and record counts, selects the deeper branch absent holder continuity data, or uses `cc` values with >0.10 dominance threshold.
+- `fork_resolution` (`anima-service/faiss_service.py` line 2107) computes Akashic depth and record counts, selects the deeper branch absent holder continuity data, or uses `cc` values with >0.10 dominance threshold.
 - Fork resolution is **read-only** — no Akashic history is mutated in any case.
 - A perfect 50/50 split correctly produces `DIVERGENT` state with symmetric inheritance.
 
@@ -238,7 +238,7 @@ Verification that all 14 VM families and 113 chains are correctly indexed, that 
 
 ### Key Findings
 
-- `_resolve_vm_type` (`akashic/faiss_service.py` lines 151–207) correctly maps all 14 VM families including MOVE (Aptos), SUI, Starknet, TON TVM, NEAR, PVM, and UTXO variants.
+- `_resolve_vm_type` (`anima-service/faiss_service.py` lines 151–207) correctly maps all 14 VM families including MOVE (Aptos), SUI, Starknet, TON TVM, NEAR, PVM, and UTXO variants.
 - The API/DB delta of 1,566 records is a known live-write race caused by the Genesis Backfill writing new records between the API poll and the direct DB count — not a consistency bug.
 - All field integrity constraints (`chain_id`, `chain_label`, `sense_hex`, `antisense_hex`, `entity_id`) held across the entire 1.18M+ record dataset with **zero violations**.
 
@@ -249,9 +249,9 @@ Verification that all 14 VM families and 113 chains are correctly indexed, that 
 | Law / Property | Location | Status |
 |----------------|----------|--------|
 | L9.2 Information Conservation Law | `src/core/information_conservation.py` | Active ✅ |
-| Mitochondrial Core `append_only_akashic` | `akashic/faiss_service.py` | Intact ✅ |
-| L2.6 Fork Resolution | `akashic/faiss_service.py` line 2107 | Correct ✅ |
-| `INSERT OR IGNORE` append enforcement | `akashic/faiss_service.py` lines 3640–3657 | Enforced ✅ |
+| Mitochondrial Core `append_only_akashic` | `anima-service/faiss_service.py` | Intact ✅ |
+| L2.6 Fork Resolution | `anima-service/faiss_service.py` line 2107 | Correct ✅ |
+| `INSERT OR IGNORE` append enforcement | `anima-service/faiss_service.py` lines 3640–3657 | Enforced ✅ |
 | BH dual-strand (`sense_hex` / `antisense_hex`) | `bh_ledger` schema line 457 | Verified ✅ |
 
 ---

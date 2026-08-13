@@ -260,7 +260,7 @@ if stress_errors:
 
 print("\nPhase 7 — Pipeline Integrity")
 checks = {
-    "oracle_api_healthy":    pass_count > 0,
+    "api_healthy":    pass_count > 0,
     "faiss_vectors_nonzero": True,
     "signal_endpoints_ok":   len(signal_failures) == 0,
     "stress_success_rate":   success_rate >= 90,

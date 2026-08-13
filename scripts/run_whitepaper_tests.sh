@@ -34,10 +34,10 @@ echo "╔═══════════════════════�
 echo "║    TRION Whitepaper Test Runner (L0–L10 live repo)   ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
-# ── Rust L0 core (rust-indexers/crates/trion-common) ─────────────────────────
+# ── Rust L0 core (indexers/crates/trion-common) ─────────────────────────
 run_test "L0 Rust: BehavioralHash + DualStrand + LivingSecurity (23 tests)" \
     "cargo test --workspace --lib -- --nocapture" \
-    "$ROOT/rust-indexers"
+    "$ROOT/indexers"
 
 # ── Python: trion_protocol unit tests (L0–L5 scaffold) ──────────────────────
 run_test "L1 Python: phi_engine — 9 Shannon entropy features" \
