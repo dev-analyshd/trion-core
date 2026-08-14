@@ -38,8 +38,16 @@ CHAIN_ID_RE = re.compile(r'^\d{1,6}$')
 
 
 def validate_entity_id(eid: Optional[str]) -> bool:
-    """Return True if `eid` is a valid 64-char hex entity ID (with or without 0x)."""
-    return bool(eid and ENTITY_ID_RE.match(eid.strip()))
+    """Return True if `eid` is a valid entity identifier.
+    
+    Accepts two formats:
+    - 64-char hex BEO ID (with or without 0x prefix)
+    - 0x-prefixed 40-hex EVM address
+    """
+    if not eid:
+        return False
+    eid = eid.strip()
+    return bool(ENTITY_ID_RE.match(eid) or ADDRESS_RE.match(eid))
 
 
 def validate_address(addr: Optional[str]) -> bool:
@@ -93,7 +101,7 @@ def require_entity_id(param_name: str = 'entity_id') -> Callable:
             if not validate_entity_id(eid):
                 return jsonify({
                     "error": "invalid_entity_id",
-                    "message": f"{param_name} must be a 64-character hex string (with or without 0x prefix)",
+                    "message": f"{param_name} must be a 64-character hex BEO ID or a 0x-prefixed 40-character EVM address",
                     "received": (eid[:80] + '…') if eid and len(eid) > 80 else eid,
                 }), 400
             # Normalise before passing through
@@ -136,7 +144,7 @@ def require_tx_hash(param_name: str = 'tx_hash') -> Callable:
             if not validate_tx_hash(h):
                 return jsonify({
                     "error": "invalid_tx_hash",
-                    "message": f"{param_name} must be a 64-character hex string (with or without 0x prefix)",
+                    "message": f"{param_name} must be a 64-character hex BEO ID or a 0x-prefixed 40-character EVM address",
                     "received": (h[:80] + '…') if h and len(h) > 80 else h,
                 }), 400
             kwargs[param_name] = h.strip()
@@ -150,6 +158,7 @@ if __name__ == '__main__':
     assert validate_entity_id('a' * 64)
     assert validate_entity_id('0x' + 'a' * 64)
     assert validate_entity_id('F9769049' + 'b' * 56)
+    assert validate_entity_id('0x' + 'a' * 40)  # EVM address also valid
     assert not validate_entity_id('short')
     assert not validate_entity_id('z' * 64)  # non-hex
     assert not validate_entity_id(None)
