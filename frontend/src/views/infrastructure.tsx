@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, EmptyState, Tag } from '../components/ui';
 import { useAPI, useStream } from '../lib/hooks';
-import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms } from '../lib/api';
+import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms, cleanText } from '../lib/api';
 import * as Icons from 'lucide-react';
 
 const DEFAULT_ENTITY = '0x2e49c1ff182bea5e33246a5f88f78cab6108cdde7b14f73bf8f7a06d6940c6ec';
@@ -126,7 +126,7 @@ export function BootstrapPage() {
             ['Depth for full transition', fmt(bs?.depth_for_full_transition)],
             ['Decay rate lambda', '0.0001'],
             ['Formula', 'bootstrap_weight(t) = e^(-0.0001 * D(t))'],
-            ['Disclosure', bs?.disclosure || '-'],
+            ['Disclosure', cleanText(bs?.disclosure) || '-'],
           ]} />
         </div>
       </Card>
