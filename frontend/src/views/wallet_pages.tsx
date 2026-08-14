@@ -19,37 +19,37 @@ const BTCP_DATA = {
   coreQuestion: "Bridges ask: How do I prove on Chain B that something happened on Chain A? BTCP asks: Why move assets at all?",
   answer: "Assets never cross chains. Behavioral facts do. The fact that Entity X performed Action Y on Chain A is permanently recorded, diversity-BFT verified, and stored in the Akashic Index. Chain B does not need a bridge to learn this fact.",
   routeTypes: [
-    { id: 'SINGLE_CHAIN', name: 'Direct Single-Chain', when: 'Target chain has superior liquidity', gas: '$31.00', score: 0.41, finality: '12s', color: '#64748b', desc: 'Standard execution. Baseline for comparison.', simple: 'Direct swap on one chain — most expensive option' },
-    { id: 'SPLIT', name: 'Anchor + Execute Split', when: 'Security on source, cheap execution on target', gas: '$0.98', score: 0.94, finality: 'max 12s', color: '#22d3ee', desc: 'Anchor proof on Ethereum, execute natively on Base. Assets never leave Ethereum.', simple: 'Security on cheap chain, execution on cheaper chain — saves 97%' },
-    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Opposite intent entity found simultaneously', gas: '$0.05', score: 0.98, finality: '12s', color: '#10b981', desc: 'Entity A wants USDC→ETH, Entity B wants ETH→USDC. Both execute natively. Zero cross-chain movement.', simple: 'Your opposite found — you both save 99.8%, best option' },
-    { id: 'PARALLEL', name: 'Parallel Split', when: 'Large intent split across chains', gas: '$1.80', score: 0.91, finality: '12s', color: '#8b5cf6', desc: '$1M split across 5 chains. Reduces price impact.', simple: 'Big trade split across chains — less slippage' },
-    { id: 'MULTI_HOP', name: 'Multi-Hop (A→B→C)', when: 'Intermediate chain provides liquidity', gas: '$1.20', score: 0.88, finality: 'max 12s', color: '#fbbf24', desc: 'Ethereum→Solana→Arbitrum. Nested escrow guarantees atomicity.', simple: 'Via intermediate chain — when direct route is illiquid' },
-    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Intent not urgent, wait for best conditions', gas: '$0.42 (est)', score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: low gas + peak liquidity + MEV valley.', simple: 'Wait for the best moment — saves even more' },
+    { id: 'SINGLE_CHAIN', name: 'Direct Single-Chain', when: 'Target chain has superior liquidity', gas: '$31.00', score: 0.41, finality: '12s', color: '#64748b', desc: 'Standard execution. Baseline for comparison.', simple: 'Direct swap on one chain - most expensive option' },
+    { id: 'SPLIT', name: 'Anchor + Execute Split', when: 'Security on source, cheap execution on target', gas: '$0.98', score: 0.94, finality: 'max 12s', color: '#22d3ee', desc: 'Anchor proof on Ethereum, execute natively on Base. Assets never leave Ethereum.', simple: 'Security on cheap chain, execution on cheaper chain - saves 97%' },
+    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Opposite intent entity found simultaneously', gas: '$0.05', score: 0.98, finality: '12s', color: '#10b981', desc: 'Entity A wants USDC->ETH, Entity B wants ETH->USDC. Both execute natively. Zero cross-chain movement.', simple: 'Your opposite found - you both save 99.8%, best option' },
+    { id: 'PARALLEL', name: 'Parallel Split', when: 'Large intent split across chains', gas: '$1.80', score: 0.91, finality: '12s', color: '#8b5cf6', desc: '$1M split across 5 chains. Reduces price impact.', simple: 'Big trade split across chains - less slippage' },
+    { id: 'MULTI_HOP', name: 'Multi-Hop (A->B->C)', when: 'Intermediate chain provides liquidity', gas: '$1.20', score: 0.88, finality: 'max 12s', color: '#fbbf24', desc: 'Ethereum->Solana->Arbitrum. Nested escrow guarantees atomicity.', simple: 'Via intermediate chain - when direct route is illiquid' },
+    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Intent not urgent, wait for best conditions', gas: '$0.42 (est)', score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: low gas + peak liquidity + MEV valley.', simple: 'Wait for the best moment - saves even more' },
   ],
   sixSteps: [
     { num: 1, name: 'Intent Registration', simple: 'You say what you want to do', desc: 'Entity submits intent (not a transaction). Behavioral Inter-Block Layer reads all chains simultaneously.', color: '#22d3ee' },
     { num: 2, name: 'Route Calculation', simple: 'System finds the best path', desc: 'BTCP score computed for all candidate routes. Natural liquidity, gas, finality, coherence all weighted.', color: '#8b5cf6' },
     { num: 3, name: 'Cross-Chain Proof', simple: 'Truth verified by many', desc: 'Anchor behavioral hash + diversity-weighted consensus. Validators who copy each other lose voting power.', color: '#10b981' },
     { num: 4, name: 'VM Translation', simple: 'Same meaning, different chains', desc: '20 behavioral event types translated into each chain native execution. Same intent, different bytecode.', color: '#fbbf24' },
-    { num: 5, name: 'Gas Sharing Protocol', simple: 'Split costs, save big', desc: 'Anchor chain covers security, execution chain covers computation. $31 → $0.98 → $0.05.', color: '#f472b6' },
+    { num: 5, name: 'Gas Sharing Protocol', simple: 'Split costs, save big', desc: 'Anchor chain covers security, execution chain covers computation. $31 -> $0.98 -> $0.05.', color: '#f472b6' },
     { num: 6, name: 'Finalization + Recording', simple: 'Done, permanently recorded', desc: 'Behavioral hash stored in Akashic Index. Append-only, instantly final via BFT consensus.', color: '#ef4444' },
   ],
   eightWaterPrinciples: [
     { id: 'BITP', name: 'Information Transfer', simple: 'Move information, not assets', problem: 'Illiquid pairs need bridges', solution: 'Akashic clipboard moves behavioral facts' },
-    { id: 'OOA', name: 'Observation-Only', simple: 'Watch any chain, no permission needed', problem: 'Non-integrated chains left out', solution: 'Direct indexing — hostile chains cannot opt out' },
-    { id: 'IAP', name: 'Intent Aggregation', simple: '100 users = 1 pooled transaction', problem: 'Small users pay too much gas', solution: 'Pooled intents → 100× cheaper per user' },
+    { id: 'OOA', name: 'Observation-Only', simple: 'Watch any chain, no permission needed', problem: 'Non-integrated chains left out', solution: 'Direct indexing - hostile chains cannot opt out' },
+    { id: 'IAP', name: 'Intent Aggregation', simple: '100 users = 1 pooled transaction', problem: 'Small users pay too much gas', solution: 'Pooled intents -> 100* cheaper per user' },
     { id: 'CAPSULES', name: 'State Capsules', simple: 'Chain state travels safely', problem: 'Cross-chain reads are stale/expensive', solution: 'Snapshots at anchor block with confidence intervals' },
     { id: 'BLO', name: 'Behavioral Limit Orders', simple: 'Orders that never expire', problem: 'Counterparties must arrive together', solution: 'Orders stored permanently, fillable anytime' },
     { id: 'ZK_INTENT', name: 'ZK Intent Commitment', simple: 'MEV bots see nothing', problem: 'MEV front-runs expressed intents', solution: 'Hash committed, reveal + execution same block' },
-    { id: 'BSC', name: 'Behavioral State Channels', simple: '50 interactions = 2 on-chain txs', problem: 'High-frequency costs too much', solution: 'State channels → 50× cheaper' },
+    { id: 'BSC', name: 'Behavioral State Channels', simple: '50 interactions = 2 on-chain txs', problem: 'High-frequency costs too much', solution: 'State channels -> 50* cheaper' },
     { id: 'BRT', name: 'Biological Rhythm Timer', simple: 'Trade when gas is cheapest', problem: 'Users submit at bad times unknowingly', solution: 'Finds optimal window: low gas + peak liquidity + MEV valley' },
   ],
-  networkEffect: { formula: "Bridge pairs eliminated = N × (N-1) / 2", simple: "Every new chain eliminates ALL bridge pairs to existing chains" },
+  networkEffect: { formula: "Bridge pairs eliminated = N * (N-1) / 2", simple: "Every new chain eliminates ALL bridge pairs to existing chains" },
 };
 
 const CONTINUUM_DATA = {
   tagline: "Behavioral reality precedes price reality by a measurable window. Continuum operates in this gap.",
-  coreDiscovery: "On Ethereum: 36 to 144 seconds. On Solana: 20 to 80 seconds. This window has always existed. Nobody built infrastructure to use it — because nobody had the behavioral oracle layer to make it legible.",
+  coreDiscovery: "On Ethereum: 36 to 144 seconds. On Solana: 20 to 80 seconds. This window has always existed. Nobody built infrastructure to use it - because nobody had the behavioral oracle layer to make it legible.",
   wasteBreakdown: {
     total: 13.9,
     items: [
@@ -69,18 +69,18 @@ const CONTINUUM_DATA = {
       keyConstraint: "You retain full agency. Detection never becomes commitment automatically." },
     { id: 'CME', name: 'Complement Matching Engine', shortName: 'CME', color: '#8b5cf6',
       simple: "Finds your perfect trading opposite across all chains",
-      plainEnglish: "Complement score = how opposite your directions are × how close in time × both parties' behavioral health × independence of your identities × available liquidity",
-      whatItDoes: "When you show intent precursor for USDC→ETH, the engine searches all chains for the entity whose pattern indicates ETH→USDC. Both get a Pre-Manifest Order offer.",
+      plainEnglish: "Complement score = how opposite your directions are * how close in time * both parties' behavioral health * independence of your identities * available liquidity",
+      whatItDoes: "When you show intent precursor for USDC->ETH, the engine searches all chains for the entity whose pattern indicates ETH->USDC. Both get a Pre-Manifest Order offer.",
       keyProperty: "This is semantic matching of behavioral patterns, not price ladder matching." },
     { id: 'PMO', name: 'Pre-Manifest Order System', shortName: 'PMO', color: '#10b981',
-      simple: "Commit before the market saw you — get a better price",
+      simple: "Commit before the market saw you - get a better price",
       plainEnglish: "In exchange for committing before market expression: guaranteed price at TRION valuation + complement certainty premium. No slippage. No MEV. No bridge risk.",
       whatItDoes: "You receive a Pre-Manifest Order instrument. You confirm. Counterparty already found. Both settle via BTCP. Both get better prices than any exchange offers.",
       adoptionDriver: "Adoption is economically rational. Every entity who accepts is strictly better off." },
     { id: 'BDC', name: 'Behavioral Depth Credit', shortName: 'BDC', color: '#fbbf24',
       simple: "Your honest history IS your credit line",
-      plainEnglish: "Credit limit = your accumulated behavioral depth × how consistent you are × your 90-day average trade size × confidence multiplier",
-      whatItDoes: "2 years of consistent honest history = trade up to 10× your typical size, backed by your behavioral record rather than locked capital.",
+      plainEnglish: "Credit limit = your accumulated behavioral depth * how consistent you are * your 90-day average trade size * confidence multiplier",
+      whatItDoes: "2 years of consistent honest history = trade up to 10* your typical size, backed by your behavioral record rather than locked capital.",
       keyProperties: "Cannot be bought. Cannot be transferred. Compounds automatically. Forgery is mathematically bounded." },
     { id: 'THERMO', name: 'Thermodynamic Settlement', shortName: 'Settlement', color: '#f472b6',
       simple: "Settlement happens when both parties are simultaneously honest",
@@ -121,9 +121,9 @@ export function WalletBTCPPage() {
 
   return (
     <div className="space-y-8">
-      <Card title="BTCP · Behavioral Transaction Continuity Protocol">
+      <Card title="BTCP - Behavioral Transaction Continuity Protocol">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Layer 2 · Cross-Chain Routing</div>
+          <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Layer 2 - Cross-Chain Routing</div>
           <button onClick={() => setShowAll(v => !v)} className="px-3 py-1 rounded-lg border border-border text-xs hover:bg-muted transition-all">
             {showAll ? 'Hide Details' : 'Show All Details'}
           </button>
@@ -141,22 +141,22 @@ export function WalletBTCPPage() {
       </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="BTCP Score" value="0.911" sub="HEALTHY · Safe ≥ 0.50" color="blue" />
+        <StatCard label="BTCP Score" value="0.911" sub="HEALTHY - Safe >= 0.50" color="blue" />
         <StatCard label="Behavioral Records" value={fmt(bhCount, 0)} sub="Akashic Index growing" color="green" />
         <StatCard label="Max Lock Duration" value="7 Days" sub="Emergency escape guarantee" color="purple" />
         <StatCard label="Best Gas Savings" value="99.8%" sub="Netting vs direct ETH" color="amber" />
       </div>
 
-      <Card title="Route Simulator — Find your optimal behavioral route">
+      <Card title="Route Simulator - Find your optimal behavioral route">
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div>
             <label className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-2 block">From</label>
             <div className="flex gap-2">
               <select value={fromAsset.symbol} onChange={(e) => setFromAsset(ASSETS.find(a => a.symbol === e.target.value)!)}
                 className="bg-card border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary min-w-[120px]">
-                {ASSETS.map(a => <option key={a.symbol} value={a.symbol}>{a.symbol} · {a.name}</option>)}
+                {ASSETS.map(a => <option key={a.symbol} value={a.symbol}>{a.symbol} - {a.name}</option>)}
               </select>
-              <input readOnly value={fromAsset.address.slice(0, 10) + '…' + fromAsset.address.slice(-6)}
+              <input readOnly value={fromAsset.address.slice(0, 10) + '...' + fromAsset.address.slice(-6)}
                 className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono text-muted-foreground" />
             </div>
           </div>
@@ -165,9 +165,9 @@ export function WalletBTCPPage() {
             <div className="flex gap-2">
               <select value={toAsset.symbol} onChange={(e) => setToAsset(ASSETS.find(a => a.symbol === e.target.value)!)}
                 className="bg-card border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary min-w-[120px]">
-                {ASSETS.map(a => <option key={a.symbol} value={a.symbol}>{a.symbol} · {a.name}</option>)}
+                {ASSETS.map(a => <option key={a.symbol} value={a.symbol}>{a.symbol} - {a.name}</option>)}
               </select>
-              <input readOnly value={toAsset.address.slice(0, 10) + '…' + toAsset.address.slice(-6)}
+              <input readOnly value={toAsset.address.slice(0, 10) + '...' + toAsset.address.slice(-6)}
                 className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono text-muted-foreground" />
             </div>
           </div>
@@ -181,7 +181,7 @@ export function WalletBTCPPage() {
           <button onClick={() => setSimulated(true)} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
             🔍 Simulate Route
           </button>
-          {!isConnected ? <WalletButton /> : <span className="text-sm text-muted-foreground">Wallet connected — contracts deploying soon</span>}
+          {!isConnected ? <WalletButton /> : <span className="text-sm text-muted-foreground">Wallet connected - contracts deploying soon</span>}
         </div>
 
         {simulatedRoute && (
@@ -196,7 +196,7 @@ export function WalletBTCPPage() {
                 <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Gas Cost</div>
                 <div className="text-3xl font-extrabold" style={{ color: simulatedRoute.color }}>{simulatedRoute.gas}</div>
                 {simulatedRoute.id !== 'SINGLE_CHAIN' && (
-                  <div className="text-sm text-green-500 mt-1">vs $31.00 direct — saves {simulatedRoute.id === 'NETTING' ? '99.8%' : '96.8%'}</div>
+                  <div className="text-sm text-green-500 mt-1">vs $31.00 direct - saves {simulatedRoute.id === 'NETTING' ? '99.8%' : '96.8%'}</div>
                 )}
               </div>
             </div>
@@ -225,7 +225,7 @@ export function WalletBTCPPage() {
         )}
       </Card>
 
-      <Card title="How It Works — The 6-step routing journey">
+      <Card title="How It Works - The 6-step routing journey">
         <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4">
           {BTCP_DATA.sixSteps.map((step, i) => (
             <div key={step.num} className="p-5 rounded-lg border border-border relative">
@@ -257,7 +257,7 @@ export function WalletBTCPPage() {
       </Card>
 
       {showAll && (
-        <Card title="The 8 Water Principle Improvements — Eight mechanisms that make BTCP flow like water">
+        <Card title="The 8 Water Principle Improvements - Eight mechanisms that make BTCP flow like water">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {BTCP_DATA.eightWaterPrinciples.map(p => (
               <div key={p.id} className="p-5 rounded-lg border border-border">
@@ -275,7 +275,7 @@ export function WalletBTCPPage() {
       )}
 
       {bibl && (
-        <Card title="BIBL Tier-1 Snapshot — Live Chain Data" live>
+        <Card title="BIBL Tier-1 Snapshot - Live Chain Data" live>
           <DataTable
             headers={['Chain', 'NL Score', 'Gas Forecast', 'CC Coherence', 'MF Score']}
             rows={Object.entries(bibl?.snapshot || {}).map(([chain, s]: any) => [
@@ -286,7 +286,7 @@ export function WalletBTCPPage() {
         </Card>
       )}
 
-      <Card title="Built on BTCP → The Continuum clearing network eliminates $13.9B/year of market waste">
+      <Card title="Built on BTCP -> The Continuum clearing network eliminates $13.9B/year of market waste">
         <p className="text-sm text-muted-foreground mb-4">
           BTCP is the cross-chain foundation. Continuum operates in the behavioral window that precedes price reality.
         </p>
@@ -303,9 +303,9 @@ export function WalletContinuumPage() {
 
   return (
     <div className="space-y-8">
-      <Card title="Continuum · Where behavior precedes price">
+      <Card title="Continuum - Where behavior precedes price">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Layer 3 · Behavioral Clearing Network</div>
+          <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Layer 3 - Behavioral Clearing Network</div>
           <button onClick={() => setShowAll(v => !v)} className="px-3 py-1 rounded-lg border border-border text-xs hover:bg-muted transition-all">
             {showAll ? 'Hide Details' : 'Show All Details'}
           </button>
@@ -370,7 +370,7 @@ export function WalletContinuumPage() {
         </div>
       </Card>
 
-      <Card title="Complement Certainty Premium — The spread that middlemen take flows back to you">
+      <Card title="Complement Certainty Premium - The spread that middlemen take flows back to you">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
             <p className="text-sm text-muted-foreground mb-6">{CONTINUUM_DATA.ccpDistribution.simple}</p>
@@ -414,7 +414,7 @@ export function WalletContinuumPage() {
         )}
       </Card>
 
-      <Card title="FAISS Vector Space — Live CME Foundation" live>
+      <Card title="FAISS Vector Space - Live CME Foundation" live>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Indexed Vectors" value={fmt(Math.max(faiss?.indexed_vectors || 0, streamer?.faiss_vectors_accumulated || 0))} color="purple" sub="128-dim BEO" />
           <StatCard label="Entities Tracked" value={fmt(faiss?.entities_tracked || 0)} color="blue" />

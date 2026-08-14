@@ -1,5 +1,5 @@
 /**
- * Overview Pages — Dashboard, Architecture, Vision, Phases, Phase Transition, Whitepaper, Order Parameter, Convergence
+ * Overview Pages - Dashboard, Architecture, Vision, Phases, Phase Transition, Whitepaper, Order Parameter, Convergence
  */
 'use client';
 
@@ -75,7 +75,7 @@ export function DashboardPage() {
 
       {/* Live streamer status bar */}
       {streamerLive && (
-        <Card title="Real-Time BH Streamer — Live Data Pipeline" live>
+        <Card title="Real-Time BH Streamer - Live Data Pipeline" live>
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             {Object.entries(streamer?.per_chain || {}).map(([chain, cs]: any) => (
               <div key={chain} className="p-3 rounded-lg border border-border bg-card text-center">
@@ -95,7 +95,7 @@ export function DashboardPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
               <span className="text-green-500 font-medium">STREAMING LIVE</span>
-              <span className="text-muted-foreground">— {streamer?.bhs_per_second?.toFixed(0)} BHs/sec from {streamer?.chains_active} chains</span>
+              <span className="text-muted-foreground">- {streamer?.bhs_per_second?.toFixed(0)} BHs/sec from {streamer?.chains_active} chains</span>
             </div>
             <span className="font-mono text-muted-foreground">
               Uptime: {Math.floor((streamer?.uptime_seconds || 0) / 60)}m {Math.floor((streamer?.uptime_seconds || 0) % 60)}s
@@ -114,10 +114,10 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Network</span>
-              <span className="text-sm font-mono">{health?.network || '—'}</span>
+              <span className="text-sm font-mono">{health?.network || '-'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Dynamic Threshold Θ(t)</span>
+              <span className="text-sm text-muted-foreground">Dynamic Threshold Theta(t)</span>
               <span className="text-sm font-mono">{pct(health?.dynamic_threshold, 2)}</span>
             </div>
             <div className="flex items-center justify-between">
@@ -143,7 +143,7 @@ export function DashboardPage() {
                 return (C * Math.exp(moatVal)).toFixed(4);
               })()}
             </div>
-            <div className="text-xs text-muted-foreground">T(t) = [C≥Θ] · C(t) · e^(M_moat)</div>
+            <div className="text-xs text-muted-foreground">T(t) = [C{'>='}Theta] - C(t) - e^(M_moat)</div>
             <div className="pt-2 border-t border-border space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">C(t) coherence</span>
@@ -166,7 +166,7 @@ export function DashboardPage() {
             <div className="text-2xl font-bold">
               <Badge status={sec?.effective_sec >= 0.8 ? 'HEALTHY' : 'WARNING'} />
             </div>
-            <div className="text-xs text-muted-foreground">SEC(t) = LSS · PQC · CC</div>
+            <div className="text-xs text-muted-foreground">SEC(t) = LSS - PQC - CC</div>
             <div className="pt-2 border-t border-border space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">LSS (Living Sec.)</span>
@@ -190,7 +190,7 @@ export function DashboardPage() {
       </div>
 
       {/* Live BH stream */}
-      <Card title="Behavioral Hash Stream — Real-Time from 7 Chains" subtitle={`Live ingestion · ${streamer?.bhs_per_second?.toFixed(0) || 0} BHs/sec · ${streamer?.chains_active || 0} chains`} live>
+      <Card title="Behavioral Hash Stream - Real-Time from 7 Chains" subtitle={`Live ingestion - ${streamer?.bhs_per_second?.toFixed(0) || 0} BHs/sec - ${streamer?.chains_active || 0} chains`} live>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <StatCard label="Total BHs (Live)" value={fmt(totalBH, 0)} color="green" sub={streamerLive ? 'growing' : 'static'} />
           <StatCard label="Chains Active" value={fmt(bhStats?.chains_with_data || streamer?.chains_active || 0)} color="blue" />
@@ -203,7 +203,7 @@ export function DashboardPage() {
             tfmt(b.ts || b.timestamp),
             <span className="font-mono text-xs text-cyan-500">{hex(b.entity_id, 10)}</span>,
             <Badge status={b.chain} />,
-            <Tag color="blue">{b.event_type || '—'}</Tag>,
+            <Tag color="blue">{b.event_type || '-'}</Tag>,
             <span className="font-mono text-xs text-muted-foreground">{hex(b.tx_hash, 12)}</span>,
             <Badge status={b.valid !== false ? 'VALID' : 'INVALID'} />,
           ])}
@@ -217,12 +217,12 @@ export function DashboardPage() {
           <DataTable
             headers={['#', 'Entity', 'Coherence', 'Archetype']}
             rows={(lb?.leaderboard || []).slice(0, 10).map((e: any) => [
-              e.rank || '—',
+              e.rank || '-',
               <a href={`/explorer?entity=${e.entity_id}`} className="text-blue-500 hover:underline">{truncate(e.label || e.entity_id, 20)}</a>,
               <span className={e.coherent ? 'text-green-500 font-mono' : 'text-red-500 font-mono'}>{pct(e.coherence_score, 2)}</span>,
               <Badge status={e.archetype} />,
             ])}
-            emptyMessage="Loading leaderboard…"
+            emptyMessage="Loading leaderboard..."
           />
         </Card>
 
@@ -235,13 +235,13 @@ export function DashboardPage() {
               <span className="font-mono">{pct(s.coherence_score, 2)}</span>,
               <Badge status={s.grade} />,
             ])}
-            emptyMessage="Loading feed…"
+            emptyMessage="Loading feed..."
           />
         </Card>
       </div>
 
       {/* Moat breakdown */}
-      <Card title="Economic Moat M_moat(t) = D · Q · R · X · F · N" live>
+      <Card title="Economic Moat M_moat(t) = D - Q - R - X - F - N" live>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           {[
             { label: 'D Data', val: moat?.components?.D_data_moat, color: 'bg-blue-500' },
@@ -286,7 +286,7 @@ export function ArchitecturePage() {
 
   return (
     <div className="space-y-6">
-      <Card title="TRION Protocol — Architecture Flow" subtitle="End-to-end pipeline from chain ingestion to on-chain signal publication">
+      <Card title="TRION Protocol - Architecture Flow" subtitle="End-to-end pipeline from chain ingestion to on-chain signal publication">
         <ArchitectureFlow />
       </Card>
 
@@ -306,7 +306,7 @@ export function ArchitecturePage() {
               <div className="max-h-40 overflow-auto">
                 {(depGraph?.cascade_paths || []).slice(0, 10).map((p: any, i: number) => (
                   <div key={i} className="text-xs font-mono py-1 border-b border-border/30">
-                    {Array.isArray(p) ? p.join(' → ') : JSON.stringify(p)}
+                    {Array.isArray(p) ? p.join(' -> ') : JSON.stringify(p)}
                   </div>
                 ))}
               </div>
@@ -352,14 +352,14 @@ export function ArchitecturePage() {
         <Card title="Pipeline Connectivity Check" subtitle="Verified live data flows">
           <div className="space-y-2 text-sm">
             {[
-              { label: 'Rust indexers → BH primitive', status: 'OK' },
-              { label: 'BH → FAISS vector index', status: 'OK' },
-              { label: 'FAISS → 5-plane coherence', status: 'OK' },
-              { label: 'Coherence → Signal factory', status: 'OK' },
-              { label: 'Signal → Relayer', status: 'OK' },
-              { label: 'Relayer → On-chain (0G + chains)', status: 'OK' },
-              { label: 'On-chain → Akashic records', status: 'OK' },
-              { label: 'Akashic → Governance loops', status: 'OK' },
+              { label: 'Rust indexers -> BH primitive', status: 'OK' },
+              { label: 'BH -> FAISS vector index', status: 'OK' },
+              { label: 'FAISS -> 5-plane coherence', status: 'OK' },
+              { label: 'Coherence -> Signal factory', status: 'OK' },
+              { label: 'Signal -> Relayer', status: 'OK' },
+              { label: 'Relayer -> On-chain (0G + chains)', status: 'OK' },
+              { label: 'On-chain -> Akashic records', status: 'OK' },
+              { label: 'Akashic -> Governance loops', status: 'OK' },
             ].map(step => (
               <div key={step.label} className="flex items-center gap-2">
                 <Icons.CheckCircle className="w-4 h-4 text-green-500" />
@@ -385,7 +385,7 @@ export function VisionPage() {
   return (
     <div className="space-y-6">
       <Card title="Protocol Vision" subtitle={vision?.version || 'v1.0'}>
-        <p className="text-sm leading-relaxed">{vision?.description || 'Loading…'}</p>
+        <p className="text-sm leading-relaxed">{vision?.description || 'Loading...'}</p>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -397,7 +397,7 @@ export function VisionPage() {
                 <div className="text-xs text-muted-foreground mt-1">{m.description || m.summary || ''}</div>
               </div>
             ))}
-            {!vision?.modules && <EmptyState message="Loading modules…" />}
+            {!vision?.modules && <EmptyState message="Loading modules..." />}
           </div>
         </Card>
 
@@ -447,7 +447,7 @@ export function PhasesPage() {
               <ProgressBar value={p.completion_pct || p.completion || 0} color={p.completion_pct >= 1 ? 'green' : 'blue'} />
             </div>
           ))}
-          {!phases?.phases && <EmptyState message="Loading phases…" />}
+          {!phases?.phases && <EmptyState message="Loading phases..." />}
         </div>
       </Card>
     </div>
@@ -464,20 +464,20 @@ export function PhaseTransitionPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Current Phase" value={pt?.current_phase || '—'} color="blue" />
-        <StatCard label="Current State" value={pt?.current_state || '—'} color="amber" />
+        <StatCard label="Current Phase" value={pt?.current_phase || '-'} color="blue" />
+        <StatCard label="Current State" value={pt?.current_state || '-'} color="amber" />
         <StatCard label="Chains Indexed" value={fmt(pt?.chains_indexed_by_trion)} />
         <StatCard label="Manipulation Profit" value={pct(pt?.manipulation_profit_current, 2)} color="red" />
       </div>
 
       <Card title="Phase Transition Dynamics" live>
         <KVList items={[
-          ['Endogenous Weight', pt?.endogenous_weight?.toFixed(4) || '—'],
-          ['Exogenous Weight', pt?.exogenous_weight?.toFixed(4) || '—'],
+          ['Endogenous Weight', pt?.endogenous_weight?.toFixed(4) || '-'],
+          ['Exogenous Weight', pt?.exogenous_weight?.toFixed(4) || '-'],
           ['Manipulation Profit Current', pct(pt?.manipulation_profit_current, 2)],
           ['Manipulation Profit Critical', pct(pt?.manipulation_profit_critical, 2)],
           ['Adoption Rate', pct(pt?.adoption_rate, 2)],
-          ['Distance to Transition', pt?.distance_to_transition?.toFixed(4) || '—'],
+          ['Distance to Transition', pt?.distance_to_transition?.toFixed(4) || '-'],
         ]} />
       </Card>
     </div>
@@ -510,7 +510,7 @@ export function WhitepaperPage() {
             <Badge status={f.status} />,
             <span className="text-xs text-muted-foreground">{(f.endpoints || []).length} endpoint(s)</span>,
           ])}
-          emptyMessage="Loading formulas…"
+          emptyMessage="Loading formulas..."
         />
       </Card>
     </div>
@@ -526,13 +526,13 @@ export function OrderParameterPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Order Parameter Ψ — Critical Transition Detection" live>
-        <p className="text-sm text-muted-foreground mb-4">{op?.interpretation || 'Loading…'}</p>
+      <Card title="Order Parameter Psi - Critical Transition Detection" live>
+        <p className="text-sm text-muted-foreground mb-4">{op?.interpretation || 'Loading...'}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Distance to Transition" value={op?.distance_to_transition?.toFixed(4) || '—'} color="amber" />
-          <StatCard label="Est. Days to Ψ_c" value={fmt(op?.estimated_days_to_psi_c)} color="blue" />
-          <StatCard label="Current Ψ" value={op?.current_psi?.toFixed(4) || '—'} />
-          <StatCard label="Critical Ψ_c" value={op?.critical_psi?.toFixed(4) || '0.5'} color="red" />
+          <StatCard label="Distance to Transition" value={op?.distance_to_transition?.toFixed(4) || '-'} color="amber" />
+          <StatCard label="Est. Days to Psi_c" value={fmt(op?.estimated_days_to_psi_c)} color="blue" />
+          <StatCard label="Current Psi" value={op?.current_psi?.toFixed(4) || '-'} />
+          <StatCard label="Critical Psi_c" value={op?.critical_psi?.toFixed(4) || '0.5'} color="red" />
         </div>
       </Card>
 
@@ -541,7 +541,7 @@ export function OrderParameterPage() {
           ['Total Protocols', fmt(op?.adoption_metrics?.total_protocols)],
           ['Adopted', fmt(op?.adoption_metrics?.adopted)],
           ['Adoption Rate', pct(op?.adoption_metrics?.adoption_rate, 2)],
-          ['Formula', op?.formula || '—'],
+          ['Formula', op?.formula || '-'],
         ]} />
       </Card>
     </div>
@@ -557,12 +557,12 @@ export function ConvergencePage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Convergence Theorem — lim E[|T-V|] = H_irr" live>
-        <p className="text-sm text-muted-foreground mb-4">{conv?.disclosure || conv?.theorem || 'Loading…'}</p>
+      <Card title="Convergence Theorem - lim E[|T-V|] = H_irr" live>
+        <p className="text-sm text-muted-foreground mb-4">{conv?.disclosure || conv?.theorem || 'Loading...'}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="C(t) Current" value={(conv?.C_t || 0).toFixed(4)} color="blue" />
           <StatCard label="C* Asymptote" value={(conv?.C_star || 0).toFixed(4)} color="green" />
-          <StatCard label="Convergence Rate λ" value={(conv?.convergence_rate || 0).toFixed(6)} />
+          <StatCard label="Convergence Rate lambda" value={(conv?.convergence_rate || 0).toFixed(6)} />
           <StatCard label="Converged?" value={conv?.converged ? 'YES' : 'NO'} color={conv?.converged ? 'green' : 'amber'} />
         </div>
       </Card>

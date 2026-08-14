@@ -169,7 +169,7 @@ export function CommandPalette({
                 if (results[activeIdx]) select(results[activeIdx].id);
               }
             }}
-            placeholder="Search pages… (⌘K to close)"
+            placeholder="Search pages... (⌘K to close)"
             className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
           />
           <kbd className="text-xs text-muted-foreground font-mono px-2 py-1 rounded border border-border">
@@ -233,11 +233,11 @@ export function CommandPalette({
         <div className="flex items-center justify-between px-4 py-2 border-t border-border text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <kbd className="font-mono px-1.5 py-0.5 rounded border border-border">↑↓</kbd>
+              <kbd className="font-mono px-1.5 py-0.5 rounded border border-border">updown</kbd>
               navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="font-mono px-1.5 py-0.5 rounded border border-border">↵</kbd>
+              <kbd className="font-mono px-1.5 py-0.5 rounded border border-border">Enter</kbd>
               select
             </span>
             <span className="flex items-center gap-1">
@@ -270,7 +270,7 @@ function PaletteItem({
       data-idx={idx}
       onClick={onClick}
       onMouseEnter={() => {
-        // Don't change activeIdx on hover — let keyboard nav own it
+        // Don't change activeIdx on hover - let keyboard nav own it
       }}
       className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
         active ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'

@@ -1,5 +1,5 @@
 /**
- * Akashic Records Pages — Epigenetics, Fork Resolution, Resurrection, Trajectory, Dormancy,
+ * Akashic Records Pages - Epigenetics, Fork Resolution, Resurrection, Trajectory, Dormancy,
  * Genesis, Convergence, Manifestation Gap, Negative Space, Emergence
  */
 'use client';
@@ -20,7 +20,7 @@ function EntitySelector({ id, setId, label = 'Entity ID' }: { id: string; setId:
         type="text"
         value={id}
         onChange={e => setId(e.target.value)}
-        placeholder={`${label}…`}
+        placeholder={`${label}...`}
         className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm font-mono"
       />
     </Card>
@@ -38,7 +38,7 @@ export function EpigeneticsPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Epigenetic Layer — Environment-Modulated Expression" live>
+      <Card title="Epigenetic Layer - Environment-Modulated Expression" live>
         <KVList items={[
           ['Threat level', epi?.threat_level || 'LOW'],
           ['Expression state', epi?.expression_state || 'NORMAL'],
@@ -61,13 +61,13 @@ export function ForkResolutionPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Fork Resolution Protocol — CC_A / CC_B Continuity" live>
+      <Card title="Fork Resolution Protocol - CC_A / CC_B Continuity" live>
         <KVList items={[
           ['CC_A (chain A)', (fork?.cc_a || 0).toFixed(4)],
           ['CC_B (chain B)', (fork?.cc_b || 0).toFixed(4)],
           ['Weight w_A', (fork?.w_a || 0).toFixed(4)],
           ['Weight w_B', (fork?.w_b || 0).toFixed(4)],
-          ['Winner', fork?.winner || '—'],
+          ['Winner', fork?.winner || '-'],
           ['Confidence', (fork?.confidence || 0).toFixed(4)],
         ]} />
       </Card>
@@ -86,14 +86,14 @@ export function ResurrectionPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Resurrection Inference — Δ_res = w_d·e^(-κT) + w_c·sim + w_x·g(C)" live>
+      <Card title="Resurrection Inference - Delta_res = w_d-e^(-kappaT) + w_c-sim + w_x-g(C)" live>
         <KVList items={[
-          ['Δ_resurrection score', (res?.delta_resurrection || 0).toFixed(4)],
+          ['Delta_resurrection score', (res?.delta_resurrection || 0).toFixed(4)],
           ['Dormancy period T', fmt(res?.dormancy_period_blocks)],
-          ['Decay constant κ', (res?.kappa || 0).toFixed(4)],
+          ['Decay constant kappa', (res?.kappa || 0).toFixed(4)],
           ['Similarity sim(S_pre, S_react)', (res?.similarity || 0).toFixed(4)],
           ['Coherence g(C)', (res?.g_c || 0).toFixed(4)],
-          ['Dormancy type', res?.dormancy_type || '—'],
+          ['Dormancy type', res?.dormancy_type || '-'],
         ]} />
       </Card>
     </div>
@@ -112,7 +112,7 @@ export function TrajectoryPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Trajectory Anomaly Monitor — KL Divergence" live>
+      <Card title="Trajectory Anomaly Monitor - KL Divergence" live>
         <KVList items={[
           ['KL divergence', (anomaly?.kl_divergence || 0).toFixed(6)],
           ['Threshold', (anomaly?.threshold || 0.1).toFixed(4)],
@@ -135,7 +135,7 @@ export function DormancyPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Dormancy Classification — 5 Types" live>
+      <Card title="Dormancy Classification - 5 Types" live>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           {['ACTIVE', 'DORMANT', 'HIBERNATING', 'DECEASED', 'RESURRECTED'].map((t, i) => {
             const active = dorm?.dormancy_type === t;
@@ -169,11 +169,11 @@ export function GenesisPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={assetId} setId={setAssetId} label="Asset ID" />
-      <Card title="Genesis Inference — conf_genesis = 1 - e^(-0.001·D)" live>
+      <Card title="Genesis Inference - conf_genesis = 1 - e^(-0.001-D)" live>
         <KVList items={[
           ['conf_genesis', (gen?.conf_genesis || 0).toFixed(4)],
           ['Akashic depth D', fmt(gen?.akashic_depth)],
-          ['Decay λ', '0.001'],
+          ['Decay lambda', '0.001'],
           ['Genesis timestamp', dtfmt(gen?.genesis_timestamp)],
         ]} />
       </Card>
@@ -181,7 +181,7 @@ export function GenesisPage() {
         <KVList items={[
           ['Fingerprint hash', hex(genFp?.fingerprint_hash, 16)],
           ['Confidence', pct(genFp?.confidence, 2)],
-          ['Method', genFp?.method || '—'],
+          ['Method', genFp?.method || '-'],
         ]} />
       </Card>
     </div>
@@ -199,7 +199,7 @@ export function ConvergenceDetailPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Convergence Theorem — Per-Entity" live>
+      <Card title="Convergence Theorem - Per-Entity" live>
         <KVList items={[
           ['C(t)', (conv?.C_t || 0).toFixed(4)],
           ['C* asymptote', (conv?.C_star || 0).toFixed(4)],
@@ -223,7 +223,7 @@ export function ManifestationGapPage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Manifestation Gap — Latent vs. Manifest Behavior" live>
+      <Card title="Manifestation Gap - Latent vs. Manifest Behavior" live>
         <KVList items={[
           ['Gap score', (mg?.gap_score || 0).toFixed(4)],
           ['Latent behavior', (mg?.latent || 0).toFixed(4)],
@@ -246,7 +246,7 @@ export function NegativeSpacePage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Negative Space — What the Entity Does NOT Do" live>
+      <Card title="Negative Space - What the Entity Does NOT Do" live>
         <KVList items={[
           ['Negative space score', (ns?.negative_space_score || 0).toFixed(4)],
           ['Missing expected actions', fmt(ns?.missing_actions?.length)],
@@ -268,7 +268,7 @@ export function EmergencePage() {
   return (
     <div className="space-y-6">
       <EntitySelector id={entityId} setId={setEntityId} />
-      <Card title="Emergence Detection — Novel Behavioral Patterns" live>
+      <Card title="Emergence Detection - Novel Behavioral Patterns" live>
         <KVList items={[
           ['Emergence score', (em?.emergence_score || 0).toFixed(4)],
           ['Novel pattern count', fmt(em?.novel_patterns)],

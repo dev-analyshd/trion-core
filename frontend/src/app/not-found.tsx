@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TRION 404 page — not found.
+ * TRION 404 page - not found.
  * Phase 8.1: Friendly error page with link back to dashboard.
  */
 import Link from 'next/link';
@@ -21,7 +21,7 @@ export default function NotFound() {
           href="/"
           className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 transition-opacity"
         >
-          ← Back to dashboard
+          &lt;- Back to dashboard
         </Link>
       </div>
     </div>

@@ -1,5 +1,5 @@
 /**
- * Novel Primitives Pages — BIRP, DNA_Code, UBL, BC, XSL, Transduction, Inversion, Predictive Limit,
+ * Novel Primitives Pages - BIRP, DNA_Code, UBL, BC, XSL, Transduction, Inversion, Predictive Limit,
  * Information Conservation, Phase Signal
  */
 'use client';
@@ -30,7 +30,7 @@ export function BIRPPage() {
         />
       </Card>
 
-      <Card title="BIRP — Behavioral Identity Recovery Protocol (5 Phases)" live>
+      <Card title="BIRP - Behavioral Identity Recovery Protocol (5 Phases)" live>
         <div className="flex items-center justify-between gap-2 mb-4">
           {[
             { name: 'PHASE 1', sub: 'DNA Verify', icon: '🧬' },
@@ -47,8 +47,8 @@ export function BIRPPage() {
           ))}
         </div>
         <KVList items={[
-          ['State machine', 'UNSTARTED → PHASE_1 → PHASE_2 → PHASE_3 → PHASE_4 → PHASE_5 → RESOLVED'],
-          ['Quarantine period', '7 days (604,800 sec) — mandatory'],
+          ['State machine', 'UNSTARTED -> PHASE_1 -> PHASE_2 -> PHASE_3 -> PHASE_4 -> PHASE_5 -> RESOLVED'],
+          ['Quarantine period', '7 days (604,800 sec) - mandatory'],
           ['Rejection cooldown', '30 days before new request'],
           ['Conscious quorum', '2/3 majority (67%)'],
           ['Temporal cluster max distance', '0.30 cosine'],
@@ -77,9 +77,9 @@ export function BIRPPage() {
 export function DNACodePage() {
   return (
     <div className="space-y-6">
-      <Card title="DNA_Code — User-Defined Secret with Time-Based Rotation">
+      <Card title="DNA_Code - User-Defined Secret with Time-Based Rotation">
         <p className="text-sm text-muted-foreground mb-4">
-          Each entity may register a personal DNA_Code — a byte sequence they alone know — that is
+          Each entity may register a personal DNA_Code - a byte sequence they alone know - that is
           mixed into the dual-strand hash during BIRP Phase 1 verification. The code rotates on a
           fixed 90-day schedule via hash-chaining.
         </p>
@@ -121,7 +121,7 @@ verified = (submitted_hash == registration.code_commitment)`} />
 
       <Card title="Security Properties">
         <div className="space-y-2 text-sm">
-          <div className="flex items-start gap-2"><span className="text-green-500">✓</span><span>Initial code NEVER stored in plaintext — only SHA3-256 commitment</span></div>
+          <div className="flex items-start gap-2"><span className="text-green-500">✓</span><span>Initial code NEVER stored in plaintext - only SHA3-256 commitment</span></div>
           <div className="flex items-start gap-2"><span className="text-green-500">✓</span><span>Compromise of epoch N code does NOT reveal prior codes (one-way hash)</span></div>
           <div className="flex items-start gap-2"><span className="text-green-500">✓</span><span>Bounded impact: 90-day window limits long-term compromise</span></div>
           <div className="flex items-start gap-2"><span className="text-green-500">✓</span><span>Client-side derivation: verifier never sees raw initial code</span></div>
@@ -140,10 +140,10 @@ export function UBLPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="UBL — Universal Behavioral Layer Schema" live>
-        <p className="text-sm text-muted-foreground mb-4">{schema?.description || 'Loading…'}</p>
+      <Card title="UBL - Universal Behavioral Layer Schema" live>
+        <p className="text-sm text-muted-foreground mb-4">{schema?.description || 'Loading...'}</p>
         <KVList items={[
-          ['Version', schema?.version || '—'],
+          ['Version', schema?.version || '-'],
           ['Dimensions', fmt(schema?.dimensions)],
           ['Sources supported', fmt(schema?.supported_sources?.length)],
         ]} />
@@ -168,7 +168,7 @@ export function BCPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="BC — Behavioral Coherence (per ecosystem)" live>
+      <Card title="BC - Behavioral Coherence (per ecosystem)" live>
         <KVList items={[
           ['Ecosystem', bc?.ecosystem || 'evm'],
           ['Coherence', (bc?.coherence || 0).toFixed(4)],
@@ -198,7 +198,7 @@ export function XSLPage() {
           className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm font-mono"
         />
       </Card>
-      <Card title="XSL — Cross-Sovereign Liquidity" live>
+      <Card title="XSL - Cross-Sovereign Liquidity" live>
         <KVList items={[
           ['Sovereign liquidity score', (xsl?.sovereign_liquidity || 0).toFixed(4)],
           ['Cross-border flow', fmt(xsl?.cross_border_flow)],
@@ -218,7 +218,7 @@ export function TransductionPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Transduction — Sensor → Signal Conversion" live>
+      <Card title="Transduction - Sensor -> Signal Conversion" live>
         <KVList items={[
           ['Sensor ID', trans?.sensor_id || 'sensor_1'],
           ['Signal strength', (trans?.signal_strength || 0).toFixed(4)],
@@ -239,11 +239,11 @@ export function InversionPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Inversion — Endogenous Metric Discovery" live>
-        <p className="text-sm text-muted-foreground mb-4">{inv?.thesis || 'Loading…'}</p>
+      <Card title="Inversion - Endogenous Metric Discovery" live>
+        <p className="text-sm text-muted-foreground mb-4">{inv?.thesis || 'Loading...'}</p>
         <KVList items={[
-          ['Broken stack', inv?.broken_stack || '—'],
-          ['Endogenous metric', inv?.endogenous_metric || '—'],
+          ['Broken stack', inv?.broken_stack || '-'],
+          ['Endogenous metric', inv?.endogenous_metric || '-'],
           ['Key inversions', fmt(inv?.key_inversions?.length)],
         ]} />
       </Card>
@@ -260,14 +260,14 @@ export function PredictiveLimitPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Predictive Completeness Limit — PC < 1 always" live>
-        <p className="text-sm text-muted-foreground mb-4">{pl?.heisenberg_analogy || 'Loading…'}</p>
+      <Card title="Predictive Completeness Limit - PC < 1 always" live>
+        <p className="text-sm text-muted-foreground mb-4">{pl?.heisenberg_analogy || 'Loading...'}</p>
         <KVList items={[
           ['PC_limit', pct(pl?.PC_limit, 4)],
           ['H_irreducible', (pl?.H_irreducible || 0).toFixed(4)],
           ['H_future', (pl?.H_future || 0).toFixed(4)],
-          ['Δt (s)', (pl?.delta_t || 0).toFixed(2)],
-          ['Δaccuracy', (pl?.delta_accuracy || 0).toFixed(4)],
+          ['Deltat (s)', (pl?.delta_t || 0).toFixed(2)],
+          ['Deltaaccuracy', (pl?.delta_accuracy || 0).toFixed(4)],
           ['Limit product', (pl?.limit_product || 0).toFixed(6)],
           ['Akashic depth', fmt(pl?.akashic_depth)],
         ]} />
@@ -285,7 +285,7 @@ export function InformationPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Information Conservation — dI/dt ≥ 0" live>
+      <Card title="Information Conservation - dI/dt >= 0" live>
         <KVList items={[
           ['I_TRION (current)', fmt(info?.I_current || info?.I_total)],
           ['I_in', fmt(info?.I_in)],
@@ -308,13 +308,13 @@ export function PhaseSignalPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Phase Signal — Behavioral Velocity & Akashic Coverage" live>
+      <Card title="Phase Signal - Behavioral Velocity & Akashic Coverage" live>
         <KVList items={[
           ['Coherence', (ps?.coherence || 0).toFixed(4)],
           ['Behavioral velocity', (ps?.behavioral_velocity || 0).toFixed(4)],
           ['Akashic coverage', pct(ps?.akashic_coverage, 2)],
-          ['Action required', ps?.action_required || '—'],
-          ['Description', ps?.description || '—'],
+          ['Action required', ps?.action_required || '-'],
+          ['Description', ps?.description || '-'],
         ]} />
       </Card>
     </div>

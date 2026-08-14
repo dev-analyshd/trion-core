@@ -130,10 +130,10 @@ export const dtfmt = (ts: any) =>
   ts ? new Date(Number(ts) * 1000).toLocaleString('en-US', { hour12: false }) : '—';
 
 export const truncate = (s: string, len = 16) =>
-  s && s.length > len ? s.slice(0, len) + '…' : (s || '—');
+  s && s.length > len ? s.slice(0, len) + '...' : (s || '—');
 
 export const hex = (s: string, len = 12) =>
-  s ? (s.startsWith('0x') ? s.slice(0, len + 2) : s.slice(0, len)) + (s.length > len ? '…' : '') : '—';
+  s ? (s.startsWith('0x') ? s.slice(0, len + 2) : s.slice(0, len)) + (s.length > len ? '...' : '') : '—';
 
 export const compact = (n: any) => {
   if (n === null || n === undefined) return '—';

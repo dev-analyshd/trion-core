@@ -1,5 +1,5 @@
 /**
- * BTCP + CONTINUUM Pages — all new Phase 0-5 modules
+ * BTCP + CONTINUUM Pages - all new Phase 0-5 modules
  */
 'use client';
 
@@ -27,7 +27,7 @@ export function BTCPPipelinePage() {
       </div>
 
       {Object.entries(phases).map(([key, phase]: any) => (
-        <Card key={key} title={`${key.toUpperCase()} — ${phase.name}`} live>
+        <Card key={key} title={`${key.toUpperCase()} - ${phase.name}`} live>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <StatCard label="Status" value={phase.status} color={phase.status === 'COMPLETE' ? 'green' : 'amber'} />
             <StatCard label="Tests" value={fmt(phase.tests || phase.integration_tests)} />
@@ -85,14 +85,14 @@ export function HashDNAExplorerPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Hash_DNA — Formal Specification (Gap 7 Resolution)">
+      <Card title="Hash_DNA - Formal Specification (Gap 7 Resolution)">
         <p className="text-sm text-muted-foreground mb-4">
           keccak256-based behavioral hash with 14 fields, domain separation, canonical asset ID,
           and per-event-type context hashes. Used for BTCP cross-chain proofs.
         </p>
         <button onClick={compute} disabled={loading}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
-          {loading ? 'Computing…' : 'Compute Demo Hash_DNA'}
+          {loading ? 'Computing...' : 'Compute Demo Hash_DNA'}
         </button>
       </Card>
 
@@ -152,7 +152,7 @@ export function SevenPlanePage() {
             chain, pct(s.nl_score, 2), `$${s.gas_forecast?.toFixed(2)}`,
             pct(s.cc_coherence, 2), pct(s.mf_score, 2), s.finality_avg_sec?.toFixed(1),
           ])}
-          emptyMessage="Loading BIBL snapshot…"
+          emptyMessage="Loading BIBL snapshot..."
         />
         <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
           <div>Tier 1 target: {bibl?.tier_1_latency_target_ms}ms</div>
@@ -174,17 +174,17 @@ export function MFFingerprintsPage() {
       <Card title="7 Manipulation Fingerprint Types (BTCP_15 Gap 3)" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {[
-            { type: 'T1', name: 'Sandwich', weight: 0.20, pattern: 'Intent A → victim → Intent B bracketing', color: 'red' },
+            { type: 'T1', name: 'Sandwich', weight: 0.20, pattern: 'Intent A -> victim -> Intent B bracketing', color: 'red' },
             { type: 'T2', name: 'Wash Trading', weight: 0.15, pattern: 'Self-trading for false volume', color: 'amber' },
-            { type: 'T3', name: 'Oracle Manipulation', weight: 0.25, pattern: 'Large trade → oracle exploit', color: 'red' },
+            { type: 'T3', name: 'Oracle Manipulation', weight: 0.25, pattern: 'Large trade -> oracle exploit', color: 'red' },
             { type: 'T4', name: 'Layering', weight: 0.15, pattern: 'Orders never intended to fill', color: 'amber' },
             { type: 'T5', name: 'Spoofing', weight: 0.10, pattern: 'Mimics high-trust entity', color: 'amber' },
             { type: 'T6', name: 'Cross-Protocol', weight: 0.10, pattern: 'Coordinated across protocols', color: 'amber' },
-            { type: 'T7', name: 'Statistical Anomaly', weight: 0.05, pattern: 'Catch-all — Conscious review', color: 'purple' },
+            { type: 'T7', name: 'Statistical Anomaly', weight: 0.05, pattern: 'Catch-all - Conscious review', color: 'purple' },
           ].map(t => (
             <div key={t.type} className="p-3 rounded-lg border border-border">
               <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-sm font-semibold">{t.type} — {t.name}</span>
+                <span className="font-mono text-sm font-semibold">{t.type} - {t.name}</span>
                 <Badge status={t.weight >= 0.20 ? 'CRITICAL' : 'WARNING'} label={`w=${t.weight}`} />
               </div>
               <div className="text-xs text-muted-foreground">{t.pattern}</div>
@@ -192,7 +192,7 @@ export function MFFingerprintsPage() {
           ))}
         </div>
         <div className="mt-3 text-xs text-muted-foreground">
-          MF_score = weighted_max(T1×0.20, T2×0.15, T3×0.25, T4×0.15, T5×0.10, T6×0.10, T7×0.05).
+          MF_score = weighted_max(T1*0.20, T2*0.15, T3*0.25, T4*0.15, T5*0.10, T6*0.10, T7*0.05).
           If T7 detected: hold at 0.5 pending Conscious Layer review.
         </div>
       </Card>
@@ -225,7 +225,7 @@ export function BTCPModulesPage() {
             <Badge status={m.status} />,
             <span className="text-xs text-muted-foreground">{m.spec}</span>,
           ])}
-          emptyMessage="Loading modules…"
+          emptyMessage="Loading modules..."
         />
       </Card>
     </div>
@@ -248,7 +248,7 @@ export function EscrowStateMachinePage() {
               <div className="p-2 rounded border-2 border-blue-500/30 bg-blue-500/5 text-center min-w-[100px]">
                 <div className="text-xs font-semibold">{s}</div>
               </div>
-              {i < (data?.states?.length || 0) - 1 && <span className="text-muted-foreground">→</span>}
+              {i < (data?.states?.length || 0) - 1 && <span className="text-muted-foreground">{'->'}</span>}
             </div>
           ))}
         </div>
@@ -257,11 +257,11 @@ export function EscrowStateMachinePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Resolution Compliance">
           <KVList items={[
-            ['Gap 8 — Emergency Escape', `${data?.emergency_escape_days} days absolute max`],
-            ['E1 — Akashic Recovery', `${data?.akashic_recovery_hours}h window`],
-            ['Gap 9 — Cascade Revert', 'Multi-hop nested escrows'],
-            ['G1 — Two-Phase Confirm', 'Settlement check verified'],
-            ['Gap 11 — Force Majeure', 'Source-chain escrow'],
+            ['Gap 8 - Emergency Escape', `${data?.emergency_escape_days} days absolute max`],
+            ['E1 - Akashic Recovery', `${data?.akashic_recovery_hours}h window`],
+            ['Gap 9 - Cascade Revert', 'Multi-hop nested escrows'],
+            ['G1 - Two-Phase Confirm', 'Settlement check verified'],
+            ['Gap 11 - Force Majeure', 'Source-chain escrow'],
           ]} />
         </Card>
         <Card title="Revert Reasons">
@@ -350,7 +350,7 @@ export function ContinuumEnginesPage() {
             <code className="text-xs">{truncate(e.formula, 50)}</code>,
             <Badge status={e.status} />,
           ])}
-          emptyMessage="Loading engines…"
+          emptyMessage="Loading engines..."
         />
       </Card>
 

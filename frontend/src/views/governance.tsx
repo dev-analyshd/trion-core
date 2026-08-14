@@ -1,5 +1,5 @@
 /**
- * Governance Pages — Overview, AWA, Gratitude, Love, Falsifiability, Slashing, Unknown Provision,
+ * Governance Pages - Overview, AWA, Gratitude, Love, Falsifiability, Slashing, Unknown Provision,
  * Adaptive Consensus, Right to Invisibility, Elder Wisdom
  */
 'use client';
@@ -27,7 +27,7 @@ export function GovernancePage() {
         <StatCard label="Bootstrap Weight" value={pct(awa?.bootstrap_weight, 3)} color={awa?.bootstrap_weight < 0.5 ? 'green' : 'amber'} />
       </div>
 
-      <Card title="AWA Ceremony — 4 Conditions" live>
+      <Card title="AWA Ceremony - 4 Conditions" live>
         <div className="space-y-3">
           {Object.entries(awa?.conditions || {}).map(([name, c]: any) => (
             <div key={name} className="flex items-center justify-between">
@@ -46,7 +46,7 @@ export function GovernancePage() {
           {(init?.governance_modules || []).map((m: any) => (
             <div key={m.name || m.id} className="p-3 rounded-lg border border-border bg-card">
               <div className="font-semibold text-sm">{m.name || m.id}</div>
-              <div className="text-xs text-muted-foreground mt-1">{m.description || m.status || '—'}</div>
+              <div className="text-xs text-muted-foreground mt-1">{m.description || m.status || '-'}</div>
             </div>
           ))}
         </div>
@@ -79,10 +79,10 @@ export function AWAPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="AWA Ceremony — Genesis 4-Party Bootstrap" live>
+      <Card title="AWA Ceremony - Genesis 4-Party Bootstrap" live>
         <div className="text-center py-4">
-          <div className="text-3xl font-bold">{ceremony?.ceremony_id || '—'}</div>
-          <div className="text-sm text-muted-foreground mt-2">{ceremony?.description || '—'}</div>
+          <div className="text-3xl font-bold">{ceremony?.ceremony_id || '-'}</div>
+          <div className="text-sm text-muted-foreground mt-2">{ceremony?.description || '-'}</div>
           <div className="mt-3">
             <Badge status={ceremony?.completed ? 'COMPLETED' : 'IN PROGRESS'} />
           </div>
@@ -110,8 +110,8 @@ export function AWAPage() {
         <KVList items={[
           ['Bootstrap weight', pct(awa?.bootstrap_weight, 3)],
           ['Akashic depth', fmt(awa?.akashic_depth)],
-          ['Decay rate λ', '0.0001'],
-          ['Formula', 'bootstrap_weight = e^(-λ × D)'],
+          ['Decay rate lambda', '0.0001'],
+          ['Formula', 'bootstrap_weight = e^(-lambda * D)'],
         ]} />
       </Card>
     </div>
@@ -134,11 +134,11 @@ export function GratitudePage() {
         <StatCard label="Events (30d)" value={fmt(grad?.events_30d?.length)} color="blue" />
       </div>
 
-      <Card title="Gratitude Protocol — Value_given / Value_received ≥ 1" live>
-        <p className="text-sm text-muted-foreground mb-4">{grad?.description || 'Loading…'}</p>
+      <Card title="Gratitude Protocol - Value_given / Value_received >= 1" live>
+        <p className="text-sm text-muted-foreground mb-4">{grad?.description || 'Loading...'}</p>
         <div className="text-center py-4">
           <div className="text-5xl font-bold text-green-500">{(grad?.gratitude_score || 0).toFixed(2)}</div>
-          <div className="text-sm text-muted-foreground mt-2">gratitude score (≥ 1.0 required)</div>
+          <div className="text-sm text-muted-foreground mt-2">gratitude score ({'>='} 1.0 required)</div>
         </div>
         <ProgressBar value={grad?.gratitude_score || 0} max={2} color="green" label="Score vs. target" showValue />
       </Card>
@@ -149,7 +149,7 @@ export function GratitudePage() {
           rows={(grad?.events_30d || []).map((e: any) => [
             dtfmt(e.timestamp),
             hex(e.entity_id, 12),
-            e.type || '—',
+            e.type || '-',
             fmt(e.amount),
           ])}
           emptyMessage="No recent events"
@@ -168,7 +168,7 @@ export function LovePage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Love Protocol — F Coefficient in M_moat = D · Q · R · X · F · N" live>
+      <Card title="Love Protocol - F Coefficient in M_moat = D - Q - R - X - F - N" live>
         <p className="text-sm text-muted-foreground mb-4">
           F = min(public_good_charter, indigenous_knowledge, right_to_invisibility, gratitude_protocol, elder_wisdom, unknown_unknown).
           If any pillar = 0, F = 0 and the moat collapses.
@@ -182,12 +182,12 @@ export function LovePage() {
       <Card title="6 Pillars of F">
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {[
-            { name: 'Public Good Charter', target: '≥ 15% revenue', icon: '🏛️' },
+            { name: 'Public Good Charter', target: '>= 15% revenue', icon: '🏛️' },
             { name: 'Indigenous Knowledge', target: 'interface respect', icon: '🌍' },
             { name: 'Right to Invisibility', target: 'petition enforcement', icon: '👁️‍🗨️' },
             { name: 'Gratitude Protocol', target: 'reciprocity', icon: '🙏' },
-            { name: 'Elder Wisdom', target: '3× stake weight', icon: '👑' },
-            { name: 'Unknown-Unknown Provision', target: '≥ 10% reserve', icon: '❓' },
+            { name: 'Elder Wisdom', target: '3* stake weight', icon: '👑' },
+            { name: 'Unknown-Unknown Provision', target: '>= 10% reserve', icon: '❓' },
           ].map(p => (
             <div key={p.name} className="p-3 rounded-lg border border-border bg-card">
               <div className="text-2xl mb-1">{p.icon}</div>
@@ -202,9 +202,9 @@ export function LovePage() {
         <DataTable
           headers={['Tier', 'Score Range', 'Count']}
           rows={Object.entries(globalLove?.distribution || {}).map(([tier, count]: any) => [
-            tier, '—', fmt(count),
+            tier, '-', fmt(count),
           ])}
-          emptyMessage="Loading distribution…"
+          emptyMessage="Loading distribution..."
         />
       </Card>
     </div>
@@ -228,7 +228,7 @@ export function FalsifiabilityPage() {
       </div>
 
       <Card title="15 Falsifiability Conditions (Karl Popper-inspired)" live>
-        <p className="text-sm text-muted-foreground mb-4">{fals?.disclosure || 'Loading…'}</p>
+        <p className="text-sm text-muted-foreground mb-4">{fals?.disclosure || 'Loading...'}</p>
         <DataTable
           headers={['ID', 'Claim', 'Status', 'Sample Size', 'Last Check']}
           rows={(fals?.conditions || []).map((c: any) => [
@@ -238,12 +238,12 @@ export function FalsifiabilityPage() {
             fmt(c.sample_size),
             dtfmt(c.last_check),
           ])}
-          emptyMessage="Loading conditions…"
+          emptyMessage="Loading conditions..."
         />
       </Card>
 
       <Card title="Live Evidence Summary">
-        <p className="text-sm">{fals?.live_evidence || '—'}</p>
+        <p className="text-sm">{fals?.live_evidence || '-'}</p>
       </Card>
     </div>
   );
@@ -258,8 +258,8 @@ export function SlashingPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Slashing Conditions — 5 Whitepaper-Mandated Triggers" live>
-        <p className="text-sm text-muted-foreground mb-4">{slash?.whitepaper_ref || 'Loading…'}</p>
+      <Card title="Slashing Conditions - 5 Whitepaper-Mandated Triggers" live>
+        <p className="text-sm text-muted-foreground mb-4">{slash?.whitepaper_ref || 'Loading...'}</p>
         <div className="space-y-3">
           {(slash?.slashing_conditions || []).map((c: any) => (
             <div key={c.id || c.name} className="p-3 rounded-lg border border-red-500/30 bg-red-500/5">
@@ -277,7 +277,7 @@ export function SlashingPage() {
       </Card>
 
       <Card title="Dispute Resolution">
-        <p className="text-sm">{slash?.dispute_resolution || '—'}</p>
+        <p className="text-sm">{slash?.dispute_resolution || '-'}</p>
       </Card>
 
       <Card title="Engine Summary">
@@ -299,8 +299,8 @@ export function UnknownProvisionPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Unknown-Unknown Provision — 10% Revenue Reserve" live>
-        <p className="text-sm text-muted-foreground mb-4">{prov?.whitepaper || 'Loading…'}</p>
+      <Card title="Unknown-Unknown Provision - 10% Revenue Reserve" live>
+        <p className="text-sm text-muted-foreground mb-4">{prov?.whitepaper || 'Loading...'}</p>
         <div className="text-center py-4">
           <div className="text-5xl font-bold text-amber-500">10%</div>
           <div className="text-sm text-muted-foreground mt-2">of all revenue reserved for unknown failures</div>
@@ -319,7 +319,7 @@ export function UnknownProvisionPage() {
       </Card>
 
       <Card title="Honest Disclosure">
-        <p className="text-sm">{prov?.honest_disclosure || '—'}</p>
+        <p className="text-sm">{prov?.honest_disclosure || '-'}</p>
       </Card>
     </div>
   );
@@ -342,7 +342,7 @@ export function AdaptiveConsensusPage() {
           {[
             { name: 'block_size_limit', icon: '📦', desc: 'gas per block' },
             { name: 'gas_limit', icon: '⛽', desc: 'MEV-aware cap' },
-            { name: 'finality_threshold', icon: '🔒', desc: 'Σ-driven confirmations' },
+            { name: 'finality_threshold', icon: '🔒', desc: 'Sigma-driven confirmations' },
             { name: 'slashing_threshold_pct', icon: '⚔️', desc: 'MF-driven severity' },
             { name: 'validator_set_size', icon: '👥', desc: 'HHI-driven expansion' },
           ].map(p => (
@@ -359,23 +359,23 @@ export function AdaptiveConsensusPage() {
         <div className="space-y-3 text-sm">
           <div>
             <div className="font-semibold">Block Size</div>
-            <code className="text-xs">recommended = DEFAULT × (2 × Σ) × (1 - 5 × MF)</code>
+            <code className="text-xs">recommended = DEFAULT * (2 * Sigma) * (1 - 5 * MF)</code>
           </div>
           <div>
             <div className="font-semibold">Gas Limit</div>
-            <code className="text-xs">penalty = max(0.5, 1 - 10 × (MEV - 0.005)) when MEV {'>'} 0.5%</code>
+            <code className="text-xs">penalty = max(0.5, 1 - 10 * (MEV - 0.005)) when MEV {'>'} 0.5%</code>
           </div>
           <div>
             <div className="font-semibold">Finality Threshold</div>
-            <code className="text-xs">recommended = 32 × (1 + 4 × max(0, 0.5 - Σ)) when Σ {'<'} 0.5</code>
+            <code className="text-xs">recommended = 32 * (1 + 4 * max(0, 0.5 - Sigma)) when Sigma {'<'} 0.5</code>
           </div>
           <div>
             <div className="font-semibold">Slashing</div>
-            <code className="text-xs">recommended = 10% + 5 × MF when MF {'>'} 5%</code>
+            <code className="text-xs">recommended = 10% + 5 * MF when MF {'>'} 5%</code>
           </div>
           <div>
             <div className="font-semibold">Validator Set</div>
-            <code className="text-xs">recommended = max(MIN, validator_count × 2) when HHI {'>'} 2500</code>
+            <code className="text-xs">recommended = max(MIN, validator_count * 2) when HHI {'>'} 2500</code>
           </div>
         </div>
       </Card>
@@ -390,9 +390,9 @@ export function AdaptiveConsensusPage() {
 export function RightToInvisibilityPage() {
   return (
     <div className="space-y-6">
-      <Card title="Right to Invisibility — Privacy Petition Enforcement">
+      <Card title="Right to Invisibility - Privacy Petition Enforcement">
         <p className="text-sm text-muted-foreground mb-4">
-          Any entity may petition for "invisibility" — the right to have their behavioral data excluded from
+          Any entity may petition for "invisibility" - the right to have their behavioral data excluded from
           TRION's public analytics. The BH ledger remains append-only; invisibility flags the entity so public
           API responses exclude their data while internal anomaly detection continues.
         </p>
@@ -440,10 +440,10 @@ export function RightToInvisibilityPage() {
 export function ElderWisdomPage() {
   return (
     <div className="space-y-6">
-      <Card title="Elder Wisdom Protocol — Tenured Annotator Influence">
+      <Card title="Elder Wisdom Protocol - Tenured Annotator Influence">
         <p className="text-sm text-muted-foreground mb-4">
           Long-tenured annotators (elders) provide cultural context that influences algorithmic scoring.
-          Elders cannot override the 3-of-5 majority requirement — they have 3× stake weight within it.
+          Elders cannot override the 3-of-5 majority requirement - they have 3* stake weight within it.
         </p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-3 rounded-lg border border-blue-500/30 bg-blue-500/5 text-center">
@@ -453,12 +453,12 @@ export function ElderWisdomPage() {
           </div>
           <div className="p-3 rounded-lg border border-green-500/30 bg-green-500/5 text-center">
             <div className="text-2xl mb-1">📈</div>
-            <div className="text-sm font-semibold">≥ 65%</div>
+            <div className="text-sm font-semibold">{'>='} 65%</div>
             <div className="text-xs text-muted-foreground">prediction accuracy</div>
           </div>
           <div className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/5 text-center">
             <div className="text-2xl mb-1">⚡</div>
-            <div className="text-sm font-semibold">3× stake</div>
+            <div className="text-sm font-semibold">3* stake</div>
             <div className="text-xs text-muted-foreground">weight multiplier</div>
           </div>
           <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-center">
@@ -477,7 +477,7 @@ export function ElderWisdomPage() {
           </div>
           <div className="flex items-center gap-2">
             <Icons.CheckCircle className="w-4 h-4 text-green-500" />
-            <span>Above-median prediction accuracy (≥ 65%)</span>
+            <span>Above-median prediction accuracy ({'>='} 65%)</span>
           </div>
           <div className="flex items-center gap-2">
             <Icons.CheckCircle className="w-4 h-4 text-green-500" />
@@ -494,11 +494,11 @@ export function ElderWisdomPage() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// DW-BFT — Diversity-Weighted Byzantine Fault Tolerance
+// DW-BFT - Diversity-Weighted Byzantine Fault Tolerance
 // ════════════════════════════════════════════════════════════════════════════
-// Theorem: d_j = 1 - corr(M_j, M̄) — validator j's diversity weight is
+// Theorem: d_j = 1 - corr(M_j, M_mean) - validator j's diversity weight is
 // 1 minus the correlation of its behavioural measurement vector M_j against
-// the population mean M̄. Validators that copy others lose voting power
+// the population mean M_mean. Validators that copy others lose voting power
 // asymptotically to zero, regardless of stake.
 
 export function DWBFTPage() {
@@ -511,32 +511,32 @@ export function DWBFTPage() {
   const continents    = hhi?.continents ?? 4;
   const totalValidators = validators?.total ?? hhi?.total_validators ?? 0;
 
-  // Sybil-collapse simulation — 50 sybil validators with copied behavioural vectors
+  // Sybil-collapse simulation - 50 sybil validators with copied behavioural vectors
   const classicBFTPower = 75.8;   // % power captured by 50 sybils under stake-weighted BFT
-  const dwbftPower      = 0.0;    // % power under DW-BFT (correlation → 1 ⟹ d_j → 0)
+  const dwbftPower      = 0.0;    // % power under DW-BFT (correlation {'->'} 1 implies d_j {'->'} 0)
 
   return (
     <div className="space-y-6">
-      {/* Hero — theorem statement */}
-      <Card title="Diversity-Weighted BFT — Theorem" live>
+      {/* Hero - theorem statement */}
+      <Card title="Diversity-Weighted BFT - Theorem" live>
         <div className="space-y-3">
           <div className="p-4 rounded-lg bg-muted/50 border border-border">
             <div className="text-xs text-muted-foreground font-mono mb-1">CORE FORMULA</div>
             <div className="font-mono text-lg">
-              d<sub>j</sub> = 1 − corr(M<sub>j</sub>, M̄)
+              d<sub>j</sub> = 1 - corr(M<sub>j</sub>, M_mean)
             </div>
             <div className="text-xs text-muted-foreground mt-2">
               Validator j's voting weight equals 1 minus the Pearson correlation between its
-              behavioural measurement vector M<sub>j</sub> and the population mean M̄.
+              behavioural measurement vector M<sub>j</sub> and the population mean M_mean.
               Validators that copy others lose voting power asymptotically to zero,
               regardless of stake size.
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Classic BFT weights by stake — a whale with 33% stake controls 33% of consensus.
-            DW-BFT weights by behavioural diversity — a sybil attacker running 50 validators
+            Classic BFT weights by stake - a whale with 33% stake controls 33% of consensus.
+            DW-BFT weights by behavioural diversity - a sybil attacker running 50 validators
             that all behave identically has <strong>zero</strong> consensus power, because
-            corr(M<sub>j</sub>, M̄) → 1 ⟹ d<sub>j</sub> → 0. This is the sybil-resistance
+            corr(M<sub>j</sub>, M_mean) {'->'} 1 implies d<sub>j</sub> {'->'} 0. This is the sybil-resistance
             primitive that makes TRION capture-resistant.
           </p>
         </div>
@@ -547,7 +547,7 @@ export function DWBFTPage() {
         <StatCard
           label="HHI (Concentration)"
           value={fmt(hhiValue)}
-          sub={`threshold ≤ ${fmt(hhiThreshold)}`}
+          sub={`threshold <= ${fmt(hhiThreshold)}`}
           color={hhiValue < hhiThreshold ? 'green' : 'red'}
         />
         <StatCard
@@ -565,13 +565,13 @@ export function DWBFTPage() {
         <StatCard
           label="Sybil Resistance"
           value="100%"
-          sub="50-sybil collapse → 0% power"
+          sub="50-sybil collapse -> 0% power"
           color="green"
         />
       </div>
 
       {/* HHI gauge bar */}
-      <Card title="Herfindahl-Hirschman Index — Concentration Gauge">
+      <Card title="Herfindahl-Hirschman Index - Concentration Gauge">
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Current HHI</span>
@@ -581,7 +581,7 @@ export function DWBFTPage() {
           </div>
           <ProgressBar
             value={hhiPct / 100}
-            label={hhiValue < hhiThreshold ? 'HEALTHY — below concentration threshold' : 'CRITICAL — exceeds threshold'}
+            label={hhiValue < hhiThreshold ? 'HEALTHY - below concentration threshold' : 'CRITICAL - exceeds threshold'}
           />
           <div className="text-xs text-muted-foreground">
             HHI measures validator concentration. Lower is better. Below 2,500 is considered
@@ -592,7 +592,7 @@ export function DWBFTPage() {
       </Card>
 
       {/* Sybil collapse comparison */}
-      <Card title="Sybil Collapse Simulation — 50 Sybil Attack" live>
+      <Card title="Sybil Collapse Simulation - 50 Sybil Attack" live>
         <div className="grid grid-cols-2 gap-4">
           <div className="p-5 rounded-xl border border-red-500/30 bg-red-500/5">
             <div className="flex items-center gap-2 mb-3">
@@ -618,7 +618,7 @@ export function DWBFTPage() {
             <div className="text-xs text-muted-foreground mb-3">consensus power captured</div>
             <div className="text-sm text-muted-foreground">
               The same 50 sybil validators produce identical behavioural vectors M<sub>j</sub>,
-              so corr(M<sub>j</sub>, M̄) → 1 and d<sub>j</sub> → 0 for every sybil.
+              so corr(M<sub>j</sub>, M_mean) {'->'} 1 and d<sub>j</sub> {'->'} 0 for every sybil.
               Capture power: zero. Attack is self-defeating by construction.
             </div>
             <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
@@ -633,7 +633,7 @@ export function DWBFTPage() {
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Consensus requires active validators on at least 4 continents. This guarantees
-            jurisdictional diversity — no single government can issue a coordinated halt order
+            jurisdictional diversity - no single government can issue a coordinated halt order
             that captures more than 25% of voting power.
           </p>
           <div className="grid grid-cols-7 gap-2">
@@ -657,7 +657,7 @@ export function DWBFTPage() {
                 >
                   <div className="text-xs font-mono font-bold">{c.code}</div>
                   <div className="text-[10px] mt-1">{c.name}</div>
-                  <div className="text-[10px] mt-1">{present ? `${count} val` : '—'}</div>
+                  <div className="text-[10px] mt-1">{present ? `${count} val` : '-'}</div>
                 </div>
               );
             })}
@@ -667,7 +667,7 @@ export function DWBFTPage() {
             <span className="text-xs text-muted-foreground">
               {continents >= 4
                 ? '4-continent requirement satisfied'
-                : `${continents}/4 continents — needs ${4 - continents} more`}
+                : `${continents}/4 continents - needs ${4 - continents} more`}
             </span>
           </div>
         </div>
@@ -680,19 +680,19 @@ export function DWBFTPage() {
             <div className="text-xs text-muted-foreground font-mono uppercase">Bounds</div>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between p-2 rounded bg-muted/30">
-                <span>0 ≤ d<sub>j</sub> ≤ 1</span>
+                <span>0 {'<='} d<sub>j</sub> {'<='} 1</span>
                 <span className="text-muted-foreground">bounded</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded bg-muted/30">
-                <span>Σ d<sub>j</sub> = 1 (normalised)</span>
+                <span>Sigma d<sub>j</sub> = 1 (normalised)</span>
                 <span className="text-muted-foreground">partition of unity</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded bg-muted/30">
-                <span>d<sub>j</sub> → 0 as M<sub>j</sub> → M̄</span>
+                <span>d<sub>j</sub> {'->'} 0 as M<sub>j</sub> {'->'} M_mean</span>
                 <span className="text-muted-foreground">sybil collapse</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded bg-muted/30">
-                <span>d<sub>j</sub> = 1 when M<sub>j</sub> ⊥ M̄</span>
+                <span>d<sub>j</sub> = 1 when M<sub>j</sub> PERP M_mean</span>
                 <span className="text-muted-foreground">maximum diversity</span>
               </div>
             </div>
@@ -702,19 +702,19 @@ export function DWBFTPage() {
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2 p-2 rounded bg-muted/30">
                 <Icons.CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <span>Stake concentration attack → mitigated</span>
+                <span>Stake concentration attack {'->'} mitigated</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded bg-muted/30">
                 <Icons.CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <span>Sybil validator attack → self-defeating</span>
+                <span>Sybil validator attack {'->'} self-defeating</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded bg-muted/30">
                 <Icons.CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <span>Behavioural cloning attack → zero power</span>
+                <span>Behavioural cloning attack {'->'} zero power</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded bg-muted/30">
                 <Icons.CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <span>Geographic capture attack → 4-continent guard</span>
+                <span>Geographic capture attack {'->'} 4-continent guard</span>
               </div>
             </div>
           </div>
