@@ -347,7 +347,7 @@ export function ContinuumEnginesPage() {
             <Tag color="blue">{e.id}</Tag>,
             <span className="font-mono font-semibold">{e.name}</span>,
             e.full_name,
-            <code className="text-xs">{truncate(e.formula, 50)}</code>,
+
             <Badge status={e.status} />,
           ])}
           emptyMessage="Loading engines..."

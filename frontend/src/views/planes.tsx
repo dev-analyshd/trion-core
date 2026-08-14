@@ -374,7 +374,7 @@ export function CoherenceProfilesPage() {
   return (
     <div className="space-y-6">
       <Card title="Coherence Weight Profiles" subtitle="Per-asset-type weight calibrations for multi-plane coherence scoring">
-        <p className="text-sm text-muted-foreground mb-4">{profiles?.formula || 'Loading...'}</p>
+        <p className="text-sm text-muted-foreground mb-4">Weight calibrations are tuned per asset type based on behavioral characteristics and market maturity.</p>
         <DataTable
           headers={['Profile', 'alpha (Phi)', 'beta (M)', 'gamma (Sigma)', 'delta (K)', 'epsilon (A)', 'Description']}
           rows={Object.entries(profiles?.asset_type_profiles || {}).map(([name, p]: any) => [

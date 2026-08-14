@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, CodeBlock, EmptyState, Tag, StreamView, EntityInput } from '../components/ui';
 import { useAPI, useStream, useCounter } from '../lib/hooks';
-import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms } from '../lib/api';
+import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms, cleanText } from '../lib/api';
 // fetchAPI returns APIResult<T>; r.ok tells us success.
 import * as Icons from 'lucide-react';
 
@@ -279,7 +279,7 @@ export function AkashicPage() {
       </div>
 
       <Card title="Akashic Records - Append-Only Behavioral Ledger" live>
-        <p className="text-sm text-muted-foreground mb-4">{bootstrap?.disclosure || 'Loading...'}</p>
+        <p className="text-sm text-muted-foreground mb-4">{cleanText(bootstrap?.disclosure) || 'Loading...'}</p>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard label="Depth for Full Transition" value={fmt(bootstrap?.depth_for_full_transition)} color="amber" />
           <StatCard label="Current Depth" value={fmt(bootstrap?.akashic_depth)} />

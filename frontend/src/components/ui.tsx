@@ -742,7 +742,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
           AWA Ceremony - Right to Invisibility - Elder Wisdom - Unknown-Unknown Provision - Public Good Charter
         </text>
         <text x="450" y="485" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">
-          All systems operational - 100% formula coverage - 472 tests passing
+          All systems operational - 472 tests passing
         </text>
       </g>
     </svg>
