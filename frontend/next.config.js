@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  // Pin the Turbopack root to the frontend dir so standalone output is flat
+  // (.next/standalone/server.js) instead of nested. Critical for Docker builds.
+  turbopack: {
+    root: __dirname,
+  },
   // Proxy API requests to Flask backend (internal port 5000)
   async rewrites() {
     return [
