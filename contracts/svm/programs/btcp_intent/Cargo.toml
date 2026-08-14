@@ -1,0 +1,14 @@
+[package]
+name = "btcp_intent"
+version = "0.1.0"
+description = "TRION BTCP Intent Registry for Solana"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+anchor-lang = "0.29.0"
+btcp_common = { path = "../btcp_common" }
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "btcp_intent"
