@@ -1,5 +1,5 @@
 /**
- * TRION UI — Shared components for the dashboard.
+ * TRION UI - Shared components for the dashboard.
  */
 'use client';
 
@@ -48,7 +48,7 @@ export function Card({
           {right}
           {collapsible && (
             <button onClick={() => setOpen(!open)} className="text-muted-foreground hover:text-foreground p-1">
-              {open ? '−' : '+'}
+              {open ? '-' : '+'}
             </button>
           )}
         </div>
@@ -81,14 +81,14 @@ export function StatCard({
     blue: 'border-blue-500/30 bg-blue-500/5',
     purple: 'border-purple-500/30 bg-purple-500/5',
   };
-  const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '';
+  const trendIcon = trend === 'up' ? 'up' : trend === 'down' ? 'down' : '';
   return (
-    <div className={`bg-card rounded-2xl p-4 md:p-5 border ${colors[color]} shadow-sm hover:shadow-md transition-all`}>
+    <div className={`bg-card rounded-2xl p-4 md:p-5 border ${colors[color]} shadow-sm hover:shadow-md transition-all overflow-hidden`}>
       {icon && <div className="mb-2 text-muted-foreground">{icon}</div>}
-      <div className="text-xl md:text-2xl font-bold mb-1.5 ticker">{value}</div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground truncate">{label}</span>
-        {sub && <span className="text-xs font-semibold flex items-center gap-1 flex-shrink-0">{trendIcon}{sub}</span>}
+      <div className="text-xl md:text-2xl font-bold mb-1.5 ticker truncate" title={typeof value === 'string' ? value : undefined}>{value}</div>
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-xs text-muted-foreground truncate min-w-0">{label}</span>
+        {sub && <span className="text-xs font-semibold flex items-center gap-1 flex-shrink-0 truncate max-w-[50%]">{trendIcon}{sub}</span>}
       </div>
     </div>
   );
@@ -121,9 +121,9 @@ export function ProgressBar({
   return (
     <div>
       {label && (
-        <div className="flex justify-between mb-1 text-xs">
-          <span className="text-muted-foreground">{label}</span>
-          {showValue && <span className="font-mono">{(v * 100).toFixed(1)}%</span>}
+        <div className="flex justify-between mb-1 text-xs gap-2 min-w-0">
+          <span className="text-muted-foreground truncate min-w-0">{label}</span>
+          {showValue && <span className="font-mono flex-shrink-0">{(v * 100).toFixed(1)}%</span>}
         </div>
       )}
       <div className="bg-muted rounded-full overflow-hidden" style={{ height }}>
@@ -146,8 +146,8 @@ export function Badge({ status, label }: { status?: any; label?: string }) {
     gray: 'bg-gray-500/10 text-gray-500 border-gray-500/30',
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${colors[color]}`}>
-      {label || String(status || '—')}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border max-w-[200px] truncate ${colors[color]}`} title={label || String(status || '')}>
+      <span className="truncate">{label || String(status || 'N/A')}</span>
     </span>
   );
 }
@@ -156,7 +156,7 @@ export function DataTable({
   headers,
   rows,
   maxHeight = 320,
-  emptyMessage = 'Loading…',
+  emptyMessage = 'Loading...',
   sortable = false,
   exportable = false,
   exportName = 'trion_export',
@@ -197,7 +197,7 @@ export function DataTable({
   const handleSort = (colIdx: number) => {
     if (!sortable) return;
     if (sortCol === colIdx) {
-      // Cycle: asc → desc → null
+      // Cycle: asc {'->'} desc {'->'} null
       if (sortDir === 'asc') setSortDir('desc');
       else if (sortDir === 'desc') { setSortCol(null); setSortDir(null); }
     } else {
@@ -252,14 +252,14 @@ export function DataTable({
             className="text-xs px-2 py-1 rounded border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Export as CSV"
           >
-            ↓ CSV
+            down CSV
           </button>
           <button
             onClick={exportJSON}
             className="text-xs px-2 py-1 rounded border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Export as JSON"
           >
-            ↓ JSON
+            down JSON
           </button>
         </div>
       )}
@@ -279,7 +279,7 @@ export function DataTable({
                   {h}
                   {sortable && sortCol === i && (
                     <span className="ml-1" aria-hidden>
-                      {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : ''}
+                      {sortDir === 'asc' ? 'up' : sortDir === 'desc' ? 'down' : ''}
                     </span>
                   )}
                 </th>
@@ -303,9 +303,9 @@ export function DataTable({
                   onClick={onRowClick ? () => onRowClick(i) : undefined}
                 >
                   {row.map((cell, j) => (
-                    <td key={j} className="p-2 md:p-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <span>{cell}</span>
+                    <td key={j} className="p-2 md:p-3 whitespace-nowrap max-w-[240px]">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <span className="truncate">{cell}</span>
                         {copyableColumns?.includes(j) && cell && (
                           <button
                             onClick={(e) => { e.stopPropagation(); copyCell(cell); }}
@@ -344,9 +344,9 @@ export function KVList({ items }: { items: [string, React.ReactNode][] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {items.map(([k, v]) => (
-        <div key={k} className="flex flex-col">
-          <span className="text-xs text-muted-foreground">{k}</span>
-          <span className="font-mono text-sm font-semibold">{v}</span>
+        <div key={k} className="flex flex-col min-w-0 overflow-hidden">
+          <span className="text-xs text-muted-foreground truncate">{k}</span>
+          <span className="font-mono text-sm font-semibold break-all">{v}</span>
         </div>
       ))}
     </div>
@@ -355,7 +355,7 @@ export function KVList({ items }: { items: [string, React.ReactNode][] }) {
 
 export function EntityInput({
   onSubmit,
-  placeholder = 'Entity ID or address…',
+  placeholder = 'Entity ID or address...',
   defaultValue,
   samples,
 }: {
@@ -396,7 +396,7 @@ export function EntityInput({
               className="px-2 py-1 rounded text-xs font-mono bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               title={s}
             >
-              {s.slice(0, 10)}…{s.slice(-4)}
+              {s.slice(0, 10)}...{s.slice(-4)}
             </button>
           ))}
         </div>
@@ -417,7 +417,7 @@ export function Spinner({ size = 16 }: { size?: number }) {
 export function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-      <div className="text-4xl mb-2 opacity-30">∅</div>
+      <div className="text-4xl mb-2 opacity-30">N/A</div>
       <div className="text-sm">{message}</div>
     </div>
   );
@@ -428,7 +428,7 @@ export function EmptyState({ message }: { message: string }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 export function Skeleton({ className = '', count = 1 }: { className?: string; count?: number }) {
-  // Render `count` skeleton bars stacked vertically — useful for lists/tables
+  // Render `count` skeleton bars stacked vertically - useful for lists/tables
   if (count > 1) {
     return (
       <div className="space-y-2">
@@ -491,7 +491,7 @@ export function ErrorState({
   );
 }
 
-export function LoadingState({ message = 'Loading…' }: { message?: string }) {
+export function LoadingState({ message = 'Loading...' }: { message?: string }) {
   return (
     <div className="flex items-center justify-center py-12 text-muted-foreground">
       <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-3" />
@@ -516,7 +516,7 @@ export function Tag({ children, color = 'default' }: { children: React.ReactNode
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// STREAMING — BH/signal live stream visualization
+// STREAMING - BH/signal live stream visualization
 // ════════════════════════════════════════════════════════════════════════════
 
 export function StreamView({
@@ -559,13 +559,15 @@ export function StreamView({
           </thead>
           <tbody>
             {items.length === 0 ? (
-              <tr><td colSpan={columns.length} className="p-6 text-center text-muted-foreground">Awaiting data…</td></tr>
+              <tr><td colSpan={columns.length} className="p-6 text-center text-muted-foreground">Awaiting data...</td></tr>
             ) : (
               items.map((row, i) => (
                 <tr key={i} className="border-b border-border/30 hover:bg-muted/30">
                   {columns.map(c => (
-                    <td key={c.key} className="p-2 whitespace-nowrap">
-                      {c.render ? c.render(row[c.key], row) : String(row[c.key] ?? '—')}
+                    <td key={c.key} className="p-2 whitespace-nowrap max-w-[200px]">
+                      <span className="truncate inline-block max-w-full">
+                        {c.render ? c.render(row[c.key], row) : String(row[c.key] ?? 'N/A')}
+                      </span>
                     </td>
                   ))}
                 </tr>
@@ -622,7 +624,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
         <text x="220" y="190" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">LIVE</text>
       </g>
 
-      {/* Arrow chain → indexer */}
+      {/* Arrow chain -> indexer */}
       <line x1="120" y1="150" x2="160" y2="150" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />
 
       {/* BH Primitive */}
@@ -640,9 +642,9 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       {/* Five Planes */}
       <text x="540" y="30" textAnchor="middle" className="fill-muted-foreground text-[10px] font-semibold">FIVE-PLANE COHERENCE C(t)</text>
       {[
-        { name: 'Φ Physical', color: '#ef4444', y: 50 },
+        { name: 'Phi Physical', color: '#ef4444', y: 50 },
         { name: 'M Mental', color: '#f59e0b', y: 95 },
-        { name: 'Σ Spiritual', color: '#10b981', y: 140 },
+        { name: 'Sigma Spiritual', color: '#10b981', y: 140 },
         { name: 'K Conscious', color: '#3b82f6', y: 185 },
         { name: 'A ANIMA', color: '#8b5cf6', y: 230 },
       ].map(plane => (
@@ -668,7 +670,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
         <rect x="810" y="80" width="80" height="60" rx="8" fill="#3b82f6" fillOpacity="0.3" stroke="#3b82f6" filter="url(#glow)" />
         <text x="850" y="105" textAnchor="middle" className="fill-foreground text-[10px] font-bold">T(t)</text>
         <text x="850" y="120" textAnchor="middle" className="fill-muted-foreground text-[8px]">Master Eq.</text>
-        <text x="850" y="132" textAnchor="middle" className="fill-muted-foreground text-[8px]">C·e^M_moat</text>
+        <text x="850" y="132" textAnchor="middle" className="fill-muted-foreground text-[8px]">C-e^M_moat</text>
       </g>
 
       <line x1="790" y1="110" x2="810" y2="110" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />
@@ -695,7 +697,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <g>
         <rect x="650" y="260" width="240" height="60" rx="8" fill="#10b981" fillOpacity="0.2" stroke="#10b981" strokeOpacity="0.6" filter="url(#glow)" />
         <text x="770" y="285" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">ON-CHAIN (0G + 100+ CHAINS)</text>
-        <text x="770" y="305" textAnchor="middle" className="fill-muted-foreground text-[9px]">TRIONExecutionGate · TRIONOracleV3 · BTCPRoute</text>
+        <text x="770" y="305" textAnchor="middle" className="fill-muted-foreground text-[9px]">TRIONExecutionGate - TRIONOracleV3 - BTCPRoute</text>
       </g>
 
       <line x1="850" y1="230" x2="850" y2="260" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />
@@ -704,7 +706,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <g>
         <rect x="160" y="280" width="430" height="80" rx="8" fill="url(#grad1)" stroke="#8b5cf6" strokeOpacity="0.4" />
         <text x="375" y="305" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">AKASHIC RECORDS (L2)</text>
-        <text x="375" y="325" textAnchor="middle" className="fill-muted-foreground text-[9px]">Append-only BH ledger · FAISS 128-dim · 531K+ vectors · BEO entity resolution</text>
+        <text x="375" y="325" textAnchor="middle" className="fill-muted-foreground text-[9px]">Append-only BH ledger - FAISS 128-dim - 531K+ vectors - BEO entity resolution</text>
         <text x="375" y="345" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">TimescaleDB + SQLite fallback</text>
       </g>
 
@@ -716,7 +718,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
         <rect x="20" y="380" width="860" height="120" rx="8" fill="url(#grad1)" stroke="#f59e0b" strokeOpacity="0.3" />
         <text x="450" y="405" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">GOVERNANCE & NOVEL PRIMITIVES (L4-L9)</text>
 
-        {['BIRP', 'BIBL', 'BTCP', 'SBA', 'Gratitude', 'Love F', 'ACP×6', 'Falsifiability×15', 'Slashing×5', 'Adaptive Consensus'].map((g, i) => (
+        {['BIRP', 'BIBL', 'BTCP', 'SBA', 'Gratitude', 'Love F', 'ACP*6', 'Falsifiability*15', 'Slashing*5', 'Adaptive Consensus'].map((g, i) => (
           <g key={g}>
             <rect x={40 + i * 85} y="420" width="75" height="22" rx="4" fill="#f59e0b" fillOpacity="0.15" stroke="#f59e0b" strokeOpacity="0.4" />
             <text x={77 + i * 85} y="435" textAnchor="middle" className="fill-foreground text-[9px] font-mono">{g}</text>
@@ -724,10 +726,10 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
         ))}
 
         <text x="450" y="465" textAnchor="middle" className="fill-muted-foreground text-[9px]">
-          AWA Ceremony · Right to Invisibility · Elder Wisdom · Unknown-Unknown Provision · Public Good Charter
+          AWA Ceremony - Right to Invisibility - Elder Wisdom - Unknown-Unknown Provision - Public Good Charter
         </text>
         <text x="450" y="485" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">
-          All systems operational · 100% formula coverage · 472 tests passing
+          All systems operational - 100% formula coverage - 472 tests passing
         </text>
       </g>
     </svg>
@@ -735,7 +737,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// PLANE VISUALIZATION — Five-plane coherence chart
+// PLANE VISUALIZATION - Five-plane coherence chart
 // ════════════════════════════════════════════════════════════════════════════
 
 export function PlaneGauge({
@@ -774,9 +776,9 @@ export function PlaneGauge({
           {icon && <div className="text-xs">{icon}</div>}
         </div>
       </div>
-      <div className="text-xs font-semibold mt-2">{label}</div>
+      <div className="text-xs font-semibold mt-2 truncate max-w-[120px] text-center">{label}</div>
       <div className={`text-xs ${passes ? 'text-green-500' : 'text-red-500'}`}>
-        θ={threshold.toFixed(2)} {passes ? '✓' : '✗'}
+        threshold={threshold.toFixed(2)} {passes ? 'pass' : 'fail'}
       </div>
     </div>
   );

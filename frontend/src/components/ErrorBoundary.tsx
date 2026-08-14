@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TRION Error Boundary — catches render errors, shows fallback UI.
+ * TRION Error Boundary - catches render errors, shows fallback UI.
  *
  * Phase 8.1: Wrap the main app in <ErrorBoundary> so a single component
  * crashing doesn't take down the entire dashboard. Logs structured error
@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Structured logging — Phase 8.1
+    // Structured logging - Phase 8.1
     console.error('[TRION ErrorBoundary]', {
       timestamp: new Date().toISOString(),
       error: {
@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
             <p className="text-sm text-muted-foreground mb-6">
               An unexpected error occurred while rendering this page. The error
-              has been logged. Try reloading — if the problem persists, clear
+              has been logged. Try reloading - if the problem persists, clear
               your browser cache.
             </p>
             {this.state.error && (

@@ -240,7 +240,7 @@ const PAGE_TITLES: Record<string, string> = {
   phases: 'Protocol Phases',
   phase_transition: 'Phase Transition',
   whitepaper: 'Whitepaper Coverage',
-  order_parameter: 'Order Parameter Ψ',
+  order_parameter: 'Order Parameter Psi',
   convergence: 'Convergence Theorem',
   bh: 'Behavioral Hash Explorer',
   bh_v2: 'BH v2 Extended Payload',
@@ -251,9 +251,9 @@ const PAGE_TITLES: Record<string, string> = {
   faiss: 'FAISS Vector Index',
   signals: 'Signals',
   signal_types: 'Signal Type Catalog',
-  plane_physical: 'Physical Plane Φ',
+  plane_physical: 'Physical Plane Phi',
   plane_mental: 'Mental Plane M',
-  plane_spiritual: 'Spiritual Plane Σ',
+  plane_spiritual: 'Spiritual Plane Sigma',
   plane_conscious: 'Conscious Plane K',
   plane_anima: 'ANIMA Plane A',
   coherence_profiles: 'Coherence Weight Profiles',
@@ -270,7 +270,7 @@ const PAGE_TITLES: Record<string, string> = {
   awa: 'AWA Ceremony',
   gratitude: 'Gratitude Protocol',
   love: 'Love F-coefficient',
-  falsifiability: 'Falsifiability ×15',
+  falsifiability: 'Falsifiability *15',
   slashing: 'Slashing Conditions',
   unknown_provision: 'Unknown-Unknown Provision',
   adaptive_consensus: 'Adaptive Consensus',
@@ -373,14 +373,14 @@ export const dynamic = 'force-dynamic';
 // The default export wraps Home in <Suspense> so static rendering doesn't bail.
 export default function HomeWithSuspense() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>}>
       <Home />
     </Suspense>
   );
 }
 
 function Home() {
-  // Phase 3.4: URL state persistence — read ?page= on mount, write back on change.
+  // Phase 3.4: URL state persistence - read ?page= on mount, write back on change.
   // Bookmarkable/shareable URLs: /?page=btcp, /?page=dw_bft, etc.
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -392,7 +392,7 @@ function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, toggleTheme] = useTheme();
 
-  // Update URL when page changes — preserves browser history, shareable
+  // Update URL when page changes - preserves browser history, shareable
   const changePage = useCallback((p: string) => {
     setActivePage(p);
     const url = new URL(window.location.href);
@@ -409,7 +409,7 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Phase 4.4: keyboard shortcuts — ? shows help, ⌘B toggles sidebar
+  // Phase 4.4: keyboard shortcuts - ? shows help, ⌘B toggles sidebar
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Ignore when typing in input/textarea
@@ -463,33 +463,34 @@ function Home() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex items-center justify-between px-4 md:px-6 h-16 border-b border-border bg-card flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between px-4 md:px-6 h-16 border-b border-border bg-card flex-shrink-0 gap-2">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-accent"
+              className="lg:hidden p-2 rounded-lg hover:bg-accent flex-shrink-0"
+              aria-label="Open sidebar"
             >
               <Icons.Menu className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-lg font-bold">{pageTitle}</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                TRION Protocol — Behavioral Truth Oracle · {PAGE_MAP && Object.keys(PAGE_MAP).length} pages wired to live API
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold truncate">{pageTitle}</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block truncate">
+                TRION Protocol - Behavioral Truth Oracle - {Object.keys(PAGE_MAP).length} pages wired to live API
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${isLive ? 'border-green-500/30 text-green-600 bg-green-500/5' : 'border-red-500/30 text-red-600 bg-red-500/5'}`}>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium flex-shrink-0 ${isLive ? 'border-green-500/30 text-green-600 bg-green-500/5' : 'border-red-500/30 text-red-600 bg-red-500/5'}`}>
               <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-              {isLive ? 'Live' : 'Offline'}
+              <span className="hidden sm:inline">{isLive ? 'Live' : 'Offline'}</span>
             </div>
-            <span className="font-mono text-xs text-muted-foreground hidden md:block">
+            <span className="font-mono text-xs text-muted-foreground hidden lg:block">
               <LiveClock />
             </span>
             <WalletButton variant="nav" />
             <button
               onClick={() => setSettingsOpen(true)}
-              className="p-2 rounded-lg hover:bg-accent text-muted-foreground"
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground flex-shrink-0"
               title="Settings"
               aria-label="Open settings"
             >
@@ -497,7 +498,7 @@ function Home() {
             </button>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-accent text-muted-foreground"
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground flex-shrink-0"
               title="Toggle theme"
               aria-label="Toggle dark mode"
             >

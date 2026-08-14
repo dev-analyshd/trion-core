@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TRION 500 page — server error.
+ * TRION 500 page - server error.
  * Phase 8.1: Friendly error page shown on unhandled server errors.
  */
 import Link from 'next/link';
@@ -22,7 +22,7 @@ export default function ServerError() {
           href="/"
           className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 transition-opacity"
         >
-          ← Back to dashboard
+          &lt;- Back to dashboard
         </Link>
       </div>
     </div>

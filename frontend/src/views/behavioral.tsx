@@ -1,5 +1,5 @@
 /**
- * Behavioral Engine Pages — BH, BH v2, BH Stats, Akashic, Archetypes, BEO, FAISS, Signals, Signal Types
+ * Behavioral Engine Pages - BH, BH v2, BH Stats, Akashic, Archetypes, BEO, FAISS, Signals, Signal Types
  */
 'use client';
 
@@ -22,8 +22,8 @@ export function BHExplorerPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Behavioral Hash Explorer" subtitle="Compute BH for any entity · 93-byte canonical payload">
-        <EntityInput onSubmit={setEntityId} defaultValue={entityId} placeholder="Entity ID (hex)…" />
+      <Card title="Behavioral Hash Explorer" subtitle="Compute BH for any entity - 93-byte canonical payload">
+        <EntityInput onSubmit={setEntityId} defaultValue={entityId} placeholder="Entity ID (hex)..." />
       </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -34,14 +34,14 @@ export function BHExplorerPage() {
       </div>
 
       {bh && (
-        <Card title={`BH Computation Result — ${truncate(entityId, 24)}`} live>
+        <Card title={`BH Computation Result - ${truncate(entityId, 24)}`} live>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-3">
               <KVList items={[
                 ['Valid', bh.valid ? '✓ TRUE' : '✗ FALSE'],
-                ['Event Type', bh.event_type || '—'],
-                ['Event Type ID', String(bh.event_type_id ?? '—')],
-                ['Chain ID', String(bh.chain_id ?? '—')],
+                ['Event Type', bh.event_type || '-'],
+                ['Event Type ID', String(bh.event_type_id ?? '-')],
+                ['Chain ID', String(bh.chain_id ?? '-')],
                 ['Block Number', fmt(bh.block_number)],
                 ['Timestamp', dtfmt(bh.timestamp)],
                 ['Payload Length', `${bh.payload_len || 93} bytes`],
@@ -77,11 +77,11 @@ export function BHExplorerPage() {
             headers={['VM Family', 'Chains', 'BH Records', 'Latest Activity']}
             rows={(vmFeed?.vm_families || Object.entries(vmFeed.by_family || {})).map((vf: any) => [
               typeof vf === 'string' ? vf : vf.name,
-              typeof vf === 'object' ? fmt(vf.chain_count) : '—',
-              typeof vf === 'object' ? fmt(vf.bh_count) : '—',
-              typeof vf === 'object' ? tfmt(vf.last_activity) : '—',
+              typeof vf === 'object' ? fmt(vf.chain_count) : '-',
+              typeof vf === 'object' ? fmt(vf.bh_count) : '-',
+              typeof vf === 'object' ? tfmt(vf.last_activity) : '-',
             ])}
-            emptyMessage="Loading VM families…"
+            emptyMessage="Loading VM families..."
           />
         </Card>
       )}
@@ -137,7 +137,7 @@ export function BHv2ExtendedPage() {
           disabled={loading}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? 'Computing…' : 'Compute Demo v2 BH'}
+          {loading ? 'Computing...' : 'Compute Demo v2 BH'}
         </button>
       </Card>
 
@@ -150,13 +150,13 @@ export function BHv2ExtendedPage() {
                 ['Payload Length', `${result.payload_len || 176} bytes`],
                 ['Domain Separator', result.domain_magic || '54524f4e'],
                 ['Valid XOR Invariant', result.bh?.valid ? '✓ TRUE' : '✗ FALSE'],
-                ['Event Type', result.bh?.event_type || '—'],
-                ['Magnitude Currency', String(result.bh?.magnitude_currency_id ?? '—')],
-                ['Chain ID', String(result.bh?.chain_id ?? '—')],
+                ['Event Type', result.bh?.event_type || '-'],
+                ['Magnitude Currency', String(result.bh?.magnitude_currency_id ?? '-')],
+                ['Chain ID', String(result.bh?.chain_id ?? '-')],
                 ['Counterparty', hex(result.bh?.counterparty_id_hex, 12)],
-                ['Protocol ID', String(result.bh?.protocol_id ?? '—')],
-                ['BTCP Version', String(result.bh?.btcp_version ?? '—')],
-                ['Nonce', String(result.bh?.nonce ?? '—')],
+                ['Protocol ID', String(result.bh?.protocol_id ?? '-')],
+                ['BTCP Version', String(result.bh?.btcp_version ?? '-')],
+                ['Nonce', String(result.bh?.nonce ?? '-')],
               ]} />
             </div>
             <div className="space-y-3">
@@ -188,7 +188,7 @@ export function BHv2ExtendedPage() {
           ].map(f => (
             <div key={f.name} className={`p-2 rounded ${f.color} border border-border`}>
               <div className="font-semibold">{f.name}</div>
-              <div className="text-muted-foreground">offset {f.offset} · {f.len}B</div>
+              <div className="text-muted-foreground">offset {f.offset} - {f.len}B</div>
             </div>
           ))}
         </div>
@@ -235,9 +235,9 @@ export function BHStatsPage() {
             rows={Object.entries(stats?.per_chain || {}).map(([chain, count]: any) => [
               chain,
               fmt(count),
-              '—',
+              '-',
             ])}
-            emptyMessage="Loading per-chain stats…"
+            emptyMessage="Loading per-chain stats..."
           />
         </Card>
       </div>
@@ -252,7 +252,7 @@ export function BHStatsPage() {
               fmt(c.bh_count || c.count),
               fmt(c.last_block),
             ])}
-            emptyMessage="Loading chains…"
+            emptyMessage="Loading chains..."
           />
         </Card>
       )}
@@ -278,12 +278,12 @@ export function AkashicPage() {
         <StatCard label="Bootstrap Weight" value={pct(bootstrap?.bootstrap_weight, 3)} color={bootstrap?.bootstrap_weight < 0.5 ? 'green' : 'amber'} />
       </div>
 
-      <Card title="Akashic Records — Append-Only Behavioral Ledger" live>
-        <p className="text-sm text-muted-foreground mb-4">{bootstrap?.disclosure || 'Loading…'}</p>
+      <Card title="Akashic Records - Append-Only Behavioral Ledger" live>
+        <p className="text-sm text-muted-foreground mb-4">{bootstrap?.disclosure || 'Loading...'}</p>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard label="Depth for Full Transition" value={fmt(bootstrap?.depth_for_full_transition)} color="amber" />
           <StatCard label="Current Depth" value={fmt(bootstrap?.akashic_depth)} />
-          <StatCard label="Formula" value="bootstrap = e^(-λD)" sub="λ=0.0001" color="blue" />
+          <StatCard label="Formula" value="bootstrap = e^(-lambdaD)" sub="lambda=0.0001" color="blue" />
         </div>
       </Card>
 
@@ -291,13 +291,13 @@ export function AkashicPage() {
         <DataTable
           headers={['ID', 'Name', 'Risk Level', 'Investment Signal', 'Description']}
           rows={(archetypes?.archetypes || []).map((a: any) => [
-            <Tag color="blue">{a.id || '—'}</Tag>,
+            <Tag color="blue">{a.id || '-'}</Tag>,
             a.name,
             <Badge status={a.risk_level} />,
-            a.investment_signal || '—',
+            a.investment_signal || '-',
             <span className="text-xs text-muted-foreground">{truncate(a.description, 50)}</span>,
           ])}
-          emptyMessage="Loading archetypes…"
+          emptyMessage="Loading archetypes..."
         />
       </Card>
     </div>
@@ -324,26 +324,26 @@ export function BEOPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="BEO — Behavioral Entity Object Resolution">
-        <EntityInput onSubmit={setEntityId} defaultValue={entityId} placeholder="Entity name or address…" />
+      <Card title="BEO - Behavioral Entity Object Resolution">
+        <EntityInput onSubmit={setEntityId} defaultValue={entityId} placeholder="Entity name or address..." />
       </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="FAISS Vectors" value={fmt(faiss?.indexed_vectors)} sub="128-dim" color="blue" />
-        <StatCard label="Index Type" value={faiss?.index_type || '—'} />
+        <StatCard label="Index Type" value={faiss?.index_type || '-'} />
         <StatCard label="Entities Tracked" value={fmt(faiss?.entities_tracked)} color="green" />
         <StatCard label="FAISS Available" value={faiss?.faiss_available ? 'YES' : 'NO'} color={faiss?.faiss_available ? 'green' : 'red'} />
       </div>
 
       {signal && (
-        <Card title={`BEO Signal — ${truncate(entityId, 20)}`} live>
+        <Card title={`BEO Signal - ${truncate(entityId, 20)}`} live>
           <KVList items={[
             ['Entity ID', hex(signal.entity_id || entityId, 16)],
             ['Coherence C(t)', (signal.coherence_score || signal.coherence || 0).toFixed(4)],
-            ['Threshold Θ(t)', (signal.threshold || 0).toFixed(4)],
+            ['Threshold Theta(t)', (signal.threshold || 0).toFixed(4)],
             ['Coherent', signal.coherent ? 'YES' : 'NO'],
-            ['Archetype', signal.archetype || '—'],
-            ['Limiting Plane', signal.limiting_plane || '—'],
+            ['Archetype', signal.archetype || '-'],
+            ['Limiting Plane', signal.limiting_plane || '-'],
             ['BEO Score', (signal.beo_score || 0).toFixed(4)],
           ]} />
         </Card>
@@ -356,10 +356,10 @@ export function BEOPage() {
             rows={(akashicMatch.matches || akashicMatch.neighbors || []).slice(0, 8).map((m: any, i: number) => [
               i + 1,
               (m.distance || m.cosine_distance || 0).toFixed(4),
-              m.archetype || '—',
+              m.archetype || '-',
               <Badge status={m.confidence > 0.7 ? 'COHERENT' : 'CAUTION'} label={(m.confidence || 0).toFixed(2)} />,
             ])}
-            emptyMessage="Loading matches…"
+            emptyMessage="Loading matches..."
           />
         </Card>
       )}
@@ -377,13 +377,13 @@ export function FAISSPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="FAISS Vector Index — 128-dim BEO Space" live>
+      <Card title="FAISS Vector Index - 128-dim BEO Space" live>
         <div className="text-center py-6">
           <div className="text-5xl font-bold font-mono text-blue-500 ticker">{fmt(vectorCount, 0)}</div>
           <div className="text-sm text-muted-foreground mt-2">indexed vectors</div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <StatCard label="Index Type" value={faiss?.index_type || '—'} />
+          <StatCard label="Index Type" value={faiss?.index_type || '-'} />
           <StatCard label="Dimensions" value={faiss?.dimensions || 128} color="blue" />
           <StatCard label="Entities Tracked" value={fmt(faiss?.entities_tracked)} color="green" />
           <StatCard label="Dynamic Threshold" value={pct(faiss?.dynamic_threshold, 2)} color="amber" />
@@ -393,7 +393,7 @@ export function FAISSPage() {
       <Card title="FAISS Index Statistics">
         <KVList items={[
           ['Available', faiss?.faiss_available ? 'YES' : 'NO'],
-          ['Index Type', faiss?.index_type || '—'],
+          ['Index Type', faiss?.index_type || '-'],
           ['Dimensions', String(faiss?.dimensions || 128)],
           ['Indexed Vectors', fmt(faiss?.indexed_vectors)],
           ['Entities Tracked', fmt(faiss?.entities_tracked)],
@@ -427,7 +427,7 @@ export function SignalsPage() {
           speedMs={speedMs}
           columns={[
             { key: 'timestamp', label: 'Time', render: (v) => tfmt(v) },
-            { key: 'protocol_name', label: 'Protocol', render: (v) => truncate(v || '—', 18) },
+            { key: 'protocol_name', label: 'Protocol', render: (v) => truncate(v || '-', 18) },
             { key: 'signal_type', label: 'Type' },
             { key: 'coherence_score', label: 'C(t)', render: (v) => <span className="font-mono">{pct(v, 2)}</span> },
             { key: 'grade', label: 'Grade', render: (v) => <Badge status={v} /> },
@@ -443,9 +443,9 @@ export function SignalsPage() {
             <Tag color="blue">{t.id}</Tag>,
             t.name,
             <span className="text-xs text-muted-foreground">{truncate(t.description, 60)}</span>,
-            t.whitepaper || '—',
+            t.whitepaper || '-',
           ])}
-          emptyMessage="Loading types…"
+          emptyMessage="Loading types..."
         />
       </Card>
     </div>

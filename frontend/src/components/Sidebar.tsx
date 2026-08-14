@@ -1,5 +1,5 @@
 /**
- * TRION Sidebar — navigation across all 18 page groups / 70+ pages.
+ * TRION Sidebar - navigation across all 18 page groups / 70+ pages.
  */
 'use client';
 
@@ -19,7 +19,7 @@ export const NAV: NavGroup[] = [
       { id: 'phases', label: 'Protocol Phases', icon: Icons.Layers },
       { id: 'phase_transition', label: 'Phase Transition', icon: Icons.GitBranch },
       { id: 'whitepaper', label: 'Whitepaper Coverage', icon: Icons.BookOpen },
-      { id: 'order_parameter', label: 'Order Parameter Ψ', icon: Icons.Gauge },
+      { id: 'order_parameter', label: 'Order Parameter Psi', icon: Icons.Gauge },
       { id: 'convergence', label: 'Convergence Theorem', icon: Icons.TrendingUp },
     ],
   },
@@ -40,9 +40,9 @@ export const NAV: NavGroup[] = [
   {
     label: 'Five-Plane Coherence',
     items: [
-      { id: 'plane_physical', label: 'Φ Physical', icon: Icons.Flame },
+      { id: 'plane_physical', label: 'Phi Physical', icon: Icons.Flame },
       { id: 'plane_mental', label: 'M Mental', icon: Icons.Brain },
-      { id: 'plane_spiritual', label: 'Σ Spiritual', icon: Icons.Sparkles },
+      { id: 'plane_spiritual', label: 'Sigma Spiritual', icon: Icons.Sparkles },
       { id: 'plane_conscious', label: 'K Conscious', icon: Icons.Eye },
       { id: 'plane_anima', label: 'A ANIMA', icon: Icons.Globe },
       { id: 'coherence_profiles', label: 'Weight Profiles', icon: Icons.Scale },
@@ -69,7 +69,7 @@ export const NAV: NavGroup[] = [
       { id: 'awa', label: 'AWA Ceremony', icon: Icons.Award },
       { id: 'gratitude', label: 'Gratitude Protocol', icon: Icons.Heart },
       { id: 'love', label: 'Love F-coefficient', icon: Icons.HeartHandshake },
-      { id: 'falsifiability', label: 'Falsifiability ×15', icon: Icons.CheckCheck },
+      { id: 'falsifiability', label: 'Falsifiability *15', icon: Icons.CheckCheck },
       { id: 'slashing', label: 'Slashing Conditions', icon: Icons.Sword },
       { id: 'unknown_provision', label: 'Unknown-Unknown', icon: Icons.HelpCircle },
       { id: 'adaptive_consensus', label: 'Adaptive Consensus', icon: Icons.SlidersHorizontal },
@@ -234,7 +234,7 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
-  // Phase 8.3: Collapsible nav groups — track which groups are collapsed
+  // Phase 8.3: Collapsible nav groups - track which groups are collapsed
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // Phase 8.3: Recently visited pages
   const [recent, setRecent] = useState<string[]>([]);
@@ -247,7 +247,7 @@ export function Sidebar({
     } catch {}
   }, []);
 
-  // Track page visits — update recent when activePage changes
+  // Track page visits - update recent when activePage changes
   useEffect(() => {
     if (!activePage) return;
     setRecent(prev => {
@@ -321,7 +321,7 @@ export function Sidebar({
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search pages…"
+              placeholder="Search pages..."
               className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-input text-sm"
             />
           </div>
@@ -405,8 +405,8 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="p-3 border-t border-border text-xs text-muted-foreground">
-          <div>v1.0.0 · 100+ chains · 14 VMs</div>
-          <div className="mt-1">CC0 · Originator: Analys</div>
+          <div>v1.0.0 - 100+ chains - 14 VMs</div>
+          <div className="mt-1">CC0 - Originator: Analys</div>
         </div>
       </aside>
     </>

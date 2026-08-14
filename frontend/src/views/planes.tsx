@@ -1,5 +1,5 @@
 /**
- * Five-Plane Coherence Pages — Physical Φ, Mental M, Spiritual Σ, Conscious K, ANIMA A, Profiles
+ * Five-Plane Coherence Pages - Physical Phi, Mental M, Spiritual Sigma, Conscious K, ANIMA A, Profiles
  */
 'use client';
 
@@ -19,7 +19,7 @@ function EntityHeader({ entityId, setEntityId }: { entityId: string; setEntityId
           type="text"
           value={entityId}
           onChange={e => setEntityId(e.target.value)}
-          placeholder="Entity ID (hex)…"
+          placeholder="Entity ID (hex)..."
           className="flex-1 px-3 py-2 rounded-lg border border-border bg-input text-sm font-mono"
         />
       </div>
@@ -28,7 +28,7 @@ function EntityHeader({ entityId, setEntityId }: { entityId: string; setEntityId
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// PHYSICAL PLANE Φ
+// PHYSICAL PLANE Phi
 // ════════════════════════════════════════════════════════════════════════════
 
 export function PhysicalPlanePage() {
@@ -45,23 +45,23 @@ export function PhysicalPlanePage() {
       <EntityHeader entityId={entityId} setEntityId={setEntityId} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Φ_raw (Shannon)" value={(phiRaw || 0).toFixed(4)} color="red" />
+        <StatCard label="Phi_raw (Shannon)" value={(phiRaw || 0).toFixed(4)} color="red" />
         <StatCard label="MF Score" value={(mfScore || 0).toFixed(4)} color="amber" />
-        <StatCard label="Φ_adj = Φ(1-MF)" value={(phi || 0).toFixed(4)} color="green" />
-        <StatCard label="Pass Θ?" value={(phi || 0) >= 0.55 ? 'YES' : 'NO'} color={(phi || 0) >= 0.55 ? 'green' : 'red'} />
+        <StatCard label="Phi_adj = Phi(1-MF)" value={(phi || 0).toFixed(4)} color="green" />
+        <StatCard label="Pass Theta?" value={(phi || 0) >= 0.55 ? 'YES' : 'NO'} color={(phi || 0) >= 0.55 ? 'green' : 'red'} />
       </div>
 
-      <Card title="Physical Plane Φ — Shannon Entropy Composite" live>
+      <Card title="Physical Plane Phi - Shannon Entropy Composite" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
-            <PlaneGauge label="Φ(t) adjusted" value={phi || 0} threshold={0.55} color="#ef4444" icon="Φ" />
+            <PlaneGauge label="Phi(t) adjusted" value={phi || 0} threshold={0.55} color="#ef4444" icon="Phi" />
           </div>
           <div className="space-y-3">
             <KVList items={[
-              ['Φ_raw', (phiRaw || 0).toFixed(6)],
+              ['Phi_raw', (phiRaw || 0).toFixed(6)],
               ['MF score', (mfScore || 0).toFixed(6)],
-              ['Φ_adj = Φ_raw × (1 − MF)', (phi || 0).toFixed(6)],
-              ['Threshold Θ', '0.55'],
+              ['Phi_adj = Phi_raw * (1 - MF)', (phi || 0).toFixed(6)],
+              ['Threshold Theta', '0.55'],
               ['Passes gate', (phi || 0) >= 0.55 ? 'YES' : 'NO'],
             ]} />
           </div>
@@ -81,7 +81,7 @@ export function PhysicalPlanePage() {
           })}
         </div>
         <div className="mt-3 text-xs text-muted-foreground">
-          Weights: [0.15, 0.15, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10] → sum = 1.0
+          Weights: [0.15, 0.15, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10] {'->'} sum = 1.0
         </div>
       </Card>
 
@@ -123,14 +123,14 @@ export function MentalPlanePage() {
         <StatCard label="Predictive Limit" value={pct(predLimit?.PC_limit, 4)} color="red" />
       </div>
 
-      <Card title="Mental Plane M — Observer-Effect Resistant Prediction" live>
+      <Card title="Mental Plane M - Observer-Effect Resistant Prediction" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <PlaneGauge label="M(t) adjusted" value={m || 0} threshold={0.55} color="#f59e0b" icon="M" />
           <div className="space-y-3">
             <KVList items={[
               ['M_base', (mBase || 0).toFixed(6)],
               ['OE_factor = corr(pub, change)', (oeFactor || 0).toFixed(6)],
-              ['M_adj = M_base × (1 − OE)', (m || 0).toFixed(6)],
+              ['M_adj = M_base * (1 - OE)', (m || 0).toFixed(6)],
               ['PI_baseline', (planes?.PI_baseline || 1.0).toFixed(4)],
               ['PI_t (current)', (planes?.PI_t || 0.5).toFixed(4)],
             ]} />
@@ -143,13 +143,13 @@ export function MentalPlanePage() {
           ['Silenced', silence?.silenced ? 'YES' : 'NO'],
           ['Silence Gap', (silence?.silence_gap || 0).toFixed(4)],
           ['ETA blocks', fmt(silence?.eta_blocks)],
-          ['Trend', silence?.trend || '—'],
-          ['Limiting Plane', silence?.limiting_plane || '—'],
+          ['Trend', silence?.trend || '-'],
+          ['Limiting Plane', silence?.limiting_plane || '-'],
         ]} />
       </Card>
 
       <Card title="Predictive Completeness Limit (L3.6)">
-        <p className="text-sm text-muted-foreground mb-3">{predLimit?.heisenberg_analogy || 'Loading…'}</p>
+        <p className="text-sm text-muted-foreground mb-3">{predLimit?.heisenberg_analogy || 'Loading...'}</p>
         <KVList items={[
           ['PC_limit', pct(predLimit?.PC_limit, 4)],
           ['H_irreducible', (predLimit?.H_irreducible || 0).toFixed(4)],
@@ -164,7 +164,7 @@ export function MentalPlanePage() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// SPIRITUAL PLANE Σ
+// SPIRITUAL PLANE Sigma
 // ════════════════════════════════════════════════════════════════════════════
 
 export function SpiritualPlanePage() {
@@ -182,22 +182,22 @@ export function SpiritualPlanePage() {
       <EntityHeader entityId={entityId} setEntityId={setEntityId} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Σ(t)" value={(sigmaVal || 0).toFixed(4)} color={isBootstrap ? 'amber' : 'green'} />
+        <StatCard label="Sigma(t)" value={(sigmaVal || 0).toFixed(4)} color={isBootstrap ? 'amber' : 'green'} />
         <StatCard label="Validators" value={fmt(sigma?.validator_count || 0)} sub="registered" />
-        <StatCard label="HHI" value={fmt(hhi?.hhi || 0, 0)} sub={hhi?.hhi_status || '—'} color={hhi?.hhi < 2500 ? 'green' : 'red'} />
+        <StatCard label="HHI" value={fmt(hhi?.hhi || 0, 0)} sub={hhi?.hhi_status || '-'} color={hhi?.hhi < 2500 ? 'green' : 'red'} />
         <StatCard label="Bootstrap" value={isBootstrap ? 'YES' : 'NO'} color={isBootstrap ? 'amber' : 'green'} />
       </div>
 
-      <Card title="Spiritual Plane Σ — Diversity-Weighted BFT" live>
+      <Card title="Spiritual Plane Sigma - Diversity-Weighted BFT" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PlaneGauge label="Σ(t)" value={sigmaVal || 0} threshold={0.55} color="#10b981" icon="Σ" />
+          <PlaneGauge label="Sigma(t)" value={sigmaVal || 0} threshold={0.55} color="#10b981" icon="Sigma" />
           <div className="space-y-3">
             <KVList items={[
-              ['Σ(t)', (sigmaVal || 0).toFixed(6)],
+              ['Sigma(t)', (sigmaVal || 0).toFixed(6)],
               ['Bootstrap', isBootstrap ? 'YES (0.25 baseline)' : 'NO'],
               ['Validator count', fmt(sigma?.validator_count || 0)],
               ['Median valuation', (sigma?.median_valuation || 0).toFixed(4)],
-              ['Consensus window δ(t)', (sigma?.delta_t || 0).toFixed(4)],
+              ['Consensus window delta(t)', (sigma?.delta_t || 0).toFixed(4)],
               ['Total effective stake', fmt(sigma?.total_effective_stake || 0)],
             ]} />
           </div>
@@ -209,7 +209,7 @@ export function SpiritualPlanePage() {
           <StatCard label="Continents" value={`${hhi?.continent_count || 0}/4`} color={hhi?.continents_ok ? 'green' : 'amber'} />
           <StatCard label="F8 Violation" value={hhi?.f8_violation ? 'YES' : 'NO'} color={hhi?.f8_violation ? 'red' : 'green'} />
           <StatCard label="Consensus Paused" value={hhi?.consensus_paused ? 'YES' : 'NO'} color={hhi?.consensus_paused ? 'red' : 'green'} />
-          <StatCard label="Auto Response" value={hhi?.auto_response || '—'} />
+          <StatCard label="Auto Response" value={hhi?.auto_response || '-'} />
         </div>
         <div>
           <div className="text-xs text-muted-foreground mb-2">Continent Breakdown</div>
@@ -231,8 +231,8 @@ export function SpiritualPlanePage() {
         <KVList items={[
           ['Consensus value', (dwBft?.consensus_value || 0).toFixed(4)],
           ['Byzantine effective weight', (dwBft?.byzantine_effective_weight || 0).toFixed(4)],
-          ['Consensus window δ(t)', (dwBft?.consensus_window_delta || 0).toFixed(4)],
-          ['BFT safety proof', dwBft?.bft_safety_proof || '—'],
+          ['Consensus window delta(t)', (dwBft?.consensus_window_delta || 0).toFixed(4)],
+          ['BFT safety proof', dwBft?.bft_safety_proof || '-'],
         ]} />
       </Card>
     </div>
@@ -263,7 +263,7 @@ export function ConsciousPlanePage() {
         <StatCard label="ACP Protections" value="6" sub="active" color="blue" />
       </div>
 
-      <Card title="Conscious Plane K — Commit-Reveal Annotation Network" live>
+      <Card title="Conscious Plane K - Commit-Reveal Annotation Network" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <PlaneGauge label="K(t)" value={k || 0} threshold={0.55} color="#3b82f6" icon="K" />
           <div className="space-y-3">
@@ -287,7 +287,7 @@ export function ConsciousPlanePage() {
             { name: 'Commit-Reveal Voting', desc: 'Prevents herding before reveal' },
             { name: 'Jurisdiction HHI Cap', desc: 'Geographic distribution enforcement' },
             { name: 'Forward-Only Authority', desc: 'No retroactive signal reversal' },
-            { name: 'Stake-Weighted Diversity', desc: 'Stake × (1 − correlation)' },
+            { name: 'Stake-Weighted Diversity', desc: 'Stake * (1 - correlation)' },
           ].map(p => (
             <div key={p.name} className="border-l-2 border-blue-500 pl-3 py-1">
               <div className="font-semibold text-sm">{p.name}</div>
@@ -326,16 +326,16 @@ export function AnimaPlanePage() {
         <StatCard label="Languages" value={fmt(animaIntel?.languages_count || 59)} sub="whitepaper: 50+" color="blue" />
       </div>
 
-      <Card title="ANIMA Plane A = PCR · HA · CA" live>
+      <Card title="ANIMA Plane A = PCR - HA - CA" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <PlaneGauge label="A(t)" value={a || 0} threshold={0.55} color="#8b5cf6" icon="A" />
           <div className="space-y-3">
             <KVList items={[
-              ['A(t) = PCR · HA · CA', (a || 0).toFixed(6)],
+              ['A(t) = PCR - HA - CA', (a || 0).toFixed(6)],
               ['PCR (Prediction-Consensus)', (pcr || 0).toFixed(4)],
               ['HA (Holdout Accuracy)', (ha || 0).toFixed(4)],
               ['CA (Cross-source Agreement)', (ca || 0).toFixed(4)],
-              ['HA < 0.60 → A=0', ha < 0.6 ? 'DISABLED' : 'ENABLED'],
+              ['HA < 0.60 -> A=0', ha < 0.6 ? 'DISABLED' : 'ENABLED'],
             ]} />
           </div>
         </div>
@@ -346,7 +346,7 @@ export function AnimaPlanePage() {
           ['IM_score', (animaIntel?.im_score || 0).toFixed(4)],
           ['Threshold', (animaIntel?.IM_threshold || 0).toFixed(4)],
           ['Detection window (h)', fmt(animaIntel?.detection_window_h)],
-          ['Last full audit', animaIntel?.last_full_audit || '—'],
+          ['Last full audit', animaIntel?.last_full_audit || '-'],
         ]} />
         <div className="mt-3">
           <div className="text-xs text-muted-foreground mb-2">Component Scores</div>
@@ -373,10 +373,10 @@ export function CoherenceProfilesPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Coherence Weight Profiles" subtitle="Per-asset-type weight assignments for C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A">
-        <p className="text-sm text-muted-foreground mb-4">{profiles?.formula || 'Loading…'}</p>
+      <Card title="Coherence Weight Profiles" subtitle="Per-asset-type weight assignments for C(t) = alpha-Phi + beta-M + gamma-Sigma + delta-K + epsilon-A">
+        <p className="text-sm text-muted-foreground mb-4">{profiles?.formula || 'Loading...'}</p>
         <DataTable
-          headers={['Profile', 'α (Φ)', 'β (M)', 'γ (Σ)', 'δ (K)', 'ε (A)', 'Description']}
+          headers={['Profile', 'alpha (Phi)', 'beta (M)', 'gamma (Sigma)', 'delta (K)', 'epsilon (A)', 'Description']}
           rows={Object.entries(profiles?.asset_type_profiles || {}).map(([name, p]: any) => [
             <Tag color="blue">{name}</Tag>,
             p.alpha,
@@ -386,7 +386,7 @@ export function CoherenceProfilesPage() {
             p.epsilon,
             <span className="text-xs text-muted-foreground">{p.description || ''}</span>,
           ])}
-          emptyMessage="Loading profiles…"
+          emptyMessage="Loading profiles..."
         />
       </Card>
 

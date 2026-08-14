@@ -21,8 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://trion.io'),
   title: {
-    default: 'TRION Protocol — Behavioral Truth Oracle',
-    template: '%s · TRION Protocol',
+    default: 'TRION Protocol - Behavioral Truth Oracle',
+    template: '%s - TRION Protocol',
   },
   description:
     'Multi-chain behavioral truth oracle with cryptographic coherence scoring across 100+ chains and 14 VM families. BTCP cross-chain routing + Continuum clearing network.',
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     apple: '/trion_logo.png',
   },
   openGraph: {
-    title: 'TRION Protocol — The Behavioral Truth Oracle',
+    title: 'TRION Protocol - The Behavioral Truth Oracle',
     description:
       'The first substrate-independent behavioral truth infrastructure. 100+ chains, 14 VM families, BTCP + Continuum clearing.',
     type: 'website',

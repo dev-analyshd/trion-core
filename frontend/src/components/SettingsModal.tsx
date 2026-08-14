@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TRION Settings Modal — API key management.
+ * TRION Settings Modal - API key management.
  *
  * Phase 5.4: Opens from the header settings icon. Stores an API key in
  * localStorage. The fetchAPI client automatically adds the X-API-Key header
@@ -107,7 +107,7 @@ export function SettingsModal({
                   type={showKey ? 'text' : 'password'}
                   value={apiKey}
                   onChange={e => { setApiKey(e.target.value); setSaved(false); }}
-                  placeholder="Paste your TRION API key…"
+                  placeholder="Paste your TRION API key..."
                   className="w-full px-3 py-2 pr-10 rounded-lg border border-border bg-input text-sm font-mono"
                   aria-label="API key"
                 />

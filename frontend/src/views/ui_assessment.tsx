@@ -47,7 +47,7 @@ export function BEOLookupPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="🛠 TRION Toolbox — Paste any address / BEO / BH">
+      <Card title="🛠 TRION Toolbox - Paste any address / BEO / BH">
         <div className="flex gap-2">
           <input
             type="text"
@@ -79,13 +79,13 @@ export function BEOLookupPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <StatCard label="Coherence C(t)" value={pct(result.signal.coherence_score || result.signal.coherence, 2)} color={result.signal.coherent ? 'green' : 'red'} />
-                <StatCard label="Threshold Θ(t)" value={pct(result.signal.threshold, 2)} color="amber" />
-                <StatCard label="Archetype" value={result.signal.archetype || '—'} color="purple" />
+                <StatCard label="Threshold Theta(t)" value={pct(result.signal.threshold, 2)} color="amber" />
+                <StatCard label="Archetype" value={result.signal.archetype || '-'} color="purple" />
                 <StatCard label="Status" value={result.signal.coherent ? 'COHERENT' : 'SILENCED'} color={result.signal.coherent ? 'green' : 'red'} />
               </div>
               <KVList items={[
                 ['Entity ID', hex(result.signal.entity_id || result.address, 16)],
-                ['Limiting Plane', result.signal.limiting_plane || '—'],
+                ['Limiting Plane', result.signal.limiting_plane || '-'],
                 ['Silence Gap', (result.signal.silence_gap || 0).toFixed(4)],
                 ['BEO Score', (result.signal.beo_score || 0).toFixed(4)],
               ]} />
@@ -107,7 +107,7 @@ export function BEOLookupPage() {
       )}
 
       {result?.bhHistory && (
-        <Card title="Behavioral History — Recent BH Records" live>
+        <Card title="Behavioral History - Recent BH Records" live>
           <DataTable
             headers={['Time', 'Chain', 'Event', 'Block', 'Tx Hash']}
             rows={(result.bhHistory.records || result.bhHistory || []).slice(0, 20).map((r: any) => [
@@ -147,8 +147,8 @@ export function LiveEventStreamPage() {
       color: '#22d3ee',
       icon: '⚡',
       age_sec: age,
-      message: `Entity ${hex(bh.entity_id, 8)} on ${bh.chain_label || bh.chain} — ${bh.event_type_name || bh.event_type}`,
-      detail: `tx ${hex(bh.tx_hash, 10)}…`,
+      message: `Entity ${hex(bh.entity_id, 8)} on ${bh.chain_label || bh.chain} - ${bh.event_type_name || bh.event_type}`,
+      detail: `tx ${hex(bh.tx_hash, 10)}...`,
     });
   });
 
@@ -161,7 +161,7 @@ export function LiveEventStreamPage() {
       icon: s.coherent ? '🟢' : '⚫',
       age_sec: age,
       message: `${s.protocol_name || hex(s.entity_id, 8)} C(t)=${pct(s.coherence_score, 2)}`,
-      detail: s.coherent ? 'VAL signal emitted' : `SILENCE — below Θ=${pct(s.threshold, 2)}`,
+      detail: s.coherent ? 'VAL signal emitted' : `SILENCE - below Theta=${pct(s.threshold, 2)}`,
     });
   });
 
@@ -174,7 +174,7 @@ export function LiveEventStreamPage() {
       icon: coh > 0.55 ? '🟢' : '🟡',
       age_sec: 0,
       message: `Oracle self-coherence ${coh.toFixed(4)}`,
-      detail: coh > 0.55 ? 'HONEST — above publication threshold' : 'STRUCTURED SILENCE — below 0.55',
+      detail: coh > 0.55 ? 'HONEST - above publication threshold' : 'STRUCTURED SILENCE - below 0.55',
     });
   }
 
@@ -190,7 +190,7 @@ export function LiveEventStreamPage() {
         <StatCard label="Oracle Status" value={health?.dynamic_threshold > 0.55 ? 'HONEST' : 'SILENT'} color={health?.dynamic_threshold > 0.55 ? 'green' : 'amber'} />
       </div>
 
-      <Card title="📡 Live Event Stream — real-time" live>
+      <Card title="📡 Live Event Stream - real-time" live>
         <div className="space-y-2 max-h-[600px] overflow-y-auto">
           {events.length === 0 ? (
             <EmptyState message="Connecting to live data streams..." />
@@ -287,19 +287,19 @@ export function TimeSeriesPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Time-Series Data — Behavioral Truth is Temporal" live>
+      <Card title="Time-Series Data - Behavioral Truth is Temporal" live>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="p-4 rounded-lg border border-border">
             <Sparkline
               data={cohHistory}
               color="#22d3ee"
               label="Oracle Coherence C(t)"
-              value={health?.dynamic_threshold?.toFixed(4) || '—'}
+              value={health?.dynamic_threshold?.toFixed(4) || '-'}
             />
             <div className="mt-2 text-xs text-muted-foreground">
               {health?.dynamic_threshold > 0.55 ?
-                '🟢 HONEST — above publication threshold' :
-                '🟡 STRUCTURED SILENCE — below 0.55'}
+                '🟢 HONEST - above publication threshold' :
+                '🟡 STRUCTURED SILENCE - below 0.55'}
             </div>
           </div>
 
@@ -319,11 +319,11 @@ export function TimeSeriesPage() {
             <Sparkline
               data={infoHistory}
               color="#8b5cf6"
-              label="Information I(t) — BH accumulation"
+              label="Information I(t) - BH accumulation"
               value={fmt(totalBHs)}
             />
             <div className="mt-2 text-xs text-muted-foreground">
-              🔒 Thermodynamically sealed — always increasing
+              🔒 Thermodynamically sealed - always increasing
             </div>
           </div>
         </div>
@@ -360,25 +360,25 @@ export function BTCPVisualizationPage() {
   const routeTypes = [
     { id: 'SINGLE_CHAIN', name: 'Direct Single-Chain', when: 'Target chain has superior liquidity and finality', gas: 31.00, score: 0.41, finality: '12 seconds', color: '#64748b', desc: 'Standard execution on one chain only. Used as baseline.' },
     { id: 'SPLIT', name: 'Anchor + Execute Split', when: 'Source chain has cheap security, target has cheap execution', gas: 0.98, score: 0.94, finality: 'max(12s, 2s)', color: '#22d3ee', desc: 'Anchor behavioral proof on Ethereum (security), execute on Base (cheap gas). Assets never leave Ethereum.' },
-    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Entity with opposite intent found simultaneously', gas: 0.05, score: 0.98, finality: '12 seconds', color: '#10b981', desc: 'Entity A wants USDC→ETH, Entity B wants ETH→USDC. Both execute natively. Zero cross-chain movement. Optimal by construction.' },
+    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Entity with opposite intent found simultaneously', gas: 0.05, score: 0.98, finality: '12 seconds', color: '#10b981', desc: 'Entity A wants USDC->ETH, Entity B wants ETH->USDC. Both execute natively. Zero cross-chain movement. Optimal by construction.' },
     { id: 'PARALLEL', name: 'Parallel Split', when: 'Large intent split across multiple chains simultaneously', gas: 1.80, score: 0.91, finality: '12 seconds', color: '#8b5cf6', desc: '$1M split across 5 chains in parallel. Reduces price impact and increases completion speed.' },
-    { id: 'MULTI_HOP', name: 'Multi-Hop (A→B→C)', when: 'Intermediate chain provides liquidity bridge', gas: 1.20, score: 0.88, finality: 'max(12s, 400ms)', color: '#fbbf24', desc: 'Ethereum→Solana→Arbitrum when Solana provides intermediate liquidity advantage. Nested escrow guarantees atomicity.' },
-    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Current conditions suboptimal, intent not urgent', gas: 0.42, score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: circadian gas low ∩ liquidity peak ∩ MEV valley. Auto-executes at best conditions.' },
+    { id: 'MULTI_HOP', name: 'Multi-Hop (A->B->C)', when: 'Intermediate chain provides liquidity bridge', gas: 1.20, score: 0.88, finality: 'max(12s, 400ms)', color: '#fbbf24', desc: 'Ethereum->Solana->Arbitrum when Solana provides intermediate liquidity advantage. Nested escrow guarantees atomicity.' },
+    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Current conditions suboptimal, intent not urgent', gas: 0.42, score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: circadian gas low AND liquidity peak AND MEV valley. Auto-executes at best conditions.' },
   ];
 
   const sixSteps = [
     { num: 1, name: 'Intent Registration', desc: 'Entity submits intent (not transaction). BIBL (Behavioral Inter-Block Layer) reads all chains simultaneously during the inter-block window.', color: '#22d3ee' },
     { num: 2, name: 'Route Calculation', desc: 'BTCP score computed for all candidate routes across 6 route types. Natural Liquidity, gas, finality, cross-chain coherence, and BEO continuity weighted.', color: '#8b5cf6' },
     { num: 3, name: 'Cross-Chain Proof', desc: 'Anchor behavioral hash + diversity-weighted consensus proof constructed. HHI (Concentration Index) bounded at 2500.', color: '#10b981' },
-    { num: 4, name: 'VM Translation', desc: '20 behavioral event types translated into each chain native execution through thin adapters. Same intent, different bytecode — identical behavioral meaning.', color: '#fbbf24' },
-    { num: 5, name: 'Gas Sharing Protocol', desc: 'Anchor chain covers security cost, execution chain covers computation cost. $10K swap costs $31 on ETH alone, $0.98 via ETH→Base, $0.05 via netting.', color: '#f472b6' },
+    { num: 4, name: 'VM Translation', desc: '20 behavioral event types translated into each chain native execution through thin adapters. Same intent, different bytecode - identical behavioral meaning.', color: '#fbbf24' },
+    { num: 5, name: 'Gas Sharing Protocol', desc: 'Anchor chain covers security cost, execution chain covers computation cost. $10K swap costs $31 on ETH alone, $0.98 via ETH->Base, $0.05 via netting.', color: '#f472b6' },
     { num: 6, name: 'Finalization + Recording', desc: 'Behavioral hash stored in Akashic Index, linked by BTCP route ID. Signal emitted with gas savings data. Append-only, instantly final via DW-BFT consensus.', color: '#ef4444' },
   ];
 
   return (
     <div className="space-y-8">
       {/* 6-Step Routing Flow */}
-      <Card title="6-Step BTCP Routing Pipeline — Animated Flow">
+      <Card title="6-Step BTCP Routing Pipeline - Animated Flow">
         <div className="flex flex-col md:flex-row gap-3 overflow-x-auto">
           {sixSteps.map((step, i) => (
             <div key={step.num} className="flex-1 min-w-[180px] p-4 rounded-lg border border-border relative">
@@ -389,7 +389,7 @@ export function BTCPVisualizationPage() {
               <div className="font-semibold text-sm mb-1">{step.name}</div>
               <div className="text-xs text-muted-foreground">{step.desc}</div>
               {i < sixSteps.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">→</div>
+                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">{'->'}</div>
               )}
             </div>
           ))}
@@ -397,7 +397,7 @@ export function BTCPVisualizationPage() {
       </Card>
 
       {/* Route Type Comparison */}
-      <Card title="Route Type Comparison — 6 BTCP Route Types">
+      <Card title="Route Type Comparison - 6 BTCP Route Types">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {routeTypes.map(rt => (
             <div key={rt.id} className={`p-4 rounded-lg border-2 ${rt.id === 'NETTING' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border'}`}
@@ -407,7 +407,7 @@ export function BTCPVisualizationPage() {
                 {rt.id === 'NETTING' && <Badge status="OPTIMAL" />}
               </div>
               <div className="text-3xl font-bold mb-1" style={{ color: rt.color }}>${rt.gas.toFixed(2)}</div>
-              <div className="text-xs text-muted-foreground mb-2">BTCP Score: {rt.score} · Finality: {rt.finality}</div>
+              <div className="text-xs text-muted-foreground mb-2">BTCP Score: {rt.score} - Finality: {rt.finality}</div>
               <div className="text-xs text-muted-foreground mb-2">When: {rt.when}</div>
               <div className="text-xs">{rt.desc}</div>
             </div>
@@ -416,11 +416,11 @@ export function BTCPVisualizationPage() {
       </Card>
 
       {/* Gas Comparison Visual */}
-      <Card title="Gas Cost Comparison — $10K USDC→ETH Swap">
+      <Card title="Gas Cost Comparison - $10K USDC->ETH Swap">
         <div className="space-y-4">
           {[
             { label: 'Direct ETH only', cost: 31.00, color: '#64748b', pct: 100 },
-            { label: 'Anchor ETH → Execute Base', cost: 0.98, color: '#22d3ee', pct: 3.2 },
+            { label: 'Anchor ETH -> Execute Base', cost: 0.98, color: '#22d3ee', pct: 3.2 },
             { label: 'Netting (counterparty found)', cost: 0.05, color: '#10b981', pct: 0.16 },
           ].map(g => (
             <div key={g.label}>
@@ -441,7 +441,7 @@ export function BTCPVisualizationPage() {
 
       {/* BIBL Live Snapshot */}
       {bibl && (
-        <Card title="BIBL Tier-1 Snapshot — Live Chain Data" live>
+        <Card title="BIBL Tier-1 Snapshot - Live Chain Data" live>
           <DataTable
             headers={['Chain', 'NL Score', 'Gas Forecast', 'CC Coherence', 'MF Score', 'Finality (s)']}
             rows={Object.entries(bibl?.snapshot || {}).map(([chain, s]: any) => [
@@ -463,7 +463,7 @@ export function BTCPVisualizationPage() {
       )}
 
       {/* Network Effect */}
-      <Card title="Network Effect — Bridge Pairs Eliminated = N × (N-1) / 2">
+      <Card title="Network Effect - Bridge Pairs Eliminated = N * (N-1) / 2">
         <div className="flex flex-col md:flex-row gap-3">
           {[
             { chains: 3, pairs: 3, label: 'First 3 EVM chains' },
@@ -474,7 +474,7 @@ export function BTCPVisualizationPage() {
             { chains: 100, pairs: 4950, label: 'Bridges become legacy' },
           ].map((s, i) => (
             <div key={i} className="flex-1 p-4 rounded-lg border border-border relative">
-              {i < 5 && <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">→</div>}
+              {i < 5 && <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">{'->'}</div>}
               <div className="text-2xl font-bold text-cyan-500">{s.chains}</div>
               <div className="text-xs text-muted-foreground">chains</div>
               <div className="text-lg font-bold text-emerald-500 mt-2">{s.pairs.toLocaleString()}</div>
@@ -485,7 +485,7 @@ export function BTCPVisualizationPage() {
         </div>
         {bootstrap && (
           <div className="mt-4 p-3 rounded bg-cyan-500/10 border border-cyan-500/30 text-sm">
-            Current: {bootstrap.total_chains} chains · {bootstrap.bridge_pairs_eliminated?.toLocaleString()} pairs eliminated · {bootstrap.vm_families} VM families
+            Current: {bootstrap.total_chains} chains - {bootstrap.bridge_pairs_eliminated?.toLocaleString()} pairs eliminated - {bootstrap.vm_families} VM families
           </div>
         )}
       </Card>
@@ -507,8 +507,8 @@ export function ContinuumVisualizationPage() {
       whatItDoes: 'Watches the 9 raw features of behavioral flow. When the pattern matches the known precursor signature, the system flags it.',
       keyConstraint: 'The entity retains full agency. Detection never becomes commitment automatically.' },
     { id: 'CME', name: 'Complement Matching Engine', color: '#8b5cf6',
-      plainEnglish: 'Finds, in real time across all chains, the entity whose behavioral pattern is the thermodynamic opposite — not a counterparty in the order book sense, but an entity who genuinely wants the opposite.',
-      whatItDoes: 'When Entity A shows intent precursor for USDC→ETH, the engine searches FAISS vector space for Entity B whose pattern indicates ETH→USDC intent.',
+      plainEnglish: 'Finds, in real time across all chains, the entity whose behavioral pattern is the thermodynamic opposite - not a counterparty in the order book sense, but an entity who genuinely wants the opposite.',
+      whatItDoes: 'When Entity A shows intent precursor for USDC->ETH, the engine searches FAISS vector space for Entity B whose pattern indicates ETH->USDC intent.',
       keyProperty: 'Semantic matching, not price ladder matching. Price comes from the TRION behavioral valuation signal.' },
     { id: 'PMO', name: 'Pre-Manifest Order System', color: '#10b981',
       plainEnglish: 'An entity commits to a trade before expressing it to any market, in exchange for a guaranteed better price and a share of the spread they would have otherwise lost.',
@@ -516,10 +516,10 @@ export function ContinuumVisualizationPage() {
       adoptionDriver: 'Adoption is economically rational, not forced. Every entity who accepts is strictly better off.' },
     { id: 'BDC', name: 'Behavioral Depth Credit', color: '#fbbf24',
       plainEnglish: 'An entity\'s accumulated behavioral history functions as creditworthy collateral for undercollateralized positions. Depth cannot be bought, transferred, lost, or forged.',
-      whatItDoes: 'An entity with 2 years of consistent honest history can participate at up to 10× their typical trade size, backed by behavioral depth rather than locked capital.',
+      whatItDoes: 'An entity with 2 years of consistent honest history can participate at up to 10* their typical trade size, backed by behavioral depth rather than locked capital.',
       keyProperties: 'Cannot be bought. Cannot be transferred. Compounds automatically. Forgery bounded by Kolmogorov complexity.' },
     { id: 'THERMO', name: 'Thermodynamic Settlement', color: '#f472b6',
-      plainEnglish: 'Settlement is triggered by both parties being simultaneously coherent — not by time locks, human decisions, or governance votes.',
+      plainEnglish: 'Settlement is triggered by both parties being simultaneously coherent - not by time locks, human decisions, or governance votes.',
       whatItDoes: 'BTCP escrow on both chains watches the TRION coherence signal. When both entities exceed their threshold simultaneously, escrow releases.',
       coreInsight: 'Behavioral manipulation is self-defeating by construction.' },
   ];
@@ -536,7 +536,7 @@ export function ContinuumVisualizationPage() {
   return (
     <div className="space-y-8">
       {/* Hero */}
-      <Card title="Continuum · The Behavioral Clearing Network">
+      <Card title="Continuum - The Behavioral Clearing Network">
         <p className="text-sm text-muted-foreground mb-4">
           Behavioral reality precedes price reality by a measurable window. On Ethereum: 3 to 12 blocks (36 to 144 seconds).
           On Solana: 50 to 200 slots (20 to 80 seconds). Continuum operates in this gap.
@@ -544,7 +544,7 @@ export function ContinuumVisualizationPage() {
       </Card>
 
       {/* $13.9B Waste Breakdown */}
-      <Card title="$13.9B Annual Market Waste — What Continuum Eliminates">
+      <Card title="$13.9B Annual Market Waste - What Continuum Eliminates">
         <div className="space-y-3">
           {wasteBreakdown.map(item => (
             <div key={item.name}>
@@ -560,7 +560,7 @@ export function ContinuumVisualizationPage() {
       </Card>
 
       {/* 5 Engines */}
-      <Card title="5 Continuum Engines — Operating in the gap between behavioral reality and price reality">
+      <Card title="5 Continuum Engines - Operating in the gap between behavioral reality and price reality">
         <div className="space-y-4">
           {engines.map(e => (
             <div key={e.id} className="p-5 rounded-lg border border-border" style={{ borderLeftWidth: '4px', borderLeftColor: e.color }}>
@@ -599,7 +599,7 @@ export function ContinuumVisualizationPage() {
       </Card>
 
       {/* FAISS Live Integration */}
-      <Card title="FAISS Vector Space — Live CME Foundation" live>
+      <Card title="FAISS Vector Space - Live CME Foundation" live>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Indexed Vectors" value={fmt(Math.max(faiss?.indexed_vectors || 0, streamer?.faiss_vectors_accumulated || 0))} color="purple" sub="128-dim BEO" />
           <StatCard label="Entities Tracked" value={fmt(faiss?.entities_tracked || 0)} color="blue" />
