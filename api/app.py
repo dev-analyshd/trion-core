@@ -1942,24 +1942,23 @@ def zg_proof():
                       for i in range(1, 9)]
             merkle_root = "0x" + _hl.sha256("".join(leaves).encode()).hexdigest()
 
-    # Try fetching live on-chain storage root from mainnet gate
+    # Try fetching live on-chain storage root from mainnet gate via web3.py
     onchain_root = "not-yet-synced"
     try:
-        script = f"""
-const {{ ethers }} = require('ethers');
-const p = new ethers.JsonRpcProvider('https://evmrpc.0g.ai', 16661, {{staticNetwork:true}});
-const GATE = '{MAINNET_GATE}';
-const ABI = ['function beoVectorStorageRoot() view returns (string)', 'function lastStorageSyncBlock() view returns (uint256)'];
-const c = new ethers.Contract(GATE, ABI, p);
-Promise.all([c.beoVectorStorageRoot(), c.lastStorageSyncBlock()]).then(([root, blk]) => {{
-  console.log(JSON.stringify({{root, block:Number(blk)}}));
-}}).catch(e => console.log(JSON.stringify({{root:'',block:0}})));
-"""
-        r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=8,
-                           cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        d = _json.loads(r.stdout.strip())
-        if d.get("root"):
-            onchain_root = d["root"]
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider("https://evmrpc.0g.ai", request_kwargs={"timeout": 8}))
+        if w3.is_connected():
+            GATE_ABI = [
+                {"inputs": [], "name": "beoVectorStorageRoot", "outputs": [{"type": "string"}], "stateMutability": "view", "type": "function"},
+                {"inputs": [], "name": "lastStorageSyncBlock", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
+            ]
+            gate_contract = w3.eth.contract(
+                address=Web3.to_checksum_address(MAINNET_GATE),
+                abi=GATE_ABI,
+            )
+            root = gate_contract.functions.beoVectorStorageRoot().call()
+            if root:
+                onchain_root = root
     except Exception:
         pass
 
@@ -4763,7 +4762,12 @@ def bh_chains():
 
 @app.route("/chains-legacy")
 def chains_page():
-    return render_template("chains.html")
+    # Legacy template removed — redirect to the API-backed chains listing instead.
+    return jsonify({
+        "message": "Legacy chains.html template removed. Use /api/v1/chains or /api/v1/explorer/chains.",
+        "redirect": "/api/v1/chains",
+        "whitepaper": "TRION Protocol — 100+ chain coverage",
+    }), 200
 
 
 @app.route("/api/v1/bh", methods=["POST"])
@@ -6498,13 +6502,13 @@ def chameleon_protocol(entity_id: str):
     data        = _compute_signal(entity_id)
     true_value  = data["coherence_score"]
     volatility  = _market_volatility()
-    result      = chameleon.apply(entity_id, true_value, volatility=volatility)
+    result      = chameleon.apply_noise(entity_id, true_value, volatility)
 
     # Show escalation effect (simulated: query 6× rapidly)
     for i in range(6):
-        chameleon.apply(entity_id, true_value, volatility=volatility,
+        chameleon.apply_noise(entity_id, true_value, volatility,
                         now=time.time() - 30 + i * 5)
-    probe_result = chameleon.apply(entity_id, true_value, volatility=volatility)
+    probe_result = chameleon.apply_noise(entity_id, true_value, volatility)
 
     return jsonify({
         "entity_id":          entity_id,
