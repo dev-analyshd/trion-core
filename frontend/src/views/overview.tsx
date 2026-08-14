@@ -143,18 +143,17 @@ export function DashboardPage() {
                 return (C * Math.exp(moatVal)).toFixed(4);
               })()}
             </div>
-            <div className="text-xs text-muted-foreground">T(t) = [C{'>='}Theta] - C(t) - e^(M_moat)</div>
             <div className="pt-2 border-t border-border space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">C(t) coherence</span>
+                <span className="text-muted-foreground">Coherence</span>
                 <span className="font-mono">{pct(health?.dynamic_threshold, 2)}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">M_moat(t)</span>
+                <span className="text-muted-foreground">Economic Moat</span>
                 <span className="font-mono">{(moat?.M_moat || 0).toFixed(4)}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">e^(M_moat) amplifier</span>
+                <span className="text-muted-foreground">Moat Amplifier</span>
                 <span className="font-mono">{Math.exp(moat?.M_moat || 0).toFixed(4)}</span>
               </div>
             </div>
@@ -479,39 +478,6 @@ export function PhaseTransitionPage() {
           ['Adoption Rate', pct(pt?.adoption_rate, 2)],
           ['Distance to Transition', pt?.distance_to_transition?.toFixed(4) || '-'],
         ]} />
-      </Card>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// WHITEPAPER COVERAGE
-// ════════════════════════════════════════════════════════════════════════════
-
-export function WhitepaperPage() {
-  const { data: wp } = useAPI('/api/v1/whitepaper/coverage', 60000);
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Coverage" value={`${wp?.coverage_pct?.toFixed(1) || 100}%`} color="green" />
-        <StatCard label="Live Formulas" value={fmt(wp?.live_count)} sub={`of ${wp?.formulas?.length || 84}`} color="blue" />
-        <StatCard label="Falsifiability" value={fmt(wp?.falsifiability_conditions)} color="amber" />
-        <StatCard label="Chains Indexed" value={fmt(wp?.chains_indexed)} />
-      </div>
-
-      <Card title="Whitepaper Formula Coverage" live>
-        <DataTable
-          headers={['ID', 'Name', 'Formula', 'Status', 'Endpoints']}
-          rows={(wp?.formulas || []).map((f: any) => [
-            <Tag color="blue">{f.id}</Tag>,
-            f.name,
-            <code className="text-xs">{truncate(f.formula, 60)}</code>,
-            <Badge status={f.status} />,
-            <span className="text-xs text-muted-foreground">{(f.endpoints || []).length} endpoint(s)</span>,
-          ])}
-          emptyMessage="Loading formulas..."
-        />
       </Card>
     </div>
   );

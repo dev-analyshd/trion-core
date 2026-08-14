@@ -22,7 +22,7 @@ export function SECPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="SEC(t)" value={pct(sec?.effective_sec, 2)} color="green" />
+        <StatCard label="Security Score" value={pct(sec?.effective_sec, 2)} color="green" />
         <StatCard label="LSS" value={pct(1.0, 0)} sub="Living Security" color="blue" />
         <StatCard label="PQC" value={pct(sec?.pqc_score || 0.9, 0)} sub="Post-Quantum" color="purple" />
         <StatCard label="CC" value={pct(sec?.cc_score, 0)} sub="Cross-Chain" color="amber" />

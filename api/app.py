@@ -538,6 +538,100 @@ def _query_faiss_planes(eid: str) -> dict | None:
     return result
 
 
+def _get_sigma_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
+    """
+    Spiritual plane Σ(t) — diversity-weighted BFT validator consensus.
+
+    Resolution order:
+      1. Live validator network (Go P2P mesh on port 6000)
+      2. Local diversity-weighted computation from cached validator signals
+      3. Configured bootstrap baseline (0.25) — honest disclosure
+
+    Returns (sigma_value, source_description)
+    """
+    import urllib.request as _ur
+
+    # ── 1. Try live validator network ────────────────────────────────────────
+    try:
+        with _ur.urlopen("http://127.0.0.1:6000/api/v1/consensus/sigma", timeout=0.5) as _r:
+            data = json.loads(_r.read())
+            if "sigma" in data and isinstance(data["sigma"], (int, float)):
+                return float(data["sigma"]), "live_validator_mesh"
+    except Exception:
+        pass
+
+    # ── 2. Try local computation from validator signals in FAISS ────────────
+    try:
+        with _ur.urlopen(
+            f"http://127.0.0.1:8000/api/v1/spiritual/validators?entity={eid}", timeout=1
+        ) as _r:
+            data = json.loads(_r.read())
+            if data and "validators" in data and len(data["validators"]) >= 3:
+                # Compute diversity-weighted sigma locally
+                import numpy as _np
+                from core.spiritual.sigma_engine import (
+                    compute_sigma, ValidatorSignal,
+                )
+                validators = []
+                for v in data["validators"][:10]:  # max 10 for perf
+                    outputs = _np.array(v.get("model_outputs", [0.5] * 10), dtype=float)
+                    validators.append(ValidatorSignal(
+                        validator_id=v.get("id", "unknown"),
+                        valuation=float(v.get("valuation", 0.5)),
+                        stake=float(v.get("stake", 1000.0)),
+                        model_outputs=outputs,
+                    ))
+                result = compute_sigma(validators)
+                return result["sigma"], "local_dw_bft"
+    except Exception:
+        pass
+
+    # ── 3. Configured bootstrap baseline ────────────────────────────────────
+    # Whitepaper L4.1: Σ at bootstrap = 0.25. Full validator network at mainnet.
+    return 0.25, "bootstrap_0.25"
+
+
+def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
+    """
+    Conscious plane K(t) — human annotation network.
+
+    Resolution order:
+      1. Live annotation service
+      2. FAISS-indexed annotations for this entity
+      3. Configured bootstrap baseline (0.10) — honest disclosure
+
+    Returns (k_value, source_description)
+    """
+    import urllib.request as _ur
+
+    # ── 1. Try live annotation service ──────────────────────────────────────
+    try:
+        with _ur.urlopen(
+            f"http://127.0.0.1:8000/api/v1/conscious/annotations/{eid}", timeout=1
+        ) as _r:
+            data = json.loads(_r.read())
+            if "k_score" in data and isinstance(data["k_score"], (int, float)):
+                if not data.get("bootstrap", False):
+                    return float(data["k_score"]), "live_annotations"
+    except Exception:
+        pass
+
+    # ── 2. Try indigenous knowledge / cultural context from FAISS ───────────
+    try:
+        with _ur.urlopen(
+            f"http://127.0.0.1:8000/api/v1/conscious/indigenous/{eid}", timeout=1
+        ) as _r:
+            data = json.loads(_r.read())
+            if data and data.get("k_score", 0) > 0.10:
+                return float(data["k_score"]), "indigenous_knowledge"
+    except Exception:
+        pass
+
+    # ── 3. Configured bootstrap baseline ────────────────────────────────────
+    # Whitepaper L4.2: K at bootstrap = 0.10. Annotation network onboarding at mainnet.
+    return 0.10, "bootstrap_0.10"
+
+
 def _plane_values(eid: str) -> dict:
     """
     Return 5-plane behavioral values sourced exclusively from live FAISS data.
@@ -560,22 +654,42 @@ def _plane_values(eid: str) -> dict:
     """
     faiss = _query_faiss_planes(eid)
     if not faiss:
-        # No behavioral sediment in FAISS — return COLD_START with zeroed planes.
-        # All keys present so callers don't KeyError; _cold_start flag lets
-        # _compute_signal emit a SILENCE/COLD_START signal.
-        return {"phi": 0.0, "m": 0.0, "sigma": 0.0, "k": 0.0, "anima": 0.0,
-                "_faiss_enriched": False, "_cold_start": True,
-                "akashic_depth": 0.0}
+        # No behavioral sediment in FAISS — return COLD_START.
+        # Planes with independent infrastructure (Σ, K) still report bootstrap values.
+        # Planes requiring behavioral history (Φ, M, A) report zero.
+        # _cold_start flag tells _compute_signal to emit SILENCE/COLD_START.
+        sigma, sigma_src = _get_sigma_plane(eid, 0.0)
+        k, k_src = _get_k_plane(eid, 0.0)
+        return {
+            "phi": 0.0, "m": 0.0, "sigma": sigma, "k": k, "anima": 0.0,
+            "_faiss_enriched": False, "_cold_start": True,
+            "sigma_source": sigma_src, "k_source": k_src,
+            "akashic_depth": 0.0,
+            "cold_start_reason": (
+                "Insufficient behavioral sediment indexed in FAISS. "
+                "Entity requires observed on-chain activity before coherence "
+                "evaluation can begin."
+            ),
+        }
 
     phi   = faiss["phi_live"] if faiss["phi_live"] is not None else 0.50
     m     = faiss["m"]
     anima = faiss["anima"]
-    sigma = 0.50   # bootstrap prior — no hash seeding (see docstring)
-    k     = 0.50   # bootstrap prior — no hash seeding (see docstring)
+    depth = faiss.get("akashic_depth", 0.0)
+
+    # ── Spiritual plane Σ(t): diversity-weighted BFT validator consensus ─────
+    # Try live validator consensus first; fall back to configured bootstrap.
+    sigma, sigma_source = _get_sigma_plane(eid, depth)
+
+    # ── Conscious plane K(t): human annotation network ────────────────────────
+    # Try live annotations first; fall back to configured bootstrap.
+    k, k_source = _get_k_plane(eid, depth)
 
     return {"phi": phi, "m": m, "sigma": sigma, "k": k, "anima": anima,
             "_faiss_enriched": True, "_cold_start": False,
-            "akashic_depth": faiss.get("akashic_depth", 0.0)}
+            "sigma_source": sigma_source,
+            "k_source": k_source,
+            "akashic_depth": depth}
 
 def _faiss_plane_timestamp(eid: str) -> float | None:
     """Return the timestamp of the last FAISS cache entry for *eid*, or None."""
@@ -682,11 +796,16 @@ def _compute_signal(entity_id: str) -> dict:
     m_adj     = m_base
 
     # ── L1.4 TI(sensor) = Calibration · Drift · CrossVerification ─────────────
+    # Previously hash-derived calibration values fabricated sensor fidelity
+    # that does not exist. Now uses neutral bootstrap defaults with honest
+    # disclosure. Full hardware sensor calibration activates at mainnet with
+    # physical HSM + GPS sensor nodes (whitepaper Channels 1-3).
     sensor = SensorCalibration(
         sensor_id           = entity_id,
-        calibration_score   = round(0.80 + (h[5] / 255.0) * 0.20, 4),
-        drift_correction    = round(0.85 + (h[6] / 255.0) * 0.15, 4),
-        cross_verification  = round(0.75 + (h[7] / 255.0) * 0.25, 4),
+        calibration_score   = 0.80,   # Bootstrap default — hardware-calibrated at mainnet
+        drift_correction    = 0.85,   # Bootstrap default — physical sensor drift tracking
+        cross_verification  = 0.75,   # Bootstrap default — multi-sensor cross-check
+        bootstrap_mode      = True,   # Honest disclosure: not hardware-calibrated yet
     )
     ti = compute_transduction_integrity(sensor)
     phi_adjusted = max(0.0, min(1.0, planes["phi"] * (1.0 - mf) * ti.ti))

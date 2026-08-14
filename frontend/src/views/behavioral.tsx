@@ -339,7 +339,7 @@ export function BEOPage() {
         <Card title={`BEO Signal - ${truncate(entityId, 20)}`} live>
           <KVList items={[
             ['Entity ID', hex(signal.entity_id || entityId, 16)],
-            ['Coherence C(t)', (signal.coherence_score || signal.coherence || 0).toFixed(4)],
+            ['Coherence Score', (signal.coherence_score || signal.coherence || 0).toFixed(4)],
             ['Threshold Theta(t)', (signal.threshold || 0).toFixed(4)],
             ['Coherent', signal.coherent ? 'YES' : 'NO'],
             ['Archetype', signal.archetype || '-'],
