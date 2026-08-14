@@ -6,7 +6,7 @@
 
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, EmptyState, Tag } from '../components/ui';
 import { useAPI } from '../lib/hooks';
-import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor } from '../lib/api';
+import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, cleanText } from '../lib/api';
 import * as Icons from 'lucide-react';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -228,7 +228,7 @@ export function FalsifiabilityPage() {
       </div>
 
       <Card title="15 Falsifiability Conditions (Karl Popper-inspired)" live>
-        <p className="text-sm text-muted-foreground mb-4">{fals?.disclosure || 'Loading...'}</p>
+        <p className="text-sm text-muted-foreground mb-4">{cleanText(fals?.disclosure) || 'Loading...'}</p>
         <DataTable
           headers={['ID', 'Claim', 'Status', 'Sample Size', 'Last Check']}
           rows={(fals?.conditions || []).map((c: any) => [
@@ -319,7 +319,7 @@ export function UnknownProvisionPage() {
       </Card>
 
       <Card title="Honest Disclosure">
-        <p className="text-sm">{prov?.honest_disclosure || '-'}</p>
+        <p className="text-sm">{cleanText(prov?.honest_disclosure) || '-'}</p>
       </Card>
     </div>
   );

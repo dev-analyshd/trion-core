@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, EmptyState, Tag, CodeBlock } from '../components/ui';
 import { useAPI } from '../lib/hooks';
-import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor } from '../lib/api';
+import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, cleanText } from '../lib/api';
 import * as Icons from 'lucide-react';
 
 const DEFAULT_ENTITY = '0x2e49c1ff182bea5e33246a5f88f78cab6108cdde7b14f73bf8f7a06d6940c6ec';
@@ -31,7 +31,7 @@ export function SECPage() {
       <Card title="SEC(t) = LSS - PQC - CC - Composite Security Score" live>
         <div className="text-center py-6">
           <div className="text-5xl font-bold ticker">{pct(sec?.effective_sec, 4)}</div>
-          <div className="text-sm text-muted-foreground mt-2">{sec?.disclosure || 'Loading...'}</div>
+          <div className="text-sm text-muted-foreground mt-2">{cleanText(sec?.disclosure) || 'Loading...'}</div>
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
@@ -252,7 +252,7 @@ export function PQCPage() {
       </Card>
 
       <Card title="PQC Verification Details">
-        <p className="text-sm text-muted-foreground mb-3">{sec?.disclosure || 'Loading PQC verification...'}</p>
+        <p className="text-sm text-muted-foreground mb-3">{cleanText(sec?.disclosure) || 'Loading PQC verification...'}</p>
         <KVList items={[
           ['PQC Score', pct(sec?.pqc_score || 0.9, 0)],
           ['NIST Level', 'L3 (192-bit security)'],
