@@ -114,6 +114,7 @@ class SensorCalibration:
     calibration_score:   float   # [0, 1] — decays with time since calibration
     drift_correction:    float   # [0, 1] — 1 = no drift, 0 = fully drifted
     cross_verification:  float   # [0, 1] — agreement with peer sensors
+    bootstrap_mode:      bool = False  # True = using defaults, not hardware-calibrated
 
 
 @dataclass
