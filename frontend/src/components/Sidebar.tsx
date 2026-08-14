@@ -18,7 +18,6 @@ export const NAV: NavGroup[] = [
       { id: 'vision', label: 'Vision & Roadmap', icon: Icons.Eye },
       { id: 'phases', label: 'Protocol Phases', icon: Icons.Layers },
       { id: 'phase_transition', label: 'Phase Transition', icon: Icons.GitBranch },
-      { id: 'whitepaper', label: 'Whitepaper Coverage', icon: Icons.BookOpen },
       { id: 'order_parameter', label: 'Order Parameter Psi', icon: Icons.Gauge },
       { id: 'convergence', label: 'Convergence Theorem', icon: Icons.TrendingUp },
     ],
@@ -131,21 +130,10 @@ export const NAV: NavGroup[] = [
       { id: 'continuum_engines', label: 'CONTINUUM Engines', icon: Icons.Cpu },
     ],
   },
-  {
-    label: 'Novel Primitives',
-    items: [
-      { id: 'birp', label: 'BIRP Recovery', icon: Icons.Key },
-      { id: 'birp_dna_code', label: 'DNA_Code Rotation', icon: Icons.RefreshCw },
-      { id: 'ubl', label: 'UBL Schema', icon: Icons.LayoutGrid },
-      { id: 'bc', label: 'BC Behavioral Coherence', icon: Icons.Waves },
-      { id: 'xsl', label: 'XSL Ecological', icon: Icons.Leaf },
-      { id: 'transduction', label: 'Transduction', icon: Icons.Radio },
-      { id: 'inversion', label: 'Inversion', icon: Icons.FlipHorizontal },
-      { id: 'predictive_limit', label: 'Predictive Limit', icon: Icons.Gauge },
-      { id: 'information', label: 'Info Conservation', icon: Icons.Scale },
-      { id: 'phase_signal', label: 'Phase Signal', icon: Icons.Activity },
-    ],
-  },
+  // "Novel Primitives" group removed — these are backend-only mathematical
+  // primitives (BIRP, DNA_Code, UBL, BC, XSL, Transduction, Inversion,
+  // Predictive Limit, Info Conservation, Phase Signal) that process
+  // internally but are not user-facing dashboard pages.
   {
     label: 'Validators & Consensus',
     items: [
@@ -177,7 +165,6 @@ export const NAV: NavGroup[] = [
       { id: 'kv', label: 'KV Store', icon: Icons.HardDrive },
       { id: 'backfill', label: 'Backfill Status', icon: Icons.RefreshCw },
       { id: 'relayers', label: 'Relayers', icon: Icons.Radio },
-      { id: 'dependency_graph', label: 'Dependency Graph', icon: Icons.Network },
       { id: 'sdk_spec', label: 'SDK Spec', icon: Icons.Package },
       { id: 'token', label: 'Token Utility', icon: Icons.Coins },
       { id: 'token_distribution', label: 'Token Distribution', icon: Icons.PieChart },
@@ -216,7 +203,6 @@ export const NAV: NavGroup[] = [
     items: [
       { id: 'leaderboard', label: 'Leaderboard', icon: Icons.Trophy },
       { id: 'feed', label: 'Signal Feed', icon: Icons.Rss },
-      { id: 'audit_patterns', label: 'Audit Patterns', icon: Icons.SearchCheck },
       { id: 'demo', label: 'Demo Attacks', icon: Icons.FlaskConical },
     ],
   },

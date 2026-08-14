@@ -560,9 +560,12 @@ def _plane_values(eid: str) -> dict:
     """
     faiss = _query_faiss_planes(eid)
     if not faiss:
-        # No behavioral sediment in FAISS — return COLD_START sentinel.
-        # _compute_signal will emit SILENCE / COLD_START without computing C(t).
-        return {"_cold_start": True, "_faiss_enriched": False}
+        # No behavioral sediment in FAISS — return COLD_START with zeroed planes.
+        # All keys present so callers don't KeyError; _cold_start flag lets
+        # _compute_signal emit a SILENCE/COLD_START signal.
+        return {"phi": 0.0, "m": 0.0, "sigma": 0.0, "k": 0.0, "anima": 0.0,
+                "_faiss_enriched": False, "_cold_start": True,
+                "akashic_depth": 0.0}
 
     phi   = faiss["phi_live"] if faiss["phi_live"] is not None else 0.50
     m     = faiss["m"]
@@ -986,6 +989,17 @@ def anima_signal(entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
     planes = _plane_values(entity_id)
+    if planes.get("_cold_start"):
+        return jsonify({
+            "entity_id": entity_id,
+            "status": "COLD_START",
+            "anima_score": 0.0,
+            "archetype": "Unknown",
+            "archetype_distance": 1.0,
+            "vector_neighbors": 0,
+            "message": "No behavioral history in FAISS — ANIMA score requires observed on-chain activity.",
+            "timestamp": int(time.time())
+        }), 200
     h = hashlib.sha256((entity_id + "archetype").encode()).digest()
     archetype_idx = h[0] % 12
     archetypes = ["Explorer","Creator","Sage","Hero","Outlaw","Magician",
@@ -4927,7 +4941,7 @@ def trion_master_equation(entity_id: str):
     data   = _compute_signal(entity_id)
     C      = data["coherence_score"]
     theta  = data["threshold"]
-    moat   = data["moat_factor"]
+    moat   = data.get("moat_factor", 0.0)
     coherent = data["coherent"]
     T_val  = round(C * math.exp(moat), 6) if coherent else 0.0
     # SILENCE score is the complement
@@ -6105,7 +6119,7 @@ def convergence_theorem(entity_id: str):
     return jsonify({
         "entity_id":          entity_id,
         "akashic_depth":      depth,
-        "T_t":                round(data["trion_truth_value"], 6),
+        "T_t":                round(data.get("trion_truth_value", 0.0), 6),
         "H_irreducible":      H_irreducible,
         "H_components": {
             "H_quantum":      H_quantum,
@@ -6561,7 +6575,7 @@ def manifestation_gap(entity_id: str):
     now = time.time()
 
     data       = _compute_signal(entity_id)
-    anima_adj  = data["plane_breakdown"].get("anima", 0.11)
+    anima_adj  = data.get("plane_breakdown", {}).get("anima", 0.0)
 
     # Simulate 20-point rolling MG history (whitepaper requires ≥20 points)
     mg_history = []
@@ -6640,7 +6654,7 @@ def emergence_verification(entity_id: str):
 
     data       = _compute_signal(entity_id)
     C          = data["coherence_score"]
-    planes     = data["plane_breakdown"]
+    planes     = data.get("plane_breakdown", {})
     phi_adj    = planes.get("physical", 0.0)
     m_adj      = planes.get("mental", 0.0)
     sigma      = planes.get("spiritual", 0.0)
