@@ -1,0 +1,9 @@
+[package]
+name = "btcp_common"
+version = "0.1.0"
+description = "Shared types for TRION BTCP Solana programs"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+anchor-lang = "0.29.0"
