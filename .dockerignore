@@ -18,6 +18,7 @@ hardhat/artifacts
 .env
 .env.*
 !.env.example
+!.env.railway
 
 # ── Markdown docs (keep README only) ─────────────────────────────────────────
 *.md

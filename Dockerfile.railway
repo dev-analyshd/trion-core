@@ -1,0 +1,156 @@
+# =============================================================================
+# TRION Protocol — Railway Dockerfile  (Lightweight, no Rust compilation)
+# =============================================================================
+#
+# Optimized for Railway's build environment:
+#   - Skips Rust L0 indexers (too heavy for Railway free/hobby tier)
+#   - Builds Next.js frontend (standalone)
+#   - Runs Flask + FAISS + BH Streamer + Next.js
+#   - Single exposed PORT (Next.js proxies /api/* to Flask)
+#
+# Build time: ~5 minutes (vs 20+ min with Rust)
+# Image size: ~800MB (vs 2GB+ with Rust)
+# =============================================================================
+
+# ─── Stage 1: Build Next.js frontend ─────────────────────────────────────────
+FROM node:20-slim AS next-builder
+
+WORKDIR /build
+
+# Copy frontend package.json and install deps
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --legacy-peer-deps --silent
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Build Next.js standalone
+ENV NEXT_PUBLIC_API_BASE=""
+ENV FLASK_URL="http://127.0.0.1:5000"
+RUN npm run build 2>&1 | tail -20
+
+# Verify standalone output exists
+RUN test -f /build/.next/standalone/server.js && echo "OK: standalone build" || { echo "FATAL: no standalone"; exit 1; }
+
+# ─── Stage 2: Runtime (Python + Node.js) ────────────────────────────────────
+FROM python:3.11-slim
+
+LABEL maintainer="TRION Protocol"
+LABEL description="TRION Protocol - Railway deployment"
+LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
+LABEL version="6.0.0"
+
+# ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl bash tini ca-certificates gnupg libssl3 libpq5 \
+        gcc g++ python3-dev \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+       | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] \
+       https://deb.nodesource.com/node_20.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Next.js standalone build ─────────────────────────────────────────────────
+COPY --from=next-builder /build/.next/standalone /app/frontend/
+COPY --from=next-builder /build/.next/static /app/frontend/.next/static
+COPY --from=next-builder /build/public /app/frontend/public
+
+# ── Python dependencies ──────────────────────────────────────────────────────
+COPY api/requirements.txt ./api/requirements.txt
+COPY anima-service/requirements.txt ./anima-service/requirements.txt
+RUN pip install --no-cache-dir \
+    -r api/requirements.txt \
+    -r anima-service/requirements.txt \
+    numpy scipy scikit-learn gunicorn web3 eth-account feedparser vaderSentiment
+
+# ── Application source ───────────────────────────────────────────────────────
+COPY api/             ./api/
+COPY anima-service/   ./anima-service/
+COPY core/            ./core/
+COPY src/             ./src/
+COPY relayer/         ./relayer/
+COPY chains/          ./chains/
+COPY trion-0g/        ./trion-0g/
+COPY contracts/       ./contracts/
+COPY supervisors/     ./supervisors/
+COPY scripts/         ./scripts/
+COPY config/          ./config/
+COPY shared/          ./shared/
+COPY math/            ./math/
+COPY sdk/             ./sdk/
+COPY proof-ledger/    ./proof-ledger/
+COPY serve.py         ./serve.py
+COPY main.py          ./main.py
+COPY deployments.json ./deployments.json
+COPY zg/              ./zg/
+COPY schema.sql       ./schema.sql
+COPY package.json     ./package.json
+COPY tsconfig.json    ./tsconfig.json
+COPY api/validation.py ./api/validation.py
+
+# ── BH ledger database initialization ────────────────────────────────────────
+RUN python3 -c "
+import sqlite3
+c = sqlite3.connect('/app/bh_ledger.db')
+c.execute('''CREATE TABLE IF NOT EXISTS bh_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, tx_hash TEXT UNIQUE,
+    entity_id TEXT, from_addr TEXT, to_addr TEXT,
+    event_type INTEGER, event_type_name TEXT,
+    magnitude_norm REAL, value_wei TEXT, selector TEXT,
+    sense_hex TEXT, antisense_hex TEXT,
+    block_num INTEGER, block_hash TEXT,
+    chain_id INTEGER, chain_label TEXT, ts REAL
+)''')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)')
+c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)')
+c.commit(); c.close()
+print('bh_ledger.db initialized')
+"
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+COPY railway-entrypoint.sh ./railway-entrypoint.sh
+RUN chmod +x ./railway-entrypoint.sh
+
+# Runtime dirs
+RUN mkdir -p /tmp/trion-logs anima-service/data
+
+# ── Environment ───────────────────────────────────────────────────────────────
+ENV PORT=${PORT:-10000} \
+    HOSTNAME=0.0.0.0 \
+    FAISS_PORT=8000 \
+    FLASK_PORT=5000 \
+    FAISS_SERVICE_URL=http://127.0.0.1:8000 \
+    FAISS_URL=http://127.0.0.1:8000 \
+    ORACLE_API_URL=http://127.0.0.1:5000 \
+    FLASK_URL=http://127.0.0.1:5000 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    NODE_ENV=production \
+    TRION_ENABLE_FAISS=1 \
+    TRION_ENABLE_RUST=0 \
+    TRION_ENABLE_RELAYER=0 \
+    TRION_ENABLE_ZG_SYNC=0 \
+    TRION_ENABLE_ZG_DA=0 \
+    TRION_ENABLE_EXTRAS=0 \
+    TRION_ENABLE_NATIVE=0 \
+    DATABASE_URL="" \
+    TIMESCALEDB_URL="" \
+    ZG_NETWORK=mainnet \
+    ZG_CHAIN_ID=16661 \
+    ZERO_G_RPC=https://evmrpc.0g.ai \
+    ZG_EXECUTION_GATE_ADDR=0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b
+
+EXPOSE ${PORT:-10000}
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+    CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/railway-entrypoint.sh"]
