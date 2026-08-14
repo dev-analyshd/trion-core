@@ -53,7 +53,23 @@ def read_contract_abi() -> list:
     if os.path.exists(abi_path):
         with open(abi_path) as f:
             return json.load(f)["abi"]
-    return []
+    # Fallback: minimal ABI derived from the Solidity source
+    # (sufficient for the view functions exposed by /api/v1/0g/proof)
+    return [
+        {"inputs": [], "name": "getFullProof", "outputs": [
+            {"type": "bytes32"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}
+        ], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getAllRootHashes", "outputs": [
+            {"type": "bytes32[]"}
+        ], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getLatestSyncRecord", "outputs": [
+            {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}
+        ], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getSyncCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getDABlobCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getSnapshotCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
+        {"inputs": [], "name": "getFileCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
+    ]
 
 
 # ── GET /api/v1/0g/status ─────────────────────────────────────────
@@ -226,7 +242,17 @@ def zg_proof():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Contract not deployed at the configured address, or RPC unreachable.
+        # Return a graceful fallback so the frontend can still render the page.
+        return jsonify({
+            "contract_address": ZG.AKASHIC_PROOF_CONTRACT,
+            "explorer_url":     f"{ZG.CHAIN_EXPLORER}/address/{ZG.AKASHIC_PROOF_CONTRACT}",
+            "status":           "contract_not_reachable",
+            "error":            str(e),
+            "fallback_note":    "AkashicProof contract not deployed at the configured address, or 0G RPC unreachable. Falling back to local proof state.",
+            "local_state":      load_state(),
+            "verified_at":      datetime.now(timezone.utc).isoformat(),
+        }), 200  # 200 so frontend renders; status field tells the real story
 
 
 # ── GET /api/v1/0g/storage/<root_hash> ───────────────────────────
