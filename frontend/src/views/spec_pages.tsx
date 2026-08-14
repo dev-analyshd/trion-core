@@ -1,10 +1,10 @@
 /**
- * TRION Frontend Master Spec — BTCP + Continuum + BotChain Pages
+ * TRION Frontend Master Spec - BTCP + Continuum + BotChain Pages
  *
  * Per TRION_FRONTEND_MASTER_IMPLEMENTATION.md spec.
  * Adapted from Vite+React to Next.js (our existing stack).
  *
- * Symbol → Plain English translation table applied throughout.
+ * Symbol {'->'} Plain English translation table applied throughout.
  */
 
 'use client';
@@ -16,16 +16,16 @@ import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor } 
 import * as Icons from 'lucide-react';
 
 // ════════════════════════════════════════════════════════════════════════════
-// SYMBOL → PLAIN ENGLISH TRANSLATION TABLE
+// SYMBOL {'->'} PLAIN ENGLISH TRANSLATION TABLE
 // ════════════════════════════════════════════════════════════════════════════
 
 export const SYMBOL_TRANSLATIONS: Record<string, string> = {
-  'Φ': 'Information Flow',
+  'Phi': 'Information Flow',
   'M': 'Manipulation Factor',
-  'Σ': 'Consensus Weight',
+  'Sigma': 'Consensus Weight',
   'K': 'Knowledge Triangulation',
   'A': 'Action Alignment',
-  'Θ': 'Truth Threshold',
+  'Theta': 'Truth Threshold',
   'C(t)': 'Coherence over time',
   'D(t)': 'Behavioral Depth over time',
   'I(t)': 'Information Accumulated',
@@ -54,28 +54,28 @@ export const BTCP_DATA = {
   routeTypes: [
     { id: 'SINGLE_CHAIN', name: 'Direct Single-Chain', when: 'Target chain has superior liquidity and finality', gas: '$31.00', score: 0.41, finality: '12 seconds', color: '#64748b', desc: 'Standard execution on one chain only. Used as baseline.' },
     { id: 'SPLIT', name: 'Anchor + Execute Split', when: 'Source chain has cheap security, target has cheap execution', gas: '$0.98', score: 0.94, finality: 'max(12s, 2s)', color: '#22d3ee', desc: 'Anchor behavioral proof on Ethereum (security), execute on Base (cheap gas). Assets never leave Ethereum.' },
-    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Entity with opposite intent found simultaneously', gas: '$0.05', score: 0.98, finality: '12 seconds', color: '#10b981', desc: 'Entity A wants USDC→ETH, Entity B wants ETH→USDC. Both execute natively. Zero cross-chain movement. Optimal by construction.' },
+    { id: 'NETTING', name: 'Netting (Counterparty Found)', when: 'Entity with opposite intent found simultaneously', gas: '$0.05', score: 0.98, finality: '12 seconds', color: '#10b981', desc: 'Entity A wants USDC->ETH, Entity B wants ETH->USDC. Both execute natively. Zero cross-chain movement. Optimal by construction.' },
     { id: 'PARALLEL', name: 'Parallel Split', when: 'Large intent split across multiple chains simultaneously', gas: '$1.80', score: 0.91, finality: '12 seconds', color: '#8b5cf6', desc: '$1M split across 5 chains in parallel. Reduces price impact and increases completion speed.' },
-    { id: 'MULTI_HOP', name: 'Multi-Hop (A→B→C)', when: 'Intermediate chain provides liquidity bridge', gas: '$1.20', score: 0.88, finality: 'max(12s, 400ms)', color: '#fbbf24', desc: 'Ethereum→Solana→Arbitrum when Solana provides intermediate liquidity advantage. Nested escrow guarantees atomicity.' },
-    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Current conditions suboptimal, intent not urgent', gas: '$0.42', score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: circadian gas low ∩ liquidity peak ∩ MEV valley. Auto-executes at best conditions.' },
+    { id: 'MULTI_HOP', name: 'Multi-Hop (A->B->C)', when: 'Intermediate chain provides liquidity bridge', gas: '$1.20', score: 0.88, finality: 'max(12s, 400ms)', color: '#fbbf24', desc: 'Ethereum->Solana->Arbitrum when Solana provides intermediate liquidity advantage. Nested escrow guarantees atomicity.' },
+    { id: 'DEFERRED', name: 'Deferred (Optimal Window)', when: 'Current conditions suboptimal, intent not urgent', gas: '$0.42', score: 0.96, finality: 'within 24h', color: '#f472b6', desc: 'Biological Rhythm Timer finds optimal window: circadian gas low AND liquidity peak AND MEV valley. Auto-executes at best conditions.' },
   ],
   sixSteps: [
     { num: 1, name: 'Intent Registration', desc: 'Entity submits intent (not transaction). BIBL (Behavioral Inter-Block Layer) reads all chains simultaneously.', color: '#22d3ee' },
     { num: 2, name: 'Route Calculation', desc: 'BTCP score computed for all candidate routes across 6 route types. Natural Liquidity, gas, finality, cross-chain coherence, and BEO continuity weighted.', color: '#8b5cf6' },
     { num: 3, name: 'Cross-Chain Proof', desc: 'Anchor behavioral hash + diversity-weighted consensus proof constructed. HHI (Concentration Index) bounded at 2500.', color: '#10b981' },
-    { num: 4, name: 'VM Translation', desc: '20 behavioral event types translated into each chain native execution through thin adapters. Same intent, different bytecode — identical behavioral meaning.', color: '#fbbf24' },
-    { num: 5, name: 'Gas Sharing Protocol', desc: 'Anchor chain covers security cost, execution chain covers computation cost. $10K swap costs $31 on ETH alone, $0.98 via ETH→Base, $0.05 via netting.', color: '#f472b6' },
+    { num: 4, name: 'VM Translation', desc: '20 behavioral event types translated into each chain native execution through thin adapters. Same intent, different bytecode - identical behavioral meaning.', color: '#fbbf24' },
+    { num: 5, name: 'Gas Sharing Protocol', desc: 'Anchor chain covers security cost, execution chain covers computation cost. $10K swap costs $31 on ETH alone, $0.98 via ETH->Base, $0.05 via netting.', color: '#f472b6' },
     { num: 6, name: 'Finalization + Recording', desc: 'Behavioral hash stored in Akashic Index, linked by BTCP route ID. Signal emitted with gas savings data. Append-only, instantly final via DW-BFT (Dissimilarity-Weighted BFT) consensus.', color: '#ef4444' },
   ],
   eightWaterPrinciples: [
     { id: 'BITP', name: 'Behavioral Information Transfer Protocol', problem: 'Illiquid pairs require lock/mint bridging', solution: 'Move information, not assets. Akashic clipboard. BLO removes simultaneity requirement.', tag: 'Lock/mint fallback eliminated' },
     { id: 'OOA', name: 'Observation-Only Anchoring', problem: 'Non-integrated chains cannot participate', solution: 'Channel 6 direct indexing (no permission needed). Confidence grows with observation depth.', tag: 'Hostile chains cannot opt out' },
-    { id: 'IAP', name: 'Intent Aggregation Protocol', problem: 'Gas cost per user is too high for small intents', solution: 'Pool N≥3 same-direction intents within window. 100 users → 1 pooled transaction → 100× cheaper.', tag: '100× gas reduction' },
+    { id: 'IAP', name: 'Intent Aggregation Protocol', problem: 'Gas cost per user is too high for small intents', solution: 'Pool N>=3 same-direction intents within window. 100 users -> 1 pooled transaction -> 100* cheaper.', tag: '100* gas reduction' },
     { id: 'CAPSULES', name: 'State Capsules', problem: 'Cross-chain state reads are expensive and stale', solution: 'Snapshot at anchor block with staleness CI. Chain B reads from capsule, not live Chain A.', tag: 'Chain boundary does not stop state flow' },
     { id: 'BLO', name: 'Behavioral Limit Orders', problem: 'Counterparties must arrive simultaneously', solution: 'Orders stored permanently in Akashic Index. Fillable anytime. The order book that never closes.', tag: 'Simultaneity requirement removed' },
     { id: 'ZK_INTENT', name: 'ZK Intent Commitment', problem: 'MEV bots front-run expressed intents', solution: 'Hash committed, MEV bots see nothing. Atomic reveal in same block as execution. Front-running window = zero.', tag: 'MEV window = 0' },
-    { id: 'BSC', name: 'Behavioral State Channels', problem: 'High-frequency interaction costs too much on-chain', solution: '50 interactions → 2 on-chain transactions. 50× cheaper. TRION validators co-sign each state update.', tag: '50× cheaper' },
-    { id: 'BRT', name: 'Biological Rhythm Timer', problem: 'Users submit at bad gas times unknowingly', solution: 'Finds optimal execution window: circadian low ∩ NL peak ∩ MEV valley. Predicted 78% gas savings.', tag: '78% gas savings' },
+    { id: 'BSC', name: 'Behavioral State Channels', problem: 'High-frequency interaction costs too much on-chain', solution: '50 interactions -> 2 on-chain transactions. 50* cheaper. TRION validators co-sign each state update.', tag: '50* cheaper' },
+    { id: 'BRT', name: 'Biological Rhythm Timer', problem: 'Users submit at bad gas times unknowingly', solution: 'Finds optimal execution window: circadian low AND NL peak AND MEV valley. Predicted 78% gas savings.', tag: '78% gas savings' },
   ],
   liquidityOcean: {
     tagline: "No asset has zero liquidity. It just has the wrong form.",
@@ -91,10 +91,10 @@ export const BTCP_DATA = {
       { name: 'Bridged Variants', pct: 6, desc: 'On other chains' },
       { name: 'Other Forms', pct: 5, desc: 'Vesting, insurance, synthetic' },
     ],
-    scoreFormula: "Liquidity Ocean Score = sum over all forms of (value × shift cost inverse × shift time inverse × holder behavioral health)",
+    scoreFormula: "Liquidity Ocean Score = sum over all forms of (value * shift cost inverse * shift time inverse * holder behavioral health)",
   },
   networkEffect: {
-    formula: "Bridge pairs eliminated = N × (N-1) / 2",
+    formula: "Bridge pairs eliminated = N * (N-1) / 2",
     stages: [
       { chains: 3, pairs: 3, label: 'First 3 EVM chains' },
       { chains: 6, pairs: 15, label: 'Major EVM L2s added' },
@@ -108,7 +108,7 @@ export const BTCP_DATA = {
 
 export const CONTINUUM_DATA = {
   tagline: "Behavioral reality precedes price reality by a measurable window. Continuum operates in this gap.",
-  coreDiscovery: "On Ethereum: 3 to 12 blocks (36 to 144 seconds). On Solana: 50 to 200 slots (20 to 80 seconds). This window has always existed. Nobody has ever built infrastructure to use it — because nobody had the behavioral oracle layer to make it legible.",
+  coreDiscovery: "On Ethereum: 3 to 12 blocks (36 to 144 seconds). On Solana: 50 to 200 slots (20 to 80 seconds). This window has always existed. Nobody has ever built infrastructure to use it - because nobody had the behavioral oracle layer to make it legible.",
   wasteBreakdown: {
     total: 13.9, unit: 'B',
     items: [
@@ -122,14 +122,14 @@ export const CONTINUUM_DATA = {
   },
   engines: [
     { id: 'BID', name: 'Behavioral Intent Detection', shortName: 'BID', color: '#22d3ee',
-      formula: "Detection confidence = cosine similarity between current feature change and historical precursor signature × min(depth/minimum depth, 1)",
+      formula: "Detection confidence = cosine similarity between current feature change and historical precursor signature * min(depth/minimum depth, 1)",
       plainEnglish: "The system detects that an entity is likely to trade before the entity consciously decides. Nine-dimensional information flow signature changes measurably in the blocks preceding a trade.",
       whatItDoes: "Watches the 9 raw features of behavioral flow. When the pattern matches the known precursor signature for a trade direction, the system flags it.",
       keyConstraint: "The entity retains full agency. Detection never becomes commitment automatically." },
     { id: 'CME', name: 'Complement Matching Engine', shortName: 'CME', color: '#8b5cf6',
-      formula: "Complement score = direction complement × temporal alignment × behavioral health × BEO independence × liquidity sufficiency",
-      plainEnglish: "Finds, in real time across all chains, the entity whose behavioral pattern is the thermodynamic opposite — not a counterparty in the order book sense, but an entity who genuinely wants the opposite.",
-      whatItDoes: "When Entity A shows intent precursor for USDC→ETH, the engine searches FAISS vector space for Entity B whose pattern indicates ETH→USDC intent. Both are offered a Pre-Manifest Order together.",
+      formula: "Complement score = direction complement * temporal alignment * behavioral health * BEO independence * liquidity sufficiency",
+      plainEnglish: "Finds, in real time across all chains, the entity whose behavioral pattern is the thermodynamic opposite - not a counterparty in the order book sense, but an entity who genuinely wants the opposite.",
+      whatItDoes: "When Entity A shows intent precursor for USDC->ETH, the engine searches FAISS vector space for Entity B whose pattern indicates ETH->USDC intent. Both are offered a Pre-Manifest Order together.",
       keyProperty: "Semantic matching, not price ladder matching. Price comes from the TRION behavioral valuation signal." },
     { id: 'PMO', name: 'Pre-Manifest Order System', shortName: 'PMO', color: '#10b981',
       formula: "In exchange for behavioral commitment before market expression: guaranteed price at TRION valuation + complement certainty premium. No slippage. No MEV. No bridge risk.",
@@ -137,13 +137,13 @@ export const CONTINUUM_DATA = {
       whatItDoes: "Entity receives a Pre-Manifest Order instrument. They confirm. The commitment is hashed and recorded. Counterparty already found by CME. Both settle via BTCP.",
       adoptionDriver: "Adoption is economically rational, not forced. Every entity who accepts is strictly better off." },
     { id: 'BDC', name: 'Behavioral Depth Credit', shortName: 'BDC', color: '#fbbf24',
-      formula: "Credit limit = accumulated behavioral depth × behavioral consistency ratio × 90-day average trade size × confidence multiplier",
+      formula: "Credit limit = accumulated behavioral depth * behavioral consistency ratio * 90-day average trade size * confidence multiplier",
       plainEnglish: "An entity's accumulated behavioral history functions as creditworthy collateral for undercollateralized positions. Depth cannot be bought, transferred, lost, or forged.",
-      whatItDoes: "An entity with 2 years of consistent honest history can participate at up to 10× their typical trade size, backed by behavioral depth rather than locked capital.",
+      whatItDoes: "An entity with 2 years of consistent honest history can participate at up to 10* their typical trade size, backed by behavioral depth rather than locked capital.",
       keyProperties: "Cannot be bought. Cannot be transferred. Compounds automatically. Forgery bounded by Kolmogorov complexity." },
     { id: 'THERMO', name: 'Thermodynamic Settlement', shortName: 'Settlement', color: '#f472b6',
       formula: "Settlement triggers when coherence exceeds threshold for BOTH parties simultaneously AND BTCP route verified AND no manipulation fingerprint detected.",
-      plainEnglish: "Settlement is triggered by both parties being simultaneously coherent — not by time locks, human decisions, or governance votes. An attacker must maintain behavioral coherence while attacking — which means behaving honestly.",
+      plainEnglish: "Settlement is triggered by both parties being simultaneously coherent - not by time locks, human decisions, or governance votes. An attacker must maintain behavioral coherence while attacking - which means behaving honestly.",
       whatItDoes: "BTCP escrow on both chains watches the TRION coherence signal. When both entities exceed their threshold simultaneously, escrow releases. If either drops, escrow reverts.",
       coreInsight: "Behavioral manipulation is self-defeating by construction." },
   ],
@@ -180,10 +180,10 @@ export const BOTCHAIN_DATA = {
     { name: '3 Core Contracts Deployed', status: 'complete', date: 'Aug 12, 2026', desc: 'TRIONOracleV3, BehavioralHashLedger, BEOIdentityRegistry deployed' },
     { name: 'Relayer Running', status: 'complete', date: 'Aug 12, 2026', desc: 'Relayer streaming behavioral hashes at 3-second cadence.' },
     { name: 'BOT Chain Gas Sponsorship', status: 'pending', date: 'In negotiation', desc: '2,500 BOT requested for sustained relayer operation.' },
-    { name: 'AIDID ↔ BEO Binding', status: 'in-progress', date: 'Phase 1', desc: 'Bind BOT Chain AI agent identity to TRION BEOs. Highest priority.' },
+    { name: 'AIDID <-> BEO Binding', status: 'in-progress', date: 'Phase 1', desc: 'Bind BOT Chain AI agent identity to TRION BEOs. Highest priority.' },
     { name: 'BDEX ExecutionGate Hook', status: 'ready', date: 'Phase 1.5', desc: 'Pre-trade behavioral filter on BOT Chain DEX. Blocks 7 exploit patterns.' },
     { name: 'DePIN GPU ANIMA Workload', status: 'planned', date: 'Phase 2', desc: 'ANIMA 59-language inference, FAISS vector search on DePIN GPUs.' },
-    { name: 'BTCP Zero-Bridge Demo', status: 'planned', date: 'Phase 2', desc: 'BOT Chain ↔ Ethereum ↔ Arbitrum ↔ 0G. No bridges. Only behavioral facts.' },
+    { name: 'BTCP Zero-Bridge Demo', status: 'planned', date: 'Phase 2', desc: 'BOT Chain <-> Ethereum <-> Arbitrum <-> 0G. No bridges. Only behavioral facts.' },
     { name: '100K AI Agent Economy', status: 'vision', date: 'Phase 3', desc: '100,000 AI agents with BEO identity, operating across 100 chains.' },
   ],
   valueProps: [
@@ -191,13 +191,13 @@ export const BOTCHAIN_DATA = {
     { title: '100K+ Community Users', desc: 'Access to BOT Chain community through integrated behavioral applications.', icon: 'users' },
     { title: 'Free DePIN GPU Compute', desc: '$10K-$30K/year value in subsidized GPU compute for ANIMA inference and FAISS operations.', icon: 'cpu' },
     { title: 'Regulatory Shield', desc: 'TRION becomes an integrated component of an audited L1, reducing regulatory surface area.', icon: 'shield' },
-    { title: 'First Live BTCP Demo', desc: 'BOT Chain ↔ ETH ↔ ARB ↔ 0G zero-bridge cross-chain routing demonstration.', icon: 'zap' },
+    { title: 'First Live BTCP Demo', desc: 'BOT Chain <-> ETH <-> ARB <-> 0G zero-bridge cross-chain routing demonstration.', icon: 'zap' },
     { title: 'VC Introduction Access', desc: 'Access to BOT Chain investors including Bitget and OKX for future ecosystem growth.', icon: 'trending' },
   ],
   deployer: {
     address: '0x2b6eAF215ce4627eA489D01D98C3EDAfc6415657',
     balance: '0.5328 BOT remaining', totalTxs: 39,
-    gasUsed: '6,605,575', blockRange: '19399409 → 19399557',
+    gasUsed: '6,605,575', blockRange: '19399409 -> 19399557',
     timeWindow: '~15 minutes, Aug 12 2026',
   },
 };
@@ -214,7 +214,7 @@ export function BTCPSpecPage() {
   return (
     <div className="space-y-8">
       {/* 1. Hero */}
-      <Card title="BTCP · Behavioral Transaction Continuity Protocol">
+      <Card title="BTCP - Behavioral Transaction Continuity Protocol">
         <p className="text-lg font-semibold mb-4 grad-text" style={{ background: 'linear-gradient(90deg, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           {BTCP_DATA.tagline}
         </p>
@@ -240,7 +240,7 @@ export function BTCPSpecPage() {
               <div className="font-semibold text-sm mb-1">{step.name}</div>
               <div className="text-xs text-muted-foreground">{step.desc}</div>
               {i < BTCP_DATA.sixSteps.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">→</div>
+                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">{'->'}</div>
               )}
             </div>
           ))}
@@ -248,7 +248,7 @@ export function BTCPSpecPage() {
       </Card>
 
       {/* 3. Route Type Comparison */}
-      <Card title="Route Type Comparison — 6 BTCP Route Types">
+      <Card title="Route Type Comparison - 6 BTCP Route Types">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {BTCP_DATA.routeTypes.map(rt => (
             <div key={rt.id} className={`p-4 rounded-lg border-2 ${rt.id === 'NETTING' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border'}`}
@@ -258,7 +258,7 @@ export function BTCPSpecPage() {
                 {rt.id === 'NETTING' && <Badge status="OPTIMAL" />}
               </div>
               <div className="text-3xl font-bold mb-1" style={{ color: rt.color }}>{rt.gas}</div>
-              <div className="text-xs text-muted-foreground mb-2">BTCP Score: {rt.score} · Finality: {rt.finality}</div>
+              <div className="text-xs text-muted-foreground mb-2">BTCP Score: {rt.score} - Finality: {rt.finality}</div>
               <div className="text-xs text-muted-foreground mb-2">When: {rt.when}</div>
               <div className="text-xs">{rt.desc}</div>
             </div>
@@ -267,11 +267,11 @@ export function BTCPSpecPage() {
       </Card>
 
       {/* 4. Gas Comparison */}
-      <Card title="Gas Cost Comparison — $10K USDC→ETH Swap">
+      <Card title="Gas Cost Comparison - $10K USDC->ETH Swap">
         <div className="space-y-4">
           {[
             { label: 'Direct ETH only', cost: 31.00, color: '#64748b', pct: 100 },
-            { label: 'Anchor ETH → Execute Base', cost: 0.98, color: '#22d3ee', pct: 3.2 },
+            { label: 'Anchor ETH -> Execute Base', cost: 0.98, color: '#22d3ee', pct: 3.2 },
             { label: 'Netting (counterparty found)', cost: 0.05, color: '#10b981', pct: 0.16 },
           ].map(g => (
             <div key={g.label}>
@@ -291,7 +291,7 @@ export function BTCPSpecPage() {
       </Card>
 
       {/* 5. Eight Water Principle Mechanisms */}
-      <Card title="8 Water Principle Mechanisms — Why assets never need to cross chains">
+      <Card title="8 Water Principle Mechanisms - Why assets never need to cross chains">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {BTCP_DATA.eightWaterPrinciples.map(p => (
             <div key={p.id} className="p-4 rounded-lg border border-border">
@@ -308,13 +308,13 @@ export function BTCPSpecPage() {
       </Card>
 
       {/* 6. Liquidity Ocean */}
-      <Card title="Liquidity Ocean — No asset has zero liquidity, it just has the wrong form">
+      <Card title="Liquidity Ocean - No asset has zero liquidity, it just has the wrong form">
         <p className="text-sm text-muted-foreground mb-4">USDC exists in {BTCP_DATA.liquidityOcean.usdcForms} forms simultaneously. The Liquidity Ocean Score tracks all of them.</p>
         <div className="space-y-2">
           {BTCP_DATA.liquidityOcean.forms.map(f => (
             <div key={f.name}>
               <div className="flex justify-between text-xs mb-1">
-                <span>{f.name} — <span className="text-muted-foreground">{f.desc}</span></span>
+                <span>{f.name} - <span className="text-muted-foreground">{f.desc}</span></span>
                 <span className="font-mono font-bold">{f.pct}%</span>
               </div>
               <ProgressBar value={f.pct} max={40} color="blue" height={6} />
@@ -327,12 +327,12 @@ export function BTCPSpecPage() {
       </Card>
 
       {/* 7. Network Effect */}
-      <Card title="Network Effect — Bridge pairs eliminated = N × (N-1) / 2">
+      <Card title="Network Effect - Bridge pairs eliminated = N * (N-1) / 2">
         <div className="flex flex-col md:flex-row gap-3">
           {BTCP_DATA.networkEffect.stages.map((s, i) => (
             <div key={i} className="flex-1 p-4 rounded-lg border border-border relative">
               {i < BTCP_DATA.networkEffect.stages.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">→</div>
+                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">{'->'}</div>
               )}
               <div className="text-2xl font-bold text-cyan-500">{s.chains}</div>
               <div className="text-xs text-muted-foreground">chains</div>
@@ -344,18 +344,18 @@ export function BTCPSpecPage() {
         </div>
         {bootstrap && (
           <div className="mt-4 p-3 rounded bg-cyan-500/10 border border-cyan-500/30 text-sm">
-            Current: {bootstrap.total_chains} chains · {bootstrap.bridge_pairs_eliminated?.toLocaleString()} pairs eliminated · {bootstrap.vm_families} VM families
+            Current: {bootstrap.total_chains} chains - {bootstrap.bridge_pairs_eliminated?.toLocaleString()} pairs eliminated - {bootstrap.vm_families} VM families
           </div>
         )}
       </Card>
 
       {/* 8. CTA */}
-      <Card title="Built on BTCP → The Continuum Clearing Network">
+      <Card title="Built on BTCP -> The Continuum Clearing Network">
         <p className="text-sm text-muted-foreground mb-4">
           The Continuum clearing network eliminates $13.9B/year of market waste. Five engines operate in the gap between behavioral reality and price reality.
         </p>
         <a href="/continuum" className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-          Explore Continuum →
+          Explore Continuum {'->'}
         </a>
       </Card>
     </div>
@@ -372,7 +372,7 @@ export function ContinuumSpecPage() {
   return (
     <div className="space-y-8">
       {/* 1. Hero */}
-      <Card title="Continuum · The Behavioral Clearing Network">
+      <Card title="Continuum - The Behavioral Clearing Network">
         <p className="text-lg font-semibold mb-4" style={{ background: 'linear-gradient(90deg, #8b5cf6, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           {CONTINUUM_DATA.tagline}
         </p>
@@ -383,12 +383,12 @@ export function ContinuumSpecPage() {
       </Card>
 
       {/* 2. $13.9B Waste Breakdown */}
-      <Card title={`$${CONTINUUM_DATA.wasteBreakdown.total}${CONTINUUM_DATA.wasteBreakdown.unit} Annual Market Waste — What Continuum Eliminates`}>
+      <Card title={`$${CONTINUUM_DATA.wasteBreakdown.total}${CONTINUUM_DATA.wasteBreakdown.unit} Annual Market Waste - What Continuum Eliminates`}>
         <div className="space-y-3">
           {CONTINUUM_DATA.wasteBreakdown.items.map(item => (
             <div key={item.name}>
               <div className="flex justify-between text-sm mb-1">
-                <span>{item.name} — <span className="text-muted-foreground text-xs">{item.desc}</span></span>
+                <span>{item.name} - <span className="text-muted-foreground text-xs">{item.desc}</span></span>
                 <span className="font-mono font-bold" style={{ color: item.color }}>${item.value}B</span>
               </div>
               <ProgressBar value={item.value} max={5} color="purple" height={8} />
@@ -401,7 +401,7 @@ export function ContinuumSpecPage() {
       </Card>
 
       {/* 3. Five Engines */}
-      <Card title="5 Continuum Engines — Operating in the gap between behavioral reality and price reality">
+      <Card title="5 Continuum Engines - Operating in the gap between behavioral reality and price reality">
         <div className="space-y-4">
           {CONTINUUM_DATA.engines.map(e => (
             <div key={e.id} className="p-5 rounded-lg border border-border" style={{ borderLeftWidth: '4px', borderLeftColor: e.color }}>
@@ -444,12 +444,12 @@ export function ContinuumSpecPage() {
       </Card>
 
       {/* 5. Adoption Path */}
-      <Card title="Adoption Path — 6 Phases to Full Continuum">
+      <Card title="Adoption Path - 6 Phases to Full Continuum">
         <div className="flex flex-col md:flex-row gap-3">
           {CONTINUUM_DATA.adoptionPath.map((p, i) => (
             <div key={p.phase} className="flex-1 p-4 rounded-lg border border-border relative">
               {i < CONTINUUM_DATA.adoptionPath.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">→</div>
+                <div className="hidden md:block absolute top-1/2 -right-2 text-muted-foreground text-xl">{'->'}</div>
               )}
               <div className="font-mono text-xs text-cyan-500 mb-1">{p.phase}</div>
               <div className="font-bold text-sm mb-1">{p.name}</div>
@@ -463,11 +463,11 @@ export function ContinuumSpecPage() {
       {/* 6. CTA */}
       <Card title="BTCP is the Cross-Chain Foundation">
         <p className="text-sm text-muted-foreground mb-4">
-          The Continuum clearing network is built on BTCP — the Behavioral Transaction Continuity Protocol
+          The Continuum clearing network is built on BTCP - the Behavioral Transaction Continuity Protocol
           that makes cross-chain behavioral identity possible without bridges.
         </p>
         <a href="/btcp" className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-          Explore BTCP →
+          Explore BTCP {'->'}
         </a>
       </Card>
     </div>
@@ -484,7 +484,7 @@ export function BotChainSpecPage() {
   return (
     <div className="space-y-8">
       {/* 1. Hero */}
-      <Card title={`BOT Chain Integration · ChainID ${BOTCHAIN_DATA.chainId}`}>
+      <Card title={`BOT Chain Integration - ChainID ${BOTCHAIN_DATA.chainId}`}>
         <div className="flex items-center gap-3 mb-4">
           <span className="text-xl font-semibold">{BOTCHAIN_DATA.chainName}</span>
           <Badge status={BOTCHAIN_DATA.status} />
@@ -501,7 +501,7 @@ export function BotChainSpecPage() {
       </div>
 
       {/* 3. Deployed Contracts */}
-      <Card title="Deployed Contracts — 3 Core Contracts LIVE on BOT Chain Mainnet" live>
+      <Card title="Deployed Contracts - 3 Core Contracts LIVE on BOT Chain Mainnet" live>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {BOTCHAIN_DATA.contracts.map(c => (
             <div key={c.name} className="p-4 rounded-lg border border-border">
@@ -522,7 +522,7 @@ export function BotChainSpecPage() {
       </Card>
 
       {/* 4. Integration Milestones */}
-      <Card title="Integration Milestones — 8-Step Roadmap" live>
+      <Card title="Integration Milestones - 8-Step Roadmap" live>
         <div className="space-y-3">
           {BOTCHAIN_DATA.milestones.map(ms => (
             <div key={ms.name} className="flex items-start gap-3 p-3 rounded border border-border">
@@ -561,7 +561,7 @@ export function BotChainSpecPage() {
       </Card>
 
       {/* 6. Value Propositions */}
-      <Card title="Value Propositions for BOT Chain — Why This Integration Matters">
+      <Card title="Value Propositions for BOT Chain - Why This Integration Matters">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {BOTCHAIN_DATA.valueProps.map(vp => (
             <div key={vp.title} className="p-4 rounded-lg border border-border">
@@ -587,10 +587,10 @@ export function BotChainSpecPage() {
       {/* 8. CTA */}
       <Card title="The 3 Contracts Are Already LIVE">
         <p className="text-sm text-muted-foreground mb-4">
-          The question is not whether to build — it is whether to fuel what is already running.
+          The question is not whether to build - it is whether to fuel what is already running.
         </p>
         <a href="/btcp" className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-          Learn How BTCP Routing Works →
+          Learn How BTCP Routing Works {'->'}
         </a>
       </Card>
     </div>

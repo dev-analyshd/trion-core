@@ -1,5 +1,5 @@
 /**
- * Markets Pages — BTCP, BIBL, BITP, SBA, Continuum, Price, Inverted, Liquidity, Stablecoin, Hierarchy
+ * Markets Pages - BTCP, BIBL, BITP, SBA, Continuum, Price, Inverted, Liquidity, Stablecoin, Hierarchy
  */
 'use client';
 
@@ -18,9 +18,9 @@ const DEFAULT_ASSET = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 export function BTCPPage() {
   return (
     <div className="space-y-6">
-      <Card title="BTCP — Behavioral Transaction Continuity Protocol">
+      <Card title="BTCP - Behavioral Transaction Continuity Protocol">
         <p className="text-sm text-muted-foreground mb-4">
-          BTCP = [0.25·NL + 0.20·GasNorm + 0.20·Finality + 0.15·CC + 0.20·BEO] × (1 − MF)
+          BTCP = [0.25-NL + 0.20-GasNorm + 0.20-Finality + 0.15-CC + 0.20-BEO] * (1 - MF)
         </p>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
@@ -57,7 +57,7 @@ export function BTCPPage() {
 export function BIBLPage() {
   return (
     <div className="space-y-6">
-      <Card title="BIBL — Inter-Block Behavioral Intelligence (12-second window)">
+      <Card title="BIBL - Inter-Block Behavioral Intelligence (12-second window)">
         <p className="text-sm text-muted-foreground">
           BIBL monitors mempool activity in the 12-second inter-block window. Pattern detection
           identifies behavioral anomalies before block confirmation.
@@ -83,7 +83,7 @@ export function BIBLPage() {
 export function BITPPage() {
   return (
     <div className="space-y-6">
-      <Card title="BITP — Behavioral Inverse Transaction Price">
+      <Card title="BITP - Behavioral Inverse Transaction Price">
         <p className="text-sm text-muted-foreground">
           BITP inverts the price-formation process: rather than spot price, it derives price from
           behavioral coherence and inverse transaction patterns.
@@ -103,7 +103,7 @@ export function SBAPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="SBA — Sovereign Behavioral Analysis">
+      <Card title="SBA - Sovereign Behavioral Analysis">
         <input
           type="text"
           value={nationId}
@@ -112,7 +112,7 @@ export function SBAPage() {
         />
       </Card>
       {sba && (
-        <Card title={`SBA — ${nationId}`} live>
+        <Card title={`SBA - ${nationId}`} live>
           <KVList items={[
             ['Divergence score', (sba.divergence || 0).toFixed(4)],
             ['Sovereign baseline', (sba.baseline || 0).toFixed(4)],
@@ -132,7 +132,7 @@ export function SBAPage() {
 export function ContinuumPage() {
   return (
     <div className="space-y-6">
-      <Card title="Continuum DEX — Behavioral Coherence-Gated Trading">
+      <Card title="Continuum DEX - Behavioral Coherence-Gated Trading">
         <p className="text-sm text-muted-foreground">
           Continuum is a DEX where trade execution is gated by behavioral coherence.
           Trades from low-coherence entities are blocked at the contract level.
@@ -155,7 +155,7 @@ export function PricePage() {
         <StatCard label="Total Pairs" value={fmt(pairs?.total_pairs)} color="blue" />
         <StatCard label="With Inverse" value={fmt(pairs?.total_with_inverse)} color="green" />
         <StatCard label="Decimals" value={pairs?.decimals || 8} />
-        <StatCard label="Status" value={pairs?.status || '—'} color="green" />
+        <StatCard label="Status" value={pairs?.status || '-'} color="green" />
       </div>
 
       <Card title="Price Pairs" live>
@@ -163,10 +163,10 @@ export function PricePage() {
           headers={['Base', 'Quote', 'Price', 'Source']}
           rows={(pairs?.pairs || []).slice(0, 30).map((p: any) => [
             p.base, p.quote,
-            <span className="font-mono">{p.price?.toFixed(6) || '—'}</span>,
-            p.source || '—',
+            <span className="font-mono">{p.price?.toFixed(6) || '-'}</span>,
+            p.source || '-',
           ])}
-          emptyMessage="Loading pairs…"
+          emptyMessage="Loading pairs..."
         />
       </Card>
     </div>
@@ -182,12 +182,12 @@ export function InvertedPricePage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Inverted Price Feed — C_manipulate Burden of Proof" live>
+      <Card title="Inverted Price Feed - C_manipulate Burden of Proof" live>
         <KVList items={[
-          ['Asset', inv?.asset || '—'],
+          ['Asset', inv?.asset || '-'],
           ['C_manipulate (cost)', fmt(inv?.c_manipulate)],
           ['Divergence', (inv?.divergence || 0).toFixed(4)],
-          ['Burden of proof', inv?.burden_of_proof || '—'],
+          ['Burden of proof', inv?.burden_of_proof || '-'],
           ['Documented failures', fmt(inv?.documented_oracle_failures?.length)],
         ]} />
       </Card>
@@ -218,7 +218,7 @@ export function LiquidityPage() {
           ['Total liquidity', fmt(liq?.total_liquidity)],
           ['Depth (1% slip)', fmt(liq?.depth_1pct)],
           ['Depth (5% slip)', fmt(liq?.depth_5pct)],
-          ['Liquidity health', liq?.health || '—'],
+          ['Liquidity health', liq?.health || '-'],
         ]} />
       </Card>
     </div>
@@ -248,7 +248,7 @@ export function StablecoinHealthPage() {
           ['Peg stability', (health?.peg_stability || 0).toFixed(4)],
           ['Depeg events (30d)', fmt(health?.depeg_events_30d)],
           ['Reserve ratio', pct(health?.reserve_ratio, 2)],
-          ['Health grade', health?.grade || '—'],
+          ['Health grade', health?.grade || '-'],
         ]} />
       </Card>
     </div>
@@ -265,13 +265,13 @@ export function PriceHierarchyPage() {
   return (
     <div className="space-y-6">
       <Card title="Inverted Truth Hierarchy" live>
-        <p className="text-sm text-muted-foreground mb-4">{hier?.summary || 'Loading…'}</p>
+        <p className="text-sm text-muted-foreground mb-4">{hier?.summary || 'Loading...'}</p>
         <DataTable
           headers={['Asset', 'Tier', 'Inverse Available', 'Confidence']}
           rows={(hier?.assets || []).map((a: any) => [
             a.name, a.tier, a.inverse ? 'YES' : 'NO', (a.confidence || 0).toFixed(4),
           ])}
-          emptyMessage="Loading hierarchy…"
+          emptyMessage="Loading hierarchy..."
         />
       </Card>
     </div>

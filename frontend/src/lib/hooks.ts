@@ -176,7 +176,7 @@ export function useTheme(): [string, () => void] {
  * or when no WS URL is configured, falls back to polling via useAPI at
  * `fallbackInterval` (default 2000ms).
  *
- * - Exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (capped)
+ * - Exponential backoff: 1s -> 2s -> 4s -> 8s -> 16s -> 30s (capped)
  * - Message buffer capped at 100 (newest first)
  * - Exposes `connected`, `messages`, `send`, `reconnect`
  */
