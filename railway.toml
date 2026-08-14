@@ -1,104 +1,54 @@
 # =============================================================================
-# TRION Protocol — Railway Deployment Configuration
+# TRION Protocol — Railway Deployment Configuration (TOML format)
+#
+# Railway auto-detects this file OR railway.json (json takes precedence).
+# This file is kept for CLI deployments: `railway up`
 #
 # Deploy to Railway:
 #   1. Install Railway CLI: npm i -g @railway/cli
 #   2. railway login
-#   3. railway init
+#   3. railway link (select your project)
 #   4. railway up
 #
-# Or connect your GitHub repo at railway.app — Railway auto-detects this file.
-#
-# ── Variables to set in Railway Dashboard (Project → Variables) ──────────────
-#
-# Required secrets (relay won't sign txs without these; runs DRY_RUN if absent):
-#   RELAYER_PRIVATE_KEY          EVM signing key (no 0x prefix)
-#   ZG_PRIVATE_KEY               0G Mainnet signing key
-#   NEAR_PRIVATE_KEY             ed25519:... format
-#   TON_PRIVATE_KEY_HEX          TON hex private key
-#   DOT_MNEMONIC                 Polkadot BIP39 mnemonic
-#   STARKNET_PRIVATE_KEY         StarkNet signing key
-#   SVM_PRIVATE_KEY_B58          Solana base58 private key
-#   BTC_TAPROOT_WIF / BTC_LEGACY_WIF / LITECOIN_PRIVATE_KEY / DOGE_PRIVATE_KEY
-#   COSMOS_PRIVATE_KEY / KAVA_PRIVATE_KEY / INJECTIVE_PRIVATE_KEY
-#   SEI_PRIVATE_KEY / DYDX_PRIVATE_KEY / INITIA_PRIVATE_KEY
-#   APTOS_PRIVATE_KEY / MOVEMENT_PRIVATE_KEY / SUI_PRIVATE_KEY
-#   TRON_PRIVATE_KEY / PI_SECRET_KEY
-#
-# Optional:
-#   DATABASE_URL                 PostgreSQL (SQLite fallback if absent)
-#   GITHUB_PERSONAL_ACCESS_TOKEN Auto-push token
-#
-# These non-secret variables are set automatically by railway.toml (see below).
+# Or connect your GitHub repo at railway.com — Railway auto-detects this file.
 # =============================================================================
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.render"
+dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "/app/render-entrypoint.sh"
+startCommand = "/app/railway-entrypoint.sh"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
 
-[deploy.defaults]
-region = "us-west1"
+# ── Non-secret variables (set automatically) ────────────────────────────────
+# Secret variables (private keys) must be set in Railway Dashboard → Variables.
+# See .env.railway for the full list.
 
-[variables]
-
-# ── Ports & routing ───────────────────────────────────────────────────────────
-PORT               = "8080"
-FAISS_PORT         = "8000"
-FAISS_SERVICE_URL  = "http://127.0.0.1:8000"
-FAISS_URL          = "http://127.0.0.1:8000"
-ORACLE_API_URL     = "http://127.0.0.1:8080"
-
-# ── Persistent data paths (Railway volume mounted at /data) ──────────────────
-FAISS_INDEX_PATH      = "/data/akashic_faiss.index"
-FAISS_CENTROIDS_PATH  = "/data/trion_archetype_centroids.npy"
-FAISS_STATE_DB        = "/data/akashic_state.db"
-BH_LEDGER_DB          = "/data/bh_ledger.db"
-DATA_DIR              = "/data"
-
-# ── Service enable flags (set to "0" to disable a subsystem) ─────────────────
-TRION_ENABLE_FAISS          = "1"
-TRION_ENABLE_RUST           = "1"
-TRION_ENABLE_EXTRAS         = "1"
-TRION_ENABLE_NATIVE         = "1"
-TRION_ENABLE_EXTENDED       = "1"
-TRION_ENABLE_RELAYER        = "1"
-TRION_ENABLE_NATIVE_RELAYER = "1"
-TRION_ENABLE_EXT_RELAYER    = "1"
-TRION_ENABLE_ZG_SYNC        = "1"
-TRION_ENABLE_ZG_DA          = "1"
-
-# ── Chain config ──────────────────────────────────────────────────────────────
-ARBITRUM_RPC_URL  = "https://arb1.arbitrum.io/rpc"
-CHAIN_ID          = "42161"
-SOLANA_RPC_URL    = "https://api.devnet.solana.com"
-SOLANA_CHAIN_ID   = "103"
-SOLANA_LABEL      = "SOLANA_DEVNET"
-POLL_SLEEP_MS     = "1500"
-
-# ── Relayer intervals ─────────────────────────────────────────────────────────
-POLL_INTERVAL_MS          = "60000"
-EXTENDED_POLL_INTERVAL_MS = "90000"
-ZG_POLL_INTERVAL_MS       = "120000"
-
-# ── 0G contracts (mainnet) ────────────────────────────────────────────────────
-ZG_EXECUTION_GATE_ADDR = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
-ZG_AKASHIC_CONTRACT    = "0x33c793fed5bf5fcB043D8c6c74256e7B4b38156D"
-ZG_CHAIN_ID            = "16661"
-ZERO_G_RPC             = "https://evmrpc.0g.ai"
-ZG_NETWORK             = "mainnet"
-
-# ── gunicorn ──────────────────────────────────────────────────────────────────
-GUNICORN_WORKERS = "2"
-GUNICORN_THREADS = "4"
-GUNICORN_TIMEOUT = "120"
-
-# ── Python ────────────────────────────────────────────────────────────────────
-PYTHONUNBUFFERED        = "1"
+[deploy.env]
+HOSTNAME = "0.0.0.0"
+FLASK_PORT = "5000"
+FAISS_PORT = "8000"
+FAISS_SERVICE_URL = "http://127.0.0.1:8000"
+FAISS_URL = "http://127.0.0.1:8000"
+ORACLE_API_URL = "http://127.0.0.1:5000"
+FLASK_URL = "http://127.0.0.1:5000"
+NODE_ENV = "production"
+PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
+TRION_ENABLE_FAISS = "1"
+TRION_ENABLE_RUST = "0"
+TRION_ENABLE_RELAYER = "0"
+TRION_ENABLE_ZG_SYNC = "0"
+TRION_ENABLE_ZG_DA = "0"
+TRION_ENABLE_EXTRAS = "0"
+TRION_ENABLE_NATIVE = "0"
+DATABASE_URL = ""
+TIMESCALEDB_URL = ""
+ZG_NETWORK = "mainnet"
+ZG_CHAIN_ID = "16661"
+ZERO_G_RPC = "https://evmrpc.0g.ai"
+ZG_EXECUTION_GATE_ADDR = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
