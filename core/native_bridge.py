@@ -40,7 +40,6 @@ _GHC_CANDIDATES = [
     "runghc",
 ]
 _GO_CANDIDATES = [
-    _GO_BIN = os.path.expanduser("~/go/bin/go")
     os.path.expanduser("~/go/bin/go"),
     "/usr/local/go/bin/go",
     "go",
