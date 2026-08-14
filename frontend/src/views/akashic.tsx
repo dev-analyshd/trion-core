@@ -201,7 +201,7 @@ export function ConvergenceDetailPage() {
       <EntitySelector id={entityId} setId={setEntityId} />
       <Card title="Convergence Theorem - Per-Entity" live>
         <KVList items={[
-          ['C(t)', (conv?.C_t || 0).toFixed(4)],
+          ['Coherence', (conv?.C_t || 0).toFixed(4)],
           ['C* asymptote', (conv?.C_star || 0).toFixed(4)],
           ['Convergence rate', (conv?.convergence_rate || 0).toFixed(6)],
           ['Converged', conv?.converged ? 'YES' : 'NO'],

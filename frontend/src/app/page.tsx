@@ -14,7 +14,7 @@ import { WalletBTCPPage, WalletContinuumPage } from '../views/wallet_pages';
 // All page imports
 import {
   DashboardPage, ArchitecturePage, VisionPage, PhasesPage, PhaseTransitionPage,
-  WhitepaperPage, OrderParameterPage, ConvergencePage,
+  OrderParameterPage, ConvergencePage,
 } from '../views/overview';
 import {
   BHExplorerPage, BHv2ExtendedPage, BHStatsPage, AkashicPage, ArchetypesPage,
@@ -77,7 +77,6 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   vision: VisionPage,
   phases: PhasesPage,
   phase_transition: PhaseTransitionPage,
-  whitepaper: WhitepaperPage,
   order_parameter: OrderParameterPage,
   convergence: ConvergencePage,
 
@@ -239,9 +238,8 @@ const PAGE_TITLES: Record<string, string> = {
   vision: 'Protocol Vision',
   phases: 'Protocol Phases',
   phase_transition: 'Phase Transition',
-  whitepaper: 'Whitepaper Coverage',
-  order_parameter: 'Order Parameter Psi',
-  convergence: 'Convergence Theorem',
+  order_parameter: 'Order Parameter',
+  convergence: 'Convergence',
   bh: 'Behavioral Hash Explorer',
   bh_v2: 'BH v2 Extended Payload',
   bh_stats: 'BH Statistics',

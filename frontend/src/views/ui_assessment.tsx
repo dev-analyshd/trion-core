@@ -78,7 +78,7 @@ export function BEOLookupPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <StatCard label="Coherence C(t)" value={pct(result.signal.coherence_score || result.signal.coherence, 2)} color={result.signal.coherent ? 'green' : 'red'} />
+                <StatCard label="Coherence Score" value={pct(result.signal.coherence_score || result.signal.coherence, 2)} color={result.signal.coherent ? 'green' : 'red'} />
                 <StatCard label="Threshold Theta(t)" value={pct(result.signal.threshold, 2)} color="amber" />
                 <StatCard label="Archetype" value={result.signal.archetype || '-'} color="purple" />
                 <StatCard label="Status" value={result.signal.coherent ? 'COHERENT' : 'SILENCED'} color={result.signal.coherent ? 'green' : 'red'} />

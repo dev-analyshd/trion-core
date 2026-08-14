@@ -125,12 +125,12 @@ export function MentalPlanePage() {
 
       <Card title="Mental Plane M - Observer-Effect Resistant Prediction" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PlaneGauge label="M(t) adjusted" value={m || 0} threshold={0.55} color="#f59e0b" icon="M" />
+          <PlaneGauge label="Mental Score" value={m || 0} threshold={0.55} color="#f59e0b" icon="M" />
           <div className="space-y-3">
             <KVList items={[
               ['M_base', (mBase || 0).toFixed(6)],
-              ['OE_factor = corr(pub, change)', (oeFactor || 0).toFixed(6)],
-              ['M_adj = M_base * (1 - OE)', (m || 0).toFixed(6)],
+              ['Observer Effect', (oeFactor || 0).toFixed(6)],
+              ['Adjusted Score', (m || 0).toFixed(6)],
               ['PI_baseline', (planes?.PI_baseline || 1.0).toFixed(4)],
               ['PI_t (current)', (planes?.PI_t || 0.5).toFixed(4)],
             ]} />
@@ -257,7 +257,7 @@ export function ConsciousPlanePage() {
       <EntityHeader entityId={entityId} setEntityId={setEntityId} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="K(t)" value={(k || 0).toFixed(4)} color={isBootstrap ? 'amber' : 'green'} />
+        <StatCard label="Conscious Score" value={(k || 0).toFixed(4)} color={isBootstrap ? 'amber' : 'green'} />
         <StatCard label="Annotators" value={fmt(annot?.annotator_count || 0)} sub="3-of-5 majority" />
         <StatCard label="Bootstrap" value={isBootstrap ? 'YES' : 'NO'} color={isBootstrap ? 'amber' : 'green'} />
         <StatCard label="ACP Protections" value="6" sub="active" color="blue" />
@@ -265,7 +265,7 @@ export function ConsciousPlanePage() {
 
       <Card title="Conscious Plane K - Commit-Reveal Annotation Network" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PlaneGauge label="K(t)" value={k || 0} threshold={0.55} color="#3b82f6" icon="K" />
+          <PlaneGauge label="Conscious Score" value={k || 0} threshold={0.55} color="#3b82f6" icon="K" />
           <div className="space-y-3">
             <KVList items={[
               ['K(t)', (k || 0).toFixed(6)],
@@ -320,15 +320,15 @@ export function AnimaPlanePage() {
       <EntityHeader entityId={entityId} setEntityId={setEntityId} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="A(t)" value={(a || 0).toFixed(4)} color="purple" />
+        <StatCard label="ANIMA Score" value={(a || 0).toFixed(4)} color="purple" />
         <StatCard label="HA (Holdout Accuracy)" value={pct(ha, 2)} color={ha >= 0.6 ? 'green' : 'red'} />
         <StatCard label="CA (Cross-source)" value={pct(ca, 2)} color={ca >= 0.6 ? 'green' : 'amber'} />
-        <StatCard label="Languages" value={fmt(animaIntel?.languages_count || 59)} sub="whitepaper: 50+" color="blue" />
+        <StatCard label="Languages" value={fmt(animaIntel?.languages_count || 59)} sub="50+ supported" color="blue" />
       </div>
 
       <Card title="ANIMA Plane A = PCR - HA - CA" live>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PlaneGauge label="A(t)" value={a || 0} threshold={0.55} color="#8b5cf6" icon="A" />
+          <PlaneGauge label="ANIMA Score" value={a || 0} threshold={0.55} color="#8b5cf6" icon="A" />
           <div className="space-y-3">
             <KVList items={[
               ['A(t) = PCR - HA - CA', (a || 0).toFixed(6)],
@@ -373,7 +373,7 @@ export function CoherenceProfilesPage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Coherence Weight Profiles" subtitle="Per-asset-type weight assignments for C(t) = alpha-Phi + beta-M + gamma-Sigma + delta-K + epsilon-A">
+      <Card title="Coherence Weight Profiles" subtitle="Per-asset-type weight calibrations for multi-plane coherence scoring">
         <p className="text-sm text-muted-foreground mb-4">{profiles?.formula || 'Loading...'}</p>
         <DataTable
           headers={['Profile', 'alpha (Phi)', 'beta (M)', 'gamma (Sigma)', 'delta (K)', 'epsilon (A)', 'Description']}

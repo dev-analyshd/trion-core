@@ -85,9 +85,22 @@ export function StatCard({
   return (
     <div className={`bg-card rounded-2xl p-4 md:p-5 border ${colors[color]} shadow-sm hover:shadow-md transition-all overflow-hidden`}>
       {icon && <div className="mb-2 text-muted-foreground">{icon}</div>}
-      <div className="text-xl md:text-2xl font-bold mb-1.5 ticker truncate" title={typeof value === 'string' ? value : undefined}>{value}</div>
+      <div 
+        className="font-bold mb-1.5 ticker break-all"
+        style={{
+          fontSize: typeof value === 'string' && value.length > 12 
+            ? 'clamp(0.75rem, 1.5vw, 1rem)' 
+            : typeof value === 'string' && value.length > 8
+              ? 'clamp(0.9rem, 1.8vw, 1.25rem)'
+              : 'clamp(1.1rem, 2.2vw, 1.5rem)',
+          lineHeight: 1.2,
+          wordBreak: 'break-all',
+          overflowWrap: 'anywhere',
+        }}
+        title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
+      >{value}</div>
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="text-xs text-muted-foreground truncate min-w-0">{label}</span>
+        <span className="text-xs text-muted-foreground truncate min-w-0 flex-1" style={{fontSize: "clamp(0.65rem, 1.1vw, 0.75rem)"}}>{label}</span>
         {sub && <span className="text-xs font-semibold flex items-center gap-1 flex-shrink-0 truncate max-w-[50%]">{trendIcon}{sub}</span>}
       </div>
     </div>
