@@ -986,6 +986,84 @@ def _compute_signal(entity_id: str) -> dict:
         ),
     }
 
+
+# ── Formula sanitizer — clean Greek symbols and formula notation from all responses ──
+import re as _sanitize_re
+
+_GREEK_MAP = {
+    'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon',
+    'ζ': 'zeta', 'η': 'eta', 'θ': 'theta', 'ι': 'iota', 'κ': 'kappa',
+    'λ': 'lambda', 'μ': 'mu', 'ν': 'nu', 'ξ': 'xi', 'ο': 'omicron',
+    'π': 'pi', 'ρ': 'rho', 'σ': 'sigma', 'τ': 'tau', 'υ': 'upsilon',
+    'φ': 'phi', 'χ': 'chi', 'ψ': 'psi', 'ω': 'omega',
+    'Α': 'Alpha', 'Β': 'Beta', 'Γ': 'Gamma', 'Δ': 'Delta', 'Ε': 'Epsilon',
+    'Ζ': 'Zeta', 'Η': 'Eta', 'Θ': 'Theta', 'Ι': 'Iota', 'Κ': 'Kappa',
+    'Λ': 'Lambda', 'Μ': 'Mu', 'Ν': 'Nu', 'Ξ': 'Xi', 'Ο': 'Omicron',
+    'Π': 'Pi', 'Ρ': 'Rho', 'Σ': 'Sigma', 'Τ': 'Tau', 'Υ': 'Upsilon',
+    'Φ': 'Phi', 'Χ': 'Chi', 'Ψ': 'Psi', 'Ω': 'Omega',
+    '∑': 'Sigma', '∏': 'Pi',
+}
+
+_FORMULA_REPLACEMENTS = [
+    (r'M_moat\([a-z]\)', 'Moat Score'),
+    (r'M_moat', 'Moat Score'),
+    (r'SEC\s*=\s*LSS\s*[-×]\s*PQC\s*[-×]\s*CC', 'Security = LSS × PQC × CC'),
+    (r'SEC\([a-z]\)', 'Security Score'),
+    (r'SEC', 'Security'),
+    (r'Θ\([a-z]\)', 'Dynamic Threshold'),
+    (r'Θ', 'Theta'),
+    (r'Φ\([a-z]\)', 'Physical Score'),
+    (r'Φ', 'Phi'),
+    (r'Σ\([a-z]\)', 'Spiritual Score'),
+    (r'K\([a-z]\)', 'Conscious Score'),
+    (r'A\([a-z]\)', 'ANIMA Score'),
+    (r'M\([a-z]\)', 'Mental Score'),
+    (r'D\([a-z]\)', 'Behavioral Depth'),
+    (r'V\([a-z]\)', 'Market Volatility'),
+    (r'H\([a-z]\)', 'Protocol Health'),
+    (r'I\([a-z]\)', 'Information Flow'),
+    (r'C\([a-z]\)', 'Coherence'),
+    (r'T\([a-z]\)', 'Master Signal'),
+    (r'e\^[({][A-Za-z_]+[)}]', 'Moat multiplier'),
+]
+
+def _sanitize_string(s):
+    if not isinstance(s, str):
+        return s
+    result = s
+    for greek, eng in _GREEK_MAP.items():
+        result = result.replace(greek, eng)
+    for pattern, replacement in _FORMULA_REPLACEMENTS:
+        result = _sanitize_re.sub(pattern, replacement, result)
+    # Remove mathematical operators used in formulas
+    result = _sanitize_re.sub(r'[·×÷±√∫∞≠≤≥→⇒⇔∈∉⊂⊃∪∩]', ' ', result)
+    result = _sanitize_re.sub(r'\s+', ' ', result).strip()
+    return result
+
+def _sanitize_obj(obj):
+    if isinstance(obj, str):
+        return _sanitize_string(obj)
+    elif isinstance(obj, dict):
+        return {k: _sanitize_obj(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_obj(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(_sanitize_obj(item) for item in obj)
+    return obj
+
+@app.after_request
+def _sanitize_response(response):
+    try:
+        if response.is_json and response.status_code == 200:
+            data = response.get_json()
+            if data:
+                sanitized = _sanitize_obj(data)
+                response.set_data(json.dumps(sanitized))
+    except Exception:
+        pass  # Never break the response for sanitization errors
+    return response
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/api/v1/signal/<entity_id>")
