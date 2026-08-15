@@ -1,0 +1,41 @@
+# TRION Protocol — Frontend Dashboard Dockerfile
+FROM node:20-alpine AS builder
+
+LABEL org.opencontainers.image.title="TRION Frontend"
+LABEL org.opencontainers.image.description="TRION Protocol Dashboard Frontend"
+LABEL org.opencontainers.image.vendor="TRION Protocol"
+
+WORKDIR /app
+
+# Install dependencies
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+# Copy source and build
+COPY frontend/ ./
+RUN npm run build
+
+# Runtime stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy built artifacts
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+# Install curl for health check
+RUN apk add --no-cache curl
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+EXPOSE 3000
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "server.js"]

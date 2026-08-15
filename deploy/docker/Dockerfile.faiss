@@ -1,0 +1,41 @@
+# TRION Protocol — FAISS Engine Dockerfile
+FROM python:3.10-slim
+
+LABEL org.opencontainers.image.title="TRION FAISS Engine"
+LABEL org.opencontainers.image.description="TRION Protocol Akashic Intelligence Engine"
+LABEL org.opencontainers.image.vendor="TRION Protocol"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY anima-service/ ./anima-service/
+COPY core/ ./core/
+COPY zk/ ./zk/
+COPY adapters/ ./adapters/
+COPY config/ ./config/
+
+# Create data and logs directories
+RUN mkdir -p /data /app/logs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:8000/healthz || exit 1
+
+EXPOSE 8000
+
+ENV PYTHONPATH=/app/anima-service:/app
+ENV FAISS_PORT=8000
+ENV FAISS_INDEX_PATH=/data/faiss.index
+
+WORKDIR /app/anima-service
+CMD ["python3", "faiss_service.py"]
