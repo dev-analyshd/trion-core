@@ -268,7 +268,7 @@ export function ConsciousPlanePage() {
           <PlaneGauge label="Conscious Score" value={k || 0} threshold={0.55} color="#3b82f6" icon="K" />
           <div className="space-y-3">
             <KVList items={[
-              ['K(t)', (k || 0).toFixed(6)],
+              ['Conscious', (k || 0).toFixed(6)],
               ['Bootstrap', isBootstrap ? 'YES (0.10 baseline)' : 'NO'],
               ['Annotator count', fmt(annot?.annotator_count || 0)],
               ['Weighted raw', (annot?.weighted_raw || 0).toFixed(4)],
@@ -331,7 +331,7 @@ export function AnimaPlanePage() {
           <PlaneGauge label="ANIMA Score" value={a || 0} threshold={0.55} color="#8b5cf6" icon="A" />
           <div className="space-y-3">
             <KVList items={[
-              ['A(t) = PCR - HA - CA', (a || 0).toFixed(6)],
+              ['ANIMA Score', (a || 0).toFixed(6)],
               ['PCR (Prediction-Consensus)', (pcr || 0).toFixed(4)],
               ['HA (Holdout Accuracy)', (ha || 0).toFixed(4)],
               ['CA (Cross-source Agreement)', (ca || 0).toFixed(4)],

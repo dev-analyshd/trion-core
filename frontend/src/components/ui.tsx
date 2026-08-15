@@ -653,7 +653,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <line x1="280" y1="150" x2="310" y2="150" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />
 
       {/* Five Planes */}
-      <text x="540" y="30" textAnchor="middle" className="fill-muted-foreground text-[10px] font-semibold">FIVE-PLANE COHERENCE C(t)</text>
+      <text x="540" y="30" textAnchor="middle" className="fill-muted-foreground text-[10px] font-semibold">FIVE-PLANE COHERENCE Coherence</text>
       {[
         { name: 'Phi Physical', color: '#ef4444', y: 50 },
         { name: 'M Mental', color: '#f59e0b', y: 95 },
@@ -672,16 +672,16 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       {/* Coherence Engine */}
       <g>
         <rect x="650" y="80" width="140" height="60" rx="8" fill="url(#grad1)" stroke="#3b82f6" strokeOpacity="0.6" filter="url(#glow)" />
-        <text x="720" y="105" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">COHERENCE C(t)</text>
+        <text x="720" y="105" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">COHERENCE Coherence</text>
         <text x="720" y="125" textAnchor="middle" className="fill-muted-foreground text-[9px]">11 weight profiles</text>
       </g>
 
       <line x1="610" y1="150" x2="650" y2="110" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />
 
-      {/* Master Equation T(t) */}
+      {/* Master Equation Master Signal */}
       <g>
         <rect x="810" y="80" width="80" height="60" rx="8" fill="#3b82f6" fillOpacity="0.3" stroke="#3b82f6" filter="url(#glow)" />
-        <text x="850" y="105" textAnchor="middle" className="fill-foreground text-[10px] font-bold">T(t)</text>
+        <text x="850" y="105" textAnchor="middle" className="fill-foreground text-[10px] font-bold">Master Signal</text>
         <text x="850" y="120" textAnchor="middle" className="fill-muted-foreground text-[8px]">Master Eq.</text>
         <text x="850" y="132" textAnchor="middle" className="fill-muted-foreground text-[8px]">C-e^M_moat</text>
       </g>

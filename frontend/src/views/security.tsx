@@ -28,7 +28,7 @@ export function SECPage() {
         <StatCard label="CC" value={pct(sec?.cc_score, 0)} sub="Cross-Chain" color="amber" />
       </div>
 
-      <Card title="SEC(t) = LSS - PQC - CC - Composite Security Score" live>
+      <Card title="SECoherence = LSS - PQC - CC - Composite Security Score" live>
         <div className="text-center py-6">
           <div className="text-5xl font-bold ticker">{pct(sec?.effective_sec, 4)}</div>
           <div className="text-sm text-muted-foreground mt-2">{cleanText(sec?.disclosure) || 'Loading...'}</div>
@@ -100,7 +100,7 @@ export function LivingSecurityPage() {
             { name: 'Physical Phi', icon: '⚡', desc: 'Shannon entropy F1-F9' },
             { name: 'Akashic Ledger', icon: '📚', desc: 'Append-only BH ledger' },
             { name: 'PQC Layer', icon: '🔐', desc: 'ML-KEM + ML-DSA + SLH-DSA' },
-            { name: '5-Plane Coherence', icon: '🎯', desc: 'C(t) gate' },
+            { name: '5-Plane Coherence', icon: '🎯', desc: 'Coherence gate' },
             { name: 'BEO Resolution', icon: '🧬', desc: '128-dim FAISS' },
             { name: 'CRISPR Defense', icon: '🛡️', desc: 'Adaptive signatures' },
             { name: 'ANIMA Intelligence', icon: '🌐', desc: 'Cross-source validation' },
