@@ -72,6 +72,24 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+# ── 3b. Auto-backfill BHs → FAISS vectors (background) ────────────────────
+log "Starting BH → FAISS auto-backfill in background..."
+(
+    # Wait for Flask to be fully ready
+    sleep 15
+    # Give BH streamer time to accumulate some data
+    sleep 45
+    log "Running BH → FAISS backfill..."
+    if [ -f /app/anima-service/backfill_entity_records.py ]; then
+        cd /app/anima-service
+        python3 backfill_entity_records.py --faiss-url "http://127.0.0.1:${FAISS_PORT}" --batch-size 500 2>&1 | tail -5 &
+        BACKFILL_PID=$!
+        log "Backfill started (PID $BACKFILL_PID)"
+    else
+        log "Backfill script not found — vectors will populate via scheduler (30min cycles)"
+    fi
+) &
+
 # ── 4. Next.js React Frontend (exposed port) ─────────────────────────────────
 log "============================================================"
 log "TRION Protocol — Railway deployment starting on :${PORT}"
