@@ -108,7 +108,7 @@ COPY railway-entrypoint.sh ./railway-entrypoint.sh
 RUN chmod +x ./railway-entrypoint.sh
 
 # Runtime dirs
-RUN mkdir -p /tmp/trion-logs anima-service/data
+RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data
 
 # ── Environment ───────────────────────────────────────────────────────────────
 # Note: PORT is injected by Railway at runtime — do NOT set it here as a static ENV.
