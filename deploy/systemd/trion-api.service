@@ -1,0 +1,35 @@
+[Unit]
+Description=TRION Protocol Oracle API Server
+After=network.target trion-faiss.service
+Requires=trion-faiss.service
+
+[Service]
+Type=simple
+User=trion
+WorkingDirectory=/opt/trion
+Environment=PYTHONPATH=/opt/trion:/opt/trion/pylibs
+Environment=FLASK_ENV=production
+Environment=FLASK_PORT=5000
+Environment=FAISS_SERVICE_URL=http://127.0.0.1:8000
+Environment=VALIDATOR_URL=http://127.0.0.1:6000
+ExecStart=/usr/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 --timeout 120 --max-requests 1000 --max-requests-jitter 100 api.app:app
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/trion/data /opt/trion/logs
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

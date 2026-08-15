@@ -1,0 +1,37 @@
+# TRION Protocol — Validator Node Dockerfile
+FROM golang:1.21-alpine AS builder
+
+LABEL org.opencontainers.image.title="TRION Validator"
+LABEL org.opencontainers.image.description="TRION Protocol P2P Validator Node"
+LABEL org.opencontainers.image.vendor="TRION Protocol"
+
+WORKDIR /app
+
+# Copy Go source
+COPY validator/ ./validator/
+COPY go.mod go.sum ./
+
+# Build
+RUN cd validator && go build -o /app/trion-validator .
+
+# Runtime stage
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates curl
+
+WORKDIR /app
+
+COPY --from=builder /app/trion-validator .
+COPY config/ ./config/
+
+RUN mkdir -p /app/data /app/logs
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:6000/health || exit 1
+
+EXPOSE 6000 6001
+
+ENV VALIDATOR_PORT=6000
+ENV VALIDATOR_ID=trion-validator-01
+
+CMD ["./trion-validator"]

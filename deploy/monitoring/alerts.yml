@@ -1,0 +1,115 @@
+# TRION Protocol — Prometheus Alert Rules
+
+groups:
+  - name: trion_service_alerts
+    rules:
+      # ── Service availability ────────────────────────────────
+      - alert: TRIONAPIDown
+        expr: up{job="trion-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: trion-api
+        annotations:
+          summary: "TRION API is down"
+          description: "TRION Oracle API has been unreachable for more than 1 minute."
+          runbook: "Check trion-api container logs and restart if needed."
+
+      - alert: FAISSDown
+        expr: up{job="trion-faiss"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: trion-faiss
+        annotations:
+          summary: "FAISS engine is down"
+          description: "FAISS Akashic Intelligence Engine has been unreachable for more than 1 minute."
+          runbook: "Check trion-faiss container, verify index file exists."
+
+      - alert: ValidatorDown
+        expr: up{job="trion-validator"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: trion-validator
+        annotations:
+          summary: "Validator node is down"
+          description: "Validator P2P node has been unreachable for more than 2 minutes."
+
+      # ── Performance ─────────────────────────────────────────
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="trion-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: trion-api
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile API latency is above 2 seconds for 5+ minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job="trion-api", status=~"5.."}[5m]) / rate(http_requests_total{job="trion-api"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: trion-api
+        annotations:
+          summary: "High API error rate"
+          description: "API 5xx error rate is above 5% for 5+ minutes."
+
+      # ── Resource usage ──────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{container=~"trion-.*"} / container_spec_memory_limit_bytes{container=~"trion-.*"} > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Container {{ $labels.container }} is using >85% of memory limit."
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container=~"trion-.*"}[5m]) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "Container {{ $labels.container }} CPU usage >90% for 10+ minutes."
+
+      # ── Disk space ──────────────────────────────────────────
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/data"} / node_filesystem_size_bytes{mountpoint="/data"} < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Data volume has less than 15% free space remaining."
+
+      # ── TRION-specific ──────────────────────────────────────
+      - alert: LowCoherenceScore
+        expr: trion_coherence_score < 0.3
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low coherence score"
+          description: "Average coherence score below 0.3 for 15+ minutes. May indicate market manipulation."
+
+      - alert: FAISSIndexStale
+        expr: time() - trion_faiss_last_indexed_timestamp > 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "FAISS index stale"
+          description: "No new vectors indexed in FAISS for over 1 hour."
+
+      - alert: LowValidatorCount
+        expr: trion_validator_count < 7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low validator count"
+          description: "Active validator count below minimum threshold of 7."
