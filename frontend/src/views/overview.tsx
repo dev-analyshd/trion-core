@@ -240,7 +240,7 @@ export function DashboardPage() {
       </div>
 
       {/* Moat breakdown */}
-      <Card title="Economic Moat M_moat(t) = D - Q - R - X - F - N" live>
+      <Card title="Economic Moat Economic Moat = D - Q - R - X - F - N" live>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           {[
             { label: 'D Data', val: moat?.components?.D_data_moat, color: 'bg-blue-500' },
@@ -261,11 +261,11 @@ export function DashboardPage() {
         </div>
         <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">M_moat(t) final:</span>
+            <span className="text-muted-foreground">Moat Score final:</span>
             <span className="ml-2 font-bold font-mono text-blue-500">{(moat?.M_moat || 0).toFixed(4)}</span>
           </div>
           <div>
-            <span className="text-muted-foreground">e^(M_moat) amplifier:</span>
+            <span className="text-muted-foreground">Moat multiplier amplifier:</span>
             <span className="ml-2 font-bold font-mono text-green-500">{Math.exp(moat?.M_moat || 0).toFixed(4)}</span>
           </div>
         </div>
