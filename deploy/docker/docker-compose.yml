@@ -1,0 +1,173 @@
+# TRION Protocol — Docker Compose Production Deployment
+# Usage: docker-compose up -d
+
+version: "3.8"
+
+services:
+  # ── FAISS Akashic Intelligence Engine ──────────────────────
+  faiss:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.faiss
+    container_name: trion-faiss
+    restart: unless-stopped
+    environment:
+      - FAISS_PORT=8000
+      - FAISS_INDEX_PATH=/data/faiss.index
+    volumes:
+      - faiss_data:/data
+      - ./logs:/app/logs
+    networks:
+      - trion_internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Oracle API Server ──────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.api
+    container_name: trion-api
+    restart: unless-stopped
+    depends_on:
+      faiss:
+        condition: service_healthy
+    environment:
+      - FLASK_ENV=production
+      - FLASK_PORT=5000
+      - FAISS_SERVICE_URL=http://faiss:8000
+      - VALIDATOR_URL=http://validator:6000
+      - CHAIN_ID=421614
+      - NETWORK=arbitrum-sepolia
+    volumes:
+      - api_data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - trion_internal
+    ports:
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Validator P2P Node ─────────────────────────────────────
+  validator:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.validator
+    container_name: trion-validator
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - VALIDATOR_PORT=6000
+      - VALIDATOR_ID=trion-validator-01
+      - API_URL=http://api:5000
+    volumes:
+      - validator_data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - trion_internal
+    ports:
+      - "127.0.0.1:6000:6000"
+      - "6001:6001"  # P2P gossip port
+
+  # ── Frontend Dashboard ─────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+    container_name: trion-frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - FLASK_URL=http://api:5000
+      - NEXT_PUBLIC_API_URL=https://trion.example.com/api
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - trion_internal
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: trion-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/trion.conf:/etc/nginx/conf.d/trion.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+      - ./logs:/var/log/nginx
+    networks:
+      - trion_internal
+      - trion_public
+
+  # ── Monitoring (Prometheus + Grafana) ──────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: trion-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - trion_internal
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: trion-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - trion_internal
+    ports:
+      - "127.0.0.1:3001:3000"
+
+networks:
+  trion_internal:
+    driver: bridge
+    internal: true  # Only nginx connects to external
+  trion_public:
+    driver: bridge
+
+volumes:
+  faiss_data:
+  api_data:
+  validator_data:
+  nginx_cache:
+  prometheus_data:
+  grafana_data:

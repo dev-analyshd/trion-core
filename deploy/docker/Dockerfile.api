@@ -1,0 +1,50 @@
+# TRION Protocol — API Server Dockerfile
+FROM python:3.10-slim
+
+LABEL org.opencontainers.image.title="TRION Oracle API"
+LABEL org.opencontainers.image.description="TRION Protocol Behavioral Oracle API Server"
+LABEL org.opencontainers.image.vendor="TRION Protocol"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Copy application
+COPY api/ ./api/
+COPY core/ ./core/
+COPY zk/ ./zk/
+COPY adapters/ ./adapters/
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+
+# Create data and logs directories
+RUN mkdir -p /app/data /app/logs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:5000/api/v1/health || exit 1
+
+EXPOSE 5000
+
+ENV PYTHONPATH=/app
+ENV FLASK_ENV=production
+ENV FLASK_PORT=5000
+
+# Run with Gunicorn for production
+CMD ["gunicorn", \
+     "--workers", "4", \
+     "--bind", "0.0.0.0:5000", \
+     "--timeout", "120", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "100", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "api.app:app"]
