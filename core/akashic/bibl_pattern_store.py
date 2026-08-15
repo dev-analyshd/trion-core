@@ -222,6 +222,8 @@ class BIBLPatternStore:
         self._load_calibrations()
 
     def _init_db(self) -> None:
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(os.path.abspath(self._db_path)), exist_ok=True)
         with sqlite3.connect(self._db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS bibl_observations (
