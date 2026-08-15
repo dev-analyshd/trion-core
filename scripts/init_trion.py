@@ -193,7 +193,47 @@ class TRIONEngine:
         self.load_component("Signal Factory", "core.master.signal_factory",
                           ["SignalType", "build_signal", "build_silence", "compute_brt", "build_manipulation_alert"])
         
-        # ── Summary ──────────────────────────────────────────────
+        
+        # ── Layer 7: ZK Circuits & Privacy ──────────────────────────
+        logger.info("🔐 Layer 7: ZK Circuits & Privacy")
+        self.load_component("ZK Proof System", "zk",
+                          ["ZKProofSystem", "CircuitType", "IntentWitness", "ComplementarityWitness"])
+        self.load_component("Intent Commitment", "zk",
+                          ["generate_intent_proof", "verify_intent_proof"])
+        self.load_component("Complementarity Proof", "zk",
+                          ["generate_complementarity_proof", "verify_complementarity_proof"])
+        self.load_component("Travel Rule Proof", "zk",
+                          ["generate_travel_rule_proof", "verify_travel_rule_proof"])
+        self.load_component("Behavioral Credential", "zk",
+                          ["generate_behavioral_credential_proof", "verify_behavioral_credential_proof"])
+        self.load_component("IAP Share Proof", "zk",
+                          ["generate_iap_share_proof", "verify_iap_share_proof"])
+
+        # ── Layer 8: VM Adapters ────────────────────────────────────
+        logger.info("🔌 Layer 8: Cross-VM Adapters")
+        self.load_component("VM Adapter Factory", "adapters",
+                          ["VMAdapterFactory", "VMType", "CHAIN_VM_MAP"])
+        self.load_component("EVM Adapter", "adapters",
+                          ["EVMAdapter"])
+        self.load_component("SVM Adapter", "adapters",
+                          ["SVMAdapter"])
+        self.load_component("Cosmos Adapter", "adapters",
+                          ["CosmosAdapter"])
+        self.load_component("Move Adapter", "adapters",
+                          ["MoveAdapter"])
+        self.load_component("CosmWasm Adapter", "adapters",
+                          ["CosmWasmAdapter"])
+        self.load_component("OOA Adapter", "adapters",
+                          ["OOAAdapter"])
+
+        # ── Layer 9: BTCP Orchestration ────────────────────────────
+        logger.info("🎼 Layer 9: BTCP Orchestration")
+        self.load_component("BTCP Orchestrator", "core.btcp.orchestrator",
+                          ["BTCPOrchestrator", "PrivacyRouter", "CrossVMGateway", "ProofAggregator",
+                           "PrivacyLevel", "RouteStatus"])
+
+
+# ── Summary ──────────────────────────────────────────────
         total_time = (time.perf_counter() - start_total) * 1000
         loaded = sum(1 for c in self.components.values() if c.status == "LOADED")
         failed = sum(1 for c in self.components.values() if c.status == "FAILED")
