@@ -272,7 +272,7 @@ export function AkashicPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Akashic Depth D(t)" value={fmt(moat?.akashic_depth, 0)} color="blue" />
+        <StatCard label="Akashic Depth Behavioral Depth" value={fmt(moat?.akashic_depth, 0)} color="blue" />
         <StatCard label="Archetypes" value={fmt(archetypes?.count || archetypes?.archetypes?.length)} sub="K-means" color="purple" />
         <StatCard label="Chains Indexed" value={fmt(moat?.chains_indexed)} />
         <StatCard label="Bootstrap Weight" value={pct(bootstrap?.bootstrap_weight, 3)} color={bootstrap?.bootstrap_weight < 0.5 ? 'green' : 'amber'} />
@@ -429,7 +429,7 @@ export function SignalsPage() {
             { key: 'timestamp', label: 'Time', render: (v) => tfmt(v) },
             { key: 'protocol_name', label: 'Protocol', render: (v) => truncate(v || '-', 18) },
             { key: 'signal_type', label: 'Type' },
-            { key: 'coherence_score', label: 'C(t)', render: (v) => <span className="font-mono">{pct(v, 2)}</span> },
+            { key: 'coherence_score', label: 'Coherence', render: (v) => <span className="font-mono">{pct(v, 2)}</span> },
             { key: 'grade', label: 'Grade', render: (v) => <Badge status={v} /> },
             { key: 'on_chain', label: 'On-chain', render: (v) => v ? <Icons.CheckCircle className="w-4 h-4 text-green-500" /> : <Icons.Clock className="w-4 h-4 text-amber-500" /> },
           ]}

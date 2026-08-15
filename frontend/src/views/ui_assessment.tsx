@@ -160,7 +160,7 @@ export function LiveEventStreamPage() {
       color: s.coherent ? '#10b981' : '#f43f5e',
       icon: s.coherent ? '🟢' : '⚫',
       age_sec: age,
-      message: `${s.protocol_name || hex(s.entity_id, 8)} C(t)=${pct(s.coherence_score, 2)}`,
+      message: `${s.protocol_name || hex(s.entity_id, 8)} Coherence=${pct(s.coherence_score, 2)}`,
       detail: s.coherent ? 'VAL signal emitted' : `SILENCE - below Theta=${pct(s.threshold, 2)}`,
     });
   });
@@ -293,7 +293,7 @@ export function TimeSeriesPage() {
             <Sparkline
               data={cohHistory}
               color="#22d3ee"
-              label="Oracle Coherence C(t)"
+              label="Oracle Coherence Coherence"
               value={health?.dynamic_threshold?.toFixed(4) || '-'}
             />
             <div className="mt-2 text-xs text-muted-foreground">
@@ -319,7 +319,7 @@ export function TimeSeriesPage() {
             <Sparkline
               data={infoHistory}
               color="#8b5cf6"
-              label="Information I(t) - BH accumulation"
+              label="Information Information Flow - BH accumulation"
               value={fmt(totalBHs)}
             />
             <div className="mt-2 text-xs text-muted-foreground">
