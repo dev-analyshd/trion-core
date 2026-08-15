@@ -369,6 +369,7 @@ export const dynamic = 'force-dynamic';
 
 // Phase 3.4: useSearchParams requires a Suspense boundary in Next.js 16.
 // The default export wraps Home in <Suspense> so static rendering doesn't bail.
+// BUILD VERSION: BUILD-1786761203
 export default function HomeWithSuspense() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>}>
@@ -473,7 +474,7 @@ function Home() {
             <div className="min-w-0">
               <h1 className="text-lg font-bold truncate">{pageTitle}</h1>
               <p className="text-xs text-muted-foreground hidden sm:block truncate">
-                TRION Protocol - Behavioral Truth Oracle - {Object.keys(PAGE_MAP).length} pages wired to live API
+                TRION Protocol <span className="text-xs text-muted-foreground ml-2">v2.0.1-1786761255</span> - Behavioral Truth Oracle - {Object.keys(PAGE_MAP).length} pages wired to live API
               </p>
             </div>
           </div>

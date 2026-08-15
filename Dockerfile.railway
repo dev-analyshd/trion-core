@@ -31,6 +31,8 @@ COPY frontend/ ./
 # Build Next.js standalone
 ENV NEXT_PUBLIC_API_BASE=""
 ENV FLASK_URL="http://127.0.0.1:5000"
+# CACHE BUST: Force rebuild when frontend source changes
+RUN echo "Build timestamp: 1786761203" && echo "Source hash:" && find . -type f -name "*.tsx" -o -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs cat | sha256sum | head -c 16
 RUN npm run build 2>&1 | tail -20
 
 # Verify standalone output exists
