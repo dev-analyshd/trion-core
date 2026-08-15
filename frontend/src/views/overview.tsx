@@ -121,7 +121,7 @@ export function DashboardPage() {
               <span className="text-sm font-mono">{pct(health?.dynamic_threshold, 2)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Market Volatility V(t)</span>
+              <span className="text-sm text-muted-foreground">Market Volatility Market Volatility</span>
               <span className="text-sm font-mono">{pct(health?.market_volatility, 2)}</span>
             </div>
             <div className="flex items-center justify-between">
@@ -134,7 +134,7 @@ export function DashboardPage() {
           </div>
         </Card>
 
-        <Card title="Master Equation T(t)" live>
+        <Card title="Master Equation" live>
           <div className="space-y-3">
             <div className="text-2xl font-bold font-mono">
               {(() => {
@@ -165,7 +165,7 @@ export function DashboardPage() {
             <div className="text-2xl font-bold">
               <Badge status={sec?.effective_sec >= 0.8 ? 'HEALTHY' : 'WARNING'} />
             </div>
-            <div className="text-xs text-muted-foreground">SEC(t) = LSS - PQC - CC</div>
+            <div className="text-xs text-muted-foreground">SECoherence = LSS - PQC - CC</div>
             <div className="pt-2 border-t border-border space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">LSS (Living Sec.)</span>
@@ -431,7 +431,7 @@ export function PhasesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Phases Completed" value={`${phases?.completed || 0}/${phases?.total_phases || 10}`} color="green" />
         <StatCard label="Avg Completion" value={pct(phases?.avg_completion_pct, 1)} color="blue" />
-        <StatCard label="Formulas Live" value={fmt(phases?.formulas_live)} sub={`of ${phases?.formulas_total || 84}`} color="green" />
+        
         <StatCard label="Falsifiability Cond." value={fmt(phases?.falsifiability_conditions)} color="amber" />
       </div>
 
@@ -526,7 +526,7 @@ export function ConvergencePage() {
       <Card title="Convergence Theorem - lim E[|T-V|] = H_irr" live>
         <p className="text-sm text-muted-foreground mb-4">{cleanText(conv?.disclosure || conv?.theorem) || 'Loading...'}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="C(t) Current" value={(conv?.C_t || 0).toFixed(4)} color="blue" />
+          <StatCard label="Coherence Current" value={(conv?.C_t || 0).toFixed(4)} color="blue" />
           <StatCard label="C* Asymptote" value={(conv?.C_star || 0).toFixed(4)} color="green" />
           <StatCard label="Convergence Rate lambda" value={(conv?.convergence_rate || 0).toFixed(6)} />
           <StatCard label="Converged?" value={conv?.converged ? 'YES' : 'NO'} color={conv?.converged ? 'green' : 'amber'} />
@@ -535,7 +535,7 @@ export function ConvergencePage() {
 
       <Card title="Convergence Parameters">
         <KVList items={[
-          ['Akashic Depth D(t)', fmt(conv?.akashic_depth)],
+          ['Akashic Depth Behavioral Depth', fmt(conv?.akashic_depth)],
           ['Lambda (rate)', (conv?.convergence_rate || 0).toFixed(6)],
           ['H_irreducible', (conv?.H_irreducible || 0).toFixed(4)],
           ['H_future', (conv?.H_future || 0).toFixed(4)],

@@ -122,10 +122,10 @@ export function BootstrapPage() {
         <ProgressBar value={1 - (bs?.bootstrap_weight || 1)} color="green" label="Protocol maturity" showValue />
         <div className="mt-4">
           <KVList items={[
-            ['Akashic depth D(t)', fmt(bs?.akashic_depth)],
+            ['Akashic depth Behavioral Depth', fmt(bs?.akashic_depth)],
             ['Depth for full transition', fmt(bs?.depth_for_full_transition)],
             ['Decay rate lambda', '0.0001'],
-            ['Formula', 'bootstrap_weight(t) = e^(-0.0001 * D(t))'],
+            ['Formula', 'bootstrap_weight(t) = e^(-0.0001 * Behavioral Depth)'],
             ['Disclosure', cleanText(bs?.disclosure) || '-'],
           ]} />
         </div>
@@ -619,7 +619,7 @@ export function ProtocolPage() {
       </div>
       <Card title="Protocol Monitor States" live>
         <DataTable
-          headers={['Protocol', 'H(t)', 'Grade', 'Reason']}
+          headers={['Protocol', 'Protocol Health', 'Grade', 'Reason']}
           rows={(monitor?.states || []).map((s: any) => [
             s.protocol_name || s.name,
             (s.h_score || 0).toFixed(4),

@@ -13,12 +13,16 @@
 # =============================================================================
 
 # ─── Stage 1: Build Next.js frontend ─────────────────────────────────────────
+# Build timestamp arg — rebuild frontend when code changes (--build-arg BUILD_TIMESTAMP=$(date +%s))
+ARG BUILD_TIMESTAMP=unknown
 FROM node:20-slim AS next-builder
 
 WORKDIR /build
 
 # Copy frontend package.json and install deps
 COPY frontend/package.json frontend/package-lock.json* ./
+# Force cache invalidation on new builds
+ENV BUILD_TIMESTAMP=1786756639
 RUN npm install --legacy-peer-deps --silent
 
 # Copy frontend source
@@ -73,6 +77,8 @@ RUN pip install --no-cache-dir \
 COPY api/             ./api/
 COPY anima-service/   ./anima-service/
 COPY core/            ./core/
+COPY zk/              ./zk/
+COPY adapters/        ./adapters/
 COPY src/             ./src/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
@@ -108,6 +114,7 @@ RUN mkdir -p /tmp/trion-logs anima-service/data
 # Note: PORT is injected by Railway at runtime — do NOT set it here as a static ENV.
 # The entrypoint script reads PORT from the environment and defaults to 10000.
 ENV HOSTNAME=0.0.0.0 \
+    PYTHONPATH=/app \
     FAISS_PORT=8000 \
     FLASK_PORT=5000 \
     FAISS_SERVICE_URL=http://127.0.0.1:8000 \

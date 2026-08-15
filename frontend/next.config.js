@@ -6,6 +6,29 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Cache control headers to prevent stale frontend
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
   // Proxy API requests to Flask backend (internal port 5000)
   async rewrites() {
     return [

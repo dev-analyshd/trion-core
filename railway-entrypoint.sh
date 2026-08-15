@@ -36,7 +36,7 @@ FAISS_PID=$!
 
 # Wait for FAISS to be ready
 for i in $(seq 1 30); do
-    if curl -fs "http://127.0.0.1:${FAISS_PORT}/health" >/dev/null 2>&1; then
+    if curl -fs "http://127.0.0.1:${FAISS_PORT}/healthz" >/dev/null 2>&1; then
         log "FAISS ready after ${i}s"
         break
     fi
