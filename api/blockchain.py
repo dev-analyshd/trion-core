@@ -132,6 +132,60 @@ ORACLE_ABI = [
         ],
         "name": "SilenceSignal",
         "type": "event"
+    },
+    {
+        "inputs": [
+            {"name": "entityId", "type": "bytes32"},
+            {"name": "publicCommitment", "type": "bytes32"},
+            {"name": "coherenceScore", "type": "uint256"},
+            {"name": "threshold", "type": "uint256"},
+            {"name": "moatFactor", "type": "uint256"},
+            {"name": "coherent", "type": "bool"},
+            {"name": "limitingPlane", "type": "uint8"},
+            {"name": "phiPlane", "type": "uint64"},
+            {"name": "mentalPlane", "type": "uint64"},
+            {"name": "sigmaPlane", "type": "uint64"},
+            {"name": "consciousPlane", "type": "uint64"},
+            {"name": "animaPlane", "type": "uint64"}
+        ],
+        "name": "publishBehavioralSignal",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True,  "name": "entityId", "type": "bytes32"},
+            {"indexed": False, "name": "publicCommitment", "type": "bytes32"},
+            {"indexed": False, "name": "coherenceScore", "type": "uint256"},
+            {"indexed": False, "name": "threshold", "type": "uint256"},
+            {"indexed": False, "name": "moatFactor", "type": "uint256"},
+            {"indexed": False, "name": "coherent", "type": "bool"},
+            {"indexed": False, "name": "limitingPlane", "type": "uint8"},
+            {"indexed": False, "name": "phiPlane", "type": "uint64"},
+            {"indexed": False, "name": "mentalPlane", "type": "uint64"},
+            {"indexed": False, "name": "sigmaPlane", "type": "uint64"},
+            {"indexed": False, "name": "consciousPlane", "type": "uint64"},
+            {"indexed": False, "name": "animaPlane", "type": "uint64"},
+            {"indexed": False, "name": "signalBlock", "type": "uint64"},
+            {"indexed": False, "name": "signalTimestamp", "type": "uint64"}
+        ],
+        "name": "BehavioralSignalPublished",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True,  "name": "entityId", "type": "bytes32"},
+            {"indexed": False, "name": "coherenceScore", "type": "uint256"},
+            {"indexed": False, "name": "threshold", "type": "uint256"},
+            {"indexed": False, "name": "limitingPlane", "type": "uint8"},
+            {"indexed": False, "name": "coherenceGap", "type": "uint256"},
+            {"indexed": False, "name": "signalBlock", "type": "uint64"}
+        ],
+        "name": "SilenceRecorded",
+        "type": "event"
     }
 ]
 
@@ -198,6 +252,122 @@ class ChainRelay:
         """
         if not self.ready:
             return {"error": "chain_not_ready", "published": False}
+
+    def publish_behavioral_signal_v3(self,
+            entity_b32: bytes,
+            commitment: bytes,
+            coherence_score: int,
+            threshold: int,
+            moat_factor: int,
+            coherent: bool,
+            limiting_plane: int,
+            phi_plane: int,
+            mental_plane: int,
+            sigma_plane: int,
+            conscious_plane: int,
+            anima_plane: int) -> dict:
+        """
+        Publish a full behavioral signal via TRIONOracleV3.publishBehavioralSignal().
+        Rich format with entity ID, commitment, moat, and all 5 planes.
+        """
+        if not self.ready:
+            return {"error": "chain_not_ready", "published": False}
+        try:
+            with self._lock:
+                nonce = self._w3.eth.get_transaction_count(self._account.address)
+                tx = self._oracle.functions.publishBehavioralSignal(
+                    entity_b32, commitment, coherence_score, threshold,
+                    moat_factor, coherent, limiting_plane,
+                    phi_plane, mental_plane, sigma_plane,
+                    conscious_plane, anima_plane
+                ).build_transaction({
+                    "from": self._account.address,
+                    "nonce": nonce,
+                    "gas": 300000,
+                    "maxFeePerGas": self._w3.to_wei("0.1", "gwei"),
+                    "maxPriorityFeePerGas": self._w3.to_wei("0.01", "gwei"),
+                })
+                signed = self._account.sign_transaction(tx)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+                receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+                return {
+                    "published": True,
+                    "tx_hash": tx_hash.hex(),
+                    "block_number": receipt["blockNumber"],
+                    "status": receipt["status"],
+                    "gas_used": receipt["gasUsed"],
+                    "method": "publishBehavioralSignal",
+                }
+        except Exception as e:
+            log.error("V3 publish failed: %s", e)
+            return {"error": str(e), "published": False}
+
+    def record_silence(self,
+            entity_b32: bytes,
+            coherence_score: int,
+            threshold: int,
+            limiting_plane: int) -> dict:
+        """
+        Record SILENCE on-chain when C(t) < Θ(t).
+        Uses publishBehavioralSignal with coherent=False — contract emits SilenceRecorded.
+        """
+        if not self.ready:
+            return {"error": "chain_not_ready", "published": False}
+        try:
+            with self._lock:
+                nonce = self._w3.eth.get_transaction_count(self._account.address)
+                # Publish with coherent=False — contract auto-emits SilenceRecorded
+                tx = self._oracle.functions.publishBehavioralSignal(
+                    entity_b32,
+                    b"\x00" * 32,  # Zero commitment for silence
+                    coherence_score, threshold,
+                    0, False, limiting_plane, 0, 0, 0, 0, 0
+                ).build_transaction({
+                    "from": self._account.address,
+                    "nonce": nonce,
+                    "gas": 200000,
+                    "maxFeePerGas": self._w3.to_wei("0.1", "gwei"),
+                    "maxPriorityFeePerGas": self._w3.to_wei("0.01", "gwei"),
+                })
+                signed = self._account.sign_transaction(tx)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+                receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+                return {
+                    "published": True,
+                    "tx_hash": tx_hash.hex(),
+                    "block_number": receipt["blockNumber"],
+                    "status": receipt["status"],
+                    "gas_used": receipt["gasUsed"],
+                    "method": "recordSilence",
+                }
+        except Exception as e:
+            log.error("Silence recording failed: %s", e)
+            return {"error": str(e), "published": False}
+
+    def get_behavioral_signal(self, entity_b32: bytes) -> dict:
+        """Read a behavioral signal from the V3 oracle contract."""
+        if not self.ready:
+            return {"error": "chain_not_ready"}
+        try:
+            result = self._oracle.functions.getBehavioralSignal(entity_b32).call()
+            return {
+                "public_commitment": result[0].hex(),
+                "coherence_score": result[1],
+                "threshold": result[2],
+                "moat_factor": result[3],
+                "coherent": result[4],
+                "limiting_plane": result[5],
+                "phi_plane": result[6],
+                "mental_plane": result[7],
+                "sigma_plane": result[8],
+                "conscious_plane": result[9],
+                "anima_plane": result[10],
+                "signal_block": result[11],
+                "signal_timestamp": result[12],
+                "initialized": result[13],
+            }
+        except Exception as e:
+            return {"error": str(e)}
 
         with self._lock:
             try:
