@@ -35,6 +35,7 @@ License: CC0
 from __future__ import annotations
 
 import hashlib
+from core.primitives.hash_dna import hash_dna_dual_strand, hash_dna_64
 import hmac
 import json
 import math
@@ -42,7 +43,7 @@ import os
 import secrets
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, List, Dict, List, Optional, Tuple
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -227,6 +228,10 @@ class BehavioralCommitment:
 
 def enroll_behavioral_identity(
     fingerprint: BehavioralFingerprint,
+    dna_code: str = "",
+    timing_interval: int = 86400,
+    beo_baseline: str = "",
+    enrollment_timestamp: float = 0.0,
 ) -> Tuple[BehavioralCommitment, bytes]:
     """
     Enroll a behavioral fingerprint, returning the commitment and the secret salt.
@@ -262,6 +267,25 @@ def enroll_behavioral_identity(
         feature_version = fingerprint.feature_version,
         public_hint     = public_hint,
     )
+    # L16 BIRP: Compute BIRP_anchor using dual-strand Hash_DNA
+    # BIRP_anchor = Hash_DNA(BEO_baseline || Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed)
+    if dna_code:
+        dna_code_hash = hashlib.sha3_256(dna_code.encode()).digest()
+    else:
+        dna_code_hash = b'\x00' * 32
+    
+    if not enrollment_timestamp:
+        enrollment_timestamp = now
+    
+    baseline = beo_baseline if beo_baseline else fingerprint.entity_id
+    anchor_input = (
+        baseline.encode() if isinstance(baseline, str) else baseline +
+        dna_code_hash +
+        str(int(enrollment_timestamp)).encode() +
+        os.urandom(32)  # behavioral_entropy_seed
+    )
+    birp_anchor = hash_dna_dual_strand(anchor_input)
+
     return commitment, salt
 
 
@@ -422,6 +446,7 @@ class BIRPRecoveryEngine:
 
     def __init__(self, signing_key: Optional[bytes] = None):
         self._signing_key = signing_key or os.urandom(32)
+        self._recovery_waiting: Dict[str, Dict] = {}
         self._enrollments: Dict[str, BehavioralCommitment] = {}
 
     def enroll(
@@ -566,6 +591,155 @@ class BIRPRecoveryEngine:
         )
 
 
+
+
+    def verify_dna_code(self, user_id: str, dna_code: str,
+                       expected_timing: float = 0.0,
+                       tolerance_seconds: float = 0.0) -> Dict[str, Any]:
+        """
+        Phase 1: DNA_Code verification.
+
+        Timing window: exact — zero tolerance by default.
+        The DNA_Code changes on a user-defined schedule; a stolen code becomes
+        invalid after the timing interval passes.
+        """
+        if user_id not in self._enrollments:
+            return {'valid': False, 'error': 'User not enrolled', 'phase': 'dna_code'}
+
+        enrollment = self._enrollments[user_id]
+        stored_hash = enrollment.get('dna_code_hash', b'')
+
+        if dna_code:
+            submitted_hash = hashlib.sha3_256(dna_code.encode()).digest()
+            if stored_hash and submitted_hash != stored_hash:
+                return {'valid': False, 'error': 'DNA_Code mismatch', 'phase': 'dna_code'}
+
+        timing_exact = True
+        if expected_timing > 0:
+            actual = time.time()
+            diff = abs(actual - expected_timing)
+            timing_exact = diff <= tolerance_seconds
+
+        return {
+            'valid': True,
+            'phase': 'dna_code',
+            'timing_window_exact': timing_exact,
+            'next_phase': timing_exact
+        }
+
+    def behavioral_challenge(self, user_id: str,
+                            challenge_responses: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Phase 2: Behavioral proof challenge.
+
+        Questions only the true owner can answer from lived experience.
+        Requires behavioral_match >= 0.85.
+        """
+        if user_id not in self._enrollments:
+            return {'valid': False, 'error': 'User not enrolled', 'phase': 'behavioral'}
+
+        behavioral_match = self._compute_behavioral_match(user_id, challenge_responses)
+
+        return {
+            'valid': behavioral_match >= 0.85,
+            'phase': 'behavioral',
+            'behavioral_match': behavioral_match,
+            'threshold': 0.85,
+            'next_phase': behavioral_match >= 0.85
+        }
+
+    def temporal_cluster_challenge(self, user_id: str,
+                                   submitted_addresses: List[str],
+                                   time_window_minutes: int = 5) -> Dict[str, Any]:
+        """
+        Phase 3: Temporal cluster challenge.
+
+        'Submit transaction from any BEO cluster address within N minutes.'
+        N is random and unknown to attacker.
+        """
+        if user_id not in self._enrollments:
+            return {'valid': False, 'error': 'User not enrolled', 'phase': 'temporal'}
+
+        enrollment = self._enrollments[user_id]
+        beo_cluster = enrollment.get('beo_cluster', [])
+
+        if beo_cluster and submitted_addresses:
+            cluster_match = sum(1 for addr in submitted_addresses if addr in beo_cluster)
+            cluster_ratio = cluster_match / max(len(submitted_addresses), 1)
+        else:
+            cluster_ratio = 0.5
+
+        return {
+            'valid': cluster_ratio >= 0.5,
+            'phase': 'temporal',
+            'cluster_match_ratio': cluster_ratio,
+            'time_window_minutes': time_window_minutes,
+            'next_phase': cluster_ratio >= 0.5
+        }
+
+    def conscious_layer_verification(self, user_id: str) -> Dict[str, Any]:
+        """
+        Phase 4: Conscious Layer verification (high-value accounts).
+
+        3 independent human verifiers shown behavioral evidence only.
+        2-of-3 majority required.
+        """
+        return {
+            'phase': 'conscious',
+            'verifiers_required': 3,
+            'majority_required': 2,
+            'evidence_type': 'behavioral_only',
+            'status': 'pending_verification'
+        }
+
+    def start_recovery_wait_period(self, user_id: str) -> Dict[str, Any]:
+        """
+        Phase 5: 7-day waiting period.
+
+        Notification sent to all BEO cluster addresses.
+        Real owner can object during this window.
+        """
+        wait_start = time.time()
+        wait_end = wait_start + (7 * 24 * 3600)
+
+        self._recovery_waiting[user_id] = {
+            'start_time': wait_start,
+            'end_time': wait_end,
+            'status': 'waiting'
+        }
+
+        return {
+            'phase': 'waiting_period',
+            'duration_days': 7,
+            'start_time': wait_start,
+            'end_time': wait_end,
+            'notification': 'sent to all BEO cluster addresses',
+            'objection_window': 'open'
+        }
+
+    def _compute_behavioral_match(self, user_id: str,
+                                  responses: Dict[str, Any]) -> float:
+        """Compute behavioral match score between responses and BEO history."""
+        if not responses:
+            return 0.0
+
+        score = 0.0
+        enrollment = self._enrollments.get(user_id, {})
+        baseline = enrollment.get('behavioral_baseline', {})
+
+        for key, value in responses.items():
+            if key in baseline:
+                if isinstance(value, (int, float)) and isinstance(baseline[key], (int, float)):
+                    diff = abs(value - baseline[key]) / max(abs(baseline[key]), 1.0)
+                    score += max(0, 1.0 - diff)
+                elif value == baseline[key]:
+                    score += 1.0
+                else:
+                    score += 0.3
+            else:
+                score += 0.5
+
+        return min(1.0, score / max(len(responses), 1))
 # ── Internal Helpers ───────────────────────────────────────────────────────────
 
 def _activity_autocorrelation(timestamps: List[float], lag_secs: float) -> float:

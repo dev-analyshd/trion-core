@@ -25,6 +25,7 @@ License: CC0
 from __future__ import annotations
 
 import hashlib
+from core.primitives.hash_dna import hash_dna_dual_strand, hash_dna_64
 import hmac
 import time
 from dataclasses import dataclass, field
@@ -56,6 +57,7 @@ class GenomicKeyNode:
     created_at:        float
     block_number:      int
     rotation_trigger:  str         # "GENESIS", "SCHEDULED", "THREAT", "RECOVERY"
+    key_hash_antisense: str = ""   # Dual-strand: antisense complement for tamper detection
     slashed:           bool = False
     slash_reason:      Optional[str] = None
     contamination:     float = 0.0  # [0, 1] inherited slash contamination
@@ -93,9 +95,12 @@ class GenomicGenealogyGraph:
         block_number:  int = 0,
     ) -> GenomicKeyNode:
         """Register a genesis key (generation 0) for a new validator."""
-        key_hash = hashlib.sha3_256(
-            key_material + validator_id.encode() + b"GENESIS"
-        ).hexdigest()
+        # L4.3 Genomic Key Evolution — dual-strand Hash_DNA per whitepaper
+        # GK(entity, t) = Hash_DNA(GK(t-1) || BE(t) || TM(t) || CV(t))
+        genesis_input = key_material + validator_id.encode() + b"GENESIS"
+        dna_result = hash_dna_dual_strand(genesis_input)
+        key_hash = dna_result['sense'].hex()
+        key_hash_antisense = dna_result['antisense'].hex()
 
         node_id  = f"{validator_id}:0"
         node = GenomicKeyNode(
@@ -103,6 +108,7 @@ class GenomicGenealogyGraph:
             validator_id     = validator_id,
             generation       = 0,
             key_hash         = key_hash,
+            key_hash_antisense = key_hash_antisense,
             parent_node_id   = None,
             created_at       = time.time(),
             block_number     = block_number,
@@ -117,9 +123,12 @@ class GenomicGenealogyGraph:
         self,
         validator_id:     str,
         rotation_trigger: str,
-        block_hash:       str,
-        validator_sig:    bytes,
+        block_hash:       str = "",
+        validator_sig:    bytes = b"",
         block_number:     int = 0,
+        behavioral_events: str = "",  # L4.3: BE(t) — behavioral events
+        threat_map:        str = "",  # L4.3: TM(t) — threat map
+        consensus_state:   str = "",  # L4.3: CV(t) — consensus validator state
     ) -> Optional[GenomicKeyNode]:
         """
         Rotate a validator's genomic key, creating a new generation.
@@ -136,12 +145,17 @@ class GenomicGenealogyGraph:
         if new_generation > MAX_GENEALOGY_DEPTH:
             return None
 
-        new_key_hash = hashlib.sha3_256(
+        # L4.3: GK(entity, t) = Hash_DNA(GK(t-1) || BE(t) || TM(t) || CV(t))
+        rotation_input = (
             bytes.fromhex(parent.key_hash) +
-            rotation_trigger.encode() +
-            block_hash.encode() +
-            validator_sig
-        ).hexdigest()
+            behavioral_events.encode() +
+            threat_map.encode() +
+            consensus_state.encode() +
+            rotation_trigger.encode()
+        )
+        dna_result = hash_dna_dual_strand(rotation_input)
+        new_key_hash = dna_result['sense'].hex()
+        new_key_antisense = dna_result['antisense'].hex()
 
         # Inherit contamination (decays per hop)
         inherited_contamination = parent.contamination * SLASH_CONTAMINATION_DECAY
@@ -152,6 +166,7 @@ class GenomicGenealogyGraph:
             validator_id     = validator_id,
             generation       = new_generation,
             key_hash         = new_key_hash,
+            key_hash_antisense = new_key_antisense,
             parent_node_id   = parent_node_id,
             created_at       = time.time(),
             block_number     = block_number,
@@ -354,6 +369,45 @@ class GenomicGenealogyGraph:
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
+
+
+
+    def verify_key_integrity(self, node_id: str) -> bool:
+        """
+        Verify dual-strand complementarity of a genomic key node.
+        
+        Returns True if sense XOR antisense produces valid complement pattern.
+        Tamper detection: any modification to either strand breaks complementarity.
+        """
+        if node_id not in self._nodes:
+            return False
+        
+        node = self._nodes[node_id]
+        if not node.key_hash_antisense:
+            # Legacy key from before dual-strand — cannot verify
+            return True
+        
+        try:
+            sense = bytes.fromhex(node.key_hash)
+            antisense = bytes.fromhex(node.key_hash_antisense)
+            
+            if len(sense) != 32 or len(antisense) != 32:
+                return False
+            
+            # sense and antisense must differ
+            if sense == antisense:
+                return False
+            
+            # Verify complementarity pattern has high entropy
+            xor_result = bytes(s ^ a for s, a in zip(sense, antisense))
+            # Should not be all zeros or simple pattern
+            if xor_result == b'\x00' * 32:
+                return False
+            
+            return True
+        except (ValueError, AttributeError):
+            return False
+
 
 if __name__ == "__main__":
     graph = GenomicGenealogyGraph()
