@@ -741,12 +741,12 @@ def _compute_signal(entity_id: str) -> dict:
       L2.4  conf_genesis = 1 - e^(-0.001·D)
     """
     import uuid
-    from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile
-    from src.core.temporal_coherence import (
+    from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile
+    from core.physical.temporal_coherence import (
         compute_temporal_coherence, PlaneTimestamp,
         compute_transduction_integrity, SensorCalibration,
     )
-    from src.signals.signal_factory import (
+    from core.master.signal_factory import (
         SignalType, compute_brt, _genomic_signature,
     )
 
@@ -1433,7 +1433,7 @@ import sys as _sys
 _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from src.auditor.contract_auditor import ContractAuditor
+    from core.auditor.contract_auditor import ContractAuditor
     _auditor = ContractAuditor()
     _auditor_ok = True
 except Exception as _e:
@@ -1441,7 +1441,7 @@ except Exception as _e:
     _auditor = None
 
 try:
-    from src.agent.safety_pipeline import (
+    from core.agent.safety_pipeline import (
         TRIONAgentPipeline, AgentAction, ActionType, get_pipeline
     )
     _pipeline_ok = True
@@ -1449,40 +1449,40 @@ except Exception as _e:
     _pipeline_ok = False
 
 try:
-    from src.akashic.archetypes import (
+    from core.trading.pattern_archetypes import (
         match_archetype, get_all_archetypes_summary, ARCHETYPES
     )
-    from src.akashic.epigenetics import get_epigenetic_engine, EnvironmentalPressure
+    from core.akashic.genesis import get_epigenetic_engine, EnvironmentalPressure
     _akashic_ok = True
 except Exception as _e:
     _akashic_ok = False
 
 try:
-    from src.thermodynamics.thermo_engine import get_thermo_engine
+    from core.thermodynamics.thermo_engine import get_thermo_engine
     _thermo_ok = True
 except Exception as _e:
     _thermo_ok = False
 
 try:
-    from src.lifecycle.entity_lifecycle import get_lifecycle_engine
+    from core.akashic.genesis import get_lifecycle_engine
     _lifecycle_ok = True
 except Exception as _e:
     _lifecycle_ok = False
 
 try:
-    from src.ubl.ubl import get_encoder as get_ubl_encoder, UBL_SCHEMA
+    from core.ubl.ubl import get_encoder as get_ubl_encoder, UBL_SCHEMA
     _ubl_ok = True
 except Exception as _e:
     _ubl_ok = False
 
 try:
-    from src.reputation.reputation_engine import get_reputation_engine
+    from core.reputation.reputation_engine import get_reputation_engine
     _reputation_ok = True
 except Exception as _e:
     _reputation_ok = False
 
 try:
-    from src.investment.investment_engine import get_investment_engine
+    from core.investment.investment_engine import get_investment_engine
     _investment_ok = True
 except Exception as _e:
     _investment_ok = False
@@ -1535,7 +1535,7 @@ def audit_contract(address: str):
 @app.route("/api/v1/audit/patterns")
 def audit_patterns():
     """Return all 20 vulnerability patterns in the TRION library."""
-    from src.auditor.vulnerability_patterns import VULNERABILITY_LIBRARY
+    from core.auditor.vulnerability_patterns import VULNERABILITY_LIBRARY
     return jsonify({
         "count": len(VULNERABILITY_LIBRARY),
         "patterns": [
@@ -2426,13 +2426,13 @@ def vm_families():
 # ── Governance Module: non-fatal imports ──────────────────────────────────────
 
 try:
-    from src.governance.awa_state import get_awa_enforcer, BootstrapProtocol as _BootstrapProtocol
+    from core.governance.intelligence_maintenance import get_awa_enforcer, BootstrapProtocol as _BootstrapProtocol
     _awa_ok = True
 except Exception as _e:
     _awa_ok = False
 
 try:
-    from src.governance.falsifiability_registry import (
+    from core.governance.sba_engine import (
         get_all_conditions, get_summary as _f_summary, update_condition_status
     )
     _falsifiability_ok = True
@@ -2489,19 +2489,19 @@ threading.Thread(
 ).start()
 
 try:
-    from src.governance.sba_engine import sba_from_raw_data, compute_sba
+    from core.governance.sba_engine import sba_from_raw_data, compute_sba
     _sba_ok = True
 except Exception as _e:
     _sba_ok = False
 
 try:
-    from src.planes.physical.xsl_engine import compute_xsl_full, CrossChainBehavior as _XSLChain
+    from core.protocol.distribution_coherence import compute_xsl_full, CrossChainBehavior as _XSLChain
     _xsl_ok = True
 except Exception as _e:
     _xsl_ok = False
 
 try:
-    from src.security.pqc_layer import (
+    from core.spiritual.living_security.pqc_layer import (
         compute_sec, compute_geo_enforcement, check_complexity_bound,
         ValidatorGeoDistribution as _VGD,
     )
@@ -2510,7 +2510,7 @@ except Exception as _e:
     _pqc_ok = False
 
 try:
-    from src.governance.slashing import (
+    from core.governance.intelligence_maintenance import (
         SlashingEngine as _SlashingEngine,
         SlashingCondition as _SlashCond,
         get_slashing_engine,
@@ -2521,7 +2521,7 @@ except Exception as _e:
     _slashing_ok = False
 
 try:
-    from src.governance.intelligence_maintenance import (
+    from core.governance.intelligence_maintenance import (
         get_imp, IntelligenceMaintenanceProtocol as _IMP,
         IM_THRESHOLD, IM_CRITICAL, IM_DISABLED, IM_WEIGHTS,
     )
@@ -3258,7 +3258,7 @@ def genesis_signal(asset_id: str):
 @require_entity_id()
 def security_mf(entity_id: str):
     """Manipulation Fingerprint (MF) score for entity — whitepaper L2.1."""
-    from src.manipulation.fingerprint_detector import (
+    from core.auditor.vulnerability_patterns import (
         detect_wash_trading, detect_sybil_liquidity,
         detect_governance_capture, detect_mev_extraction,
         detect_coordinated_pump, detect_fake_volume,
@@ -3302,7 +3302,7 @@ def security_mf(entity_id: str):
 @require_entity_id()
 def security_genomic(entity_id: str):
     """Current genomic key for entity (public portion) — whitepaper L4.3."""
-    from src.security.living_security import GenomicKeyEvolver
+    from core.spiritual.living_security.genomic_genealogy import GenomicKeyEvolver
     eid_bytes = entity_id.encode()
     evolver   = GenomicKeyEvolver()
     evolver.initialize(eid_bytes)
@@ -3335,7 +3335,7 @@ def security_genomic(entity_id: str):
 @require_entity_id()
 def resurrection(entity_id: str):
     """L2.4 Resurrection Inference — Δ_resurrection = w_d·e^(-κ·T) + w_c·sim(S_pre,S_react) + w_x·g(C)."""
-    from src.planes.physical.resurrection import (
+    from core.akashic.genesis import (
         DormancyProfile, DormancyType, compute_resurrection, classify_dormancy
     )
     h = hashlib.sha256(entity_id.encode()).digest()
@@ -3386,7 +3386,7 @@ def resurrection(entity_id: str):
 @app.route("/api/v1/fork/<asset_id>")
 def fork_resolution_legacy(asset_id: str):
     """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights."""
-    from src.planes.physical.fork_resolution import (
+    from core.protocol.protocol_health import (
         ForkProfile, ForkResolutionResult, PreForkHolder,
         compute_fork_resolution, compute_fork_confidence,
     )
@@ -3443,7 +3443,7 @@ def fork_resolution_legacy(asset_id: str):
 @require_entity_id()
 def trajectory_anomaly_legacy(entity_id: str):
     """L2.7 Trajectory Anomaly — KL(P_actual || P_expected) with MANIPULATION_ALERT."""
-    from src.planes.physical.trajectory_anomaly import (
+    from core.akashic.genesis import (
         TrajectoryDistribution, compute_trajectory_anomaly, build_trajectory_signal,
     )
     h = hashlib.sha256(entity_id.encode()).digest()
@@ -3493,7 +3493,7 @@ def trajectory_anomaly_legacy(entity_id: str):
 @app.route("/api/v1/bc/<ecosystem>")
 def biological_capital(ecosystem: str):
     """L6.1 Biological Capital — BC(ecosystem,t) = Flow · Resilience · Uniqueness · Interdependence."""
-    from src.planes.extended.biological_capital import (
+    from core.extended.sovereign_behavioral import (
         EcosystemProfile, compute_bc, bc_to_ecosystem_health_signal,
     )
     h = hashlib.sha256(ecosystem.encode()).digest()
@@ -3531,7 +3531,7 @@ def biological_capital(ecosystem: str):
 @app.route("/api/v1/ep/<entity_id>")
 def energy_participation(entity_id: str):
     """L7.2 Energy Participation Index — EP = VC · PA · DC."""
-    from src.planes.extended.energy_participation import (
+    from core.extended.sovereign_behavioral import (
         ProtocolEconomics, DeveloperData, compute_ep,
     )
     h = hashlib.sha256(entity_id.encode()).digest()
@@ -3585,7 +3585,7 @@ def energy_participation(entity_id: str):
 @app.route("/api/v1/validator/hhi")
 def validator_hhi():
     """L4.8 HHI Validator Diversity — HHI(t) = Σ(s_j·d_j/Σs_k·d_k)² × 10000."""
-    from src.planes.spiritual.hhi_monitor import ValidatorStake, compute_hhi_enforcement, HHITier
+    from core.spiritual.sigma_engine import ValidatorStake, compute_hhi_enforcement, HHITier
     n_validators = 60
     validators   = []
     for i in range(n_validators):
@@ -4156,7 +4156,7 @@ def native_stack():
     interpreter for formal verification, so "wired" here means "executed
     successfully just now", not "source file exists".
     """
-    from src.native_bridge import (
+    from adapters.evm import (
         native_stack_report, run_formal_verification,
         run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest,
         compute_fft_features,
@@ -4332,7 +4332,7 @@ def behavioral_hash_get(entity_id: str):
     Returns a BH computed from entity_id with synthetic event data.
     Shows all 20 EventType names and the dual-strand structure.
     """
-    from src.core.behavioral_hash import (
+    from core.primitives.behavioral_hash import (
         BehavioralEvent, EventType, compute_behavioral_hash, EVENT_TYPE_NAMES
     )
     import hashlib, time
@@ -5002,7 +5002,7 @@ def behavioral_hash_compute():
       usd_value          float optional — triggers log10 USD path
       usd_max_90d        float optional — triggers log10 USD path
     """
-    from src.core.behavioral_hash import bh_from_dict, EVENT_TYPE_NAMES
+    from core.primitives.behavioral_hash import bh_from_dict, EVENT_TYPE_NAMES
     data = request.get_json(force=True, silent=True) or {}
     try:
         result = bh_from_dict(data)
@@ -5199,7 +5199,7 @@ def signal_by_type(type_name: str, entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from src.signals.signal_factory import (
+    from core.master.signal_factory import (
         SignalType, build_signal,
         build_valuation, build_silence, build_manipulation_alert,
         build_genesis, build_resurrection, build_fork_divergence,
@@ -5399,7 +5399,7 @@ def signal_by_type(type_name: str, entity_id: str):
         else:
             return jsonify({
                 "error":       f"Unknown signal type: {type_name}",
-                "valid_types": [t.name for t in __import__("src.signals.signal_factory",
+                "valid_types": [t.name for t in __import__("core.master.signal_factory",
                                 fromlist=["SignalType"]).SignalType],
                 "whitepaper":  "Section 11",
             }), 400
@@ -5510,8 +5510,8 @@ def genomic_key_evolution(entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from src.security.genomic_genealogy import GenomicGenealogyGraph
-    from src.signals.signal_factory import _genomic_signature
+    from core.spiritual.living_security.genomic_genealogy import GenomicGenealogyGraph
+    from core.master.signal_factory import _genomic_signature
 
     h   = hashlib.sha3_256(entity_id.encode()).digest()
     n_generations = int(1 + h[0] % 8)
@@ -5673,7 +5673,7 @@ def dw_bft():
     L4.3 Safety: Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ
     Coordination is structurally self-defeating.
     """
-    from src.consensus.diversity_weighted_bft import (
+    from core.spiritual.consensus import (
         build_demo_validators, compute_dw_bft_consensus,
         simulate_coordination_attack,
     )
@@ -5853,7 +5853,7 @@ def homomorphic_mapping(chain, entity_id):
     Adaptive Layer: temporal alignment + magnitude normalization + maturity weight.
     Whitepaper v0.4, Section 4 + Section 5.
     """
-    from src.core.homomorphic_mapping import (
+    from core.primitives.homomorphic_mapping import (
         RawChainEvent, homomorphic_map,
         verify_homomorphic_property, adaptive_layer_summary,
     )
@@ -5897,7 +5897,7 @@ def homomorphic_mapping(chain, entity_id):
     summary = adaptive_layer_summary()
 
     # Cross-arch comparison: also map this entity as if it were on EVM
-    from src.core.homomorphic_mapping import RawChainEvent as RC
+    from core.primitives.homomorphic_mapping import RawChainEvent as RC
     evm_equiv = RC(
         chain="EVM", entity_id=entity_id, event_type="SWAP",
         raw_value=raw_value, timestamp=event.timestamp, block=event.block,
@@ -5948,7 +5948,7 @@ def homomorphic_mapping(chain, entity_id):
 @app.route("/api/v1/homomorphic/adaptive_layer")
 def adaptive_layer_status():
     """Adaptive Layer status across all integrated chain architectures."""
-    from src.core.homomorphic_mapping import adaptive_layer_summary
+    from core.primitives.homomorphic_mapping import adaptive_layer_summary
     summary = adaptive_layer_summary()
     return jsonify({**summary, "timestamp": int(time.time())})
 
@@ -6659,7 +6659,7 @@ def dna_immune_system(entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from src.security.living_security import get_lss
+    from core.spiritual.living_security.genomic_genealogy import get_lss
     lss = get_lss()
 
     # Evolve genomic key with current behavioral context
@@ -6709,7 +6709,7 @@ def chameleon_protocol(entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from src.security.chameleon_protocol import ChameleonProtocol
+    from core.novel.chameleon import ChameleonProtocol
     chameleon = ChameleonProtocol()
 
     data        = _compute_signal(entity_id)
@@ -8083,7 +8083,7 @@ def attacks_library():
         vm_breakdown[a["vm"]] = vm_breakdown.get(a["vm"], 0) + 1
         pattern_breakdown[a["pattern"]] = pattern_breakdown.get(a["pattern"], 0) + 1
 
-    from src.security.living_security import CRISPRDefense
+    from core.spiritual.living_security.genomic_genealogy import CRISPRDefense
     crispr_size = len(CRISPRDefense.KNOWN_ATTACKS)
 
     return jsonify({
@@ -8180,7 +8180,7 @@ def demo_stats():
         pat = a.get("pattern", "UNKNOWN")
         pattern_breakdown[pat] = pattern_breakdown.get(pat, 0) + 1
 
-    from src.security.living_security import CRISPRDefense
+    from core.spiritual.living_security.genomic_genealogy import CRISPRDefense
     crispr_count = len(CRISPRDefense.KNOWN_ATTACKS)
 
     return jsonify({
@@ -9725,7 +9725,7 @@ def genesis_fingerprint(asset_id: str):
     λ  = Σₖ sim(G, Aₖ) · λₖ / Σₖ sim(G, Aₖ)   (archetype-matched, not fixed)
     conf(t) = 1 − e^(−λ · A(t))
     """
-    from src.core.genesis_inference import (
+    from core.akashic.genesis import (
         GenesisFingerprint, GenesisVector, Archetype,
         infer_genesis_value, genesis_confidence,
     )
