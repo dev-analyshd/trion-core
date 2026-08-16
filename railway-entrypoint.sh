@@ -42,6 +42,7 @@ export FAISS_SERVICE_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:${FAISS_PORT}}"
 export FAISS_URL="${FAISS_URL:-http://127.0.0.1:${FAISS_PORT}}"
 export ORACLE_API_URL="${ORACLE_API_URL:-http://127.0.0.1:${FLASK_PORT}}"
 export FLASK_URL="${FLASK_URL:-http://127.0.0.1:${FLASK_PORT}}"
+export BH_LEDGER_DB="/app/bh_ledger.db"
 export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 
