@@ -182,7 +182,12 @@ def compute_ep(econ: ProtocolEconomics, dev: DeveloperData) -> EPResult:
     elif label == "PARASITIC":
         warning = f"PARASITIC protocol: EP={ep:.4f}. VC={vc:.4f} PA={pa:.4f} DC={dc:.4f}."
 
+        # Green energy preference: protocols using more renewables score higher
+    # GE ∈ [0.5, 1.5]: 50% penalty for fossil-only, 50% bonus for fully renewable
+    ge_factor = 0.5 + econ.renewable_energy_fraction
+    
     return EPResult(
+        ep_score=ep_score * ge_factor,
         protocol_id  = econ.protocol_id,
         ep           = ep,
         vc           = vc,
