@@ -37,6 +37,34 @@ interface ITRIONOracleV3 {
     /// @notice Emitted when a BTCP route is published.
     event BTCPRoutePublished(bytes32 indexed routeId, bool isSafe);
 
+    /// @notice Emitted when a full behavioral signal is published on-chain.
+    event BehavioralSignalPublished(
+        bytes32 indexed entityId,
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane,
+        uint64 signalBlock,
+        uint64 signalTimestamp
+    );
+
+    /// @notice Emitted when SILENCE is formally recorded (C(t) < Θ(t)).
+    event SilenceRecorded(
+        bytes32 indexed entityId,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint8 limitingPlane,
+        uint256 coherenceGap,
+        uint64 signalBlock
+    );
+
     struct Signal {
         uint256 packedData;
         bool initialized;
@@ -49,6 +77,25 @@ interface ITRIONOracleV3 {
         uint256 threshold;
         bool isSafe;
         uint256 timestamp;
+    }
+
+    /// @notice Full behavioral signal with entity context and plane data.
+    struct BehavioralSignal {
+        bytes32 entityId;
+        bytes32 publicCommitment;
+        uint256 coherenceScore;
+        uint256 threshold;
+        uint256 moatFactor;
+        bool coherent;
+        uint8 limitingPlane;
+        uint64 phiPlane;
+        uint64 mentalPlane;
+        uint64 sigmaPlane;
+        uint64 consciousPlane;
+        uint64 animaPlane;
+        uint64 signalBlock;
+        uint64 signalTimestamp;
+        bool initialized;
     }
 
     /// @notice Publish a behavioral signal (legacy path).
@@ -88,8 +135,44 @@ interface ITRIONOracleV3 {
             uint64 timestamp
         );
 
+    /// @notice Publish a full behavioral signal with entity context and plane data.
+    function publishBehavioralSignal(
+        bytes32 entityId,
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane
+    ) external;
+
+    /// @notice Get the full behavioral signal for an entity.
+    function getBehavioralSignal(bytes32 entityId) external view returns (
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane,
+        uint64 signalBlock,
+        uint64 signalTimestamp,
+        bool initialized
+    );
+
     function addValidator(address v) external;
     function setQuorum(uint256 q) external;
     function isValidator(address v) external view returns (bool);
     function quorumRequired() external view returns (uint256);
+    function signalCountByEntity(bytes32 entityId) external view returns (uint256);
+    function totalBehavioralSignals() external view returns (uint256);
 }
