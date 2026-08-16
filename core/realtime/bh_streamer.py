@@ -334,9 +334,69 @@ class BHStreamer:
 
 
 class FAISSAccumulator:
-    def __init__(self):
+    """Accumulates behavioral hashes and POSTs vectors to the FAISS service.
+
+    Buffers vectors in memory and flushes to FAISS via HTTP POST
+    /index/add_batch when the buffer reaches BATCH_SIZE or FLUSH_INTERVAL.
+    This ensures real-time vector population of the FAISS index.
+    """
+
+    BATCH_SIZE = 50
+    FLUSH_INTERVAL = 10.0  # seconds
+
+    def __init__(self, faiss_url=None):
         self.vector_count = 0
         self._lock = threading.Lock()
+        self._buffer = []
+        self._faiss_url = faiss_url or os.environ.get(
+            "FAISS_SERVICE_URL",
+            os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
+        )
+        self._last_flush = time.time()
+        self._flush_thread = None
+        self._stop_flush = threading.Event()
+        self._start_flush_daemon()
+
+    def _start_flush_daemon(self):
+        """Background thread that flushes buffer periodically."""
+        def _flush_loop():
+            while not self._stop_flush.is_set():
+                self._stop_flush.wait(self.FLUSH_INTERVAL)
+                self._flush_buffer()
+        self._flush_thread = threading.Thread(target=_flush_loop, daemon=True)
+        self._flush_thread.start()
+
+    def _flush_buffer(self):
+        """POST buffered vectors to FAISS service."""
+        with self._lock:
+            if not self._buffer:
+                self._last_flush = time.time()
+                return
+            batch = list(self._buffer)
+            self._buffer.clear()
+            self._last_flush = time.time()
+
+        try:
+            payload = json.dumps({
+                "vectors": batch,
+                "source": "bh_streamer",
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self._faiss_url}/index/add_batch",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    pass  # Successfully flushed
+        except Exception as e:
+            # FAISS might not be ready yet; buffer will retry on next flush
+            with self._lock:
+                self._buffer.extend(batch)
+                # Prevent unbounded growth: cap buffer
+                if len(self._buffer) > 10000:
+                    self._buffer = self._buffer[-5000:]
 
     def bh_to_vector(self, bh):
         vec = [0.0] * 128
@@ -369,8 +429,21 @@ class FAISSAccumulator:
 
     def on_bh(self, bh, tx, chain_config):
         vec = self.bh_to_vector(bh)
+        should_flush = False
         with self._lock:
             self.vector_count += 1
+            self._buffer.append(vec)
+            if len(self._buffer) >= self.BATCH_SIZE:
+                should_flush = True
+        if should_flush:
+            self._flush_buffer()
+
+    def shutdown(self):
+        """Stop flush daemon and flush remaining vectors."""
+        self._stop_flush.set()
+        if self._flush_thread:
+            self._flush_thread.join(timeout=2)
+        self._flush_buffer()
 
 
 # ── Global instance ───────────────────────────────────────────────────────────
