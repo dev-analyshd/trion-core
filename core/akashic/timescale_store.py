@@ -18,13 +18,18 @@ import time
 import logging
 import threading
 from typing import Dict, List, Optional, Any
+
+try:
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    RealDictCursor = None  # psycopg2 not installed; TimescaleStore unavailable
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
 try:
     import psycopg2
-    from psycopg2.extras import RealDictCursor, execute_values, Json
+    from psycopg2.extras import RealDictCursor, RealDictCursor, execute_values, Json
     PSYCOPG2_OK = True
 except ImportError:
     PSYCOPG2_OK = False
