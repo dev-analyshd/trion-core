@@ -51,7 +51,7 @@ def _start_protocol_monitor(state):
     if not _available:
         return
     try:
-        from protocol_monitor import start_monitor
+        from api.protocol_monitor import start_monitor
         start_monitor(_engine)
         log.info("Protocol monitor started via blueprint.record_once")
     except Exception as _mon_err:
@@ -381,7 +381,7 @@ def monitor_status():
     last H(t) score, grade, threat level, and push count for each watched protocol.
     """
     try:
-        from protocol_monitor import get_monitor_status, WATCHED_PROTOCOLS, POLL_INTERVAL_SECONDS
+        from api.protocol_monitor import get_monitor_status, WATCHED_PROTOCOLS, POLL_INTERVAL_SECONDS
         return jsonify({
             "status": "ok",
             "monitor_active": True,
