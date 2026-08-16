@@ -305,12 +305,121 @@ def api_continuum_live():
 
 @dashboard_bp.route("/api/timescale-live")
 def api_timescale_live():
-    """Live TimescaleDB statistics."""
+    """Live TimescaleDB statistics from the Akashic Index."""
+    # FAISS proxy data (backward compatible)
     bh_stats = _proxy(f"{FAISS_URL}/bh/stats") or {}
     conservation = _proxy(f"{FAISS_URL}/conservation/status") or {}
+    
+    # TimescaleDB live data
+    timescale_data = {"available": False}
+    if TIMESCALE_AVAILABLE and get_timescale_store:
+        store = get_timescale_store()
+        if store and store.available:
+            timescale_data = store.get_stats()
+    
     return jsonify({
         "bh_stats": bh_stats,
         "conservation": conservation,
+        "timescale": timescale_data,
+        "timestamp": int(time.time()),
+    })
+
+
+@dashboard_bp.route("/api/timescale/health")
+def api_timescale_health():
+    """TimescaleDB connection health check."""
+    if not TIMESCALE_AVAILABLE or not get_timescale_store:
+        return jsonify({"status": "unavailable", "reason": "psycopg2 not installed"}), 503
+    store = get_timescale_store()
+    health = store.health_check()
+    status_code = 200 if health.get("status") == "healthy" else 503
+    return jsonify(health), status_code
+
+
+@dashboard_bp.route("/api/timescale/stats")
+def api_timescale_stats():
+    """Comprehensive Akashic Index statistics from TimescaleDB."""
+    if not TIMESCALE_AVAILABLE or not get_timescale_store:
+        return jsonify({"available": False, "error": "timescale_unavailable"}), 503
+    store = get_timescale_store()
+    if not store.available:
+        return jsonify({"available": False, "error": "not_configured"}), 503
+    return jsonify(store.get_stats())
+
+
+@dashboard_bp.route("/api/timescale/activity")
+@dashboard_bp.route("/api/timescale/activity/<int:hours>")
+def api_timescale_activity(hours: int = 24):
+    """Recent activity across all entities in the Akashic Index."""
+    if not TIMESCALE_AVAILABLE or not get_timescale_store:
+        return jsonify({"available": False, "error": "timescale_unavailable"}), 503
+    store = get_timescale_store()
+    if not store.available:
+        return jsonify({"available": False, "error": "not_configured"}), 503
+    hours = max(1, min(hours, 168))  # clamp to 1-168 hours
+    activity = store.get_recent_activity(hours)
+    return jsonify({
+        "hours": hours,
+        "activity_count": len(activity),
+        "activity": activity,
+        "timestamp": int(time.time()),
+    })
+
+
+@dashboard_bp.route("/api/timescale/entity/<path:entity_id>/depth")
+def api_timescale_entity_depth(entity_id: str):
+    """Get Akashic depth statistics for a specific entity."""
+    if not TIMESCALE_AVAILABLE or not get_timescale_store:
+        return jsonify({"available": False, "error": "timescale_unavailable"}), 503
+    store = get_timescale_store()
+    if not store.available:
+        return jsonify({"available": False, "error": "not_configured"}), 503
+    
+    # Convert entity_id to bytes (handle hex strings)
+    try:
+        if entity_id.startswith("0x"):
+            entity_bytes = bytes.fromhex(entity_id[2:])
+        elif len(entity_id) == 64:
+            entity_bytes = bytes.fromhex(entity_id)
+        else:
+            entity_bytes = entity_id.encode()
+    except ValueError:
+        entity_bytes = entity_id.encode()
+    
+    depth = store.get_akashic_depth(entity_bytes)
+    return jsonify({
+        "entity_id": entity_id,
+        "depth": depth,
+        "timestamp": int(time.time()),
+    })
+
+
+@dashboard_bp.route("/api/timescale/entity/<path:entity_id>/bhs")
+@dashboard_bp.route("/api/timescale/entity/<path:entity_id>/bhs/<int:limit>")
+def api_timescale_entity_bhs(entity_id: str, limit: int = 100):
+    """Get recent behavioral hashes for a specific entity."""
+    if not TIMESCALE_AVAILABLE or not get_timescale_store:
+        return jsonify({"available": False, "error": "timescale_unavailable"}), 503
+    store = get_timescale_store()
+    if not store.available:
+        return jsonify({"available": False, "error": "not_configured"}), 503
+    
+    try:
+        if entity_id.startswith("0x"):
+            entity_bytes = bytes.fromhex(entity_id[2:])
+        elif len(entity_id) == 64:
+            entity_bytes = bytes.fromhex(entity_id)
+        else:
+            entity_bytes = entity_id.encode()
+    except ValueError:
+        entity_bytes = entity_id.encode()
+    
+    limit = max(1, min(limit, 1000))
+    bhs = store.get_entity_bh(entity_bytes, limit)
+    return jsonify({
+        "entity_id": entity_id,
+        "bh_count": len(bhs),
+        "behavioral_hashes": bhs,
         "timestamp": int(time.time()),
     })
 

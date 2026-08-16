@@ -196,3 +196,9 @@ contract_addresses:
     btcp_escrow:          "11111111111111111111111111111111"  # SVM program ID
     btcp_intent:          "11111111111111111111111111111111"
     btcp_route:           "11111111111111111111111111111111"
+
+# TimescaleDB Akashic Index (optional)
+# Set TIMESCALEDB_URL environment variable to enable
+# timescaledb:
+#   enabled: true
+#   url: "postgres://user:pass@host:port/dbname?sslmode=require"

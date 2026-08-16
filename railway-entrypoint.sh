@@ -153,7 +153,15 @@ else
     fi
 fi
 
-# ── 3e. Optional: Prometheus Monitoring ─────────────────────────────────
+# ── 3e. Optional: TimescaleDB Akashic Index ──────────────────────────────
+if [ -n "${TIMESCALEDB_URL:-}" ]; then
+    log "TimescaleDB configured — Akashic Index will persist to TimescaleDB"
+    log "  Connection health check endpoint: /api/timescale/health"
+else
+    log "TimescaleDB not configured — Akashic Index using local storage only"
+fi
+
+# ── 3f. Optional: Prometheus Monitoring ─────────────────────────────────
 if [ "${TRION_ENABLE_MONITORING:-0}" = "1" ]; then
     if [ -f /app/deploy/monitoring/prometheus.yml ]; then
         log "Monitoring enabled — config at /app/deploy/monitoring/prometheus.yml"
