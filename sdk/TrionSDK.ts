@@ -618,3 +618,113 @@ export interface BTCPRouteSignalMetadata {
     validators_signed:     number;
     coverage_state:        CoverageState;
 }
+
+
+// ---------------------------------------------------------------------------
+// WebAssembly Signal Processor
+// ---------------------------------------------------------------------------
+//
+// The TRION WASM module provides browser-side signal processing for:
+//   - Fast coherence score verification
+//   - Lightweight entropy computation
+//   - Signal classification without round-trip to API
+//
+// Built from Rust/C sources, compiled to WASM for zero-dependency execution.
+// ---------------------------------------------------------------------------
+
+/**
+ * WASM signal processor instance. Lazy-loaded on first use.
+ */
+let wasmInstance: WebAssembly.Instance | null = null;
+let wasmLoadPromise: Promise<WebAssembly.Instance> | null = null;
+
+/**
+ * Load the TRION WASM signal processor.
+ * @param wasmUrl Optional URL to the .wasm file. Defaults to bundled path.
+ */
+export async function loadWasmProcessor(wasmUrl?: string): Promise<WebAssembly.Instance> {
+    if (wasmInstance) return wasmInstance;
+    if (wasmLoadPromise) return wasmLoadPromise;
+
+    wasmLoadPromise = (async () => {
+        const url = wasmUrl || (typeof window !== 'undefined'
+            ? new URL('./wasm/signal_processor.wasm', import.meta.url).href
+            : './wasm/signal_processor.wasm');
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to load WASM processor: ${response.status} ${response.statusText}`);
+        }
+
+        const bytes = await response.arrayBuffer();
+        const { instance } = await WebAssembly.instantiate(bytes, {
+            env: {
+                memory: new WebAssembly.Memory({ initial: 2 }),
+                abort: (_msg: number, _file: number, line: number, col: number) => {
+                    throw new Error(`WASM abort at ${line}:${col}`);
+                }
+            }
+        });
+
+        wasmInstance = instance;
+        return instance;
+    })();
+
+    return wasmLoadPromise;
+}
+
+/**
+ * Verify a coherence score client-side using the WASM processor.
+ * Returns true if the locally computed value matches the provided score
+ * within tolerance (catches trivial data tampering).
+ */
+export async function verifyCoherenceWasm(
+    phi: number,
+    mental: number,
+    sigma: number,
+    conscious: number,
+    anima: number,
+    expectedCoherence: number,
+    tolerance = 0.001
+): Promise<{ valid: boolean; computed: number }> {
+    const wasm = await loadWasmProcessor();
+    const computeFn = wasm.exports.compute_coherence as (
+        p: number, m: number, s: number, k: number, a: number
+    ) => number;
+
+    const computed = computeFn(phi, mental, sigma, conscious, anima);
+    const valid = Math.abs(computed - expectedCoherence) <= tolerance;
+    return { valid, computed };
+}
+
+/**
+ * Compute Shannon entropy of a value distribution using WASM.
+ * Faster than pure JS for large datasets.
+ */
+export async function computeEntropyWasm(values: Float64Array): Promise<number> {
+    const wasm = await loadWasmProcessor();
+    const mem = (wasm.exports.memory as WebAssembly.Memory).buffer;
+
+    // Copy values into WASM memory
+    const offset = 0;
+    const view = new Float64Array(mem, offset, values.length);
+    view.set(values);
+
+    const entropyFn = wasm.exports.shannon_entropy as (ptr: number, len: number) => number;
+    return entropyFn(offset, values.length);
+}
+
+/**
+ * Check if WASM processor is loaded and ready.
+ */
+export function isWasmLoaded(): boolean {
+    return wasmInstance !== null;
+}
+
+/**
+ * Unload the WASM processor (free memory).
+ */
+export function unloadWasmProcessor(): void {
+    wasmInstance = null;
+    wasmLoadPromise = null;
+}

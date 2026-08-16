@@ -167,3 +167,32 @@ btcp:
     beo_continuity: 0.20
   safe_threshold: 0.50
   nl_minimum: 0.30
+
+# ── Smart Contract Addresses ──────────────────────────────────────────
+# Deployed contract addresses per chain. Update for production deployments.
+contract_addresses:
+  ethereum:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"  # TRIONOracleV3
+    btcp_escrow:          "0x0000000000000000000000000000000000000000"  # BTCPEscrow
+    btcp_intent:          "0x0000000000000000000000000000000000000000"  # BTCPIntent
+    btcp_route:           "0x0000000000000000000000000000000000000000"  # BTCPRoute
+    trion_token:          "0x0000000000000000000000000000000000000000"  # TRIONToken (Vyper)
+    trion_staking:        "0x0000000000000000000000000000000000000000"  # TRIONStaking (Vyper)
+    liquidity_ocean:      "0x0000000000000000000000000000000000000000"  # LiquidityOcean
+    sanctions_oracle:     "0x0000000000000000000000000000000000000000"  # SanctionsOracle
+    genesis_commitment:   "0x0000000000000000000000000000000000000000"  # GenesisCommitment
+    akashic_proof:        "0x0000000000000000000000000000000000000000"  # AkashicProof
+  arbitrum:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"
+  optimism:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"
+  polygon:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"
+  base:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"
+  bsc:
+    trion_oracle_v3:      "0x0000000000000000000000000000000000000000"
+  solana:
+    btcp_escrow:          "11111111111111111111111111111111"  # SVM program ID
+    btcp_intent:          "11111111111111111111111111111111"
+    btcp_route:           "11111111111111111111111111111111"
