@@ -15,8 +15,8 @@ import math
 import logging
 import threading
 from collections import deque
-from flask import Flask
-from flask_cors import CORS, jsonify, request, render_template, send_from_directory
+from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask_cors import CORS
 from api.validation import require_entity_id, validate_entity_id, validate_address
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s [api] %(message)s")
