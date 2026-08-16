@@ -186,6 +186,7 @@ ENV HOSTNAME=0.0.0.0 \
     TRION_GRAFANA_PORT=3001 \
     DATABASE_URL="" \
     TIMESCALEDB_URL="" \
+    BH_LEDGER_DB="/app/bh_ledger.db" \
     ZG_NETWORK=mainnet \
     ZG_CHAIN_ID=16661 \
     ZERO_G_RPC=https://evmrpc.0g.ai \
