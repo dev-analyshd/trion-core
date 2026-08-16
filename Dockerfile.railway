@@ -62,7 +62,6 @@ ARG TRION_FULL_STACK=0
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl bash tini ca-certificates gnupg libssl3 libpq5 \
         gcc g++ python3-dev cmake pkg-config \
-        golang julia \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
