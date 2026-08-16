@@ -104,7 +104,7 @@ log "Starting BH → FAISS auto-backfill in background..."
     log "Running BH → FAISS backfill..."
     if [ -f /app/anima-service/backfill_entity_records.py ]; then
         cd /app/anima-service
-        python3 backfill_entity_records.py --faiss-url "http://127.0.0.1:${FAISS_PORT}" --batch-size 500 2>&1 | tail -5 &
+        python3 backfill_entity_records.py --faiss-url "http://127.0.0.1:${FAISS_PORT}" --bh-db "${BH_LEDGER_DB}" --batch-size 500 2>&1 | tail -5 &
         BACKFILL_PID=$!
         log "Backfill started (PID $BACKFILL_PID)"
     else
