@@ -73,6 +73,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# ── Optional: Go and Julia runtimes (best-effort, don't fail build) ───────────
+# These may not be available in Debian slim repos; install if available
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends golang 2>/dev/null || echo "Go not available in repos" \
+    && apt-get install -y --no-install-recommends julia 2>/dev/null || echo "Julia not available in repos" \
+    && rm -rf /var/lib/apt/lists/* \
+    && (command -v go && go version || true) \
+    && (command -v julia && julia --version || true)
+
 WORKDIR /app
 
 # ── Next.js standalone build ─────────────────────────────────────────────────
