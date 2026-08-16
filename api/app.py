@@ -175,7 +175,7 @@ def _require_api_key():
 
 # ── Import chain relay (non-fatal if web3 not available) ─────────────────────
 try:
-    from blockchain import get_relay
+    from api.blockchain import get_relay
     _chain_available = True
 except ImportError:
     _log.warning("blockchain relay not available — on-chain publishing disabled")
@@ -198,7 +198,7 @@ except Exception as _zg_err:
 
 # ── Register CEX bidirectional integration routes ─────────────────────────────
 try:
-    from cex_integration import cex_bp
+    from api.cex_integration import cex_bp
     app.register_blueprint(cex_bp)
     _cex_available = True
     _log.info("CEX integration routes registered")
@@ -208,7 +208,7 @@ except Exception as _cex_err:
 
 # ── Register Chainlink AggregatorV3-compatible price feed routes ──────────────
 try:
-    from price_feed_routes import price_feed_bp
+    from api.price_feed_routes import price_feed_bp
     app.register_blueprint(price_feed_bp)
     _price_feed_available = True
     _log.info("Price feed routes registered")
@@ -218,7 +218,7 @@ except Exception as _pf_err:
 
 # ── Register Protocol-Contract Intelligence routes ────────────────────────────
 try:
-    from protocol_routes import protocol_bp
+    from api.protocol_routes import protocol_bp
     app.register_blueprint(protocol_bp)
     _protocol_available = True
     _log.info("Protocol intelligence routes registered")
@@ -228,7 +228,7 @@ except Exception as _proto_err:
 
 # ── Register Reflexive Self-Verification routes ───────────────────────────────
 try:
-    from self_verification_routes import self_verification_bp
+    from api.self_verification_routes import self_verification_bp
     app.register_blueprint(self_verification_bp)
     _self_verification_available = True
     _log.info("Self-verification routes registered")
@@ -238,7 +238,7 @@ except Exception as _self_err:
 
 # ── Register Institutional Dashboard routes ──────────────────────────────────
 try:
-    from dashboard_routes import dashboard_bp
+    from api.dashboard_routes import dashboard_bp
     app.register_blueprint(dashboard_bp)
     _dashboard_available = True
     _log.info("Institutional dashboard routes registered at /app/*")
@@ -248,7 +248,7 @@ except Exception as _dash_err:
 
 # ── Register BTCP + CONTINUUM routes ─────────────────────────────────────────
 try:
-    from btcp_continuum_routes import btcp_bp
+    from api.btcp_continuum_routes import btcp_bp
     app.register_blueprint(btcp_bp)
     _btcp_continuum_available = True
     _log.info("BTCP + CONTINUUM routes registered")
