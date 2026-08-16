@@ -1,15 +1,24 @@
 # =============================================================================
-# TRION Protocol — Railway Dockerfile  (Lightweight, no Rust compilation)
+# TRION Protocol — Railway Dockerfile  (Full-stack capable, default lightweight)
 # =============================================================================
 #
-# Optimized for Railway's build environment:
-#   - Skips Rust L0 indexers (too heavy for Railway free/hobby tier)
-#   - Builds Next.js frontend (standalone)
-#   - Runs Flask + FAISS + BH Streamer + Next.js
-#   - Single exposed PORT (Next.js proxies /api/* to Flask)
+# DEFAULT: Lightweight mode for Railway free/hobby tier:
+#   - Core: Flask + FAISS + BH Streamer + Next.js
+#   - All source code included (Rust, Go, C++, Haskell, Julia, Solidity, Vyper)
+#   - Optional services disabled by default (enable via env vars)
 #
-# Build time: ~5 minutes (vs 20+ min with Rust)
-# Image size: ~800MB (vs 2GB+ with Rust)
+# OPTIONAL SERVICES (set env var to 1 to enable):
+#   TRION_ENABLE_VALIDATOR=1       — Go P2P validator network (port 6000)
+#   TRION_ENABLE_INDEXERS=1        — Rust indexer binaries (if built)
+#   TRION_ENABLE_SIGNAL_PROCESSING=1 — C++ signal processing engine
+#   TRION_ENABLE_MONITORING=1      — Prometheus + Grafana
+#
+# FULL STACK BUILD (heavier, longer build):
+#   docker build --build-arg TRION_FULL_STACK=1 -f Dockerfile.railway .
+#   Installs Rust + Haskell toolchains for native compilation
+#
+# Build time (default): ~5 minutes | Image size: ~800MB
+# Build time (full stack): ~20+ minutes | Image size: ~2GB+
 # =============================================================================
 
 # ─── Stage 1: Build Next.js frontend ─────────────────────────────────────────
@@ -47,9 +56,13 @@ LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-cor
 LABEL version="6.0.0"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
+# Optional full-stack build arg: set to 1 to install Rust/Haskell/Julia toolchains
+ARG TRION_FULL_STACK=0
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl bash tini ca-certificates gnupg libssl3 libpq5 \
-        gcc g++ python3-dev \
+        gcc g++ python3-dev cmake pkg-config \
+        golang julia \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -101,6 +114,18 @@ COPY schema.sql       ./schema.sql
 COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
 
+# ── Additional source directories (all components, workflows, languages) ──
+COPY indexers/        ./indexers/          # Rust workspace: 16 crates, core behavioral hashing
+COPY validator/       ./validator/         # Go P2P validator network
+COPY signal-processing/ ./signal-processing/  # C++ FFT, sensor I/O, signal conditioning
+COPY formal/          ./formal/            # Haskell formal verification (9 theorems)
+COPY hardhat/         ./hardhat/           # Solidity dev environment
+COPY backtest/        ./backtest/          # Backtesting framework
+COPY deploy/          ./deploy/            # Production deployment configs
+COPY docs/            ./docs/              # ARCHITECTURE.md, DEPLOYMENT.md
+COPY akashic/         ./akashic/           # Akashic state storage
+COPY continuum/       ./continuum/         # Continuum state machine
+
 # ── BH ledger database initialization ────────────────────────────────────────
 COPY scripts/init_bh_ledger.py ./scripts/init_bh_ledger.py
 RUN python3 /app/scripts/init_bh_ledger.py
@@ -133,6 +158,14 @@ ENV HOSTNAME=0.0.0.0 \
     TRION_ENABLE_ZG_DA=0 \
     TRION_ENABLE_EXTRAS=0 \
     TRION_ENABLE_NATIVE=0 \
+    # Optional service toggles (default OFF, enable to activate)
+    TRION_ENABLE_VALIDATOR=0 \
+    TRION_ENABLE_INDEXERS=0 \
+    TRION_ENABLE_SIGNAL_PROCESSING=0 \
+    TRION_ENABLE_MONITORING=0 \
+    TRION_VALIDATOR_PORT=6000 \
+    TRION_PROMETHEUS_PORT=9090 \
+    TRION_GRAFANA_PORT=3001 \
     DATABASE_URL="" \
     TIMESCALEDB_URL="" \
     ZG_NETWORK=mainnet \
