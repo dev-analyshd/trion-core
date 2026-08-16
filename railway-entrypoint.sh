@@ -26,6 +26,17 @@ set -u
 export PORT="${PORT:-10000}"
 export HOSTNAME="0.0.0.0"
 export FAISS_PORT="${FAISS_PORT:-8000}"
+
+# ── 0. Start Next.js FIRST (port listening immediately) ─────────────────────
+# Railway health check hits $PORT immediately. Start Next.js first so the
+# port is listening, even while backend services are still initializing.
+log "Starting Next.js frontend on :${PORT}..."
+cd /app/frontend
+PORT="${PORT}" node server.js &
+NEXT_PID=$!
+cd /app
+log "Next.js started in background (PID $NEXT_PID)"
+
 export FLASK_PORT="${FLASK_PORT:-5000}"
 export FAISS_SERVICE_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:${FAISS_PORT}}"
 export FAISS_URL="${FAISS_URL:-http://127.0.0.1:${FAISS_PORT}}"
@@ -171,13 +182,7 @@ if [ "${TRION_ENABLE_MONITORING:-0}" = "1" ]; then
     fi
 fi
 
-# ── 4. Next.js React Frontend (exposed port) ─────────────────────────────────
-log "============================================================"
-log "TRION Protocol — Railway deployment starting on :${PORT}"
-log "  Dashboard:  http://0.0.0.0:${PORT}/"
-log "  API:        http://127.0.0.1:${PORT}/api/v1/health"
-log "  Healthz:    http://127.0.0.1:${PORT}/healthz"
-log "============================================================"
+# ── Wait on Next.js (keep container alive) ─────────────────────────────────
 
-cd /app/frontend
-exec node server.js
+# ── Wait on Next.js (keep container alive) ─────────────────────────────────
+wait $NEXT_PID
