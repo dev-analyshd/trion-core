@@ -115,16 +115,26 @@ COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
 
 # ── Additional source directories (all components, workflows, languages) ──
-COPY indexers/        ./indexers/          # Rust workspace: 16 crates, core behavioral hashing
-COPY validator/       ./validator/         # Go P2P validator network
-COPY signal-processing/ ./signal-processing/  # C++ FFT, sensor I/O, signal conditioning
-COPY formal/          ./formal/            # Haskell formal verification (9 theorems)
-COPY hardhat/         ./hardhat/           # Solidity dev environment
-COPY backtest/        ./backtest/          # Backtesting framework
-COPY deploy/          ./deploy/            # Production deployment configs
-COPY docs/            ./docs/              # ARCHITECTURE.md, DEPLOYMENT.md
-COPY akashic/         ./akashic/           # Akashic state storage
-COPY continuum/       ./continuum/         # Continuum state machine
+# Rust workspace: 16 crates, core behavioral hashing
+COPY indexers/        ./indexers/
+# Go P2P validator network
+COPY validator/       ./validator/
+# C++ FFT, sensor I/O, signal conditioning
+COPY signal-processing/ ./signal-processing/
+# Haskell formal verification (9 theorems)
+COPY formal/          ./formal/
+# Solidity dev environment
+COPY hardhat/         ./hardhat/
+# Backtesting framework
+COPY backtest/        ./backtest/
+# Production deployment configs
+COPY deploy/          ./deploy/
+# ARCHITECTURE.md, DEPLOYMENT.md
+COPY docs/            ./docs/
+# Akashic state storage
+COPY akashic/         ./akashic/
+# Continuum state machine
+COPY continuum/       ./continuum/
 
 # ── BH ledger database initialization ────────────────────────────────────────
 COPY scripts/init_bh_ledger.py ./scripts/init_bh_ledger.py
