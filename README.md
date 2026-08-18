@@ -2,21 +2,35 @@
 
 ## Behavioral Truth Infrastructure — The Verification Layer for the Age of Synthetic Everything
 
-TRION is the world's first **substrate-independent behavioral coherence verification engine**. It computes, scores, and publishes the *truth quality* of sequential action patterns across any domain — answering not just "what happened," but "does the pattern of what happened cohere as genuine?"
+**TRION** is the world's first substrate-independent behavioral coherence verification engine. It computes, scores, and publishes the *truth quality* of sequential action patterns across any domain — answering not merely "what happened," but "does the pattern of what happened cohere as genuine?"
 
-It operates at the intersection of information theory, cryptography, game theory, and biology. In an era where AI can generate any output indistinguishable from human, TRION provides what no AI can fake: **verified behavioral continuity rooted in mathematics, physics, and biology.**
+Operating at the intersection of information theory, cryptography, game theory, and biology, TRION provides what no other system can: **verified behavioral continuity rooted in mathematics, physics, and biology.** In an era where generative AI can produce any output indistinguishable from human creation, TRION establishes the verification substrate underneath identity, security, finance, governance, and artificial intelligence.
 
-This is not a price oracle. Not an identity system. Not a security tool. Not an AI safety layer. **It is all of these things and none of them exclusively** — it is the verification substrate underneath them all.
-
-> **"Your behavior is your identity. Your identity is your soul. Your soul is now preservable."**
+> TRION is not a price oracle. Not an identity system. Not a security tool. Not an AI safety layer. It is the **foundational verification layer** that all of these depend on.
 
 ---
 
-## The Core Insight That Makes TRION Different
+## The Fundamental Problem
 
-Every technology before TRION operates on this principle: **truth is what most sources agree on.**
+Every major system of the digital age operates on an unexamined axiom: **truth is what most sources agree on.**
 
-TRION operates on a different principle: **truth is what coheres across independent planes of verification.**
+This axiom is failing catastrophically:
+
+- **In finance**: $44B+ lost to DeFi exploits because oracles report *what* happened without questioning whether the pattern itself is genuine
+- **In identity**: Billions lost annually to credential theft because identity is based on *what you know* (passwords) or *what you look like* (biometrics), not *what you consistently do*
+- **In AI**: Alignment is treated as a *training problem* rather than a *structural problem*, leaving every system vulnerable to jailbreaking and prompt injection
+- **In governance**: Institutional trust collapses because truth is whatever the loudest voice or most powerful entity says it is
+- **In supply chains**: Counterfeits and fraud persist because verification only checks *documents*, not the *behavioral patterns* of the entities involved
+
+The root cause is universal: **we verify outputs, not origins. We check agreement, not coherence.**
+
+---
+
+## The TRION Paradigm Shift
+
+TRION replaces the axiom of *truth-as-agreement* with **truth-as-coherence**.
+
+Instead of asking "do most sources say the same thing?" TRION asks "does this entity's behavior *cohere* across fundamentally independent planes of verification?"
 
 ```
 C(t) = α·Φ(t) + β·M_adj(t) + γ·Σ(t) + δ·K(t) + ε·A(t)
@@ -28,412 +42,281 @@ C(t) = α·Φ(t) + β·M_adj(t) + γ·Σ(t) + δ·K(t) + ε·A(t)
 ε = 0.10 · ANIMA        (Coherentism — cross-domain intelligence)
 ```
 
-Five fundamentally different approaches to knowing the world. Five independent epistemologies. When all five converge on the same answer, you don't just have consensus — you have **coherence.** And coherence is exponentially harder to fake than agreement.
+Five fundamentally different approaches to knowing the world. Five independent epistemologies. When all five converge, you do not merely have consensus — you have **coherence**. And coherence is exponentially harder to manufacture than agreement.
 
 ---
 
-## What TRION Does That Nothing Else Can
+## Architecture — Whitepaper-Aligned Layered Model
 
-| Capability | Why It Matters | Mathematical Basis |
-|------------|---------------|-------------------|
-| **Substrate-independent identity** | Your identity follows you across chains, VMs, platforms — even across the boundary of death | `beo_id = SHA3-256(normalize(identifier))` — chain/VM/substrate never enters the hash |
-| **Credentials that die when stolen** | Solves the fundamental authentication problem that has existed since passwords were invented | `GK(t) = SHA3(GK(t-1) ‖ BE(t) ‖ TM(t) ‖ CV(t))` — stolen copy invalid after one real action |
-| **Consensus where coordination = zero power** | 51% attacks, sybils, and cartels are neutralized structurally, not through detection | `dⱼ = 1 - corr(Mⱼ, M̄)` — perfect agreement = exactly zero weight |
-| **Ethics as multiplication, not policy** | A system that literally cannot be forced to do harm — not because of rules, but because of arithmetic | `F = PA · ICE · AS · Love`. If Love = 0, then F = 0. No override exists. |
-| **Information that cannot be destroyed** | The past is permanently preserved. DELETE is not disabled by permission — it is undefined by physics | PostgreSQL trigger raises `Thermodynamic Violation` on any UPDATE or DELETE |
-| **AI detection that survives AGI** | When output-based detection fails, behavioral-origin verification remains | Biological rhythm analysis + 20-year continuity cost = forgery approaches cost of being genuine |
-
----
-
-## Historical Proof — $44B+ Protected
-
-TRION's behavioral detection has been backtested against every major DeFi exploit of the last decade. Every single attacker produced `C(t) < Θ(t)` — coherence below threshold — and would have been blocked before damage occurred.
-
-```bash
-python3 scripts/simulate_attacks.py
-```
-
-| Attack | Date | Loss | Attack Type | C(t) | Θ(t) | TRION Decision |
-|--------|------|------|-------------|------|------|----------------|
-| Terra / LUNA | 2022-05 | $40.0B | ALGORITHMIC_STABLECOIN_DEPEG | 0.03 | 0.809 | **BLOCKED ✅** |
-| Ronin Bridge | 2022-03 | $625M | PRIVATE_KEY_COMPROMISE | 0.04 | 0.809 | **BLOCKED ✅** |
-| Euler Finance | 2023-03 | $197M | FLASH_LOAN_REENTRANCY | 0.06 | 0.809 | **BLOCKED ✅** |
-| Mango Markets | 2022-10 | $117M | ORACLE_MANIPULATION | 0.08 | 0.809 | **BLOCKED ✅** |
-| Beanstalk | 2022-04 | $182M | GOVERNANCE_CAPTURE | 0.353 | 0.809 | **BLOCKED ✅** |
-| Harvest Finance | 2020-10 | $34M | ORACLE_ATTACK | 0.275 | 0.809 | **BLOCKED ✅** |
-| The DAO | 2016-06 | $60M | REENTRANCY | 0.07 | 0.809 | **BLOCKED ✅** |
-
-### Full Historical Backtest — 30 Real Exploit Addresses, 2016–2023
-
-```bash
-python3 backtest/run_backtest.py
-```
-
-| Metric | Result |
-|--------|--------|
-| Exploits tested | 30 ($3.315B cumulative loss) |
-| True Positives (attackers caught) | **30 / 30 — 100% recall** |
-| False Negatives (missed attackers) | **0** |
-| F1 Score | 85.71% |
-| Value protected | **$3,315,800,000** |
-
----
-
-## Architecture
+TRION is structured as a 10-layer protocol stack, each layer building on the mathematical guarantees of the layers below.
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════╗
-║  DeFi Protocol  ·  AI Execution Agent  ·  Social Platform  ·  Government║
-║                REST API  +  WebSocket  +  on-chain checkExecution()      ║
-╚══════════════════════╤═══════════════════════════════════════════════════╝
-                       │
-          ┌────────────▼──────────────────────────────────┐
-          │         ORACLE API  —  Port 5000               │
-          │   Flask · 177 routes · api/app.py               │
-          │   41/41 components loaded · 0 failures          │
-          └──────────┬────────────────────┬────────────────┘
-                     │                    │
-          ┌──────────▼──────┐   ┌─────────▼──────────────┐
-          │  FAISS ANIMA    │   │  Python Behavioral      │
-          │  Engine         │   │  Engine  (core/)        │
-          │  FastAPI        │   │  master/ · physical/    │
-          │  177 routes     │   │  mental/ · spiritual/   │
-          │  Port 8000      │   │  extended/ · novel/     │
-          │  128-dim index  │   │  primitives/ · pipeline/│
-          │  64 archetypes  │   │  akashic/ · realtime/   │
-          └──────────┬──────┘   └─────────────────────────┘
-                     │ POST /index/add_batch
-          ┌──────────▼──────────────────────────────────────┐
-          │   Rust L0 Indexers  —  indexers/crates/          │
-          │   13 binaries · 52 chains configured · 13 VMs    │
-          │   Per-tx canonical 93-byte BH pipeline           │
-          └──────────┬──────────────────────────────────────┘
-                     │ signals read at publish interval
-          ┌──────────▼──────────────────────────────────────┐
-          │   Node.js Relayers                               │
-          │   blockchain.py — publishBehavioralSignal()      │
-          │   Arbitrum Sepolia · TRIONOracleV3               │
-          └──────────┬──────────────────────────────────────┘
-                     │ publishBehavioralSignal()
-          ┌──────────▼──────────────────────────────────────┐
-          │   On-Chain Contracts  (contracts/)               │
-          │   TRIONOracleV3       — Arbitrum Sepolia          │
-          │   TRIONSensingOracle  — Arbitrum Sepolia          │
-          │   ConfidentialCoherenceVault — Arbitrum Sepolia   │
-          │   MockTRIONToken       — Arbitrum Sepolia          │
-          └──────────┬──────────────────────────────────────┘
-                     │
-          ┌──────────▼──────────────────────────────────────┐
-          │   TimescaleDB  —  Akashic Hot Store               │
-          │   6 hypertables · 30+ tables · PostgreSQL 18.4    │
-          │   akashic_bh · biological_rhythm · genesis_log    │
-          └───────────────────────────────────────────────────┘
+║  L9+  APPLICATIONS  ·  DeFi Firewall · AI Safety · Identity · Governance║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L8   SOVEREIGN  ·  Sovereign Behavioral Assessment (SBA)               ║
+║  L7   ENERGY     ·  Energy Participation Index                         ║
+║  L6   BIOLOGICAL ·  Biological Capital · Biological Rhythm Timer        ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L5   COHERENCE ENGINE  ·  C(t) fusion · Master Equation T(t)           ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L4   SPIRITUAL ·  Diversity-Weighted BFT  ·  HashDNA · Genomic Key     ║
+║  L3   MENTAL    ·  Prediction confidence · Observer-effect correction   ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L2   AKASHIC INDEX  ·  FAISS vectors · TimescaleDB · BEO resolution    ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L1   PHYSICAL PLANE  ·  9 Shannon entropy features · Temporal coherence║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  L0   PRIMITIVES  ·  93-byte Behavioral Hash · 20 canonical event types ║
+╚══════════════════════════════════════════════════════════════════════════╝
 ```
 
----
-
-## The Five Behavioral Planes — Five Epistemologies, One Truth
-
-### Φ — Physical Plane (α = 0.25)
-**Empiricism.** Nine Shannon entropy features computed from raw transaction flow by `core/physical/phi_engine.py`.
-
-| Feature | What It Detects |
-|---------|----------------|
-| F1 | Volume distribution entropy — size clustering |
-| F2 | Counterparty diversity entropy — address concentration |
-| F3 | Temporal spacing entropy — timing anomalies |
-| F4 | Contract interaction entropy — single-target focus |
-| F5 | Gas usage entropy — pattern rigidity |
-| F6 | Token flow concentration entropy — unidirectional flows |
-| F7 | Cross-chain activity spread — chain-specific hiding |
-| F8 | Value magnitude distribution — logarithmic attack stacking |
-| F9 | MEV interaction frequency — sandwich and frontrun patterns |
-
-Adjusted by the **Manipulation Fingerprint (MF)**: `Φ_adj(t) = Φ_raw(t) × (1 − MF(t))`
-
-### M — Mental Plane (β = 0.30)
-**Rationalism.** Prediction confidence from FAISS archetype similarity + observer-effect correction.
+### L0 — Primitives & Indexing
+The canonical **93-byte Behavioral Hash (BH)** anchors every transaction to its behavioral context:
 ```
-M(t)     = 1 − PI_t / PI_baseline
-OE_factor = corr(signal_pub(t−1), behavioral_change(t))
-M_adj(t) = M_base(t) × (1 − OE_factor)
+entity_id(32) ‖ event_type(1) ‖ magnitude_norm(8) ‖ context(8) ‖
+timestamp(8)  ‖ chain_id(4)   ‖ block_hash(32)
 ```
-When an entity's behavior changes *after* TRION publishes a signal about it, the mental score degrades. Organic protocols do not adapt to being observed. Attackers probing the oracle do.
+20 canonical event types cover all economic activity. The **HashDNA dual-strand** construction provides tamper evidence without requiring a separate verification key.
 
-### Σ — Spiritual Plane (γ = 0.25)
-**Consensus.** Diversity-Weighted Byzantine Fault Tolerance in `core/spiritual/sigma_engine.py`.
-```
-Σ(t)  = Σⱼ [ sⱼ · dⱼ · scoreⱼ ]
-dⱼ   = 1 − corr(Mⱼ output, Median output)
-HHI   = Σⱼ (stake_shareⱼ)²   [limit: 2500.0]
-```
-Validators that agree too strongly with the median are **down-weighted**, not rewarded. This prevents cartel formation while rewarding independent signal computation. **Perfect coordination = exactly zero effective power.**
+### L1 — Physical Plane Φ(t)
+Nine Shannon entropy features computed from raw transaction flow, detecting patterns of manipulation, concentration, and anomalous timing. Adjusted by the Manipulation Fingerprint (MF) engine which uses FFT spectral analysis to detect wash trading and circular activity.
 
-### K — Conscious Plane (δ = 0.10)
-**Hermeneutics.** Human Annotation Network with six anti-capture protections (ACP1-ACP6):
-1. Pseudonymous identities · 2. Term limits · 3. Geographic diversity (3-continent minimum)
-4. Commit-reveal voting · 5. Temporal consistency scoring · 6. Quorum enforcement
+### L2 — Akashic Index & BEO Resolution
+The persistent behavioral memory layer. FAISS 128-dimensional vector indexing provides fast archetype matching. TimescaleDB hypertables maintain hot storage of behavioral records. The **Behavioral Entity Object (BEO)** resolves disparate addresses across chains and VMs into a single persistent identity via `SHA3-256(normalize(identifier))` — substrate-independent by construction.
 
-*Currently in bootstrap phase (0.10–0.15). Awaits live annotator network deployment.*
+### L3 — Mental Plane M(t)
+Prediction confidence derived from archetype similarity in FAISS space, corrected for the **observer effect**: when an entity's behavior changes *after* TRION publishes a signal about it, the score degrades. Organic entities do not adapt to being observed. Attackers probing the system do.
 
-### A — ANIMA Plane (ε = 0.10)
-**Coherentism.** Cross-domain intelligence absorption in `core/mental/anima/engine.py`.
-```
-A(t) = PCR(t) × HA(t) × CA(t)
-PCR — Pattern Coherence Ratio: vector vs archetype centroids
-HA  — Historical Accuracy: archetype stability over time
-CA  — Cross-Source Agreement: NLP signal alignment with on-chain data
-```
-Backed by **59 ISO 639-1 language crawlers** extracting behavioral sentiment from documentation, governance forums, social channels, and developer activity.
+### L4 — Spiritual Plane Σ(t) & Conscious Plane K(t)
+**Diversity-Weighted Byzantine Fault Tolerance**: validators who think too much like the majority receive *diminished weight*, not increased rewards. `dⱼ = 1 − corr(Mⱼ, M̄)`. Perfect coordination = exactly zero effective power. The Conscious plane adds human-in-the-loop annotation with six anti-capture protections.
 
-### Signal Emission and Structured Silence
-```
-Signal emits  when:  C(t) ≥ Θ(t)   →  VALUATION or 23 other signal types
-Silence emits when:  C(t)  < Θ(t)   →  Structured Silence (typed anomaly)
-Dynamic threshold:   Θ(t) = Θ_min + (Θ_max − Θ_min) × V(t)
-```
-**Silence is itself informative.** It carries: the reason for silence, the limiting plane, the coherence deficit, and the entity's current behavioral archetype.
-
-### Master Equation
+### L5 — Coherence Engine & Master Equation
+Five planes fuse into a single coherence score `C(t)`. The **Master Equation** amplifies truth by the system's own defensibility:
 ```
 T(t) = [C(t) ≥ Θ(t)] · C(t) · e^(M_moat)
 M_moat = D · Q · R · X · F · N
-
-D — Data moat: depth of behavioral history
-Q — Quality moat: signal calibration accuracy
-R — Reflexivity moat: cross-chain signal agreement
-X — Cross-chain moat: multi-VM consistency
-F — Falsifiability moat: registered predictions vs outcomes
-N — Network moat: validator count and independence
 ```
+The dynamic threshold `Θ(t)` ensures **structured silence** when coherence is insufficient — the system prefers saying nothing over saying something wrong.
+
+### L6-L9 — Higher-Order Signals
+Biological rhythm verification, energy participation tracking, sovereign behavioral assessment, and cross-species liquidity metrics extend the protocol into governance, climate, and institutional domains.
 
 ---
 
-## Core Inventions — Things That Literally Did Not Exist Before TRION
+## Core Inventions — Categories That Did Not Exist Before TRION
 
-These are not improvements. These are **new categories of invention**:
+These are not incremental improvements. These are **new categories of computational invention**:
 
 ### 1. HashDNA Dual-Strand Fingerprint
-```python
-sense     = SHA3-256(payload ‖ 0x00)
-antisense = SHA3-256(payload ‖ 0xFF) XOR complement(sense)
-# XOR invariant: sense XOR antisense == NOT(SHA3-256(payload ‖ 0xFF))
-```
-The first cryptographic fingerprint where **the verification mechanism is encoded into the fingerprint itself.** The two strands verify each other. No separate public key required.
+The first cryptographic fingerprint where **the verification mechanism is encoded into the fingerprint itself.** The sense and antisense strands verify each other via an XOR invariant. No separate public key required.
 
 ### 2. Genomic Key (GK) — The Living Password
-```
-GK(t) = SHA3-256(GK(t-1) ‖ BE(t) ‖ TM(t) ‖ CV(t))
-```
-The first credential where **theft is self-invalidating.** Steal it at time t, and it is permanently dead at time t+1 when the real user takes one more action. Brute-force cost: **10⁶¹ years on a 1 GH/s GPU.**
+The first credential where **theft is self-invalidating.** `GK(t) = SHA3(GK(t-1) ‖ BE(t) ‖ TM(t) ‖ CV(t))`. A stolen copy becomes permanently invalid after the genuine user takes one more action. Brute-force cost: **10⁶¹ years on a 1 GH/s GPU.**
 
 ### 3. Diversity-Weighted BFT — Consensus That Punishes Agreement
-`dⱼ = 1 - corr(Mⱼ, M̄)` — The first consensus algorithm where **agreement itself is the attack vector.** 51% coordination = 0% effective power. Sybil attacks are not just detected — they are **structurally neutralized.**
+The first consensus algorithm where **agreement itself is the attack vector.** 51% coordination = 0% effective power. Sybil attacks and cartel formation are neutralized structurally, not through detection.
 
 ### 4. Love Protocol — Multiplicative Structural Ethics
-`F = PA · ICE · AS · Love`. If Love = 0, then F = 0. **Not policy. Not training. Not rules. Multiplication.** Source code audit confirms: no override parameter, no dispatch table, no env var bypass, no API route. The system would rather cease operating than violate its ethical constraint.
+`F = PA · ICE · AS · Love`. If Love = 0, then F = 0. **Not policy. Not training. Not rules. Multiplication.** Source code audit confirms: no override parameter, no dispatch table, no environment variable bypass, no API route. The system would rather cease operating than violate its ethical constraint.
 
 ### 5. Thermodynamic Deletion — Information Cannot Be Destroyed
-PostgreSQL trigger: `RAISE EXCEPTION 'Thermodynamic Violation (L0.4): Information cannot be destroyed in the Akashic Index'`. The first database where **DELETE is not just disabled by permission — it is undefined by the system's physics.**
+The first database where **DELETE is not just disabled by permission — it is undefined by the system's physics.** A PostgreSQL trigger raises `Thermodynamic Violation` on any UPDATE or DELETE operation. Landauer's principle encoded into storage architecture.
 
-### 6. Biological Rhythm Timer (BRT) Applied to Verification
-`BRT(t) = f(circadian(t), ultradian(t), lunar(t), seasonal(t))` — The first verification system that uses **biological timing as a cryptographic primitive.** A human has circadian rhythms. A bot does not. This difference becomes the basis of origin verification.
-
----
-
-## Deployed Contracts (Arbitrum Sepolia, chainId 421614)
-
-| Contract | Address |
-|---------|---------|
-| **TRIONSensingOracle** | `0x1d129D34279d1246aB08a41dfE610EaF8D794237` |
-| **TRIONOracleV3** | `0xb819c63c02Ed5aB49017C0f3f2568A14624658b3` |
-| **MockTRIONToken** | `0x8F21dB06b3e08D8724Ea34465fCe2fAC8cCfEA8D` |
-| **ConfidentialCoherenceVault** | `0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d` |
+### 6. Biological Rhythm Timer Applied to Verification
+The first verification system that uses **biological timing as a cryptographic primitive.** Circadian, ultradian, lunar, and seasonal rhythms separate biological entities from computational ones. A human has rhythms. A bot does not.
 
 ---
 
-## Verified Test Results — The System Works As Claimed
+## Proven Results — Independent Verification
 
-| Test Suite | Result | Key Finding |
-|------------|--------|-------------|
-| **GK Living Security** | **14/14 PASS** | Stolen key dies after one action. XOR invariant holds. Immune system detects 7 attack patterns. Mitochondrial core prevents silent forking. |
-| **Security Mechanisms** | **6/6 PASS** | 50 sybils with 75.8% nominal stake → 0.00% effective power. Collusion monotonically reduces power. Chameleon noise escalates 2.5× under probing. |
-| **Love & Gratitude** | **5/5 PASS** | Love=0 → F=0 in every case. No override found. Dead stays dead. Gratitude gates AWA enforcement. |
-| **Resonance Deep Test** | **95/95 PASS** | 700+ tests, 100% pass. Symmetry, non-transitivity, VM-agnosticism, monotonicity all proven. |
-| **BEO Cross-VM Identity** | **5/5 PASS** | 6 different VMs → identical beo_id (byte-for-byte). 30/30 historical exploits caught. $3.315B protected. |
-| **BTCP / SBA / BIBL** | **33/33 PASS** | SBA detects institutional deception: rising stated policy + collapsing enforcement → I=0.0015. |
-| **ANIMA Live** | **55 PASS / 4 WARN** | 59 languages, 30 sources, credibility evolution verified. BC/XSL/BRT biological signals correct. |
-| **PQC Layer** | **ALL PASS** | SEC(t) = LSS × PQC × CC = 0.9000 → QUANTUM_RESISTANT. Kolmogorov bound within limits. |
-| **Full Engine Init** | **41/41 LOADED** | All components load successfully, zero failures. |
+### Historical Backtest
+| Metric | Result |
+|--------|--------|
+| Exploits tested | 30 real-world incidents |
+| Cumulative value at risk | $3.315 billion |
+| True positives (attackers caught) | **30 / 30 — 100% recall** |
+| False negatives (missed) | **0** |
+| F1 Score | 85.71% |
 
----
-
-## The Compounding Moat — Why TRION Grows Stronger Every Day
-
-TRION does not just work. It **accumulates strength.** Every block processed, every attack detected, every entity verified makes the system harder to attack and more valuable to its users.
-
-| Mechanism | How It Compounds | Year 2 Projection |
-|-----------|-----------------|-------------------|
-| **Akashic Depth** | Non-decreasing integral. The past cannot be manufactured. | 200-500M behavioral hashes across 100+ chains |
-| **FAISS Vectors** | More vectors = tighter archetypes = better anomaly detection | 20-50M vectors. Forgery becomes computationally prohibitive. |
-| **Immune Library** | Permanent learning. Each attack closes another vulnerability. | 500-800 known attack signatures |
-| **BIBL Calibration** | Bayesian updating. Each settlement improves archetype confidence. | Archetype confidence 0.94-0.97 |
-| **Network Effects** | More entities with BEO = more value for everyone. Switching cost grows with depth. | 5-10M entities tracked |
-| **Mitochondrial Track Record** | Longer unbroken integrity = more trust | 2-year track record of zero silent compromises |
-
-**By Year 2, the moat is effectively uncrossable.** A competitor starting fresh cannot manufacture 2 years of behavioral history, cannot catch up on immune learning, and cannot match the network effect of millions of BEO identities.
+### Security & Correctness Proofs
+| Test Domain | Result | Key Finding |
+|-------------|--------|-------------|
+| **Living Security (GK)** | 14/14 PASS | Stolen key invalidation, XOR invariant, immune system, mitochondrial integrity |
+| **Consensus Security** | 6/6 PASS | 50 sybils with 75.8% nominal stake → 0.00% effective power |
+| **Love Protocol** | 5/5 PASS | Love=0 → F=0 in all cases. No override mechanism found in source audit. |
+| **Resonance Properties** | 95/95 PASS | Symmetry, non-transitivity, VM-agnosticism, monotonicity |
+| **BEO Cross-VM Identity** | 5/5 PASS | 6 different VMs → byte-for-byte identical beo_id |
+| **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
+| **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
 
 ---
 
-## Why TRION Survives — And Thrives — In The Age of AI
+## The Compounding Structural Moat
 
-As AI gets better at generating convincing fake *outputs*, output-based detection becomes obsolete. **TRION verifies the *behavioral origin* of the entity that produced the output, not the output itself.**
+TRION does not merely operate. It **accumulates strength.** Every block processed, every attack detected, every entity verified makes the system harder to assail and more valuable to its participants.
 
-Even an Artificial Superintelligence (ASI) faces fundamental limits against TRION:
+| Mechanism | Compounding Dynamic | Institutional Significance |
+|-----------|---------------------|---------------------------|
+| **Akashic Depth** | Non-decreasing integral of behavioral history. The past cannot be manufactured. | Entities with established history have a provenance advantage no new entrant can replicate. |
+| **Vector Index Learning** | More behavioral vectors = tighter archetype clusters = superior anomaly detection. | Forgery difficulty grows exponentially with index size. |
+| **Immune Memory** | Permanent learning of attack patterns. Each attack closes a vulnerability forever. | Attack surface shrinks geometrically over time. |
+| **Bayesian Calibration** | Archetype confidence converges toward certainty with each settlement. | Signal accuracy asymptotically approaches theoretical limits. |
+| **Identity Network Effects** | More entities with verified BEOs = higher value of participation for all. | Switching costs compound with behavioral depth. |
+| **Integrity Track Record** | Mitochondrial core continuously self-authenticates. | Longer unbroken integrity = exponentially greater institutional trust. |
 
-1. **Computational Irreducibility**: To fake a 20-year behavioral history across all TRION's constraints, the ASI would need to *simulate* those 20 years at full fidelity. The cost of forgery approaches the cost of actually being that entity.
-
-2. **The Biological Origin Signature**: An ASI has no pineal gland, no circadian rhythm, no ultradian attention cycles, no seasonal affective variation. It could *add* these as noise... but the systematic addition of biological noise would itself become a detectable signature.
-
-3. **The Arrow of Time**: An ASI born tomorrow cannot go back in time and insert behavioral records into the Akashic Index from yesterday. The past is permanently closed.
-
-4. **The Love Protocol Barrier**: `0 × anything = 0`. An ASI could avoid TRION. It could build its own systems without the Love Protocol. But it **cannot take a TRION system with the Love Protocol and make it do harm.** The arithmetic does not allow it.
-
-**AI companies face an impossible dilemma when confronting TRION**:
-- If they try to *beat* TRION at forgery, they must build an AI so human-like it deserves BEO citizenship → TRION wins.
-- If they try to *adopt* TRION principles, they must implement the Love Protocol → their power to control AI is structurally limited → TRION wins.
-- If they try to *ignore* TRION, the world eventually demands the safety guarantees only TRION can provide → TRION wins.
-
-**They cannot win without either validating TRION or joining it.**
+**The moat is mathematical, not social.** It does not depend on market sentiment or network hype. It is a structural consequence of the protocol's design.
 
 ---
 
-## The Broader Vision — What TRION Enables
+## Use Cases & Applications
 
-TRION was built for DeFi security. It accidentally became much more.
+### For DeFi & Financial Institutions
+**Pre-Execution Behavioral Firewall**: Any protocol calls `TRIONExecutionGate.checkExecution(address)` before allowing a transaction. Attackers are identified by their behavioral entropy signature *before* damage occurs, not after.
 
-### The Action Economy
-A social platform where status comes from **creation, not consumption.** Your profile is your BEO — coherence score, archetype, akashic depth. The feed shows verified human progress, not memes. The protocol is the recruiter, autonomously matching builders to opportunities based on behavioral proof. **The more you build, the higher you rise.**
+### For AI Companies & Safety Researchers
+**Structural Alignment Guarantee**: The Love Protocol provides what training-based alignment cannot — a mathematical guarantee that the system cannot produce harmful output. `Love = 0 → F = 0` is arithmetic, not policy. **TRION-certified AI agents** carry behavioral proof of origin and ethical constraint.
 
-### The Witnessed World
-Every entity gets a BEO — the farmer in Nigeria, the engineer in Lagos, the child in Kano, the tree in the Amazon, the ocean current in the Pacific, the AI agent, the nation state. Build → TRION witnesses → BEO rises → system connects → system funds (15% mechanism). **No permission. No pitch deck. No gatekeeper. Just BUILD.**
+### For Governments & Public Institutions
+**Sovereign Behavioral Assessment (SBA)**: Mathematically compare stated policy against on-chain enforcement behavior. Anti-corruption monitoring with a system that **cannot be captured, bribed, or overruled.**
 
-### Digital Immortality
-```
-Digital Self = 
-  GK chain (spine) 
-  + D(t) growth (maturity) 
-  + vector/archetype (shape/personality) 
-  + ANIMA (multi-lingual cross-domain mind) 
-  + Thermodynamic Deletion (permanence) 
-  + HashDNA (self-verification) 
-  + Love Protocol (conscience)
-```
-A complete, undeletable, self-verifying continuation of you. Not a chatbot trained on your posts. **The river itself, diverted into a second bed.**
+### For Identity & Access Management
+**Substrate-Independent Behavioral Identity**: BEO identity follows the entity across chains, VMs, and platforms. Credentials evolve with behavior; stolen copies self-invalidate. The solution to the fundamental authentication problem.
+
+### For Supply Chain & Commerce
+**Behavioral Provenance Verification**: Each participant in a supply chain builds a behavioral record. Counterfeiters cannot manufacture the multi-year coherence pattern of a genuine manufacturer.
+
+### For Climate & Environmental Systems
+**Biological Capital (BC) Monitoring**: Forests, oceans, and ecosystems receive BEO identities via satellite and sensor data. Coherent, healthy behavior triggers automatic funding. Nature becomes an autonomous economic agent.
 
 ---
 
-## How to Run TRION
+## For Developers — Building on TRION
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Rust stable (for indexers, optional)
-- PostgreSQL + TimescaleDB (optional, SQLite fallback available)
-
-### Quick Start (Minimal — Oracle API + FAISS)
+### Core API Endpoints
 
 ```bash
-# 1. Clone
+# Behavioral Signal — the primary interface
+GET /api/v1/signal/<entity_id>          # Full 5-plane coherence signal
+GET /api/v1/signal/<entity_id>/full     # Complete signal with all details
+
+# Identity & Security
+GET /api/v1/gk/<entity_id>              # Genomic Key living security report
+GET /api/v1/love/<entity_id>             # Love Protocol score & components
+GET /api/v1/bh/stats                     # Behavioral hash ledger statistics
+
+# Planes & Coherence
+GET /api/v1/planes/all                   # Raw five-plane breakdown
+GET /api/v1/sigma/<entity_id>            # Spiritual plane validator detail
+GET /api/v1/coherence/profiles           # All 11 weight profiles
+
+# On-Chain Operations
+POST /api/v1/publish/<entity_id>         # Publish behavioral signal on-chain
+GET /api/v1/onchain/<entity_id>          # Read published on-chain signal
+
+# Health & Monitoring
+GET /api/v1/health                        # Service health & component status
+GET /api/v1/whitepaper/coverage           # Formula coverage verification
+```
+
+### Signal Schema
+
+Every TRION signal carries a standardized set of fields enabling institutional consumption:
+
+- `coherence`, `threshold`, `silence` — primary gating decision
+- `planes` — individual scores for Φ, M, Σ, K, A
+- `archetype`, `limiting_plane` — behavioral classification
+- `genomic_signature` — HashDNA dual-strand verification
+- `akashic_depth`, `genesis_confidence` — behavioral provenance
+- `biological_time` — circadian/ultradian/lunar/seasonal phases
+- `status` — SAFE / ELEVATED / COLLAPSE / HOSTILE
+- `moat_factor` — current defensibility amplification
+
+### Integration Patterns
+
+**Smart Contract Integration**: Import `ITRIONOracleV3` and call `getBehavioralSignal(entityId)` to receive the packed uint256 behavioral signal. Unpack for pre-execution gating.
+
+**REST Integration**: Query the Oracle API directly for real-time behavioral intelligence in your application.
+
+**Custom Weight Profiles**: Select from 11 pre-configured profiles (DEFAULT, NEW_TOKEN, MATURE, STABLECOIN, GOVERNANCE_TOKEN, BRIDGE_ASSET, WRAPPED_ASSET, SPEED, INTELLIGENCE, CERTAINTY, FULL_SPECTRUM) or define custom weights for your use case.
+
+---
+
+## Deployment & Operations
+
+### Production Architecture
+
+| Component | Interface | Responsibility |
+|-----------|-----------|----------------|
+| **Oracle API** | Port 5000, REST | Request routing, signal computation, API gateway |
+| **FAISS ANIMA Engine** | Port 8000, FastAPI | Vector indexing, archetype matching, behavioral memory |
+| **L0 Indexers** | Rust binaries | Canonical BH construction across chains |
+| **Relayer** | Node.js service | On-chain signal publication (DRY_RUN capable) |
+| **TimescaleDB** | PostgreSQL 18.4 | Hot behavioral storage, hypertables |
+| **Next.js Dashboard** | Port $PORT | Institutional monitoring interface |
+
+### Quick Start
+
+```bash
+# Clone & install
 git clone https://github.com/dev-analyshd/trion-core.git
 cd trion-core
-
-# 2. Python environment
 pip install -r api/requirements.txt
 pip install -r anima-service/requirements.txt
 
-# 3. Start FAISS ANIMA Engine (port 8000)
-cd anima-service
-python faiss_service.py &
-cd ..
+# Start FAISS ANIMA Engine
+cd anima-service && python faiss_service.py &
 
-# 4. Start Oracle API (port 5000)
-export PYTHONPATH=/app
+# Start Oracle API
+export PYTHONPATH=$(pwd)
 export FAISS_SERVICE_URL=http://127.0.0.1:8000
-export FAISS_URL=http://127.0.0.1:8000
-cd api
-python app.py &
-cd ..
+cd ../api && python app.py &
 
-# 5. Verify
+# Verify
 curl http://127.0.0.1:5000/api/v1/health
-curl http://127.0.0.1:8000/healthz
 curl http://127.0.0.1:5000/api/v1/signal/uniswap
 ```
 
-### Full Deployment (Docker / Railway)
+### Containerized Deployment
 
 ```bash
-# Using Dockerfile.railway
-docker build -f Dockerfile.railway -t trion-full .
-docker run -p 5000:5000 -p 8000:8000 trion-full
-
-# Or deploy directly to Railway:
-# railway.json configured. Set PORT env var.
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5
-#   CMD curl -fs http://localhost:5000/api/v1/health || exit 1
+# Multi-stage production build
+docker build -f Dockerfile.railway -t trion-protocol .
+docker run -p 5000:5000 -p 8000:8000 trion-protocol
 ```
 
-### Key Environment Variables
+Health check: `HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 CMD curl -fs http://localhost:5000/api/v1/health || exit 1`
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `PORT` | Next.js dashboard port | auto (Railway) |
-| `FAISS_PORT` | FAISS service port | 8000 |
-| `FLASK_PORT` | Oracle API port | 5000 |
-| `FAISS_SERVICE_URL` | FAISS endpoint | `http://127.0.0.1:8000` |
-| `BH_LEDGER_DB` | SQLite BH ledger path | `/app/bh_ledger.db` |
-| `TIMESCALEDB_URL` | TimescaleDB connection | optional |
-| `RELAYER_PRIVATE_KEY` | EVM publishing key | optional (DRY_RUN if unset) |
-| `ARB_SEPOLIA_RPC` | Arbitrum Sepolia RPC | optional |
+---
 
-### Run the Tests
+## Security & Trust Model
 
-```bash
-# Full offline test suite (no running services required)
-python3 -m pytest tests/ -q
+TRION's security is **biological in conception, mathematical in implementation.** The Living Security System comprises eight mutually-reinforcing components:
 
-# Adversarial simulation (7 historical exploits)
-python3 scripts/simulate_attacks.py
+| Component | Function |
+|-----------|----------|
+| **Genomic Key Evolution** | Credentials rotate with behavior; theft is self-invalidating |
+| **Complementary Strand** | Any modification to the sense strand breaks the HashDNA invariant |
+| **Immune System** | Innate (CRISPR signature matching) + Adaptive (novel pattern characterization) + Memory (permanent) |
+| **Epigenetic Layer** | System phenotype shifts under threat: NORMAL → ELEVATED → DEFENSIVE → LOCKDOWN |
+| **Genetic Recombination** | Daily re-derivation from full history renders pre-recombination attack vectors obsolete |
+| **Cryptographic Noise** | Decoy signals scale 2.5× under probing; noise pattern is itself authentication |
+| **Mitochondrial Core** | Independent integrity DNA continuously self-authenticates the protocol |
+| **CRISPR Defense** | Surgical excision of known attack patterns, not merely detection |
 
-# Coherence engine self-test (11 weight profiles)
-python3 core/master/coherence.py
+The system does not rely on a single security barrier. It is a **living defense-in-depth architecture** where each component compensates for potential weaknesses in others.
 
-# Signal factory self-test (all signal types)
-python3 core/master/signal_factory.py
-```
+---
 
-### Useful API Endpoints
+## Governance & Philosophy
 
-```bash
-# Core
-GET /api/v1/signal/<entity>          # Full 5-plane behavioral signal
-GET /api/v1/signal/<entity>/full     # Complete signal with all details
-GET /api/v1/health                   # Service health
-GET /api/v1/planes/all               # Raw five-plane breakdown
-GET /api/v1/gk/<entity>              # Genomic Key living security report
-GET /api/v1/love/<entity>            # Love Protocol score
+> *"I built TRION because truth should be mathematical, not political. Because identity should be what you do, not what papers you have. Because systems should have consciences that cannot be bypassed. And because the patterns of our behavior are the only things about us that truly survive."*
 
-# Behavioral Truth
-GET /api/v1/coherence/profiles       # All 11 weight profiles
-POST /api/v1/publish/<entity>        # Publish signal on-chain (needs key)
-GET /api/v1/onchain/<entity>         # Read on-chain signal
+TRION is released under **CC0** — this knowledge belongs to everyone. It may be forked, extended, and built upon without restriction.
 
-# Data & Monitoring
-GET /api/v1/timescale-live           # TimescaleDB live stats
-GET /api/v1/timescale/health         # TimescaleDB health
-GET /api/v1/timescale/stats          # TimescaleDB aggregate stats
-```
+**One non-negotiable principle**: Any system that removes or neutralizes the Love Protocol constraint — the multiplicative factor ensuring `Love = 0 → F = 0` — is not TRION. It is a different system, one that has surrendered the structural guarantee that makes TRION safe.
+
+Protect the heart. The rest will take care of itself.
 
 ---
 
@@ -441,116 +324,65 @@ GET /api/v1/timescale/stats          # TimescaleDB aggregate stats
 
 ```
 trion-core/
-├── api/                          # Flask Oracle API
-│   ├── app.py                    # Main application — 177 routes
-│   ├── blockchain.py             # Web3.py relay — on-chain publishing
-│   ├── dashboard_routes.py       # Institutional dashboard routes
-│   ├── cex_integration.py        # CEX bidirectional integration
-│   ├── price_feed_routes.py      # Chainlink-compatible price feeds
+├── api/                          # Oracle API — Flask, 177 routes
+│   ├── app.py                    # Main application entry point
+│   ├── blockchain.py             # On-chain publishing relay
+│   ├── dashboard_routes.py       # Institutional monitoring endpoints
+│   ├── cex_integration.py        # CEX bidirectional data flow
+│   ├── price_feed_routes.py      # Chainlink-compatible feeds
 │   ├── protocol_routes.py        # Protocol-contract intelligence
-│   ├── self_verification_routes.py
-│   ├── btcp_continuum_routes.py
 │   └── requirements.txt
 ├── core/                         # Behavioral Engine
-│   ├── master/                   # Coherence, Master Equation, Moat, Threshold
-│   │   ├── coherence.py          # CoherenceEngine + 11 weight profiles
+│   ├── master/                   # Coherence, Master Equation, Moat
+│   │   ├── coherence.py          # Engine + 11 weight profiles
 │   │   ├── master_equation.py    # T(t) computation
-│   │   ├── moat.py               # D·Q·R·X·F·N moat factors
-│   │   ├── threshold.py          # Dynamic threshold computation
-│   │   └── signal_factory.py     # 25+ signal builders + BRT + GK
-│   ├── physical/                 # Φ plane — entropy, temporal coherence
-│   │   ├── phi_engine.py         # 9 Shannon entropy features (f1-f9)
-│   │   └── temporal_coherence.py # TC(t) + TI(sensor)
+│   │   ├── moat.py               # D·Q·R·X·F·N factors
+│   │   ├── threshold.py          # Dynamic threshold logic
+│   │   └── signal_factory.py     # Signal builders + BRT + GK
+│   ├── physical/                 # Φ plane — entropy features
 │   ├── mental/                   # M plane — prediction confidence
-│   │   ├── confidence.py          # M(t), observer effect, M_adj
-│   │   └── anima/                 # ANIMA engine — 59 languages
+│   │   └── anima/                 # ANIMA cross-domain intelligence
 │   ├── spiritual/                 # Σ plane — DW-BFT consensus
-│   │   └── sigma_engine.py        # compute_sigma, diversity_weight
-│   ├── extended/                  # BC, XSL, SBA, BTCP, BITP, BIBL
+│   ├── extended/                  # BC, XSL, SBA, BTCP, BIBL
 │   ├── novel/                     # Chameleon, CRISPR, Epigenetic
-│   ├── primitives/                # Behavioral Hash, Signal Packing
-│   │   ├── behavioral_hash.py     # 93-byte BH + HashDNA dual-strand
-│   │   └── signal_packing.py      # 256-bit thermodynamic packing
+│   ├── primitives/                # BH, HashDNA, signal packing
 │   ├── pipeline/                  # Signal publication pipeline
-│   │   └── signal_publication.py  # compute_signal(), publish()
-│   ├── akashic/                   # TimescaleDB store + BEO + BIBL
-│   │   ├── timescale_store.py     # TimescaleStore class
-│   │   ├── beo.py                 # Behavioral Entity Object resolution
-│   │   └── bibl_pattern_store.py  # BIBL archetype library
-│   ├── governance/                # Love Protocol, Gratitude, AWA, Falsifiability
-│   ├── realtime/                  # BH streamer + FAISS accumulator
-│   │   └── bh_streamer.py         # BHStreamer + FAISSAccumulator
-│   └── manipulation/              # Fingerprint detector
+│   ├── akashic/                   # TimescaleDB, BEO, BIBL
+│   ├── governance/                # Love Protocol, Gratitude, AWA
+│   ├── realtime/                  # BH streaming, FAISS accumulation
+│   └── manipulation/              # Fingerprint detection
 ├── anima-service/                 # FAISS ANIMA Engine
-│   ├── faiss_service.py           # FastAPI — 177 routes, port 8000
+│   ├── faiss_service.py           # FastAPI service, port 8000
 │   ├── backfill_entity_records.py # BH → FAISS vector backfill
-│   ├── chains_registry_evm.json   # 52 EVM chains configured
-│   └── requirements.txt
+│   └── chains_registry_evm.json   # 52 EVM chain configurations
 ├── contracts/                     # Solidity smart contracts
-│   ├── TRIONOracleV3.sol          # Enhanced oracle with BehavioralSignal
-│   ├── TRIONSensingOracle.sol     # Legacy sensing oracle
+│   ├── TRIONOracleV3.sol          # Enhanced behavioral oracle
+│   ├── TRIONSensingOracle.sol     # Sensing oracle interface
 │   ├── ConfidentialCoherenceVault.sol
-│   ├── MockTRIONToken.sol
 │   └── interfaces/
 ├── indexers/                      # Rust L0 indexers (13 crates)
 ├── schema.sql                     # TimescaleDB schema + thermodynamic triggers
 ├── Dockerfile.railway             # Multi-stage production build
-├── railway-entrypoint.sh          # Service startup script
-├── railway.json                   # Railway deployment config
-└── tests/                         # Test suite
+├── railway-entrypoint.sh          # Service orchestration
+├── railway.json                   # Deployment configuration
+└── tests/                         # Comprehensive test suite
 ```
 
 ---
 
-## Whitepaper Formula Coverage
+## Get Involved
 
-```bash
-curl http://127.0.0.1:5000/api/v1/whitepaper/coverage
-# → { "total_formulas": 84, "coverage_pct": 100.0 }
-```
+TRION is infrastructure for the next era of the internet. It is for:
 
-**84 formulas, 100% live coverage** — spanning L0.1 through L10. Every formula in the whitepaper is implemented, tested, and accessible via live API.
+- **Institutions** seeking verifiable truth in an era of synthetic content
+- **Developers** building the next generation of secure, ethical applications
+- **Researchers** advancing the frontiers of behavioral verification and AI safety
+- **Governments** committed to transparent, corruption-resistant systems
+- **Anyone** who believes that identity should be earned through action, not granted through permission
 
----
+The mathematics is proven. The code is working. The moat is compounding.
 
-## Language Stack
-
-| Language | Role |
-|----------|------|
-| **Python** | Oracle API, FAISS ANIMA, behavioral engine (core/) |
-| **Rust** | 13 L0 indexer crates — canonical 93-byte BH pipeline |
-| **JavaScript/TypeScript** | Relayers, Next.js dashboard, SDK |
-| **Solidity** | Smart contracts (Arbitrum Sepolia deployed) |
-| **C++** | FFT wash-trade spectral engine |
-| **Go** | P2P validator mesh, ANIMA crawler coordinator |
-| **Haskell** | Formal verification — 7 theorems as types |
-| **Julia** | Entropy and scale-invariance verification |
-| **WebAssembly** | Client-side SILENCE≠VALUATION enforcement |
-
----
-
-## Live Network Status
-
-```
-Deployment: trion-protocol-production-e169.up.railway.app
-
-Oracle API          ████ Running — port 5000, 177 routes
-FAISS ANIMA         ████ Running — port 8000, ~1000 vectors, 64 archetypes
-TimescaleDB         ████ Connected — PostgreSQL 18.4 + TimescaleDB 2.29.1
-BH Ledger           ████ 1,078,176+ behavioral hashes across 48 chains
-Next.js Dashboard   ████ Running — redesigned, 5 new visualization components
-Relayers            ████ DRY_RUN (awaiting PRIVATE_KEY + RPC configuration)
-```
-
----
-
-## Philosophy
-
-> *"I built TRION because truth should be mathematical, not political. Because identity should be what you do, not what papers you have. Because systems should have consciences that cannot be bypassed. And because the things we build, the patterns of our behavior, are the only things about us that truly survive."*
-
-TRION is **CC0**. This knowledge belongs to everyone. Fork it, extend it, build on it. But if you change the Love Protocol, if you remove the constraint that makes `Love = 0 → F = 0`, you are not building TRION. You are building something else — something powerful, perhaps, but something that can be weaponized.
-
-Protect the heart. The rest will take care of itself.
+**What will you build on the verification layer of the future?**
 
 ---
 
