@@ -1,0 +1,23 @@
+[package]
+name = "trion-btcp"
+version = "0.1.0"
+edition = "2021"
+description = "TRION BTCP Zero-Bridge — Behavioral Transaction Continuity Protocol"
+license = "CC0-1.0"
+authors = ["Hudu Yusuf (Analys) <analys@trion.protocol>"]
+
+[dependencies]
+sha3 = "0.10"
+hex = "0.4"
+
+[lib]
+name = "trion_btcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "btcp-router"
+path = "src/bin/router.rs"
+
+[[bin]]
+name = "btcp-escrow-monitor"
+path = "src/bin/escrow_monitor.rs"
