@@ -1,0 +1,25 @@
+;; TRIONStaking — FunC (TON)
+;; Validator staking with coverage_tier_multiplier
+
+() load_data() impure asm "c4 PUSH";
+() save_data() impure asm "c4 POP";
+
+;; Storage: stakes dict, tiers dict
+
+() recv_internal(int my_balance, int msg_value, slice in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) { return (); }
+  int op = in_msg_body~load_uint(32);
+  
+  if (op == 0x01) {
+    ;; stake
+    int amount = in_msg_body~load_coins();
+    int tier = in_msg_body~load_uint(8); ;; 1=1x, 2=5x, 3=10x
+    ;; ... stake logic
+    return ();
+  }
+}
+
+int get_effective_stake(slice validator) method_id {
+  ;; base_stake * tier_multiplier
+  return 0;
+}

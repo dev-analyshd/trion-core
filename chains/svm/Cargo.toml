@@ -1,8 +1,10 @@
 [workspace]
+# Canonical SVM programs live in contracts/svm/programs/.
+# Stale duplicates at chains/svm/programs/ were removed (CLEANUP-1).
 members = [
-    "programs/btcp_escrow",
-    "programs/btcp_intent",
-    "programs/btcp_route",
+    "../../contracts/svm/programs/btcp_escrow",
+    "../../contracts/svm/programs/btcp_intent",
+    "../../contracts/svm/programs/btcp_route",
 ]
 resolver = "2"
 
