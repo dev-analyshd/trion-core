@@ -31,6 +31,9 @@ RUN pip install --no-cache-dir \
         -r api/requirements.txt \
         -r anima-service/requirements.txt \
         numpy scipy scikit-learn
+# PHASE-1-SECURITY: force-upgrade pynacl (cosmpy transitively pins 1.6.0
+# which has PYSEC-2026-3002). --no-deps avoids the cosmpy resolver conflict.
+RUN pip install --no-cache-dir --no-deps pynacl==1.6.2
 
 # ── Source ────────────────────────────────────────────────────────────────────
 COPY api/              ./api/

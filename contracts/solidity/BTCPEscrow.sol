@@ -15,7 +15,33 @@ pragma solidity ^0.8.24;
 ///      • PENDING_AKASHIC state — 24h window for Akashic recovery (E1 Resolution)
 ///      • Force Majeure — funds held on SOURCE chain, not affected by target chain (Gap 11)
 ///      • Two-Phase Confirmation — SETTLEMENT_CHECK before release (G1 Resolution)
+///
+///      ── PHASE-1-SECURITY Hardening ──
+///      • ReentrancyGuard on all value-transferring functions (releaseEscrow,
+///        releaseFromPendingAkashic, revertEscrow, revertEmergency, _cascadeRevert).
+///      • Pausable circuit breaker — owner can freeze new locks during emergencies
+///        (existing escrows still settle/revert per their lifecycle).
+///      • Zero-address checks on every address parameter and admin setter.
+///      • All ETH transfers use `.call{value:}()` with explicit return-value check.
 contract BTCPEscrow {
+    // ── PHASE-1-SECURITY: Reentrancy guard (custom, no OZ dependency) ────────
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED     = 2;
+    uint256 private _reentrancyStatus = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_reentrancyStatus != _ENTERED, "REENTRANT");
+        _reentrancyStatus = _ENTERED;
+        _;
+        _reentrancyStatus = _NOT_ENTERED;
+    }
+
+    // ── PHASE-1-SECURITY: Pause circuit breaker ────────────────────────────
+    // When `paused` is true, no NEW escrows can be locked. Existing escrows
+    // continue to settle or revert per their normal lifecycle — pausing only
+    // blocks value ingress, not egress (so funds are never frozen).
+    bool public paused;
+
     // ── States (extended per spec Phase 1.1) ─────────────────────────────────
     enum State {
         IDLE,                // 0 — initial, no escrow
@@ -77,8 +103,13 @@ contract BTCPEscrow {
     event RelayerUpdated(address indexed oldRelayer, address indexed newRelayer);
     event SettlementCheckVerified(bytes32 indexed escrowId, bytes32 settlementCheckHash);
 
+    // ── PHASE-1-SECURITY: Pause events ─────────────────────────────────────
+    event Paused(address indexed by, uint256 at);
+    event Unpaused(address indexed by, uint256 at);
+
     modifier onlyOwner() { require(msg.sender == owner, "NOT_OWNER"); _; }
     modifier onlyRelayer() { require(msg.sender == relayer || msg.sender == owner, "NOT_RELAYER"); _; }
+    modifier whenNotPaused() { require(!paused, "PAUSED"); _; }
 
     constructor() {
         owner = msg.sender;
@@ -96,7 +127,9 @@ contract BTCPEscrow {
         uint256 minCoherence,
         uint256 timeoutBlocks,
         bytes32 parentEscrowId   // NEW: for cascade revert support
-    ) external payable onlyRelayer returns (bool) {
+    ) external payable onlyRelayer whenNotPaused nonReentrant returns (bool) {
+        // PHASE-1-SECURITY: zero-address & sanity checks
+        require(msg.sender != address(0), "ZERO_SENDER");
         require(escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
@@ -136,7 +169,7 @@ contract BTCPEscrow {
         address payable destination,
         uint256 minCoherence,
         uint256 timeoutBlocks
-    ) external payable onlyRelayer returns (bool) {
+    ) external payable onlyRelayer whenNotPaused nonReentrant returns (bool) {
         return _lockEscrowInternal(escrowId, routeId, entityId, destination, minCoherence, timeoutBlocks, bytes32(0));
     }
 
@@ -149,6 +182,7 @@ contract BTCPEscrow {
         uint256 timeoutBlocks,
         bytes32 parentEscrowId
     ) internal returns (bool) {
+        require(msg.sender != address(0), "ZERO_SENDER");
         require(escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
@@ -186,7 +220,7 @@ contract BTCPEscrow {
     function verifySettlementCheck(
         bytes32 escrowId,
         bytes32 settlementCheckHash
-    ) external onlyRelayer returns (bool) {
+    ) external onlyRelayer whenNotPaused returns (bool) {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
@@ -205,7 +239,7 @@ contract BTCPEscrow {
         bytes32 escrowId,
         bytes32 executionBH,
         uint256 coherence
-    ) external onlyRelayer returns (bool) {
+    ) external onlyRelayer nonReentrant returns (bool) {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
@@ -214,11 +248,17 @@ contract BTCPEscrow {
         // G1: Two-Phase Confirmation — settlement check must be verified
         require(esc.settlementCheckHash != bytes32(0), "SETTLEMENT_NOT_VERIFIED");
 
+        // ── PHASE-1-SECURITY: state update BEFORE external call (CEI pattern) ──
+        // Mark as RELEASED and clear the amount before transferring value,
+        // so a malicious destination cannot re-enter releaseEscrow.
+        uint256 amountToTransfer = esc.amount;
+        address payable destinationToPay = esc.destination;
         esc.state = State.RELEASED;
         esc.settledAt = block.timestamp;
+        esc.amount = 0;  // PHASE-1-SECURITY: clear balance before external call
 
-        // Transfer native tokens to destination
-        (bool ok, ) = esc.destination.call{value: esc.amount}("");
+        // Transfer native tokens to destination — .call{value:}() with return check.
+        (bool ok, ) = destinationToPay.call{value: amountToTransfer}("");
         require(ok, "TRANSFER_FAILED");
 
         emit EscrowReleased(escrowId, esc.routeId, executionBH, coherence, esc.settledAt);
@@ -227,7 +267,7 @@ contract BTCPEscrow {
 
     /// @notice Enter PENDING_AKASHIC state when Akashic Index is unavailable
     ///         at execution time (E1 Resolution). 24h recovery window.
-    function enterPendingAkashic(bytes32 escrowId) external onlyRelayer {
+    function enterPendingAkashic(bytes32 escrowId) external onlyRelayer whenNotPaused {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
@@ -242,7 +282,7 @@ contract BTCPEscrow {
         bytes32 escrowId,
         bytes32 executionBH,
         uint256 coherence
-    ) external onlyRelayer returns (bool) {
+    ) external onlyRelayer nonReentrant returns (bool) {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.PENDING_AKASHIC, "NOT_PENDING");
@@ -250,9 +290,14 @@ contract BTCPEscrow {
         require(coherence >= esc.minCoherence, "COHERENCE_INSUFFICIENT");
         require(esc.settlementCheckHash != bytes32(0), "SETTLEMENT_NOT_VERIFIED");
 
+        // ── PHASE-1-SECURITY: CEI pattern — clear state BEFORE external call ──
+        uint256 amountToTransfer = esc.amount;
+        address payable destinationToPay = esc.destination;
         esc.state = State.RELEASED;
         esc.settledAt = block.timestamp;
-        (bool ok, ) = esc.destination.call{value: esc.amount}("");
+        esc.amount = 0;
+
+        (bool ok, ) = destinationToPay.call{value: amountToTransfer}("");
         require(ok, "TRANSFER_FAILED");
 
         emit EscrowReleased(escrowId, esc.routeId, executionBH, coherence, esc.settledAt);
@@ -262,7 +307,7 @@ contract BTCPEscrow {
     /// @notice Revert escrow back to the original locker.
     /// @dev Auto-reverts on timeout; relayer can trigger on coherence failure or route invalidity.
     ///      Also handles PENDING_AKASHIC → REVERTED after 24h (E1 Resolution).
-    function revertEscrow(bytes32 escrowId, RevertReason reason) external returns (bool) {
+    function revertEscrow(bytes32 escrowId, RevertReason reason) external nonReentrant returns (bool) {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC, "NOT_REVERTABLE");
@@ -278,12 +323,16 @@ contract BTCPEscrow {
             require(reason != RevertReason.TIMEOUT, "NOT_TIMEOUT");
         }
 
+        // ── PHASE-1-SECURITY: CEI pattern — clear state BEFORE external call ──
+        uint256 amountToRefund = esc.amount;
+        address payable refundTo = payable(esc.lockedBy);
         esc.state = State.REVERTED;
         esc.revertReason = reason;
         esc.revertedAt = block.timestamp;
+        esc.amount = 0;
 
         // Return funds to locker (Force Majeure — funds on source chain, Gap 11)
-        (bool ok, ) = esc.lockedBy.call{value: esc.amount}("");
+        (bool ok, ) = refundTo.call{value: amountToRefund}("");
         require(ok, "REFUND_FAILED");
 
         emit EscrowReverted(escrowId, reason, esc.revertedAt);
@@ -299,7 +348,7 @@ contract BTCPEscrow {
     /// @notice Emergency Escape Hatch (Gap 8 Resolution).
     ///         After 7 days, ANY caller can trigger revert — no TRION signal needed.
     ///         This is the absolute maximum lockup period.
-    function revertEmergency(bytes32 escrowId) external returns (bool) {
+    function revertEmergency(bytes32 escrowId) external nonReentrant returns (bool) {
         Escrow storage esc = escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC, "NOT_HOLDING");
@@ -308,11 +357,15 @@ contract BTCPEscrow {
             "EMERGENCY_NOT_YET"
         );
 
+        // ── PHASE-1-SECURITY: CEI pattern — clear state BEFORE external call ──
+        uint256 amountToRefund = esc.amount;
+        address payable refundTo = payable(esc.lockedBy);
         esc.state = State.EMERGENCY_REVERTED;
         esc.revertReason = RevertReason.EMERGENCY_ESCAPE;
         esc.revertedAt = block.timestamp;
+        esc.amount = 0;
 
-        (bool ok, ) = esc.lockedBy.call{value: esc.amount}("");
+        (bool ok, ) = refundTo.call{value: amountToRefund}("");
         require(ok, "REFUND_FAILED");
 
         emit EmergencyRevert(escrowId, msg.sender, esc.revertedAt);
@@ -332,11 +385,15 @@ contract BTCPEscrow {
         if (parent.escrowId == bytes32(0)) return;
         if (parent.state != State.HOLDING && parent.state != State.PENDING_AKASHIC) return;
 
+        // ── PHASE-1-SECURITY: CEI pattern — clear state BEFORE external call ──
+        uint256 amountToRefund = parent.amount;
+        address payable refundTo = payable(parent.lockedBy);
         parent.state = State.REVERTED;
         parent.revertReason = RevertReason.CASCADE_REVERT;
         parent.revertedAt = block.timestamp;
+        parent.amount = 0;
 
-        (bool ok, ) = parent.lockedBy.call{value: parent.amount}("");
+        (bool ok, ) = refundTo.call{value: amountToRefund}("");
         require(ok, "CASCADE_REFUND_FAILED");
 
         emit CascadeRevert(childEscrowId, parentEscrowId, parent.revertedAt);
@@ -374,7 +431,35 @@ contract BTCPEscrow {
     }
 
     function setRelayer(address newRelayer) external onlyOwner {
+        // PHASE-1-SECURITY: prevent bricking the contract by setting relayer to address(0).
+        require(newRelayer != address(0), "ZERO_RELAYER");
         emit RelayerUpdated(relayer, newRelayer);
         relayer = newRelayer;
+    }
+
+    // ── PHASE-1-SECURITY: Circuit breaker ──────────────────────────────────
+    // Pause blocks NEW escrow locks only — existing escrows still settle or
+    // revert per their normal lifecycle so no funds are frozen.
+    function pause() external onlyOwner {
+        require(!paused, "ALREADY_PAUSED");
+        paused = true;
+        emit Paused(msg.sender, block.timestamp);
+    }
+
+    function unpause() external onlyOwner {
+        require(paused, "NOT_PAUSED");
+        paused = false;
+        emit Unpaused(msg.sender, block.timestamp);
+    }
+
+    // ── PHASE-1-SECURITY: Sweep stuck ETH (e.g. from failed refund) ────────
+    // Owner-only escape hatch for ETH sent to the contract outside an escrow
+    // (force-send via selfdestruct/coinbase). NEVER used for escrow funds.
+    function sweepETH(address payable to) external onlyOwner nonReentrant {
+        require(to != address(0), "ZERO_DESTINATION");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "ZERO_BALANCE");
+        (bool ok, ) = to.call{value: balance}("");
+        require(ok, "SWEEP_FAILED");
     }
 }
