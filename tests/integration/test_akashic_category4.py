@@ -351,7 +351,7 @@ def test_thermodynamic_deletion():
     info("1.5  Verifying Information Conservation Law — deletion violates I_total invariant…")
     try:
         sys.path.insert(0, "/home/runner/workspace")
-        from src.core.information_conservation import (
+        from core.primitives.thermodynamics import (
             AkashicConservationLedger, verify_conservation, compute_information_state
         )
         import time as _time
@@ -366,7 +366,7 @@ def test_thermodynamic_deletion():
 
         # Simulate deletion: information disappears without transformation
         # Build a bogus state where I_total dropped by 50 (deletion)
-        from src.core.information_conservation import InformationState, ConservationCheckResult
+        from core.primitives.thermodynamics import InformationState, ConservationCheckResult
         deleted_state = InformationState(
             timestamp=now + 1,
             bh_generated=0, a_absorbed=0, s_emitted=0, e_lost=0,

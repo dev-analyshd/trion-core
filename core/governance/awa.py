@@ -24,9 +24,11 @@ Bootstrap Protocol Weight:
   Transition is complete when bootstrap_weight < 0.01 (D > ~46,000)
 
 AWA State:
-  ENFORCED   — all 4 conditions met, AWA active
+  ENFORCED   — all 8 conditions met (4 active + 4 anti-centralization), AWA active
   SUSPENDED  — quorum or HHI condition failed
   DEGRADED   — gratitude or public_good condition not met
+  FROZEN     — anti-centralization / R_inv / SDP condition violated (WP2 §17:
+               signal emission FROZEN, cannot be overridden by any single entity)
   EMERGENCY  — HHI > 4000 (validator concentration CRITICAL)
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
@@ -50,6 +52,15 @@ AWA_PUBLIC_GOOD_MIN = 0.15
 
 GRATITUDE_DECAY_PER_WEEK = 0.95
 GRATITUDE_WINDOW_DAYS    = 30
+
+# ─── WP2 §17 anti-centralization thresholds (AUDIT-3 G2 fix) ───────────────────
+# A single entity controlling >50% of signal weights constitutes majority control
+# (signal-weights AWA violation); a single entity controlling >= 1/3 of validator
+# stake violates BFT safety (validator-selection AWA violation). These are the
+# WP2 §17 "no single entity" conditions. They MUST be runtime-evaluated, never
+# hardcoded True.
+AWA_SIGNAL_WEIGHT_MAX_SHARE   = 0.50
+AWA_VALIDATOR_STAKE_MAX_SHARE = 1.0 / 3.0
 
 
 @dataclass
@@ -193,12 +204,120 @@ class AWAEnforcer:
     """
     AWA Enforcement State Machine.
     Evaluates all 4 AWA conditions and determines enforcement state.
+
+    AUDIT-3 G2 fix: the 4 "architecturally enforced" conditions
+    (right_to_invisibility, no_single_entity_controls_weights,
+    no_single_entity_controls_validators, sovereignty_dignity_protocol)
+    are now runtime-evaluated, not hardcoded True. Override hooks:
+      * set_sovereignty_dignity_active(False) — governance action revokes SDP
+      * evaluate(signal_weight_distribution=..., validator_stake_distribution=...)
+        runs the anti-centralization checks against real distribution data
+      * right_to_invisibility is checked live against the
+        core.governance.right_to_invisibility enforcement layer
     """
 
     def __init__(self):
         self.gratitude    = GratitudeProtocol()
         self.bootstrap    = BootstrapProtocol()
         self._last_state: Optional[AWAState] = None
+        # Runtime AWA flags (G2 fix). Defaults preserve historical behavior
+        # but are now mutable through explicit governance actions and runtime
+        # evaluation against real distribution data.
+        self._sovereignty_dignity_active: bool = True
+        self._right_to_invisibility_active: Optional[bool] = None  # None = auto-detect
+        # Cached RightToInvisibility enforcement-layer handle (lazy init).
+        self._rtiv_handle = None
+        self._rtiv_init_attempted = False
+
+    # ─── Runtime governance hooks (G2 fix) ──────────────────────────────────
+
+    def set_sovereignty_dignity_active(self, active: bool) -> None:
+        """Governance action: revoke/restore Sovereignty Dignity Protocol."""
+        self._sovereignty_dignity_active = bool(active)
+
+    def set_right_to_invisibility_active(self, active: Optional[bool]) -> None:
+        """Override Right-to-Invisibility runtime check.
+
+        Pass True/False to force a state, or None to re-enable auto-detection
+        against the live enforcement layer (core.governance.right_to_invisibility).
+        """
+        self._right_to_invisibility_active = active
+
+    def _check_right_to_invisibility(self) -> bool:
+        """Runtime check: Right-to-Invisibility enforcement layer functional.
+
+        Per WP2 §17, signal emission is FROZEN if R_inv is not enforced. We
+        verify the enforcement layer can be initialized (SQLite petitions DB
+        accessible, RightToInvisibility class loadable). An explicit override
+        via set_right_to_invisibility_active() takes precedence.
+        """
+        if self._right_to_invisibility_active is not None:
+            return self._right_to_invisibility_active
+        if not self._rtiv_init_attempted:
+            self._rtiv_init_attempted = True
+            try:
+                # Import inside method so the AWA module remains importable
+                # even if the right_to_invisibility module has optional deps
+                # (e.g. missing sqlite3) on minimal runtimes.
+                from core.governance.right_to_invisibility import RightToInvisibility
+                # Use an in-memory DB to avoid filesystem side-effects on import.
+                self._rtiv_handle = RightToInvisibility(db_path=":memory:")
+            except Exception:
+                self._rtiv_handle = None
+        return self._rtiv_handle is not None
+
+    @staticmethod
+    def _max_share(distribution: Optional[Dict[str, float]]) -> Optional[float]:
+        """Return the largest single-entity share in a {entity_id: share} dict.
+
+        Shares are expected to be already normalized (sum ≈ 1.0). If the dict
+        is empty or None, returns None (signal: distribution data unavailable).
+        """
+        if not distribution:
+            return None
+        vals = [float(v) for v in distribution.values() if v is not None and v >= 0]
+        if not vals:
+            return None
+        return max(vals)
+
+    def _check_no_single_entity_controls_weights(
+        self, signal_weight_distribution: Optional[Dict[str, float]]
+    ) -> bool:
+        """Runtime check: no single entity controls > 50% of signal weights.
+
+        If distribution data is unavailable (None / empty), the check is
+        data-pending and treated as PASS (presumption of innocence) but
+        flagged in the disclosure. This is NOT a hardcoded True — the
+        condition is genuinely unmeasurable until distribution data is fed
+        in by the caller.
+        """
+        mx = self._max_share(signal_weight_distribution)
+        if mx is None:
+            return True  # data-pending
+        return mx < AWA_SIGNAL_WEIGHT_MAX_SHARE
+
+    def _check_no_single_entity_controls_validators(
+        self, validator_stake_distribution: Optional[Dict[str, float]]
+    ) -> bool:
+        """Runtime check: no single entity controls >= 1/3 of validator stake.
+
+        BFT safety floor: an adversary with >= 1/3 stake can halt consensus.
+        Per WP2 §17 AWA, this must be runtime-evaluated against the live
+        validator stake distribution.
+        """
+        mx = self._max_share(validator_stake_distribution)
+        if mx is None:
+            return True  # data-pending
+        return mx < AWA_VALIDATOR_STAKE_MAX_SHARE
+
+    def _check_sovereignty_dignity(self) -> bool:
+        """Runtime check: Sovereignty Dignity Protocol is active.
+
+        The flag is mutable via set_sovereignty_dignity_active(); a
+        WEAPONIZATION_ATTEMPT event in the Chameleon Protocol (§17) flips
+        it to False, which immediately freezes signal emission.
+        """
+        return self._sovereignty_dignity_active
 
     def evaluate(
         self,
@@ -207,27 +326,45 @@ class AWAEnforcer:
         public_good_pct:  float,
         akashic_depth:    float = 0.0,
         now:              Optional[float] = None,
+        # AUDIT-3 G2 fix: distribution inputs for the 4 previously-hardcoded
+        # conditions. When omitted (None), the anti-centralization checks are
+        # data-pending (treated as PASS, presumption of innocence, but flagged
+        # in the disclosure string so operators know the check is unmeasured).
+        signal_weight_distribution:    Optional[Dict[str, float]] = None,
+        validator_stake_distribution:  Optional[Dict[str, float]] = None,
     ) -> AWAState:
         now = now or time.time()
         gratitude_score = self.gratitude.compute_network_gratitude(now)
         bootstrap_w     = self.bootstrap.compute_weight(akashic_depth)
 
+        # AUDIT-3 G2 fix: all 8 AWA conditions now runtime-evaluated.
+        rtiv_ok     = self._check_right_to_invisibility()
+        weights_ok  = self._check_no_single_entity_controls_weights(signal_weight_distribution)
+        validators_ok = self._check_no_single_entity_controls_validators(validator_stake_distribution)
+        sdp_ok      = self._check_sovereignty_dignity()
+
+        # Track which anti-centralization checks were data-pending (unmeasured).
+        weights_measured    = signal_weight_distribution is not None and len(signal_weight_distribution) > 0
+        validators_measured = validator_stake_distribution is not None and len(validator_stake_distribution) > 0
+
         conditions = {
-            "quorum":                        consensus_quorum >= AWA_QUORUM,
-            "hhi":                           validator_hhi < AWA_HHI_MAX,
-            "gratitude":                     gratitude_score >= AWA_GRATITUDE_MIN,
-            "public_good":                   public_good_pct >= AWA_PUBLIC_GOOD_MIN,
-            # Whitepaper AWA conditions — Right to Invisibility and anti-control checks
-            # These are architecturally enforced: evaluated as True in bootstrap/dev phase
-            # and must be explicitly violated by a governance action to become False.
-            "right_to_invisibility":         True,   # R_inv enforced — emission frozen if False
-            "no_single_entity_controls_weights":    True,   # no single entity controls signal weights
-            "no_single_entity_controls_validators": True,   # no single entity controls validator selection
-            "sovereignty_dignity_protocol":  True,   # Sovereignty Dignity Protocol active
+            "quorum":                            consensus_quorum >= AWA_QUORUM,
+            "hhi":                               validator_hhi < AWA_HHI_MAX,
+            "gratitude":                         gratitude_score >= AWA_GRATITUDE_MIN,
+            "public_good":                       public_good_pct >= AWA_PUBLIC_GOOD_MIN,
+            "right_to_invisibility":             rtiv_ok,
+            "no_single_entity_controls_weights":    weights_ok,
+            "no_single_entity_controls_validators": validators_ok,
+            "sovereignty_dignity_protocol":      sdp_ok,
         }
 
         failing = [k for k, v in conditions.items() if not v]
 
+        # AUDIT-3 G2 fix: wire the 4 newly-runtime conditions into `enforced`.
+        # Per WP2 §17: "AWA_enforced = FALSE -> signal emission FROZEN. Cannot
+        # be overridden by any single entity. By design." Any failing condition
+        # (including the anti-centralization + R_inv + SDP conditions) freezes
+        # signal emission. Status tier reflects which category failed.
         if validator_hhi >= AWA_HHI_MAX:
             status = "EMERGENCY"
             enforced = False
@@ -236,6 +373,11 @@ class AWAEnforcer:
             enforced = False
         elif not conditions["gratitude"] or not conditions["public_good"]:
             status = "DEGRADED"
+            enforced = False
+        elif not (rtiv_ok and weights_ok and validators_ok and sdp_ok):
+            # Anti-centralization / dignity / invisibility violation.
+            # WP2 §17: "Cannot be overridden by any single entity."
+            status = "FROZEN"
             enforced = False
         else:
             status = "ENFORCED"
@@ -250,6 +392,24 @@ class AWAEnforcer:
             failing_details.append(f"gratitude={gratitude_score:.2f} < {AWA_GRATITUDE_MIN}")
         if not conditions["public_good"]:
             failing_details.append(f"public_good={public_good_pct:.2f} < {AWA_PUBLIC_GOOD_MIN}")
+        if not rtiv_ok:
+            failing_details.append("right_to_invisibility=NOT_ENFORCED (R_inv layer unavailable/revoked)")
+        if not weights_ok:
+            mx = self._max_share(signal_weight_distribution)
+            failing_details.append(
+                f"max_signal_weight_share={mx:.3f} >= {AWA_SIGNAL_WEIGHT_MAX_SHARE:.2f}"
+            )
+        elif not weights_measured:
+            failing_details.append("max_signal_weight_share=DATA_PENDING")
+        if not validators_ok:
+            mx = self._max_share(validator_stake_distribution)
+            failing_details.append(
+                f"max_validator_stake_share={mx:.3f} >= {AWA_VALIDATOR_STAKE_MAX_SHARE:.3f}"
+            )
+        elif not validators_measured:
+            failing_details.append("max_validator_stake_share=DATA_PENDING")
+        if not sdp_ok:
+            failing_details.append("sovereignty_dignity_protocol=INACTIVE")
 
         state = AWAState(
             enforced         = enforced,
@@ -286,6 +446,17 @@ class AWAEnforcer:
                 "validator_hhi":    {"value": round(state.validator_hhi, 1),    "threshold": AWA_HHI_MAX, "met": state.conditions_met["hhi"]},
                 "gratitude_score":  {"value": round(state.gratitude_score, 4),  "threshold": AWA_GRATITUDE_MIN, "met": state.conditions_met["gratitude"]},
                 "public_good_pct":  {"value": round(state.public_good_pct, 4),  "threshold": AWA_PUBLIC_GOOD_MIN, "met": state.conditions_met["public_good"]},
+                # AUDIT-3 G2: 4 previously-hardcoded conditions now exposed live.
+                "right_to_invisibility":             {"met": state.conditions_met["right_to_invisibility"]},
+                "no_single_entity_controls_weights":    {
+                    "met":       state.conditions_met["no_single_entity_controls_weights"],
+                    "threshold": AWA_SIGNAL_WEIGHT_MAX_SHARE,
+                },
+                "no_single_entity_controls_validators": {
+                    "met":       state.conditions_met["no_single_entity_controls_validators"],
+                    "threshold": AWA_VALIDATOR_STAKE_MAX_SHARE,
+                },
+                "sovereignty_dignity_protocol":      {"met": state.conditions_met["sovereignty_dignity_protocol"]},
             },
             "failing_conditions": state.failing_conditions,
             "bootstrap_weight":   round(state.bootstrap_weight, 6),

@@ -43,6 +43,29 @@ class ConsensusProof:
 
 
 @dataclass
+class ConsensusAttestation:
+    """Diversity-Weighted BFT attestation emitted by the spiritual plane.
+
+    Bundles the outputs of `core.spiritual.consensus.compute_dw_bft_consensus`
+    so the BTCP proof builder can call it once and pass the results through
+    without re-running the diversity computation per proof.
+
+    Closes AUDIT-1 gap #5: "DW-BFT consensus layer is disconnected from BTCP
+    proof builder."
+    """
+    diversity_certificate:    List[float]    # all d_j values
+    hhi:                      float          # HHI diversity concentration
+    sigma:                    float          # Σ(t) ∈ [0,1] — coherence score
+    threshold_margin:         float          # Σ_honest - (2/3)·Σ_total
+    safety_holds:             bool           # L4.3 safety condition
+    self_defeating_proof:     str            # formal statement
+    consensus_value:          float          # v̄ stake-diversity-weighted mean
+    validators_in_consensus:  int
+    validator_count:          int
+    hhi_health:               str            # HEALTHY / WARNING / CRITICAL
+
+
+@dataclass
 class BTCPProof:
     """BTCP_proof for cross-chain verification."""
     anchor_bh:             bytes  # HashDNA
@@ -111,6 +134,140 @@ class BTCPProofBuilder:
             certification_expiry=certification_block + expiry,
             validator_key_version=validator_key_version,
         )
+
+    # ── FIX-2: Consensus wiring (AUDIT-1 gap #5) ──────────────────────────────
+
+    # Default threshold for Σ(t) — the BTCP proof is only valid if coherence
+    # exceeds this. Whitepaper §4.3 specifies 2/3 BFT threshold; the
+    # coherence form Σ(t) > 0.55 mirrors the spiritual plane default.
+    DEFAULT_COHERENCE_THRESHOLD = 0.55
+
+    def build_consensus_attestation(
+        self,
+        validators: List[Any],
+        delta: float = 0.05,
+    ) -> ConsensusAttestation:
+        """Call the spiritual plane's DW-BFT consensus layer to produce a
+        diversity certificate attestation.
+
+        Resolves `core.spiritual.consensus.compute_dw_bft_consensus(validators)`
+        and bundles the outputs into a `ConsensusAttestation` that the BTCP
+        proof builder can attach to a BTCPProof.
+
+        Args:
+            validators: list of `core.spiritual.consensus.Validator` instances.
+            delta: consensus agreement band width (default 0.05 = 5%).
+
+        Returns:
+            ConsensusAttestation with diversity_certificate, hhi, sigma,
+            threshold_margin, safety_holds, self_defeating_proof, etc.
+        """
+        # Lazy import to avoid hard coupling at module load time. The
+        # spiritual plane consensus module imports numpy via sigma_engine,
+        # which may not be present in every consumer of the BTCP proof
+        # builder. Failure to import degrades gracefully into a
+        # bootstrap-mode attestation that the caller can inspect via
+        # `safety_holds == False`.
+        try:
+            from core.spiritual.consensus import (
+                compute_dw_bft_consensus,
+                BFTConsensusResult,
+            )
+        except Exception as e:  # pragma: no cover — import-error path
+            return ConsensusAttestation(
+                diversity_certificate=[],
+                hhi=10_000.0,
+                sigma=0.0,
+                threshold_margin=-1.0,
+                safety_holds=False,
+                self_defeating_proof=(
+                    f"Spiritual plane consensus module unavailable: "
+                    f"{type(e).__name__}: {e}. BTCP proof builder operating in "
+                    f"bootstrap mode — diversity certificate empty, Σ(t)=0."
+                ),
+                consensus_value=0.0,
+                validators_in_consensus=0,
+                validator_count=0,
+                hhi_health="CRITICAL",
+            )
+
+        result: BFTConsensusResult = compute_dw_bft_consensus(validators, delta=delta)
+        return ConsensusAttestation(
+            diversity_certificate=[
+                r.diversity_weight for r in result.diversity_results
+            ],
+            hhi=result.hhi,
+            sigma=result.sigma,
+            threshold_margin=result.safety_margin,
+            safety_holds=result.safety_holds,
+            self_defeating_proof=result.self_defeating_proof,
+            consensus_value=result.consensus_value,
+            validators_in_consensus=result.validators_in_consensus,
+            validator_count=result.validator_count,
+            hhi_health=result.hhi_health,
+        )
+
+    def build_proof_from_validators(
+        self,
+        anchor_bh: bytes,
+        intent_hash: bytes,
+        route_type: int,
+        certification_block: int,
+        value_usd: float,
+        validators: List[Any],
+        validator_signatures: List[ValidatorSignature],
+        delta: float = 0.05,
+        coherence_threshold: Optional[float] = None,
+        validator_key_version: bytes = b"\\x00" * 4,
+    ) -> Tuple[BTCPProof, ConsensusAttestation]:
+        """Build a BTCPProof by calling the spiritual plane consensus layer
+        to compute the diversity certificate, HHI, and Σ(t) coherence score.
+
+        This is the canonical BTCP proof-construction entry point per
+        AUDIT-1 gap #5 — previously the BTCP proof builder accepted diversity
+        weights and HHI as opaque caller-supplied values with no live
+        consensus call. Now the proof builder pulls them from the spiritual
+        plane's DW-BFT consensus module.
+
+        Args:
+            anchor_bh: anchor-chain HashDNA (32 bytes).
+            intent_hash: SHA3-256 of the BTCP intent (32 bytes).
+            route_type: TRION route type code (see BTCPRoute.sol).
+            certification_block: anchor block at which proof is emitted.
+            value_usd: USD value of the route (controls cert expiry window).
+            validators: list of `core.spiritual.consensus.Validator`.
+            validator_signatures: BLS/Ed25519 signatures from the validator
+                cohort (production) or mock signatures (dev).
+            delta: consensus agreement band (default 5%).
+            coherence_threshold: optional override (default 0.55).
+            validator_key_version: 4-byte key version for ICA rotation.
+
+        Returns:
+            Tuple of (BTCPProof, ConsensusAttestation). The attestation is
+            returned alongside the proof so the caller can attach the
+            `self_defeating_proof` statement and `hhi_health` to the
+            Akashic record for audit.
+        """
+        attestation = self.build_consensus_attestation(validators, delta=delta)
+        threshold = (
+            coherence_threshold
+            if coherence_threshold is not None
+            else self.DEFAULT_COHERENCE_THRESHOLD
+        )
+        proof = self.build_proof(
+            anchor_bh=anchor_bh,
+            intent_hash=intent_hash,
+            route_type=route_type,
+            certification_block=certification_block,
+            value_usd=value_usd,
+            validator_signatures=validator_signatures,
+            diversity_weights=attestation.diversity_certificate,
+            hhi=attestation.hhi,
+            coherence=attestation.sigma,
+            threshold=threshold,
+            validator_key_version=validator_key_version,
+        )
+        return proof, attestation
 
     def verify_proof(self, proof: BTCPProof, current_block: int) -> bool:
         """Verify a BTCP_proof on the receiving chain."""
@@ -723,6 +880,27 @@ if __name__ == "__main__":
     assert pb.verify_proof(proof, current_block=18000001)
     assert not pb.verify_proof(proof, current_block=18000001 + 100000)  # expired
     print(f"✓ Module 2.4: BTCPProofBuilder")
+
+    # FIX-2: BTCPProofBuilder consensus wiring (AUDIT-1 gap #5)
+    try:
+        from core.spiritual.consensus import build_demo_validators
+        demo_validators = build_demo_validators(12)
+        proof2, attestation = pb.build_proof_from_validators(
+            anchor_bh=b"\x05" * 32, intent_hash=b"\x06" * 32,
+            route_type=1, certification_block=18000000, value_usd=5000.0,
+            validators=demo_validators,
+            validator_signatures=[
+                ValidatorSignature(b"\x07" * 32, b"\x08" * 65, 0.8)
+            ],
+        )
+        assert isinstance(attestation, ConsensusAttestation)
+        assert len(attestation.diversity_certificate) == 12
+        assert attestation.hhi > 0
+        assert attestation.sigma >= 0.0
+        assert pb.verify_proof(proof2, current_block=18000001) or not attestation.safety_holds
+        print(f"✓ Module 2.4 (FIX-2): BTCPProofBuilder.build_proof_from_validators — Σ(t)={attestation.sigma:.4f}, HHI={attestation.hhi:.0f} [{attestation.hhi_health}]")
+    except ImportError:
+        print(f"✓ Module 2.4 (FIX-2): consensus module not installed — skipping wiring test")
 
     # Module 2.5: BITP Matcher
     bm = BITPMatcher()

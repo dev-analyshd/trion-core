@@ -413,6 +413,385 @@ class ANIMADataStreamBundle:
         return ha
 
 
+
+# ── ANIMA Data Aggregator ──────────────────────────────────────────────────────
+# Wires the real external data source fetchers into a unified ANIMADataStreamBundle.
+# Each fetcher lives in core/mental/anima/data_sources/*.py and is responsible
+# for one external API (GitHub / arXiv / SEC EDGAR / news RSS / GBIF / IUCN).
+
+@dataclass
+class FetcherConfig:
+    """
+    Configuration for one ANIMA fetcher invocation.
+
+    Maps the entity_id (typically an on-chain address or ticker) to the
+    parameters each fetcher needs (e.g. CIK for SEC EDGAR, owner/repo for
+    GitHub, region for GBIF).
+    """
+    entity_id:         str
+    github_owner:      Optional[str] = None
+    github_repo:       Optional[str] = None
+    sec_cik:           Optional[str] = None
+    sec_form_type:     Optional[str] = None
+    ecological_region: str = "global"
+    ecological_taxon_key: Optional[int] = None
+    ecological_species:    Optional[List[str]] = None
+    academic_max_results: int = 10
+    news_ttl:          float = 300.0
+    github_ttl:        float = 600.0
+    arxiv_ttl:         float = 1800.0
+    regulatory_ttl:    float = 900.0
+    ecological_ttl:    float = 3600.0
+    sec_edgar_ttl:     float = 600.0
+
+
+class ANIMADataAggregator:
+    """
+    Orchestrates all ANIMA external data source fetchers and assembles the
+    unified :class:`ANIMADataStreamBundle` for one entity / crawl cycle.
+
+    Stream wiring:
+      - Stream 1 (Onchain Behavioral): left to on-chain indexers (not wired here).
+      - Stream 2 (Structured Offchain): SEC EDGAR adapter + Regulatory fetcher.
+      - Stream 3 (Unstructured NLP): GitHub Activity + arXiv + News fetchers,
+        with optional multilingual sentiment from anima-service/multilingual_sentiment.
+      - Stream 4 (Biological + Ecological): GBIF + IUCN fetcher.
+
+    Usage::
+
+        agg = ANIMADataAggregator()
+        cfg = FetcherConfig(
+            entity_id="0xETH",
+            github_owner="ethereum",
+            github_repo="solidity",
+            sec_cik="0000320193",
+        )
+        bundle = agg.build_bundle(cfg, block_number=18_000_000)
+
+    Each fetcher is independent — a failure in one does not break the others.
+    """
+
+    def __init__(self, user_agent: Optional[str] = None):
+        self._user_agent = user_agent
+        # Lazy-load fetchers so the aggregator can be constructed even if
+        # individual fetcher modules have import errors.
+        self._gh = None
+        self._arxiv = None
+        self._reg = None
+        self._eco = None
+        self._sec = None
+        self._news = None
+        self._multilingual = None
+
+    # ── Lazy fetcher accessors ───────────────────────────────────────────────
+
+    def _github_fetcher(self):
+        if self._gh is None:
+            from core.mental.anima.data_sources.github_activity import GitHubActivityFetcher
+            self._gh = GitHubActivityFetcher()
+        return self._gh
+
+    def _arxiv_fetcher(self):
+        if self._arxiv is None:
+            from core.mental.anima.data_sources.academic import ArxivFetcher
+            self._arxiv = ArxivFetcher()
+        return self._arxiv
+
+    def _regulatory_fetcher(self):
+        if self._reg is None:
+            from core.mental.anima.data_sources.regulatory import RegulatoryFetcher
+            self._reg = RegulatoryFetcher()
+        return self._reg
+
+    def _ecological_fetcher(self):
+        if self._eco is None:
+            from core.mental.anima.data_sources.ecological import EcologicalFetcher
+            self._eco = EcologicalFetcher()
+        return self._eco
+
+    def _sec_edgar_fetcher(self):
+        if self._sec is None:
+            from core.mental.anima.data_sources.sec_edgar import SecEdgarAdapter
+            self._sec = SecEdgarAdapter(user_agent=self._user_agent)
+        return self._sec
+
+    def _news_fetcher(self):
+        if self._news is None:
+            from core.mental.anima.data_sources.news import NewsFetcher
+            self._news = NewsFetcher()
+        return self._news
+
+    def _multilingual_sentiment(self):
+        if self._multilingual is None:
+            try:
+                # This module lives in anima-service; gracefully fall back if
+                # anima-service is not on the import path.
+                import sys
+                import os
+                svc_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "..", "..", "..", "anima-service")
+                if svc_path not in sys.path:
+                    sys.path.insert(0, svc_path)
+                from multilingual_sentiment import score_text, detect_language
+                self._multilingual = (score_text, detect_language)
+            except Exception:
+                self._multilingual = (None, None)
+        return self._multilingual
+
+    # ── Public API ──────────────────────────────────────────────────────────
+
+    def build_bundle(
+        self,
+        cfg: FetcherConfig,
+        block_number: int = 0,
+        timestamp: Optional[float] = None,
+    ) -> ANIMADataStreamBundle:
+        """
+        Build a complete ANIMADataStreamBundle from real external data.
+
+        On-chain data (Stream 1) is left as None — it is filled in by the
+        on-chain indexer layer (not the role of this aggregator).
+        """
+        ts = timestamp if timestamp is not None else time.time()
+        entity_id = cfg.entity_id
+
+        # ── Stream 2: Structured Offchain ──────────────────────────────────
+        offchain_signals: List[StructuredOffchainSignal] = []
+        offchain_signals.extend(self._fetch_sec_edgar(cfg, ts))
+        offchain_signals.extend(self._fetch_regulatory(cfg, ts))
+
+        # ── Stream 3: Unstructured NLP ─────────────────────────────────────
+        nlp_signals: List[NLPSignal] = []
+        nlp_signals.append(self._fetch_github(cfg, ts))
+        nlp_signals.append(self._fetch_arxiv(cfg, ts))
+        nlp_signals.append(self._fetch_news(cfg, ts))
+
+        # ── Stream 4: Biological + Ecological ──────────────────────────────
+        bio = self._fetch_ecological(cfg, ts)
+
+        return ANIMADataStreamBundle(
+            entity_id=entity_id,
+            timestamp=ts,
+            block_number=block_number,
+            onchain=None,
+            offchain=offchain_signals,
+            nlp=nlp_signals,
+            biological=bio,
+        )
+
+    # ── Per-stream builders ─────────────────────────────────────────────────
+
+    def _fetch_sec_edgar(self, cfg: FetcherConfig, ts: float) -> List[StructuredOffchainSignal]:
+        if not cfg.sec_cik:
+            return []
+        try:
+            result = self._sec_edgar_fetcher().fetch(
+                cik=cfg.sec_cik,
+                form_type=cfg.sec_form_type,
+                limit=20,
+                use_cache=True,
+            )
+            if result.status != "ok" or result.filing_count == 0:
+                return []
+            return [StructuredOffchainSignal(
+                source_id=f"SEC_EDGAR_{result.cik}",
+                source_type="SEC_EDGAR",
+                jurisdiction="US",
+                timestamp=ts,
+                signal_strength=result.signal_strength,
+                filing_type=result.filing_type,
+                jurisdiction_code="US",
+                source_cred=0.65,
+            )]
+        except Exception:
+            return []
+
+    def _fetch_regulatory(self, cfg: FetcherConfig, ts: float) -> List[StructuredOffchainSignal]:
+        try:
+            result = self._regulatory_fetcher().fetch(
+                entity_term=cfg.entity_id, use_cache=True
+            )
+            if result.status != "ok":
+                return []
+            # One composite StructuredOffchainSignal per jurisdiction touched.
+            by_jurisdiction: Dict[str, List[Any]] = {}
+            for filing in result.filings:
+                by_jurisdiction.setdefault(filing.jurisdiction, []).append(filing)
+            signals: List[StructuredOffchainSignal] = []
+            for jur, filings in by_jurisdiction.items():
+                enfs = sum(1 for f in filings if f.enforcement_hit)
+                risks = sum(1 for f in filings if f.risk_hit)
+                strength = max(0.20, 1.0 - min(0.80, enfs * 0.10 + risks * 0.05))
+                signals.append(StructuredOffchainSignal(
+                    source_id=f"REGULATORY_{jur}",
+                    source_type="REGULATORY",
+                    jurisdiction=jur,
+                    timestamp=ts,
+                    signal_strength=strength,
+                    jurisdiction_code=jur,
+                    source_cred=0.60,
+                ))
+            return signals
+        except Exception:
+            return []
+
+    def _fetch_github(self, cfg: FetcherConfig, ts: float) -> NLPSignal:
+        """Fetch GitHub repo activity → NLPSignal(source_type=DEV_REPO)."""
+        if cfg.github_owner and cfg.github_repo:
+            try:
+                result = self._github_fetcher().fetch(
+                    owner=cfg.github_owner, repo=cfg.github_repo, use_cache=True
+                )
+                if result.status == "ok":
+                    return NLPSignal(
+                        language_code="en",
+                        source_type="DEV_REPO",
+                        timestamp=ts,
+                        sentiment_score=result.score,
+                        confidence=min(1.0, result.events_observed / 50.0),
+                        source_count=result.events_observed,
+                        source_cred=0.80,
+                        commit_velocity=result.commit_velocity,
+                        contributor_growth=result.contributor_diversity,
+                        issue_closure_rate=result.issue_resolution_rate,
+                        pr_merge_rate=result.pr_merge_rate,
+                    )
+            except Exception:
+                pass
+        # Neutral fallback
+        return NLPSignal(
+            language_code="en",
+            source_type="DEV_REPO",
+            timestamp=ts,
+            sentiment_score=0.50,
+            confidence=0.20,
+            source_count=0,
+            source_cred=0.40,
+        )
+
+    def _fetch_arxiv(self, cfg: FetcherConfig, ts: float) -> NLPSignal:
+        try:
+            result = self._arxiv_fetcher().fetch(
+                entity_term=cfg.entity_id, use_cache=True
+            )
+            sentiment = result.score
+            return NLPSignal(
+                language_code="en",
+                source_type="ACADEMIC",
+                timestamp=ts,
+                sentiment_score=sentiment,
+                confidence=min(1.0, (result.entity_papers + result.domain_papers) / 10.0),
+                source_count=result.entity_papers + result.domain_papers,
+                source_cred=0.45,
+            )
+        except Exception:
+            return NLPSignal(
+                language_code="en",
+                source_type="ACADEMIC",
+                timestamp=ts,
+                sentiment_score=0.50,
+                confidence=0.10,
+                source_count=0,
+                source_cred=0.30,
+            )
+
+    def _fetch_news(self, cfg: FetcherConfig, ts: float) -> NLPSignal:
+        """Fetch news RSS, optionally enriching with multilingual sentiment."""
+        try:
+            result = self._news_fetcher().fetch(
+                entity_term=cfg.entity_id, use_cache=True
+            )
+            if result.status != "ok" or not result.articles:
+                return NLPSignal(
+                    language_code="en",
+                    source_type="NEWS",
+                    timestamp=ts,
+                    sentiment_score=result.score,
+                    confidence=0.20,
+                    source_count=result.articles_analyzed,
+                    source_cred=0.25,
+                )
+
+            # Optional: run multilingual sentiment on the article titles
+            score_fn, _ = self._multilingual_sentiment()
+            if score_fn is not None:
+                try:
+                    # Pick articles in non-English languages and re-score
+                    non_en_articles = [a for a in result.articles if a.language != "en"]
+                    if non_en_articles:
+                        for article in non_en_articles:
+                            ms = score_fn(article.title + " " + article.summary)
+                            article.sentiment = ms.score
+                        # Recompute the weighted composite
+                        total_w = 0.0
+                        weighted_sum = 0.0
+                        for source_id, breakdown in result.source_breakdown.items():
+                            cred = breakdown["cred"]
+                            total_w += cred
+                        # Simpler: just use the multilingual-aware mean
+                        ms_scores = [a.sentiment for a in result.articles]
+                        if ms_scores:
+                            result.score = sum(ms_scores) / len(ms_scores)
+                except Exception:
+                    pass  # multilingual is best-effort enrichment
+
+            return NLPSignal(
+                language_code="multi",
+                source_type="NEWS",
+                timestamp=ts,
+                sentiment_score=result.score,
+                confidence=min(1.0, result.articles_analyzed / 50.0),
+                source_count=result.articles_analyzed,
+                source_cred=0.25,
+            )
+        except Exception:
+            return NLPSignal(
+                language_code="en",
+                source_type="NEWS",
+                timestamp=ts,
+                sentiment_score=0.50,
+                confidence=0.10,
+                source_count=0,
+                source_cred=0.25,
+            )
+
+    def _fetch_ecological(self, cfg: FetcherConfig, ts: float) -> Optional[BiologicalEcologicalSignal]:
+        """Fetch biological + ecological data → BiologicalEcologicalSignal."""
+        try:
+            result = self._ecological_fetcher().fetch(
+                region=cfg.ecological_region,
+                taxon_key=cfg.ecological_taxon_key,
+                species_names=cfg.ecological_species,
+                use_cache=True,
+            )
+            if result.status != "ok":
+                return None
+            # Map ecological result onto the BiologicalEcologicalSignal shape.
+            # Circadian/ultradian/lunar/seasonal phases are not part of the
+            # external ecological fetcher (those come from BRT scheduler).
+            from core.extended.biological_rhythm import get_brt_dict
+            brt = get_brt_dict(ts)
+            return BiologicalEcologicalSignal(
+                timestamp=ts,
+                circadian_phase=brt.get("circadian_phase", 0.5),
+                ultradian_phase=brt.get("ultradian_phase", 0.5),
+                lunar_phase=brt.get("lunar_phase", 0.5),
+                seasonal_phase=brt.get("seasonal_phase", 0.5),
+                circadian_phase_deviation=brt.get("circadian_phase_deviation", 0.0),
+                circadian_strength=brt.get("circadian_strength", 0.5),
+                bc_score=result.score,
+                bc_flow=result.bc_flow,
+                bc_resilience=result.bc_resilience,
+                bc_interdependence=result.bc_interdependence,
+                xsl_aggregate=result.xsl_aggregate,
+                xsl_keystone_score=result.xsl_keystone_score,
+                xsl_decline_rate=result.xsl_decline_rate,
+                keystone_at_risk=result.keystone_at_risk,
+            )
+        except Exception:
+            return None
+
+
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

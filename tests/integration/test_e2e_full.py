@@ -294,11 +294,11 @@ for ch in EXPECTED_CHAINS:
 # ══════════════════════════════════════════════════════════════════════════════
 section("§5  Living Security — All 8 DNA-Mimetic Components")
 
-from src.core.behavioral_hash import (
+from core.primitives.behavioral_hash import (
     BehavioralEvent, EventType, compute_behavioral_hash, bh_from_dict,
     hash_dna, complement_transform
 )
-from src.security.living_security import (
+from core.spiritual.living_security import (
     GenomicKeyEvolver, CRISPRDefense, EpigeneticLayer, EpigeneticState,
     GeneticRecombination, CryptographicNoise, MitochondrialCore,
     LivingSecuritySystem, ImmuneSystem,

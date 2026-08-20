@@ -3,7 +3,7 @@ TRION Protocol — Primitive Integration Manifest
 Single import surface for all 7 research paper primitives.
 
 Usage:
-    from src.core.trion_primitives import primitives
+    from core.master.trion_primitives import primitives
     status = primitives.status()
 
 This module wires all 7 primitives together and exposes a unified

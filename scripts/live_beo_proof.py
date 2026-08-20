@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
 
-from src.core.behavioral_hash import (
+from core.primitives.behavioral_hash import (
     BehavioralEvent, EventType,
     compute_behavioral_hash, complement_transform, hash_dna,
 )

@@ -511,7 +511,7 @@ def infer_genesis_value_v2(
 
         # Confidence blending: blend transformer estimate with harmonic path
         # using genesis_confidence() exactly as before
-        from src.core.genesis_inference import (
+        from core.akashic.genesis import (
             cosine_similarity, archetype_matched_lambda, genesis_confidence,
         )
         if archetypes:
@@ -573,7 +573,7 @@ def infer_genesis_value_v2(
             "[mental_transformer] HARMONIC FALLBACK PATH — reason=%s asset=%s",
             reason, getattr(genesis, "asset_id", "?"),
         )
-        from src.core.genesis_inference import infer_genesis_value
+        from core.akashic.genesis import infer_genesis_value
         result = infer_genesis_value(genesis, archetypes, D_asset)
         result["transformer_value"]    = None
         result["conformal_interval"]   = None

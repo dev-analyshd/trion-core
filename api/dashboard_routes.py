@@ -439,7 +439,7 @@ def api_architecture_live():
     """Live status of all 12+ programming languages."""
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-    from src.native_bridge import native_stack_report, run_formal_verification, run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest, compute_fft_features
+    from core.native_bridge import native_stack_report, run_formal_verification, run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest, compute_fft_features
     import math
     demo_signal = [round(0.5 + 0.4 * math.sin(i * 0.6), 4) for i in range(32)]
     return jsonify({

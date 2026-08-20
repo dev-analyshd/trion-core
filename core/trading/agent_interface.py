@@ -223,7 +223,7 @@ class TRIONAgent:
 if __name__ == "__main__":
     import sys as _sys
     _sys.path.insert(0, '.')
-    from src.trading.signal_engine import TradingSignalEngine
+    from core.trading.signal_engine import TradingSignalEngine
 
     engine = TradingSignalEngine()
     agent  = TRIONAgent(min_confidence=0.40)

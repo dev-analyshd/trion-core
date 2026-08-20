@@ -316,7 +316,7 @@ def infer_genesis_value(
     """
     if _use_v2:
         try:
-            from src.core.mental_transformer import (
+            from core.akashic.mental_transformer import (
                 infer_genesis_value_v2, _TORCH_AVAILABLE, _fitted,
             )
             if _TORCH_AVAILABLE and _fitted:

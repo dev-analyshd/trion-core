@@ -6,7 +6,7 @@ Returns: {'phi_raw', 'f1'..'f9', 'tx_count', 'weights'}
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.planes.physical.phi_engine import (
+from core.physical.phi_engine import (
     TransactionData, shannon_entropy, normalize_entropy,
     compute_f1_volume_entropy, compute_f2_counterparty_diversity,
     compute_f3_temporal_spacing, compute_f4_contract_entropy,

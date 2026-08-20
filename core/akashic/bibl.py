@@ -26,7 +26,7 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
 try:
-    from src.core.bibl_pattern_store import (
+    from core.akashic.bibl_pattern_store import (
         ARCHETYPES,
         BIBLPatternStore,
         MempoolArchetype,
@@ -36,7 +36,7 @@ try:
 except ModuleNotFoundError:
     import sys, os
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-    from src.core.bibl_pattern_store import (
+    from core.akashic.bibl_pattern_store import (
         ARCHETYPES,
         BIBLPatternStore,
         MempoolArchetype,

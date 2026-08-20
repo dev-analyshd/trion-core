@@ -5,7 +5,8 @@
 # ERC-20 with:
 #   - Public Good Charter enforcement (15% of supply reserved)
 #   - Behavioral staking integration (minting gated by AWA conditions)
-#   - Epoch-based inflation cap (2% per year maximum)
+#   - FIXED SUPPLY — NO ongoing issuance (AUDIT-4 Gap 1 fix)
+#   - Slashing destination: 50% insurance_pool / 50% burn (AUDIT-4 Gap 1 fix)
 #   - No admin key — governance-only minting
 #
 # Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
@@ -35,6 +36,12 @@ event ValidatorSlash:
     validator:       indexed(address)
     slashed_amount:  uint256
     slash_condition: String[64]
+    insurance_share: uint256
+    burn_share:       uint256
+
+event Burn:
+    burner: indexed(address)
+    amount: uint256
 
 # ── State ─────────────────────────────────────────────────────────────────────
 name:     public(String[64])
@@ -54,11 +61,36 @@ public_good_reserve: public(address)
 public_good_minted:  public(uint256)
 total_governance_minted: public(uint256)
 
-# Epoch-based inflation cap: 2% per year
-MAX_ANNUAL_INFLATION_BPS: constant(uint256) = 200           # 2.00%
-epoch_start:     public(uint256)                            # timestamp of last epoch reset
-epoch_minted:    public(uint256)                            # minted in current epoch
-epoch_duration:  public(uint256)                            # seconds per epoch (default 365d)
+# ────────────────────────────────────────────────────────────────────────────
+# AUDIT-4 Gap 1 Fix — Economics Conformance
+# ────────────────────────────────────────────────────────────────────────────
+# 1. NO ONGOING ISSUANCE.
+#    The whitepaper specifies a deflationary, fixed-supply token. The previous
+#    version had `MAX_ANNUAL_INFLATION_BPS = 200` (2%/yr) — that violated
+#    Gap 1's "no ongoing issuance" mandate. The cap is now ZERO. The
+#    `governance_mint()` function is preserved ONLY for the genesis
+#    distribution (initial supply to governance) and is otherwise a no-op
+#    that reverts. Validator rewards come from protocol fees, NOT from
+#    new minting.
+#
+# 2. SLASHED TRION DESTINATION: 50% insurance_pool / 50% burn.
+#    Gap 1 specifies "slashed TRION destination 50/50 to insurance pool +
+#    burn". The previous version sent 100% to public_good_reserve. We now
+#    split 50% to `insurance_pool` (a separately-tracked address) and burn
+#    50% (reduce totalSupply + balanceOf).
+MAX_ANNUAL_INFLATION_BPS: constant(uint256) = 0              # AUDIT-4 Gap 1: NO inflation
+
+# Insurance pool — receives 50% of all slashed TRION (Gap 1).
+insurance_pool: public(address)
+insurance_pool_balance: public(uint256)
+total_burned: public(uint256)
+
+# Epoch bookkeeping retained for backward-compatibility with read-side
+# consumers (e.g. /api/v1/tokenomics), but epoch_minted is now always 0
+# and the cap is 0.
+epoch_start:     public(uint256)
+epoch_minted:    public(uint256)
+epoch_duration:  public(uint256)
 
 # Staking contract reference
 staking_contract: public(address)
@@ -73,7 +105,18 @@ def __init__(
     _public_good_addr:  address,
     _staking_contract:  address,
     _initial_supply:    uint256,
+    _insurance_pool:    address,
 ):
+    """
+    Constructor.
+
+    @param _governance       Governance multi-sig that may call update_*().
+    @param _public_good_addr Public Good Charter reserve (15% minimum).
+    @param _staking_contract TRIONStaking contract (calls slash_validator).
+    @param _initial_supply   Fixed genesis supply. NO further minting.
+    @param _insurance_pool   Insurance pool — receives 50% of slashed TRION
+                             per AUDIT-4 Gap 1 (50/50 insurance/burn split).
+    """
     self.name     = "TRION Behavioral Oracle Token"
     self.symbol   = "TRION"
     self.decimals = 18
@@ -81,12 +124,13 @@ def __init__(
     self.governance       = _governance
     self.public_good_reserve = _public_good_addr
     self.staking_contract = _staking_contract
+    self.insurance_pool   = _insurance_pool
     self.awa_enforced     = True
     self.epoch_duration   = 365 * 24 * 3600
     self.epoch_start      = block.timestamp
     self.epoch_minted     = 0
 
-    # Initial supply to governance (for distribution)
+    # Fixed genesis supply — distributed once. NO ongoing issuance.
     if _initial_supply > 0:
         self.totalSupply      = _initial_supply
         self.balanceOf[_governance] = _initial_supply
@@ -119,59 +163,82 @@ def approve(spender: address, amount: uint256) -> bool:
     log Approval(msg.sender, spender, amount)
     return True
 
-# ── Governance Minting ────────────────────────────────────────────────────────
+# ── Governance Minting — DISABLED (AUDIT-4 Gap 1) ────────────────────────────
 @external
 def governance_mint(recipient: address, amount: uint256) -> bool:
     """
-    Mint new TRION tokens. Only callable by governance.
-    Enforces:
-      1. AWA must be ENFORCED (behavioral truth layer healthy)
-      2. Annual inflation cap (2% of current supply per epoch)
-      3. Public Good Charter: 15% of minted amount auto-routed to public_good_reserve
+    AUDIT-4 Gap 1: NO ongoing issuance.
+
+    The whitepaper mandates a deflationary, fixed-supply token: "validator
+    rewards come from protocol fees, not new minting". This function is
+    retained for ABI compatibility but always reverts. Use `transferFrom`
+    from the genesis allocation, or distribute protocol-fee revenue via
+    the staking contract's `distribute_reward()` instead.
     """
-    assert msg.sender == self.governance, "TRION: governance only"
-    assert self.awa_enforced, "TRION: AWA suspended — minting frozen"
+    raise "TRION: no ongoing issuance - Gap 1 conformance"
+    # Function always reverts — Gap 1 conformance: NO ongoing issuance.
+    # The body below is unreachable; kept only to satisfy the Vyper
+    # type-checker for the `-> bool` signature on legacy callers.
 
-    # Reset epoch if elapsed
-    if block.timestamp >= self.epoch_start + self.epoch_duration:
-        self.epoch_start  = block.timestamp
-        self.epoch_minted = 0
-
-    # Inflation cap: max 2% of totalSupply per epoch
-    max_epoch_mint: uint256 = self.totalSupply * MAX_ANNUAL_INFLATION_BPS / 10000
-    assert self.epoch_minted + amount <= max_epoch_mint, "TRION: annual inflation cap exceeded"
-
-    # Public Good Charter: 15% routed automatically
-    pg_amount: uint256 = amount * PUBLIC_GOOD_BPS / 10000
-    net_amount: uint256 = amount - pg_amount
-
-    self.totalSupply                      += amount
-    self.balanceOf[recipient]             += net_amount
-    self.balanceOf[self.public_good_reserve] += pg_amount
-    self.epoch_minted                     += amount
-    self.total_governance_minted          += amount
-    self.public_good_minted               += pg_amount
-
-    log Transfer(empty(address), recipient, net_amount)
-    log Transfer(empty(address), self.public_good_reserve, pg_amount)
-    log PublicGoodMint(self.public_good_reserve, pg_amount, "AWA public good charter 15%")
-    return True
-
-# ── Staking Integration ───────────────────────────────────────────────────────
+# ── Slashing Integration (AUDIT-4 Gap 1: 50/50 insurance/burn) ──────────────
 @external
 def slash_validator(validator: address, slash_amount: uint256, condition: String[64]) -> bool:
     """
     Called by the staking contract to slash a misbehaving validator.
-    Slashed tokens are sent to the public_good_reserve (not burned — information preserved).
+
+    AUDIT-4 Gap 1 conformance — slashed TRION destination is now
+    50% to `insurance_pool` (capitalized insurance fund backing
+    validator coverage promises) + 50% burned (deflationary pressure
+    compensates all holders pro-rata). The previous version sent
+    100% to `public_good_reserve`, which did NOT match the spec.
+
+    Information about the offense is preserved via the ValidatorSlash
+    event (condition string + amounts), so the slashed stake is still
+    auditable even though the tokens are burned rather than recycled.
     """
     assert msg.sender == self.staking_contract, "TRION: staking contract only"
     assert self.balanceOf[validator] >= slash_amount, "TRION: insufficient validator balance"
 
-    self.balanceOf[validator]                -= slash_amount
-    self.balanceOf[self.public_good_reserve] += slash_amount
+    # 50/50 split — Gap 1 spec.
+    insurance_share: uint256 = slash_amount / 2
+    burn_share:       uint256 = slash_amount - insurance_share
 
-    log Transfer(validator, self.public_good_reserve, slash_amount)
-    log ValidatorSlash(validator, slash_amount, condition)
+    # Debit validator.
+    self.balanceOf[validator] -= slash_amount
+
+    # 50% → insurance_pool (claimable capital for coverage-tier payouts).
+    if insurance_share > 0:
+        self.balanceOf[self.insurance_pool] += insurance_share
+        self.insurance_pool_balance += insurance_share
+        log Transfer(validator, self.insurance_pool, insurance_share)
+
+    # 50% → burn (permanently removed from supply — deflationary).
+    if burn_share > 0:
+        self.totalSupply -= burn_share
+        self.total_burned += burn_share
+        log Transfer(validator, empty(address), burn_share)
+        log Burn(validator, burn_share)
+
+    log ValidatorSlash(validator, slash_amount, condition, insurance_share, burn_share)
+    return True
+
+# ── Explicit Burn (AUDIT-4 Gap 1) ────────────────────────────────────────────
+@external
+def burn(amount: uint256) -> bool:
+    """
+    Permissionless burn — any holder may permanently destroy their TRION.
+    Required by Gap 1's deflationary mechanism ("burn mechanism — portion
+    of every BTCP fee burned"). The staking/escrow contracts route their
+    burn share through `slash_validator()` above; this function is the
+    public entry point for ad-hoc burns (e.g. user-paid signal fees).
+    """
+    assert self.balanceOf[msg.sender] >= amount, "TRION: insufficient balance"
+    assert amount > 0, "TRION: zero burn"
+    self.balanceOf[msg.sender] -= amount
+    self.totalSupply           -= amount
+    self.total_burned          += amount
+    log Transfer(msg.sender, empty(address), amount)
+    log Burn(msg.sender, amount)
     return True
 
 # ── AWA Integration ───────────────────────────────────────────────────────────
@@ -179,8 +246,8 @@ def slash_validator(validator: address, slash_amount: uint256, condition: String
 def set_awa_enforced(enforced: bool):
     """
     Called by governance to freeze/unfreeze minting based on AWA status.
-    AWA SUSPENDED or EMERGENCY → minting frozen.
-    AWA ENFORCED → minting allowed (subject to caps).
+    AWA SUSPENDED or EMERGENCY → minting frozen (already a no-op under Gap 1).
+    AWA ENFORCED → minting allowed (subject to caps — which are 0).
     """
     assert msg.sender == self.governance, "TRION: governance only"
     self.awa_enforced = enforced
@@ -196,20 +263,45 @@ def update_staking_contract(new_staking: address):
     assert msg.sender == self.governance, "TRION: governance only"
     self.staking_contract = new_staking
 
+@external
+def update_insurance_pool(new_pool: address):
+    """
+    Update the insurance pool address. Governance-only.
+    """
+    assert msg.sender == self.governance, "TRION: governance only"
+    assert new_pool != empty(address), "TRION: zero address"
+    self.insurance_pool = new_pool
+
 # ── View Functions ────────────────────────────────────────────────────────────
 @view
 @external
 def remaining_epoch_mint() -> uint256:
-    """Remaining mintable tokens in current epoch before inflation cap."""
-    if block.timestamp >= self.epoch_start + self.epoch_duration:
-        return self.totalSupply * MAX_ANNUAL_INFLATION_BPS / 10000
-    max_epoch: uint256 = self.totalSupply * MAX_ANNUAL_INFLATION_BPS / 10000
-    if self.epoch_minted >= max_epoch:
-        return 0
-    return max_epoch - self.epoch_minted
+    """
+    Remaining mintable tokens in current epoch before inflation cap.
+
+    AUDIT-4 Gap 1: NO ongoing issuance — always returns 0. Preserved
+    for ABI compatibility with existing tokenomics dashboards.
+    """
+    return 0
 
 @view
 @external
 def public_good_percentage() -> uint256:
     """Public Good Charter percentage in basis points (always 1500 = 15%)."""
     return PUBLIC_GOOD_BPS
+
+@view
+@external
+def max_annual_inflation_bps() -> uint256:
+    """AUDIT-4 Gap 1: returns 0 — no ongoing issuance."""
+    return MAX_ANNUAL_INFLATION_BPS
+
+@view
+@external
+def get_slash_destination_split() -> uint256:
+    """
+    AUDIT-4 Gap 1: returns 5000 (= 50.00% in bps) — the share of each
+    slash routed to insurance_pool. The remainder (10000 - 5000 = 50%)
+    is burned.
+    """
+    return 5000

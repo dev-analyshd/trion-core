@@ -46,19 +46,19 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 try:
-    from src.planes.anima.anima_pattern_library import ANIMAPatternLibrary, OutcomeDistribution
-    from src.planes.anima.anima_data_streams import ANIMADataStreamBundle, NLPSignal
-    from src.planes.anima.source_credibility import SourceCredibility, compute_cross_source_agreement
-    from src.planes.anima.anima_reflexivity import (
+    from core.mental.anima.pattern_library import ANIMAPatternLibrary, OutcomeDistribution
+    from core.mental.anima.data_streams import ANIMADataStreamBundle, NLPSignal
+    from core.mental.anima.source_credibility import SourceCredibility, compute_cross_source_agreement
+    from core.mental.anima.reflexivity import (
         ReflexivityHistory, apply_reflexivity_dampening, ReflexivityResult,
     )
 except ModuleNotFoundError:
     import sys, os
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    from src.planes.anima.anima_pattern_library import ANIMAPatternLibrary, OutcomeDistribution
-    from src.planes.anima.anima_data_streams import ANIMADataStreamBundle, NLPSignal
-    from src.planes.anima.source_credibility import SourceCredibility, compute_cross_source_agreement
-    from src.planes.anima.anima_reflexivity import (
+    from core.mental.anima.pattern_library import ANIMAPatternLibrary, OutcomeDistribution
+    from core.mental.anima.data_streams import ANIMADataStreamBundle, NLPSignal
+    from core.mental.anima.source_credibility import SourceCredibility, compute_cross_source_agreement
+    from core.mental.anima.reflexivity import (
         ReflexivityHistory, apply_reflexivity_dampening, ReflexivityResult,
     )
 
@@ -478,7 +478,7 @@ if __name__ == "__main__":
     import json
 
     # ── Bootstrap test ──────────────────────────────────────────────────────
-    from src.planes.anima.anima_data_streams import (
+    from core.mental.anima.data_streams import (
         ANIMADataStreamBundle, OnchainBehavioralSnapshot,
         StructuredOffchainSignal, NLPSignal, BiologicalEcologicalSignal,
     )

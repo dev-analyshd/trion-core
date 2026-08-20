@@ -22,7 +22,7 @@ import math
 from enum import Enum
 from dataclasses import dataclass
 
-from src.core.moat_engine import MoatEngine, MoatInput
+from core.master.moat import MoatEngine, MoatInput
 
 
 THETA_MIN = 0.55

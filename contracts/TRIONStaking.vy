@@ -2,6 +2,20 @@
 # @title TRION Validator Staking — Vyper
 # @notice Validator staking, slashing, and TRION token economic coordination.
 #         Vyper chosen for security-critical economic layer: simpler syntax = smaller attack surface.
+#
+# AUDIT-4 Gap 1 Fix — Economics Conformance
+#   - coverage_tier_multiplier (1× / 2.5× / 5× / 10×) applied to MINIMUM_STAKE
+#     at register time, based on the validator's coverage tier (1-5 / 6-20 /
+#     21-50 / 51+ chains covered).
+#   - 7-type slashing schedule matching the whitepaper:
+#       FALSE_COVERAGE_CLAIM_{MINOR,MAJOR,CRITICAL} (10% / 25% / 50%),
+#       COORDINATION_COLLAPSE (100% + permanent), COVERAGE_FRAUD (50%),
+#       SOCKPUPPET_CONFIRMED (100% + permanent + bond forfeit),
+#       BTCP_SPOOF_FLAG (5%).
+#   - Slashed TRION routed 50/50 to insurance_pool + burn (handled in
+#     TRIONToken.slash_validator — this contract only computes the
+#     slash_amount and emits the slash event).
+#
 # @author TRION Protocol — Originator: Hudu Yusuf (Analys)
 # @license CC0
 
@@ -12,6 +26,7 @@ event ValidatorRegistered:
     stake_amount: uint256
     geographic_region: String[32]
     hsm_hash: bytes32
+    coverage_tier: uint8
 
 event ValidatorSlashed:
     validator: indexed(address)
@@ -43,14 +58,29 @@ event AWAViolation:
     condition: String[64]
     frozen: bool
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# ── Constants — Base Stake & Coverage Tiers (AUDIT-4 Gap 1) ──────────────────
 
-MINIMUM_STAKE: constant(uint256) = 10_000 * 10**18           # 10,000 TRION
-SLASH_COORD_ATTACK: constant(uint256) = 5000                  # 50% of stake (bps)
-SLASH_LOW_ACCURACY: constant(uint256) = 300                   # 3% per 30d window (bps)
-SLASH_HSM_FAILURE: constant(uint256) = 1000                   # 10% (bps)
-SLASH_UPTIME: constant(uint256) = 10                          # 0.1% per day below min (bps)
-SLASH_SYBIL: constant(uint256) = 2500                         # 25% for all in cluster (bps)
+# Base minimum stake (tier 1). Coverage tier multipliers below scale this
+# to the per-tier requirement per Gap 1: 1× / 2.5× / 5× / 10× BASE_STAKE.
+MINIMUM_STAKE: constant(uint256) = 10_000 * 10**18           # 10,000 TRION (tier 1)
+
+# Coverage-tier multipliers, scaled 1e18 (so 2.5× = 2_500_000_000_000_000_000).
+# Tier boundaries (chains covered): 1-5 / 6-20 / 21-50 / 51+.
+COVERAGE_TIER_1_MULT: constant(uint256) = 1_000_000_000_000_000_000   # 1.0×
+COVERAGE_TIER_2_MULT: constant(uint256) = 2_500_000_000_000_000_000   # 2.5×
+COVERAGE_TIER_3_MULT: constant(uint256) = 5_000_000_000_000_000_000   # 5.0×
+COVERAGE_TIER_4_MULT: constant(uint256) = 10_000_000_000_000_000_000  # 10.0×
+
+# ── Slashing Schedule (AUDIT-4 Gap 1 — 7 types) ──────────────────────────────
+# Per Gap 1: false coverage claim 10/25/50%, COORDINATION_COLLAPSE 100%,
+# COVERAGE_FRAUD 50%, SOCKPUPPET_CONFIRMED 100% bond, BTCP_SPOOF_FLAG 5%.
+SLASH_FALSE_COVERAGE_MINOR:    constant(uint256) = 1000   # 10.00% (bps)
+SLASH_FALSE_COVERAGE_MAJOR:    constant(uint256) = 2500   # 25.00% (bps)
+SLASH_FALSE_COVERAGE_CRITICAL:  constant(uint256) = 5000   # 50.00% (bps)
+SLASH_COORDINATION_COLLAPSE:   constant(uint256) = 10000  # 100.00% + permanent
+SLASH_COVERAGE_FRAUD:          constant(uint256) = 5000   # 50.00%
+SLASH_SOCKPUPPET_CONFIRMED:    constant(uint256) = 10000  # 100.00% + permanent + bond
+SLASH_BTCP_SPOOF_FLAG:         constant(uint256) = 500    # 5.00%
 
 HHI_HEALTHY: constant(uint256) = 1500
 HHI_WARNING: constant(uint256) = 2500
@@ -115,6 +145,7 @@ struct Validator:
     uptime_score: uint256         # scaled 1e18
     permanently_excluded: bool
     active: bool
+    coverage_tier: uint8          # AUDIT-4 Gap 1: 1-4, drives stake multiplier
 
 struct Dispute:
     validator: address
@@ -140,6 +171,49 @@ def __init__(
     self.awa_enforced = True
     self.signals_frozen = False
 
+# ── Coverage Tier Helpers (AUDIT-4 Gap 1) ─────────────────────────────────────
+
+@internal
+@pure
+def _coverage_tier_multiplier(tier: uint8) -> uint256:
+    """
+    Returns the stake multiplier (scaled 1e18) for the given coverage tier.
+
+    Tier 1 (1-5 chains):   1.0×
+    Tier 2 (6-20 chains):  2.5×
+    Tier 3 (21-50 chains): 5.0×
+    Tier 4 (51+ chains):   10.0×
+
+    Per AUDIT-4 Gap 1: coverage_tier_multiplier (1×/2.5×/5×/10× BASE_STAKE
+    for tier 1-4). Validators covering more chains must post proportionally
+    more stake — their coverage promises are bigger, so their bonds must
+    be bigger too.
+    """
+    if tier == 1:
+        return COVERAGE_TIER_1_MULT
+    elif tier == 2:
+        return COVERAGE_TIER_2_MULT
+    elif tier == 3:
+        return COVERAGE_TIER_3_MULT
+    elif tier == 4:
+        return COVERAGE_TIER_4_MULT
+    else:
+        raise "Invalid coverage tier (1-4)"
+
+@internal
+@view
+def _minimum_stake_for_tier(tier: uint8) -> uint256:
+    """
+    Compute the per-tier minimum stake: MINIMUM_STAKE × coverage_tier_multiplier.
+    """
+    return MINIMUM_STAKE * self._coverage_tier_multiplier(tier) / 10**18
+
+@view
+@external
+def minimum_stake_for_tier(tier: uint8) -> uint256:
+    """Public accessor for the per-tier minimum stake (AUDIT-4 Gap 1)."""
+    return self._minimum_stake_for_tier(tier)
+
 # ── Validator Registration ─────────────────────────────────────────────────────
 
 @external
@@ -149,13 +223,23 @@ def register_validator(
     jurisdiction: String[16],
     continent: String[16],
     hsm_hash: bytes32,
+    coverage_tier: uint8,
 ):
     """
-    Register as a validator. Requires minimum stake and HSM verification commitment.
+    Register as a validator. Requires minimum stake (scaled by the
+    coverage_tier_multiplier — AUDIT-4 Gap 1) and HSM verification commitment.
     HSM (Thales Luna 7 / YubiHSM 2) is NON-NEGOTIABLE per whitepaper.
+
+    @param coverage_tier 1-4, reflecting how many chains the validator
+                          covers. Higher tier → higher minimum stake.
+                          Tier 1 (1-5 chains) → 10,000 TRION
+                          Tier 2 (6-20 chains) → 25,000 TRION
+                          Tier 3 (21-50 chains) → 50,000 TRION
+                          Tier 4 (51+ chains) → 100,000 TRION
     """
     assert not self.validators[msg.sender].active, "Already registered"
-    assert stake_amount >= MINIMUM_STAKE, "Insufficient stake"
+    assert coverage_tier >= 1 and coverage_tier <= 4, "Invalid coverage tier (1-4)"
+    assert stake_amount >= self._minimum_stake_for_tier(coverage_tier), "Insufficient stake for tier"
     assert not self.validators[msg.sender].permanently_excluded, "Permanently excluded"
 
     # Transfer tokens (ERC20 interface assumed)
@@ -176,6 +260,7 @@ def register_validator(
         uptime_score: 10**18,
         permanently_excluded: False,
         active: True,
+        coverage_tier: coverage_tier,
     })
 
     self.validator_list.append(msg.sender)
@@ -186,14 +271,14 @@ def register_validator(
     self._update_hhi()
     self._check_geographic_constraints(geographic_region, jurisdiction)
 
-    log ValidatorRegistered(msg.sender, stake_amount, geographic_region, hsm_hash)
+    log ValidatorRegistered(msg.sender, stake_amount, geographic_region, hsm_hash, coverage_tier)
 
 # ── Diversity Update (called by Oracle) ──────────────────────────────────────
 
 @external
 def update_diversity_score(validator: address, d_j_scaled: uint256):
     """
-    Update validator diversity weight d_j = 1 - corr(M_j, M̄).
+    Update validator diversity weight d_j = 1 - corr(M_j, M_bar).
     Called by Akashic Oracle after each consensus round.
     d_j_scaled is d_j × 1e18.
     """
@@ -210,7 +295,7 @@ def update_diversity_score(validator: address, d_j_scaled: uint256):
     self.total_effective_stake = self.total_effective_stake - old_effective + new_effective
     self._update_hhi()
 
-# ── Slashing ──────────────────────────────────────────────────────────────────
+# ── Slashing — 7 types (AUDIT-4 Gap 1) ──────────────────────────────────────
 
 @external
 def slash_validator(
@@ -219,9 +304,19 @@ def slash_validator(
     evidence_hash: bytes32,
 ):
     """
-    Slash a validator for one of the defined slashing conditions.
-    slash_type: COORDINATED_ATTACK | LOW_ACCURACY | HSM_FAILURE | UPTIME | SYBIL_CLUSTER
-    Opens a 72-hour dispute window before executing.
+    Slash a validator for one of the 7 defined slashing conditions per
+    AUDIT-4 Gap 1:
+
+      FALSE_COVERAGE_CLAIM_MINOR    – 10%  (minor coverage claim inaccuracy)
+      FALSE_COVERAGE_CLAIM_MAJOR    – 25%  (major coverage claim inaccuracy)
+      FALSE_COVERAGE_CLAIM_CRITICAL – 50%  (critical coverage claim inaccuracy)
+      COORDINATION_COLLAPSE         – 100% + permanent exclusion
+      COVERAGE_FRAUD                – 50%
+      SOCKPUPPET_CONFIRMED          – 100% + permanent + challenge bond forfeit
+      BTCP_SPOOF_FLAG               – 5%
+
+    Opens a 72-hour dispute window before executing. Slashed TRION is
+    routed 50/50 to insurance_pool + burn (handled in TRIONToken.slash_validator).
     """
     assert msg.sender == self.akashic_oracle or msg.sender == self.governance, "Unauthorized"
     assert self.validators[validator].active, "Not active"
@@ -229,20 +324,25 @@ def slash_validator(
     slash_bps: uint256 = 0
     permanent: bool = False
 
-    if slash_type == "COORDINATED_ATTACK_CONFIRMED":
-        slash_bps = SLASH_COORD_ATTACK
+    # ── 7-type Gap 1 schedule ────────────────────────────────────────────────
+    if slash_type == "FALSE_COVERAGE_CLAIM_MINOR":
+        slash_bps = SLASH_FALSE_COVERAGE_MINOR
+    elif slash_type == "FALSE_COVERAGE_CLAIM_MAJOR":
+        slash_bps = SLASH_FALSE_COVERAGE_MAJOR
+    elif slash_type == "FALSE_COVERAGE_CLAIM_CRITICAL":
+        slash_bps = SLASH_FALSE_COVERAGE_CRITICAL
+    elif slash_type == "COORDINATION_COLLAPSE":
+        slash_bps = SLASH_COORDINATION_COLLAPSE
         permanent = True
-    elif slash_type == "SUSTAINED_LOW_ACCURACY":
-        slash_bps = SLASH_LOW_ACCURACY
-    elif slash_type == "HARDWARE_SECURITY_FAILURE":
-        slash_bps = SLASH_HSM_FAILURE
-    elif slash_type == "UPTIME_FAILURE":
-        slash_bps = SLASH_UPTIME
-    elif slash_type == "SYBIL_CLUSTER_CONFIRMED":
-        slash_bps = SLASH_SYBIL
+    elif slash_type == "COVERAGE_FRAUD":
+        slash_bps = SLASH_COVERAGE_FRAUD
+    elif slash_type == "SOCKPUPPET_CONFIRMED":
+        slash_bps = SLASH_SOCKPUPPET_CONFIRMED
         permanent = True
+    elif slash_type == "BTCP_SPOOF_FLAG":
+        slash_bps = SLASH_BTCP_SPOOF_FLAG
     else:
-        raise "Unknown slash type"
+        raise "Unknown slash type (AUDIT-4 Gap 1: 7 types only)"
 
     slash_amount: uint256 = self.validators[validator].stake * slash_bps / 10000
 
@@ -356,6 +456,10 @@ def distribute_reward(
     REWARD(j, t) = BASE_REWARD × accuracy_factor × diversity_factor × uptime_factor
     diversity_factor = 1 + γ_diversity · d_j     (γ_diversity > 0)
     Validators paid to be independent.
+
+    AUDIT-4 Gap 1: rewards come from protocol fees, NOT new minting. The
+    base_reward MUST be funded from escrow release fees / protocol fee pool
+    (not from governance_mint, which is now disabled).
     """
     assert msg.sender == self.akashic_oracle, "Oracle only"
     assert self.validators[validator].active, "Not active"
@@ -408,3 +512,15 @@ def get_effective_stake(validator: address) -> uint256:
 @external
 def get_public_good_pool() -> uint256:
     return self.public_good_pool
+
+@view
+@external
+def get_coverage_tier(validator: address) -> uint8:
+    """AUDIT-4 Gap 1: return the validator's coverage tier (1-4)."""
+    return self.validators[validator].coverage_tier
+
+@view
+@external
+def get_required_stake_for_tier(tier: uint8) -> uint256:
+    """AUDIT-4 Gap 1: minimum stake required for the given coverage tier."""
+    return self._minimum_stake_for_tier(tier)

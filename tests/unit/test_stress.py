@@ -25,13 +25,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.security.living_security import (
+from core.spiritual.living_security import (
     hash_dna, verify_xor_invariant, verify_strand_with_payload,
     GenomicKeyEvolver, CRISPRDefense, EpigeneticLayer, EpigeneticState,
     GeneticRecombination, MitochondrialCore, CryptographicNoise,
     LivingSecuritySystem, bootstrap_weight, sec_bootstrap, get_lss,
 )
-from src.core.behavioral_hash import BehavioralEvent, EventType, compute_behavioral_hash
+from core.primitives.behavioral_hash import BehavioralEvent, EventType, compute_behavioral_hash
 
 RESULTS = {}
 

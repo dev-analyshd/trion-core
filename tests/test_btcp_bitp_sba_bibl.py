@@ -36,7 +36,7 @@ sys.path.insert(0, ".")
 # ─────────────────────────────────────────────────────────────────────────────
 # Imports
 # ─────────────────────────────────────────────────────────────────────────────
-from src.core.btcp_score import (
+from core.master.btcp_score import (
     BTCPRouteData,
     compute_btcp_score,
     compute_bitp_match_quality,
@@ -51,7 +51,7 @@ from akashic.btcp_price_oracle import (
     compute_source_hhi,
     compute_source_diversity,
 )
-from src.planes.extended.sba import (
+from core.extended.sovereign_behavioral import (
     SBAInputs,
     compute_sba,
     compute_pearson_corr,
@@ -62,7 +62,7 @@ from src.planes.extended.sba import (
     compute_crypto_behavior,
     W_E, W_I, W_S, W_G, W_C,
 )
-from src.core.bibl import (
+from core.akashic.bibl import (
     BIBLEngine,
     BIBLState,
     GasPreferenceProfile,
@@ -74,7 +74,7 @@ from src.core.bibl import (
     MemoryDeference,
     ChainMemoryChoice,
 )
-from src.core.bibl_pattern_store import (
+from core.akashic.bibl_pattern_store import (
     BIBLPatternStore,
     ARCHETYPES,
     PatternObservation,

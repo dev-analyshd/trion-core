@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 import numpy as np
 
-from src.akashic.archetypes import match_archetype, ARCHETYPES
+from core.akashic.archetype import match_archetype, ARCHETYPES
 
 
 @dataclass

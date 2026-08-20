@@ -12,7 +12,7 @@ sys.path.insert(0, '.')
 # ─── L0 Tests ────────────────────────────────────────────────────
 
 def test_behavioral_hash_valid():
-    from src.core.behavioral_hash import compute_behavioral_hash, BehavioralEvent, EventType
+    from core.primitives.behavioral_hash import compute_behavioral_hash, BehavioralEvent, EventType
     event = BehavioralEvent(
         entity_id=b'\xab'*32, event_type=EventType.SWAP,
         magnitude_raw=int(1e18), magnitude_decimals=18,
@@ -25,7 +25,7 @@ def test_behavioral_hash_valid():
 
 
 def test_beo_resolution():
-    from src.core.entity_resolution import resolve_entity, WalletActivity
+    from core.primitives.entity_resolution import resolve_entity, WalletActivity
     wallets = [
         WalletActivity("0xAAA", 1, "0xFUNDER", 1700000000, [1700000100]),
         WalletActivity("0xBBB", 1, "0xFUNDER", 1700000050, [1700000110]),
@@ -39,7 +39,7 @@ def test_beo_resolution():
 # ─── L1 Tests ────────────────────────────────────────────────────
 
 def test_phi_computation():
-    from src.planes.physical.phi_engine import compute_phi, TransactionData
+    from core.physical.phi_engine import compute_phi, TransactionData
     txs = [
         TransactionData(
             tx_hash=f"0x{i:064x}", timestamp=1700000000 + i*3600,
@@ -59,7 +59,7 @@ def test_phi_computation():
 
 
 def test_manipulation_fingerprints():
-    from src.manipulation.fingerprint_detector import (
+    from core.physical.manipulation_detector import (
         detect_oracle_attack, detect_wash_trading, detect_governance_capture,
         compute_mf_score, apply_mf_discount
     )
@@ -81,7 +81,7 @@ def test_manipulation_fingerprints():
 
 
 def test_nl_score():
-    from src.planes.physical.nl_engine import compute_nl
+    from core.extended.natural_liquidity import compute_nl
     result = compute_nl(
         depth_per_tick=[1000, 50, 20, 10, 5],
         top5_lp_share=0.92, lp_count=8,
@@ -95,14 +95,14 @@ def test_nl_score():
 # ─── ANIMA Tests ─────────────────────────────────────────────────
 
 def test_anima_bootstrap():
-    from src.planes.anima.anima_engine import compute_anima, ANIMA_BOOTSTRAP_VALUE
+    from core.mental.anima.engine import compute_anima, ANIMA_BOOTSTRAP_VALUE
     result = compute_anima(akashic_depth=100, pcr=0.80, ha=0.75, ca=0.70)
     assert result['bootstrap']
     assert result['anima'] == ANIMA_BOOTSTRAP_VALUE
 
 
 def test_anima_live():
-    from src.planes.anima.anima_engine import compute_anima, D_MINIMUM_ANIMA
+    from core.mental.anima.engine import compute_anima, D_MINIMUM_ANIMA
     result = compute_anima(akashic_depth=D_MINIMUM_ANIMA + 1, pcr=0.75, ha=0.85, ca=0.90)
     assert not result['bootstrap']
     assert 0 < result['anima'] <= 1
@@ -111,7 +111,7 @@ def test_anima_live():
 # ─── L3 Tests ────────────────────────────────────────────────────
 
 def test_m_score():
-    from src.planes.mental.m_engine import compute_m_score
+    from core.mental.confidence import compute_m_score
     baseline  = list(np.random.normal(0.5, 0.3, 100))
     confident = list(np.random.normal(0.72, 0.02, 50))
     uncertain = list(np.random.normal(0.50, 0.45, 50))
@@ -121,7 +121,7 @@ def test_m_score():
 
 
 def test_observer_effect():
-    from src.planes.mental.m_engine import compute_observer_effect, compute_m_adj
+    from core.mental.confidence import compute_observer_effect, compute_m_adj
     signals = [0.7 + i*0.01 for i in range(20)]
     changes = [s * 0.8 for s in signals]  # correlated
     oe = compute_observer_effect(signals, changes)
@@ -134,7 +134,7 @@ def test_observer_effect():
 # ─── L4 Tests ────────────────────────────────────────────────────
 
 def test_sigma_byzantine_defeat():
-    from src.planes.spiritual.sigma_engine import compute_sigma, ValidatorSignal
+    from core.spiritual.sigma_engine import compute_sigma, ValidatorSignal
 
     honest = [
         ValidatorSignal(f"h{i}", 0.72+np.random.normal(0,0.02),
@@ -153,7 +153,7 @@ def test_sigma_byzantine_defeat():
 
 
 def test_sigma_bootstrap():
-    from src.planes.spiritual.sigma_engine import compute_sigma, SIGMA_BOOTSTRAP
+    from core.spiritual.sigma_engine import compute_sigma, SIGMA_BOOTSTRAP
     result = compute_sigma([])
     assert result['bootstrap']
     assert result['sigma'] == SIGMA_BOOTSTRAP['sigma']
@@ -161,7 +161,7 @@ def test_sigma_bootstrap():
 
 def test_k_plane_commit_reveal():
     import hashlib
-    from src.planes.conscious.k_engine import (
+    from core.spiritual.conscious.engine import (
         AnnotationReveal, AnnotationCommit, AnnotationType,
         verify_commit, compute_k_score
     )
@@ -190,7 +190,7 @@ def test_k_plane_commit_reveal():
 # ─── L5 Tests ────────────────────────────────────────────────────
 
 def test_five_plane_coherence():
-    from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile
+    from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile
 
     engine = CoherenceEngine()
 
@@ -216,7 +216,7 @@ def test_five_plane_coherence():
 
 
 def test_coherence_weight_profiles():
-    from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile, WEIGHT_PROFILES
+    from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile, WEIGHT_PROFILES
     engine = CoherenceEngine()
     for profile in AssetProfile:
         w = WEIGHT_PROFILES[profile]
@@ -234,7 +234,7 @@ def test_coherence_weight_profiles():
 # ─── Signal Tests ─────────────────────────────────────────────────
 
 def test_signal_factory():
-    from src.signals.signal_factory import build_signal, build_silence, build_liquidity_health, SignalType
+    from core.master.signal_factory import build_signal, build_silence, build_liquidity_health, SignalType
 
     entity   = b'\xab'*32
     coherence = {
@@ -259,7 +259,7 @@ def test_signal_factory():
 # ─── BTCP Tests ──────────────────────────────────────────────────
 
 def test_btcp_score():
-    from src.core.btcp_score import compute_btcp_score, BTCPRouteData
+    from core.master.btcp_score import compute_btcp_score, BTCPRouteData
 
     healthy = BTCPRouteData(
         nl_score=0.75, gas_total=5.0, gas_99th=50.0,
@@ -281,7 +281,7 @@ def test_btcp_score():
 # ─── Security Tests ───────────────────────────────────────────────
 
 def test_genomic_key_evolution():
-    from src.security.living_security import GenomicKeyEvolver
+    from core.spiritual.living_security import GenomicKeyEvolver
     import os
 
     evolver = GenomicKeyEvolver()
@@ -296,7 +296,7 @@ def test_genomic_key_evolution():
 
 
 def test_crispr_detection():
-    from src.security.living_security import ImmuneSystem
+    from core.spiritual.living_security import ImmuneSystem
 
     immune   = ImmuneSystem()
     assert immune.crispr.library_size() >= 4  # 8 known attacks seeded (expanded from 4)
@@ -312,7 +312,7 @@ def test_crispr_detection():
 # ─── Genesis Tests ─────────────────────────────────────────────────
 
 def test_genesis_inference():
-    from src.core.genesis_inference import (
+    from core.akashic.genesis import (
         GenesisVector, Archetype, infer_genesis_value, genesis_confidence
     )
 
@@ -332,7 +332,7 @@ def test_genesis_inference():
 # ─── BIBL Tests ────────────────────────────────────────────────────
 
 def test_bibl_engine():
-    from src.core.bibl import BIBLEngine, BIBLState
+    from core.akashic.bibl import BIBLEngine, BIBLState
 
     engine = BIBLEngine()
     state  = BIBLState(
@@ -352,7 +352,7 @@ def test_bibl_engine():
 # ─── NEW: L0 Extension Tests ─────────────────────────────────────
 
 def test_resonance_20_event_types():
-    from src.core.resonance import (
+    from core.primitives.resonance import (
         compute_resonance_frequencies, compute_channel_resonance,
         UniversalEventType, can_communicate
     )
@@ -374,7 +374,7 @@ def test_resonance_20_event_types():
 
 
 def test_resonance_no_overlap():
-    from src.core.resonance import (
+    from core.primitives.resonance import (
         compute_resonance_frequencies, can_communicate, UniversalEventType
     )
     events_a = {UniversalEventType.GOVERNANCE_VOTE: 50}
@@ -385,7 +385,7 @@ def test_resonance_no_overlap():
 
 
 def test_evolutionary_fitness_f_equals_zero_when_love_zero():
-    from src.core.evolutionary_fitness import compute_fitness
+    from core.primitives.evolutionary_fitness import compute_fitness
     fit = compute_fitness("component_x", pa=0.99, ice=0.99, adaptation_speed=0.99, love=0.0)
     assert fit.fitness == 0.0
     assert fit.love_killed
@@ -393,7 +393,7 @@ def test_evolutionary_fitness_f_equals_zero_when_love_zero():
 
 
 def test_evolutionary_fitness_healthy():
-    from src.core.evolutionary_fitness import compute_fitness
+    from core.primitives.evolutionary_fitness import compute_fitness
     fit = compute_fitness("nl_engine", pa=0.85, ice=0.78, adaptation_speed=0.92, love=0.80)
     assert fit.fitness > 0
     assert not fit.love_killed
@@ -402,7 +402,7 @@ def test_evolutionary_fitness_healthy():
 
 def test_temporal_coherence_all_synced():
     import time
-    from src.core.temporal_coherence import compute_temporal_coherence, PlaneTimestamp
+    from core.physical.temporal_coherence import compute_temporal_coherence, PlaneTimestamp
     now = time.time()
     planes = {
         "physical":  PlaneTimestamp("physical",  now - 10, 300, "evm"),
@@ -418,7 +418,7 @@ def test_temporal_coherence_all_synced():
 
 
 def test_transduction_integrity_dead_sensor():
-    from src.core.temporal_coherence import compute_transduction_integrity, SensorCalibration
+    from core.physical.temporal_coherence import compute_transduction_integrity, SensorCalibration
     dead = SensorCalibration("dead", calibration_score=0.0, drift_correction=0.9, cross_verification=0.9)
     ti = compute_transduction_integrity(dead)
     assert ti.ti == 0.0
@@ -428,7 +428,7 @@ def test_transduction_integrity_dead_sensor():
 # ─── NEW: L2 Physical Plane Tests ─────────────────────────────────
 
 def test_resurrection_abandoned_low_score():
-    from src.planes.physical.resurrection import (
+    from core.akashic.resurrection import (
         compute_resurrection, DormancyProfile, DormancyType
     )
     profile = DormancyProfile(
@@ -444,7 +444,7 @@ def test_resurrection_abandoned_low_score():
 
 
 def test_resurrection_hibernation_high_score():
-    from src.planes.physical.resurrection import (
+    from core.akashic.resurrection import (
         compute_resurrection, DormancyProfile, DormancyType
     )
     profile = DormancyProfile(
@@ -459,7 +459,7 @@ def test_resurrection_hibernation_high_score():
 
 
 def test_fork_resolution_majority_chain():
-    from src.planes.physical.fork_resolution import (
+    from core.akashic.fork_resolution import (
         compute_fork_resolution, ForkProfile, PreForkHolder
     )
     holders = [PreForkHolder(f"h{i}", 100.0, 95.0 if i < 80 else 2.0, 2.0 if i < 80 else 90.0)
@@ -472,7 +472,7 @@ def test_fork_resolution_majority_chain():
 
 
 def test_trajectory_anomaly_healthy():
-    from src.planes.physical.trajectory_anomaly import (
+    from core.akashic.trajectory_anomaly import (
         compute_trajectory_anomaly, TrajectoryDistribution
     )
     outcomes = ["GROWTH", "STABLE", "DECLINE", "CRASH"]
@@ -484,7 +484,7 @@ def test_trajectory_anomaly_healthy():
 
 
 def test_trajectory_anomaly_manipulation():
-    from src.planes.physical.trajectory_anomaly import (
+    from core.akashic.trajectory_anomaly import (
         compute_trajectory_anomaly, TrajectoryDistribution
     )
     outcomes = ["GROWTH", "STABLE", "DECLINE", "CRASH"]
@@ -499,7 +499,7 @@ def test_trajectory_anomaly_manipulation():
 
 def test_source_credibility_init_and_decay():
     import time
-    from src.planes.anima.source_credibility import (
+    from core.mental.anima.source_credibility import (
         initialize_source, apply_time_decay_only, SourceType
     )
     now = time.time()
@@ -511,7 +511,7 @@ def test_source_credibility_init_and_decay():
 
 def test_source_credibility_manipulation_zero():
     import time
-    from src.planes.anima.source_credibility import (
+    from core.mental.anima.source_credibility import (
         initialize_source, update_credibility, SourceType
     )
     now = time.time()
@@ -522,7 +522,7 @@ def test_source_credibility_manipulation_zero():
 
 
 def test_anima_reflexivity_dampening():
-    from src.planes.anima.anima_reflexivity import apply_reflexivity_dampening, ReflexivityHistory
+    from core.mental.anima.reflexivity import apply_reflexivity_dampening, ReflexivityHistory
     history = ReflexivityHistory(
         pattern_id="pump_001",
         signal_strengths=[0.3, 0.5, 0.7, 0.8, 0.9, 0.85, 0.75],
@@ -535,7 +535,7 @@ def test_anima_reflexivity_dampening():
 
 
 def test_intelligence_maintenance_healthy():
-    from src.planes.mental.intelligence_maintenance import (
+    from core.mental.intelligence_maintenance import (
         compute_im, ComponentAccuracy, ComponentHealth
     )
     # Perfect predictions = perfect accuracy = IM = 1.0 = HEALTHY
@@ -554,7 +554,7 @@ def test_intelligence_maintenance_healthy():
 # ─── NEW: L4-L5 Spiritual Tests ───────────────────────────────────
 
 def test_epigenetic_awa_violation_freezes_signals():
-    from src.planes.spiritual.epigenetic import compute_el_state, ThreatLevel, ELExpression
+    from core.spiritual.epigenetic import compute_el_state, ThreatLevel, ELExpression
     el = compute_el_state(
         threat_level=ThreatLevel.NONE,
         validator_health=0.95, network_entropy=0.80, hostile_jurisdictions=[],
@@ -569,7 +569,7 @@ def test_epigenetic_awa_violation_freezes_signals():
 
 
 def test_epigenetic_healthy_standard():
-    from src.planes.spiritual.epigenetic import compute_el_state, ThreatLevel, ELExpression
+    from core.spiritual.epigenetic import compute_el_state, ThreatLevel, ELExpression
     el = compute_el_state(
         threat_level=ThreatLevel.NONE,
         validator_health=0.95, network_entropy=0.80, hostile_jurisdictions=[],
@@ -583,7 +583,7 @@ def test_epigenetic_healthy_standard():
 
 
 def test_hhi_healthy_diverse_validators():
-    from src.planes.spiritual.hhi_monitor import compute_hhi_enforcement, ValidatorStake, HHITier
+    from core.spiritual.hhi_monitor import compute_hhi_enforcement, ValidatorStake, HHITier
     validators = [
         ValidatorStake(f"v{i}", 100.0, 0.80, 80.0, f"region_{i%8}", f"j{i%6}", f"c{i%5}")
         for i in range(100)
@@ -595,7 +595,7 @@ def test_hhi_healthy_diverse_validators():
 
 
 def test_hhi_critical_concentrated():
-    from src.planes.spiritual.hhi_monitor import compute_hhi_enforcement, ValidatorStake
+    from core.spiritual.hhi_monitor import compute_hhi_enforcement, ValidatorStake
     concentrated = [
         ValidatorStake(f"v{i}", 1000.0 if i < 3 else 1.0, 0.80,
                        800.0 if i < 3 else 0.8,
@@ -607,21 +607,21 @@ def test_hhi_critical_concentrated():
 
 
 def test_slashing_coordinated_50pct_permanent():
-    from src.planes.spiritual.slashing import compute_slash, SlashType
+    from core.spiritual.slashing import compute_slash, SlashType
     prop = compute_slash("s001", "v_xyz", SlashType.COORDINATED_ATTACK, 100_000.0)
     assert prop.slash_amount == 50_000.0
     assert prop.permanent
 
 
 def test_slashing_uptime_cumulative():
-    from src.planes.spiritual.slashing import compute_slash, SlashType
+    from core.spiritual.slashing import compute_slash, SlashType
     prop = compute_slash("s002", "v_abc", SlashType.UPTIME_FAILURE, 10_000.0, days_below_uptime=5)
     assert prop.slash_bps == 50  # 0.1% × 5 days
     assert prop.slash_amount == 50.0
 
 
 def test_consensus_degradation_full():
-    from src.planes.spiritual.consensus_degradation import compute_consensus_degradation, ConsensusState
+    from core.spiritual.consensus_degradation import compute_consensus_degradation, ConsensusState
     result = compute_consensus_degradation(150, 800.0, 5, [100.0] * 150)
     assert result.state == ConsensusState.FULL
     assert result.signals_allowed
@@ -629,14 +629,14 @@ def test_consensus_degradation_full():
 
 
 def test_consensus_degradation_halted():
-    from src.planes.spiritual.consensus_degradation import compute_consensus_degradation, ConsensusState
+    from core.spiritual.consensus_degradation import compute_consensus_degradation, ConsensusState
     result = compute_consensus_degradation(2, 5000.0, 1, [1000.0, 1000.0])
     assert result.state == ConsensusState.HALTED
     assert not result.signals_allowed
 
 
 def test_living_security_product():
-    from src.planes.spiritual.consensus_degradation import compute_living_security
+    from core.spiritual.consensus_degradation import compute_living_security
     sec = compute_living_security(0.90, 0.95, 0.88)
     expected = 0.90 * 0.95 * 0.88
     assert abs(sec - expected) < 1e-9
@@ -645,7 +645,7 @@ def test_living_security_product():
 # ─── NEW: L6-L9 Extended Plane Tests ─────────────────────────────
 
 def test_biological_capital_thriving():
-    from src.planes.extended.biological_capital import compute_bc, EcosystemProfile
+    from core.extended.biological_capital import compute_bc, EcosystemProfile
     amazon = EcosystemProfile(
         ecosystem_id="amazon_basin",
         net_primary_productivity=2100.0, biomass_density=250.0,
@@ -659,7 +659,7 @@ def test_biological_capital_thriving():
 
 
 def test_biological_capital_collapsed():
-    from src.planes.extended.biological_capital import compute_bc, EcosystemProfile
+    from core.extended.biological_capital import compute_bc, EcosystemProfile
     degraded = EcosystemProfile(
         ecosystem_id="monoculture",
         net_primary_productivity=50.0, biomass_density=5.0,
@@ -673,7 +673,7 @@ def test_biological_capital_collapsed():
 
 
 def test_xsl_keystone_critical_flag():
-    from src.planes.extended.xsl import compute_xsl, SpeciesProfile
+    from core.extended.cross_species import compute_xsl, SpeciesProfile
     vaquita = SpeciesProfile(
         species_id="vaquita", common_name="Vaquita", is_keystone=True,
         habitat_area_km2=2200, habitat_area_baseline=8000, habitat_quality_score=0.25,
@@ -688,7 +688,7 @@ def test_xsl_keystone_critical_flag():
 
 
 def test_energy_participation_healthy():
-    from src.planes.extended.energy_participation import (
+    from core.extended.energy_participation import (
         compute_ep, ProtocolEconomics, DeveloperData
     )
     econ = ProtocolEconomics(
@@ -712,7 +712,7 @@ def test_energy_participation_healthy():
 
 def test_sba_stable_jurisdiction():
     import time
-    from src.planes.extended.sba import compute_sba, SBAInputs
+    from core.extended.sovereign_behavioral import compute_sba, SBAInputs
     inp = SBAInputs(
         nation_id="ch", nation_name="Switzerland", timestamp=time.time(),
         gdp_growth_rate=0.025, inflation_stability=0.90, forex_reserve_ratio=0.85, debt_to_gdp=0.55,
@@ -730,7 +730,7 @@ def test_sba_stable_jurisdiction():
 
 def test_sba_hostile_advance_warning():
     import time
-    from src.planes.extended.sba import compute_sba, SBAInputs
+    from core.extended.sovereign_behavioral import compute_sba, SBAInputs
     inp = SBAInputs(
         nation_id="hostile", nation_name="Hostile", timestamp=time.time(),
         gdp_growth_rate=-0.05, inflation_stability=0.20, forex_reserve_ratio=0.10, debt_to_gdp=0.05,
@@ -747,7 +747,7 @@ def test_sba_hostile_advance_warning():
 
 def test_information_conservation_law():
     import time
-    from src.core.information_conservation import AkashicConservationLedger, apply_signal_selection
+    from core.primitives.thermodynamics import AkashicConservationLedger, apply_signal_selection
     ledger = AkashicConservationLedger()
     now = time.time()
     r1 = ledger.record_state(now, bh_generated=100, a_absorbed=50, s_emitted=30, e_lost=5)
@@ -759,7 +759,7 @@ def test_information_conservation_law():
 
 
 def test_signal_selection_entropy_gate():
-    from src.core.information_conservation import apply_signal_selection
+    from core.primitives.thermodynamics import apply_signal_selection
     good = apply_signal_selection("good_signal", i_gained=2.5, s_entropy_cost=1.0)
     bad  = apply_signal_selection("noise",       i_gained=0.3, s_entropy_cost=1.0)
     assert good.selected

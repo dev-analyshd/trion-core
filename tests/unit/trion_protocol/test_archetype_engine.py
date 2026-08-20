@@ -6,7 +6,7 @@ match_archetype() returns a dict (not BehavioralArchetype object).
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.akashic.archetypes import (
+from core.akashic.archetype import (
     BehavioralArchetype, ARCHETYPES, match_archetype, get_all_archetypes_summary,
 )
 

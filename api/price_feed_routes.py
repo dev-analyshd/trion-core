@@ -38,7 +38,7 @@ from flask import Blueprint, jsonify, request
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 try:
-    from src.price.behavioral_price_engine import get_btv_cached, get_hierarchy_comparison
+    from core.price.behavioral_price_engine import get_btv_cached, get_hierarchy_comparison
     _btv_available = True
 except Exception:
     _btv_available = False
