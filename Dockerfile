@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir \
 COPY api/              ./api/
 COPY anima-service/    ./anima-service/
 COPY core/             ./core/
-COPY src/              ./src/
+# src/ was removed (deprecated shim layer) — all code is in core/
 COPY trion-0g/         ./trion-0g/
 COPY contracts/        ./contracts/
 COPY config/           ./config/

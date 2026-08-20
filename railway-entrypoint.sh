@@ -24,6 +24,8 @@
 set -u
 
 export PORT="${PORT:-10000}"
+
+log() { echo "[railway $(date +%H:%M:%S)] $*"; }
 export HOSTNAME="0.0.0.0"
 export FAISS_PORT="${FAISS_PORT:-8000}"
 
@@ -46,7 +48,6 @@ export BH_LEDGER_DB="/app/bh_ledger.db"
 export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 
-log() { echo "[railway $(date +%H:%M:%S)] $*"; }
 
 # ── 1. FAISS ANIMA Engine ────────────────────────────────────────────────────
 log "Starting FAISS ANIMA Engine on :${FAISS_PORT}..."

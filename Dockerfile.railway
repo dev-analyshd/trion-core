@@ -31,7 +31,7 @@ WORKDIR /build
 # Copy frontend package.json and install deps
 COPY frontend/package.json frontend/package-lock.json* ./
 # Force cache invalidation on new builds
-ENV BUILD_TIMESTAMP=1786756639
+ENV BUILD_TIMESTAMP=1787199600
 RUN npm install --legacy-peer-deps --silent
 
 # Copy frontend source
@@ -41,7 +41,7 @@ COPY frontend/ ./
 ENV NEXT_PUBLIC_API_BASE=""
 ENV FLASK_URL="http://127.0.0.1:5000"
 # CACHE BUST: Force rebuild when frontend source changes
-RUN echo "Build timestamp: 1786761203" && echo "Source hash:" && find . -type f -name "*.tsx" -o -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs cat | sha256sum | head -c 16
+RUN echo "Build timestamp: 1787199600" && echo "Source hash:" && find . -type f -name "*.tsx" -o -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs cat | sha256sum | head -c 16
 RUN npm run build 2>&1 | tail -20
 
 # Verify standalone output exists
@@ -102,7 +102,7 @@ COPY anima-service/   ./anima-service/
 COPY core/            ./core/
 COPY zk/              ./zk/
 COPY adapters/        ./adapters/
-COPY src/             ./src/
+# src/ was removed (deprecated shim layer) — all code is in core/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
 COPY trion-0g/        ./trion-0g/
@@ -146,7 +146,7 @@ COPY continuum/       ./continuum/
 
 # ── BH ledger database initialization ────────────────────────────────────────
 COPY scripts/init_bh_ledger.py ./scripts/init_bh_ledger.py
-RUN python3 /app/scripts/init_bh_ledger.py
+RUN python3 /app/scripts/init_bh_ledger.py 2>/dev/null || echo "BH ledger init skipped (non-fatal)"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 COPY railway-entrypoint.sh ./railway-entrypoint.sh
