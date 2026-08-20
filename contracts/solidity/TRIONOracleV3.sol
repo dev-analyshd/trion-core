@@ -15,6 +15,30 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         bool initialized;
     }
 
+    // ── Rich behavioral signal storage (V3 enhancement) ─────────────────────
+    /// @notice Full behavioral signal with entity context and plane data.
+    struct BehavioralSignal {
+        bytes32 entityId;           // BEO entity identifier
+        bytes32 publicCommitment;   // Hash of signal parameters (no behavior leakage)
+        uint256 coherenceScore;     // C(t) × 1e6
+        uint256 threshold;          // Θ(t) × 1e6
+        uint256 moatFactor;         // Economic moat M_moat × 1e6
+        bool coherent;              // C(t) ≥ Θ(t)
+        uint8 limitingPlane;        // 0=Physical, 1=Mental, 2=Spiritual, 3=Conscious, 4=ANIMA
+        uint64 phiPlane;            // Φ(t) × 1e6
+        uint64 mentalPlane;         // M(t) × 1e6
+        uint64 sigmaPlane;          // Σ(t) × 1e6
+        uint64 consciousPlane;      // K(t) × 1e6
+        uint64 animaPlane;          // A(t) × 1e6
+        uint64 signalBlock;         // Block number of publication
+        uint64 signalTimestamp;     // Timestamp of publication
+        bool initialized;
+    }
+
+    mapping(bytes32 => BehavioralSignal) public behavioralSignals;
+    mapping(bytes32 => uint256) public signalCountByEntity;
+    uint256 public totalBehavioralSignals;
+
     mapping(bytes32 => Signal) public signals;
     mapping(address => bool) public isValidator;
     uint256 public quorumRequired = 2;
@@ -31,6 +55,34 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
 
     mapping(bytes32 => BTCPRoute) public btcpRoutes;
     event BTCPRoutePublished(bytes32 indexed routeId, bool isSafe);
+
+    /// @notice Emitted when a full behavioral signal is published on-chain.
+    event BehavioralSignalPublished(
+        bytes32 indexed entityId,
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane,
+        uint64 signalBlock,
+        uint64 signalTimestamp
+    );
+
+    /// @notice Emitted when SILENCE is formally recorded (C(t) < Θ(t)).
+    event SilenceRecorded(
+        bytes32 indexed entityId,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint8 limitingPlane,
+        uint256 coherenceGap,
+        uint64 signalBlock
+    );
 
     constructor() Ownable(msg.sender) {
         isValidator[msg.sender] = true;
@@ -59,6 +111,91 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
             timestamp:   block.timestamp
         });
         emit BTCPRoutePublished(routeId, coherenceScore >= thresholdScore);
+    }
+
+    // ── Publish rich behavioral signal (V3 enhancement) ─────────────────────
+    /// @notice Publish a full behavioral signal with entity context and plane data.
+    /// @dev Only callable by owner or authorized validator.
+    function publishBehavioralSignal(
+        bytes32 entityId,
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane
+    ) external {
+        require(
+            msg.sender == owner() || isValidator[msg.sender],
+            "TRION: not authorized"
+        );
+        require(limitingPlane <= 4, "TRION: invalid plane index");
+
+        uint64 blk = uint64(block.number);
+        uint64 ts = uint64(block.timestamp);
+
+        behavioralSignals[entityId] = BehavioralSignal({
+            entityId: entityId,
+            publicCommitment: publicCommitment,
+            coherenceScore: coherenceScore,
+            threshold: threshold,
+            moatFactor: moatFactor,
+            coherent: coherent,
+            limitingPlane: limitingPlane,
+            phiPlane: phiPlane,
+            mentalPlane: mentalPlane,
+            sigmaPlane: sigmaPlane,
+            consciousPlane: consciousPlane,
+            animaPlane: animaPlane,
+            signalBlock: blk,
+            signalTimestamp: ts,
+            initialized: true
+        });
+
+        signalCountByEntity[entityId]++;
+        totalBehavioralSignals++;
+
+        emit BehavioralSignalPublished(
+            entityId, publicCommitment, coherenceScore, threshold, moatFactor,
+            coherent, limitingPlane, phiPlane, mentalPlane, sigmaPlane,
+            consciousPlane, animaPlane, blk, ts
+        );
+
+        // Also emit SilenceRecorded when not coherent
+        if (!coherent) {
+            uint256 gap = threshold > coherenceScore ? threshold - coherenceScore : 0;
+            emit SilenceRecorded(entityId, coherenceScore, threshold, limitingPlane, gap, blk);
+        }
+    }
+
+    /// @notice Get the full behavioral signal for an entity.
+    function getBehavioralSignal(bytes32 entityId) external view returns (
+        bytes32 publicCommitment,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint256 moatFactor,
+        bool coherent,
+        uint8 limitingPlane,
+        uint64 phiPlane,
+        uint64 mentalPlane,
+        uint64 sigmaPlane,
+        uint64 consciousPlane,
+        uint64 animaPlane,
+        uint64 signalBlock,
+        uint64 signalTimestamp,
+        bool initialized
+    ) {
+        BehavioralSignal memory s = behavioralSignals[entityId];
+        return (
+            s.publicCommitment, s.coherenceScore, s.threshold, s.moatFactor,
+            s.coherent, s.limitingPlane, s.phiPlane, s.mentalPlane, s.sigmaPlane,
+            s.consciousPlane, s.animaPlane, s.signalBlock, s.signalTimestamp, s.initialized
+        );
     }
 
     // ── Legacy publishSignal ─────────────────────────────────────────────────

@@ -3592,7 +3592,7 @@ def energy_participation(entity_id: str):
 @app.route("/api/v1/validator/hhi")
 def validator_hhi():
     """L4.8 HHI Validator Diversity — HHI(t) = Σ(s_j·d_j/Σs_k·d_k)² × 10000."""
-    from core.spiritual.sigma_engine import ValidatorStake, compute_hhi_enforcement, HHITier
+    from core.spiritual.hhi_monitor import ValidatorStake, compute_hhi_enforcement, HHITier
     n_validators = 60
     validators   = []
     for i in range(n_validators):
@@ -3629,6 +3629,70 @@ def validator_hhi():
         "thresholds":              {"HEALTHY": "<1500", "WARNING": "1500-2500", "DANGER": "2500-4000", "CRITICAL": ">4000"},
         "whitepaper":              "L4.8",
         "timestamp":               int(time.time()),
+    })
+
+
+# ── CLEANUP-1: Frontend endpoint aliases ──────────────────────────────────────
+# Frontend (dashboard) calls /api/v1/validator_hhi and /api/v1/validators.
+# Backend canonical routes are /api/v1/validator/hhi and the FAISS spiritual
+# engine's /api/v1/spiritual/validators. These thin aliases preserve backwards
+# compatibility with the deployed frontend without duplicating logic.
+
+@app.route("/api/v1/validator_hhi")
+def validator_hhi_alias():
+    """Alias: frontend calls /api/v1/validator_hhi; backend has /api/v1/validator/hhi."""
+    return validator_hhi()
+
+
+@app.route("/api/v1/validators")
+def validators_list():
+    """Alias: frontend calls /api/v1/validators; proxy to FAISS spiritual/validators.
+
+    Mirrors dashboard_routes.api_validators_live() but returns just the validator
+    list. Falls back to the local L4.8 HHI validator set if FAISS is unreachable.
+    """
+    import requests as _req
+    faiss_url = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+    try:
+        r = _req.get(f"{faiss_url}/api/v1/spiritual/validators", timeout=10)
+        if r.status_code == 200:
+            return jsonify({"validators": r.json(), "source": "faiss", "timestamp": int(time.time())})
+    except Exception:
+        pass
+    # Fallback: derive a deterministic validator mesh from the L4.8 HHI engine.
+    from core.spiritual.hhi_monitor import ValidatorStake, compute_hhi_enforcement
+    n_validators = 60
+    validators = []
+    for i in range(n_validators):
+        seed_i = hashlib.sha256(f"validator_{i}".encode()).digest()
+        stake = round(50.0 + (seed_i[0] / 255.0) * 950.0, 2)
+        div   = round(0.4 + (seed_i[1] / 255.0) * 0.6, 4)
+        validators.append({
+            "validator_id":      f"trion_val_{i:03d}",
+            "stake":             stake,
+            "diversity_score":   div,
+            "effective_stake":   round(stake * div, 4),
+            "geographic_region": f"region_{i % 8}",
+            "jurisdiction":      f"juris_{i % 7}",
+            "continent":         ["NA", "EU", "ASIA", "AF", "SA", "OC"][i % 6],
+        })
+    hhi_result = compute_hhi_enforcement(
+        [ValidatorStake(
+            validator_id=v["validator_id"], stake=v["stake"],
+            diversity_score=v["diversity_score"], effective_stake=v["effective_stake"],
+            geographic_region=v["geographic_region"], jurisdiction=v["jurisdiction"],
+            continent=v["continent"],
+        ) for v in validators],
+        hhi_days_above_2500=0,
+    )
+    return jsonify({
+        "validators":            validators,
+        "hhi":                   round(hhi_result.hhi, 2),
+        "tier":                  hhi_result.tier.value,
+        "validator_count":       hhi_result.validator_count,
+        "source":                "local-fallback",
+        "whitepaper":            "L4.8",
+        "timestamp":             int(time.time()),
     })
 
 

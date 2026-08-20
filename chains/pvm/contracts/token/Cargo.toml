@@ -1,0 +1,15 @@
+[package]
+name = "trion-pvm-token"
+version = "2.1.0"
+edition = "2021"
+
+[dependencies]
+ink = { version = "4", default-features = false }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["std"]
+std = ["ink/std", "scale/std"]

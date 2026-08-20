@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/trion-xrpl",
+    "crates/trion-waves",
+    "crates/trion-vechain",
+    "crates/trion-multiversx",
+    "crates/trion-hedera",
     "crates/trion-common",
     "crates/trion-evm",
     "crates/trion-svm",
@@ -16,7 +21,6 @@ members = [
     "crates/trion-pi",
     "crates/trion-starknet",
     "crates/trion-botchain",
-    "crates/trion-btcp",
 ]
 
 [workspace.dependencies]
