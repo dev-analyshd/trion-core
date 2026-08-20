@@ -8,7 +8,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import numpy as np
-from src.planes.spiritual.sigma_engine import (
+from core.spiritual.sigma_engine import (
     ValidatorSignal, compute_sigma, compute_diversity_weight, compute_hhi,
     SIGMA_BOOTSTRAP,
 )

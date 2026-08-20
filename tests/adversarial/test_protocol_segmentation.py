@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, ".")
 
-from src.protocol.segmentation import (
+from core.protocol.segmentation import (
     ProtocolSegmenter,
     SubEntity,
     _DB_PATH,

@@ -6,7 +6,7 @@ M(t) = 1 - (PI_t / PI_baseline) — prediction interval reduction score.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.planes.mental.m_engine import (
+from core.mental.confidence import (
     compute_m_score, compute_prediction_interval, compute_observer_effect,
 )
 

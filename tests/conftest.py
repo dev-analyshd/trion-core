@@ -2,7 +2,9 @@
 import sys
 import os
 
-# Add root to sys.path so `from src.*` and `from core.*` imports work
+# Add root to sys.path so `from core.*` imports work.
+# (The legacy `src/` shim layer was removed in FIX-4 — all Python imports
+# now point directly at `core/*` canonical locations per the v2 restructuring.)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "api"))

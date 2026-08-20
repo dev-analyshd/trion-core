@@ -26,7 +26,7 @@ from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.planes.physical.nl_engine import (  # noqa: E402
+from core.extended.natural_liquidity import (  # noqa: E402
     compute_nl,
     compute_ld,
     compute_lo,

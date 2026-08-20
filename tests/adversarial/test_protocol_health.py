@@ -18,7 +18,7 @@ import math
 
 sys.path.insert(0, ".")
 
-from src.protocol.protocol_health import (
+from core.protocol.protocol_health import (
     ProtocolHealthEngine,
     ProtocolHealthResult,
     _grade,
@@ -26,8 +26,8 @@ from src.protocol.protocol_health import (
     _user_quality_proxy,
     _recommendations,
 )
-from src.protocol.role_classifier import RoleClassifier, DeFiRole
-from src.protocol.segmentation import SubEntity
+from core.protocol.role_classifier import RoleClassifier, DeFiRole
+from core.protocol.segmentation import SubEntity
 
 
 # ── Grade mapping ─────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ def test_recommendations_returns_list():
 # ── Component weights sum to 1.0 ──────────────────────────────────────────────
 
 def test_component_weights_sum():
-    from src.protocol.protocol_health import _W_DC, _W_ROLE_COH, _W_USER_QUALITY, _W_ATTACK_SURF
+    from core.protocol.protocol_health import _W_DC, _W_ROLE_COH, _W_USER_QUALITY, _W_ATTACK_SURF
     total = _W_DC + _W_ROLE_COH + _W_USER_QUALITY + _W_ATTACK_SURF
     assert total == pytest.approx(1.0, abs=1e-9)
 

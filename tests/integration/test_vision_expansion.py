@@ -28,19 +28,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # ─── Module imports ───────────────────────────────────────────────────────────
 
-from src.auditor.vulnerability_patterns import (
+from core.auditor.vulnerability_patterns import (
     VULNERABILITY_LIBRARY, get_patterns_by_severity, get_patterns_by_category,
     SEVERITY_SCORES
 )
-from src.auditor.contract_auditor import ContractAuditor
-from src.akashic.archetypes import ARCHETYPES, match_archetype, get_all_archetypes_summary
-from src.akashic.epigenetics import EpigeneticEngine, EnvironmentalPressure
-from src.thermodynamics.thermo_engine import ThermoEngine
-from src.lifecycle.entity_lifecycle import EntityLifecycleEngine
-from src.ubl.ubl import UBLEncoder, UBL_SCHEMA, LIFECYCLE_STAGE_MAP, RISK_MAP
-from src.reputation.reputation_engine import ReputationEngine, TRUST_TIERS
-from src.investment.investment_engine import InvestmentEngine
-from src.agent.safety_pipeline import (
+from core.auditor.contract_auditor import ContractAuditor
+from core.akashic.archetype import ARCHETYPES, match_archetype, get_all_archetypes_summary
+from core.akashic.epigenetics import EpigeneticEngine, EnvironmentalPressure
+from core.thermodynamics.thermo_engine import ThermoEngine
+from core.lifecycle.entity_lifecycle import EntityLifecycleEngine
+from core.ubl.ubl import UBLEncoder, UBL_SCHEMA, LIFECYCLE_STAGE_MAP, RISK_MAP
+from core.reputation.reputation_engine import ReputationEngine, TRUST_TIERS
+from core.investment.investment_engine import InvestmentEngine
+from core.agent.safety_pipeline import (
     TRIONAgentPipeline, AgentAction, ActionType, ValidationOutcome
 )
 
@@ -554,7 +554,7 @@ class TestAgentPipeline:
 
     def test_exemplary_agent_has_no_value_limit(self):
         # Manually elevate an agent to EXEMPLARY
-        from src.agent.safety_pipeline import _AGENT_REGISTRY, AgentProfile
+        from core.agent.safety_pipeline import _AGENT_REGISTRY, AgentProfile
         _AGENT_REGISTRY["agent_exemplary_test"] = AgentProfile(
             agent_id="agent_exemplary_test",
             created_at=int(time.time()),

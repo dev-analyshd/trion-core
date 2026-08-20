@@ -126,7 +126,7 @@ def test_beo_formula_cross_chain_unit():
     Synchronised timestamps  → ST ≈ 1.0.
     Expected: BEO_confidence ≥ 0.75 → same_entity = True → single canonical_id.
     """
-    from src.core.entity_resolution import resolve_entity, WalletActivity
+    from core.primitives.entity_resolution import resolve_entity, WalletActivity
 
     _sep("§1  Unit BEO Formula — 5 wallets / 5 chain families")
 
@@ -302,7 +302,7 @@ def test_beo_merge_via_common_funder():
         print(f"    {addr[:28]:.<30} {cid[:20]}…")
 
     # ── d) BEO confidence unit check (mirrors FAISS internal logic) ──────────
-    from src.core.entity_resolution import resolve_entity, WalletActivity
+    from core.primitives.entity_resolution import resolve_entity, WalletActivity
     wallets_obj = [
         WalletActivity(addr, cid, COMMON_FUNDER, base_ts + i, [base_ts + i + 5])
         for i, (addr, (cid, _, __)) in enumerate(zip(MERGE_WALLETS, vm_chain_map))

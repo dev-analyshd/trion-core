@@ -19,7 +19,7 @@ ORACLE_API_URL = os.environ.get("ORACLE_API_URL", "http://127.0.0.1:5000")
 FAISS_URL = os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
 
 try:
-    from src.core.self_verification import (
+    from core.physical.transduction_integrity import (
         start_self_verification_monitor,
         get_self_status,
         run_self_verification_cycle,

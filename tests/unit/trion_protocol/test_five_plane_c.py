@@ -6,7 +6,7 @@ Return keys: C, theta, emits, limiting_plane, trend, plane_breakdown, moat_facto
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.core.coherence_engine import (
+from core.master.coherence import (
     CoherenceEngine, CoherenceInput, AssetProfile,
     WEIGHT_PROFILES, THETA_MIN, THETA_MAX,
 )

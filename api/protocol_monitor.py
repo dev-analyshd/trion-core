@@ -208,9 +208,9 @@ def _update_state(state: ProtocolState, result, attack_surface_data: dict) -> No
 # ── Monitor thread ────────────────────────────────────────────────────────────
 
 def _monitor_loop(engine) -> None:
-    from src.protocol.protocol_health import ProtocolHealthEngine
-    from src.protocol.segmentation import ProtocolSegmenter
-    from src.protocol.distribution_coherence import DistributionCoherenceEngine
+    from core.protocol.protocol_health import ProtocolHealthEngine
+    from core.protocol.segmentation import ProtocolSegmenter
+    from core.protocol.distribution_coherence import DistributionCoherenceEngine
 
     _segmenter = ProtocolSegmenter()
     _dc_engine = DistributionCoherenceEngine()
@@ -275,7 +275,7 @@ def start_monitor(engine=None) -> None:
 
     if engine is None:
         try:
-            from src.protocol.protocol_health import ProtocolHealthEngine
+            from core.protocol.protocol_health import ProtocolHealthEngine
             engine = ProtocolHealthEngine()
         except Exception as exc:
             log.warning("protocol_monitor: engine unavailable, monitor not started: %s", exc)
