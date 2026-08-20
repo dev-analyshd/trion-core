@@ -21,7 +21,7 @@ import time
 import sys
 sys.path.insert(0, '.')
 
-from src.trading.pattern_archetypes import (
+from core.trading.pattern_archetypes import (
     match_archetype, TradingSignal, ARCHETYPE_MATRIX, ARCHETYPES
 )
 

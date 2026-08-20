@@ -14,8 +14,8 @@ import pytest
 
 sys.path.insert(0, ".")
 
-from src.protocol.role_classifier import RoleClassifier, DeFiRole, RoleResult
-from src.protocol.segmentation import SubEntity
+from core.protocol.role_classifier import RoleClassifier, DeFiRole, RoleResult
+from core.protocol.segmentation import SubEntity
 
 
 clf = RoleClassifier()

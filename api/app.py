@@ -2442,9 +2442,19 @@ except Exception as _e:
 def _init_falsifiability_sample_counts():
     """
     Wire live BH-ledger row counts into falsifiability sample_size fields at startup.
-    F1  — MF precision: sample = total BH records (observations available)
-    F7  — Source credibility convergence: sample = total BH records
-    F15 — Cross-chain rank stability: sample = distinct entities in ledger
+
+    AUDIT-3 G1 fix: aligned with WP2 §20 canonical F1-F15 mapping (see
+    core/governance/falsifiability_registry.py). Only F1 (manipulation
+    resistance) and F13 (manipulation fingerprint FP rate) directly consume
+    BH-ledger counts under WP2 §20. The previously-wired F7 (Source
+    credibility) and F15 (Cross-chain rank stability) conditions are no
+    longer in the registry under those IDs — F7 is now "component
+    degradation 24h detection (IM Protocol)" and F15 is now
+    "REGULATORY_BEHAVIORAL 24-month advance warning (CONJECTURE)".
+
+    F1  — Manipulation resistance: sample = total BH observations available
+    F13 — Manipulation fingerprint FP rate: sample = total BH observations
+          (clean-history audit dataset still required)
     Non-fatal: silently skips if bh_ledger.db is unavailable.
     """
     if not _falsifiability_ok:
@@ -2461,20 +2471,17 @@ def _init_falsifiability_sample_counts():
         _entities = _conn.execute("SELECT COUNT(DISTINCT entity_id) FROM bh_ledger").fetchone()[0]
         _conn.close()
         if _total > 0:
+            # F1 — Manipulation resistance (WP2 §20): BH observations available for ground-truth audit
             update_condition_status(
                 "F1", "MONITORING", _total,
                 f"BH ledger: {_total:,} behavioral observations accumulated. "
-                "Oracle attack ground-truth dataset still required for precision ≥95% test."
+                "Oracle attack ground-truth dataset still required for documented-manipulation test."
             )
+            # F13 — Manipulation fingerprint FP rate (WP2 §20): clean-history audit dataset
             update_condition_status(
-                "F7", "MONITORING", _total,
-                f"BH ledger: {_total:,} CRED observations across {_entities:,} entities. "
-                "180-day convergence window in progress."
-            )
-            update_condition_status(
-                "F15", "MONITORING", _entities,
-                f"{_entities:,} distinct entities indexed. "
-                "Hash-seeded determinism guarantees rank stability — formal multi-restart test pending."
+                "F13", "MONITORING", _total,
+                f"BH ledger: {_total:,} observations across {_entities:,} entities. "
+                "Verified-clean audit dataset still required to bound FP rate < 2%."
             )
     except Exception:
         pass
@@ -5324,11 +5331,29 @@ def signal_by_type(type_name: str, entity_id: str):
         elif tn == "GOVERNANCE_SIGNAL":
             gs = round(0.30 + (h[28]/255.0)*0.65, 4)
             hhi_g = round(800 + (h[29]/255.0)*6000, 1)
+            quorum_reached = h[30] > 100
+            # AUDIT-3 G4 fix: prior code `awa_enforced=hhi_g > 3500` was INVERTED
+            # (True when HHI dangerously high). Per WP2 §17 and core/governance/awa.py
+            # AWA_HHI_MAX=4000, AWA_QUORUM=2/3, AWA_GRATITUDE_MIN=1.0,
+            # AWA_PUBLIC_GOOD_MIN=0.15:
+            #   awa_enforced = (hhi < 4000) AND quorum AND gratitude AND public_good
+            #   signals_frozen = NOT awa_enforced  (emission FROZEN when AWA fails)
+            # Gratitude + public_good_pct are derived deterministically from the
+            # entity hash bytes for this synthetic signal path; production reads
+            # these from the live AWAEnforcer singleton via /api/v1/governance/awa.
+            public_good_pct  = round(0.05 + (h[31]/255.0) * 0.40, 4)  # [0.05, 0.45]
+            gratitude_score  = round((h[32]/255.0) * 2.50, 4)         # [0.00, 2.50]
+            awa_enforced = (
+                hhi_g < 4000
+                and quorum_reached
+                and gratitude_score >= 1.0
+                and public_good_pct >= 0.15
+            )
             sig = build_governance_signal(entity_id, coh,
-                governance_score=gs, quorum_reached=h[30] > 100,
-                hhi=hhi_g, validator_count=int(5 + h[31]%20),
-                awa_enforced=hhi_g > 3500, signals_frozen=hhi_g > 5000,
-                active_proposal=f"PROP-{h[32]%1000:04d}")
+                governance_score=gs, quorum_reached=quorum_reached,
+                hhi=hhi_g, validator_count=int(5 + h[33]%20),
+                awa_enforced=awa_enforced, signals_frozen=not awa_enforced,
+                active_proposal=f"PROP-{h[34]%1000:04d}")
         elif tn == "CROSS_CHAIN_COHERENCE":
             ccs = round(0.30 + (h[0]/255.0)*0.65, 4)
             sig = build_cross_chain_coherence(entity_id, coh,

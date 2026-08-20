@@ -37,7 +37,7 @@ import struct
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.core.behavioral_hash import EventType
+from core.primitives.behavioral_hash import EventType
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 

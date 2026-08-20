@@ -21,7 +21,7 @@ import pytest
 # L4.4 Kolmogorov Complexity Bound
 # ═══════════════════════════════════════════════════════════════════════════
 
-from src.security.pqc_layer import (
+from core.spiritual.living_security.pqc_layer import (
     check_complexity_bound, estimate_kolmogorov_complexity,
     K_MAX_BOUND_BITS, DELTA_K_MAX_DEFAULT,
 )
@@ -86,7 +86,7 @@ class TestKolmogorovComplexityBound:
 # L4.6 SEC(t) = LSS · PQC · CC
 # ═══════════════════════════════════════════════════════════════════════════
 
-from src.security.pqc_layer import (
+from core.spiritual.living_security.pqc_layer import (
     compute_sec, compute_pqc_score, compute_lss,
     compute_classical_cryptography_score,
 )
@@ -189,7 +189,7 @@ class TestCombinedSecurityScore:
 # L4.8 HHI Geographic Enforcement
 # ═══════════════════════════════════════════════════════════════════════════
 
-from src.security.pqc_layer import (
+from core.spiritual.living_security.pqc_layer import (
     compute_geo_enforcement, ValidatorGeoDistribution,
 )
 
@@ -295,7 +295,7 @@ class TestGeographicEnforcement:
 # L4.9 Slashing + 7-Step Dispute Resolution
 # ═══════════════════════════════════════════════════════════════════════════
 
-from src.governance.slashing import (
+from core.governance.slashing import (
     SlashingEngine, SlashingCondition, DisputeState, SLASH_PARAMETERS,
 )
 
@@ -480,7 +480,7 @@ class TestSlashingEngine:
 # L3.7 Intelligence Maintenance Protocol
 # ═══════════════════════════════════════════════════════════════════════════
 
-from src.governance.intelligence_maintenance import (
+from core.governance.intelligence_maintenance import (
     IntelligenceMaintenanceProtocol, IMPStatus,
     IM_THRESHOLD, IM_CRITICAL, IM_DISABLED, IM_WEIGHTS,
 )

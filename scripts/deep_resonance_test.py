@@ -31,12 +31,12 @@ Author: TRION Protocol deep-test runner
 import sys, os, math, time, json, hashlib, random, itertools, textwrap, requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core.resonance import (
+from core.primitives.resonance import (
     UniversalEventType, EVENT_WEIGHTS,
     ResonanceFrequency, ResonanceResult,
     compute_resonance_frequencies, compute_channel_resonance, can_communicate,
 )
-from src.core.channel_architecture import CHANNELS, ChannelLayer, ChannelStatus
+from core.master.channel_architecture import CHANNELS, ChannelLayer, ChannelStatus
 
 # ── ANSI ──────────────────────────────────────────────────────────────────────
 G = "\033[92m"; R = "\033[91m"; C = "\033[96m"; Y = "\033[93m"

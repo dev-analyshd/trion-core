@@ -1,1 +1,0 @@
-"""TRION Protocol — core.thermodynamics"""

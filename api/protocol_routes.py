@@ -30,10 +30,10 @@ log = logging.getLogger(__name__)
 protocol_bp = Blueprint("protocol", __name__)
 
 try:
-    from src.protocol.protocol_health import ProtocolHealthEngine
-    from src.protocol.segmentation import ProtocolSegmenter
-    from src.protocol.role_classifier import RoleClassifier, DeFiRole
-    from src.protocol.distribution_coherence import DistributionCoherenceEngine
+    from core.protocol.protocol_health import ProtocolHealthEngine
+    from core.protocol.segmentation import ProtocolSegmenter
+    from core.protocol.role_classifier import RoleClassifier, DeFiRole
+    from core.protocol.distribution_coherence import DistributionCoherenceEngine
     _engine = ProtocolHealthEngine()
     _segmenter = ProtocolSegmenter()
     _classifier = RoleClassifier()

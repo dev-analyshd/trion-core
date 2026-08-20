@@ -26,11 +26,11 @@ import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.auditor.vulnerability_patterns import (
+from core.auditor.vulnerability_patterns import (
     VULNERABILITY_LIBRARY, VulnerabilityPattern,
     get_phi_matrix, SEVERITY_SCORES
 )
-from src.core.coherence_engine import CoherenceEngine
+from core.master.coherence import CoherenceEngine
 
 logger = logging.getLogger(__name__)
 

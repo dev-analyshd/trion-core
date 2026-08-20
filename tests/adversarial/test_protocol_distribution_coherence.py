@@ -18,7 +18,7 @@ import pytest
 
 sys.path.insert(0, ".")
 
-from src.protocol.distribution_coherence import (
+from core.protocol.distribution_coherence import (
     DistributionCoherenceEngine,
     distribution_coherence_score,
     jensen_shannon_divergence,

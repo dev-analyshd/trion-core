@@ -1,1 +1,0 @@
-"""ANIMA data source: academic"""

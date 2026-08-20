@@ -978,7 +978,7 @@ class PQCScore:
 
     def refresh(self) -> None:
         try:
-            from src.security.pqc_layer import compute_pqc_score
+            from core.spiritual.living_security.pqc_layer import compute_pqc_score
             status = compute_pqc_score()
             self.kyber_active = status.kyber_active
             self.dilithium_active = status.dilithium_active

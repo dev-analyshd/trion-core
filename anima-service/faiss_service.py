@@ -4079,7 +4079,7 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
     fft_check = {"available": False, "reason": "insufficient records"}
     if len(records) >= 8:
         try:
-            from src.native_bridge import compute_fft_features
+            from core.native_bridge import compute_fft_features
             volumes = [float(r.get("volume", r.get("amount", 0.0))) for r in records[-64:]]
             if any(v != 0 for v in volumes):
                 fft_check = compute_fft_features(volumes)
@@ -5226,7 +5226,7 @@ def get_annotator_stats():
 try:
     import sys as _ik_sys, os as _ik_os
     _ik_sys.path.insert(0, _ik_os.path.dirname(_ik_os.path.dirname(_ik_os.path.abspath(__file__))))
-    from src.planes.conscious.indigenous_knowledge import (
+    from core.spiritual.conscious.indigenous_knowledge import (
         KnowledgeSystemRegistry as _KSRegistry,
         ElderWisdomProtocol     as _ElderWisdomProtocol,
     )
@@ -9603,21 +9603,21 @@ def semi_immutable_signal(entity_id: str):
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
-from src.core.coherence_engine import (
+from core.master.coherence import (
     CoherenceEngine as _CoherenceEngine,
     CoherenceInput  as _CoherenceInput,
     AssetProfile    as _AssetProfile,
     WEIGHT_PROFILES as _WEIGHT_PROFILES,
 )
-from src.planes.physical.nl_engine import compute_nl as _compute_nl
-from src.core.btcp_score import compute_btcp_score as _compute_btcp_score, BTCPRouteData as _BTCPRouteData
-from src.security.chameleon_protocol import ChameleonProtocol as _ChameleonProtocol
-from src.manipulation.fingerprint_detector import (
+from core.extended.natural_liquidity import compute_nl as _compute_nl
+from core.master.btcp_score import compute_btcp_score as _compute_btcp_score, BTCPRouteData as _BTCPRouteData
+from core.novel.chameleon import ChameleonProtocol as _ChameleonProtocol
+from core.physical.manipulation_detector import (
     detect_oracle_attack, detect_wash_trading, detect_governance_capture,
     detect_coordinated_pump, detect_mev_extraction, detect_fake_volume,
     detect_sybil_liquidity, compute_mf_score as _compute_mf_score,
 )
-from src.core.bibl import BIBLEngine as _BIBLEngine, BIBLState as _BIBLState
+from core.akashic.bibl import BIBLEngine as _BIBLEngine, BIBLState as _BIBLState
 
 _ce          = _CoherenceEngine()
 _chameleon   = _ChameleonProtocol()
@@ -9947,7 +9947,7 @@ async def security_pre_exec_check(req: _SecurityCheckReq):
     """
     import sys, json as _json
     sys.path.insert(0, ".")
-    from src.security.living_security import ImmuneSystem
+    from core.spiritual.living_security import ImmuneSystem
     immune = ImmuneSystem()
 
     # Build tx_data from whichever format was provided
@@ -9983,7 +9983,7 @@ async def security_pre_exec_check(req: _SecurityCheckReq):
 @app.get("/api/v1/security/crispr/library")
 async def crispr_library():
     """CRISPR attack signature library."""
-    from src.security.living_security import ImmuneSystem
+    from core.spiritual.living_security import ImmuneSystem
     immune = ImmuneSystem()
     return {
         "library_size": immune.crispr.library_size(),
@@ -10206,8 +10206,8 @@ async def get_trading_signal(
     """
     import numpy as _np
     try:
-        from src.trading.signal_engine import TradingSignalEngine
-        from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile
+        from core.trading.signal_engine import TradingSignalEngine
+        from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile
 
         engine = TradingSignalEngine()
 
@@ -10297,8 +10297,8 @@ async def agent_decide(request: dict):
     """
     import numpy as _np
     try:
-        from src.trading.signal_engine import TradingSignalEngine
-        from src.trading.agent_interface import TRIONAgent, AgentContext
+        from core.trading.signal_engine import TradingSignalEngine
+        from core.trading.agent_interface import TRIONAgent, AgentContext
 
         entity_id = request.get("entity_id", "0xDEFAULT")
         chain_id  = request.get("chain_id", 421614)
@@ -10344,7 +10344,7 @@ async def agent_decide(request: dict):
 async def get_all_patterns():
     """List all 8 behavioral trading patterns with their phi signatures."""
     try:
-        from src.trading.pattern_archetypes import ARCHETYPES
+        from core.trading.pattern_archetypes import ARCHETYPES
         return {
             "pattern_count": len(ARCHETYPES),
             "patterns": [
@@ -10385,7 +10385,7 @@ async def scan_chain_for_signals(
     """
     import numpy as _np
     try:
-        from src.trading.signal_engine import TradingSignalEngine
+        from core.trading.signal_engine import TradingSignalEngine
 
         engine        = TradingSignalEngine()
         results       = []
@@ -10452,7 +10452,7 @@ _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _vision_ok: Dict[str, bool] = {}
 
 try:
-    from src.auditor.contract_auditor import ContractAuditor as _ContractAuditor
+    from core.auditor.contract_auditor import ContractAuditor as _ContractAuditor
     _contract_auditor = _ContractAuditor(faiss_url="http://127.0.0.1:8000")
     _vision_ok["auditor"] = True
 except Exception as _ve:
@@ -10460,7 +10460,7 @@ except Exception as _ve:
     _vision_ok["auditor"] = False
 
 try:
-    from src.agent.safety_pipeline import (
+    from core.agent.safety_pipeline import (
         TRIONAgentPipeline as _TRIONAgentPipeline,
         AgentAction as _AgentAction,
         ActionType as _ActionType,
@@ -10472,12 +10472,12 @@ except Exception as _ve:
     _vision_ok["agent"] = False
 
 try:
-    from src.akashic.archetypes import (
+    from core.akashic.archetype import (
         match_archetype as _match_archetype,
         get_all_archetypes_summary as _get_archetypes_summary,
         ARCHETYPES as _ARCHETYPES,
     )
-    from src.akashic.epigenetics import (
+    from core.akashic.epigenetics import (
         get_epigenetic_engine as _get_epigenetic_engine,
         EnvironmentalPressure as _EnvironmentalPressure,
     )
@@ -10487,21 +10487,21 @@ except Exception as _ve:
     _vision_ok["akashic"] = False
 
 try:
-    from src.thermodynamics.thermo_engine import get_thermo_engine as _get_thermo_engine
+    from core.thermodynamics.thermo_engine import get_thermo_engine as _get_thermo_engine
     _vision_ok["thermo"] = True
 except Exception as _ve:
     logger.warning(f"Thermo module unavailable: {_ve}")
     _vision_ok["thermo"] = False
 
 try:
-    from src.lifecycle.entity_lifecycle import get_lifecycle_engine as _get_lifecycle_engine
+    from core.lifecycle.entity_lifecycle import get_lifecycle_engine as _get_lifecycle_engine
     _vision_ok["lifecycle"] = True
 except Exception as _ve:
     logger.warning(f"Lifecycle module unavailable: {_ve}")
     _vision_ok["lifecycle"] = False
 
 try:
-    from src.ubl.ubl import (
+    from core.ubl.ubl import (
         get_encoder as _get_ubl_encoder,
         UBL_SCHEMA as _UBL_SCHEMA,
     )
@@ -10511,14 +10511,14 @@ except Exception as _ve:
     _vision_ok["ubl"] = False
 
 try:
-    from src.reputation.reputation_engine import get_reputation_engine as _get_rep_engine
+    from core.reputation.reputation_engine import get_reputation_engine as _get_rep_engine
     _vision_ok["reputation"] = True
 except Exception as _ve:
     logger.warning(f"Reputation module unavailable: {_ve}")
     _vision_ok["reputation"] = False
 
 try:
-    from src.investment.investment_engine import get_investment_engine as _get_inv_engine
+    from core.investment.investment_engine import get_investment_engine as _get_inv_engine
     _vision_ok["investment"] = True
 except Exception as _ve:
     logger.warning(f"Investment module unavailable: {_ve}")
@@ -10559,7 +10559,7 @@ async def faiss_audit_patterns():
     """Return the full TRION vulnerability pattern library (20 patterns)."""
     if not _vision_ok.get("auditor"):
         raise HTTPException(503, "Contract auditor unavailable")
-    from src.auditor.vulnerability_patterns import VULNERABILITY_LIBRARY
+    from core.auditor.vulnerability_patterns import VULNERABILITY_LIBRARY
     return {
         "count": len(VULNERABILITY_LIBRARY),
         "patterns": [

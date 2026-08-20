@@ -68,7 +68,7 @@ except ImportError:
 # ── local modules ──────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 try:
-    from src.security.living_security import (
+    from core.spiritual.living_security import (
         hash_dna, verify_xor_invariant,
         GenomicKeyEvolver, CRISPRDefense, EpigeneticLayer,
         MitochondrialCore, LivingSecuritySystem, bootstrap_weight,
@@ -79,7 +79,7 @@ except Exception as e:
     print(f"{YEL}[WARN] LSS not importable: {e}{RESET}")
 
 try:
-    from src.core.behavioral_hash import compute_behavioral_hash
+    from core.primitives.behavioral_hash import compute_behavioral_hash
     BH_OK = True
 except Exception:
     BH_OK = False

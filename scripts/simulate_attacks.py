@@ -136,12 +136,12 @@ def query_faiss_trend(entity_id: str, threshold: float) -> dict | None:
 
 def simulate_attack_offline(attack: dict) -> dict:
     """Offline simulation using src.* modules directly."""
-    from src.manipulation.fingerprint_detector import (
+    from core.physical.manipulation_detector import (
         detect_oracle_attack, detect_wash_trading, detect_governance_capture,
         detect_coordinated_pump, compute_mf_score, apply_mf_discount
     )
-    from src.planes.physical.nl_engine import compute_nl
-    from src.core.coherence_engine import CoherenceEngine, CoherenceInput, AssetProfile
+    from core.extended.natural_liquidity import compute_nl
+    from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile
 
     sep = "─" * 66
     print(f"\n{sep}")
