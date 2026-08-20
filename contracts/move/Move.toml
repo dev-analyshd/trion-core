@@ -1,0 +1,14 @@
+; TRION Protocol — Aptos Move Package
+; BTCP + Oracle contracts for Move VM (Aptos, Sui, Movement)
+[package]
+name = "trion"
+version = "2.1.0"
+upgrade_policy = "compatible"
+
+[addresses]
+trion = "_"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"

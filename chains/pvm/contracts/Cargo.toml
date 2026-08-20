@@ -3,5 +3,10 @@ members = [
     "intent",
     "gate",
     "liquidity",
+    "token",
+    "staking",
+    "btcp_route",
+    "genesis",
+    "travel_rule",
 ]
 resolver = "2"
