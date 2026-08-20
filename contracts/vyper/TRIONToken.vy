@@ -159,6 +159,8 @@ def transferFrom(from_addr: address, to: address, amount: uint256) -> bool:
 
 @external
 def approve(spender: address, amount: uint256) -> bool:
+    # PHASE-1-SECURITY: prevent approving the zero address.
+    assert spender != empty(address), "TRION: zero address"
     self.allowance[msg.sender][spender] = amount
     log Approval(msg.sender, spender, amount)
     return True
@@ -261,6 +263,8 @@ def update_governance(new_governance: address):
 @external
 def update_staking_contract(new_staking: address):
     assert msg.sender == self.governance, "TRION: governance only"
+    # PHASE-1-SECURITY: zero-address check.
+    assert new_staking != empty(address), "TRION: zero address"
     self.staking_contract = new_staking
 
 @external

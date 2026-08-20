@@ -95,6 +95,9 @@ RUN pip install --no-cache-dir \
     -r api/requirements.txt \
     -r anima-service/requirements.txt \
     numpy scipy scikit-learn gunicorn web3 eth-account feedparser vaderSentiment
+# PHASE-1-SECURITY: force-upgrade pynacl (cosmpy transitively pins 1.6.0
+# which has PYSEC-2026-3002). --no-deps avoids the cosmpy resolver conflict.
+RUN pip install --no-cache-dir --no-deps pynacl==1.6.2
 
 # ── Application source ───────────────────────────────────────────────────────
 COPY api/             ./api/
@@ -123,7 +126,9 @@ COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
 
 # ── Additional source directories (all components, workflows, languages) ──
-# Rust workspace: 16 crates, core behavioral hashing
+# Rust workspace (BTCP router, dispute resolution, intent aggregator, etc.)
+COPY rust/            ./rust/
+# Rust L0 indexer crates (16 crates, EVM + Bot Chain + extended VM)
 COPY indexers/        ./indexers/
 # Go P2P validator network
 COPY validator/       ./validator/
@@ -143,6 +148,14 @@ COPY docs/            ./docs/
 COPY akashic/         ./akashic/
 # Continuum state machine
 COPY continuum/       ./continuum/
+# SVM (Solana) indexer + adapter (Rust + TS + Python)
+COPY trion-svm/       ./trion-svm/
+# Network health monitor (Go)
+COPY network/         ./network/
+# Formal specification documents
+COPY spec/            ./spec/
+# Runtime reports directory (created empty; populated at runtime)
+COPY reports/         ./reports/
 
 # ── BH ledger database initialization ────────────────────────────────────────
 COPY scripts/init_bh_ledger.py ./scripts/init_bh_ledger.py
@@ -158,6 +171,8 @@ RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data
 # ── Environment ───────────────────────────────────────────────────────────────
 # Note: PORT is injected by Railway at runtime — do NOT set it here as a static ENV.
 # The entrypoint script reads PORT from the environment and defaults to 10000.
+# Optional service toggles (default OFF — set TRION_ENABLE_*=1 to activate).
+# Validator (Go), Rust indexers, C++ signal processing, Prometheus/Grafana.
 ENV HOSTNAME=0.0.0.0 \
     PYTHONPATH=/app \
     FAISS_PORT=8000 \
@@ -176,7 +191,6 @@ ENV HOSTNAME=0.0.0.0 \
     TRION_ENABLE_ZG_DA=0 \
     TRION_ENABLE_EXTRAS=0 \
     TRION_ENABLE_NATIVE=0 \
-    # Optional service toggles (default OFF, enable to activate)
     TRION_ENABLE_VALIDATOR=0 \
     TRION_ENABLE_INDEXERS=0 \
     TRION_ENABLE_SIGNAL_PROCESSING=0 \
@@ -195,8 +209,10 @@ ENV HOSTNAME=0.0.0.0 \
 # Railway injects PORT at runtime. Default to 10000 for local docker runs.
 EXPOSE 10000
 
+# Shell form so ${PORT} (injected by Railway at runtime) is expanded by /bin/sh.
+# Falls back to 10000 when PORT is unset (local docker run without env).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
-    CMD curl -fs http://localhost:10000/api/v1/health || exit 1
+    CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/app/railway-entrypoint.sh"]

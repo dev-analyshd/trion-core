@@ -85,6 +85,14 @@ class BTCPRoute:
     privacy_level: PrivacyLevel = PrivacyLevel.BASIC
     status: RouteStatus = RouteStatus.PENDING
     total_fee: float = 0.0
+    # BTCP zero-bridge invariant: assets are NEVER moved across chains.
+    # Value stays in escrow on the source chain and is only released/reverted
+    # locally after the behavioral proof is verified.  This field is always
+    # False for a correctly-constructed BTCP route — the test suite asserts
+    # this invariant explicitly.
+    assets_bridged: bool = False
+    btcp_score: float = 0.0
+    route_type: str = "SINGLE_CHAIN"
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     
@@ -94,6 +102,9 @@ class BTCPRoute:
         d['dest_vm'] = self.dest_vm.name
         d['privacy_level'] = self.privacy_level.name
         d['status'] = self.status.name
+        d['route_type'] = self.route_type
+        d['assets_bridged'] = self.assets_bridged
+        d['btcp_score'] = self.btcp_score
         if self.intent:
             d['intent'] = self.intent.to_dict()
         if self.source_gas:

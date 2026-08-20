@@ -1,7 +1,7 @@
 {
   "name": "trion-arbilink-agent",
   "version": "1.0.0",
-  "description": "TRION Thermodynamic Execution Gate — ArbiLink agent skill for Arbitrum",
+  "description": "TRION Thermodynamic Execution Gate \u2014 ArbiLink agent skill for Arbitrum",
   "type": "module",
   "main": "src/skill.js",
   "scripts": {
@@ -21,11 +21,17 @@
     "btcp:multichain": "node scripts/btcp_multichain_complete.mjs"
   },
   "overrides": {
-    "protobufjs": "8.7.0"
+    "protobufjs": "8.7.0",
+    "ws": ">=8.21.0",
+    "axios": ">=1.19.0",
+    "form-data": ">=4.0.6",
+    "brace-expansion": ">=2.1.4",
+    "js-yaml": ">=4.3.1",
+    "tmp": ">=0.2.6"
   },
   "dependencies": {
     "@0glabs/0g-ts-sdk": "^0.3.3",
-    "@aptos-labs/ts-sdk": "^1.33.1",
+    "@aptos-labs/ts-sdk": "^1.35.0",
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@cosmjs/crypto": "^0.32.4",
     "@cosmjs/encoding": "^0.32.4",
@@ -41,7 +47,7 @@
     "@solana/web3.js": "^1.98.4",
     "@ton/core": "^0.63.1",
     "@ton/crypto": "^3.3.0",
-    "@ton/ton": "^16.2.4",
+    "@ton/ton": "^16.3.0",
     "@types/node": "^25.6.0",
     "axios": "^1.18.1",
     "bip39": "^3.1.0",
@@ -59,7 +65,7 @@
     "starknet": "^7.1.0",
     "stellar-sdk": "^13.3.0",
     "tiny-secp256k1": "^2.2.4",
-    "tronweb": "^6.3.0",
+    "tronweb": "^6.5.0",
     "tsx": "^4.21.0",
     "tweetnacl": "^1.0.3",
     "typescript": "^6.0.3",

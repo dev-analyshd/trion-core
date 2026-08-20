@@ -124,6 +124,8 @@ contract LiquidityOcean {
     }
 
     function setRelayer(address newRelayer) external onlyOwner {
+        // PHASE-1-SECURITY: zero-address check.
+        require(newRelayer != address(0), "ZERO_RELAYER");
         emit RelayerUpdated(relayer, newRelayer);
         relayer = newRelayer;
     }

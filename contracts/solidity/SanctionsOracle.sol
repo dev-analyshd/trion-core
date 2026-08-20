@@ -107,6 +107,9 @@ contract SanctionsOracle {
     }
 
     constructor(address _animaService, address _consciousLayerMultisig) {
+        // PHASE-1-SECURITY: reject zero-address admin parameters.
+        require(_animaService != address(0), "ZERO_ANIMA");
+        require(_consciousLayerMultisig != address(0), "ZERO_MULTISIG");
         owner = msg.sender;
         animaService = _animaService;
         consciousLayerMultisig = _consciousLayerMultisig;
@@ -264,16 +267,22 @@ contract SanctionsOracle {
     // ── Admin ───────────────────────────────────────────────────────────────
 
     function setAnimaService(address newService) external onlyOwner {
+        // PHASE-1-SECURITY: zero-address check.
+        require(newService != address(0), "ZERO_ANIMA");
         animaService = newService;
     }
 
     function setConsciousLayerMultisig(address newMultisig) external onlyOwner {
+        // PHASE-1-SECURITY: zero-address check.
+        require(newMultisig != address(0), "ZERO_MULTISIG");
         consciousLayerMultisig = newMultisig;
     }
 
     /// @notice Transfer ownership. Note: new owner STILL cannot override
     ///         AWA-protected sanctions flags. Only Conscious Layer appeals can.
     function transferOwnership(address newOwner) external onlyOwner {
+        // PHASE-1-SECURITY: zero-address check.
+        require(newOwner != address(0), "ZERO_OWNER");
         owner = newOwner;
     }
 }
