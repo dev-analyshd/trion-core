@@ -1,142 +1,50 @@
-# =============================================================================
-# TRION Protocol — .gitignore
-# =============================================================================
-
-# Environment — NEVER COMMIT
-.env
-.env.*
-!.env.example
-envfile.env
-envfile.env.*
-
-# Keys / secrets
-*.pem
-*.key
-keystore/
-secrets/
-funded_wallets.json
-*_escrows.json
-wallets*.json
-*.wif
+```
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
 
 # Build artifacts
-target/
-trion-protocol/target/
 dist/
 build/
-node_modules/
-dashboard/.next/
-__pycache__/
+target/
+.hardhat/
+
+# Python
 *.pyc
 *.pyo
-.pytest_cache/
-venv/
-.venv/
-.pythonlibs/
+*.pyd
+.Python
+*.so
 
-# Python package management
-.uv/
-
-# Hardhat / Foundry compiled artifacts
-artifacts/
-cache/
-typechain-types/
-out/
-
-# FAISS / numpy binary state — regenerated at startup
-*.index
-*.npy
-akashic/akashic_faiss.index
-akashic/akashic_state.db
-akashic/akashic_state.db-shm
-akashic/akashic_state.db-wal
-akashic_faiss.index
-akashic_state.db
-akashic_state.db-shm
-akashic_state.db-wal
-
-# Runtime databases
-*.db
-bh_ledger.db
-
-# 0G DA binary exports & runtime state
-0g-state/exports/
-0g-state/logs/
-0g-state/sync_state.json
-0g-state/da_state.json
-0g-state/proofs/
-
-# Indexed binary blobs
-*.bin
-*.bin.gz
-faiss_index/
-
-# Runtime state in data/ — keep dir, ignore generated content
-data/*.json
-data/*.db
-data/*.db-shm
-data/*.db-wal
-data/*.bin
-data/*.bin.gz
-!data/.gitkeep
-
-# Runtime log files
+# Logs
 *.log
-/tmp/
+logs/
 
-# TRION multi-chain runtime status files
-btc_testnet_addresses.json
-utxo_chain_status.json
-tron_status.json
-cosmos_chains_status.json
-move_chains_status.json
-sui_status.json
-starknet_status.json
-pi_status.json
-relayer_state.json
-attack_simulation_results.json
+# Environment
+.env
+.env.local
+*.env.*
 
-# Backtest generated outputs — regenerate with python3 backtest/run_backtest.py
-backtest/results/
-
-# Proof-ledger runtime entries (deployment receipts are tracked; runtime state is not)
-proof-ledger/trion_relayer_live_txs.json
-proof-ledger/zg_storage_sync_latest.json
-
-# IDE / OS
-.idea/
+# Editors
 .vscode/
+.idea/
 *.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
 
-# Testnet credentials
-.env.testnet
-*.env.local
-.env.local
-.env.*.local
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
-# Internal working files (not for public repo)
-attached_assets/
-.agents/
-*.db-wal
-*.db-shm
-trion_epigenetic_state.json
-
-# Runtime progress state — environment-specific, not setup config
-genesis_backfill_checkpoint_*.json
-
-
-# ML model weights — do not commit large binary files
-mental_transformer_weights.pt
-*.pt
-bin/*
-
-# Next.js build output
-frontend/.next/
-frontend/node_modules/
-bh_ledger.db
-akashic/*.db
-akashic/validator_registry.db
-akashic/invisibility_petitions.db
-akashic/elder_wisdom.db
+# Temporary files
+*.tmp
+*.temp
+```

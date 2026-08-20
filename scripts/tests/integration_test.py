@@ -44,7 +44,7 @@ class TestCorePlanes(unittest.TestCase):
         result = compute_phi(txs, "0x" + "3"*40)
         self.assertIn("phi_raw", result)
         self.assertGreaterEqual(result["phi_raw"], 0.0)
-        self.assertLessEqual(result["phi"], 1.0)
+        self.assertLessEqual(result["phi_raw"], 1.0)
     
     def test_spiritual_plane(self):
         """Spiritual plane Σ uses diversity-weighted BFT."""
@@ -55,7 +55,7 @@ class TestCorePlanes(unittest.TestCase):
                 validator_id=f"v{i}", 
                 valuation=0.7+0.01*i,
                 stake=1000+i*100,
-                model_outputs={"diversity": 0.8}
+                model_outputs=np.array([0.7 + j*0.01 for j in range(10)])
             )
             for i in range(15)
         ]
@@ -64,13 +64,13 @@ class TestCorePlanes(unittest.TestCase):
             validator_id="byz1", 
             valuation=0.1,
             stake=500,
-            model_outputs={"diversity": 0.2}
+            model_outputs=np.array([0.1] * 10)
         ))
         
         result = compute_sigma(signals)  # Uses internal volatility calc
-        self.assertIn("sigma_t", result)
-        self.assertGreaterEqual(result["sigma_t"], 0.0)
-        self.assertLessEqual(result["sigma_t"], 1.0)
+        self.assertIn("sigma", result)
+        self.assertGreaterEqual(result["sigma"], 0.0)
+        self.assertLessEqual(result["sigma"], 1.0)
     
     def test_conscious_plane(self):
         """Conscious plane K uses annotation network."""

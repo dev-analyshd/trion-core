@@ -207,6 +207,11 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         
         address lastSigner = address(0);
         for (uint256 i = 0; i < signatures.length; i++) {
+            // EIP-2 low-S validation to prevent signature malleability
+            require(
+                uint256(signatures[i][32:64]) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+                "TRION: Invalid s - must be low-S"
+            );
             address signer = messageHash.recover(signatures[i]);
             require(isValidator[signer], "TRION: Invalid validator");
             require(signer > lastSigner, "TRION: Signer ordering required");

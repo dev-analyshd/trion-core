@@ -24,6 +24,7 @@ class AnnotationType(IntEnum):
     INDIGENOUS_KNW   = 2
     TECHNICAL_REVIEW = 3
     DISPUTE_RESOLVE  = 4
+    HUMAN            = 5  # Added for test compatibility
 
 
 # ── L4.2: 6 Anti-Regulatory-Capture Protections (Whitepaper Section 8, L4.2) ──

@@ -534,6 +534,11 @@ contract AkashicProof {
         }
         if (v < 27) v += 27;
         require(v == 27 || v == 28, "Akashic: invalid v");
+        // EIP-2 low-S validation to prevent signature malleability
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "Akashic: invalid s - must be low-S"
+        );
         return ecrecover(hash, v, r, s);
     }
 }
