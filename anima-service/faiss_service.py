@@ -60,6 +60,13 @@ from collections import defaultdict, deque
 # contention is handled by _db_write_with_retry() below.
 _DB_WRITE_LOCK = threading.Lock()
 
+# Phase 3 — FAISS index write lock.
+# faiss-cpu IndexFlatL2 / IndexIVFPQ .add() is NOT thread-safe; concurrent
+# /index/add and /index/add_batch calls from the BH streamer + multi-chain
+# indexers will corrupt the index without external serialisation.  Every
+# index.add(...) call site below is wrapped with this lock.
+_INDEX_WRITE_LOCK = threading.Lock()
+
 import time as _time
 
 def _db_write_with_retry(fn, max_retries: int = 8):
@@ -387,6 +394,37 @@ app = FastAPI(
 @app.get("/healthz", include_in_schema=False)
 def healthz():
     return {"status": "ok"}
+
+
+# ── /stats — Phase 3: lightweight vector-count + index status endpoint ──────
+# Used by the live-ingestion test (and external dashboards) to verify that
+# the FAISS service is alive and that BHs are actually landing in the index.
+# Reads index.ntotal under the same write lock that protects .add() so the
+# count is never observed mid-mutation (avoids torn reads on the ntotal
+# counter for IndexIVFPQ which lazily updates it).
+@app.get("/stats")
+def stats():
+    if index is None:
+        return {
+            "status":          "degraded",
+            "faiss_available": FAISS_AVAILABLE,
+            "indexed_vectors": 0,
+            "index_type":      None,
+            "entities_tracked": len(entity_history),
+            "timestamp":       int(__import__("time").time()),
+        }
+    with _INDEX_WRITE_LOCK:
+        ntotal = index.ntotal
+        itype = type(index).__name__
+    return {
+        "status":           "ok" if FAISS_AVAILABLE else "degraded",
+        "faiss_available": FAISS_AVAILABLE,
+        "indexed_vectors":  ntotal,
+        "index_type":       itype,
+        "entities_tracked": len(entity_history),
+        "archetypes":       len(centroids) if centroids is not None else 0,
+        "timestamp":        int(__import__("time").time()),
+    }
 
 
 # ── FAISS index bootstrap ──────────────────────────────────────────────────────
@@ -1271,7 +1309,8 @@ def _restore_from_timescaledb():
         # ── Rebuild FAISS index ───────────────────────────────────────────────
         if all_vecs:
             vecs_np = np.stack(all_vecs, axis=0)
-            index.add(vecs_np)
+            with _INDEX_WRITE_LOCK:
+                index.add(vecs_np)
             # _persist_all is defined later in this module; guard against the
             # NameError that occurs when restore runs during module init.
             try:
@@ -3267,8 +3306,9 @@ def add_vector(payload: VectorPayload):
     beo_id = resolve_beo(payload.entity_id)
     ts     = payload.timestamp or datetime.now(timezone.utc).timestamp()
 
-    # FAISS index
-    index.add(vec.reshape(1, DIMENSION))
+    # FAISS index — Phase 3: serialise concurrent writes
+    with _INDEX_WRITE_LOCK:
+        index.add(vec.reshape(1, DIMENSION))
 
     # Archetype similarity for this record (needed by L2.1 D(t) formula: (1+M))
     # Computed before entity_history append so arch_sim is available immediately.
@@ -3423,7 +3463,13 @@ def add_vector_batch(payload: BatchVectorPayload):
         batch_delta_consumed    += d_info_gained
         batch_delta_transformed += d_info_gained * 0.95   # ΔI_transformed >= 0 always
 
-        index.add(vec.reshape(1, DIMENSION))
+        # Phase 3 — serialise concurrent FAISS writes (per-vector inside loop).
+        # We acquire the lock per vector rather than once-per-batch so that
+        # /index/add callers from other workers aren't blocked for the whole
+        # batch duration (~50 vectors). Each .add() is sub-millisecond so the
+        # critical section is tiny.
+        with _INDEX_WRITE_LOCK:
+            index.add(vec.reshape(1, DIMENSION))
 
         arch_id_pre, arch_sim_pre = get_archetype(vec)
 
@@ -3721,8 +3767,11 @@ def bulk_backfill(payload: BulkBackfillPayload):
     now = datetime.now(timezone.utc).timestamp()
 
     # ── Batch-add all vectors to FAISS in one numpy call ─────────────────────
+    # Phase 3: hold the index write lock for the entire batched add — this is
+    # a single .add() call so the critical section is one operation, not per-vector.
     vecs_np = np.array([item.vector for item in valid_items], dtype="float32")
-    index.add(vecs_np)
+    with _INDEX_WRITE_LOCK:
+        index.add(vecs_np)
 
     # ── Update in-memory state ────────────────────────────────────────────────
     entity_records_rows = []

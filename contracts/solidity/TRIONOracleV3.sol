@@ -266,6 +266,14 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         return (uint8(p & 0xFF), uint32((p >> 8) & 0xFFFFFFFF), uint32((p >> 40) & 0xFFFFFFFF), uint64((p >> 72) & 0xFFFFFFFFFFFFFFFF), uint64((p >> 136) & 0xFFFFFFFFFFFFFFFF));
     }
 
-    function addValidator(address _v) external onlyOwner { isValidator[_v] = true; }
-    function setQuorum(uint256 _q) external onlyOwner { quorumRequired = _q; }
+    function addValidator(address _v) external onlyOwner {
+        // PHASE-1-SECURITY: prevent registering the zero address as a validator.
+        require(_v != address(0), "TRION: zero address");
+        isValidator[_v] = true;
+    }
+    function setQuorum(uint256 _q) external onlyOwner {
+        // PHASE-1-SECURITY: enforce a sane minimum quorum (>=1).
+        require(_q >= 1, "TRION: quorum < 1");
+        quorumRequired = _q;
+    }
 }

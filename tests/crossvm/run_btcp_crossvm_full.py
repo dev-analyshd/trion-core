@@ -62,8 +62,14 @@ def anchor_discriminator(namespace: str, method_name: str) -> bytes:
     return hashlib.sha256(f"{namespace}:{method_name}".encode()).digest()[:8]
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-SOL_PRIVKEY_B58 = "3wdbxnjcJfBfWRceeRTWjwiNwdKne7ENLfTHbdbw7JuuQRLJf8M78VgBMAZy9yKUr5Z5s1dgu11ptVdW7wh2YVxF"
-DEPLOYER_PK = "0x93fd4461112f6e7a0cb14f6a71d8953f1351d76c71ee4026710ecb5399469a9d"
+# PHASE-1-SECURITY: keys are loaded from environment — never hardcode secrets in source.
+SOL_PRIVKEY_B58 = os.environ.get("SOLANA_PRIVATE_KEY_B58", os.environ.get("SVM_PRIVATE_KEY_B58", ""))
+DEPLOYER_PK     = os.environ.get("EVM_PRIVATE_KEY", os.environ.get("DEPLOYER_PRIVATE_KEY", ""))
+if not SOL_PRIVKEY_B58 or not DEPLOYER_PK:
+    raise RuntimeError(
+        "PHASE-1-SECURITY: SOLANA_PRIVATE_KEY_B58 and EVM_PRIVATE_KEY must be set in the "
+        "environment. They are no longer hard-coded in source. See .env.example."
+    )
 BOT_RPC = "https://rpc.bohr.life"
 BOT_CHAIN_ID = 968
 SOL_RPC = "https://api.devnet.solana.com"

@@ -576,6 +576,8 @@ contract TRIONExecutionGate {
 
     // ── Admin: Validators ─────────────────────────────────────────────────────
     function addValidator(address v) external onlyOwner {
+        // PHASE-1-SECURITY: reject zero address.
+        require(v != address(0), "TRION: Zero address");
         if (!isValidator[v]) {
             isValidator[v] = true;
             validatorCount++;
@@ -653,6 +655,11 @@ contract TRIONExecutionGate {
     }
 
     // ── Internal: ECDSA recovery ─────────────────────────────────────────────
+    // PHASE-1-SECURITY: explicit s-malleability guard (EIP-2) + zero-address
+    // check on the recovered signer. Without the s guard, an attacker who has
+    // one valid signature can produce a second 'malleable' signature by
+    // flipping the parity bit and negating s — which would let them double-
+    // count a single validator's attestation in the quorum loop above.
     function _recoverSigner(
         bytes32 hash,
         bytes memory sig
@@ -668,6 +675,15 @@ contract TRIONExecutionGate {
         }
         if (v < 27) v += 27;
         require(v == 27 || v == 28, "TRION: Invalid v");
-        return ecrecover(hash, v, r, s);
+        // EIP-2: s must be in the lower half of the secp256k1 curve order.
+        // 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+        // is (secp256k1n / 2) + 1 — any s above this is the malleable twin.
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "TRION: Invalid s (malleable)"
+        );
+        address recovered = ecrecover(hash, v, r, s);
+        require(recovered != address(0), "TRION: Invalid signature (zero recovered)");
+        return recovered;
     }
 }

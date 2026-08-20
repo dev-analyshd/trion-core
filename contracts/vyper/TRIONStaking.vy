@@ -164,6 +164,10 @@ def __init__(
     _akashic_oracle: address,
     _governance: address,
 ):
+    # PHASE-1-SECURITY: zero-address checks on all constructor params.
+    assert _trion_token != empty(address), "TRION: zero token address"
+    assert _akashic_oracle != empty(address), "TRION: zero oracle address"
+    assert _governance != empty(address), "TRION: zero governance address"
     self.owner = msg.sender
     self.trion_token = _trion_token
     self.akashic_oracle = _akashic_oracle

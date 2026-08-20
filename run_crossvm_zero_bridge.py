@@ -28,8 +28,14 @@ import time
 from pathlib import Path
 
 # ── Keys ─────────────────────────────────────────────────────────────────────
-EVM_PRIVATE_KEY = "0x93fd4461112f6e7a0cb14f6a71d8953f1351d76c71ee4026710ecb5399469a9d"
-SOLANA_PRIVATE_KEY_B58 = "3wdbxnjcJfBfWRceeRTWjwiNwdKne7ENLfTHbdbw7JuuQRLJf8M78VgBMAZy9yKUr5Z5s1dgu11ptVdW7wh2YVxF"
+# PHASE-1-SECURITY: keys are loaded from environment — never hardcode secrets in source.
+EVM_PRIVATE_KEY     = os.environ.get("EVM_PRIVATE_KEY", "")
+SOLANA_PRIVATE_KEY_B58 = os.environ.get("SOLANA_PRIVATE_KEY_B58", os.environ.get("SVM_PRIVATE_KEY_B58", ""))
+if not EVM_PRIVATE_KEY or not SOLANA_PRIVATE_KEY_B58:
+    raise RuntimeError(
+        "PHASE-1-SECURITY: EVM_PRIVATE_KEY and SOLANA_PRIVATE_KEY_B58 must be set in the environment. "
+        "Copy .env.example to .env and fill them in — they are no longer hard-coded in source."
+    )
 
 # ── Chain Config ─────────────────────────────────────────────────────────────
 # EVM: 0G Mainnet (chain 16661) — has 0.0002 ETH, enough for a small tx

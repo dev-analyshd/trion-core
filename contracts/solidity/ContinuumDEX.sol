@@ -131,6 +131,9 @@ contract ContinuumDEX {
     modifier onlyRelayer() { require(msg.sender == relayer || msg.sender == owner, "NOT_RELAYER"); _; }
 
     constructor(address _btcpEscrow, address _trionOracle) {
+        // PHASE-1-SECURITY: zero-address checks on constructor parameters.
+        require(_btcpEscrow != address(0), "ZERO_ESCROW");
+        require(_trionOracle != address(0), "ZERO_ORACLE");
         owner = msg.sender;
         relayer = msg.sender;
         btcpEscrow = _btcpEscrow;
@@ -350,16 +353,19 @@ contract ContinuumDEX {
     // ═══════════════════════════════════════════════════════════════════════════
 
     function setRelayer(address newRelayer) external onlyOwner {
+        require(newRelayer != address(0), "ZERO_RELAYER");
         emit RelayerUpdated(relayer, newRelayer);
         relayer = newRelayer;
     }
 
     function setEscrow(address newEscrow) external onlyOwner {
+        require(newEscrow != address(0), "ZERO_ESCROW");
         emit EscrowUpdated(btcpEscrow, newEscrow);
         btcpEscrow = newEscrow;
     }
 
     function setOracle(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "ZERO_ORACLE");
         emit OracleUpdated(trionOracle, newOracle);
         trionOracle = newOracle;
     }

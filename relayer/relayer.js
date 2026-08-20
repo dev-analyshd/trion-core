@@ -449,8 +449,12 @@ async function pushToChain(chain, entity, signal, wallet) {
     // ethers v6 signMessage handles the EIP-191 prefix when given raw bytes.
     const sig = await signer.signMessage(ethers.getBytes(inner));
 
-    const tx = await oracle.publishSignal(txId, packed, [sig]);
-    const receipt = await tx.wait(1);
+    // Submit to chain with retry on transient errors (network / RPC drops).
+    // 4xx contract reverts and quorum failures are NOT retried.
+    const receipt = await withRetry(`push:${chain.key}`, async () => {
+      const tx = await oracle.publishSignal(txId, packed, [sig]);
+      return await tx.wait(1);
+    });
     console.log(`  [${chain.key.padEnd(10)}] published txId=${txId.slice(0,18)}… block=${receipt.blockNumber} hash=${receipt.hash}`);
     const prev = relayerState.chains[chain.key] || {};
     relayerState.chains[chain.key] = {
@@ -487,11 +491,54 @@ async function pushToChain(chain, entity, signal, wallet) {
   }
 }
 
+// ── Retry helper ─────────────────────────────────────────────────────────────
+// Exponential-backoff retry for transient network failures.  Distinguishes
+// retryable errors (timeouts, 5xx, network drops) from permanent ones (4xx
+// auth / contract revert) so we don't waste cycles hammering a broken endpoint.
+const MAX_RETRIES    = parseInt(process.env.RELAYER_MAX_RETRIES    || "3",    10);
+const RETRY_BASE_MS = parseInt(process.env.RELAYER_RETRY_BASE_MS || "500", 10);
+
+function isRetryableError(err) {
+  if (!err) return false;
+  // Network / timeout errors are retryable
+  if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT" ||
+      err.code === "ENOTFOUND"   || err.code === "ECONNRESET") return true;
+  // 5xx server errors are retryable
+  const status = err.response?.status;
+  if (status && status >= 500 && status < 600) return true;
+  // 429 Too Many Requests is retryable
+  if (status === 429) return true;
+  // Contract reverts / 4xx are NOT retryable
+  return false;
+}
+
+async function withRetry(label, fn) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn(attempt);
+    } catch (e) {
+      lastErr = e;
+      if (!isRetryableError(e) || attempt === MAX_RETRIES) {
+        if (attempt > 0) {
+          console.warn(`  [${label}] giving up after ${attempt + 1} attempt(s): ${(e?.shortMessage || e?.message || String(e)).slice(0, 100)}`);
+        }
+        throw e;
+      }
+      const delay = RETRY_BASE_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+      console.warn(`  [${label}] attempt ${attempt + 1} failed (${(e?.shortMessage || e?.message || String(e)).slice(0, 80)}); retrying in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 // ── Main loop ────────────────────────────────────────────────────────────────
 async function pollOracle(entity) {
   const url = `${ORACLE_API_URL}/api/v1/signal/${encodeURIComponent(entity)}`;
-  const r = await axios.get(url, { timeout: 45000 });
-  return r.data;
+  return withRetry(`poll:${entity.slice(0, 12)}`, () =>
+    axios.get(url, { timeout: 45000 }).then(r => r.data)
+  );
 }
 
 // ── Reflexive self-halt ────────────────────────────────────────────────────
