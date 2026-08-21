@@ -27,6 +27,7 @@ from .biological_capital import (
     EcosystemProfile, BiologicalCapitalResult,
     compute_flow, compute_resilience, compute_uniqueness,
     compute_interdependence, compute_bc, bc_to_ecosystem_health_signal,
+    fetch_ecosystem_data, ecosystem_data_to_profile, clear_gbif_cache,
     NPP_MAX_REFERENCE, BIOMASS_MAX_REFERENCE,
 )
 
@@ -35,6 +36,8 @@ from .cross_species import (
     compute_territory_viability, compute_food_security,
     compute_reproduction_rate, compute_threat_pressure,
     compute_xsl, xsl_to_trion_signal,
+    fetch_species_data, species_data_to_profile,
+    iucn_threat_weight, IUCN_THREAT_WEIGHTS, clear_xsl_cache,
 )
 
 from .sovereign_behavioral import (
@@ -42,6 +45,7 @@ from .sovereign_behavioral import (
     compute_pearson_corr, compute_economic_stability,
     compute_institutional_integrity, compute_social_cohesion,
     compute_governance_quality, compute_crypto_behavior, compute_sba,
+    apply_economic_snapshot, fetch_and_apply_economic_snapshot,
     W_E, W_I, W_S, W_G, W_C,
 )
 
@@ -63,21 +67,25 @@ __all__ = [
     'ProtocolEconomics', 'DeveloperData', 'EPResult',
     'compute_vc', 'compute_pa', 'compute_dc', 'compute_ep',
     'REFERENCE_TENURE_DAYS',
-    # BC (Level 9)
+    # BC (Level 9) — GBIF-wired
     'EcosystemProfile', 'BiologicalCapitalResult',
     'compute_flow', 'compute_resilience', 'compute_uniqueness',
     'compute_interdependence', 'compute_bc', 'bc_to_ecosystem_health_signal',
+    'fetch_ecosystem_data', 'ecosystem_data_to_profile', 'clear_gbif_cache',
     'NPP_MAX_REFERENCE', 'BIOMASS_MAX_REFERENCE',
-    # XSL (Level 9)
+    # XSL (Level 9) — GBIF + IUCN wired
     'SpeciesProfile', 'XSLResult',
     'compute_territory_viability', 'compute_food_security',
     'compute_reproduction_rate', 'compute_threat_pressure',
     'compute_xsl', 'xsl_to_trion_signal',
-    # SBA (Level 9)
+    'fetch_species_data', 'species_data_to_profile',
+    'iucn_threat_weight', 'IUCN_THREAT_WEIGHTS', 'clear_xsl_cache',
+    # SBA (Level 9) — IMF / World Bank wired
     'SBAInputs', 'SBAResult',
     'compute_pearson_corr', 'compute_economic_stability',
     'compute_institutional_integrity', 'compute_social_cohesion',
     'compute_governance_quality', 'compute_crypto_behavior', 'compute_sba',
+    'apply_economic_snapshot', 'fetch_and_apply_economic_snapshot',
     'W_E', 'W_I', 'W_S', 'W_G', 'W_C',
     # XSL Engine
     'CrossChainBehavior',

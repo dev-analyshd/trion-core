@@ -33,8 +33,28 @@ License: CC0
 
 from __future__ import annotations
 import math
+import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+
+# Lazy import of the sovereign data fetcher — keeps ``compute_sba`` callable
+# even in offline / sandboxed test environments. The fetcher itself degrades
+# gracefully on network errors, but importing it at module-load time would
+# introduce an unnecessary hard dependency. Use ``_load_sovereign_fetcher()``
+# at call time instead.
+def _load_sovereign_fetcher():
+    try:
+        from .sovereign_data_fetcher import (
+            fetch_sovereign_economic_snapshot,
+            stated_policy_proxy_from_snapshot,
+        )
+        return (
+            fetch_sovereign_economic_snapshot,
+            stated_policy_proxy_from_snapshot,
+        )
+    except Exception:
+        return (None, None)
 
 
 # SBA component weights
@@ -79,6 +99,14 @@ class SBAInputs:
     cbdc_behavorial_coherence: float  # If CBDC: behavioral consistency with policy
     defi_accessibility:     float     # Whether DeFi is allowed vs blocked
 
+    # Optional: live IMF / World Bank economic snapshot from
+    # ``core.extended.sovereign_data_fetcher``. When provided, ``compute_sba``
+    # uses it to (a) overwrite ``stated_policy_scores`` with the GDP-growth
+    # proxy and (b) recalibrate ``gdp_growth_rate`` from real IMF data.
+    # When ``None`` (default) the explicit inputs above are used as-is,
+    # preserving backwards compatibility with the original SBA contract.
+    economic_snapshot:      Optional[Dict[str, Any]] = None
+
 
 @dataclass
 class SBAResult:
@@ -117,6 +145,78 @@ def compute_pearson_corr(x: List[float], y: List[float]) -> float:
         return 0.5
     corr = cov / math.sqrt(vx * vy)
     return max(-1.0, min(1.0, corr))
+
+
+def apply_economic_snapshot(
+    inp: SBAInputs,
+    snapshot: Dict[str, Any],
+) -> SBAInputs:
+    """
+    Merge a live IMF / World Bank economic snapshot into the SBA inputs.
+
+    Performs two rewirings required by the whitepaper's I-component
+    (``I = corr(stated_policy, onchain_enforcement)``):
+
+      1. ``stated_policy_scores`` is overwritten with the GDP-growth proxy
+         series from IMF NGDP_RPCH (most recent 6 years). Economic indicators
+         ARE the stated policy proxy — governments publish GDP targets and
+         the IMF measures the outcome.
+      2. ``gdp_growth_rate`` is recalibrated from the most recent IMF data
+         point (current year growth percentage, e.g. 2.5 = 2.5%).
+
+    If the snapshot has no data for ``inp.nation_id`` the inputs are
+    returned unchanged (defensive — never raises).
+    """
+    if not snapshot or not isinstance(snapshot, dict):
+        return inp
+
+    _, proxy_fn = _load_sovereign_fetcher()
+    if proxy_fn is None:
+        return inp
+
+    try:
+        proxy_series = proxy_fn(snapshot, inp.nation_id)
+    except Exception:
+        proxy_series = []
+
+    if proxy_series:
+        # Normalize the GDP growth % into a [0,1] policy-position score:
+        # 0% growth → 0.5 (neutral), +5% → 1.0, -5% → 0.0
+        normalized = [
+            max(0.0, min(1.0, 0.5 + (g / 10.0)))
+            for g in proxy_series
+        ]
+        # Use as the stated-policy proxy when caller did not provide an
+        # explicit series, OR when the snapshot is explicitly authoritative.
+        # We always overwrite — the snapshot is the *real* stated policy.
+        inp.stated_policy_scores = normalized
+
+        # Recalibrate gdp_growth_rate from the most recent IMF observation.
+        latest = proxy_series[-1]
+        inp.gdp_growth_rate = float(latest) / 100.0   # percent → fraction
+
+    return inp
+
+
+def fetch_and_apply_economic_snapshot(
+    inp: SBAInputs,
+    use_cache: bool = True,
+) -> SBAInputs:
+    """
+    Convenience: fetch a fresh sovereign economic snapshot from IMF + World
+    Bank and apply it to the SBA inputs. Network failures degrade
+    gracefully (returns inp unchanged).
+    """
+    fetch_fn, _ = _load_sovereign_fetcher()
+    if fetch_fn is None:
+        return inp
+    try:
+        snap = fetch_fn(use_cache=use_cache)
+    except Exception:
+        snap = {}
+    if not snap:
+        return inp
+    return apply_economic_snapshot(inp, snap)
 
 
 def compute_economic_stability(inp: SBAInputs) -> float:
@@ -167,10 +267,36 @@ def compute_crypto_behavior(inp: SBAInputs) -> float:
             0.30 * inp.defi_accessibility)
 
 
-def compute_sba(inp: SBAInputs) -> SBAResult:
+def compute_sba(
+    inp: SBAInputs,
+    fetch_live: bool = False,
+    use_cache: bool = True,
+) -> SBAResult:
     """
     SBA(nation, t) = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C
+
+    Parameters
+    ----------
+    inp : SBAInputs
+        All required inputs for the nation at time ``t``. If
+        ``inp.economic_snapshot`` is set, it overrides the stated-policy proxy
+        and the GDP growth rate with real IMF / World Bank observations.
+    fetch_live : bool, default False
+        When True, fetch a fresh sovereign economic snapshot from IMF +
+        World Bank (cached for 5 minutes inside ``sovereign_data_fetcher``)
+        and apply it to ``inp`` before computing SBA. Network failures
+        degrade gracefully — the original inputs are used.
+    use_cache : bool, default True
+        Forwarded to the fetcher's cache layer when ``fetch_live=True``.
+
+    The ``economic_snapshot`` field on ``SBAInputs`` takes precedence over
+    a fresh live fetch — callers can pin a snapshot for reproducibility.
     """
+    if fetch_live and not inp.economic_snapshot:
+        inp = fetch_and_apply_economic_snapshot(inp, use_cache=use_cache)
+    elif inp.economic_snapshot:
+        inp = apply_economic_snapshot(inp, inp.economic_snapshot)
+
     e = compute_economic_stability(inp)
     i = compute_institutional_integrity(inp)
     s = compute_social_cohesion(inp)
