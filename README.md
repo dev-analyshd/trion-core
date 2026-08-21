@@ -799,4 +799,3 @@ The mathematics is proven. The code is working. The BTCP Zero-Bridge operates ac
 
 *TRION Protocol — Whitepaper v2.0 — 84 formulas, 100% live coverage*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
-*Built in Northern Nigeria. For the world.*
