@@ -281,6 +281,136 @@ class BTCPProofBuilder:
             return False  # coherence below threshold
         return True
 
+    # ── FIX-3: Real validator signature aggregation (gap-fill #2) ────────────────
+    #
+    # Replaces the SHA3-mock signatures used by the legacy ``build_proof`` path
+    # with real Schnorr-multisig aggregation on secp256k1. The consensus proof
+    # produced here is a self-contained dict that downstream consumers can
+    # cryptographically verify without needing the spiritual plane consensus
+    # module to be importable.
+
+    DEFAULT_QUORUM_FRACTION = 2.0 / 3.0
+
+    def build_consensus_proof(
+        self,
+        intent_hash: bytes,
+        validator_keys: List[Tuple[bytes, bytes]],
+        threshold: Optional[float] = None,
+        quorum_fraction: Optional[float] = None,
+        total_validators: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Build a real validator-signed consensus proof.
+
+        Replaces the SHA3-mock signatures with real Schnorr-multisig (BLS-like)
+        signatures from ``core.spiritual.signature_aggregation.ValidatorSignatureAggregator``.
+
+        Args:
+            intent_hash: 32-byte SHA3-256 of the BTCP intent being attested.
+            validator_keys: list of ``(private_key, public_key)`` tuples for
+                each signing validator. ``private_key`` is a 32-byte scalar,
+                ``public_key`` is the 33-byte compressed curve point.
+            threshold: optional override for the quorum fraction (default 2/3).
+            quorum_fraction: alias for ``threshold`` (kept for clarity).
+            total_validators: optional override for the total validator set
+                size (defaults to ``len(validator_keys)``). Set this when
+                only a subset of validators actually signed (e.g. 3 of 5).
+
+        Returns:
+            dict with keys:
+              - validator_signatures: list of real sig dicts {r, s, v, public_key}
+              - aggregate_signature:  real aggregated signature dict
+              - signer_count:         int (number of signers)
+              - total_validators:     int (size of full validator set)
+              - threshold_met:        bool (signer_count/total >= quorum)
+              - intent_hash:          hex of the attested intent hash
+              - scheme:               "schnorr-musig-bls-like"
+              - curve:                "secp256k1"
+              - hash:                 "sha3-256"
+        """
+        from core.spiritual.signature_aggregation import ValidatorSignatureAggregator
+
+        q = quorum_fraction if quorum_fraction is not None else (
+            threshold if threshold is not None else self.DEFAULT_QUORUM_FRACTION
+        )
+        aggregator = ValidatorSignatureAggregator()
+        if total_validators is None:
+            total_validators = len(validator_keys)
+
+        validator_signatures: List[Dict[str, Any]] = []
+        messages: List[bytes] = []
+        public_keys: List[bytes] = []
+        for priv, pub in validator_keys:
+            # Each validator signs (intent_hash || validator_pubkey) so the
+            # signature binds both the intent and the signer's identity.
+            msg = intent_hash + pub
+            sig = aggregator.sign(msg, priv)
+            validator_signatures.append(sig)
+            messages.append(msg)
+            public_keys.append(pub)
+
+        agg_sig = aggregator.aggregate(validator_signatures, messages)
+        signer_count = len(validator_signatures)
+        threshold_met = aggregator.threshold_met(
+            signer_count, total_validators, quorum_fraction=q,
+        )
+
+        return {
+            "validator_signatures": validator_signatures,
+            "aggregate_signature":  agg_sig,
+            "signer_count":          signer_count,
+            "total_validators":      total_validators,
+            "threshold_met":         threshold_met,
+            "quorum_fraction":       q,
+            "intent_hash":           intent_hash.hex(),
+            "scheme":                aggregator.PROOF_SYSTEM,
+            "curve":                 aggregator.CURVE,
+            "hash":                  aggregator.HASH,
+            "version":                aggregator.VERSION,
+        }
+
+    def verify_consensus_proof(self, consensus_proof: Dict[str, Any]) -> bool:
+        """Verify a real consensus proof produced by ``build_consensus_proof``.
+
+        Performs real signature verification via the
+        ``ValidatorSignatureAggregator``: reconstructs the per-signer messages,
+        runs the aggregate verification equation
+        ``s_agg · G == Σ R_i + Σ e_i · pk_i`` over secp256k1, and confirms
+        that the quorum threshold was met.
+        """
+        try:
+            from core.spiritual.signature_aggregation import ValidatorSignatureAggregator
+            aggregator = ValidatorSignatureAggregator()
+
+            validator_sigs = consensus_proof["validator_signatures"]
+            agg_sig        = consensus_proof["aggregate_signature"]
+            signer_count   = consensus_proof["signer_count"]
+            total_validators = consensus_proof.get(
+                "total_validators", signer_count,
+            )
+            threshold_met  = consensus_proof["threshold_met"]
+            intent_hash_hex = consensus_proof["intent_hash"]
+            intent_hash    = bytes.fromhex(intent_hash_hex)
+
+            if signer_count != len(validator_sigs):
+                return False
+            if signer_count > total_validators:
+                return False
+            if not threshold_met:
+                return False
+
+            # Reconstruct (messages, public_keys) in the SAME order the prover
+            # used:  msg_i = intent_hash || pub_i
+            messages: List[bytes] = []
+            public_keys: List[bytes] = []
+            for sig in validator_sigs:
+                pub = bytes.fromhex(sig["public_key"])
+                messages.append(intent_hash + pub)
+                public_keys.append(pub)
+
+            return aggregator.verify_aggregate(agg_sig, messages, public_keys)
+        except Exception:
+            return False
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Module 2.5: BITP Matcher
