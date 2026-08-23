@@ -2442,7 +2442,7 @@ except Exception as _e:
     _awa_ok = False
 
 try:
-    from core.governance.sba_engine import (
+    from core.governance.falsifiability_registry import (
         get_all_conditions, get_summary as _f_summary, update_condition_status
     )
     _falsifiability_ok = True
