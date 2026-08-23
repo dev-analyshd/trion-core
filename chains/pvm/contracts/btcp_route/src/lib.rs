@@ -7,16 +7,16 @@
 //!
 //! Funds stay on the source Polkadot parachain at all times. No cross-chain
 //! asset movement occurs — this is the BTCP zero-bridge paradigm.
-#![cfg_attr(not(feature = "std"), no_std)]
-use ink::storage::Mapping;
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 #[ink::contract]
 mod btcp_route {
+    use ink::storage::Mapping;
     use ink::env::block_timestamp;
 
     /// Escrow states (extended per spec Phase 1.1)
     #[derive(scale::Encode, scale::Decode, Clone, Copy, PartialEq, Eq, Debug)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout))]
     pub enum EscrowState {
         Idle,
         Holding,
@@ -41,7 +41,7 @@ mod btcp_route {
 
     /// Per-route tracking record
     #[derive(scale::Encode, scale::Decode, Clone, PartialEq, Eq, Debug)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout))]
     pub struct RouteData {
         pub anchor_bh: Hash,
         pub execution_bh: Hash,

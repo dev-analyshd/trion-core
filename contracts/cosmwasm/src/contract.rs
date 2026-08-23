@@ -14,7 +14,13 @@ use cosmwasm_std::{
     entry_point, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, Storage, Uint128,
 };
-use serde_json::to_vec;
+// serde_json returns its own error type; wrap into StdError so `?` works.
+fn to_json_bytes<T: serde::Serialize>(v: &T) -> StdResult<Vec<u8>> {
+    serde_json::to_vec(v).map_err(|e| StdError::generic_err(e.to_string()))
+}
+fn from_json_bytes<T: serde::de::DeserializeOwned>(b: &[u8]) -> StdResult<T> {
+    from_json_bytes(b).map_err(|e| StdError::generic_err(e.to_string()))
+}
 
 use crate::state::{
     BTCPRoute, Escrow, GateState, Intent, Route, Signal,
@@ -138,25 +144,28 @@ pub enum QueryMsg {
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
 fn write_owner(storage: &mut dyn Storage, addr: &Addr) -> StdResult<()> {
-    storage.set(b"trion::owner", &addr.as_bytes())
+    storage.set(b"trion::owner", addr.as_bytes());
+    Ok(())
 }
 fn read_owner(storage: &dyn Storage) -> StdResult<Addr> {
     let bytes = storage.get(b"trion::owner")
         .ok_or_else(|| StdError::not_found("owner"))?;
     let s = String::from_utf8(bytes)?;
-    Addr::try_from(s).map_err(|e| StdError::generic_err(e.to_string()))
+    Ok(Addr::unchecked(s))
 }
 fn write_relayer(storage: &mut dyn Storage, addr: &Addr) -> StdResult<()> {
-    storage.set(b"trion::relayer", &addr.as_bytes())
+    storage.set(b"trion::relayer", addr.as_bytes());
+    Ok(())
 }
 fn read_relayer(storage: &dyn Storage) -> StdResult<Addr> {
     let bytes = storage.get(b"trion::relayer")
         .ok_or_else(|| StdError::not_found("relayer"))?;
     let s = String::from_utf8(bytes)?;
-    Addr::try_from(s).map_err(|e| StdError::generic_err(e.to_string()))
+    Ok(Addr::unchecked(s))
 }
 fn write_awa(storage: &mut dyn Storage, enforced: bool) -> StdResult<()> {
-    storage.set(b"trion::awa_enforced", &[if enforced { 1u8 } else { 0u8 }])
+    storage.set(b"trion::awa_enforced", &[if enforced { 1u8 } else { 0u8 }]);
+    Ok(())
 }
 fn read_awa(storage: &dyn Storage) -> bool {
     storage.get(b"trion::awa_enforced").map(|v| !v.is_empty() && v[0] != 0).unwrap_or(false)
@@ -286,7 +295,7 @@ fn execute_publish_signal(
         timestamp: env.block.time.seconds(),
         update_count,
     };
-    deps.storage.set(&k, &to_vec(&sig)?);
+    deps.storage.set(&k, &to_json_bytes(&sig)?);
     Ok(Response::new()
         .add_attribute("action", "publish_signal")
         .add_attribute("coherence", coherence.to_string())
@@ -321,7 +330,7 @@ fn execute_publish_btcp_route(
         is_safe: coherence >= threshold,
         timestamp: env.block.time.seconds(),
     };
-    deps.storage.set(&k, &to_vec(&route)?);
+    deps.storage.set(&k, &to_json_bytes(&route)?);
     Ok(Response::new()
         .add_attribute("action", "publish_btcp_route")
         .add_attribute("is_safe", (coherence >= threshold).to_string()))
@@ -359,6 +368,15 @@ fn execute_lock_escrow(
     let amount_u128: u128 = info.funds.iter()
         .map(|c| c.amount.u128())
         .sum::<u128>().min(u128::MAX);
+    // Capture the ACTUAL denom(s) locked — release/revert pay back in the
+    // same denom. Multiple denoms: join with '+' (release splits them back
+    // proportionally by amount); single-denom (the normal BTCP case) stores
+    // the denom directly.
+    let denom: String = if info.funds.len() == 1 {
+        info.funds[0].denom.clone()
+    } else {
+        info.funds.iter().map(|c| c.denom.clone()).collect::<Vec<_>>().join("+")
+    };
 
     let esc = Escrow {
         escrow_id:      escrow_id.clone(),
@@ -366,6 +384,7 @@ fn execute_lock_escrow(
         entity_id,
         destination:    dest_addr,
         amount:         amount_u128,
+        denom,
         min_coherence,
         lock_height:    env.block.height,
         timeout_blocks,
@@ -375,7 +394,7 @@ fn execute_lock_escrow(
         reverted_at:    0,
         locked_by:      info.sender.clone(),
     };
-    deps.storage.set(&k, &to_vec(&esc)?);
+    deps.storage.set(&k, &to_json_bytes(&esc)?);
 
     Ok(Response::new()
         .add_attribute("action", "lock_escrow")
@@ -392,7 +411,7 @@ fn execute_release_escrow(
 ) -> StdResult<Response> {
     require_owner_or_relayer(&deps, &info)?;
     let k = key(PREFIX_ESCROWS, &escrow_id);
-    let mut esc: Escrow = serde_json::from_slice(
+    let mut esc: Escrow = from_json_bytes(
         &deps.storage.get(&k).ok_or_else(|| StdError::generic_err("TRION: escrow not found"))?
     )?;
     if esc.state != STATE_HOLDING {
@@ -406,13 +425,15 @@ fn execute_release_escrow(
     }
     esc.state       = STATE_RELEASED;
     esc.settled_at  = env.block.time.seconds();
-    deps.storage.set(&k, &to_vec(&esc)?);
+    deps.storage.set(&k, &to_json_bytes(&esc)?);
 
-    // Send the locked funds to the destination
-    let coins: Vec<Coin> = vec![Coin {
-        denom:  "uatom".to_string(), // denom tracked from lock_escrow; simplified
-        amount: Uint128::new(esc.amount),
-    }];
+    // Send the locked funds to the destination in the SAME denom(s) that
+    // were locked (was hardcoded "uatom" — broke Juno/Terra/etc.)
+    let coins: Vec<Coin> = esc
+        .denom
+        .split('+')
+        .map(|d| Coin { denom: d.to_string(), amount: Uint128::new(esc.amount) })
+        .collect();
     Ok(Response::new()
         .add_message(BankMsg::Send { to_address: esc.destination.to_string(), amount: coins })
         .add_attribute("action", "release_escrow")
@@ -427,7 +448,7 @@ fn execute_revert_escrow(
     reason:    u8,
 ) -> StdResult<Response> {
     let k = key(PREFIX_ESCROWS, &escrow_id);
-    let mut esc: Escrow = serde_json::from_slice(
+    let mut esc: Escrow = from_json_bytes(
         &deps.storage.get(&k).ok_or_else(|| StdError::generic_err("TRION: escrow not found"))?
     )?;
     if esc.state != STATE_HOLDING {
@@ -443,12 +464,14 @@ fn execute_revert_escrow(
     esc.state         = STATE_REVERTED;
     esc.revert_reason = reason;
     esc.reverted_at   = env.block.time.seconds();
-    deps.storage.set(&k, &to_vec(&esc)?);
+    deps.storage.set(&k, &to_json_bytes(&esc)?);
 
-    let coins: Vec<Coin> = vec![Coin {
-        denom:  "uatom".to_string(),
-        amount: Uint128::new(esc.amount),
-    }];
+    // Return funds to the locker in the SAME denom(s) that were locked
+    let coins: Vec<Coin> = esc
+        .denom
+        .split('+')
+        .map(|d| Coin { denom: d.to_string(), amount: Uint128::new(esc.amount) })
+        .collect();
     Ok(Response::new()
         .add_message(BankMsg::Send { to_address: esc.locked_by.to_string(), amount: coins })
         .add_attribute("action", "revert_escrow")
@@ -505,7 +528,7 @@ fn execute_register_intent(
         created_at: env.block.time.seconds(),
         submitter:  info.sender.clone(),
     };
-    deps.storage.set(&k, &to_vec(&intent)?);
+    deps.storage.set(&k, &to_json_bytes(&intent)?);
     Ok(Response::new().add_attribute("action", "register_intent"))
 }
 
@@ -518,14 +541,14 @@ fn execute_update_intent_status(
 ) -> StdResult<Response> {
     require_owner_or_relayer(&deps, &info)?;
     let k = key(PREFIX_INTENTS, &intent_hash);
-    let mut it: Intent = serde_json::from_slice(
+    let mut it: Intent = from_json_bytes(
         &deps.storage.get(&k).ok_or_else(|| StdError::generic_err("TRION: intent not found"))?
     )?;
     if !valid_transition(it.status, new_status) {
         return Err(StdError::generic_err("TRION: invalid transition"));
     }
     it.status = new_status;
-    deps.storage.set(&k, &to_vec(&it)?);
+    deps.storage.set(&k, &to_json_bytes(&it)?);
     Ok(Response::new()
         .add_attribute("action", "update_intent_status")
         .add_attribute("new_status", new_status.to_string()))
@@ -582,7 +605,7 @@ fn execute_register_route(
         created_at:           env.block.time.seconds(),
         finalized_at:         0,
     };
-    deps.storage.set(&k, &to_vec(&route)?);
+    deps.storage.set(&k, &to_json_bytes(&route)?);
     Ok(Response::new().add_attribute("action", "register_route"))
 }
 
@@ -604,7 +627,7 @@ fn execute_finalize_route(
         return Err(StdError::generic_err("TRION: invalid score"));
     }
     let k = key(PREFIX_ROUTES, &route_id);
-    let mut r: Route = serde_json::from_slice(
+    let mut r: Route = from_json_bytes(
         &deps.storage.get(&k).ok_or_else(|| StdError::generic_err("TRION: route not found"))?
     )?;
     if r.is_verified {
@@ -616,7 +639,7 @@ fn execute_finalize_route(
     r.cc_coherence          = cc_coherence;
     r.is_verified           = true;
     r.finalized_at          = env.block.time.seconds();
-    deps.storage.set(&k, &to_vec(&r)?);
+    deps.storage.set(&k, &to_json_bytes(&r)?);
     Ok(Response::new().add_attribute("action", "finalize_route"))
 }
 
@@ -635,7 +658,7 @@ fn execute_set_gate_threshold(
     }
     let k = key(b"trion::gates::", &gate_id);
     let mut g: GateState = match deps.storage.get(&k) {
-        Some(v) => serde_json::from_slice(&v)?,
+        Some(v) => from_json_bytes(&v)?,
         None => GateState {
             gate_id: gate_id.clone(),
             custom_threshold: 0,
@@ -647,7 +670,7 @@ fn execute_set_gate_threshold(
         },
     };
     g.custom_threshold = threshold;
-    deps.storage.set(&k, &to_vec(&g)?);
+    deps.storage.set(&k, &to_json_bytes(&g)?);
     Ok(Response::new().add_attribute("action", "set_gate_threshold"))
 }
 
@@ -665,7 +688,7 @@ fn execute_check_execution(
     }
     let k = key(b"trion::gates::", &gate_id);
     let mut g: GateState = match deps.storage.get(&k) {
-        Some(v) => serde_json::from_slice(&v)?,
+        Some(v) => from_json_bytes(&v)?,
         None => GateState {
             gate_id: gate_id.clone(),
             custom_threshold: 0,
@@ -686,7 +709,7 @@ fn execute_check_execution(
     } else {
         g.block_count += 1;
     }
-    deps.storage.set(&k, &to_vec(&g)?);
+    deps.storage.set(&k, &to_json_bytes(&g)?);
     if !passed {
         return Err(StdError::generic_err("TRION: gate blocked"));
     }
@@ -706,7 +729,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(PREFIX_SIGNALS, &entity_id);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let sig: Signal = serde_json::from_slice(&v)?;
+                    let sig: Signal = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&sig)?)
                 }
                 None => Err(StdError::not_found("signal")),
@@ -716,7 +739,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(PREFIX_SIGNALS, &route_id);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let r: BTCPRoute = serde_json::from_slice(&v)?;
+                    let r: BTCPRoute = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&r)?)
                 }
                 None => Err(StdError::not_found("btcp_route")),
@@ -726,7 +749,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(PREFIX_ESCROWS, &escrow_id);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let e: Escrow = serde_json::from_slice(&v)?;
+                    let e: Escrow = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&e)?)
                 }
                 None => Err(StdError::not_found("escrow")),
@@ -736,7 +759,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(PREFIX_INTENTS, &intent_hash);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let i: Intent = serde_json::from_slice(&v)?;
+                    let i: Intent = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&i)?)
                 }
                 None => Err(StdError::not_found("intent")),
@@ -746,7 +769,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(PREFIX_ROUTES, &route_id);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let r: Route = serde_json::from_slice(&v)?;
+                    let r: Route = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&r)?)
                 }
                 None => Err(StdError::not_found("route")),
@@ -756,7 +779,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<cosmwasm_std::Bin
             let k = key(b"trion::gates::", &gate_id);
             match deps.storage.get(&k) {
                 Some(v) => {
-                    let g: GateState = serde_json::from_slice(&v)?;
+                    let g: GateState = from_json_bytes(&v)?;
                     Ok(cosmwasm_std::to_json_binary(&g)?)
                 }
                 None => Err(StdError::not_found("gate")),
