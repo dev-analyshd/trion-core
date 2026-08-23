@@ -1,14 +1,20 @@
 [package]
-name = "trion-xrpl"
+name    = "trion-xrpl"
 version = "2.1.0"
 edition = "2021"
+description = "TRION XRPL (XRP Ledger) behavioral indexer — public rippled JSON-RPC"
+
+[[bin]]
+name = "trion-xrpl"
+path = "src/main.rs"
 
 [dependencies]
-tokio = { workspace = true, features = ["full"] }
-reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-anyhow = { workspace = true }
-async-trait = { workspace = true }
 trion-common = { path = "../trion-common" }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow       = { workspace = true }
+async-trait  = { workspace = true }

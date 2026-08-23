@@ -19,19 +19,21 @@ interface ITRIONOracleV3 {
     /// @notice Emitted when a thermodynamic signal is etched on-chain.
     event ThermodynamicSignalEtched(
         bytes32 indexed txId,
-        uint256 packedData,
-        uint256 timestamp
+        uint8 status,
+        uint32 coherence,
+        uint32 threshold
     );
 
     /// @notice Emitted when a signal with status=NOMINAL (1) is published.
-    event EntropyNominal(bytes32 indexed txId, uint256 coherence, uint256 threshold);
+    event EntropyNominal(bytes32 indexed txId, uint32 coherence, uint32 threshold, uint64 blockNum);
 
     /// @notice Emitted when a signal is intercepted due to thermodynamic collapse.
     event ThermodynamicCollapseIntercepted(
         bytes32 indexed txId,
-        uint8 status,
-        uint256 coherence,
-        uint256 threshold
+        address indexed caller,
+        uint32 coherence,
+        uint32 threshold,
+        uint256 packedData
     );
 
     /// @notice Emitted when a BTCP route is published.
@@ -46,11 +48,7 @@ interface ITRIONOracleV3 {
         uint256 moatFactor,
         bool coherent,
         uint8 limitingPlane,
-        uint64 phiPlane,
-        uint64 mentalPlane,
-        uint64 sigmaPlane,
-        uint64 consciousPlane,
-        uint64 animaPlane,
+        uint256 planesPacked,
         uint64 signalBlock,
         uint64 signalTimestamp
     );
@@ -80,6 +78,10 @@ interface ITRIONOracleV3 {
     }
 
     /// @notice Full behavioral signal with entity context and plane data.
+    /// @dev Plane scores are packed into `planesPacked` (×1e6, 32 bits each):
+    ///      phi[0..32) mental[32..64) sigma[64..96) conscious[96..128) anima[128..160).
+    ///      signalBlock/signalTimestamp packed into `timingPacked` (64 bits each).
+    ///      Packing keeps the struct within EVM stack limits for viaIR codegen.
     struct BehavioralSignal {
         bytes32 entityId;
         bytes32 publicCommitment;
@@ -88,15 +90,17 @@ interface ITRIONOracleV3 {
         uint256 moatFactor;
         bool coherent;
         uint8 limitingPlane;
-        uint64 phiPlane;
-        uint64 mentalPlane;
-        uint64 sigmaPlane;
-        uint64 consciousPlane;
-        uint64 animaPlane;
-        uint64 signalBlock;
-        uint64 signalTimestamp;
+        uint256 planesPacked;
+        uint256 timingPacked;
         bool initialized;
     }
+
+    /// @notice Unpack a plane score from planesPacked. planeIndex 0=phi 1=mental 2=sigma 3=conscious 4=anima.
+    function unpackPlane(uint256 planesPacked, uint8 planeIndex) external pure returns (uint64);
+
+    /// @notice Pack five plane scores (×1e6) into one uint256.
+    function packPlanes(uint64 phi, uint64 mental, uint64 sigma, uint64 conscious, uint64 anima)
+        external pure returns (uint256);
 
     /// @notice Publish a behavioral signal (legacy path).
     function publishSignal(
@@ -136,22 +140,10 @@ interface ITRIONOracleV3 {
         );
 
     /// @notice Publish a full behavioral signal with entity context and plane data.
-    function publishBehavioralSignal(
-        bytes32 entityId,
-        bytes32 publicCommitment,
-        uint256 coherenceScore,
-        uint256 threshold,
-        uint256 moatFactor,
-        bool coherent,
-        uint8 limitingPlane,
-        uint64 phiPlane,
-        uint64 mentalPlane,
-        uint64 sigmaPlane,
-        uint64 consciousPlane,
-        uint64 animaPlane
-    ) external;
+    /// @param s Complete BehavioralSignal struct (signalBlock/timestamp/initialized set on-chain).
+    function publishBehavioralSignal(BehavioralSignal calldata s) external;
 
-    /// @notice Get the full behavioral signal for an entity.
+    /// @notice Get the core behavioral signal fields for an entity.
     function getBehavioralSignal(bytes32 entityId) external view returns (
         bytes32 publicCommitment,
         uint256 coherenceScore,
@@ -159,14 +151,18 @@ interface ITRIONOracleV3 {
         uint256 moatFactor,
         bool coherent,
         uint8 limitingPlane,
+        bool initialized
+    );
+
+    /// @notice Get the five-plane breakdown for an entity's signal.
+    function getBehavioralSignalPlanes(bytes32 entityId) external view returns (
         uint64 phiPlane,
         uint64 mentalPlane,
         uint64 sigmaPlane,
         uint64 consciousPlane,
         uint64 animaPlane,
         uint64 signalBlock,
-        uint64 signalTimestamp,
-        bool initialized
+        uint64 signalTimestamp
     );
 
     function addValidator(address v) external;

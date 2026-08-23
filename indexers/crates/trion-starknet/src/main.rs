@@ -69,7 +69,7 @@ fn extract_features(block: &Value) -> [f64; 9] {
     let mut fee_tokens:    Vec<String> = Vec::new();
     let mut l1_gas_bounds: Vec<f64>    = Vec::new();
     let mut call_counts:   Vec<f64>    = Vec::new();
-    let (mut succeeded, mut reverted) = (0u64, 0u64);
+    let (mut succeeded, reverted) = (0u64, 0u64);
     let mut event_counts:  Vec<f64>    = Vec::new();
 
     for tx in txs {
@@ -185,7 +185,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(6_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("starknet_mainnet");
+    let state = IndexerState::new("starknet_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
     let mut rpc_idx = 0usize;
 
