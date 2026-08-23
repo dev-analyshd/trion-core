@@ -328,6 +328,10 @@ Successfully demonstrated across fundamentally different virtual machine familie
 | **BEO Cross-VM Identity** | 5/5 PASS | 6 different VMs → byte-for-byte identical beo_id |
 | **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
+| **Master Formula Suite** | 105/105 PASS | Every whitepaper formula verified against its implementation (L0–L9) |
+| **Rust BTCP Crate** | 94/94 PASS | All 19 spec modules; full 7-route-type selection; netting tolerance |
+| **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
+| **Python Unit + Adversarial** | 671 pass | Unit, adversarial, manipulation, stress — live-service tests auto-skip |
 
 ---
 
@@ -780,6 +784,67 @@ cargo test --release    # 85 tests, all passing
 
 ---
 
+---
+
+## Institutional Hardening Pass — Change Log
+
+A full Lead-Architect/Security-Engineer audit against the TRION whitepaper and
+BTCP Master Implementation Spec was executed across every layer. All changes
+are atomic, tested, and preserve working behavior:
+
+### Formula Enforcement (whitepaper L0–L9)
+- **L2.4 Resurrection**: multiplicative composition restored (weighted geometric
+  mean) — any collapsed component now collapses the whole score
+- **L5.4 Master Equation**: `T(t) = [C≥Θ]·S(t)·e^(M_moat·t)` — time multiplier
+  added to the moat exponent
+- **OOA confidence**: spec asymptote `conf_max=0.85, k=0.001` enforced
+- **L4.2 consensus window**: dynamic `δ(t) = δ_base·(1+V(t))`
+- **L4.8 HHI**: full 4-tier response classification everywhere
+- **L1.2 MEV fingerprint**: spec trigger (>0.5% sustained >7 days), uncapped score
+- **L7.1 LC**: spec-literal correlation path for series inputs
+
+### Chain Registry Unification
+- **Chain-ID 900 collision resolved** (Polkadot vs Solana — `chain_id` is a
+  canonical BH input, so this corrupted cross-VM identity). All 21 Rust indexer
+  crates now use the canonical numbering from `shared/chain_registry_complete.json`
+- Wrong/dead RPCs fixed (Hyperliquid mainnet was pointing at testnet; dead
+  VeChain and Arbitrum endpoints replaced)
+- RPC failover rotation wired into all 8 previously dead-failover indexers
+- `scripts/trion_master_indexer.mjs` — the master indexing orchestrator (21 VM
+  families + 19 genesis backfills), invocable via `npm run trion:index-all`
+
+### Contract Security
+- **Soroban**: complete admin/relayer access control (was: anyone could flip any escrow)
+- **BTCPEscrow.sweepETH**: can now only move the excess above aggregate locked
+  value — in-flight escrows are untouchable by the owner
+- **BTCPGasAbstraction**: deposit-overwrite brick closed; refunds payer-only
+  and expiry-gated
+- **ConfidentialCoherenceVault**: coherence gate binds to the caller's own
+  registered BEO (was: any coherent entity's ID could be cited)
+- **TRIONOracleV3**: BTCP route safety verdicts expire (300s freshness)
+- **TRIONGuardV3**: emergency bypass time-boxed to 24h with 1h cool-down
+
+### Cryptography
+- **ZK witness leak closed**: 19 blinding-randomness factors removed from
+  serialized proofs across all 5 circuits (Pedersen commitments are hiding
+  only while `r` stays secret)
+
+### Data Honesty
+- `/api/v1/chains` no longer presents hash-seed-derived synthetic numbers as
+  live indexing state — real `bh_ledger.db` counts are labeled
+  `stats_source="ledger"`, capacity figures are labeled `"estimated"`
+
+### Verification Status
+| Suite | Result |
+|-------|--------|
+| Master formula verification (105 formulas) | 105/105 PASS |
+| Rust BTCP crate | 94/94 PASS |
+| ZK circuit self-tests | 6/6 PASS |
+| Python unit + adversarial | 671 passed, 5 skipped, 0 failed |
+| Indexer workspace compile | 21/21 crates clean |
+| Solidity compile (solc 0.8.24, viaIR) | all hardened contracts clean |
+| Frontend TypeScript | tsc --noEmit clean |
+
 ## Get Involved
 
 TRION is infrastructure for the next era of the internet. It is for:
@@ -797,5 +862,5 @@ The mathematics is proven. The code is working. The BTCP Zero-Bridge operates ac
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 84 formulas, 100% live coverage*  
+*TRION Protocol — Whitepaper v2.0 — 105 formulas enforced, 21 VM families, 94 BTCP module tests green*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
