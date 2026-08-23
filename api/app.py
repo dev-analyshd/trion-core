@@ -254,12 +254,24 @@ try:
     _log.info("BTCP + CONTINUUM routes registered")
 
     # ── Auto-start the real-time BH streamer ──────────────────────────────────
-    try:
-        from core.realtime.bh_streamer import start_streamer as _start_bh_streamer
-        _start_bh_streamer()
-        _log.info("Real-time BH streamer started — indexing 7 EVM chains via public RPCs")
-    except Exception as _streamer_err:
-        _log.warning("BH streamer auto-start failed: %s", _streamer_err)
+    # GATED: in production the entrypoint owns exactly ONE streamer process
+    # (scripts/run_bh_streamer.py). Without this gate, every gunicorn worker
+    # spawns its own 78-thread streamer → N_workers × 78 threads flooding a
+    # single-threaded FAISS process (caused total overload in live testing).
+    _streamer_enabled = (
+        os.environ.get("TRION_ENABLE_STREAMER", "0") == "1"
+        and os.environ.get("PYTEST_CURRENT_TEST") is None
+    )
+    if _streamer_enabled:
+        try:
+            from core.realtime.bh_streamer import start_streamer as _start_bh_streamer
+            _start_bh_streamer()
+            _log.info("Real-time BH streamer started (in-process)")
+        except Exception as _streamer_err:
+            _log.warning("BH streamer auto-start failed: %s", _streamer_err)
+    else:
+        _log.info("In-process streamer disabled (TRION_ENABLE_STREAMER=0) — "
+                  "entrypoint owns the dedicated streamer process")
 
 except Exception as _btcp_err:
     _btcp_continuum_available = False
@@ -2432,7 +2444,7 @@ except Exception as _e:
     _awa_ok = False
 
 try:
-    from core.governance.sba_engine import (
+    from core.governance.falsifiability_registry import (
         get_all_conditions, get_summary as _f_summary, update_condition_status
     )
     _falsifiability_ok = True
