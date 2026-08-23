@@ -48,6 +48,11 @@ impl BTCPContract {
         dest_chain: u64,
         magnitude: u128,
     ) {
+        // SECURITY: relayer-gated intent registration (same policy as escrows)
+        require!(
+            env::predecessor_account_id() == self.relayer,
+            "Only relayer can register intents"
+        );
         let record = IntentRecord {
             entity_id,
             source_chain,
@@ -70,8 +75,16 @@ impl BTCPContract {
         destination: AccountId,
         timeout_blocks: u64,
     ) {
+        // SECURITY: only the relayer (TRION bridge) or the relayer-approved
+        // flow can create escrows — previously ANY account could register
+        // arbitrary escrows, enabling state pollution and destination spoofing.
+        require!(
+            env::predecessor_account_id() == self.relayer,
+            "Only relayer can lock escrows"
+        );
         let amount = env::attached_deposit().as_yoctonear();
         require!(amount > 0, "Must attach NEAR");
+        require!(timeout_blocks > 0, "Timeout must be positive");
         let record = EscrowRecord {
             entity_id,
             destination,

@@ -1,0 +1,341 @@
+;; escrow.fc — TRION BTCP_ESCROW (TVM / FunC)
+;;
+;; The flagship BTCP escrow on TON — mirrors contracts/solidity/BTCPEscrow.sol.
+;; Two-state atomic escrow: HOLDING -> RELEASED | REVERTED. No partial execution.
+;;
+;; Value model: the escrow is a VAULT — message value of lock_escrow IS the
+;; locked amount (nanoTON), held by this contract until release/revert.
+;;
+;; Storage layout (cell):
+;;   owner_addr    (267 bits, MsgAddressInt)
+;;   relayer_addr  (267 bits, MsgAddressInt)
+;;   escrow_count  (64 bits)
+;;   escrows_dict  (dict ref, key = 256-bit escrow_id, value = escrow cell)
+;;
+;; Escrow cell layout:
+;;   escrow_id      [256 bits]
+;;   route_id       [256 bits]
+;;   entity_id      [256 bits]
+;;   destination    [267 bits MsgAddressInt]
+;;   amount         [128 bits nanoTON]
+;;   min_coherence  [64 bits]  (×1_000_000)
+;;   lock_ts        [64 bits]  (unix seconds at lock)
+;;   timeout_secs   [64 bits]
+;;   state          [8 bits]   0=HOLDING 1=RELEASED 2=REVERTED 3=EMERGENCY_REVERTED
+;;   revert_reason  [8 bits]
+;;   settled_at     [64 bits]
+;;   reverted_at    [64 bits]
+;;   locked_by      [267 bits MsgAddressInt]
+;;
+;; Op codes:
+;;   0x01 lock_escrow          (relayer/owner, carries value)
+;;   0x02 release_escrow       (relayer/owner; coherence >= min; not expired)
+;;   0x03 revert_escrow        (relayer/owner; anyone if expired)
+;;   0x04 emergency_revert     (ANYONE; after 7 days — Gap 8 escape hatch)
+;;   0x05 set_relayer          (owner)
+;;   0x06 transfer_ownership   (owner)
+;;
+;; Whitepaper: BTCP §4.3 (Six-Step Execution) + §11 (Five Final Fixes).
+
+#include "stdlib.fc";
+
+;; ── Error codes ───────────────────────────────────────────────────────────────
+const int ERR_UNAUTHORIZED        = 100;
+const int ERR_ESCROW_EXISTS       = 120;
+const int ERR_ESCROW_NOT_FOUND    = 121;
+const int ERR_NOT_HOLDING         = 122;
+const int ERR_EXPIRED             = 123;
+const int ERR_COHERENCE_INSUFF    = 124;
+const int ERR_ZERO_AMOUNT         = 125;
+const int ERR_ZERO_TIMEOUT        = 126;
+const int ERR_EMERGENCY_NOT_YET   = 127;
+const int ERR_INVALID_COHERENCE   = 128;
+const int ERR_SEND_FAILED         = 129;
+
+;; ── States ────────────────────────────────────────────────────────────────────
+const int STATE_HOLDING           = 0;
+const int STATE_RELEASED          = 1;
+const int STATE_REVERTED          = 2;
+const int STATE_EMERGENCY_REVERTED = 3;
+
+;; Gap 8: absolute maximum lockup — 7 days, after which ANYONE can revert
+const int EMERGENCY_ESCAPE_SECONDS = 604800;
+
+;; ── Storage helpers ───────────────────────────────────────────────────────────
+
+(slice, slice, int, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr   = ds~load_bits(267);
+    slice relayer_addr = ds~load_bits(267);
+    int   escrow_count = ds~load_uint(64);
+    cell  escrows_dict = ds~load_ref();
+    return (owner_addr, relayer_addr, escrow_count, escrows_dict);
+}
+
+() save_storage(slice owner_addr, slice relayer_addr, int escrow_count, cell escrows_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_slice(relayer_addr)
+        .store_uint(escrow_count, 64)
+        .store_ref(escrows_dict)
+    .end_cell());
+}
+
+int is_authorized(slice sender, slice owner_addr, slice relayer_addr) inline {
+    return equal_slices(sender, owner_addr) | equal_slices(sender, relayer_addr);
+}
+
+;; ── Escrow (de)serialisation ─────────────────────────────────────────────────
+
+cell pack_escrow(int escrow_id, int route_id, int entity_id, slice destination,
+                 int amount, int min_coherence, int lock_ts, int timeout_secs,
+                 int state, int revert_reason, int settled_at, int reverted_at,
+                 slice locked_by) inline {
+    return begin_cell()
+        .store_uint(escrow_id,     256)
+        .store_uint(route_id,      256)
+        .store_uint(entity_id,     256)
+        .store_slice(destination)          ;; 267 bits
+        .store_uint(amount,        128)
+        .store_uint(min_coherence,  64)
+        .store_uint(lock_ts,        64)
+        .store_uint(timeout_secs,   64)
+        .store_uint(state,           8)
+        .store_uint(revert_reason,   8)
+        .store_uint(settled_at,      64)
+        .store_uint(reverted_at,     64)
+        .store_slice(locked_by)             ;; 267 bits
+    .end_cell();
+}
+
+;; Unpacks from the dict value slice (dict stores the cell body directly).
+(int, int, int, slice, int, int, int, int, int, int, int, int, slice) unpack_escrow(slice s) inline {
+    int escrow_id     = s~load_uint(256);
+    int route_id      = s~load_uint(256);
+    int entity_id     = s~load_uint(256);
+    slice destination = s~load_bits(267);
+    int amount        = s~load_uint(128);
+    int min_coherence = s~load_uint(64);
+    int lock_ts       = s~load_uint(64);
+    int timeout_secs  = s~load_uint(64);
+    int state         = s~load_uint(8);
+    int revert_reason = s~load_uint(8);
+    int settled_at    = s~load_uint(64);
+    int reverted_at   = s~load_uint(64);
+    slice locked_by   = s~load_bits(267);
+    return (escrow_id, route_id, entity_id, destination, amount, min_coherence,
+            lock_ts, timeout_secs, state, revert_reason, settled_at, reverted_at, locked_by);
+}
+
+;; The stdlib dict API differs between versions; use the portable pattern:
+() dict_put_escrow(cell &escrows_dict, int escrow_id, cell esc) impure inline {
+    escrows_dict~idict_set_ref(256, escrow_id, esc);
+}
+
+cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
+    (cell esc, int found) = idict_get_ref?(escrows_dict, 256, escrow_id);
+    throw_unless(ERR_ESCROW_NOT_FOUND, found);
+    return esc;
+}
+
+;; ── Value transfer ────────────────────────────────────────────────────────────
+
+() send_ton(slice to_addr, int amount, int force_bounce) impure inline {
+    var msg = begin_cell()
+        .store_uint(0x18, 6)                       ;; bounceable (0x18) / +0x10 non-bounce
+        .store_slice(to_addr)
+        .store_grams(0)                            ;; fwd fee stub
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; ihr_disabled+bounce+flags+op
+        .store_grams(amount)                       ;; value
+        .store_uint(0, 64);                        ;; extra currency
+    if force_bounce {
+        ;; mark non-bounceable so emergency payouts never loop
+        msg = begin_cell()
+            .store_uint(0x10, 6)
+            .store_slice(to_addr)
+            .store_grams(0)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_grams(amount)
+            .store_uint(0, 64);
+    }
+    send_raw_message(msg.end_cell(), 3);           ;; pay fees separately + ignore errors
+}
+
+;; ── Main receive ──────────────────────────────────────────────────────────────
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int  flags = cs~load_uint(4);                  ;; int_msg_info flags
+    throw_if(ERR_UNAUTHORIZED, flags & 1);         ;; bounced message — ignore
+    slice sender_addr = cs~load_bits(267);
+
+    int op = in_msg_body~load_uint(8);
+
+    (slice owner_addr, slice relayer_addr, int escrow_count, cell escrows_dict) = load_storage();
+    int now = now();
+
+    ;; ── 0x01 lock_escrow ────────────────────────────────────────────────────
+    if (op == 1) {
+        throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        int escrow_id     = in_msg_body~load_uint(256);
+        int route_id      = in_msg_body~load_uint(256);
+        int entity_id     = in_msg_body~load_uint(256);
+        slice destination = in_msg_body~load_bits(267);
+        int min_coherence = in_msg_body~load_uint(64);
+        int timeout_secs  = in_msg_body~load_uint(64);
+
+        throw_unless(ERR_ZERO_AMOUNT, msg_value > 0);
+        throw_unless(ERR_ZERO_TIMEOUT, timeout_secs > 0);
+        throw_unless(ERR_INVALID_COHERENCE, min_coherence <= 1000000);
+
+        ;; Reject duplicate escrow_id
+        (cell existing, int found) = idict_get_ref?(escrows_dict, 256, escrow_id);
+        throw_if(ERR_ESCROW_EXISTS, found);
+
+        cell esc = pack_escrow(escrow_id, route_id, entity_id, destination,
+                               msg_value, min_coherence, now, timeout_secs,
+                               STATE_HOLDING, 0, 0, 0, sender_addr);
+        escrows_dict~dict_put_escrow(escrow_id, esc);
+        save_storage(owner_addr, relayer_addr, escrow_count + 1, escrows_dict);
+        return ();
+    }
+
+    ;; All remaining ops need the escrow record; op-specific body parse below.
+    ;; ── 0x02 release_escrow ─────────────────────────────────────────────────
+    if (op == 2) {
+        throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        int escrow_id    = in_msg_body~load_uint(256);
+        int execution_bh = in_msg_body~load_uint(256);
+        int coherence    = in_msg_body~load_uint(64);
+        ;; execution_bh is recorded in the release event; unused for state.
+
+        cell esc_cell = dict_get_escrow(escrows_dict, escrow_id);
+        var (eid, rid, entid, destination, amount, min_coherence, lock_ts,
+             timeout_secs, state, rreason, settled_at, reverted_at, locked_by)
+            = unpack_escrow(esc_cell.begin_parse());
+
+        throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
+        throw_unless(ERR_EXPIRED, now <= lock_ts + timeout_secs);
+        throw_unless(ERR_COHERENCE_INSUFF, coherence >= min_coherence);
+
+        ;; State transition BEFORE the external send (CEI pattern)
+        cell released = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+                                    lock_ts, timeout_secs, STATE_RELEASED,
+                                    rreason, now, reverted_at, locked_by);
+        escrows_dict~dict_put_escrow(escrow_id, released);
+        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+
+        send_ton(destination, amount, 0);
+        return ();
+    }
+
+    ;; ── 0x03 revert_escrow ──────────────────────────────────────────────────
+    if (op == 3) {
+        int escrow_id = in_msg_body~load_uint(256);
+        int reason    = in_msg_body~load_uint(8);
+
+        cell esc_cell = dict_get_escrow(escrows_dict, escrow_id);
+        var (eid, rid, entid, destination, amount, min_coherence, lock_ts,
+             timeout_secs, state, rreason, settled_at, reverted_at, locked_by)
+            = unpack_escrow(esc_cell.begin_parse());
+
+        throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
+
+        int is_timeout = now > lock_ts + timeout_secs;
+        if (is_timeout) {
+            reason = 0; ;; TIMEOUT — anyone may revert
+        } else {
+            throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+            throw_if(ERR_ZERO_TIMEOUT, reason == 0); ;; non-timeout revert needs non-zero reason
+        }
+
+        cell reverted = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+                                    lock_ts, timeout_secs, STATE_REVERTED,
+                                    reason, settled_at, now, locked_by);
+        escrows_dict~dict_put_escrow(escrow_id, reverted);
+        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+
+        ;; Force Majeure: funds return to the locker on the SOURCE chain
+        send_ton(locked_by, amount, 1);
+        return ();
+    }
+
+    ;; ── 0x04 emergency_revert — Gap 8 escape hatch ──────────────────────────
+    if (op == 4) {
+        int escrow_id = in_msg_body~load_uint(256);
+
+        cell esc_cell = dict_get_escrow(escrows_dict, escrow_id);
+        var (eid, rid, entid, destination, amount, min_coherence, lock_ts,
+             timeout_secs, state, rreason, settled_at, reverted_at, locked_by)
+            = unpack_escrow(esc_cell.begin_parse());
+
+        throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
+        throw_unless(ERR_EMERGENCY_NOT_YET, now >= lock_ts + EMERGENCY_ESCAPE_SECONDS);
+
+        cell emergency = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+                                     lock_ts, timeout_secs, STATE_EMERGENCY_REVERTED,
+                                     6, settled_at, now, locked_by);
+        escrows_dict~dict_put_escrow(escrow_id, emergency);
+        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+
+        send_ton(locked_by, amount, 1);
+        return ();
+    }
+
+    ;; ── 0x05 set_relayer ────────────────────────────────────────────────────
+    if (op == 5) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        slice new_relayer = in_msg_body~load_bits(267);
+        save_storage(owner_addr, new_relayer, escrow_count, escrows_dict);
+        return ();
+    }
+
+    ;; ── 0x06 transfer_ownership ─────────────────────────────────────────────
+    if (op == 6) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        slice new_owner = in_msg_body~load_bits(267);
+        save_storage(new_owner, relayer_addr, escrow_count, escrows_dict);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+(int, int, int, int) get_escrow_state(int escrow_id) method_id {
+    (_, _, _, cell escrows_dict) = load_storage();
+    cell esc = dict_get_escrow(escrows_dict, escrow_id);
+    var (_, _, _, _, amount, min_coherence, lock_ts, timeout_secs, state, _, _, _, _)
+        = unpack_escrow(esc.begin_parse());
+    return (amount, min_coherence, state, lock_ts + timeout_secs);
+}
+
+int get_escrow_count() method_id {
+    (_, _, int escrow_count, _) = load_storage();
+    return escrow_count;
+}
+
+int is_expired(int escrow_id) method_id {
+    (_, _, _, cell escrows_dict) = load_storage();
+    cell esc = dict_get_escrow(escrows_dict, escrow_id);
+    var (_, _, _, _, _, _, lock_ts, timeout_secs, state, _, _, _, _)
+        = unpack_escrow(esc.begin_parse());
+    return (state == STATE_HOLDING) & (now() > lock_ts + timeout_secs);
+}
+
+int emergency_available(int escrow_id) method_id {
+    (_, _, _, cell escrows_dict) = load_storage();
+    cell esc = dict_get_escrow(escrows_dict, escrow_id);
+    var (_, _, _, _, _, _, lock_ts, _, state, _, _, _, _)
+        = unpack_escrow(esc.begin_parse());
+    return (state == STATE_HOLDING) & (now() >= lock_ts + EMERGENCY_ESCAPE_SECONDS);
+}
+
+slice get_owner() method_id {
+    (slice owner_addr, _, _, _) = load_storage();
+    return owner_addr;
+}
+
+slice get_relayer() method_id {
+    (_, slice relayer_addr, _, _) = load_storage();
+    return relayer_addr;
+}

@@ -144,6 +144,13 @@ pub mod BTCPEscrow {
             let existing = self.escrows.read(escrow_id);
             assert(existing.amount == 0_u256, 'BTCP: escrow exists');
 
+            // Starknet does not expose block height in Cairo contracts; the
+            // lock anchor is the block TIMESTAMP and timeout_blocks is
+            // interpreted as seconds-on-chain (1 block ≈ 1s on Starknet mainnet,
+            // so the numeric value remains block-equivalent). Previously this
+            // was hardcoded 0, which broke every timeout computation.
+            let lock_ts = get_block_timestamp();
+
             let rec = EscrowRecord {
                 escrow_id,
                 route_id,
@@ -151,7 +158,7 @@ pub mod BTCPEscrow {
                 destination,
                 amount,
                 min_coherence,
-                lock_height: 0_u64, // Starknet doesn't expose block height natively
+                lock_height: lock_ts,
                 timeout_blocks,
                 state: STATE_HOLDING,
                 revert_reason: 0_u8,
@@ -182,6 +189,13 @@ pub mod BTCPEscrow {
             let mut rec = self.escrows.read(escrow_id);
             assert(rec.amount != 0_u256, 'BTCP: not found');
             assert(rec.state == STATE_HOLDING, 'BTCP: not holding');
+            // SPEC: release requires NOT expired. Previously this check was
+            // missing entirely — a stale escrow could be released long after
+            // its timeout had passed.
+            assert(
+                get_block_timestamp() <= rec.lock_height + rec.timeout_blocks,
+                'BTCP: expired',
+            );
             assert(coherence >= rec.min_coherence, 'BTCP: coherence insufficient');
 
             rec.state       = STATE_RELEASED;

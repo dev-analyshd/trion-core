@@ -1,10 +1,10 @@
 //! TRIONStaking — ink! (Polkadot PVM)
 //! Validator staking with coverage_tier_multiplier
-#![cfg_attr(not(feature = "std"), no_std)]
-use ink::storage::Mapping;
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 #[ink::contract]
 mod trion_staking {
+    use ink::storage::Mapping;
     #[ink(storage)]
     pub struct Staking {
         stakes: Mapping<AccountId, Balance>,

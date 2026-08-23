@@ -1,10 +1,10 @@
 //! TRIONToken — ink! (Polkadot PVM)
 //! 0% inflation, 7-type slashing, 50/50 insurance/burn
-#![cfg_attr(not(feature = "std"), no_std)]
-use ink::storage::Mapping;
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 #[ink::contract]
 mod trion_token {
+    use ink::storage::Mapping;
     use super::*;
 
     #[ink(storage)]
