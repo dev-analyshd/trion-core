@@ -77,6 +77,10 @@ import {
 } from '../views/ui_assessment';
 import { WalletBTCPPage, WalletContinuumPage } from '../views/wallet_pages';
 import {
+  HomePage, ZeroBridgePage, WitnessPage, BEODashboardPage,
+  ActionEconomyPage, DigitalSelfPage,
+} from '../views/core_principles';
+import {
   ValidatorsPage, ValidatorHHIPage, AnnotatorsPage, BootstrapPage, ReputationPage,
   ZeroGFullStackPage, ZeroGStoragePage, ZeroGDAPage, ZeroGComputePage, ZeroGChainPage,
   ZeroGProofPage, ZeroGVMFamiliesPage,
@@ -89,6 +93,13 @@ import {
 } from '../views/infrastructure';
 
 const PAGE_MAP: Record<string, React.ComponentType> = {
+  // Core-principles pages (whitepaper-aligned)
+  home: HomePage,
+  zero_bridge: ZeroBridgePage,
+  witness: WitnessPage,
+  beo_dashboard: BEODashboardPage,
+  action_economy: ActionEconomyPage,
+  digital_self: DigitalSelfPage,
   // New redesigned dashboard is default
   dashboard: RedesignedDashboard,
   // Overview
@@ -237,6 +248,12 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
 };
 
 const PAGE_TITLES: Record<string, string> = {
+  home: 'Home',
+  zero_bridge: 'Zero-Bridge Exchange',
+  witness: 'Witness',
+  beo_dashboard: 'BEO Dashboard',
+  action_economy: 'Action Economy',
+  digital_self: 'Digital Self',
   dashboard: 'Dashboard',
   architecture: 'Architecture Flow',
   vision: 'Protocol Vision',

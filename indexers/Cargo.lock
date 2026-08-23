@@ -1216,6 +1216,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "trion-algorand"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
 name = "trion-aptos"
 version = "0.1.0"
 dependencies = [
@@ -1241,6 +1256,21 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-cardano"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

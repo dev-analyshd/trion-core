@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "crates/trion-xrpl",
+    "crates/trion-algorand",
+    "crates/trion-cardano",
     "crates/trion-waves",
     "crates/trion-vechain",
     "crates/trion-multiversx",
