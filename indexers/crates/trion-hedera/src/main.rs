@@ -191,7 +191,8 @@ async fn main() -> Result<()> {
 
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
-    let base      = std::env::var("HEDERA_RPC_URL").unwrap_or_else(|_| HEDERA_RPCS[0].into());
+    let mut base  = std::env::var("HEDERA_RPC_URL").unwrap_or_else(|_| HEDERA_RPCS[0].into());
+    let mut rpc_idx = 0usize;  // RPC failover rotation index
     let faiss     = FaissClient::new(&faiss_url)?;
     let state = IndexerState::new("hedera");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
@@ -203,7 +204,7 @@ async fn main() -> Result<()> {
 
         let latest = match get_latest_block(&client, &base).await {
             Ok(n) => n,
-            Err(e) => { warn!("Hedera latest block error: {}", e); sleep(Duration::from_millis(poll_ms)).await; continue; }
+            Err(e) => { warn!("Hedera latest block error: {} — rotating RPC", e); rpc_idx += 1; base = HEDERA_RPCS[rpc_idx % HEDERA_RPCS.len()].into(); sleep(Duration::from_millis(poll_ms)).await; continue; }
         };
         if latest == 0 { sleep(Duration::from_millis(poll_ms)).await; continue; }
 

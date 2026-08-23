@@ -181,7 +181,8 @@ async fn main() -> Result<()> {
 
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(6_000u64);
-    let horizon   = std::env::var("PI_HORIZON_URL").unwrap_or_else(|_| HORIZON_URLS[0].into());
+    let mut horizon   = std::env::var("PI_HORIZON_URL").unwrap_or_else(|_| HORIZON_URLS[0].into());
+    let mut rpc_idx = 0usize;  // RPC failover rotation index
     let faiss     = FaissClient::new(&faiss_url)?;
     let state = IndexerState::new("pi_mvm");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
@@ -193,7 +194,7 @@ async fn main() -> Result<()> {
 
         let latest = match get_latest_ledger(&client, &horizon).await {
             Ok(n)  => n,
-            Err(e) => { warn!("Pi/Stellar latest ledger error: {}", e); sleep(Duration::from_millis(poll_ms)).await; continue; }
+            Err(e) => { warn!("Pi/Stellar latest ledger error: {} — rotating RPC", e); { rpc_idx += 1; horizon = HORIZON_URLS[rpc_idx % HORIZON_URLS.len()].into(); } sleep(Duration::from_millis(poll_ms)).await; continue; }
         };
         let last = state.last_block();
         let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
