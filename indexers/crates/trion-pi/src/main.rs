@@ -183,7 +183,7 @@ async fn main() -> Result<()> {
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(6_000u64);
     let horizon   = std::env::var("PI_HORIZON_URL").unwrap_or_else(|_| HORIZON_URLS[0].into());
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("pi_mvm");
+    let state = IndexerState::new("pi_mvm");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
 
     info!("TRION Pi/Stellar Rust Indexer — chain={} poll={}ms horizon={}", CHAIN_ID, poll_ms, horizon);

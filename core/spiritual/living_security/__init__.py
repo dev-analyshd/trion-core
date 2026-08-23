@@ -664,10 +664,29 @@ class CRISPRDefense:
         except Exception:
             pass  # DB write failure is non-fatal; signature still active in memory
 
-    def innate_check(self, tx_data: bytes) -> Optional[dict]:
-        """Pattern match against known attack library."""
+    def innate_check(self, tx_data) -> Optional[dict]:
+        """Pattern match against known attack library.
+
+        Accepts bytes or str tx_data. Signature (bytes) is matched against the
+        bytes form of the transaction; string signatures are also matched in
+        their string form for plaintext scans.
+        """
+        if tx_data is None:
+            return None
+        if isinstance(tx_data, str):
+            tx_bytes = tx_data.encode("utf-8", errors="ignore")
+        else:
+            tx_bytes = bytes(tx_data)
+        tx_str = tx_bytes.decode("utf-8", errors="ignore")
         for sig in self._library.values():
-            if sig.signature in tx_data:
+            matched = False
+            if isinstance(sig.signature, (bytes, bytearray)):
+                if bytes(sig.signature) in tx_bytes:
+                    matched = True
+            elif isinstance(sig.signature, str):
+                if sig.signature in tx_str:
+                    matched = True
+            if matched:
                 sig.matches += 1
                 return {
                     "matched": True, "attack_id": sig.id,

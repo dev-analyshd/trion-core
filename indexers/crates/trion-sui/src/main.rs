@@ -21,11 +21,11 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
     freq_entropy, histogram_entropy,
-    shannon_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry, with_retry,
+    BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 const CHAIN_ID:  u64 = 6001;
@@ -174,7 +174,7 @@ async fn main() -> Result<()> {
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
 
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("sui");
+    let state = IndexerState::new("sui");
     let mut rpc_idx = 0usize;
 
     let client = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;

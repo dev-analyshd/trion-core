@@ -33,6 +33,7 @@ struct CosmosChain {
     label:    &'static str,
     chain_id: u64,
     lcds:     &'static [&'static str],
+    #[allow(dead_code)]
     denom:    &'static str,
 }
 
@@ -159,13 +160,19 @@ fn cosmos_magnitude(uatom: u64) -> f64 {
 }
 
 fn classify_cosmos_msg(type_url: &str) -> u8 {
+    // Canonical whitepaper event types (L0.1 §2):
+    // 0 TRANSFER, 1 SWAP, 2 LIQUIDITY, 3 STAKE, 4 UNSTAKE, 5 GOVERNANCE,
+    // 6 PROPOSAL, 7 BORROW, 8 REPAY, 9 LIQUIDATE, 10 BRIDGE, 11 DEPLOY,
+    // 12 UPGRADE, 13 MINT, 14 BURN, 15 ORACLE_UPDATE, 16 MEV_CAPTURE,
+    // 17 FLASH_LOAN, 18 AIRDROP, 19 CLAIM
     match true {
         _ if type_url.contains("MsgSend") || type_url.contains("MultiSend")             => 0,  // TRANSFER
-        _ if type_url.contains("MsgTransfer") && type_url.contains("ibc")               => 0,  // BRIDGE/TRANSFER
-        _ if type_url.contains("MsgDelegate") || type_url.contains("MsgCreateValidator")=> 8,  // STAKE
-        _ if type_url.contains("MsgUndelegate") || type_url.contains("MsgBeginRedelegate")=>9, // UNSTAKE
-        _ if type_url.contains("MsgVote") || type_url.contains("MsgSubmitProposal")
-          || type_url.contains("MsgDeposit") && type_url.contains("gov")                => 6,  // GOVERNANCE
+        _ if type_url.contains("MsgTransfer") && type_url.contains("ibc")               => 10, // BRIDGE (IBC)
+        _ if type_url.contains("MsgDelegate") || type_url.contains("MsgCreateValidator")=> 3,  // STAKE
+        _ if type_url.contains("MsgUndelegate") || type_url.contains("MsgBeginRedelegate")=>4, // UNSTAKE
+        _ if type_url.contains("MsgVote")                                               => 5,  // GOVERNANCE (vote)
+        _ if type_url.contains("MsgSubmitProposal")                                     => 6,  // PROPOSAL
+        _ if type_url.contains("MsgDeposit") && type_url.contains("gov")                => 5,  // GOVERNANCE
         _ if type_url.contains("MsgExecuteContract")                                     => 1,  // SWAP (CosmWasm DeFi)
         _ if type_url.contains("MsgInstantiateContract")                                 => 11, // DEPLOY
         _ if type_url.contains("MsgCreateDenom") || type_url.contains("MsgMint")        => 13, // MINT
