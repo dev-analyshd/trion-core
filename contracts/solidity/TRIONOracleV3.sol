@@ -80,6 +80,10 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         isValidator[msg.sender] = true;
     }
 
+    /// @notice Freshness window for BTCP route safety verdicts (seconds).
+    ///         Matches the legacy 300s signal freshness bound.
+    uint256 public constant BTCP_ROUTE_FRESHNESS_SECONDS = 300;
+
     // ── Publish BTCP Route signal (Fix 1) ────────────────────────────────────
     // Called by the relayer/owner BEFORE the escrow release attempt.
     // Stores the route with its coherence proof so verifyExecution returns true.
@@ -234,11 +238,15 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     function verifyExecution(bytes32 txId)
         external view returns (bool isSafe, uint32 coherence, uint32 threshold)
     {
-        // Check BTCP route registry first
+        // Check BTCP route registry first.
+        // SECURITY: BTCP routes are subject to the same freshness window as
+        // legacy signals — a stale "safe" verdict must not be replayable
+        // forever (previously routes never expired).
         BTCPRoute memory route = btcpRoutes[txId];
         if (route.timestamp > 0) {
+            bool routeFresh = (block.timestamp - route.timestamp) < BTCP_ROUTE_FRESHNESS_SECONDS;
             return (
-                route.isSafe,
+                route.isSafe && routeFresh,
                 uint32(route.coherence > type(uint32).max ? type(uint32).max : route.coherence),
                 uint32(route.threshold > type(uint32).max ? type(uint32).max : route.threshold)
             );

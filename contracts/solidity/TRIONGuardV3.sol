@@ -30,6 +30,10 @@ contract TRIONGuardV3 {
     ITRIONGuardOracle public oracle;
     address public owner;
     bool public trionBypassActive;
+    /// @notice SECURITY: bypass is TIME-LIMITED — auto-expires after this window.
+    uint256 public constant BYPASS_MAX_WINDOW = 24 hours;
+    uint256 public bypassExpiresAt;
+    uint256 public lastBypassExpiry;
 
     event OracleUpdated(address indexed previous, address indexed next);
     event TrionBypassToggled(bool active);
@@ -45,6 +49,12 @@ contract TRIONGuardV3 {
     }
 
     modifier onlyWhenCoherent(bytes32 txId) {
+        // SECURITY: bypass auto-expires — no indefinite firewall-off state
+        if (trionBypassActive && block.timestamp >= bypassExpiresAt) {
+            trionBypassActive = false;
+            lastBypassExpiry = bypassExpiresAt;
+            emit TrionBypassToggled(false);
+        }
         if (trionBypassActive) {
             // Emergency bypass — only governance can enable, and only for a
             // limited window. All bypass uses are logged on-chain.
@@ -78,7 +88,24 @@ contract TRIONGuardV3 {
     /// @notice Toggle the emergency bypass. Only callable by owner (governance).
     ///         Bypass is meant for catastrophic oracle failure only — every
     ///         bypass-enabled transaction emits an event for after-action review.
+    /// @dev    SECURITY: enabling the bypass is bounded to a 24h maximum window
+    ///         after which it auto-expires (enforced in onlyWhenCoherent), and
+    ///         cannot be re-armed until a 1h cool-down after the previous
+    ///         expiry has elapsed. The owner therefore cannot keep the
+    ///         coherence firewall disabled indefinitely.
     function _toggleTrionBypass(bool _status) internal {
+        if (_status) {
+            // Cool-down: 1h after the previous bypass window expired
+            if (lastBypassExpiry != 0 && block.timestamp < lastBypassExpiry + 1 hours) {
+                revert Unauthorized();
+            }
+            bypassExpiresAt = block.timestamp + BYPASS_MAX_WINDOW;
+        } else {
+            if (trionBypassActive) {
+                lastBypassExpiry = block.timestamp;
+            }
+            bypassExpiresAt = 0;
+        }
         trionBypassActive = _status;
         emit TrionBypassToggled(_status);
     }
