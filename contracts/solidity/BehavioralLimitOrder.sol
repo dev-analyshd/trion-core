@@ -161,6 +161,7 @@ contract BehavioralLimitOrder {
     }
 
     function setRelayer(address newRelayer) external onlyOwner {
+        require(newRelayer != address(0), "BLO: zero relayer");
         emit RelayerUpdated(relayer, newRelayer);
         relayer = newRelayer;
     }
