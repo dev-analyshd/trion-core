@@ -413,9 +413,16 @@ def stats():
             "entities_tracked": len(entity_history),
             "timestamp":       int(__import__("time").time()),
         }
-    with _INDEX_WRITE_LOCK:
-        ntotal = index.ntotal
-        itype = type(index).__name__
+    # PERF/AVAILABILITY FIX: do NOT take _INDEX_WRITE_LOCK here. /stats is a
+    # read-only health probe used by every monitor and the BH streamer; under
+    # sustained ingest the write lock is held nearly continuously by add_batch
+    # (per-vector) and persist (per-500-vectors), which previously blocked
+    # /stats for 60-90s and made healthy services look dead. Reading
+    # index.ntotal without the lock is a benign race for stats purposes (the
+    # CPython GIL makes the attribute read atomic; worst case the count is a
+    # few vectors stale — far better than an unresponsive health endpoint).
+    ntotal = index.ntotal
+    itype = type(index).__name__
     return {
         "status":           "ok" if FAISS_AVAILABLE else "degraded",
         "faiss_available": FAISS_AVAILABLE,
@@ -10990,6 +10997,15 @@ def _persist_all(reason: str = "shutdown") -> None:
 
     Uses write-to-temp-then-rename so a SIGKILL mid-write never corrupts the
     existing index file — the rename is atomic on Linux (same filesystem).
+
+    CONCURRENCY FIX (deadlock/UB): faiss.write_index() must NEVER run
+    concurrently with index.add(). The C++ FAISS library is not thread-safe
+    for simultaneous add + serialize — under sustained ingest (threshold
+    persist every ~2s) the library deadlocks internally, the pending
+    _INDEX_WRITE_LOCK holder never returns, and every handler that takes
+    that lock (/stats, /index/add, /index/add_batch, /health) hangs forever.
+    We now serialize the write under _INDEX_WRITE_LOCK: adds pause for the
+    ~50-200ms serialization window instead of racing it.
     """
     global index
     if not FAISS_AVAILABLE or index is None:
@@ -10997,8 +11013,9 @@ def _persist_all(reason: str = "shutdown") -> None:
     with _persist_shutdown_lock:
         try:
             tmp_path = INDEX_PATH + ".tmp"
-            faiss.write_index(index, tmp_path)
-            os.replace(tmp_path, INDEX_PATH)   # atomic on Linux
+            with _INDEX_WRITE_LOCK:
+                faiss.write_index(index, tmp_path)
+                os.replace(tmp_path, INDEX_PATH)   # atomic on Linux
             logger.info(
                 "[persist] FAISS index saved → %s  (%d vectors)  reason=%s",
                 INDEX_PATH, index.ntotal, reason,

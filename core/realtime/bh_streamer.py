@@ -87,6 +87,12 @@ CHAIN_RPCS: Dict[int, Dict] = {
     1329: {"name": "sei_evm", "label": "Sei EVM", "rpc": "https://evm-rpc.sei-apis.com", "block_time": 0.5, "native_symbol": "SEI", "decimals": 18},
     7700: {"name": "canto", "label": "Canto", "rpc": "https://canto.gravitychain.io", "block_time": 6, "native_symbol": "CANTO", "decimals": 18},
     245022934: {"name": "neon_evm", "label": "Neon EVM", "rpc": "https://neon-proxy-mainnet.solana.p2p.org", "block_time": 2, "native_symbol": "NEON", "decimals": 18},
+    # ── Gap-fill: canonical-manifest EVM chains previously missing ─────────
+    14:   {"name": "flare", "label": "Flare", "rpc": "https://flare-api.flare.network/ext/C/rpc", "block_time": 3, "native_symbol": "FLR", "decimals": 18},
+    288:  {"name": "boba", "label": "Boba Network", "rpc": "https://mainnet.boba.network", "block_time": 15, "native_symbol": "ETH", "decimals": 18},
+    592:  {"name": "astar", "label": "Astar EVM", "rpc": "https://rpc.astar.network", "block_time": 12, "native_symbol": "ASTR", "decimals": 18},
+    1101: {"name": "polygon_zkevm", "label": "Polygon zkEVM", "rpc": "https://zkevm-rpc.com", "block_time": 3, "native_symbol": "ETH", "decimals": 18},
+    2222: {"name": "kava_evm", "label": "Kava EVM", "rpc": "https://evm.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 18},
     8822: {"name": "iota_evm", "label": "IOTA EVM", "rpc": "https://json-rpc.evm.iotaledger.net", "block_time": 5, "native_symbol": "IOTA", "decimals": 18},
     677: {"name": "bot_chain", "label": "BOT Chain", "rpc": "https://rpc.botchain.ai", "block_time": 3, "native_symbol": "BOT", "decimals": 18},
     16602: {"name": "zg_newton", "label": "0G Newton", "rpc": "https://rpc.newton.0g.ai", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
@@ -629,7 +635,17 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
     201401: {"name": "xrpl", "label": "XRPL", "vm": "XRPL", "rpc": "https://s1.ripple.com:51234", "block_time": 4, "native_symbol": "XRP", "decimals": 6},
 
     # ── VM Family 16: Polkadot (PVM) ──────────────────────────────────────
-    201501: {"name": "polkadot", "label": "Polkadot", "vm": "PVM", "rpc": "https://polkadot-public-rpc.blockops.network", "block_time": 6, "native_symbol": "DOT", "decimals": 10},
+    201501: {"name": "polkadot", "label": "Polkadot", "vm": "PVM", "rpc": "https://rpc.polkadot.io", "block_time": 6, "native_symbol": "DOT", "decimals": 10},
+    25002:  {"name": "kusama", "label": "Kusama", "vm": "PVM", "rpc": "https://kusama-rpc.polkadot.io", "block_time": 6, "native_symbol": "KSM", "decimals": 12},
+
+    # ── VM Family 17: Algorand (AVM) ──────────────────────────────────────
+    8200:   {"name": "algorand", "label": "Algorand", "vm": "ALGORAND", "rpc": "https://mainnet-api.algonode.cloud", "block_time": 3, "native_symbol": "ALGO", "decimals": 6},
+
+    # ── VM Family 18: Cardano (eUTXO) ─────────────────────────────────────
+    9400:   {"name": "cardano", "label": "Cardano", "vm": "CARDANO", "rpc": "https://api.koios.rest", "block_time": 20, "native_symbol": "ADA", "decimals": 6},
+
+    # ── Additional Cosmos-family chains (public Tendermint RPCs) ──────────
+    10014:  {"name": "kava", "label": "Kava", "vm": "COSMOS", "rpc": "https://rpc.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 6},
 }
 
 # ============================================================================
@@ -803,6 +819,94 @@ def fetch_vechain_block(rpc_url, block_num):
     except:
         return None
 
+
+def fetch_algorand_block(rpc_url, round_num):
+    """Fetch Algorand block via Algod REST API (VM family: ALGORAND).
+
+    /v2/blocks/{round} → block.txns[] with txn.snd (base32 sender — BEO-resolved
+    by compute_bh via SHA3-256), txn.rcv, txn.amt.
+    """
+    try:
+        req = urllib.request.Request(f"{rpc_url}/v2/blocks/{round_num}", headers={"User-Agent": "TRION/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        txs = data.get("block", {}).get("txns", [])
+        out = []
+        for i, t in enumerate(txs[:50]):
+            txn = t.get("txn", {})
+            out.append({
+                "hash":  t.get("h", f"algo_tx_{round_num}_{i}"),
+                "from":  str(txn.get("snd", "unknown")),
+                "to":    str(txn.get("rcv", txn.get("arcv", "unknown"))),
+                "value": str(txn.get("amt", txn.get("aamt", 0)) or 0),
+            })
+        return {"transactions": out, "hash": str(data.get("hash", "0x0")), "number": round_num}
+    except Exception:
+        return None
+
+
+def fetch_cardano_block(rpc_url, block_height):
+    """Fetch Cardano block via Koios REST API (VM family: CARDANO).
+
+    Behavioral model: each block is attributed to its PRODUCER (the stake pool
+    in the `pool` field) — a real, continuously-observable entity whose block
+    production rhythm is the behavioral signal (validator-behavior tracking
+    per whitepaper L4). Magnitude = the block's tx_count. Koios no longer
+    exposes per-tx input addresses in tx_info, so per-transaction sender
+    extraction remains the trion-cardano Rust indexer's dedicated job.
+    """
+    try:
+        req = urllib.request.Request(f"{rpc_url}/api/v1/blocks", headers={"User-Agent": "TRION/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            blocks = json.loads(resp.read())
+        blk = next((b for b in blocks if b.get("block_height") == block_height), None)
+        if blk is None:
+            return None  # height outside the recent window (tip advanced) — skip
+        pool = blk.get("pool") or "unknown_pool"
+        tx_count = int(blk.get("tx_count", 0) or 0)
+        # One behavioral record per block, attributed to the producing pool.
+        # value = tx_count → magnitude captures the block's activity level.
+        return {
+            "transactions": [{
+                "hash":  f"cardano_block_{block_height}",
+                "from":  pool,
+                "to":    "unknown",
+                "value": str(tx_count),
+            }],
+            "hash": blk["hash"],
+            "number": block_height,
+        }
+    except Exception:
+        return None
+
+
+def fetch_polkadot_block(rpc_url, block_num):
+    """Fetch Polkadot/Substrate block via JSON-RPC (VM family: PVM).
+
+    Two-step: chain_getBlockHash(num) → chain_getBlock(hash). Extrinsics are
+    SCALE-encoded; the SHA3-256 of each extrinsic's bytes is the tx identity.
+    NOTE: this replaces the previous `lambda rpc, num: None` stub — the PVM
+    family previously NEVER produced BHs in the streamer despite being wired.
+    """
+    try:
+        block_hash = rpc_call(rpc_url, "chain_getBlockHash", [hex(block_num)])
+        if not block_hash:
+            return None
+        result = rpc_call(rpc_url, "chain_getBlock", [block_hash])
+        if not result:
+            return None
+        block = result.get("block", {})
+        extrinsics = block.get("extrinsics", [])
+        out = []
+        for i, ext in enumerate(extrinsics[:50]):
+            ext_bytes = bytes.fromhex(ext[2:]) if ext.startswith("0x") else ext.encode()
+            tx_hash = "0x" + hashlib.sha3_256(ext_bytes).hexdigest()
+            out.append({"hash": tx_hash, "from": "unknown", "to": "unknown", "value": "0"})
+        return {"transactions": out, "hash": block_hash, "number": block_num}
+    except Exception:
+        return None
+
+
 # VM-specific fetcher dispatch
 VM_FETCHERS = {
     "SVM": lambda rpc, num: fetch_solana_block(rpc, num),
@@ -819,7 +923,9 @@ VM_FETCHERS = {
     "WAVES": lambda rpc, num: fetch_waves_block(rpc, num),
     "VECHAIN": lambda rpc, num: fetch_vechain_block(rpc, num),
     "HEDERA": lambda rpc, num: get_block_with_txs(rpc, num),  # Hedera is EVM-compatible
-    "PVM": lambda rpc, num: None,  # Polkadot requires substrate API
+    "PVM": lambda rpc, num: fetch_polkadot_block(rpc, num),      # was a None stub — never produced BHs
+    "ALGORAND": lambda rpc, num: fetch_algorand_block(rpc, num),
+    "CARDANO": lambda rpc, num: fetch_cardano_block(rpc, num),
 }
 
 # VM-specific latest block getters
@@ -907,6 +1013,16 @@ def get_non_evm_latest_block(rpc_url, vm):
             return int(data.get("number", 0) or 0)
         elif vm == "HEDERA":
             return get_latest_block(rpc_url)  # EVM-compatible
+        elif vm == "ALGORAND":
+            req = urllib.request.Request(f"{rpc_url}/v2/status", headers={"User-Agent": "TRION/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            return int(data.get("last-round", 0) or 0)
+        elif vm == "CARDANO":
+            req = urllib.request.Request(f"{rpc_url}/api/v1/tip", headers={"User-Agent": "TRION/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            return int(data[0].get("block_no", 0) or 0) if data else 0
         elif vm == "PVM":
             # Polkadot substrate
             req = urllib.request.Request(rpc_url, data=json.dumps({"jsonrpc":"2.0","method":"chain_getBlock","params":[],"id":1}).encode(), headers={"Content-Type":"application/json","User-Agent":"TRION/1.0"})
