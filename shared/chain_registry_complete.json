@@ -1,9 +1,9 @@
 {
   "version": "2.0.0",
   "generated_by": "FIX-2 vm-chain-implementer",
-  "total_chains": 124,
+  "total_chains": 128,
   "integrated_chains": 39,
-  "vm_families": 16,
+  "vm_families": 18,
   "vm_distribution": {
     "COSMOS": 20,
     "EVM": 66,
@@ -1647,6 +1647,56 @@
       "nativeToken": "XRP",
       "decimals": 6,
       "notes": ""
+    },
+    {
+      "name": "Algorand",
+      "vm": "ALGORAND",
+      "chainId": 8200,
+      "rpc": "https://mainnet-api.algonode.cloud",
+      "explorer": "https://allo.info",
+      "integrated": true,
+      "nativeToken": "ALGO",
+      "decimals": 6,
+      "finalitySec": 3.0,
+      "indexer": "trion-algorand",
+      "notes": "Live indexer: trion-algorand crate (AlgoNode public REST)"
+    },
+    {
+      "name": "Cardano",
+      "vm": "CARDANO",
+      "chainId": 9400,
+      "rpc": "https://api.koios.rest/api/v1",
+      "explorer": "https://cardanoscan.io",
+      "integrated": true,
+      "nativeToken": "ADA",
+      "decimals": 6,
+      "finalitySec": 20.0,
+      "indexer": "trion-cardano",
+      "notes": "Live indexer: trion-cardano crate (Koios public REST)"
+    },
+    {
+      "name": "Algorand Testnet",
+      "vm": "ALGORAND",
+      "chainId": 8201,
+      "rpc": "https://testnet-api.algonode.cloud",
+      "explorer": "https://allo.info",
+      "integrated": false,
+      "nativeToken": "ALGO",
+      "decimals": 6,
+      "finalitySec": 3.0,
+      "notes": "testnet"
+    },
+    {
+      "name": "Cardano Preprod",
+      "vm": "CARDANO",
+      "chainId": 9401,
+      "rpc": "https://preprod.koios.rest/api/v1",
+      "explorer": "https://preprod.cardanoscan.io",
+      "integrated": false,
+      "nativeToken": "ADA",
+      "decimals": 6,
+      "finalitySec": 20.0,
+      "notes": "preprod testnet"
     }
   ]
 }

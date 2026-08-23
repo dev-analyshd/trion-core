@@ -56,6 +56,13 @@ class VmFamily(IntEnum):
     TRON = 11        # TRON
     ALGORAND = 12    # Algorand
     CARDANO = 13     # Cardano
+    HEDERA = 14      # Hedera Hashgraph
+    WAVES = 15       # Waves
+    XRPL = 16        # XRP Ledger
+    MULTIVERSX = 17  # MultiversX
+    VECHAIN = 18     # VeChainThor
+    STELLAR = 19     # Stellar (MVM)
+    PVM = 4          # Polkadot VM (alias for SUBSTRATE)
 
 
 @dataclass
@@ -86,6 +93,13 @@ class ChainConfig:
 
 
 # ── Complete Chain Registry (106 chains, 14 VM families) ──────────────────────
+
+def _stable_chain_id(name: str) -> int:
+    """Deterministic synthetic chain id (sha3-based, stable across processes).
+    Python's built-in hash() is salted per-process and would change on restart."""
+    import hashlib
+    return int.from_bytes(hashlib.sha3_256(name.encode()).digest()[:4], "big") % 100000
+
 
 def build_chain_registry() -> List[ChainConfig]:
     """Build the complete 106-chain registry with bootstrap phase assignments."""
@@ -187,7 +201,7 @@ def build_chain_registry() -> List[ChainConfig]:
     for entry in phase4_chains:
         cid, name, vm, rpc, explorer, sym, dec, bt, fin = entry[:9]
         gas_tok = entry[9] if len(entry) > 9 else sym
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_4_EXPANSION,
                                   None, None, None, sym, dec, bt, fin, gas_tok, False, None))
@@ -220,7 +234,7 @@ def build_chain_registry() -> List[ChainConfig]:
     ]
 
     for cid, name, vm, rpc, explorer, sym, dec, bt, fin in phase5_chains:
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_5_50_CHAINS,
                                   None, None, None, sym, dec, bt, fin, sym, False, None))
@@ -262,10 +276,110 @@ def build_chain_registry() -> List[ChainConfig]:
     ]
 
     for cid, name, vm, rpc, explorer, sym, dec, bt, fin in phase6_chains:
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_6_100_CHAINS,
                                   None, None, None, sym, dec, bt, fin, sym, False, None))
+
+    # ── Gap-fill: chains present in shared manifest but missing here ─────────
+    # (audit: tests/chain_coverage_audit.py — 52 chains consolidated)
+    _gap_evm = [
+        (43113, "Avalanche Fuji", "https://api.avax-test.network/ext/bc/C/rpc", "https://testnet.snowtrace.io", "AVAX", 18, 2.0, 3),
+        (97, "BNB Testnet", "https://data-seed-pretests0-1.binance.org:8545", "https://testnet.bscscan.com", "tBNB", 18, 3.0, 15),
+        (60808, "BOB", "https://rpc.gobob.xyz", "https://explorer.gobob.xyz", "ETH", 18, 2.0, 2),
+        (200901, "Bitlayer", "https://rpc.bitlayer.org", "https://www.bitlayerScan.com", "BTC", 18, 2.0, 6),
+        (8886, "BotChain", "https://rpc.botchain.ai", "https://scan.botchain.ai", "BOT", 18, 2.0, 2),
+        (1116, "Core", "https://rpc.coredao.org", "https://scan.coredao.org", "CORE", 18, 3.0, 6),
+        (7560, "Cyber", "https://cyber.alt.technology", "https://cyberscan.co", "CYBER", 18, 2.0, 2),
+        (8822, "Iota EVM", "https://evm.wasp.sc.iota.org", "https://explorer.evm.iota.org", "IOTA", 18, 5.0, 10),
+        (8217, "Kaia (Klaytn)", "https://public-en.node.kaia.io", "https://kaiascan.io", "KAIA", 18, 1.0, 1),
+        (255, "Kroma", "https://api.kroma.network/l1/rpc", "https://kromascan.io", "ETH", 18, 2.0, 2),
+        (245022934, "Neon EVM", "https://neon-proxy-mainnet.solana.p2p.org", "https://neonscan.org", "NEON", 18, 2.5, 1),
+        (30, "Rootstock", "https://public.nodes.rsk.co", "https://explorer.rsk.co", "RBTC", 18, 30.0, 10),
+        (1329, "Sei EVM", "https://evm-rpc.sei-apis.com", "https://seitrace.com", "SEI", 18, 0.5, 1),
+        (40, "Telos EVM", "https://mainnet.telos.net/evm", "https://www.teloscan.io", "TLOS", 18, 0.5, 1),
+        (1111, "WEMIX", "https://api.wemix.com", "https://wemixscan.com", "WEMIX", 18, 1.0, 1),
+    ]
+    for cid, name, rpc, explorer, sym, dec, bt, fin in _gap_evm:
+        chains.append(ChainConfig(cid, name, VmFamily.EVM, rpc, explorer,
+                                  BootstrapPhase.PHASE_6_100_CHAINS,
+                                  None, None, None, sym, dec, bt, fin, sym, False, None))
+
+    # Cosmos-family gaps
+    _gap_cosmos = [
+        ("Axelar", "https://axelar-rpc.publicnode.com", "AXL", "axelar"),
+        ("Kava", "https://kava-rpc.publicnode.com", "KAVA", "kava"),
+        ("Initia", "https://rpc.initia.tech", "INIT", "initia"),
+        ("Saga", "https://rpc.saga.tendermint", "SAGA", "saga"),
+        ("Noble", "https://noble-rpc.polkachu.com", "USDC", "noble"),
+        ("Neutron", "https://neutron-rpc.publicnode.com", "NTRN", "neutron"),
+        ("Terra Classic", "https://terra-classic-rpc.publicnode.com", "LUNC", "terra-classic"),
+        ("Terra Phoenix", "https://terra-rpc.publicnode.com", "LUNA", "terra"),
+    ]
+    for name, rpc, sym, slug in _gap_cosmos:
+        chains.append(ChainConfig(_stable_chain_id(name), name, VmFamily.COSMWASM, rpc,
+                                  f"https://explorer.{slug}.com" if "publicnode" not in rpc else f"https://mintscan.io/{slug}",
+                                  BootstrapPhase.PHASE_6_100_CHAINS,
+                                  None, None, None, sym, 6, 6.0, 6, sym, False, None))
+
+    # UTXO gaps
+    chains.append(ChainConfig(2031, "Dash", VmFamily.UTXO, "https://dash.nownodes.io", "https://explorer.dash.org",
+                              BootstrapPhase.PHASE_6_100_CHAINS, None, None, None,
+                              "DASH", 8, 150.0, 6, "DASH", False, None))
+    chains.append(ChainConfig(2003, "Bitcoin Testnet4", VmFamily.UTXO, "https://mempool.space/testnet4/api",
+                              "https://mempool.space/testnet4",
+                              BootstrapPhase.PHASE_6_100_CHAINS, None, None, None,
+                              "tBTC", 8, 600.0, 6, "BTC", False, None))
+
+    # Non-EVM mainnets that ARE live-indexed by dedicated crates
+    _gap_native = [
+        (5001, "Aptos Mainnet", VmFamily.MOVE, "https://fullnode.mainnet.aptoslabs.com/v1", "https://explorer.aptoslabs.com", "APT", 8, 1.0, 1),
+        (501, "Movement Bardock", VmFamily.MOVE, "https://bardock-testnet-beta-rpc.movementlabs.xyz/v1", "https://explorer.movementlabs.xyz", "MOVE", 8, 1.0, 1),
+        (5002, "Movement Mainnet", VmFamily.MOVE, "https://mainnet.movementnetwork.xyz/v1", "https://explorer.movementnetwork.xyz", "MOVE", 8, 1.0, 1),
+        (6001, "Sui Mainnet", VmFamily.MOVE, "https://fullnode.mainnet.sui.io", "https://suiscan.xyz", "SUI", 9, 3.0, 1),
+        (111559111, "Solana Testnet", VmFamily.SVM, "https://api.testnet.solana.com", "https://solscan.io", "SOL", 9, 0.4, 32),
+        (1200, "NEAR Mainnet", VmFamily.NEAR, "https://rpc.mainnet.near.org", "https://nearblocks.io", "NEAR", 24, 1.0, 1),
+        (1100, "TON Mainnet", VmFamily.TON, "https://toncenter.com/api/v2", "https://tonviewer.com", "TON", 9, 5.0, 5),
+        (7001, "Tron Mainnet", VmFamily.TRON, "https://api.trongrid.io", "https://tronscan.org", "TRX", 6, 3.0, 20),
+        (7002, "Tron Shasta", VmFamily.TRON, "https://api.shasta.trongrid.io", "https://shasta.tronscan.org", "TRX", 6, 3.0, 20),
+        (24000, "Starknet Mainnet", VmFamily.STARKNET, "https://starknet-mainnet.public.blastapi.io", "https://starkscan.co", "STRK", 18, 2.0, 10),
+        (24001, "Starknet Sepolia", VmFamily.STARKNET, "https://starknet-sepolia.public.blastapi.io", "https://sepolia.starkscan.co", "STRK", 18, 2.0, 10),
+        (27000, "Stellar Mainnet", VmFamily.STELLAR, "https://horizon.stellar.org", "https://stellar.expert", "XLM", 7, 5.0, 5),
+        (27001, "Stellar Testnet", VmFamily.STELLAR, "https://horizon-testnet.stellar.org", "https://stellar.expert", "XLM", 7, 5.0, 5),
+        (9000, "MultiversX", VmFamily.MULTIVERSX, "https://api.multiversx.com", "https://explorer.multiversx.com", "EGLD", 18, 6.0, 6),
+        (9200, "Waves", VmFamily.WAVES, "https://nodes.wavesnodes.com", "https://wavesexplorer.com", "WAVES", 8, 60.0, 6),
+        (8100, "XRPL", VmFamily.XRPL, "https://s1.ripple.com:51234", "https://livenet.xrpl.org", "XRP", 6, 4.0, 4),
+        (8300, "Hedera", VmFamily.HEDERA, "https://mainnet.hashio.io/api", "https://hashscan.io", "HBAR", 8, 3.0, 3),
+        (8301, "Hedera Testnet", VmFamily.HEDERA, "https://testnet.hashio.io/api", "https://hashscan.io/testnet", "HBAR", 8, 3.0, 3),
+        (8400, "Vechain", VmFamily.VECHAIN, "https://mainnet.vechain.org", "https://vechainstats.com", "VET", 18, 10.0, 10),
+        (900, "Polkadot Westend", VmFamily.SUBSTRATE, "https://westend-rpc.polkadot.io", "https://westend.subscan.io", "WND", 12, 6.0, 6),
+        (9401, "Cardano Preprod", VmFamily.CARDANO, "https://preprod.koios.rest/api/v1", "https://preprod.cardanoscan.io", "ADA", 6, 20.0, 6),
+    ]
+    for cid, name, vm, rpc, explorer, sym, dec, bt, fin in _gap_native:
+        chains.append(ChainConfig(cid, name, vm, rpc, explorer,
+                                  BootstrapPhase.PHASE_6_100_CHAINS,
+                                  None, None, None, sym, dec, bt, fin, sym, False, None))
+
+
+    # ── Name-variant aliases: shared manifest names for existing chains ─────
+    _aliases = [
+        ("Polygon PoS", _stable_chain_id("Polygon PoS"), "Polygon"),
+        ("OKB Chain (OKTC)", _stable_chain_id("OKB Chain (OKTC)"), "OKB Chain"),
+        ("Chiado (Gnosis)", _stable_chain_id("Chiado (Gnosis)"), "Chiado"),
+        ("Ethereum Sepolia", _stable_chain_id("Ethereum Sepolia"), "Sepolia"),
+        ("Ethereum Holesky", _stable_chain_id("Ethereum Holesky"), "Holesky"),
+        ("Solana Mainnet", _stable_chain_id("Solana Mainnet"), "Solana"),
+    ]
+    for name, cid, existing in _aliases:
+        if name not in {c.name for c in chains}:
+            existing_chain = next((c for c in chains if c.name == existing), None)
+            if existing_chain:
+                chains.append(ChainConfig(cid, name, existing_chain.vm_family,
+                                          existing_chain.rpc_url, existing_chain.explorer_url,
+                                          existing_chain.btcp_phase, None, None, None,
+                                          existing_chain.native_symbol, existing_chain.native_decimals,
+                                          existing_chain.block_time_sec, existing_chain.finality_blocks,
+                                          existing_chain.gas_token_symbol, existing_chain.is_live, None))
 
     return chains
 
