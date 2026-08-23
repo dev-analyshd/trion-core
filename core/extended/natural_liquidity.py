@@ -3,16 +3,17 @@ TRION Protocol — L7.1: Natural Liquidity Score
 NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)
 NL < 0.30 → LIQUIDITY_HEALTH signal emitted
 
-LD = Liquidity Depth Entropy
-LO = Liquidity Origin Score = 1 - Sybil_LP_ratio
-LC = Liquidity Consistency
-LS = Liquidity Stress Resilience
+LD = Liquidity Depth Entropy        = H(depth_distribution_across_price_levels)
+LO = Liquidity Origin Score          = 1 - Sybil_LP_ratio,
+                                      Sybil_LP_ratio = top_5_LP_share / (LP_BEO_count / 5)
+LC = Liquidity Consistency           = corr(LD_current, LD_90d_baseline)
+LS = Liquidity Stress Resilience     = LD(during_stress) / LD(normal_conditions)
 
 March 12, 2026 AAVE pool: NL ≈ 0.09 → BLOCKED
 """
 
 import numpy as np
-from typing import List
+from typing import List, Optional
 import math
 
 
@@ -30,15 +31,71 @@ def compute_ld(depth_per_tick: List[float]) -> float:
 
 
 def compute_lo(top5_lp_share: float, lp_count: int) -> float:
+    """
+    LO = 1 - Sybil_LP_ratio where Sybil_LP_ratio = top_5_share / (BEO_count / 5)
+    (whitepaper L7.1). lp_count is the number of INDEPENDENT LP entities
+    (BEO-resolved), not raw wallet count.
+    """
     if lp_count <= 0:
         return 0.0
     sybil_ratio = top5_lp_share / max(1, lp_count / 5)
     return max(0.0, 1.0 - sybil_ratio)
 
 
-def compute_lc(current_ld: float, baseline_ld_history: List[float]) -> float:
+def _pearson(x: List[float], y: List[float]) -> Optional[float]:
+    """Pearson correlation; None when either series is constant (undefined)."""
+    n = min(len(x), len(y))
+    if n < 2:
+        return None
+    x, y = list(x[-n:]), list(y[-n:])
+    mx, my = sum(x) / n, sum(y) / n
+    cov = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    vx  = sum((a - mx) ** 2 for a in x)
+    vy  = sum((b - my) ** 2 for b in y)
+    if vx <= 0 or vy <= 0:
+        return None
+    return max(-1.0, min(1.0, cov / math.sqrt(vx * vy)))
+
+
+def compute_lc(
+    current_ld: float,
+    baseline_ld_history: List[float],
+    recent_ld_history: Optional[List[float]] = None,
+) -> float:
+    """
+    LC = corr(LD_current, LD_90d_baseline) — whitepaper L7.1.
+
+    High: stable pattern over time (genuine market-maker behavior).
+    Low:  pattern recently changed (possible manipulation preparation).
+
+    Two evaluation paths:
+    1. Series path (spec-literal): when a recent LD observation series is
+       supplied, LC is the Pearson correlation between the recent window and
+       the 90-day baseline window, mapped from [-1, 1] to [0, 1] via
+       max(0, corr) so anti-correlated drift scores 0.
+    2. Scalar path (degenerate case): when only the current scalar LD is
+       available, correlation against a series is undefined; LC degenerates to
+       the consistency of the current value with the baseline distribution
+       (z-score deviation, capped at 3σ). A flat baseline with current ==
+       baseline mean yields LC = 1.0 — matching the correlation's limit.
+    """
     if not baseline_ld_history:
         return 0.5
+
+    # Spec-literal correlation path
+    if recent_ld_history is not None and len(recent_ld_history) >= 2:
+        corr = _pearson(recent_ld_history, baseline_ld_history)
+        if corr is not None:
+            return max(0.0, min(1.0, corr))
+        # Both windows flat and equal → perfectly stable
+        if len(recent_ld_history) and len(baseline_ld_history):
+            r_set = set(round(v, 9) for v in recent_ld_history)
+            b_set = set(round(v, 9) for v in baseline_ld_history)
+            if len(r_set) == 1 and len(b_set) == 1 and r_set == b_set:
+                return 1.0
+        return 0.5
+
+    # Scalar degenerate path — consistency with baseline distribution
     baseline_mean = float(np.mean(baseline_ld_history))
     baseline_std  = float(np.std(baseline_ld_history))
     if baseline_std < 1e-6:
@@ -65,10 +122,11 @@ def compute_nl(
     baseline_ld_90d:  List[float],
     ld_during_stress: float,
     ld_during_normal: float,
+    recent_ld_history: Optional[List[float]] = None,
 ) -> dict:
     ld = compute_ld(depth_per_tick)
     lo = compute_lo(top5_lp_share, lp_count)
-    lc = compute_lc(ld, baseline_ld_90d)
+    lc = compute_lc(ld, baseline_ld_90d, recent_ld_history=recent_ld_history)
     ls = compute_ls(ld_during_stress, ld_during_normal)
 
     nl       = ld * lo * lc * ls

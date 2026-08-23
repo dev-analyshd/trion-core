@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 import hashlib
 import warnings
 from dataclasses import dataclass, field
