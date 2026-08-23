@@ -229,7 +229,7 @@ func DefaultCrawlerConfigs() []CrawlerConfig {
 	return configs
 }
 
-func main() {
+func CrawlerSelfTest() {
 	configs := DefaultCrawlerConfigs()
 	pool := NewCrawlerPool(configs)
 

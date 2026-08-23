@@ -122,6 +122,8 @@ SOURCES: Dict[str, Dict[str, Any]] = {
     "CRYPTOPOTATO":   {"initial_cred": 0.57, "category": "news",        "weight": 0.55},
     "COINJOURNAL":    {"initial_cred": 0.59, "category": "news",        "weight": 0.55},
     # Cross-domain signals — L6.1 BC, L9.1 XSL, L6.2 BRT (injected by faiss_service)
+    "FORUMS":         {"initial_cred": 0.70, "category": "developer",   "weight": 0.7},
+    "GDELT":          {"initial_cred": 0.75, "category": "news",        "weight": 0.8},
     "BC_SIGNAL":      {"initial_cred": 0.85, "category": "cross_domain", "weight": 0.9},
     "XSL_SIGNAL":     {"initial_cred": 0.85, "category": "cross_domain", "weight": 0.9},
     "BRT_SIGNAL":     {"initial_cred": 0.80, "category": "cross_domain", "weight": 0.8},
@@ -133,7 +135,6 @@ NEWS_FEEDS = {
     "THEBLOCK":       "https://www.theblock.co/rss.xml",
     "DECRYPT":        "https://decrypt.co/feed",
     "COINTELEGRAPH":  "https://cointelegraph.com/rss",
-    "REUTERS_CRYPTO": "https://feeds.reuters.com/reuters/technologyNews",  # Reuters Tech (crypto coverage)
     "BLOCKWORKS":     "https://blockworks.co/feed",
     "THEDEFIANT":     "https://thedefiant.io/feed",
     "DLNEWS":         "https://www.dlnews.com/articles/feed/",
@@ -153,8 +154,12 @@ NEWS_FEEDS = {
 }
 
 REGULATORY_FEEDS = {
-    "CFTC":  "https://www.cftc.gov/rss/enforcementactions.xml",
+    # CFTC: enforcementactions.xml is dead (404) — the general press-release
+    # feed (verified 200) carries enforcement actions among its items.
+    "CFTC":  "https://www.cftc.gov/RSS/RSSGP/rssgp.xml",
     "FCA":   "https://www.fca.org.uk/news/rss.xml",
+    # ESMA blocks non-browser UAs (403); the fetch path retries with a
+    # browser UA — kept because it is the only official ESMA feed.
     "ESMA":  "https://www.esma.europa.eu/press-news/esma-news/rss",
     "MAS":   "https://www.mas.gov.sg/news/rss",
 }
@@ -524,7 +529,7 @@ def _crawl_sec_edgar(entity_id: str) -> Dict:
         query = entity_id.replace("0x", "").lower()[:20]
         url = (
             f"https://efts.sec.gov/LATEST/search-index?q=%22{query}%22"
-            f"&dateRange=custom&startdt=2023-01-01&forms=8-K,10-K,13F"
+            f"&dateRange=custom&startdt=2023-01-01&forms=4,8-K,10-K,13F,S-4,DEFM14A"
         )
         req = urllib.request.Request(url, headers={"User-Agent": _EDGAR_UA})
         with urllib.request.urlopen(req, timeout=8) as resp:
@@ -703,9 +708,15 @@ def _crawl_github(entity_id: str) -> Dict:
                 n_open   = len(open_resp.json())   if isinstance(open_resp.json(),   list) else 1
                 issue_res_rate = n_closed / max(1, n_closed + n_open)
 
-        # Freshness: pushed within 60 days
+        # Freshness: pushed within a rolling window (never rots)
+        import datetime as _dt
         pushed_at = top.get("pushed_at", "")
-        fresh = 0.15 if pushed_at > "2026-01-01" else (0.08 if pushed_at > "2025-06-01" else 0.0)
+        try:
+            _pushed = _dt.datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
+            _days = (_dt.datetime.now(_dt.timezone.utc) - _pushed).days
+        except Exception:
+            _days = 9999
+        fresh = 0.15 if _days <= 60 else (0.08 if _days <= 180 else 0.0)
 
         score = (
             commit_velocity  * 0.35 +
@@ -927,6 +938,110 @@ def _crawl_arxiv(entity_id: str) -> Dict:
                 "status": "unavailable", "error": str(e)}
 
 
+
+
+def _crawl_forums(entity_id: str) -> Dict:
+    """
+    Technical-forum intelligence (whitepaper Part 8: 'technical forums').
+
+    Sources (public, no API key):
+      - StackExchange Ethereum site: question volume + answer rate
+      - Hacker News (Algolia API): story mentions with VADER
+
+    Returns forum_signal in [0,1].
+    """
+    try:
+        entity_term = urllib.parse.quote(entity_id.replace("0x", "")[:16])
+        question_scores = []
+
+        # StackExchange: ethereum site
+        try:
+            url = (
+                f"https://api.stackexchange.com/2.3/search/advanced?"
+                f"order=desc&sort=activity&site=ethereum&pagesize=25&q={entity_term}"
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "TRION-Oracle/1.0"})
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = json.loads(resp.read().decode())
+            items = data.get("items", [])
+            if items:
+                answered = sum(1 for it in items if it.get("is_answered"))
+                ans_frac = answered / len(items)
+                score_sum = sum(it.get("score", 0) for it in items)
+                question_scores.append(min(1.0, 0.5 * ans_frac + 0.5 * min(1.0, score_sum / 50.0)))
+        except Exception:
+            pass
+
+        # Hacker News (Algolia)
+        try:
+            url = f"https://hn.algolia.com/api/v1/search?query={entity_term}&tags=story&hitsPerPage=20"
+            req = urllib.request.Request(url, headers={"User-Agent": "TRION-Oracle/1.0"})
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = json.loads(resp.read().decode())
+            hits = data.get("hits", [])
+            if hits:
+                sents = []
+                for h in hits[:20]:
+                    title = h.get("title") or h.get("story_title") or ""
+                    if title:
+                        vs = _vader.polarity_scores(title[:400])
+                        sents.append(vs["compound"])
+                volume = min(1.0, len(hits) / 20.0)
+                pos_frac = (sum(1 for x in sents if x > 0.05) / len(sents)) if sents else 0.5
+                question_scores.append(0.5 * volume + 0.5 * pos_frac)
+        except Exception:
+            pass
+
+        if not question_scores:
+            return {"score": 0.5, "items": 0, "status": "no_data"}
+
+        return {
+            "score": round(sum(question_scores) / len(question_scores), 4),
+            "items": len(question_scores),
+            "status": "ok",
+        }
+    except Exception as e:
+        return {"score": 0.5, "error": str(e)[:80]}
+
+
+def _crawl_gdelt(entity_id: str) -> Dict:
+    """
+    GDELT multilingual news intelligence (whitepaper Part 8: 'NLP, 50+
+    languages'). GDELT's DOC API monitors global news in 65+ languages.
+    """
+    try:
+        entity_term = urllib.parse.quote('"' + entity_id.replace("0x", "")[:20] + '"')
+        url = (
+            f"https://api.gdeltproject.org/api/v2/doc/doc?"
+            f"query={entity_term}&mode=artlist&maxrecords=30&format=json"
+        )
+        req = urllib.request.Request(url, headers={"User-Agent": "TRION-Oracle/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+
+        articles = data.get("articles", [])
+        if not articles:
+            return {"score": 0.5, "articles": 0, "status": "no_data"}
+
+        sents = []
+        for a in articles[:30]:
+            title = a.get("title", "")
+            if title:
+                vs = _vader.polarity_scores(title[:400])
+                sents.append(vs["compound"])
+
+        volume = min(1.0, len(articles) / 30.0)
+        tone   = (sum(sents) / len(sents) + 1.0) / 2.0 if sents else 0.5
+
+        return {
+            "score":      round(0.4 * volume + 0.6 * tone, 4),
+            "articles":   len(articles),
+            "status":     "ok",
+        }
+    except Exception as e:
+        return {"score": 0.5, "error": str(e)[:80]}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Full crawl — aggregates all sources, stores results, records predictions
 # ─────────────────────────────────────────────────────────────────────────────
@@ -944,6 +1059,8 @@ def run_full_crawl(entity_id: str) -> Dict:
     news     = _crawl_news_rss(entity_id)
     reg      = _crawl_regulatory(entity_id)
     arx      = _crawl_arxiv(entity_id)
+    forums   = _crawl_forums(entity_id)
+    gdelt    = _crawl_gdelt(entity_id)
 
     source_results = {
         "SEC_EDGAR":  sec,
@@ -951,6 +1068,8 @@ def run_full_crawl(entity_id: str) -> Dict:
         "NEWS_RSS":   news,
         "REGULATORY": reg,
         "ARXIV":      arx,
+        "FORUMS":     forums,
+        "GDELT":      gdelt,
     }
 
     # Store per-source crawl results for CA computation
@@ -967,11 +1086,13 @@ def run_full_crawl(entity_id: str) -> Dict:
 
     # Weighted composite using CRED-weighted sources
     weights = {
-        "SEC_EDGAR":  get_cred("SEC_EDGAR")  * 0.30,
-        "GITHUB":     get_cred("GITHUB")     * 0.25,
-        "NEWS_RSS":   get_cred("COINDESK")   * 0.20,  # representative news CRED
-        "REGULATORY": get_cred("CFTC")       * 0.15,
-        "ARXIV":      get_cred("ARXIV")      * 0.10,
+        "SEC_EDGAR":  get_cred("SEC_EDGAR")  * 0.24,
+        "GITHUB":     get_cred("GITHUB")     * 0.20,
+        "NEWS_RSS":   get_cred("COINDESK")   * 0.16,  # representative news CRED
+        "REGULATORY": get_cred("CFTC")       * 0.12,
+        "ARXIV":      get_cred("ARXIV")      * 0.08,
+        "FORUMS":     get_cred("FORUMS")     * 0.10,
+        "GDELT":      get_cred("GDELT")      * 0.10,
     }
     total_w   = sum(weights.values())
     composite = sum(source_results[k].get("score", 0.5) * w

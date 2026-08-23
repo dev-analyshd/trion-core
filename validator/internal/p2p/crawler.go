@@ -13,8 +13,13 @@ package p2p
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"net/url"
+	"os"
 	"sync"
 	"time"
 )
@@ -87,27 +92,84 @@ func (p *CrawlerPool) Run(entityID string) []NLPSignal {
 }
 
 // crawlLanguage runs one language corpus crawl.
-// In production this hits real APIs; interface and scoring logic are complete.
+//
+// HONEST DATA MODEL (audit remediation): the previous implementation
+// fabricated sentiment from math.Sin(len(entityID)+len(lang)) — a
+// deterministic curve with zero connection to reality, served live by the
+// gateway. Fabricated signals violate TRION's core guarantee.
+//
+// Real path: query the ANIMA service (Python), which crawls REAL sources
+// (20 news RSS feeds with VADER, SEC EDGAR, GitHub, arXiv, GDELT in 65+
+// languages, StackExchange/HN forums) and exposes the composite score.
+// When ANIMA is unreachable the crawl returns a neutral, LOW-CONFIDENCE
+// signal explicitly marked source_count=0 — never invented data.
 func (p *CrawlerPool) crawlLanguage(entityID string, cfg CrawlerConfig) (NLPSignal, error) {
 	p.credMu.RLock()
 	cred := p.credEMA[cfg.LanguageCode]
 	p.credMu.RUnlock()
 
-	// Deterministic seed per entity+language for reproducible test scores
-	seed := float64(len(entityID)+len(cfg.LanguageCode)) / 100.0
-	sentimentScore := 0.50 + math.Sin(seed)*0.15
-	confidence := 0.40 + cfg.CredWeight*0.20
-
-	sig := NLPSignal{
-		LanguageCode:   cfg.LanguageCode,
-		SourceType:     "COMPOSITE", // DEV_REPO+ACADEMIC+NEWS+SOCIAL
-		Timestamp:      time.Now().Unix(),
-		SentimentScore: sentimentScore,
-		Confidence:     confidence,
-		SourceCount:    5,
-		SourceCred:     cred,
+	animaURL := os.Getenv("ANIMA_SERVICE_URL")
+	if animaURL == "" {
+		animaURL = "http://127.0.0.1:8000"
 	}
-	return sig, nil
+
+	client := &http.Client{Timeout: 4 * time.Second}
+	url := fmt.Sprintf("%s/api/v1/anima/%s", animaURL, url.PathEscape(entityID))
+	resp, err := client.Get(url)
+	if err != nil || resp == nil {
+		// ANIMA unavailable: honest neutral, zero sources — not fabricated
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return NLPSignal{
+			LanguageCode:   cfg.LanguageCode,
+			SourceType:     "ANIMA_UNAVAILABLE",
+			Timestamp:      time.Now().Unix(),
+			SentimentScore: 0.50,
+			Confidence:     0.10,
+			SourceCount:    0,
+			SourceCred:     cred,
+		}, nil
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return NLPSignal{
+			LanguageCode:   cfg.LanguageCode,
+			SourceType:     "ANIMA_UNAVAILABLE",
+			Timestamp:      time.Now().Unix(),
+			SentimentScore: 0.50,
+			Confidence:     0.10,
+			SourceCount:    0,
+			SourceCred:     cred,
+		}, nil
+	}
+
+	var parsed struct {
+		AnimaScore float64 `json:"anima_score"`
+		Status     string  `json:"status"`
+	}
+	_ = json.Unmarshal(body, &parsed)
+
+	score := parsed.AnimaScore
+	if score <= 0 {
+		score = 0.50
+	}
+	confidence := 0.40 + cfg.CredWeight*0.40
+	if parsed.Status == "no_data" || parsed.Status == "" {
+		confidence = 0.10
+	}
+
+	return NLPSignal{
+		LanguageCode:   cfg.LanguageCode,
+		SourceType:     "ANIMA_LIVE", // real: DEV_REPO+ACADEMIC+NEWS+GDELT composite
+		Timestamp:      time.Now().Unix(),
+		SentimentScore: score,
+		Confidence:     confidence,
+		SourceCount:    7,
+		SourceCred:     cred,
+	}, nil
 }
 
 // UpdateCred applies the CRED EMA update rule L3.4 after each crawl.
