@@ -21,6 +21,9 @@ contract BTCPGasAbstraction {
     error InsufficientDeposit(uint256 required, uint256 provided);
     error NothingToRefund(bytes32 intentHash);
     error AlreadyClaimed(bytes32 intentHash);
+    error DepositAlreadyExists(bytes32 intentHash);   // SECURITY: overwrite guard
+    error QuoteNotExpired(bytes32 intentHash);        // SECURITY: refund only after quote expiry
+    error OnlyPayer(bytes32 intentHash);              // SECURITY: refund goes to payer only
 
     event QuotePosted(bytes32 indexed intentHash, uint256 gasTotalUsd, uint256 serviceFeeUsd, uint64 expiresAt);
     event DepositPosted(bytes32 indexed intentHash, address indexed payer, address token, uint256 amount);
@@ -74,9 +77,13 @@ contract BTCPGasAbstraction {
         if (msg.value == 0) revert ZeroAmount();
         Quote storage q = quotes[intentHash];
         if (!q.active || block.timestamp > q.expiresAt) revert QuoteExpired();
+        // SECURITY: a second deposit must never overwrite (and permanently
+        // brick) the first depositor's funds.
+        if (deposits[intentHash].exists) revert DepositAlreadyExists(intentHash);
         uint256 required = q.gasTotalUsd + q.serviceFeeUsd;
         if (msg.value < required) revert InsufficientDeposit(required, msg.value);
         deposits[intentHash] = Deposit(msg.sender, address(0), msg.value, false, true);
+        _activeDepositsEth += msg.value;  // SECURITY: fee-sweep accounting
         emit DepositPosted(intentHash, msg.sender, address(0), msg.value);
     }
 
@@ -85,6 +92,8 @@ contract BTCPGasAbstraction {
         if (!acceptedTokens[token]) revert ZeroAddress();
         Quote storage q = quotes[intentHash];
         if (!q.active || block.timestamp > q.expiresAt) revert QuoteExpired();
+        // SECURITY: overwrite guard — protects the existing depositor's funds
+        if (deposits[intentHash].exists) revert DepositAlreadyExists(intentHash);
         uint256 required = q.gasTotalUsd + q.serviceFeeUsd;
         if (amount < required) revert InsufficientDeposit(required, amount);
         IERC20Minimal(token).transferFrom(msg.sender, address(this), amount);
@@ -105,6 +114,7 @@ contract BTCPGasAbstraction {
         if (tokenAmount == 0) revert ZeroAmount();
         if (tokenAmount > d.amount) tokenAmount = d.amount;
         if (d.token == address(0)) {
+            _activeDepositsEth -= tokenAmount;  // SECURITY: fee-sweep accounting
             (bool ok, ) = payee.call{value: tokenAmount}("");
             require(ok, "ETH payout failed");
         } else {
@@ -116,8 +126,16 @@ contract BTCPGasAbstraction {
     function refund(bytes32 intentHash) external {
         Deposit storage d = deposits[intentHash];
         if (!d.exists || d.claimed) revert NothingToRefund(intentHash);
+        // SECURITY: only the payer can pull their own refund back.
+        if (msg.sender != d.payer) revert OnlyPayer(intentHash);
+        // SECURITY: refund is only permitted once the quote has expired —
+        // otherwise a payer could front-run coverGas after execution and
+        // strand the relayer's gas costs (race/griefing).
+        Quote storage q = quotes[intentHash];
+        if (q.active && block.timestamp <= q.expiresAt) revert QuoteNotExpired(intentHash);
         d.claimed = true;
         if (d.token == address(0)) {
+            _activeDepositsEth -= d.amount;  // SECURITY: fee-sweep accounting
             (bool ok, ) = d.payer.call{value: d.amount}("");
             require(ok, "ETH refund failed");
         } else {
@@ -125,6 +143,27 @@ contract BTCPGasAbstraction {
         }
         emit DepositRefunded(intentHash, d.payer, d.amount);
     }
+
+    /// @notice Owner sweep for the unclaimed service-fee remainder after a
+    /// deposit has been claimed. Never touches unclaimed deposits.
+    function sweepFees(address payable to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        // The contract balance minus still-live (unclaimed, refundable)
+        // deposits is accumulated service-fee remainder. We bound the sweep
+        // by tracking it lazily: sweep at most the current balance minus the
+        // sum of active deposits is not computable on-chain without iteration,
+        // so we require every active deposit's funds be accounted via the
+        // coveredTotal ledger below.
+        uint256 excess = address(this).balance - _activeDepositsEth;
+        if (excess == 0) revert ZeroAmount();
+        (bool ok, ) = to.call{value: excess}("");
+        require(ok, "ETH sweep failed");
+        emit FeesSwept(to, excess);
+    }
+
+    // ── SECURITY: active ETH-deposit ledger (for safe fee sweeping) ─────────
+    uint256 private _activeDepositsEth;
+    event FeesSwept(address indexed to, uint256 amount);
 
     function requiredAmount(bytes32 intentHash) external view returns (uint256) {
         Quote storage q = quotes[intentHash];
