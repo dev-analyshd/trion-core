@@ -35,7 +35,7 @@ struct NearConfig {
 
 fn config() -> NearConfig {
     NearConfig {
-        chain_id: 1200, label: "NEAR_MAINNET",
+        chain_id: 23000, label: "NEAR_MAINNET",
         rpcs: vec![
             "https://rpc.mainnet.near.org",
             "https://rpc.fastnear.com",

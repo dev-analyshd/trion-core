@@ -28,7 +28,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 8000;
+const CHAIN_ID:  u64  = 24000;
 const CHAIN_LBL: &str = "STARKNET_MAINNET";
 const VM_TYPE:   &str = "CAIROVM";
 

@@ -28,14 +28,14 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 8400;
+const CHAIN_ID:  u64  = 29000;
 const CHAIN_LBL: &str = "VECHAIN";
 const VM_TYPE:   &str = "EVM"; // VeChainThor is EVM-compatible
 
 const THOR_URLS: &[&str] = &[
     "https://mainnet.vechain.org",
     "https://vethor-node.vechain.com",
-    "https://synthetixsync.com",
+    "https://mainnet.veblocks.net",
 ];
 
 async fn thor_get(client: &reqwest::Client, base: &str, path: &str) -> Result<Value> {

@@ -419,8 +419,8 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "HYPERLIQUID", chain_id: 999,
         rpcs: &[
-            "https://rpc.hyperliquid-testnet.xyz/evm",
-            "https://api.hyperliquid-testnet.xyz/evm",
+            "https://rpc.hyperliquid.xyz/evm",
+            "https://api.hyperliquid.xyz/evm",
         ],
     },
     EvmChain {

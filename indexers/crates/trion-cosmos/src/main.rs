@@ -38,22 +38,22 @@ struct CosmosChain {
 }
 
 const CHAINS: &[CosmosChain] = &[
-    CosmosChain { label: "COSMOS_HUB", chain_id: 4001, denom: "uatom",
+    CosmosChain { label: "COSMOS_HUB", chain_id: 10000, denom: "uatom",
         lcds: &["https://cosmos-api.polkachu.com", "https://cosmos.api.kjnodes.com",
                 "https://cosmos-rest.publicnode.com", "https://rest.cosmos.directory/cosmoshub"] },
-    CosmosChain { label: "KAVA",       chain_id: 4002, denom: "ukava",
+    CosmosChain { label: "KAVA",       chain_id: 10014, denom: "ukava",
         lcds: &["https://kava-api.polkachu.com", "https://kava.api.kjnodes.com",
                 "https://kava-api.publicnode.com", "https://rest.cosmos.directory/kava"] },
-    CosmosChain { label: "INJECTIVE",  chain_id: 4003, denom: "inj",
+    CosmosChain { label: "INJECTIVE",  chain_id: 10004, denom: "inj",
         lcds: &["https://injective-api.polkachu.com", "https://injective.api.kjnodes.com",
                 "https://injective-rest.publicnode.com", "https://rest.cosmos.directory/injective"] },
-    CosmosChain { label: "SEI",        chain_id: 4004, denom: "usei",
+    CosmosChain { label: "SEI",        chain_id: 10005, denom: "usei",
         lcds: &["https://sei-api.polkachu.com", "https://sei.api.kjnodes.com",
                 "https://rest.cosmos.directory/sei"] },
-    CosmosChain { label: "DYDX",       chain_id: 4005, denom: "adydx",
+    CosmosChain { label: "DYDX",       chain_id: 10006, denom: "adydx",
         lcds: &["https://dydx-api.polkachu.com", "https://dydx.api.kjnodes.com",
                 "https://dydx-rest.publicnode.com", "https://rest.cosmos.directory/dydx"] },
-    CosmosChain { label: "INITIA",     chain_id: 4006, denom: "uinit",
+    CosmosChain { label: "INITIA",     chain_id: 10015, denom: "uinit",
         lcds: &["https://initia-api.polkachu.com", "https://initia.api.kjnodes.com",
                 "https://rest.initia.xyz"] },
 ];

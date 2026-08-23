@@ -10,15 +10,9 @@
     "gate": "node src/trionGate.js",
     "server": "node server.js",
     "trion:index-all": "node scripts/trion_master_indexer.mjs",
-    "trion:index-btc": "node chains/bitcoin/btc_adapter.mjs",
-    "trion:index-utxo": "node chains/utxo/utxo_adapter.mjs",
-    "trion:index-tron": "node chains/tron/tron_adapter.mjs",
-    "trion:index-cosmos": "node chains/cosmos/cosmos_adapter.mjs",
-    "trion:index-move": "node chains/move/move_adapter.mjs",
-    "trion:index-sui": "node chains/sui/sui_adapter.mjs",
-    "trion:index-stark": "node chains/starknet/starknet_adapter.mjs",
-    "trion:index-pi": "node chains/pi/pi_adapter.mjs",
-    "btcp:multichain": "node scripts/btcp_multichain_complete.mjs"
+    "btcp:multichain": "node scripts/btcp_multichain_complete.mjs",
+    "trion:backfill": "node scripts/trion_master_indexer.mjs --backfill",
+    "trion:index-list": "node scripts/trion_master_indexer.mjs --list"
   },
   "overrides": {
     "protobufjs": "8.7.0",

@@ -30,7 +30,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 900;
+const CHAIN_ID:  u64  = 25000;
 const CHAIN_LBL: &str = "DOT_MAINNET";
 const VM_TYPE:   &str = "PVM";
 

@@ -36,10 +36,10 @@ struct UtxoChain {
 }
 
 const CHAINS: &[UtxoChain] = &[
-    UtxoChain { label: "BTC_MAINNET",  chain_id: 2000, api_base: "https://api.blockcypher.com/v1/btc/main" },
-    UtxoChain { label: "LTC_MAINNET",  chain_id: 2010, api_base: "https://api.blockcypher.com/v1/ltc/main" },
-    UtxoChain { label: "DOGE_MAINNET", chain_id: 2020, api_base: "https://api.blockcypher.com/v1/doge/main" },
-    UtxoChain { label: "DASH_MAINNET", chain_id: 2030, api_base: "https://api.blockcypher.com/v1/dash/main" },
+    UtxoChain { label: "BTC_MAINNET",  chain_id: 21000, api_base: "https://api.blockcypher.com/v1/btc/main" },
+    UtxoChain { label: "LTC_MAINNET",  chain_id: 21004, api_base: "https://api.blockcypher.com/v1/ltc/main" },
+    UtxoChain { label: "DOGE_MAINNET", chain_id: 21003, api_base: "https://api.blockcypher.com/v1/doge/main" },
+    UtxoChain { label: "DASH_MAINNET", chain_id: 21005, api_base: "https://api.blockcypher.com/v1/dash/main" },
 ];
 
 async fn bc_get(client: &reqwest::Client, url: &str) -> Result<Value> {

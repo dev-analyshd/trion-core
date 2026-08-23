@@ -27,7 +27,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 5001;
+const CHAIN_ID:  u64  = 20000;
 const CHAIN_LBL: &str = "APTOS_MAINNET";
 const VM_TYPE:   &str = "MOVE";
 

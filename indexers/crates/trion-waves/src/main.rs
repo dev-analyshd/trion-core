@@ -28,7 +28,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 9200;
+const CHAIN_ID:  u64  = 30000;
 const CHAIN_LBL: &str = "WAVES";
 const VM_TYPE:   &str = "WAVES";
 
