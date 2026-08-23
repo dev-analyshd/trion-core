@@ -42,6 +42,26 @@ contract BTCPEscrow {
     // blocks value ingress, not egress (so funds are never frozen).
     bool public paused;
 
+    // ── SECURITY: Aggregate locked balance ──────────────────────────────────
+    // Sum of esc.amount over all escrows in HOLDING or PENDING_AKASHIC.
+    // sweepETH() can only withdraw the EXCESS above this figure, so the owner
+    // can never drain in-flight escrow funds ("no governance override").
+    uint256 private _lockedBalance;
+
+    /// @notice Total value currently locked in active (HOLDING/PENDING_AKASHIC) escrows.
+    function totalLockedBalance() external view returns (uint256) {
+        return _lockedBalance;
+    }
+
+    /// @notice Sweepable excess — ETH in the contract beyond active escrow value
+    /// (e.g. force-sent via selfdestruct/coinbase). This is the ONLY portion
+    /// sweepETH() may move.
+    function sweepableExcess() external view returns (uint256) {
+        return address(this).balance > _lockedBalance
+            ? address(this).balance - _lockedBalance
+            : 0;
+    }
+
     // ── States (extended per spec Phase 1.1) ─────────────────────────────────
     enum State {
         IDLE,                // 0 — initial, no escrow
@@ -157,6 +177,7 @@ contract BTCPEscrow {
 
         escrowList.push(escrowId);
         escrowCount++;
+        _lockedBalance += msg.value;  // SECURITY: track aggregate locked value
         emit EscrowLocked(escrowId, routeId, entityId, destination, msg.value, minCoherence, timeoutBlocks);
         return true;
     }
@@ -210,6 +231,7 @@ contract BTCPEscrow {
 
         escrowList.push(escrowId);
         escrowCount++;
+        _lockedBalance += msg.value;  // SECURITY: track aggregate locked value
         emit EscrowLocked(escrowId, routeId, entityId, destination, msg.value, minCoherence, timeoutBlocks);
         return true;
     }
@@ -256,6 +278,7 @@ contract BTCPEscrow {
         esc.state = State.RELEASED;
         esc.settledAt = block.timestamp;
         esc.amount = 0;  // PHASE-1-SECURITY: clear balance before external call
+        _lockedBalance -= amountToTransfer;  // SECURITY: value leaves the locked pool
 
         // Transfer native tokens to destination — .call{value:}() with return check.
         (bool ok, ) = destinationToPay.call{value: amountToTransfer}("");
@@ -296,6 +319,7 @@ contract BTCPEscrow {
         esc.state = State.RELEASED;
         esc.settledAt = block.timestamp;
         esc.amount = 0;
+        _lockedBalance -= amountToTransfer;  // SECURITY: value leaves the locked pool
 
         (bool ok, ) = destinationToPay.call{value: amountToTransfer}("");
         require(ok, "TRANSFER_FAILED");
@@ -330,6 +354,7 @@ contract BTCPEscrow {
         esc.revertReason = reason;
         esc.revertedAt = block.timestamp;
         esc.amount = 0;
+        _lockedBalance -= amountToRefund;  // SECURITY: value leaves the locked pool
 
         // Return funds to locker (Force Majeure — funds on source chain, Gap 11)
         (bool ok, ) = refundTo.call{value: amountToRefund}("");
@@ -364,6 +389,7 @@ contract BTCPEscrow {
         esc.revertReason = RevertReason.EMERGENCY_ESCAPE;
         esc.revertedAt = block.timestamp;
         esc.amount = 0;
+        _lockedBalance -= amountToRefund;  // SECURITY: value leaves the locked pool
 
         (bool ok, ) = refundTo.call{value: amountToRefund}("");
         require(ok, "REFUND_FAILED");
@@ -392,6 +418,7 @@ contract BTCPEscrow {
         parent.revertReason = RevertReason.CASCADE_REVERT;
         parent.revertedAt = block.timestamp;
         parent.amount = 0;
+        _lockedBalance -= amountToRefund;  // SECURITY: value leaves the locked pool
 
         (bool ok, ) = refundTo.call{value: amountToRefund}("");
         require(ok, "CASCADE_REFUND_FAILED");
@@ -455,11 +482,17 @@ contract BTCPEscrow {
     // ── PHASE-1-SECURITY: Sweep stuck ETH (e.g. from failed refund) ────────
     // Owner-only escape hatch for ETH sent to the contract outside an escrow
     // (force-send via selfdestruct/coinbase). NEVER used for escrow funds.
+    event ETHSwept(address indexed to, uint256 amount);
+
     function sweepETH(address payable to) external onlyOwner nonReentrant {
         require(to != address(0), "ZERO_DESTINATION");
-        uint256 balance = address(this).balance;
-        require(balance > 0, "ZERO_BALANCE");
-        (bool ok, ) = to.call{value: balance}("");
+        // SECURITY: never touch in-flight escrow funds — sweep only the excess
+        // (force-sent ETH from selfdestruct/coinbase) above the aggregate
+        // locked balance. Prevents owner from draining HOLDING escrows.
+        uint256 excess = address(this).balance - _lockedBalance;
+        require(excess > 0, "ZERO_SWEEPABLE_EXCESS");
+        (bool ok, ) = to.call{value: excess}("");
         require(ok, "SWEEP_FAILED");
+        emit ETHSwept(to, excess);
     }
 }
