@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: '%s - TRION Protocol',
   },
   description:
-    'Multi-chain behavioral truth oracle with cryptographic coherence scoring across 100+ chains and 14 VM families. BTCP cross-chain routing + Continuum clearing network.',
+    'Multi-chain behavioral truth oracle with cryptographic coherence scoring across 128 chains and 18 VM families. BTCP cross-chain routing + Continuum clearing network.',
   applicationName: 'TRION Protocol',
   authors: [{ name: 'TRION Protocol' }],
   generator: 'Next.js',
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'TRION Protocol - The Behavioral Truth Oracle',
     description:
-      'The first substrate-independent behavioral truth infrastructure. 100+ chains, 14 VM families, BTCP + Continuum clearing.',
+      'The first substrate-independent behavioral truth infrastructure. 128 chains, 18 VM families, BTCP + Continuum clearing.',
     type: 'website',
     siteName: 'TRION Protocol',
     images: ['/trion_logo.png'],
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'TRION Protocol',
-    description: 'Behavioral truth oracle across 100+ chains.',
+    description: 'Behavioral truth oracle across 128 chains.',
     images: ['/trion_logo.png'],
   },
   robots: {
@@ -78,7 +78,7 @@ const jsonLd = {
   applicationCategory: 'FinancialApplication',
   operatingSystem: 'Web',
   description:
-    'Multi-chain behavioral truth oracle with cryptographic coherence scoring across 100+ chains.',
+    'Multi-chain behavioral truth oracle with cryptographic coherence scoring across 128 chains.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 };
 

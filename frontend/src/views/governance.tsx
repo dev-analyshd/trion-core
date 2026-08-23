@@ -53,7 +53,7 @@ export function GovernancePage() {
       </Card>
 
       <Card title="Geographic Distribution" live>
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2">
           {['AF', 'AN', 'AS', 'EU', 'NA', 'OC', 'SA'].map(c => {
             const count = geo?.continent_breakdown?.[c] || 0;
             return (
@@ -636,7 +636,7 @@ export function DWBFTPage() {
             jurisdictional diversity - no single government can issue a coordinated halt order
             that captures more than 25% of voting power.
           </p>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2">
             {[
               { code: 'AF', name: 'Africa' },
               { code: 'AS', name: 'Asia' },

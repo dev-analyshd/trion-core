@@ -69,7 +69,7 @@ export function PhysicalPlanePage() {
       </Card>
 
       <Card title="9 Shannon Entropy Features (F1-F9)" live>
-        <div className="grid grid-cols-3 lg:grid-cols-9 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 lg:grid-cols-9 gap-2">
           {Array.from({ length: 9 }, (_, i) => {
             const feat = planes?.features?.[i] || planes?.[`F${i + 1}`] || (0.1 + i * 0.08);
             return (
@@ -213,7 +213,7 @@ export function SpiritualPlanePage() {
         </div>
         <div>
           <div className="text-xs text-muted-foreground mb-2">Continent Breakdown</div>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2">
             {['AF', 'AN', 'AS', 'EU', 'NA', 'OC', 'SA'].map(c => {
               const count = hhi?.continent_breakdown?.[c] || hhi?.continents?.[c] || 0;
               return (

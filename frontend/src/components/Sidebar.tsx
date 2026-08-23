@@ -405,10 +405,10 @@ export function Sidebar({
           <div className="flex items-center gap-1.5">
             <span className="live-dot" style={{ width: 6, height: 6 }}></span>
             <span className="font-medium text-foreground">TRION v2.0.0</span>
-            <span className="ml-auto tabular-nums">100+ chains</span>
+            <span className="ml-auto tabular-nums">128 chains</span>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span>14 VM families</span>
+            <span>18 VM families</span>
             <span className="ml-auto">CC0 - Analys</span>
           </div>
         </div>
