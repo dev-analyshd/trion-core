@@ -24,6 +24,7 @@ import time
 import urllib.request
 import urllib.error
 from typing import Dict, List, Optional, Tuple
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dataclasses import dataclass, field
 from enum import IntEnum
 
@@ -180,13 +181,13 @@ def default_processes() -> Dict[str, IndexerProcess]:
         "bh_streamer": IndexerProcess(
             name="bh_streamer",
             command=[sys.executable, "-m", "core.realtime.bh_streamer"],
-            env={"PYTHONPATH": "/home/z/my-project/repos/trion-core"},
+            env={"PYTHONPATH": _REPO_ROOT},
         ),
         "flask_api": IndexerProcess(
             name="flask_api",
             command=[sys.executable, "-m", "gunicorn", "--workers", "2", "--bind", "127.0.0.1:5000",
                      "--timeout", "120", "--threads", "8", "api.app:app"],
-            env={"PYTHONPATH": "/home/z/my-project/repos/trion-core:/home/z/my-project/repos/trion-core/api"},
+            env={"PYTHONPATH": _REPO_ROOT},
         ),
     }
 
