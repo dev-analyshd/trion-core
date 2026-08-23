@@ -218,7 +218,7 @@ class BTCPProofBuilder:
         validator_signatures: List[ValidatorSignature],
         delta: float = 0.05,
         coherence_threshold: Optional[float] = None,
-        validator_key_version: bytes = b"\\x00" * 4,
+        validator_key_version: bytes = b"\x00" * 4,
     ) -> Tuple[BTCPProof, ConsensusAttestation]:
         """Build a BTCPProof by calling the spiritual plane consensus layer
         to compute the diversity certificate, HHI, and Σ(t) coherence score.

@@ -21,11 +21,11 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
     freq_entropy, histogram_entropy,
-    BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry, with_retry,
+    BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
 const CHAIN_ID:  u64  = 101;
@@ -130,10 +130,13 @@ fn sol_magnitude(lamports: u64) -> f64 {
 
 fn classify_sol_event(tx: &Value, account_keys: &[String]) -> u8 {
     let meta = &tx["meta"];
-    // Check for stake program
-    if account_keys.iter().any(|k| k == STAKE_PROG) { return 8; } // STAKE
-    // Check for vote program
-    if account_keys.iter().any(|k| k == VOTE_PROG)  { return 6; } // GOVERNANCE
+    // Canonical whitepaper event types (L0.1 §2):
+    // 0 TRANSFER, 1 SWAP, 2 LIQUIDITY, 3 STAKE, 4 UNSTAKE, 5 GOVERNANCE,
+    // 6 PROPOSAL, 7 BORROW, 8 REPAY, 9 LIQUIDATE, 10 BRIDGE, 11 DEPLOY,
+    // 12 UPGRADE, 13 MINT, 14 BURN, 15 ORACLE_UPDATE, 16 MEV_CAPTURE,
+    // 17 FLASH_LOAN, 18 AIRDROP, 19 CLAIM
+    if account_keys.iter().any(|k| k == STAKE_PROG) { return 3; } // STAKE
+    if account_keys.iter().any(|k| k == VOTE_PROG)  { return 5; } // GOVERNANCE
     // Check for known DEX programs (partial match)
     for k in account_keys {
         let k8 = if k.len() >= 8 { &k[..8] } else { k.as_str() };
@@ -203,7 +206,7 @@ async fn main() -> Result<()> {
     let poll_ms   = std::env::var("POLL_SLEEP_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(1_500u64);
     let label     = chain_label();
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new(&format!("svm_{}", label.to_lowercase()));
+    let state = IndexerState::new(&format!("svm_{}", label.to_lowercase()));
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
     let mut prev_slot = 0u64;
 

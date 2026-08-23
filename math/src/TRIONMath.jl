@@ -229,7 +229,7 @@ end
 
 end  # module TRIONMath
 
-# ── Standalone verification (run with: julia math/trion_entropy_verification.jl) ──
+# ── Standalone verification (run with: julia math/TRIONMath.jl) ──
 
 if abspath(PROGRAM_FILE) == @__FILE__
     using .TRIONMath
@@ -292,12 +292,15 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println("[PASS] L4.3 Kolmogorov bound growing: day1=$k1 bits, day10=$k2 bits")
 
     # 9. Prediction interval calibration
+    # A well-calibrated 95% interval contains ~95% of realized values.
+    # Construct exactly 95% coverage: 190 of 200 inside the interval.
     n = 200
     lower = fill(0.3, n)
     upper = fill(0.8, n)
-    realized_in = fill(0.55, n)  # all inside [0.3, 0.8]
-    cal = prediction_interval_calibration(lower, upper, realized_in)
-    @assert cal.calibrated "100% coverage should be calibrated (within 2% of 95%)" # actually 100% > 95%+2% so might fail
+    realized = fill(0.55, n)  # all inside [0.3, 0.8]
+    realized[1:10] .= 0.95   # 10 outside → 190/200 = 95% coverage exactly
+    cal = prediction_interval_calibration(lower, upper, realized)
+    @assert cal.calibrated "95% coverage must be calibrated (within 2% of 95%)"
     println("[PASS] L3.1 Prediction interval calibration: coverage=$(cal.coverage)")
 
     # 10. Entropy budget

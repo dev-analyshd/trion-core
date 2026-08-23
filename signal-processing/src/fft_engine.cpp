@@ -26,6 +26,7 @@
 #include <numeric>
 #include <string>
 #include <iostream>
+#include <cstdint>
 
 using Complex = std::complex<double>;
 using namespace std;
@@ -241,6 +242,7 @@ static int run_stdin_bridge() {
 
 // ── Self-test ─────────────────────────────────────────────────────────────────
 
+#ifndef TRION_FFT_NO_MAIN
 int main(int argc, char** argv) {
     if (argc > 1 && std::string(argv[1]) == "--stdin") {
         return run_stdin_bridge();
@@ -248,10 +250,20 @@ int main(int argc, char** argv) {
     printf("TRION Protocol — C++ FFT Engine self-test\n");
     printf("─────────────────────────────────────────\n");
 
-    // Test 1: Organic signal — high entropy (broadband noise)
+    // Test 1: Organic signal — high entropy (broadband pseudo-random noise).
+    // NOTE: a pure sinusoid mix is itself narrowband and trips the periodicity
+    // detector; real organic traffic is broadband. Use a deterministic
+    // xorshift PRNG so the test is reproducible without <random> overhead.
     vector<double> organic;
-    for (int i = 0; i < 64; ++i)
-        organic.push_back(0.5 + 0.4 * sin(i * 0.73 + 0.3) + 0.2 * cos(i * 1.37));
+    {
+        uint64_t rng_state = 0x9E3779B97F4A7C15ULL;  // fixed seed
+        for (int i = 0; i < 64; ++i) {
+            rng_state ^= rng_state << 13;
+            rng_state ^= rng_state >> 7;
+            rng_state ^= rng_state << 17;
+            organic.push_back(0.5 + 0.35 * ((double)(rng_state >> 11) / 9007199254740992.0) * 2.0 - 0.35);
+        }
+    }
     double h_organic = compute_entropy_fft(organic);
     printf("  Organic signal entropy:   %.4f\n", h_organic);
 
@@ -282,3 +294,4 @@ int main(int argc, char** argv) {
     printf("TRION C++ FFT Engine: %s\n", all_pass ? "ALL PASS" : "FAILURES DETECTED");
     return all_pass ? 0 : 1;
 }
+#endif  // TRION_FFT_NO_MAIN

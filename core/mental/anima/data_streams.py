@@ -485,40 +485,46 @@ class ANIMADataAggregator:
 
     # ── Lazy fetcher accessors ───────────────────────────────────────────────
 
+    # NOTE: the historical class-based fetcher API (GitHubActivityFetcher,
+    # ArxivFetcher, ...) never existed — the data_sources modules expose
+    # FUNCTION-based APIs (compute_github_signal, compute_academic_signal, ...).
+    # These accessors now bind the real modules so the real-data ingestion path
+    # works instead of silently falling back to neutral signals.
+
     def _github_fetcher(self):
         if self._gh is None:
-            from core.mental.anima.data_sources.github_activity import GitHubActivityFetcher
-            self._gh = GitHubActivityFetcher()
+            from core.mental.anima.data_sources import github_activity as _m
+            self._gh = _m
         return self._gh
 
     def _arxiv_fetcher(self):
         if self._arxiv is None:
-            from core.mental.anima.data_sources.academic import ArxivFetcher
-            self._arxiv = ArxivFetcher()
+            from core.mental.anima.data_sources import academic as _m
+            self._arxiv = _m
         return self._arxiv
 
     def _regulatory_fetcher(self):
         if self._reg is None:
-            from core.mental.anima.data_sources.regulatory import RegulatoryFetcher
-            self._reg = RegulatoryFetcher()
+            from core.mental.anima.data_sources import regulatory as _m
+            self._reg = _m
         return self._reg
 
     def _ecological_fetcher(self):
         if self._eco is None:
-            from core.mental.anima.data_sources.ecological import EcologicalFetcher
-            self._eco = EcologicalFetcher()
+            from core.mental.anima.data_sources import ecological as _m
+            self._eco = _m
         return self._eco
 
     def _sec_edgar_fetcher(self):
         if self._sec is None:
-            from core.mental.anima.data_sources.sec_edgar import SecEdgarAdapter
-            self._sec = SecEdgarAdapter(user_agent=self._user_agent)
+            from core.mental.anima.data_sources import sec_edgar as _m
+            self._sec = _m
         return self._sec
 
     def _news_fetcher(self):
         if self._news is None:
-            from core.mental.anima.data_sources.news import NewsFetcher
-            self._news = NewsFetcher()
+            from core.mental.anima.data_sources import news as _m
+            self._news = _m
         return self._news
 
     def _multilingual_sentiment(self):
@@ -585,21 +591,21 @@ class ANIMADataAggregator:
         if not cfg.sec_cik:
             return []
         try:
-            result = self._sec_edgar_fetcher().fetch(
-                cik=cfg.sec_cik,
-                form_type=cfg.sec_form_type,
-                limit=20,
-                use_cache=True,
-            )
-            if result.status != "ok" or result.filing_count == 0:
+            sig = self._sec_edgar_fetcher().compute_sec_edgar_signal(cik=cfg.sec_cik)
+            count = int(sig.get("filing_count", 0) or 0)
+            if count == 0:
                 return []
+            filings = sig.get("filings", []) or []
+            form = filings[0].get("form_type", "10-K") if filings else "10-K"
+            # More filings → higher institutional engagement signal.
+            strength = min(1.0, 0.3 + 0.1 * count)
             return [StructuredOffchainSignal(
-                source_id=f"SEC_EDGAR_{result.cik}",
+                source_id=f"SEC_EDGAR_{cfg.sec_cik}",
                 source_type="SEC_EDGAR",
                 jurisdiction="US",
                 timestamp=ts,
-                signal_strength=result.signal_strength,
-                filing_type=result.filing_type,
+                signal_strength=strength,
+                filing_type=form,
                 jurisdiction_code="US",
                 source_cred=0.65,
             )]
@@ -608,30 +614,26 @@ class ANIMADataAggregator:
 
     def _fetch_regulatory(self, cfg: FetcherConfig, ts: float) -> List[StructuredOffchainSignal]:
         try:
-            result = self._regulatory_fetcher().fetch(
-                entity_term=cfg.entity_id, use_cache=True
+            sig = self._regulatory_fetcher().compute_regulatory_signal(
+                query=cfg.entity_id or "blockchain cryptocurrency"
             )
-            if result.status != "ok":
+            filings = sig.get("filings", []) or []
+            if not filings:
                 return []
-            # One composite StructuredOffchainSignal per jurisdiction touched.
-            by_jurisdiction: Dict[str, List[Any]] = {}
-            for filing in result.filings:
-                by_jurisdiction.setdefault(filing.jurisdiction, []).append(filing)
-            signals: List[StructuredOffchainSignal] = []
-            for jur, filings in by_jurisdiction.items():
-                enfs = sum(1 for f in filings if f.enforcement_hit)
-                risks = sum(1 for f in filings if f.risk_hit)
-                strength = max(0.20, 1.0 - min(0.80, enfs * 0.10 + risks * 0.05))
-                signals.append(StructuredOffchainSignal(
-                    source_id=f"REGULATORY_{jur}",
-                    source_type="REGULATORY",
-                    jurisdiction=jur,
-                    timestamp=ts,
-                    signal_strength=strength,
-                    jurisdiction_code=jur,
-                    source_cred=0.60,
-                ))
-            return signals
+            # One composite StructuredOffchainSignal (US SEC full-text search).
+            count = int(sig.get("filing_count", len(filings)) or 0)
+            # More crypto-mentioning filings = higher institutional engagement.
+            strength = max(0.20, min(1.0, 0.3 + 0.07 * count))
+            return [StructuredOffchainSignal(
+                source_id="REGULATORY_US",
+                source_type="REGULATORY",
+                jurisdiction="US",
+                timestamp=ts,
+                signal_strength=strength,
+                filing_type="SEC_FTS",
+                jurisdiction_code="US",
+                source_cred=0.60,
+            )]
         except Exception:
             return []
 
@@ -639,22 +641,37 @@ class ANIMADataAggregator:
         """Fetch GitHub repo activity → NLPSignal(source_type=DEV_REPO)."""
         if cfg.github_owner and cfg.github_repo:
             try:
-                result = self._github_fetcher().fetch(
-                    owner=cfg.github_owner, repo=cfg.github_repo, use_cache=True
+                sig = self._github_fetcher().compute_github_signal(
+                    owner=cfg.github_owner, repo=cfg.github_repo
                 )
-                if result.status == "ok":
+                events = sig.get("events", [])
+                event_types = sig.get("event_types", {}) or {}
+                n_events = int(sig.get("event_count", 0) or 0)
+                if n_events > 0:
+                    # Derive dev-flow proxies from the event-type histogram.
+                    pushes = event_types.get("PushEvent", 0)
+                    pulls = event_types.get("PullRequestEvent", 0)
+                    issues = event_types.get("IssuesEvent", 0) + event_types.get("IssueCommentEvent", 0)
+                    forks = event_types.get("ForkEvent", 0) + event_types.get("WatchEvent", 0)
+                    commit_velocity = min(1.0, pushes / 20.0)
+                    contributor_growth = float(sig.get("diversity_score", 0.0))
+                    issue_closure_rate = min(1.0, issues / 10.0)
+                    pr_merge_rate = min(1.0, pulls / 10.0)
+                    # Activity itself is mildly positive developer signal.
+                    activity = float(sig.get("activity_score", 0.0))
+                    sentiment = 0.50 + 0.30 * activity
                     return NLPSignal(
                         language_code="en",
                         source_type="DEV_REPO",
                         timestamp=ts,
-                        sentiment_score=result.score,
-                        confidence=min(1.0, result.events_observed / 50.0),
-                        source_count=result.events_observed,
+                        sentiment_score=min(1.0, sentiment),
+                        confidence=min(1.0, n_events / 50.0),
+                        source_count=n_events,
                         source_cred=0.80,
-                        commit_velocity=result.commit_velocity,
-                        contributor_growth=result.contributor_diversity,
-                        issue_closure_rate=result.issue_resolution_rate,
-                        pr_merge_rate=result.pr_merge_rate,
+                        commit_velocity=commit_velocity,
+                        contributor_growth=contributor_growth,
+                        issue_closure_rate=issue_closure_rate,
+                        pr_merge_rate=pr_merge_rate,
                     )
             except Exception:
                 pass
@@ -671,17 +688,19 @@ class ANIMADataAggregator:
 
     def _fetch_arxiv(self, cfg: FetcherConfig, ts: float) -> NLPSignal:
         try:
-            result = self._arxiv_fetcher().fetch(
-                entity_term=cfg.entity_id, use_cache=True
-            )
-            sentiment = result.score
+            query = cfg.entity_id or "blockchain security"
+            sig = self._arxiv_fetcher().compute_academic_signal(query=query)
+            papers = int(sig.get("paper_count", 0) or 0)
+            trend = float(sig.get("research_trend", 0.0) or 0.0)
+            # Rising research interest is a mildly positive signal.
+            sentiment = 0.50 + 0.25 * trend
             return NLPSignal(
                 language_code="en",
                 source_type="ACADEMIC",
                 timestamp=ts,
-                sentiment_score=sentiment,
-                confidence=min(1.0, (result.entity_papers + result.domain_papers) / 10.0),
-                source_count=result.entity_papers + result.domain_papers,
+                sentiment_score=min(1.0, sentiment),
+                confidence=min(1.0, papers / 10.0),
+                source_count=papers,
                 source_cred=0.45,
             )
         except Exception:
@@ -696,52 +715,42 @@ class ANIMADataAggregator:
             )
 
     def _fetch_news(self, cfg: FetcherConfig, ts: float) -> NLPSignal:
-        """Fetch news RSS, optionally enriching with multilingual sentiment."""
+        """Fetch news RSS → NLPSignal(source_type=NEWS)."""
         try:
-            result = self._news_fetcher().fetch(
-                entity_term=cfg.entity_id, use_cache=True
-            )
-            if result.status != "ok" or not result.articles:
+            sig = self._news_fetcher().compute_news_signal(query=cfg.entity_id or "")
+            articles = int(sig.get("article_count", 0) or 0)
+            avg = float(sig.get("avg_sentiment", 0.5) or 0.5)
+            if articles == 0:
                 return NLPSignal(
                     language_code="en",
                     source_type="NEWS",
                     timestamp=ts,
-                    sentiment_score=result.score,
+                    sentiment_score=avg,
                     confidence=0.20,
-                    source_count=result.articles_analyzed,
+                    source_count=0,
                     source_cred=0.25,
                 )
-
-            # Optional: run multilingual sentiment on the article titles
+            # Optional best-effort multilingual enrichment on titles
             score_fn, _ = self._multilingual_sentiment()
             if score_fn is not None:
                 try:
-                    # Pick articles in non-English languages and re-score
-                    non_en_articles = [a for a in result.articles if a.language != "en"]
-                    if non_en_articles:
-                        for article in non_en_articles:
-                            ms = score_fn(article.title + " " + article.summary)
-                            article.sentiment = ms.score
-                        # Recompute the weighted composite
-                        total_w = 0.0
-                        weighted_sum = 0.0
-                        for source_id, breakdown in result.source_breakdown.items():
-                            cred = breakdown["cred"]
-                            total_w += cred
-                        # Simpler: just use the multilingual-aware mean
-                        ms_scores = [a.sentiment for a in result.articles]
-                        if ms_scores:
-                            result.score = sum(ms_scores) / len(ms_scores)
+                    items = sig.get("items", []) or []
+                    scores = []
+                    for it in items:
+                        title = it.get("title", "")
+                        if title:
+                            scores.append(score_fn(title).score if hasattr(score_fn(title), "score") else float(score_fn(title)))
+                    if scores:
+                        avg = (avg + sum(scores) / len(scores)) / 2.0
                 except Exception:
-                    pass  # multilingual is best-effort enrichment
-
+                    pass
             return NLPSignal(
-                language_code="multi",
+                language_code="en",
                 source_type="NEWS",
                 timestamp=ts,
-                sentiment_score=result.score,
-                confidence=min(1.0, result.articles_analyzed / 50.0),
-                source_count=result.articles_analyzed,
+                sentiment_score=avg,
+                confidence=min(1.0, articles / 50.0),
+                source_count=articles,
                 source_cred=0.25,
             )
         except Exception:
@@ -756,21 +765,17 @@ class ANIMADataAggregator:
             )
 
     def _fetch_ecological(self, cfg: FetcherConfig, ts: float) -> Optional[BiologicalEcologicalSignal]:
-        """Fetch biological + ecological data → BiologicalEcologicalSignal."""
+        """Fetch biological + ecological data (GBIF) → BiologicalEcologicalSignal."""
         try:
-            result = self._ecological_fetcher().fetch(
-                region=cfg.ecological_region,
-                taxon_key=cfg.ecological_taxon_key,
-                species_names=cfg.ecological_species,
-                use_cache=True,
-            )
-            if result.status != "ok":
-                return None
-            # Map ecological result onto the BiologicalEcologicalSignal shape.
-            # Circadian/ultradian/lunar/seasonal phases are not part of the
-            # external ecological fetcher (those come from BRT scheduler).
+            query = cfg.ecological_species or cfg.ecological_region or "coral reef"
+            sig = self._ecological_fetcher().compute_ecological_signal(species_query=query)
+            # Map the ecological dict onto the BiologicalEcologicalSignal shape.
+            # Circadian/ultradian/lunar/seasonal phases come from BRT, not GBIF.
             from core.extended.biological_rhythm import get_brt_dict
             brt = get_brt_dict(ts)
+            bc_score = float(sig.get("bc_score", 0.0) or 0.0)
+            diversity = float(sig.get("diversity_score", 0.0) or 0.0)
+            threat = float(sig.get("threat_ratio", 0.0) or 0.0)
             return BiologicalEcologicalSignal(
                 timestamp=ts,
                 circadian_phase=brt.get("circadian_phase", 0.5),
@@ -779,14 +784,14 @@ class ANIMADataAggregator:
                 seasonal_phase=brt.get("seasonal_phase", 0.5),
                 circadian_phase_deviation=brt.get("circadian_phase_deviation", 0.0),
                 circadian_strength=brt.get("circadian_strength", 0.5),
-                bc_score=result.score,
-                bc_flow=result.bc_flow,
-                bc_resilience=result.bc_resilience,
-                bc_interdependence=result.bc_interdependence,
-                xsl_aggregate=result.xsl_aggregate,
-                xsl_keystone_score=result.xsl_keystone_score,
-                xsl_decline_rate=result.xsl_decline_rate,
-                keystone_at_risk=result.keystone_at_risk,
+                bc_score=bc_score,
+                bc_flow=diversity,
+                bc_resilience=1.0 - threat,
+                bc_interdependence=diversity,
+                xsl_aggregate=bc_score,
+                xsl_keystone_score=1.0 if threat >= 0.6 else 0.5,
+                xsl_decline_rate=threat,
+                keystone_at_risk=threat >= 0.6,
             )
         except Exception:
             return None

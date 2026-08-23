@@ -1,39 +1,61 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+
+// ── Minimal ECDSA (inlined — replaces @openzeppelin ECDSA dependency) ────────
+// EIP-2 compliant: rejects s > secp256k1n/2 and v not in {27, 28}.
+library ECDSA {
+    function recover(bytes32 hash, bytes memory signature) internal pure returns (address) {
+        if (signature.length != 65) return address(0);
+        bytes32 r; bytes32 s; uint8 v;
+        assembly {
+            r := mload(add(signature, 0x20))
+            s := mload(add(signature, 0x40))
+            v := byte(0, mload(add(signature, 0x60)))
+        }
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            return address(0); // EIP-2: reject high-s
+        }
+        if (v != 27 && v != 28) return address(0);
+        return ecrecover(hash, v, r, s);
+    }
+}
+
+
+// ── Minimal MessageHashUtils (inlined — replaces OZ dependency) ─────────────
+library MessageHashUtils {
+    function toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+}
+
+
+// ── Minimal Ownable (inlined — replaces OZ dependency) ──────────────────────
+abstract contract Ownable {
+    address private _owner;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    constructor() { _transferOwnership(msg.sender); }
+    modifier onlyOwner() { require(msg.sender == owner(), "Ownable: caller is not the owner"); _; }
+    function owner() public view returns (address) { return _owner; }
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
+    }
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
 import "./interfaces/ITRIONOracleV3.sol";
 
 contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     using ECDSA for bytes32;
 
-    // ── Legacy signal storage ────────────────────────────────────────────────
-    struct Signal {
-        uint256 packedData; // [0-7: Status] [8-39: C(t)] [40-71: Threshold] [72-135: BlockNum] [136-199: Timestamp]
-        bool initialized;
-    }
+    // Signal struct inherited from ITRIONOracleV3
 
-    // ── Rich behavioral signal storage (V3 enhancement) ─────────────────────
-    /// @notice Full behavioral signal with entity context and plane data.
-    struct BehavioralSignal {
-        bytes32 entityId;           // BEO entity identifier
-        bytes32 publicCommitment;   // Hash of signal parameters (no behavior leakage)
-        uint256 coherenceScore;     // C(t) × 1e6
-        uint256 threshold;          // Θ(t) × 1e6
-        uint256 moatFactor;         // Economic moat M_moat × 1e6
-        bool coherent;              // C(t) ≥ Θ(t)
-        uint8 limitingPlane;        // 0=Physical, 1=Mental, 2=Spiritual, 3=Conscious, 4=ANIMA
-        uint64 phiPlane;            // Φ(t) × 1e6
-        uint64 mentalPlane;         // M(t) × 1e6
-        uint64 sigmaPlane;          // Σ(t) × 1e6
-        uint64 consciousPlane;      // K(t) × 1e6
-        uint64 animaPlane;          // A(t) × 1e6
-        uint64 signalBlock;         // Block number of publication
-        uint64 signalTimestamp;     // Timestamp of publication
-        bool initialized;
-    }
+    // BehavioralSignal struct inherited from ITRIONOracleV3
 
     mapping(bytes32 => BehavioralSignal) public behavioralSignals;
     mapping(bytes32 => uint256) public signalCountByEntity;
@@ -43,48 +65,18 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     mapping(address => bool) public isValidator;
     uint256 public quorumRequired = 2;
 
-    // ── BTCP Route storage (Fix 1) ───────────────────────────────────────────
-    struct BTCPRoute {
-        bytes32 anchorBH;
-        bytes32 executionBH;
-        uint256 coherence;
-        uint256 threshold;
-        bool isSafe;
-        uint256 timestamp;
-    }
+    // BTCPRoute struct inherited from ITRIONOracleV3
 
     mapping(bytes32 => BTCPRoute) public btcpRoutes;
-    event BTCPRoutePublished(bytes32 indexed routeId, bool isSafe);
+    // BTCPRoutePublished event inherited from ITRIONOracleV3
 
     /// @notice Emitted when a full behavioral signal is published on-chain.
-    event BehavioralSignalPublished(
-        bytes32 indexed entityId,
-        bytes32 publicCommitment,
-        uint256 coherenceScore,
-        uint256 threshold,
-        uint256 moatFactor,
-        bool coherent,
-        uint8 limitingPlane,
-        uint64 phiPlane,
-        uint64 mentalPlane,
-        uint64 sigmaPlane,
-        uint64 consciousPlane,
-        uint64 animaPlane,
-        uint64 signalBlock,
-        uint64 signalTimestamp
-    );
+    // BehavioralSignalPublished event inherited from ITRIONOracleV3
 
     /// @notice Emitted when SILENCE is formally recorded (C(t) < Θ(t)).
-    event SilenceRecorded(
-        bytes32 indexed entityId,
-        uint256 coherenceScore,
-        uint256 threshold,
-        uint8 limitingPlane,
-        uint256 coherenceGap,
-        uint64 signalBlock
-    );
+    // SilenceRecorded event inherited from ITRIONOracleV3
 
-    constructor() Ownable(msg.sender) {
+    constructor() {
         isValidator[msg.sender] = true;
     }
 
@@ -116,85 +108,95 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     // ── Publish rich behavioral signal (V3 enhancement) ─────────────────────
     /// @notice Publish a full behavioral signal with entity context and plane data.
     /// @dev Only callable by owner or authorized validator.
-    function publishBehavioralSignal(
-        bytes32 entityId,
-        bytes32 publicCommitment,
-        uint256 coherenceScore,
-        uint256 threshold,
-        uint256 moatFactor,
-        bool coherent,
-        uint8 limitingPlane,
-        uint64 phiPlane,
-        uint64 mentalPlane,
-        uint64 sigmaPlane,
-        uint64 consciousPlane,
-        uint64 animaPlane
-    ) external {
+    function publishBehavioralSignal(BehavioralSignal calldata s) external {
         require(
             msg.sender == owner() || isValidator[msg.sender],
             "TRION: not authorized"
         );
-        require(limitingPlane <= 4, "TRION: invalid plane index");
+        require(s.limitingPlane <= 4, "TRION: invalid plane index");
 
-        uint64 blk = uint64(block.number);
-        uint64 ts = uint64(block.timestamp);
+        BehavioralSignal memory sig = s;
+        sig.timingPacked = (uint256(uint64(block.number)) << 64) | uint256(uint64(block.timestamp));
+        sig.initialized  = true;
 
-        behavioralSignals[entityId] = BehavioralSignal({
-            entityId: entityId,
-            publicCommitment: publicCommitment,
-            coherenceScore: coherenceScore,
-            threshold: threshold,
-            moatFactor: moatFactor,
-            coherent: coherent,
-            limitingPlane: limitingPlane,
-            phiPlane: phiPlane,
-            mentalPlane: mentalPlane,
-            sigmaPlane: sigmaPlane,
-            consciousPlane: consciousPlane,
-            animaPlane: animaPlane,
-            signalBlock: blk,
-            signalTimestamp: ts,
-            initialized: true
-        });
+        behavioralSignals[s.entityId] = sig;
 
-        signalCountByEntity[entityId]++;
+        signalCountByEntity[s.entityId]++;
         totalBehavioralSignals++;
 
+        uint64 blk = uint64(sig.timingPacked >> 64);
         emit BehavioralSignalPublished(
-            entityId, publicCommitment, coherenceScore, threshold, moatFactor,
-            coherent, limitingPlane, phiPlane, mentalPlane, sigmaPlane,
-            consciousPlane, animaPlane, blk, ts
+            sig.entityId, sig.publicCommitment, sig.coherenceScore, sig.threshold,
+            sig.moatFactor, sig.coherent, sig.limitingPlane, sig.planesPacked,
+            blk, uint64(sig.timingPacked)
         );
 
         // Also emit SilenceRecorded when not coherent
-        if (!coherent) {
-            uint256 gap = threshold > coherenceScore ? threshold - coherenceScore : 0;
-            emit SilenceRecorded(entityId, coherenceScore, threshold, limitingPlane, gap, blk);
+        if (!sig.coherent) {
+            uint256 gap = sig.threshold > sig.coherenceScore ? sig.threshold - sig.coherenceScore : 0;
+            emit SilenceRecorded(sig.entityId, sig.coherenceScore, sig.threshold, sig.limitingPlane, gap, blk);
         }
     }
 
-    /// @notice Get the full behavioral signal for an entity.
-    function getBehavioralSignal(bytes32 entityId) external view returns (
-        bytes32 publicCommitment,
-        uint256 coherenceScore,
-        uint256 threshold,
-        uint256 moatFactor,
-        bool coherent,
-        uint8 limitingPlane,
-        uint64 phiPlane,
-        uint64 mentalPlane,
-        uint64 sigmaPlane,
-        uint64 consciousPlane,
-        uint64 animaPlane,
-        uint64 signalBlock,
-        uint64 signalTimestamp,
-        bool initialized
-    ) {
+    /// @notice Unpack a plane score from planesPacked. planeIndex 0=phi 1=mental 2=sigma 3=conscious 4=anima.
+    function unpackPlane(uint256 planesPacked, uint8 planeIndex) external pure returns (uint64) {
+        return uint64(planesPacked >> (uint256(planeIndex) * 32));
+    }
+
+    /// @notice Pack five plane scores (×1e6) into one uint256.
+    function packPlanes(uint64 phi, uint64 mental, uint64 sigma, uint64 conscious, uint64 anima)
+        external pure returns (uint256)
+    {
+        return uint256(uint32(phi))
+            | (uint256(uint32(mental)) << 32)
+            | (uint256(uint32(sigma)) << 64)
+            | (uint256(uint32(conscious)) << 96)
+            | (uint256(uint32(anima)) << 128);
+    }
+
+    /// @notice Get the core behavioral signal fields for an entity.
+    function getBehavioralSignal(bytes32 entityId)
+        external view
+        returns (
+            bytes32 publicCommitment,
+            uint256 coherenceScore,
+            uint256 threshold,
+            uint256 moatFactor,
+            bool coherent,
+            uint8 limitingPlane,
+            bool initialized
+        )
+    {
         BehavioralSignal memory s = behavioralSignals[entityId];
         return (
             s.publicCommitment, s.coherenceScore, s.threshold, s.moatFactor,
-            s.coherent, s.limitingPlane, s.phiPlane, s.mentalPlane, s.sigmaPlane,
-            s.consciousPlane, s.animaPlane, s.signalBlock, s.signalTimestamp, s.initialized
+            s.coherent, s.limitingPlane, s.initialized
+        );
+    }
+
+    /// @notice Get the five-plane breakdown (unpacked) + block/timestamp.
+    function getBehavioralSignalPlanes(bytes32 entityId)
+        external view
+        returns (
+            uint64 phiPlane,
+            uint64 mentalPlane,
+            uint64 sigmaPlane,
+            uint64 consciousPlane,
+            uint64 animaPlane,
+            uint64 signalBlock,
+            uint64 signalTimestamp
+        )
+    {
+        uint256 p = behavioralSignals[entityId].planesPacked;
+        uint256 t = behavioralSignals[entityId].timingPacked;
+        return (
+            uint64(uint32(p)),
+            uint64(uint32(p >> 32)),
+            uint64(uint32(p >> 64)),
+            uint64(uint32(p >> 96)),
+            uint64(uint32(p >> 128)),
+            uint64(t >> 64),
+            uint64(t)
         );
     }
 

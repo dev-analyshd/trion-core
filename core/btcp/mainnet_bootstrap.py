@@ -29,6 +29,7 @@ import time
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple
 from enum import IntEnum
+import hashlib
 
 
 class BootstrapPhase(IntEnum):
@@ -86,6 +87,13 @@ class ChainConfig:
 
 
 # ── Complete Chain Registry (106 chains, 14 VM families) ──────────────────────
+
+
+def _stable_chain_id(name: str) -> int:
+    """Deterministic synthetic chain id (sha3-based, stable across processes).
+    Python's built-in hash() is salted per-process and would change on restart."""
+    return int.from_bytes(hashlib.sha3_256(name.encode()).digest()[:4], "big") % 100000
+
 
 def build_chain_registry() -> List[ChainConfig]:
     """Build the complete 106-chain registry with bootstrap phase assignments."""
@@ -187,7 +195,7 @@ def build_chain_registry() -> List[ChainConfig]:
     for entry in phase4_chains:
         cid, name, vm, rpc, explorer, sym, dec, bt, fin = entry[:9]
         gas_tok = entry[9] if len(entry) > 9 else sym
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_4_EXPANSION,
                                   None, None, None, sym, dec, bt, fin, gas_tok, False, None))
@@ -220,7 +228,7 @@ def build_chain_registry() -> List[ChainConfig]:
     ]
 
     for cid, name, vm, rpc, explorer, sym, dec, bt, fin in phase5_chains:
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_5_50_CHAINS,
                                   None, None, None, sym, dec, bt, fin, sym, False, None))
@@ -262,7 +270,7 @@ def build_chain_registry() -> List[ChainConfig]:
     ]
 
     for cid, name, vm, rpc, explorer, sym, dec, bt, fin in phase6_chains:
-        chains.append(ChainConfig(cid if cid > 0 else abs(hash(name)) % 100000,
+        chains.append(ChainConfig(cid if cid > 0 else _stable_chain_id(name),
                                   name, vm, rpc, explorer,
                                   BootstrapPhase.PHASE_6_100_CHAINS,
                                   None, None, None, sym, dec, bt, fin, sym, False, None))

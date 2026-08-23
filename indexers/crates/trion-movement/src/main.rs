@@ -134,13 +134,14 @@ fn classify_move_function(func: &str) -> u8 {
     match true {
         _ if f.contains("swap") || f.contains("exchange") || module.contains("swap") || module.contains("dex") => 1,  // SWAP
         _ if f.contains("add_liquidity") || f.contains("add_pool") || module.contains("liquidity")              => 2,  // LIQUIDITY
-        _ if (f.contains("stake") || module.contains("staking")) && !f.contains("unstake")                      => 8,  // STAKE
-        _ if f.contains("unstake") || f.contains("unlock")                                                       => 9,  // UNSTAKE
-        _ if f.contains("borrow")                                                                                 => 3,  // BORROW
-        _ if f.contains("repay")                                                                                  => 4,  // REPAY
-        _ if f.contains("vote") || f.contains("proposal") || module.contains("governance")                      => 6,  // GOVERNANCE
-        _ if f.contains("flash")                                                                                   => 15, // FLASH_LOAN
-        _ if f.contains("oracle") || f.contains("price")                                                          => 16, // ORACLE_UPDATE
+        _ if (f.contains("stake") || module.contains("staking")) && !f.contains("unstake")                      => 3,  // STAKE
+        _ if f.contains("unstake") || f.contains("unlock")                                                       => 4,  // UNSTAKE
+        _ if f.contains("borrow")                                                                                 => 7,  // BORROW
+        _ if f.contains("repay")                                                                                  => 8,  // REPAY
+        _ if f.contains("vote") || module.contains("governance")                                                 => 5,  // GOVERNANCE
+        _ if f.contains("proposal")                                                                              => 6,  // PROPOSAL
+        _ if f.contains("flash")                                                                                   => 17, // FLASH_LOAN
+        _ if f.contains("oracle") || f.contains("price")                                                          => 15, // ORACLE_UPDATE
         _ if f.contains("mint") && !f.contains("comment")                                                         => 13, // MINT
         _ if f.contains("burn")                                                                                    => 14, // BURN
         _ if f.contains("claim") || f.contains("harvest")                                                         => 19, // CLAIM
@@ -195,7 +196,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(4_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("movement_mainnet");
+    let state = IndexerState::new("movement_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
     let mut rpc_idx = 0usize;
 

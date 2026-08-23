@@ -1,169 +1,188 @@
 @import "tailwindcss";
 
-/* Phase 4.2: Explicit dark variant — Tailwind v4 needs this to make
-   `.dark:` utilities respond to the `.dark` class on <html>. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   TRION Protocol — Institutional Design System v3.0
+   ─────────────────────────────────────────────────────────────────────────
+   Dark-first terminal aesthetic (Bloomberg/Refinitiv-class), with a precise
+   light mode. Fully responsive from 320px feature phones to 4K ultrawide.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Phase 4.1: Font variables wired to next/font/google (Inter + JetBrains Mono) */
 @theme {
   --font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
+  /* Light theme — clean institutional paper */
+  --color-background: #fafbfc;
+  --color-foreground: #0f172a;
   --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
+  --color-card-foreground: #0f172a;
   --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
-  --color-primary: #0066cc;
+  --color-popover-foreground: #0f172a;
+  --color-primary: #0052cc;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #f1f5f9;
+  --color-secondary: #eef2f7;
   --color-secondary-foreground: #0f172a;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-accent: #f1f5f9;
+  --color-muted: #eef2f7;
+  --color-muted-foreground: #5b6b82;
+  --color-accent: #e8edf5;
   --color-accent-foreground: #0f172a;
-  --color-destructive: #dc2626;
+  --color-destructive: #d92d20;
   --color-destructive-foreground: #ffffff;
-  --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #0066cc;
+  --color-success: #067647;
+  --color-warning: #b54708;
+  --color-border: #dfe5ee;
+  --color-input: #cfd8e4;
+  --color-ring: #0052cc;
   --radius: 0.5rem;
 }
 
+/* Dark theme — terminal-grade */
 .dark {
-  --color-background: #0a0a0f;
-  --color-foreground: #f8fafc;
-  --color-card: #131320;
-  --color-card-foreground: #f8fafc;
-  --color-popover: #131320;
-  --color-popover-foreground: #f8fafc;
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #1e1e2e;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #1e1e2e;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #1e1e2e;
-  --color-accent-foreground: #f8fafc;
-  --color-destructive: #ef4444;
+  --color-background: #0b0d12;
+  --color-foreground: #e6eaf2;
+  --color-card: #12151d;
+  --color-card-foreground: #e6eaf2;
+  --color-popover: #161a24;
+  --color-popover-foreground: #e6eaf2;
+  --color-primary: #4d8dff;
+  --color-primary-foreground: #0b0d12;
+  --color-secondary: #1a1f2b;
+  --color-secondary-foreground: #e6eaf2;
+  --color-muted: #1a1f2b;
+  --color-muted-foreground: #8494ab;
+  --color-accent: #1e2432;
+  --color-accent-foreground: #e6eaf2;
+  --color-destructive: #f04438;
   --color-destructive-foreground: #ffffff;
-  --color-border: #2a2a3a;
-  --color-input: #2a2a3a;
-  --color-ring: #3b82f6;
+  --color-success: #12b76a;
+  --color-warning: #f79009;
+  --color-border: #232937;
+  --color-input: #2a3245;
+  --color-ring: #4d8dff;
 }
 
 html, body {
   background: var(--color-background);
   color: var(--color-foreground);
-  /* Phase 4.1: Use Inter (next/font) with system fallback */
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Phase 4.1: Monospace font for code, addresses, hashes */
-.font-mono, code, pre, kbd, .font-mono {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* Phase 4.4: Visible focus styles for keyboard navigation */
-*:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 2px;
-}
-
+/* ── Scrollbars — thin institutional ─────────────────────────────────────── */
 * {
-  border-color: var(--color-border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
   background: var(--color-border);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
+
+/* ── Focus visibility (WCAG 2.1 AA) ──────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted-foreground);
-}
 
-/* Streaming animation for live data */
+/* ── Animations ───────────────────────────────────────────────────────────── */
 @keyframes stream-flow {
-  0% { transform: translateX(-100%); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateX(100%); opacity: 0; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
 }
-
 .stream-line {
-  position: relative;
-  overflow: hidden;
-}
-
-.stream-line::after {
-  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 30%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
-  animation: stream-flow 2s infinite;
+  bottom: 0; left: 0;
+  width: 25%; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  animation: stream-flow 2.2s linear infinite;
 }
 
-/* Pulse for live indicators */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(18, 183, 106, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(18, 183, 106, 0); }
 }
-
 .live-dot {
-  animation: pulse-ring 1.5s infinite;
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: var(--color-success, #12b76a);
+  animation: pulse-ring 2s infinite;
 }
 
-/* Grid background pattern */
+@keyframes ticker-count {
+  from { opacity: 0.4; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ticker { animation: ticker-count 0.45s ease-out; }
+
+@keyframes shimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-accent) 50%, var(--color-muted) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-slide-up { animation: fade-slide-up 0.35s ease-out both; }
+
+/* ── Grid background texture (dashboard hero) ────────────────────────────── */
 .grid-pattern {
   background-image:
     linear-gradient(to right, var(--color-border) 1px, transparent 1px),
     linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.3;
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
 }
 
-/* Glassmorphism card */
+/* ── Glass panels ─────────────────────────────────────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-card) 72%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
 }
 
-.dark .glass {
-  background: rgba(19, 19, 32, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* ── Numeric tables — tabular alignment for financial data ───────────────── */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ── Responsive typography scale ──────────────────────────────────────────── */
+/* Base 16px at desktop; scale down gracefully on small screens */
+@media (max-width: 640px) {
+  html { font-size: 14.5px; }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+  html { font-size: 15.5px; }
+}
+@media (min-width: 1025px) {
+  html { font-size: 16px; }
+}
+@media (min-width: 2200px) {
+  html { font-size: 17.5px; }
 }
 
-/* Number ticker animation */
-@keyframes ticker-up {
-  from { transform: translateY(8px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
 }
 
-.ticker {
-  animation: ticker-up 0.3s ease-out;
+/* ── Reduced motion (a11y) ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .stream-line, .live-dot, .ticker, .skeleton-shimmer, .fade-slide-up {
+    animation: none !important;
+  }
+  * { transition-duration: 0.01ms !important; }
 }

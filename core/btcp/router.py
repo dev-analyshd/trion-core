@@ -54,6 +54,51 @@ MIN_FINALITY         = 0.80
 MIN_VALIDATORS_PER_ROUTE = 3
 
 
+# ── Gap E: Behavioral Balance Reservation ─────────────────────────────────────
+# Concurrent routes must not double-spend the same source assets. The BEO
+# balance is tracked and intents reserve against it in real time.
+
+_balance_reservations: Dict[bytes, float] = {}
+
+
+def reserve_balance(entity_id: bytes, intent_value: float, available: float) -> bool:
+    """Reserve intent_value against the entity's available behavioral balance.
+
+    Returns True if the reservation fits; False if insufficient unreserved
+    balance (prevents double-spending across concurrent routes)."""
+    current = _balance_reservations.get(entity_id, 0.0)
+    if current + intent_value > available:
+        return False
+    _balance_reservations[entity_id] = current + intent_value
+    return True
+
+
+def release_balance(entity_id: bytes, intent_value: float) -> None:
+    """Release a reservation (route finalized/reverted)."""
+    current = _balance_reservations.get(entity_id, 0.0)
+    _balance_reservations[entity_id] = max(0.0, current - intent_value)
+
+
+def reserved_balance(entity_id: bytes) -> float:
+    """Total currently-reserved value for an entity."""
+    return _balance_reservations.get(entity_id, 0.0)
+
+
+# ── Gap G: BTCP_ROUTE_OE_FACTOR ──────────────────────────────────────────────
+# BTCP routing improves NL scores → circular reinforcement. The observer-effect
+# correction discounts routing-layer scores that TRION itself caused.
+
+def apply_oe_correction(btcp_score: float, oe_factor: float) -> float:
+    """OE-corrected routing score: discount by TRION's own influence.
+
+    oe_factor ∈ [0, 1] — corr(TRION signal publication, NL change).
+    Applied multiplicatively so self-caused liquidity improvements score lower
+    than organic ones."""
+    oe = min(1.0, max(0.0, oe_factor))
+    return btcp_score * (1.0 - oe)
+
+
+
 @dataclass
 class BIBLState:
     """Tier-1 cached state — updated every block per chain."""

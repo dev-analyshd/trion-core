@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Optional
 import hashlib
+import warnings
 from dataclasses import dataclass, field
 
 """
@@ -57,6 +58,7 @@ License: CC0
 
 # Use pycryptodome for keccak256 (Ethereum-compatible, distinct from NIST SHA3-256)
 try:
+    from Crypto.Hash import keccak as _keccak
 
     def keccak256(data: bytes) -> bytes:
         """Ethereum-compatible keccak-256 (not NIST SHA3-256)."""
