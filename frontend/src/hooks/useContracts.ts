@@ -7,13 +7,13 @@
  * Each hook auto-detects whether the contract is deployed on the current chain
  * and gracefully returns null/undefined when not deployed.
  *
- * Contracts covered:
+ * Contracts covered (ABIs aligned with the actual Solidity sources in
+ * contracts/solidity/ — regenerated after the security-hardening pass):
  *   - TRIONExecutionGate   — totalSignalsPublished, totalExecutionsAllowed/Blocked, quorum
  *   - TRIONSensingOracle   — publishBehavioralTruth, read events
- *   - BTCPEscrow           — lockFunds, revertEmergency, escrows, MAX_LOCK_DURATION
- *   - BTCPIntent           — registerIntent, getIntent
- *   - BEOIdentityRegistry  — getBEO, beoExists
- *   - BehavioralHashLedger — recordBH, getBH
+ *   - BTCPEscrow           — lockEscrow, releaseEscrow, revertEmergency, getEscrow
+ *   - BTCPIntent           — registerIntent (11-arg), getIntent
+ *   - ConfidentialCoherenceVault — registerBEO, coherenceWrap/Unwrap
  */
 import {
   useAccount, useChainId, useReadContract, useWriteContract,
@@ -23,71 +23,95 @@ import { CONTRACTS, getContract, isBTCPDeployed } from '../config/wagmi';
 
 // ── ABIs (minimal — only the functions we actually call) ───────────────────
 
-export const BEO_IDENTITY_ABI = [
-  { name: 'getBEO', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [
-      { name: 'beoId', type: 'bytes32' },
-      { name: 'depth', type: 'uint256' },
-      { name: 'archetype', type: 'uint8' },
-      { name: 'coherence', type: 'uint256' },
+export const BTCP_ESCROW_ABI = [
+  // 7-arg overload with parentEscrowId omitted — use the 6-arg path
+  { name: 'lockEscrow', type: 'function', stateMutability: 'payable',
+    inputs: [
+      { name: 'escrowId', type: 'bytes32' },
+      { name: 'routeId', type: 'bytes32' },
+      { name: 'entityId', type: 'bytes32' },
+      { name: 'destination', type: 'address' },
+      { name: 'minCoherence', type: 'uint256' },
+      { name: 'timeoutBlocks', type: 'uint256' },
     ],
-  },
-  { name: 'beoExists', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ name: '', type: 'bool' }],
   },
-] as const;
-
-export const BTCP_ESCROW_ABI = [
-  { name: 'lockFunds', type: 'function', stateMutability: 'payable',
+  { name: 'releaseEscrow', type: 'function', stateMutability: 'nonpayable',
     inputs: [
-      { name: 'token', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'intentHash', type: 'bytes32' },
+      { name: 'escrowId', type: 'bytes32' },
+      { name: 'executionBH', type: 'bytes32' },
+      { name: 'coherence', type: 'uint256' },
     ],
-    outputs: [],
+    outputs: [{ name: '', type: 'bool' }],
   },
   { name: 'revertEmergency', type: 'function', stateMutability: 'nonpayable',
-    inputs: [{ name: 'escrowId', type: 'uint256' }],
-    outputs: [],
+    inputs: [{ name: 'escrowId', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'bool' }],
   },
-  { name: 'release', type: 'function', stateMutability: 'nonpayable',
-    inputs: [{ name: 'escrowId', type: 'uint256' }, { name: 'routeSignal', type: 'bytes32' }],
-    outputs: [],
+  { name: 'getEscrow', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'escrowId', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'tuple' }],
   },
-  { name: 'escrows', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'escrowId', type: 'uint256' }],
-    outputs: [
-      { name: 'sender', type: 'address' },
-      { name: 'token', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'lockBlock', type: 'uint256' },
-      { name: 'status', type: 'uint8' },
-    ],
+  { name: 'emergencyEscapeAvailable', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'escrowId', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'bool' }],
   },
-  { name: 'MAX_LOCK_DURATION', type: 'function', stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }],
+  { name: 'EMERGENCY_ESCAPE_SECONDS', type: 'function', stateMutability: 'view',
+    inputs: [], outputs: [{ name: '', type: 'uint256' }],
+  },
+  { name: 'totalLockedBalance', type: 'function', stateMutability: 'view',
+    inputs: [], outputs: [{ name: '', type: 'uint256' }],
   },
 ] as const;
 
 export const BTCP_INTENT_ABI = [
   { name: 'registerIntent', type: 'function', stateMutability: 'nonpayable',
     inputs: [
-      { name: 'fromAsset', type: 'address' },
-      { name: 'toAsset', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'targetChain', type: 'uint256' },
+      { name: 'intentHash', type: 'bytes32' },
+      { name: 'entityId', type: 'bytes32' },
+      { name: 'action', type: 'uint8' },
+      { name: 'assetIn', type: 'bytes32' },
+      { name: 'assetOut', type: 'bytes32' },
+      { name: 'magnitude', type: 'uint256' },
+      { name: 'deadline', type: 'uint64' },
+      { name: 'maxTotalGas', type: 'uint128' },
+      { name: 'minFinality', type: 'uint8' },
+      { name: 'minNLScore', type: 'uint16' },
+      { name: 'privacy', type: 'uint8' },
     ],
-    outputs: [{ name: 'intentId', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'bool' }],
   },
   { name: 'getIntent', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'intentId', type: 'bytes32' }],
-    outputs: [
-      { name: 'sender', type: 'address' },
-      { name: 'status', type: 'uint8' },
+    inputs: [{ name: 'intentHash', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'tuple' }],
+  },
+  { name: 'intentCount', type: 'function', stateMutability: 'view',
+    inputs: [], outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const;
+
+export const COHERENCE_VAULT_ABI = [
+  { name: 'registerBEO', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'entityId', type: 'bytes32' }],
+    outputs: [],
+  },
+  { name: 'registeredBEO', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'bytes32' }],
+  },
+  { name: 'coherenceWrap', type: 'function', stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'entityId', type: 'bytes32' },
     ],
+    outputs: [],
+  },
+  { name: 'coherenceUnwrap', type: 'function', stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'entityId', type: 'bytes32' },
+    ],
+    outputs: [],
   },
 ] as const;
 
@@ -122,29 +146,6 @@ export const TRION_SENSING_ORACLE_ABI = [
     inputs: [], outputs: [{ name: '', type: 'uint256' }] },
 ] as const;
 
-export const BH_LEDGER_ABI = [
-  { name: 'recordBH', type: 'function', stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'sense', type: 'bytes32' },
-      { name: 'antisense', type: 'bytes32' },
-      { name: 'entityId', type: 'bytes32' },
-      { name: 'eventType', type: 'uint8' },
-    ],
-    outputs: [],
-  },
-  { name: 'getBH', type: 'function', stateMutability: 'view',
-    inputs: [{ name: 'index', type: 'uint256' }],
-    outputs: [
-      { name: 'sense', type: 'bytes32' },
-      { name: 'antisense', type: 'bytes32' },
-      { name: 'entityId', type: 'bytes32' },
-      { name: 'timestamp', type: 'uint256' },
-    ],
-  },
-  { name: 'totalBHs', type: 'function', stateMutability: 'view',
-    inputs: [], outputs: [{ name: '', type: 'uint256' }] },
-] as const;
-
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
 /** Check if BTCP contracts are deployed on the current chain. */
@@ -159,17 +160,17 @@ export function useBTCPStatus() {
   };
 }
 
-/** Read the connected user's BEO identity (if BEOIdentityRegistry is deployed). */
+/** Read the connected user's registered BEO identity from the Coherence Vault. */
 export function useUserBEO() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const beoAddress = getContract(CONTRACTS.beoIdentity, chainId);
+  const vaultAddress = getContract(CONTRACTS.coherenceVault, chainId);
   return useReadContract({
-    address: beoAddress as `0x${string}`,
-    abi: BEO_IDENTITY_ABI,
-    functionName: 'getBEO',
+    address: vaultAddress as `0x${string}`,
+    abi: COHERENCE_VAULT_ABI,
+    functionName: 'registeredBEO',
     args: [address!],
-    query: { enabled: isConnected && !!address && !!beoAddress },
+    query: { enabled: isConnected && !!address && !!vaultAddress },
   });
 }
 
@@ -188,38 +189,69 @@ export function useTRIONExecutionGate(chainId?: number) {
   });
 }
 
-/** Lock funds in BTCP escrow (write). Returns { lockFunds, hash, isPending, receipt }. */
-export function useLockFunds() {
+/**
+ * Lock native value in the BTCP escrow (write).
+ * Mirrors BTCPEscrow.lockEscrow(escrowId, routeId, entityId, destination,
+ * minCoherence, timeoutBlocks) — payable with the locked amount as msg.value.
+ */
+export function useLockEscrow() {
   const { writeContract, data: hash, isPending } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash });
   const chainId = useChainId();
 
-  const lockFunds = async (tokenAddress: string, amount: bigint, intentHash: `0x${string}`) => {
+  const lockEscrow = async (params: {
+    escrowId: `0x${string}`;
+    routeId: `0x${string}`;
+    entityId: `0x${string}`;
+    destination: `0x${string}`;
+    minCoherence: bigint;     // ×1e6
+    timeoutBlocks: bigint;
+    value: bigint;            // native amount to lock
+  }) => {
     const escrowAddr = getContract(CONTRACTS.btcpEscrow, chainId);
     if (!escrowAddr) throw new Error('BTCP Escrow not deployed on this chain');
     writeContract({
       address: escrowAddr as `0x${string}`,
       abi: BTCP_ESCROW_ABI,
-      functionName: 'lockFunds',
-      args: [tokenAddress as `0x${string}`, amount, intentHash],
+      functionName: 'lockEscrow',
+      args: [
+        params.escrowId,
+        params.routeId,
+        params.entityId,
+        params.destination,
+        params.minCoherence,
+        params.timeoutBlocks,
+      ],
+      value: params.value,
     });
   };
 
-  return { lockFunds, hash, isPending, receipt };
+  return { lockEscrow, hash, isPending, receipt };
 }
 
-/** Register a BTCP intent (write). */
+/**
+ * Register a BTCP intent (write).
+ * Mirrors BTCPIntent.registerIntent(intentHash, entityId, action, assetIn,
+ * assetOut, magnitude, deadline, maxTotalGas, minFinality, minNLScore, privacy).
+ */
 export function useRegisterIntent() {
   const { writeContract, data: hash, isPending } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash });
   const chainId = useChainId();
 
-  const registerIntent = async (
-    fromAsset: string,
-    toAsset: string,
-    amount: bigint,
-    targetChain: bigint,
-  ) => {
+  const registerIntent = async (params: {
+    intentHash: `0x${string}`;
+    entityId: `0x${string}`;
+    action: number;           // enum: 0=TRANSFER 1=SWAP 2=LIQUIDITY 3=STAKE 4=BORROW
+    assetIn: `0x${string}`;
+    assetOut: `0x${string}`;
+    magnitude: bigint;
+    deadline: bigint;
+    maxTotalGas: bigint;
+    minFinality: number;      // 0=FAST 1=STANDARD 2=SECURE
+    minNLScore: number;       // ×1000 (default 300 = 0.30)
+    privacy: number;          // 0=PUBLIC 1=ZK_CREDENTIAL 2=INVISIBLE
+  }) => {
     const intentAddr = getContract(CONTRACTS.btcpIntent, chainId);
     if (!intentAddr) throw new Error('BTCP Intent not deployed on this chain');
     writeContract({
@@ -227,10 +259,17 @@ export function useRegisterIntent() {
       abi: BTCP_INTENT_ABI,
       functionName: 'registerIntent',
       args: [
-        fromAsset as `0x${string}`,
-        toAsset as `0x${string}`,
-        amount,
-        targetChain,
+        params.intentHash,
+        params.entityId,
+        params.action,        // uint8
+        params.assetIn,
+        params.assetOut,
+        params.magnitude,     // uint256
+        params.deadline,      // uint64
+        params.maxTotalGas,   // uint128
+        params.minFinality,   // uint8
+        params.minNLScore,    // uint16
+        params.privacy,       // uint8
       ],
     });
   };
@@ -244,7 +283,7 @@ export function useEmergencyRevert() {
   const receipt = useWaitForTransactionReceipt({ hash });
   const chainId = useChainId();
 
-  const revertEmergency = async (escrowId: bigint) => {
+  const revertEmergency = async (escrowId: `0x${string}`) => {
     const escrowAddr = getContract(CONTRACTS.btcpEscrow, chainId);
     if (!escrowAddr) throw new Error('BTCP Escrow not deployed on this chain');
     writeContract({
@@ -258,16 +297,49 @@ export function useEmergencyRevert() {
   return { revertEmergency, hash, isPending, receipt };
 }
 
-/** Read the MAX_LOCK_DURATION from BTCP escrow (should be 7 days in blocks). */
-export function useMaxLockDuration() {
+/** Read whether the 7-day emergency escape is available for an escrow. */
+export function useEmergencyEscapeAvailable(escrowId?: `0x${string}`) {
   const chainId = useChainId();
   const escrowAddr = getContract(CONTRACTS.btcpEscrow, chainId);
   return useReadContract({
     address: escrowAddr as `0x${string}`,
     abi: BTCP_ESCROW_ABI,
-    functionName: 'MAX_LOCK_DURATION',
+    functionName: 'emergencyEscapeAvailable',
+    args: escrowId ? [escrowId] : undefined,
+    query: { enabled: !!escrowAddr && !!escrowId },
+  });
+}
+
+/** Read total value locked in active escrows (security view). */
+export function useTotalLockedBalance() {
+  const chainId = useChainId();
+  const escrowAddr = getContract(CONTRACTS.btcpEscrow, chainId);
+  return useReadContract({
+    address: escrowAddr as `0x${string}`,
+    abi: BTCP_ESCROW_ABI,
+    functionName: 'totalLockedBalance',
     query: { enabled: !!escrowAddr },
   });
+}
+
+/** Register the connected user's BEO identity on the Coherence Vault (write). */
+export function useRegisterBEO() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const receipt = useWaitForTransactionReceipt({ hash });
+  const chainId = useChainId();
+
+  const registerBEO = async (entityId: `0x${string}`) => {
+    const vaultAddr = getContract(CONTRACTS.coherenceVault, chainId);
+    if (!vaultAddr) throw new Error('Coherence Vault not deployed on this chain');
+    writeContract({
+      address: vaultAddr as `0x${string}`,
+      abi: COHERENCE_VAULT_ABI,
+      functionName: 'registerBEO',
+      args: [entityId],
+    });
+  };
+
+  return { registerBEO, hash, isPending, receipt };
 }
 
 /** Publish a behavioral truth signal via TRIONSensingOracle (write). */
