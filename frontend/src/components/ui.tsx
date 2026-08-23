@@ -632,8 +632,8 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
         <rect x="160" y="100" width="120" height="100" rx="8" fill="url(#grad1)" stroke="#3b82f6" strokeOpacity="0.6" filter="url(#glow)" />
         <text x="220" y="125" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">RUST INDEXERS</text>
         <text x="220" y="145" textAnchor="middle" className="fill-muted-foreground text-[9px]">16 crates</text>
-        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">100+ chains</text>
-        <text x="220" y="175" textAnchor="middle" className="fill-muted-foreground text-[9px]">14 VM families</text>
+        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">128 chains</text>
+        <text x="220" y="175" textAnchor="middle" className="fill-muted-foreground text-[9px]">18 VM families</text>
         <text x="220" y="190" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">LIVE</text>
       </g>
 

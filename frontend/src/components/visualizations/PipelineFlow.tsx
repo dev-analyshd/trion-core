@@ -11,7 +11,7 @@ const STAGES = [
   {
     layer: 'L0',
     name: 'Chain Indexing',
-    desc: '55 EVM chains, real-time RPC polling',
+    desc: '60 EVM chains, real-time RPC polling',
     icon: Icons.Globe,
     color: 'from-blue-500 to-cyan-500',
     statKey: 'chains_active',

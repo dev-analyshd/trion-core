@@ -428,7 +428,7 @@ export function ContinuumSpecPage() {
       {/* 4. CCP Distribution */}
       <Card title="Complement Certainty Premium (CCP) Distribution">
         <p className="text-sm text-muted-foreground mb-4">{CONTINUUM_DATA.ccpDistribution.total}</p>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Entity A', value: CONTINUUM_DATA.ccpDistribution.entityA, color: '#22d3ee' },
             { label: 'Entity B', value: CONTINUUM_DATA.ccpDistribution.entityB, color: '#10b981' },
@@ -550,7 +550,7 @@ export function BotChainSpecPage() {
 
       {/* 5. BTCP Routes Involving BOT Chain */}
       <Card title="BTCP Routes Involving BOT Chain">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard label="Inbound Routes" value={fmt(m.btcpInbound)} sub="from other chains" color="blue" />
           <StatCard label="Outbound Routes" value={fmt(m.btcpOutbound)} sub="to other chains" color="purple" />
           <StatCard label="Netting Routes" value={fmt(m.btcpNetting)} sub="zero movement" color="green" />
