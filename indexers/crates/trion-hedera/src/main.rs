@@ -1,67 +1,279 @@
-//! TRION Hedera Indexer — indexes Hedera blocks via Hashio JSON-RPC
-//! Hedera is EVM-compatible (uses standard eth_getBlockByNumber)
-use trion_common::faiss::FaissClient;
-use trion_common::hash_dna::canonical_bh;
-use trion_common::entropy::EntropyFeatures;
+/*!
+ * TRION Hedera Behavioral Indexer — Rust
+ * ========================================
+ * Polls Hedera Hashio JSON-RPC (EVM-compatible) via eth_getBlockByNumber.
+ * Produces 128-dim vectors AND per-tx canonical BH (L0.1 ledger).
+ *
+ * Hedera behavioral dimensions (9 Shannon entropy features):
+ *   f1 — Value entropy        H(tx value bins, HBAR)
+ *   f2 — Sender entropy       H(from frequency)
+ *   f3 — Recipient entropy    H(to frequency)
+ *   f4 — Gas price entropy    H(gasPrice bins)
+ *   f5 — Gas usage entropy    H(gas bins)
+ *   f6 — Input data entropy   H(input length bins)
+ *   f7 — Contract ratio       H(contract-creation vs call)
+ *   f8 — Selector diversity   H(4-byte selectors)
+ *   f9 — Value-flow entropy   H(incoming vs outgoing value)
+ */
+
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::time::{sleep, Duration};
+use tracing::{info, warn};
+use trion_common::{
+    bh_id, block_entity_id, build_vector, canonical_bh, classify_event_type, event_type_name,
+    freq_entropy, histogram_entropy,
+    entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
+};
 
-const HEDERA_RPC: &str = "https://mainnet.hashio.io/api";
-const FAISS_URL: &str = "http://127.0.0.1:8000";
-const POLL_INTERVAL_SEC: u64 = 5;
+const CHAIN_ID:  u64  = 8300;
+const CHAIN_LBL: &str = "HEDERA";
+const VM_TYPE:   &str = "EVM"; // Hedera smart contracts are EVM-compatible
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    tracing::info!("Starting TRION Hedera indexer");
-    let faiss = FaissClient::new(FAISS_URL);
-    let client = reqwest::Client::new();
-    let mut last_block: u64 = 0;
+const HEDERA_RPCS: &[&str] = &[
+    "https://mainnet.hashio.io/api",
+    "https://hedera-mainnet.rpc.subquery.network/public",
+    "https://hederamainnet.rpc.thirdweb.com",
+];
 
-    loop {
-        match fetch_latest_block(&client).await {
-            Ok(block_num) if block_num > last_block => {
-                tracing::info!("Hedera block #{} — indexing", block_num);
-                if let Ok(txs) = fetch_block_txs(&client, block_num).await {
-                    for tx in txs {
-                        let entity_id = tx.get("from").and_then(|v| v.as_str()).unwrap_or("0x0");
-                        let to_addr = tx.get("to").and_then(|v| v.as_str()).unwrap_or("0x0");
-                        let value = tx.get("value").and_then(|v| v.as_str()).unwrap_or("0x0");
-                        let bh = canonical_bh(entity_id, 0, value, block_num, 295, to_addr);
-                        let _ = faiss.add_batch(&[serde_json::json!({
-                            "entity_id": entity_id,
-                            "vector": bh.sense_bytes(),
-                            "magnitude": 0.5,
-                            "chain_id": 295,
-                            "vm_type": "EVM",
-                            "sense_hex": bh.sense_hex,
-                            "antisense_hex": bh.antisense_hex,
-                            "event_type": 0,
-                        })]);
-                    }
-                    tracing::info!("Indexed {} txs from Hedera block {}", txs.len(), block_num);
-                }
-                last_block = block_num;
-            }
-            Ok(_) => {}
-            Err(e) => tracing::warn!("Hedera fetch error: {}", e),
+/// 1 HBAR = 1e8 tinybar; JSON-RPC values are in 1e18 wei-equivalent
+const WEI_DECIMALS: f64 = 1e18;
+
+async fn rpc(client: &reqwest::Client, base: &str, method: &str, params: Value) -> Result<Value> {
+    let url = base.trim_end_matches('/');
+    let body = serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params });
+    let resp = client.post(url).json(&body).send().await?;
+    if !resp.status().is_success() { anyhow::bail!("Hedera RPC HTTP {}", resp.status()); }
+    let v: Value = resp.json().await?;
+    if let Some(err) = v.get("error") {
+        anyhow::bail!("Hedera RPC error: {}", err);
+    }
+    Ok(v.get("result").cloned().unwrap_or(Value::Null))
+}
+
+async fn get_latest_block(client: &reqwest::Client, base: &str) -> Result<u64> {
+    let r = rpc(client, base, "eth_blockNumber", Value::Array(vec![])).await?;
+    let hex = r.as_str().unwrap_or("0x0");
+    Ok(u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0))
+}
+
+async fn get_block(client: &reqwest::Client, base: &str, num: u64) -> Result<Value> {
+    rpc(client, base, "eth_getBlockByNumber", serde_json::json!([
+        format!("0x{:x}", num), true
+    ])).await
+}
+
+fn hex_to_u128(hex: &str) -> u128 {
+    let s = hex.trim_start_matches("0x");
+    u128::from_str_radix(s, 16).unwrap_or(0)
+}
+
+fn extract_features(txs: &[Value]) -> [f64; 9] {
+    if txs.is_empty() { return [0.5f64; 9]; }
+
+    let mut values:    Vec<f64>    = Vec::new();
+    let mut senders:   Vec<String> = Vec::new();
+    let mut recipients: Vec<String> = Vec::new();
+    let mut gas_prices: Vec<f64>   = Vec::new();
+    let mut gas:       Vec<f64>    = Vec::new();
+    let mut input_lens: Vec<f64>   = Vec::new();
+    let (mut creations, mut calls) = (0u64, 0u64);
+    let mut selectors: Vec<String> = Vec::new();
+    let (mut in_val, mut out_val) = (0f64, 0f64);
+
+    for tx in txs {
+        let val = hex_to_u128(tx.get("value").and_then(|v| v.as_str()).unwrap_or("0x0")) as f64 / WEI_DECIMALS;
+        if val > 0.0 { values.push(val); }
+
+        let from = tx.get("from").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let to   = tx.get("to").and_then(|v| v.as_str()).map(|s| s.to_string());
+        senders.push(from.clone());
+        if let Some(t) = &to { recipients.push(t.clone()); }
+
+        let gp = hex_to_u128(tx.get("gasPrice").and_then(|v| v.as_str()).unwrap_or("0x0")) as f64;
+        gas_prices.push(gp / 1e9); // gwei-scale
+
+        gas.push(hex_to_u128(tx.get("gas").and_then(|v| v.as_str()).unwrap_or("0x0")) as f64);
+
+        let input = tx.get("input").and_then(|v| v.as_str()).unwrap_or("0x");
+        input_lens.push((input.len() as f64 / 2.0).clamp(0.0, 100_000.0));
+
+        if to.is_none() || to.as_deref() == Some("") {
+            creations += 1;
+        } else {
+            calls += 1;
         }
-        tokio::time::sleep(std::time::Duration::from_secs(POLL_INTERVAL_SEC)).await;
+
+        let selector: String = input.trim_start_matches("0x").chars().take(8).collect();
+        if !selector.is_empty() { selectors.push(selector); }
+
+        // crude value flow: from-address reuse tracks direction
+        if senders.iter().filter(|s| *s == &from).count() > 1 { out_val += val.max(0.0); } else { in_val += val.max(0.0); }
+    }
+
+    [
+        histogram_entropy(&values, 8),
+        freq_entropy(&senders),
+        freq_entropy(&recipients),
+        histogram_entropy(&gas_prices, 8),
+        histogram_entropy(&gas, 8),
+        histogram_entropy(&input_lens, 8),
+        ratio_entropy(creations, creations + calls),
+        freq_entropy(&selectors),
+        ratio_entropy(out_val as u64, (in_val + out_val) as u64),
+    ]
+}
+
+// ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
+
+static MAX_WEI: AtomicU64 = AtomicU64::new(1_000_000_000_000_000_000); // 1 HBAR-equivalent
+
+fn hbar_magnitude(wei: u128) -> f64 {
+    let w = (wei as u64).min(u64::MAX / 2);
+    let old = MAX_WEI.load(Ordering::Relaxed);
+    if w > old { MAX_WEI.store(w, Ordering::Relaxed); }
+    let max = MAX_WEI.load(Ordering::Relaxed).max(1) as f64;
+    ((w as f64 + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+}
+
+fn hedera_bh_batch(txs: &[Value], block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
+    let mut entries: Vec<TxBhEntry> = Vec::new();
+
+    for tx in txs {
+        let hash = tx.get("hash").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if hash.is_empty() { continue; }
+
+        let sender = tx.get("from").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+        let dest   = tx.get("to").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let input  = tx.get("input").and_then(|v| v.as_str()).unwrap_or("0x");
+        let sel: String = input.trim_start_matches("0x").chars().take(8).collect();
+        let et = if dest.is_empty() { 11 } else if sel.is_empty() { 0 } else { classify_event_type(&sel) };
+        let wei = hex_to_u128(tx.get("value").and_then(|v| v.as_str()).unwrap_or("0x0"));
+        let mag = hbar_magnitude(wei);
+        let eid = bh_id(&sender);
+        let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, CHAIN_ID, block_hash);
+
+        entries.push(TxBhEntry {
+            tx_hash: hash,
+            from_addr: sender,
+            to_addr: dest,
+            event_type: et,
+            event_type_name: event_type_name(et).to_string(),
+            entity_id: eid,
+            magnitude_norm: mag,
+            value_wei: wei.to_string(),
+            selector: sel,
+            timestamp: ts,
+            chain_id: CHAIN_ID,
+            chain_label: CHAIN_LBL.to_string(),
+            block_num: block_num,
+            block_hash: block_hash.to_string(),
+            sense_hex,
+            antisense_hex,
+        });
+    }
+
+    TxBhBatch {
+        chain_id: CHAIN_ID,
+        chain_label: CHAIN_LBL.to_string(),
+        block_num: block_num,
+        block_hash: block_hash.to_string(),
+        timestamp: ts,
+        entries,
     }
 }
 
-async fn fetch_latest_block(client: &reqwest::Client) -> Result<u64> {
-    let resp: Value = client.post(HEDERA_RPC)
-        .json(&serde_json::json!({"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}))
-        .send().await?.json().await?;
-    Ok(u64::from_str_radix(
-        resp.get("result").and_then(|v| v.as_str()).unwrap_or("0x0").trim_start_matches("0x"), 16
-    )?)
-}
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
-async fn fetch_block_txs(client: &reqwest::Client, block: u64) -> Result<Vec<Value>> {
-    let block_hex = format!("0x{:x}", block);
-    let resp: Value = client.post(HEDERA_RPC)
-        .json(&serde_json::json!({"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":[block_hex, true],"id":1}))
-        .send().await?.json().await?;
-    Ok(resp.get("result").and_then(|v| v.get("transactions")).and_then(|v| v.as_array()).cloned().unwrap_or_default())
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
+    let base      = std::env::var("HEDERA_RPC_URL").unwrap_or_else(|_| HEDERA_RPCS[0].into());
+    let faiss     = FaissClient::new(&faiss_url)?;
+    let state = IndexerState::new("hedera");
+    let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
+
+    info!("TRION Hedera Rust Indexer — chain={} poll={}ms rpc={}", CHAIN_ID, poll_ms, base);
+
+    loop {
+        if !faiss.is_healthy().await { sleep(Duration::from_secs(5)).await; continue; }
+
+        let latest = match get_latest_block(&client, &base).await {
+            Ok(n) => n,
+            Err(e) => { warn!("Hedera latest block error: {}", e); sleep(Duration::from_millis(poll_ms)).await; continue; }
+        };
+        if latest == 0 { sleep(Duration::from_millis(poll_ms)).await; continue; }
+
+        let last = state.last_block();
+        let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
+
+        for num in from..=latest {
+            let block = match get_block(&client, &base, num).await {
+                Ok(v) if !v.is_null() => v,
+                _ => { warn!("[{}] block {} unavailable", CHAIN_LBL, num); continue; }
+            };
+
+            let block_hash = block.get("hash").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = block.get("timestamp").and_then(|v| v.as_str())
+                .and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok())
+                .unwrap_or_else(|| {
+                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+                });
+
+            let txs: Vec<Value> = block.get("transactions").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+            if txs.is_empty() { state.save(num).ok(); continue; }
+
+            let features = extract_features(&txs);
+            let phi      = features.iter().sum::<f64>() / 9.0;
+            let eid      = block_entity_id(CHAIN_LBL, num);
+            let bh       = bh_id(&eid);
+            let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, num));
+            let block_hash_hex = if block_hash.is_empty() {
+                bh_id(&format!("hedera_block:{}:{}", CHAIN_LBL, num))
+            } else {
+                bh_id(block_hash.trim_start_matches("0x"))
+            };
+
+            let payload = BatchPayload {
+                vectors: vec![VectorEntry {
+                    entity_id: eid,
+                    vector,
+                    magnitude: phi,
+                    entropy: phi,
+                    timestamp: ts as f64,
+                    bh_id: bh,
+                    block_num: num,
+                    chain_id: CHAIN_ID,
+                    chain_label: CHAIN_LBL.into(),
+                    vm_type: VM_TYPE.into(),
+                    funding_source: None,
+                    block_hash_hex: Some(block_hash_hex.clone()),
+                    event_type: Some(0),
+                    sense_hex: None,
+                    antisense_hex: None,
+                }],
+                block_num: num,
+                block_features: features.to_vec(),
+                block_phi: phi,
+                chain_id: CHAIN_ID,
+                chain_label: CHAIN_LBL.into(),
+                vm_type: VM_TYPE.into(),
+            };
+
+            match faiss.add_batch(&payload).await {
+                Ok(added) => {
+                    let tx_batch = hedera_bh_batch(&txs, num, &block_hash_hex, ts);
+                    let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
+                    info!("[{}] block={} txs={} φ={:.4} added={} bh_stored={}",
+                          CHAIN_LBL, num, txs.len(), phi, added, bh_stored);
+                }
+                Err(e) => warn!("[{}] FAISS failed: {}", CHAIN_LBL, e),
+            }
+            state.save(num).ok();
+        }
+        sleep(Duration::from_millis(poll_ms)).await;
+    }
 }
