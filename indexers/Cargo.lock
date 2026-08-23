@@ -1248,15 +1248,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trion-btcp"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha3",
-]
-
-[[package]]
 name = "trion-common"
 version = "0.1.0"
 dependencies = [
@@ -1303,8 +1294,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "trion-hedera"
+version = "2.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
 name = "trion-movement"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-multiversx"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1440,6 +1461,51 @@ dependencies = [
 [[package]]
 name = "trion-utxo"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-vechain"
+version = "2.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-waves"
+version = "2.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-xrpl"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "async-trait",

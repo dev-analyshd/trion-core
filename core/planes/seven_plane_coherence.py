@@ -245,7 +245,7 @@ def check_protocol(
         score=score,
         passed=passed,
         details={
-            "protocol_id": hash(protocol_id) % 10000,  # don't leak raw protocol_id
+            "protocol_id": int.from_bytes(__import__("hashlib").sha3_256(str(protocol_id).encode()).digest()[:4], "big") % 10000,  # deterministic anonymization (sha3, not salted hash())
             "count": count,
             "total": total,
             "unique_protocols": unique_protocols,

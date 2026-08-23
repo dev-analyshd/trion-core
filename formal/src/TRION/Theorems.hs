@@ -28,7 +28,7 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 
-module TRION.FormalVerification where
+module TRION.Theorems where
 
 import Data.Kind (Type)
 

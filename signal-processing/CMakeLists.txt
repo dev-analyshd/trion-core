@@ -5,15 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Optimization flags — needed for FFT performance
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math")
 
-# ── FFT Engine ────────────────────────────────────────────────────────────────
-add_executable(trion_fft_engine fft_engine.cpp)
+# ── Sources live in src/ ─────────────────────────────────────────────────────
+add_executable(trion_fft_engine src/fft_engine.cpp)
 target_compile_options(trion_fft_engine PRIVATE -Wall -Wextra)
 
-# ── Hardware Sensor Interface ─────────────────────────────────────────────────
-add_executable(trion_sensor_interface sensor_interface.cpp)
+add_executable(trion_sensor_interface src/sensor_interface.cpp)
 target_compile_options(trion_sensor_interface PRIVATE -Wall -Wextra)
+
+# Signal conditioning utility (header-only style compilation, no main)
+add_library(signal_conditioning STATIC src/signal_conditioning.cpp)
+target_compile_options(signal_conditioning PRIVATE -Wall -Wextra)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 enable_testing()
@@ -21,7 +24,7 @@ add_test(NAME fft_engine_self_test       COMMAND trion_fft_engine)
 add_test(NAME sensor_interface_self_test COMMAND trion_sensor_interface)
 
 # ── Build instructions ────────────────────────────────────────────────────────
-# mkdir -p cpp/build && cd cpp/build
+# mkdir -p build && cd build
 # cmake .. -DCMAKE_BUILD_TYPE=Release
 # cmake --build . -j$(nproc)
 # ctest --output-on-failure
