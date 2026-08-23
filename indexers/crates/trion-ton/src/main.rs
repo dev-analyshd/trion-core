@@ -39,7 +39,7 @@ fn base_url() -> String {
 
 fn chain_info() -> (u64, &'static str) {
     let testnet = std::env::var("TON_TESTNET").as_deref() == Ok("true");
-    if testnet { (1101, "TON_TESTNET") } else { (1100, "TON_MAINNET") }
+    if testnet { (22001, "TON_TESTNET") } else { (22000, "TON_MAINNET") }
 }
 
 async fn ton_get(client: &reqwest::Client, method: &str, params: &[(&str, String)]) -> Result<Value> {

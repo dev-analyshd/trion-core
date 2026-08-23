@@ -28,7 +28,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 8100;
+const CHAIN_ID:  u64  = 31000;
 const CHAIN_LBL: &str = "XRPL";
 const VM_TYPE:   &str = "XRPL";
 

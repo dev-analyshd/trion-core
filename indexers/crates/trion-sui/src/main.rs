@@ -28,7 +28,7 @@ use trion_common::{
     BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64 = 6001;
+const CHAIN_ID:  u64 = 20100;
 const CHAIN_LBL: &str = "SUI_MAINNET";
 const VM_TYPE:   &str = "SUI";
 

@@ -1334,6 +1334,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trion-common",
 ]
 
@@ -1363,6 +1364,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trion-common",
 ]
 
@@ -1512,6 +1514,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trion-common",
 ]
 
@@ -1526,6 +1529,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trion-common",
 ]
 
@@ -1540,6 +1544,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trion-common",
 ]
 

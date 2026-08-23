@@ -6,6 +6,7 @@
 //! Chain covered by 5% of validators → rarity = 20×.
 
 use crate::types::*;
+use std::collections::HashMap;
 
 /// Base reward rate
 pub const BASE_RATE: f64 = 100.0;
@@ -17,14 +18,61 @@ pub const BTCP_ROUTE_SPLIT_EXEC: f64 = 0.4;
 /// BTCP route fee rate (basis points of route value)
 pub const BTCP_ROUTE_FEE_RATE: f64 = 0.001; // 0.1%
 
+/// Real network statistics backing validator-fee computation.
+/// Replaces the former hardcoded placeholders — all values are supplied
+/// by the caller from live protocol state (registry + route ledger).
+#[derive(Debug, Clone, Default)]
+pub struct NetworkStats {
+    /// Total number of active validators in the network.
+    pub total_validators: u32,
+    /// Number of validators covering each chain (for rarity).
+    pub validators_per_chain: HashMap<ChainId, u32>,
+    /// Fraction of BTCP routes through each chain in the period.
+    pub route_volume_share: HashMap<ChainId, f64>,
+    /// This validator's verified uptime per chain in the period.
+    pub validator_uptime: HashMap<ChainId, f64>,
+    /// Total value of BTCP routes this validator certified in the period.
+    pub certified_route_value: f64,
+}
+
+impl NetworkStats {
+    /// Single-chain convenience constructor.
+    pub fn for_chain(
+        total_validators: u32,
+        validators_covering: u32,
+        volume_share: f64,
+        uptime: f64,
+        certified_route_value: f64,
+    ) -> Self {
+        let mut stats = NetworkStats {
+            total_validators,
+            certified_route_value,
+            ..Default::default()
+        };
+        stats.validators_per_chain.insert(0, validators_covering);
+        stats.route_volume_share.insert(0, volume_share);
+        stats.validator_uptime.insert(0, uptime);
+        stats
+    }
+}
+
 /// Validator Fee Calculator — validator economics
 /// Coverage bonus rewards validators who cover underserved chains.
 #[derive(Debug, Default)]
-pub struct ValidatorFeeCalculator;
+pub struct ValidatorFeeCalculator {
+    /// Live network statistics; when absent, chain-level bonuses are 0
+    /// (never invented) and only the base signal reward accrues.
+    stats: Option<NetworkStats>,
+}
 
 impl ValidatorFeeCalculator {
     pub fn new() -> Self {
-        ValidatorFeeCalculator
+        ValidatorFeeCalculator { stats: None }
+    }
+
+    /// Attach real network statistics (from the validator registry + route ledger).
+    pub fn with_stats(stats: NetworkStats) -> Self {
+        ValidatorFeeCalculator { stats: Some(stats) }
     }
 
     /// Total validator reward for a period
@@ -42,21 +90,34 @@ impl ValidatorFeeCalculator {
     }
 
     /// Coverage bonus — rewards validators covering underserved chains
-    /// rarity_factor = total_validators / validators_covering_chain
-    /// Economic incentive flows automatically to underserved chains.
-    pub fn coverage_bonus(&self, validator: &Validator, period: &Period) -> f64 {
-        let total_validators = 100.0; // Placeholder: from global state
-        let validators_per_chain = 20.0; // Placeholder: average per chain
-
+    ///
+    /// Spec formula (Fix 4):
+    ///   COVERAGE_BONUS = Σ_chains [ BASE_RATE × rarity × volume × uptime ]
+    ///     rarity = total_validators / validators_covering_chain
+    ///     volume = btcp_routes_through(chain, period) / total_btcp_routes(period)
+    ///     uptime = verified_observations / expected_observations
+    ///
+    /// All inputs come from attached NetworkStats — no placeholders.
+    pub fn coverage_bonus(&self, validator: &Validator, _period: &Period) -> f64 {
+        let stats = match &self.stats {
+            Some(s) => s,
+            None => return 0.0, // no real data attached — do not invent rewards
+        };
+        if stats.total_validators == 0 {
+            return 0.0;
+        }
         validator
             .covered_chains
             .iter()
-            .map(|_chain| {
-                let rarity = total_validators / validators_per_chain;
-                let volume = 0.1; // Placeholder: fraction of BTCP routes through this chain
-                let uptime = 0.99; // Placeholder: verified observations / expected
-
-                BASE_RATE * rarity * volume * uptime
+            .filter_map(|chain| {
+                let covering = *stats.validators_per_chain.get(chain)? as f64;
+                if covering <= 0.0 {
+                    return None;
+                }
+                let rarity = stats.total_validators as f64 / covering;
+                let volume = stats.route_volume_share.get(chain).copied().unwrap_or(0.0);
+                let uptime = stats.validator_uptime.get(chain).copied().unwrap_or(0.0);
+                Some(BASE_RATE * rarity * volume * uptime)
             })
             .sum()
     }
@@ -94,10 +155,15 @@ impl ValidatorFeeCalculator {
 
     /// BTCP route reward for a validator
     /// 60% to anchor chain validators, 40% to execution chain validators
+    ///
+    /// reward = Σ_certified_routes route.value × BTCP_ROUTE_FEE_RATE
+    /// The certified route value comes from attached NetworkStats (route
+    /// ledger); with no stats attached the reward is 0 — never a placeholder.
     pub fn btcp_route_reward(&self, _validator: &Validator, _period: &Period) -> f64 {
-        // Placeholder: sum of route.value × BTCP_ROUTE_FEE_RATE for certified routes
-        let total_route_value = 1_000_000.0; // Placeholder
-        total_route_value * BTCP_ROUTE_FEE_RATE
+        self.stats
+            .as_ref()
+            .map(|s| s.certified_route_value * BTCP_ROUTE_FEE_RATE)
+            .unwrap_or(0.0)
     }
 
     /// Compute BTCP route reward with explicit parameters

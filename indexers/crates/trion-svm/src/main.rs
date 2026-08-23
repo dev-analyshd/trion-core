@@ -28,7 +28,7 @@ use trion_common::{
     BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 101;
+const CHAIN_ID:  u64  = 900;
 const VM_TYPE:   &str = "SVM";
 
 // Known high-volume Solana programs → event type classification

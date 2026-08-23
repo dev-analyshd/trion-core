@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 DIMENSION      = 128
 FAISS_URL      = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
-ARBITRUM_RPC   = os.environ.get("ARBITRUM_RPC_URL",  "https://arb-one.api.pocket.network")
+ARBITRUM_RPC   = os.environ.get("ARBITRUM_RPC_URL",  "https://arb1.arbitrum.io/rpc")
 WORKERS        = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE     = int(os.environ.get("BACKFILL_BATCH",   "50"))
 

@@ -67,102 +67,102 @@ def run(cmd: list, label: str):
 
 def evm_stage(chain_name: str, chain_id: int, rpc: str):
     run([
-        sys.executable, "akashic/genesis_backfill.py",
+        sys.executable, "anima-service/genesis_backfill.py",
         "--start-block", "0", "--end-block", "latest",
         "--rpc", rpc, "--chain-name", chain_name, "--chain-id", str(chain_id),
     ], f"EVM {chain_name} (chain_id={chain_id})")
 
 
 def solana_stage():
-    run([sys.executable, "akashic/genesis_backfill_solana.py",
+    run([sys.executable, "anima-service/genesis_backfill_solana.py",
          "--start-slot", "0", "--end-slot", "latest"], "Solana mainnet")
 
 
 def cosmos_stage(name: str):
-    run([sys.executable, "akashic/genesis_backfill_cosmos.py",
+    run([sys.executable, "anima-service/genesis_backfill_cosmos.py",
          "--chain-name", name, "--start-height", "1", "--end-height", "latest"],
         f"Cosmos-SDK {name}")
 
 
 def move_stage(name: str):
-    run([sys.executable, "akashic/genesis_backfill_move.py",
+    run([sys.executable, "anima-service/genesis_backfill_move.py",
          "--chain-name", name, "--start-version", "0", "--end-version", "latest"],
         f"Move VM {name}")
 
 
 def near_stage():
-    run([sys.executable, "akashic/genesis_backfill_near.py",
+    run([sys.executable, "anima-service/genesis_backfill_near.py",
          "--start-height", "1", "--end-height", "latest"], "NEAR mainnet")
 
 
 def starknet_stage():
-    run([sys.executable, "akashic/genesis_backfill_starknet.py",
+    run([sys.executable, "anima-service/genesis_backfill_starknet.py",
          "--start-block", "0", "--end-block", "latest"], "StarkNet mainnet")
 
 
 def polkadot_stage():
-    run([sys.executable, "akashic/genesis_backfill_polkadot.py",
+    run([sys.executable, "anima-service/genesis_backfill_polkadot.py",
          "--start-block", "0", "--end-block", "latest"], "Polkadot mainnet")
 
 
 def ton_stage():
-    run([sys.executable, "akashic/genesis_backfill_ton.py",
+    run([sys.executable, "anima-service/genesis_backfill_ton.py",
          "--start-seqno", "1", "--end-seqno", "latest"], "TON mainnet")
 
 
 def utxo_stage(name: str):
-    run([sys.executable, "akashic/genesis_backfill_utxo.py",
+    run([sys.executable, "anima-service/genesis_backfill_utxo.py",
          "--chain-name", name, "--start-height", "0", "--end-height", "latest"],
         f"UTXO {name}")
 
 
 def sui_stage():
-    run([sys.executable, "akashic/genesis_backfill_sui.py",
+    run([sys.executable, "anima-service/genesis_backfill_sui.py",
          "--start-checkpoint", "0", "--end-checkpoint", "latest"], "Sui mainnet")
 
 
 def tron_stage():
-    run([sys.executable, "akashic/genesis_backfill_tron.py",
+    run([sys.executable, "anima-service/genesis_backfill_tron.py",
          "--start-block", "0", "--end-block", "latest"], "Tron mainnet")
 
 
 def xrpl_stage():
-    run([sys.executable, "akashic/genesis_backfill_xrpl.py",
+    run([sys.executable, "anima-service/genesis_backfill_xrpl.py",
          "--end-ledger", "latest"], "XRPL mainnet")
 
 
 def algorand_stage():
-    run([sys.executable, "akashic/genesis_backfill_algorand.py",
+    run([sys.executable, "anima-service/genesis_backfill_algorand.py",
          "--start-round", "1", "--end-round", "latest"], "Algorand mainnet")
 
 
 def hedera_stage():
-    run([sys.executable, "akashic/genesis_backfill_hedera.py",
+    run([sys.executable, "anima-service/genesis_backfill_hedera.py",
          "--start-block", "0", "--end-block", "latest"], "Hedera mainnet")
 
 
 def stellar_stage():
-    run([sys.executable, "akashic/genesis_backfill_stellar.py",
+    run([sys.executable, "anima-service/genesis_backfill_stellar.py",
          "--start-ledger", "elder", "--end-ledger", "latest"], "Stellar mainnet")
 
 
 def cardano_stage():
-    run([sys.executable, "akashic/genesis_backfill_cardano.py",
+    run([sys.executable, "anima-service/genesis_backfill_cardano.py",
          "--start-height", "1", "--end-height", "latest"], "Cardano mainnet")
 
 
 def vechain_stage():
-    run([sys.executable, "akashic/genesis_backfill_vechain.py",
+    run([sys.executable, "anima-service/genesis_backfill_vechain.py",
          "--start-block", "0", "--end-block", "latest"], "VeChain mainnet")
 
 
 def multiversx_stage():
-    run([sys.executable, "akashic/genesis_backfill_multiversx.py",
+    run([sys.executable, "anima-service/genesis_backfill_multiversx.py",
          "--start-offset", "0", "--end-offset", "latest"], "MultiversX mainnet")
 
 
 def waves_stage():
-    run([sys.executable, "akashic/genesis_backfill_waves.py",
+    run([sys.executable, "anima-service/genesis_backfill_waves.py",
          "--start-height", "1", "--end-height", "latest"], "Waves mainnet")
 
 

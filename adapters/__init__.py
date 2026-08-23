@@ -124,11 +124,13 @@ CHAIN_RPC_URLS: Dict[int, str] = {
     10006:        "https://dydx-rpc.publicnode.com",
     10007:        "https://rpc.kujira.interbloc.org",
     10008:        "https://rpc.stargaze.ezstaking.net",
-    # Move
+    # Move VM (canonical: 20000 Aptos, 20001 Aptos testnet, 20100 Sui, 20101 Sui testnet)
     20000:        "https://fullnode.mainnet.aptoslabs.com/v1",
-    20001:        "https://full.mainnet.sui.io",
+    20001:        "https://fullnode.testnet.aptoslabs.com/v1",
+    20100:        "https://full.mainnet.sui.io",
+    20101:        "https://full.testnet.sui.io",
+    # OOA (object-centric — Fuel testnet; no canonical mainnet ID yet)
     20002:        "https://testnet.fuel.graphql.api.rsdev.org/v1/graphql",
-    20003:        "https://full.mainnet.sui.io",
 }
 
 
@@ -322,8 +324,10 @@ CHAIN_VM_MAP: Dict[int, VMType] = {
     
     # Move chains
     20000: VMType.MOVE,  # Aptos
-    20001: VMType.MOVE,  # Sui
-    20002: VMType.OOA,   # Fuel (OOA)
+    20001: VMType.MOVE,  # Aptos Testnet
+    20100: VMType.MOVE,  # Sui Mainnet
+    20101: VMType.MOVE,  # Sui Testnet
+    20002: VMType.OOA,   # Fuel Testnet (OOA)
 }
 
 
@@ -1590,7 +1594,7 @@ class MoveAdapter(BaseVMAdapter):
     
     CHAIN_IDS = {
         "aptos": 20000,
-        "sui": 20001,
+        "sui": 20100,
     }
     
     def encode_intent(self, intent: BTCPIntent) -> str:
