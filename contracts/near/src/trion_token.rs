@@ -12,7 +12,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 
-const TOTAL_SUPPLY_YOCTO:  u128 = 1_000_000_000 * 10^24;  // 1B TRION, 24 decimals
+const TOTAL_SUPPLY_YOCTO:  u128 = 1_000_000_000 * 10u128.pow(24);  // 1B TRION, 24 decimals
 const PUBLIC_GOOD_BPS:    u16   = 1500;                    // 15.00%
 const ZERO_INFLATION_BPS:u16   = 0;                        // Audit-4 Gap 1
 
