@@ -62,7 +62,8 @@ class VmFamily(IntEnum):
     MULTIVERSX = 17  # MultiversX
     VECHAIN = 18     # VeChainThor
     STELLAR = 19     # Stellar (MVM)
-    PVM = 4          # Polkadot VM (alias for SUBSTRATE)
+    # NOTE: Polkadot VM (PVM) is the SUBSTRATE family (value 4) — no separate
+    # enum member, duplicate IntEnum values break list(VmFamily) and lookups.
 
 
 @dataclass
@@ -177,17 +178,17 @@ def build_chain_registry() -> List[ChainConfig]:
         (0, "Celestia", VmFamily.COSMWASM, "https://rpc.celestia.pops.one", "https://celerscan.io", "TIA", 6, 15.0, 3),
         (0, "Injective", VmFamily.COSMWASM, "https://rpc-injective-ec1.diamondnodes.com", "https://www.mintscan.io/injective", "INJ", 18, 2.0, 3),
         (0, "Sei", VmFamily.COSMWASM, "https://rpc.sei.chainnodes.org", "https://www.mintscan.io/sei", "SEI", 6, 0.5, 3),
-        (0, "dYdX", VmFamily.COSMWASM, "https://rpc.dydx.crypto.org", "https://www.mintscan.io/dydx", "DYDX", 18, 2.0, 3),
+        (10006, "dYdX", VmFamily.COSMWASM, "https://rpc.dydx.crypto.org", "https://www.mintscan.io/dydx", "DYDX", 18, 2.0, 3),
         # Move VM
-        (0, "Sui", VmFamily.MOVE, "https://full.mainnet.sui.io", "https://suiscan.xyz", "SUI", 9, 0.4, 32),
-        (0, "Aptos", VmFamily.MOVE, "https://fullnode.mainnet.aptoslabs.com", "https://aptoscan.com", "APT", 8, 0.4, 32),
+        (20100, "Sui", VmFamily.MOVE, "https://full.mainnet.sui.io", "https://suiscan.xyz", "SUI", 9, 0.4, 32),
+        (20000, "Aptos", VmFamily.MOVE, "https://fullnode.mainnet.aptoslabs.com", "https://aptoscan.com", "APT", 8, 0.4, 32),
         # Substrate
-        (0, "Polkadot", VmFamily.SUBSTRATE, "wss://rpc.polkadot.io", "https://polkadot.subscan.io", "DOT", 10, 6.0, 10),
-        (0, "Kusama", VmFamily.SUBSTRATE, "wss://kusama-rpc.polkadot.io", "https://kusama.subscan.io", "KSM", 12, 6.0, 10),
+        (25000, "Polkadot", VmFamily.SUBSTRATE, "wss://rpc.polkadot.io", "https://polkadot.subscan.io", "DOT", 10, 6.0, 10),
+        (25002, "Kusama", VmFamily.SUBSTRATE, "wss://kusama-rpc.polkadot.io", "https://kusama.subscan.io", "KSM", 12, 6.0, 10),
         # TON
-        (0, "TON", VmFamily.TON, "https://toncenter.com/api/v2/jsonRPC", "https://tonscan.org", "TON", 9, 5.0, 10),
+        (22000, "TON", VmFamily.TON, "https://toncenter.com/api/v2/jsonRPC", "https://tonscan.org", "TON", 9, 5.0, 10),
         # NEAR
-        (0, "NEAR Protocol", VmFamily.NEAR, "https://rpc.mainnet.near.org", "https://nearblocks.io", "NEAR", 24, 1.0, 32),
+        (23000, "NEAR Protocol", VmFamily.NEAR, "https://rpc.mainnet.near.org", "https://nearblocks.io", "NEAR", 24, 1.0, 32),
         # StarkNet
         (0, "StarkNet", VmFamily.STARKNET, "https://alpha-mainnet.starknet.io", "https://starkscan.co", "ETH", 18, 3.0, 10),
         # More EVM L2s and alt-L1s
@@ -347,12 +348,12 @@ def build_chain_registry() -> List[ChainConfig]:
         (27000, "Stellar Mainnet", VmFamily.STELLAR, "https://horizon.stellar.org", "https://stellar.expert", "XLM", 7, 5.0, 5),
         (27001, "Stellar Testnet", VmFamily.STELLAR, "https://horizon-testnet.stellar.org", "https://stellar.expert", "XLM", 7, 5.0, 5),
         (9000, "MultiversX", VmFamily.MULTIVERSX, "https://api.multiversx.com", "https://explorer.multiversx.com", "EGLD", 18, 6.0, 6),
-        (9200, "Waves", VmFamily.WAVES, "https://nodes.wavesnodes.com", "https://wavesexplorer.com", "WAVES", 8, 60.0, 6),
-        (8100, "XRPL", VmFamily.XRPL, "https://s1.ripple.com:51234", "https://livenet.xrpl.org", "XRP", 6, 4.0, 4),
-        (8300, "Hedera", VmFamily.HEDERA, "https://mainnet.hashio.io/api", "https://hashscan.io", "HBAR", 8, 3.0, 3),
-        (8301, "Hedera Testnet", VmFamily.HEDERA, "https://testnet.hashio.io/api", "https://hashscan.io/testnet", "HBAR", 8, 3.0, 3),
-        (8400, "Vechain", VmFamily.VECHAIN, "https://mainnet.vechain.org", "https://vechainstats.com", "VET", 18, 10.0, 10),
-        (900, "Polkadot Westend", VmFamily.SUBSTRATE, "https://westend-rpc.polkadot.io", "https://westend.subscan.io", "WND", 12, 6.0, 6),
+        (30000, "Waves", VmFamily.WAVES, "https://nodes.wavesnodes.com", "https://wavesexplorer.com", "WAVES", 8, 60.0, 6),
+        (31000, "XRPL", VmFamily.XRPL, "https://s1.ripple.com:51234", "https://livenet.xrpl.org", "XRP", 6, 4.0, 4),
+        (28000, "Hedera", VmFamily.HEDERA, "https://mainnet.hashio.io/api", "https://hashscan.io", "HBAR", 8, 3.0, 3),
+        (28001, "Hedera Testnet", VmFamily.HEDERA, "https://testnet.hashio.io/api", "https://hashscan.io/testnet", "HBAR", 8, 3.0, 3),
+        (29000, "Vechain", VmFamily.VECHAIN, "https://mainnet.vechain.org", "https://vechainstats.com", "VET", 18, 10.0, 10),
+        (25001, "Polkadot Westend", VmFamily.SUBSTRATE, "https://westend-rpc.polkadot.io", "https://westend.subscan.io", "WND", 12, 6.0, 6),
         (9401, "Cardano Preprod", VmFamily.CARDANO, "https://preprod.koios.rest/api/v1", "https://preprod.cardanoscan.io", "ADA", 6, 20.0, 6),
     ]
     for cid, name, vm, rpc, explorer, sym, dec, bt, fin in _gap_native:
