@@ -11,6 +11,17 @@ export type NavGroup = { label: string; items: NavItem[] };
 
 export const NAV: NavGroup[] = [
   {
+    label: 'Core Principles',
+    items: [
+      { id: 'home', label: 'Home', icon: Icons.Home },
+      { id: 'zero_bridge', label: 'Zero-Bridge Exchange', icon: Icons.Waves, badge: 'NEW' },
+      { id: 'witness', label: 'Witness Economy', icon: Icons.Eye, badge: 'NEW' },
+      { id: 'beo_dashboard', label: 'BEO Dashboard', icon: Icons.Fingerprint, badge: 'NEW' },
+      { id: 'action_economy', label: 'Action Economy', icon: Icons.Sparkles, badge: 'NEW' },
+      { id: 'digital_self', label: 'Digital Self', icon: Icons.Infinity, badge: 'NEW' },
+    ],
+  },
+  {
     label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Icons.Activity },
@@ -391,8 +402,15 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="p-3 border-t border-border text-xs text-muted-foreground">
-          <div>v1.0.0 - 100+ chains - 14 VMs</div>
-          <div className="mt-1">CC0 - Originator: Analys</div>
+          <div className="flex items-center gap-1.5">
+            <span className="live-dot" style={{ width: 6, height: 6 }}></span>
+            <span className="font-medium text-foreground">TRION v2.0.0</span>
+            <span className="ml-auto tabular-nums">100+ chains</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span>14 VM families</span>
+            <span className="ml-auto">CC0 - Analys</span>
+          </div>
         </div>
       </aside>
     </>

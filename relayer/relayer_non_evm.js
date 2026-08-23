@@ -4,7 +4,7 @@
  * ==============================
  * Consolidates:
  *   - extended_chain_relayer.js (38 non-EVM chains: UTXO/Cosmos/Move/SUI/TRON/PI/etc.)
- *   - native_relayer.js (SVM/NEAR/TON/PVM/StarkNet — spawns chains/*/execute.ts)
+ *   - native_relayer.js (SVM/NEAR/TON/PVM/StarkNet — spawns chains/<vm>/execute.ts)
  *
  * This is the SINGLE non-EVM relayer. Together with relayer.js (EVM), it covers
  * all 100+ chains across 13 VM families.

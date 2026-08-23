@@ -128,7 +128,7 @@ fn classify_ton_event(in_msg: &Value) -> u8 {
         // Canonical STAKE=3 (was 8 — fixed to match whitepaper L0.1 §2)
         // Note: 0x47d54391 also matched staking in old code; removed duplicate.
         "0xa7fb58f8"                 => 4,   // unstake (was 9 — canonical UNSTAKE=4)
-        "0xb5de5f9e" | "0x42a0fb43" => 6,   // governance / voting
+        "0xb5de5f9e" | "0x42a0fb43" => 5,   // governance / voting (canonical GOVERNANCE=5)
         "0x00000000"                 => {
             // op_code 0 = simple transfer
             let val = in_msg["value"].as_str().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
@@ -183,7 +183,7 @@ async fn main() -> Result<()> {
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
     let (chain_id, label) = chain_info();
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new(&format!("ton_{}", label.to_lowercase()));
+    let state = IndexerState::new(&format!("ton_{}", label.to_lowercase()));
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
 
     info!("TRION TON Rust Indexer — chain={} label={} poll={}ms", chain_id, label, poll_ms);

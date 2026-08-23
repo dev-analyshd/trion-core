@@ -37,6 +37,7 @@ const TRON_APIS: &[&str] = &[
     "https://api.shasta.trongrid.io",
 ];
 
+#[allow(dead_code)]
 async fn tron_get(client: &reqwest::Client, base: &str, path: &str) -> Result<Value> {
     let url  = format!("{}{}", base.trim_end_matches('/'), path);
     let resp = client.get(&url).header("TRON-PRO-API-KEY", "").send().await?;
@@ -140,10 +141,10 @@ fn classify_tron_contract(ctype: &str, param: &Value) -> u8 {
     match ctype {
         "TransferContract" | "TransferAssetContract" => 0, // TRANSFER
         "FreezeBalanceContract" | "FreezeBalanceV2Contract"
-            | "DelegateResourceContract"         => 8,  // STAKE
+            | "DelegateResourceContract"         => 3,  // STAKE
         "UnfreezeBalanceContract" | "UnfreezeBalanceV2Contract"
-            | "UnDelegateResourceContract"       => 9,  // UNSTAKE
-        "VoteWitnessContract"                    => 6,  // GOVERNANCE
+            | "UnDelegateResourceContract"       => 4,  // UNSTAKE
+        "VoteWitnessContract"                    => 5,  // GOVERNANCE
         "TriggerSmartContract"                   => {
             // Heuristic: large data field → likely DEX swap
             let data = param["data"].as_str().unwrap_or("");
@@ -205,7 +206,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(3_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("tron_mainnet");
+    let state = IndexerState::new("tron_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
 
     info!("TRION TRON Rust Indexer — chain={} poll={}ms", CHAIN_ID, poll_ms);

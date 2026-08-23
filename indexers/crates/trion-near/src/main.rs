@@ -143,8 +143,8 @@ fn classify_near_event(actions: &[Value]) -> u8 {
                 if m.contains("borrow")                                    { return 7;  } // BORROW
                 if m.contains("repay") || m.contains("return_loan")       { return 8;  } // REPAY
                 if m.contains("vote") || m.contains("proposal") || m.contains("governance") { return 6; } // GOVERNANCE
-                if m.contains("oracle") || m.contains("price_update")     { return 16; } // ORACLE_UPDATE
-                if m.contains("flash")                                     { return 15; } // FLASH_LOAN
+                if m.contains("oracle") || m.contains("price_update")     { return 15; } // ORACLE_UPDATE
+                if m.contains("flash")                                     { return 17; } // FLASH_LOAN
                 if m.contains("mint")                                      { return 13; } // MINT
                 if m.contains("burn")                                      { return 14; } // BURN
                 if m.contains("claim")                                     { return 19; } // CLAIM
@@ -213,7 +213,7 @@ async fn main() -> Result<()> {
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(10_000u64);
     let cfg       = config();
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new(&format!("near_{}", cfg.label.to_lowercase()));
+    let state = IndexerState::new(&format!("near_{}", cfg.label.to_lowercase()));
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(12)).build()?;
     let mut rpc_idx = 0usize;
 

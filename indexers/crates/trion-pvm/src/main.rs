@@ -187,17 +187,17 @@ fn classify_dot_extrinsic(pallet: &str, method: &str) -> u8 {
             _                                                                              => 0,
         },
         "staking"             => match method {
-            "bond" | "bond_extra" | "nominate" | "validate" => 8, // STAKE
-            "unbond" | "withdraw_unbonded" | "chill"         => 9, // UNSTAKE
-            _                                                 => 8,
+            "bond" | "bond_extra" | "nominate" | "validate" => 3, // STAKE
+            "unbond" | "withdraw_unbonded" | "chill"         => 4, // UNSTAKE
+            _                                                 => 3,
         },
-        "democracy" | "governance" | "referenda" | "conviction_voting" => 6, // GOVERNANCE
+        "democracy" | "governance" | "referenda" | "conviction_voting" => 5, // GOVERNANCE
         "treasury"  => match method {
-            "spend" | "approve_proposal"     => 6,  // GOVERNANCE
+            "spend" | "approve_proposal"     => 5,  // GOVERNANCE
             "claim"                          => 19, // CLAIM
-            _                                => 6,
+            _                                => 5,
         },
-        "vesting"   => 9,  // UNSTAKE (vesting withdrawal)
+        "vesting"   => 4,  // UNSTAKE (vesting withdrawal)
         "utility"   => 0,  // TRANSFER (batch calls treated as generic)
         "contracts" | "evm" => match method {
             "instantiate" | "instantiate_with_code" => 11, // DEPLOY
@@ -205,10 +205,10 @@ fn classify_dot_extrinsic(pallet: &str, method: &str) -> u8 {
             _                                        => 11,
         },
         "nominationPools" => match method {
-            "join" | "bond_extra" | "create" => 8, // STAKE
-            "unbond" | "withdraw_unbonded"   => 9, // UNSTAKE
+            "join" | "bond_extra" | "create" => 3, // STAKE
+            "unbond" | "withdraw_unbonded"   => 4, // UNSTAKE
             "claim_payout"                   => 19, // CLAIM
-            _                                => 8,
+            _                                => 3,
         },
         _ => 0, // TRANSFER
     }
@@ -266,7 +266,7 @@ async fn main() -> Result<()> {
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(12_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new("pvm_dot_mainnet");
+    let state = IndexerState::new("pvm_dot_mainnet");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
 
     info!("TRION PVM Rust Indexer — chain={} label={} poll={}ms (dual-mode: sidecar+rpc)", CHAIN_ID, CHAIN_LBL, poll_ms);
