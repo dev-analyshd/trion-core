@@ -691,7 +691,7 @@ function RedesignedDashboard() {
 
       {/* Footer */}
       <div className="text-center text-xs text-muted-foreground py-6 border-t border-border">
-        TRION Protocol · Behavioral Truth Infrastructure · 100+ chains · 14 VM families
+        TRION Protocol · Behavioral Truth Infrastructure · 128 chains · 18 VM families
       </div>
     </div>
   );

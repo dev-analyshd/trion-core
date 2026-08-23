@@ -41,7 +41,7 @@ export function ValidatorsPage() {
       </Card>
 
       <Card title="HHI Distribution" live>
-        <div className="grid grid-cols-7 gap-2 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2 mb-4">
           {['AF', 'AN', 'AS', 'EU', 'NA', 'OC', 'SA'].map(c => {
             const count = hhi?.continent_breakdown?.[c] || 0;
             return (

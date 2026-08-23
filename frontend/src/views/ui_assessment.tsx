@@ -454,7 +454,7 @@ export function BTCPVisualizationPage() {
             ])}
             emptyMessage="Loading BIBL snapshot..."
           />
-          <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
             <div>Tier 1 target: {bibl?.tier_1_latency_target_ms}ms</div>
             <div>Tier 2 target: {bibl?.tier_2_latency_target_ms}ms</div>
             <div>Total BIBL: {bibl?.total_bibl_latency_target_ms}ms</div>
@@ -583,7 +583,7 @@ export function ContinuumVisualizationPage() {
       {/* CCP Distribution */}
       <Card title="Complement Certainty Premium (CCP) Distribution">
         <p className="text-sm text-muted-foreground mb-4">The spread that market makers and MEV bots currently extract flows back to both traders.</p>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Entity A', value: 40, color: '#22d3ee' },
             { label: 'Entity B', value: 40, color: '#10b981' },

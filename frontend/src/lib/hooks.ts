@@ -97,12 +97,34 @@ export function useStream<T = any>(path: string | null, intervalMs = 2000): {
       if (d) {
         setSpeedMs(Math.max(0.006, elapsed));
         lastFetchRef.current = Date.now();
-        // Append new items to the front (newest first)
+        // Append new items to the front (newest first), DEDUPLICATED by
+        // identity key — the previous version prepended each poll's whole
+        // array, so the same entries accumulated repeatedly until the
+        // 100-item buffer was pure duplicates.
         const newItems = Array.isArray(d) ? d : (d.records || d.feed || d.bh || d.items || []);
         if (Array.isArray(newItems) && newItems.length > 0) {
           setItems(prev => {
-            const merged = [...newItems, ...prev].slice(0, 100);
-            return merged;
+            const seen = new Set<string>();
+            const keyOf = (it: any): string => {
+              if (it == null) return `n${seen.size}`;
+              if (typeof it === 'object') {
+                // Prefer stable identity fields; fall back to JSON for static items
+                const k = it.id ?? it.tx_hash ?? it.hash ?? it.signal_id
+                  ?? it.entity_id ?? it.timestamp ?? it.ts ?? it.block_num;
+                if (k !== undefined && k !== null) return String(k);
+              }
+              return JSON.stringify(it);
+            };
+            const merged = [...newItems, ...prev];
+            const out: typeof merged = [];
+            for (const it of merged) {
+              const k = keyOf(it);
+              if (seen.has(k)) continue;
+              seen.add(k);
+              out.push(it);
+              if (out.length >= 100) break;
+            }
+            return out;
           });
         }
       }

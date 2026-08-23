@@ -154,7 +154,7 @@ export function SevenPlanePage() {
           ])}
           emptyMessage="Loading BIBL snapshot..."
         />
-        <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
           <div>Tier 1 target: {bibl?.tier_1_latency_target_ms}ms</div>
           <div>Tier 2 target: {bibl?.tier_2_latency_target_ms}ms</div>
           <div>Total BIBL: {bibl?.total_bibl_latency_target_ms}ms</div>
@@ -355,7 +355,7 @@ export function ContinuumEnginesPage() {
       </Card>
 
       <Card title="CCP Distribution (Complement Certainty Premium)">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Entity A', value: data?.ccp_distribution?.entity_a, color: 'blue' },
             { label: 'Entity B', value: data?.ccp_distribution?.entity_b, color: 'green' },
