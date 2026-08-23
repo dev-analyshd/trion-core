@@ -26,6 +26,33 @@ ENTITY_ID_RE = re.compile(r'^(0x)?[a-fA-F0-9]{64}$')
 # EVM address: 0x + 40 hex chars
 ADDRESS_RE = re.compile(r'^0x[a-fA-F0-9]{40}$')
 
+# ── Well-known protocol aliases ─────────────────────────────────────────────
+# STRICT ALLOWLIST (lowercase, exact-match) of protocol names accepted as
+# entity identifiers. These resolve to stable BEO IDs via SHA3-256 of the
+# canonical alias string — preserving the documented demo/dashboard API
+# surface (e.g. /api/v1/signal/uniswap) while blocking arbitrary/injected
+# entity inputs. Anything not hex, not an address, and not in this set is
+# rejected with 400.
+PROTOCOL_ALIASES = frozenset({
+    "uniswap", "aave", "compound", "curve", "maker", "lido",
+    "ethereum", "arbitrum", "base", "optimism", "polygon", "solana",
+    "trion", "trion_protocol",
+})
+
+
+def resolve_protocol_alias(eid: str) -> Optional[str]:
+    """Return the canonical BEO ID for a protocol alias, or None if `eid` is
+    not a listed alias. Aliases map to a deterministic 64-hex BEO ID so every
+    component (FAISS, ledger, coherence) sees one stable identity per protocol.
+    """
+    if not eid:
+        return None
+    key = eid.strip().lower()
+    if key not in PROTOCOL_ALIASES:
+        return None
+    import hashlib
+    return hashlib.sha3_256(f"trion:protocol:{key}".encode()).hexdigest()
+
 # Transaction hash: 0x + 64 hex chars (EVM) or 64-char hex (Solana signature
 # is 88 base58 but we accept the EVM form here for cross-chain BH ledger keys)
 TX_HASH_RE = re.compile(r'^(0x)?[a-fA-F0-9]{64}$')
@@ -40,14 +67,19 @@ CHAIN_ID_RE = re.compile(r'^\d{1,6}$')
 def validate_entity_id(eid: Optional[str]) -> bool:
     """Return True if `eid` is a valid entity identifier.
     
-    Accepts two formats:
+    Accepts three formats:
     - 64-char hex BEO ID (with or without 0x prefix)
     - 0x-prefixed 40-hex EVM address
+    - A well-known protocol alias from the strict allowlist (uniswap, aave, ...)
     """
     if not eid:
         return False
     eid = eid.strip()
-    return bool(ENTITY_ID_RE.match(eid) or ADDRESS_RE.match(eid))
+    return bool(
+        ENTITY_ID_RE.match(eid)
+        or ADDRESS_RE.match(eid)
+        or eid.lower() in PROTOCOL_ALIASES
+    )
 
 
 def validate_address(addr: Optional[str]) -> bool:
