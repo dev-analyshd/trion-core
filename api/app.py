@@ -1461,10 +1461,9 @@ except Exception as _e:
     _pipeline_ok = False
 
 try:
-    from core.trading.pattern_archetypes import (
-        match_archetype, get_all_archetypes_summary, ARCHETYPES
-    )
-    from core.akashic.genesis import get_epigenetic_engine, EnvironmentalPressure
+    from core.trading.pattern_archetypes import match_archetype, ARCHETYPES
+    from core.akashic.archetype import get_all_archetypes_summary
+    from core.akashic.epigenetics import get_epigenetic_engine, EnvironmentalPressure
     _akashic_ok = True
 except Exception as _e:
     _akashic_ok = False
@@ -1476,7 +1475,7 @@ except Exception as _e:
     _thermo_ok = False
 
 try:
-    from core.akashic.genesis import get_lifecycle_engine
+    from core.lifecycle.entity_lifecycle import get_lifecycle_engine
     _lifecycle_ok = True
 except Exception as _e:
     _lifecycle_ok = False
@@ -1764,8 +1763,21 @@ def lifecycle(entity_id: str):
     engine = get_lifecycle_engine()
     planes = _plane_values(entity_id)
     if planes.get("_cold_start"):
-        return jsonify({"error": "cold_start", "entity_id": entity_id,
-                        "note": "No behavioral sediment in FAISS yet — lifecycle unavailable"}), 202
+        # Cold start IS a lifecycle state: an entity with no behavioral sediment
+        # is at BIRTH. Return the honest BIRTH-stage assessment (consistent with
+        # the signal endpoint's 200 + bootstrap_phase pattern) instead of 202.
+        return jsonify({
+            "entity_id":       entity_id,
+            "stage":           "BIRTH",
+            "cold_start":      True,
+            "bootstrap_phase": True,
+            "vitality":        0.0,
+            "mortality_risk":  None,
+            "resurrection_potential": None,
+            "note": "No behavioral sediment in FAISS yet — lifecycle is at "
+                    "BIRTH; stage advances as observed activity accumulates.",
+            "timestamp":       int(time.time()),
+        })
     mf = _mf_score(entity_id)
     import math as _math
     tx_count = int(100 + 900 * planes["phi"])
@@ -2438,7 +2450,7 @@ def vm_families():
 # ── Governance Module: non-fatal imports ──────────────────────────────────────
 
 try:
-    from core.governance.intelligence_maintenance import get_awa_enforcer, BootstrapProtocol as _BootstrapProtocol
+    from core.governance.awa import get_awa_enforcer, AWAEnforcer as _AWAEnforcer, GratitudeProtocol, BootstrapProtocol as _BootstrapProtocol
     _awa_ok = True
 except Exception as _e:
     _awa_ok = False
@@ -2514,7 +2526,7 @@ except Exception as _e:
     _sba_ok = False
 
 try:
-    from core.protocol.distribution_coherence import compute_xsl_full, CrossChainBehavior as _XSLChain
+    from core.extended import compute_xsl_full, CrossChainBehavior as _XSLChain
     _xsl_ok = True
 except Exception as _e:
     _xsl_ok = False
@@ -3277,7 +3289,7 @@ def genesis_signal(asset_id: str):
 @require_entity_id()
 def security_mf(entity_id: str):
     """Manipulation Fingerprint (MF) score for entity — whitepaper L2.1."""
-    from core.auditor.vulnerability_patterns import (
+    from core.physical.manipulation_detector import (
         detect_wash_trading, detect_sybil_liquidity,
         detect_governance_capture, detect_mev_extraction,
         detect_coordinated_pump, detect_fake_volume,
@@ -3321,7 +3333,7 @@ def security_mf(entity_id: str):
 @require_entity_id()
 def security_genomic(entity_id: str):
     """Current genomic key for entity (public portion) — whitepaper L4.3."""
-    from core.spiritual.living_security.genomic_genealogy import GenomicKeyEvolver
+    from core.spiritual.living_security import GenomicKeyEvolver
     eid_bytes = entity_id.encode()
     evolver   = GenomicKeyEvolver()
     evolver.initialize(eid_bytes)
@@ -6760,7 +6772,7 @@ def dna_immune_system(entity_id: str):
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from core.spiritual.living_security.genomic_genealogy import get_lss
+    from core.spiritual.living_security import get_lss
     lss = get_lss()
 
     # Evolve genomic key with current behavioral context
@@ -8184,7 +8196,7 @@ def attacks_library():
         vm_breakdown[a["vm"]] = vm_breakdown.get(a["vm"], 0) + 1
         pattern_breakdown[a["pattern"]] = pattern_breakdown.get(a["pattern"], 0) + 1
 
-    from core.spiritual.living_security.genomic_genealogy import CRISPRDefense
+    from core.spiritual.living_security import CRISPRDefense
     crispr_size = len(CRISPRDefense.KNOWN_ATTACKS)
 
     return jsonify({
@@ -8281,7 +8293,7 @@ def demo_stats():
         pat = a.get("pattern", "UNKNOWN")
         pattern_breakdown[pat] = pattern_breakdown.get(pat, 0) + 1
 
-    from core.spiritual.living_security.genomic_genealogy import CRISPRDefense
+    from core.spiritual.living_security import CRISPRDefense
     crispr_count = len(CRISPRDefense.KNOWN_ATTACKS)
 
     return jsonify({

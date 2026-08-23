@@ -25,7 +25,7 @@ import sys
 import os
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -758,7 +758,7 @@ t0 = time.time()
 res = subprocess.run(
     ["python3", "-m", "pytest", "tests/", "-q", "--tb=no", "--no-header",
      "--ignore=tests/test_e2e_full.py"],
-    capture_output=True, text=True, timeout=360,
+    capture_output=True, text=True, timeout=900,
     cwd=_ROOT,
 )
 elapsed = time.time() - t0

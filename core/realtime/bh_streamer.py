@@ -191,23 +191,25 @@ class BHStreamer:
         # TRION_MAX_CHAINS=12 keeps RSS < 400MB on 512MB plans;
         # unset or 0 = all chains (mainnet server spec).
         _max_chains = int(os.environ.get("TRION_MAX_CHAINS", "0") or 0)
-        if _max_chains > 0 and chains is not None and len(chains) > _max_chains:
-            # Priority order: Ethereum L1 + L2s first (highest behavioral value)
+        if _max_chains > 0 and len(self._all_chains(chains)) > _max_chains:
+            # Priority order: Ethereum L1 + L2s first (highest behavioral value).
+            # Preserves the Dict[chain_id, config] shape — workers index by id.
+            _full = self._all_chains(chains)
             _PRIORITY = ["ethereum", "arbitrum", "base", "optimism", "polygon",
                          "bnb", "avalanche", "solana", "blast", "linea"]
-            _selected = []
+            _selected_ids = []
             for name in _PRIORITY:
-                for c in chains:
-                    if name in str(c).lower() and c not in _selected:
-                        _selected.append(c)
-                if len(_selected) >= _max_chains:
+                for cid, cfg in _full.items():
+                    if name in str(cfg.get("name", "")).lower() and cid not in _selected_ids:
+                        _selected_ids.append(cid)
+                if len(_selected_ids) >= _max_chains:
                     break
-            for c in chains:
-                if len(_selected) >= _max_chains:
+            for cid in _full:
+                if len(_selected_ids) >= _max_chains:
                     break
-                if c not in _selected:
-                    _selected.append(c)
-            chains = _selected
+                if cid not in _selected_ids:
+                    _selected_ids.append(cid)
+            chains = {cid: _full[cid] for cid in _selected_ids}
         self.db_path = db_path
         self.chains = chains or CHAIN_RPCS
         self.on_bh = on_bh
@@ -215,9 +217,14 @@ class BHStreamer:
         self._threads = {}
         self._stop_flags = {}
         self._last_block = {}
-        self._stats = {"total_bhs": 0, "total_blocks": 0, "chains_active": 0, "started_at": time.time(), "per_chain": {}}
+        self._stats = {"total_bhs": 0, "total_blocks": 0, "chains_active": 0, "started_at": time.time(), "per_chain": {}, "write_errors": 0}
         self._stats_lock = threading.Lock()
         self._running = False
+
+    @staticmethod
+    def _all_chains(chains):
+        """Effective chain list before capping (explicit list or default set)."""
+        return chains if chains is not None else CHAIN_RPCS
 
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -229,6 +236,14 @@ class BHStreamer:
             sense_hex TEXT, antisense_hex TEXT,
             block_num INTEGER, block_hash TEXT,
             chain_id INTEGER, chain_label TEXT, ts REAL, valid INTEGER DEFAULT 1)""")
+        # ── Schema migration: older ledgers lack the `valid` column. ──────────
+        # CREATE TABLE IF NOT EXISTS does NOT upgrade an existing table, and
+        # _write_bh inserts the `valid` column — without this migration every
+        # streamed BH write fails silently ("table has no column named valid")
+        # and the streamer reports BHs counted while persisting NOTHING.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(bh_ledger)").fetchall()}
+        if "valid" not in cols:
+            conn.execute("ALTER TABLE bh_ledger ADD COLUMN valid INTEGER DEFAULT 1")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)")
@@ -251,8 +266,14 @@ class BHStreamer:
                 bh["chain_id"], bh["chain_label"], bh["timestamp"], 1 if bh["valid"] else 0))
             conn.commit()
             conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            # SECURITY/DATA-INTEGRITY: never silently drop ledger writes — count
+            # and surface the failure so operators see data loss in get_stats().
+            with self._stats_lock:
+                self._stats["write_errors"] = self._stats.get("write_errors", 0) + 1
+            if self._stats.get("write_errors", 0) <= 3:
+                print(f"[streamer] BH ledger write FAILED ({type(e).__name__}: {e}) — "
+                      f"record dropped. Check schema/db_path: {self.db_path}", flush=True)
 
     def _process_block(self, chain_id, block, chain_config):
         if not block or "transactions" not in block:
@@ -746,7 +767,16 @@ def fetch_xrpl_ledger(rpc_url, ledger_index):
         result = rpc_call(rpc_url, "ledger", [{"ledger_index": ledger_index, "transactions": True, "expand": True}])
         if result:
             txs = result.get("ledger", {}).get("transactions", [])
-            return {"transactions": [{"hash": t.get("hash", f"xrpl_tx_{ledger_index}_{i}"), "from": t.get("Account", "unknown"), "to": t.get("Destination", "unknown"), "value": str(t.get("Amount", 0))} for i, t in enumerate(txs[:50])], "hash": result.get("ledger", {}).get("hash", "0x0"), "number": ledger_index}
+            def _xrpl_amount(t):
+                amt = t.get("Amount", 0)
+                if isinstance(amt, dict):
+                    # Issued currency: {"currency","issuer","value"} — use decimal value
+                    try:
+                        return str(float(amt.get("value", 0)))
+                    except (TypeError, ValueError):
+                        return "0"
+                return str(amt)
+            return {"transactions": [{"hash": t.get("hash", f"xrpl_tx_{ledger_index}_{i}"), "from": t.get("Account", "unknown"), "to": t.get("Destination", "unknown"), "value": _xrpl_amount(t)} for i, t in enumerate(txs[:50])], "hash": result.get("ledger", {}).get("hash", "0x0"), "number": ledger_index}
     except:
         pass
     return None
@@ -826,7 +856,27 @@ def get_non_evm_latest_block(rpc_url, vm):
         elif vm == "UTXO":
             req = urllib.request.Request(f"{rpc_url}/v1/blocks/tip/height", headers={"User-Agent": "TRION/1.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
-                return int(resp.read())
+                body = resp.read().strip()
+            # Plain-integer APIs (blockstream.info): direct parse
+            try:
+                return int(body)
+            except (ValueError, TypeError):
+                pass
+            # JSON APIs — Blockbook returns {"blockbook": {"bestHeight": N}};
+            # BlockCypher-style returns {"height": N}
+            try:
+                data = json.loads(body)
+                if isinstance(data, dict):
+                    bb = data.get("blockbook", {})
+                    if isinstance(bb, dict) and bb.get("bestHeight") is not None:
+                        return int(bb["bestHeight"])
+                    if data.get("height") is not None:
+                        return int(data["height"])
+                    if isinstance(data.get("data"), list) and data["data"]:
+                        return int(data["data"][0].get("height", 0))
+            except (ValueError, AttributeError):
+                pass
+            return 0
         elif vm == "STELLAR":
             req = urllib.request.Request(f"{rpc_url}/transactions?limit=1&order=desc", headers={"User-Agent": "TRION/1.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
@@ -850,7 +900,11 @@ def get_non_evm_latest_block(rpc_url, vm):
             req = urllib.request.Request(f"{rpc_url}/blocks/best", headers={"User-Agent": "TRION/1.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
-                return int(data.get("id", 0)) if isinstance(data, dict) else 0
+            if not isinstance(data, dict):
+                return 0
+            # VeChain: "number" is the block height (plain int);
+            # "id" is the 0x-prefixed block hash (NOT the height).
+            return int(data.get("number", 0) or 0)
         elif vm == "HEDERA":
             return get_latest_block(rpc_url)  # EVM-compatible
         elif vm == "PVM":
