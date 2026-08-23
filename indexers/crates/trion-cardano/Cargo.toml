@@ -1,0 +1,20 @@
+[package]
+name    = "trion-cardano"
+version = "1.0.0"
+edition = "2021"
+description = "TRION Cardano behavioral indexer — Koios public REST"
+
+[[bin]]
+name = "trion-cardano"
+path = "src/main.rs"
+
+[dependencies]
+trion-common = { path = "../trion-common" }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow       = { workspace = true }
+async-trait  = { workspace = true }

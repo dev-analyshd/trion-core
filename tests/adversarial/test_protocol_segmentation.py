@@ -99,7 +99,7 @@ def test_sub_entity_construction():
 # ── ProtocolSegmenter with real or absent DB ──────────────────────────────────
 
 def test_segmenter_returns_list_when_db_absent(monkeypatch, tmp_path):
-    monkeypatch.setattr("src.protocol.segmentation._DB_PATH", str(tmp_path / "nope.db"))
+    monkeypatch.setattr("core.protocol.segmentation._DB_PATH", str(tmp_path / "nope.db"))
     seg = ProtocolSegmenter()
     result = seg.get_sub_entities("0xdeadbeef")
     assert isinstance(result, list)
