@@ -353,6 +353,16 @@ def test_api_endpoints_live():
     import urllib.request
     import urllib.error
 
+    # Live-service test: skip gracefully when the Oracle API is not running
+    # (this test is exercised by the E2E suites with the full stack booted).
+    import socket
+    try:
+        with socket.create_connection(("localhost", 5000), timeout=1):
+            pass
+    except OSError:
+        import pytest
+        pytest.skip("Oracle API not running on :5000 — live-service test")
+
     endpoints = [
         "/api/v1/signal/uniswap",
         "/api/v1/trion/uniswap",

@@ -157,16 +157,8 @@ def compute_hhi_enforcement(
         validators, total_eff
     )
 
-    # Classify tier
-    if hhi > HHI_THRESHOLDS[HHITier.WARNING]:
-        tier = HHITier.CRITICAL
-    elif hhi > HHI_THRESHOLDS[HHITier.HEALTHY]:
-        tier = HHITier.DANGER
-    elif hhi > HHI_THRESHOLDS[HHITier.HEALTHY]:
-        tier = HHITier.WARNING
-    else:
-        tier = HHITier.HEALTHY
-
+    # Classify tier — whitepaper L4.8 four response tiers:
+    #   HHI < 1500 HEALTHY | 1500–2500 WARNING | 2500–4000 DANGER | > 4000 CRITICAL
     if hhi > 4000:
         tier = HHITier.CRITICAL
     elif hhi > 2500:

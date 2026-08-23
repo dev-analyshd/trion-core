@@ -179,8 +179,20 @@ def compute_resurrection(
     """
     Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
 
-    Note: This is a WEIGHTED SUM (not product) of the three components.
-    Each component is multiplied by its weight and summed.
+    Spec (whitepaper L2.4): the composition is MULTIPLICATIVE — every component
+    participates as a factor, so any single collapsed component (zero context,
+    zero behavioral similarity, full decay) collapses the whole score. This is
+    the semantic that separates GENUINE_CONTINUATION from ZOMBIE.
+
+    Implementation: weighted geometric mean of the three components
+
+        Δ = e^(-κ·T)^(w_d) · sim(S_pre, S_react)^(w_c) · g(C)^(w_x)
+
+    which is exactly the spec's product form with the weights applied as
+    exponents (log-space: Δ = exp(w_d·ln(decay) + w_c·ln(sim) + w_x·ln(g)))
+    so that Δ stays on a usable [0, 1] scale while preserving the multiplicative
+    collapse property. A plain weighted SUM (previous implementation) violated
+    the spec by allowing a strong decay term to offset a zero context term.
     """
     dormancy_type = profile.dormancy_type
     kappa         = KAPPA[dormancy_type]
@@ -189,7 +201,19 @@ def compute_resurrection(
     continuity  = compute_continuity_component(pre_dormancy_features, reactive_features)
     context     = compute_context_component(profile)
 
-    delta = (W_DECAY * decay) + (W_CONTINUITY * continuity) + (W_CONTEXT * context)
+    # Multiplicative composition (spec L2.4): weights as exponents.
+    # Components are clamped away from exact 0.0 in log-space only for numeric
+    # safety; a true 0-valued component still drives Δ → 0.
+    EPS = 1e-12
+    log_delta = (
+        W_DECAY      * math.log(max(decay,      EPS)) +
+        W_CONTINUITY * math.log(max(continuity, EPS)) +
+        W_CONTEXT    * math.log(max(context,    EPS))
+    )
+    delta = math.exp(log_delta)
+    # Exact-zero components must produce exactly zero (spec: collapse property)
+    if decay <= 0.0 or continuity <= 0.0 or context <= 0.0:
+        delta = 0.0
     delta = max(0.0, min(1.0, delta))
 
     # Hostile takeover risk — especially high for ABANDONED assets
