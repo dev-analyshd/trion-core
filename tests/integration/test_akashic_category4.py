@@ -34,6 +34,27 @@ FAIL  = "\033[91m✗ FAIL\033[0m"
 INFO  = "\033[94m  →\033[0m"
 SEP   = "\n" + "─" * 72
 
+import pytest
+
+
+def _live_stack_available() -> bool:
+    """True when the FAISS/Oracle stack and bh_ledger are actually running."""
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", 8000), timeout=1):
+            pass
+    except OSError:
+        return False
+    return os.path.exists(BH_LEDGER)
+
+
+requires_live_stack = pytest.mark.skipif(
+    not _live_stack_available(),
+    reason="live FAISS/Oracle stack + akashic/bh_ledger.db not running "
+           "(boot services then re-run: see docs/DEPLOYMENT.md)",
+)
+
+
 results = []
 
 def heading(n, title, priority):
@@ -407,6 +428,7 @@ def test_thermodynamic_deletion():
 # ══════════════════════════════════════════════════════════════════════════════
 # T4.2 — AKASHIC INDEX APPEND-ONLY  [High]
 # ══════════════════════════════════════════════════════════════════════════════
+@requires_live_stack
 def test_append_only():
     heading(2, "Akashic Index Append-Only", "HIGH")
     all_pass = True
@@ -726,6 +748,7 @@ def test_fork_resistance():
 # ══════════════════════════════════════════════════════════════════════════════
 # T4.4 — AKASHIC INDEX SCALABILITY — 10M+ RECORDS  [Medium]
 # ══════════════════════════════════════════════════════════════════════════════
+@requires_live_stack
 def test_scalability():
     heading(4, "Akashic Index Scalability — 10M+ Records", "MEDIUM")
     all_pass = True
