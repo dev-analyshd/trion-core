@@ -3,6 +3,10 @@
 //   Chain ID: SN_SEPOLIA (0x534e5f5345504f4c4941)
 // ═══════════════════════════════════════════════════════════
 
+// Full BTCP contract suite (escrow/intent/route/BIRP) lives in src/cairo/
+// and compiles as part of this crate.
+pub mod cairo;
+
 // ─── Shared structs ─────────────────────────────────────────
 
 /// BEO behavioral score stored on-chain.

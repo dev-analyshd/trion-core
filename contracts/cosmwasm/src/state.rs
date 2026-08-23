@@ -51,6 +51,10 @@ pub struct Escrow {
     pub entity_id:      Vec<u8>,
     pub destination:    Addr,
     pub amount:         u128,
+    /// Native denom actually locked at lock time (e.g. "uatom", "ujuno",
+    /// "uluna") — release/revert pay back in THIS denom. Previously hardcoded
+    /// to "uatom", which broke every non-Atom CosmWasm chain.
+    pub denom:          String,
     pub min_coherence:  u64,
     pub lock_height:    u64,
     pub timeout_blocks: u64,

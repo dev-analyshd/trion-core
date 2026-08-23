@@ -18,6 +18,7 @@ const ZERO_INFLATION_BPS:u16   = 0;                        // Audit-4 Gap 1
 
 /// 7 slashing conditions (Audit-4 Gap 1 fix: 5 -> 7).
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum SlashCondition {
     DoubleSign,
     CoherenceCollapse,
