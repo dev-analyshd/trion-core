@@ -11,6 +11,17 @@ export type NavGroup = { label: string; items: NavItem[] };
 
 export const NAV: NavGroup[] = [
   {
+    label: 'Core Principles',
+    items: [
+      { id: 'home', label: 'Home', icon: Icons.Home },
+      { id: 'zero_bridge', label: 'Zero-Bridge Exchange', icon: Icons.Waves, badge: 'NEW' },
+      { id: 'witness', label: 'Witness Economy', icon: Icons.Eye, badge: 'NEW' },
+      { id: 'beo_dashboard', label: 'BEO Dashboard', icon: Icons.Fingerprint, badge: 'NEW' },
+      { id: 'action_economy', label: 'Action Economy', icon: Icons.Sparkles, badge: 'NEW' },
+      { id: 'digital_self', label: 'Digital Self', icon: Icons.Infinity, badge: 'NEW' },
+    ],
+  },
+  {
     label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Icons.Activity },
