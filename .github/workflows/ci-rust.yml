@@ -1,10 +1,20 @@
 name: CI Rust
 on: [push, pull_request]
 jobs:
-  test:
+  indexers:
+    name: Indexer workspace (21 chain crates)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cd indexers && cargo check --workspace
       - run: cd indexers && cargo test -p trion-common --lib
+
+  btcp-core:
+    name: BTCP core crate (19 spec modules, 94 tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cd rust && cargo check
+      - run: cd rust && cargo test
