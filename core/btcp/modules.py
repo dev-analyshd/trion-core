@@ -565,27 +565,38 @@ class OOAAnchor:
     Module 2.8: Observation-Only Anchoring for non-integrated chains.
     Reads via Channel 6 direct indexing (no permission needed).
 
-    OOA_conf < integrated_conf initially.
-    OOA_conf grows asymptotically toward integrated_conf as observation depth
-    accumulates.
+    Spec (BTCP Master Spec §5.2):
+        OOA_conf(depth) = conf_max × (1 - e^(-k × depth))
+        conf_max = 0.85  (approaches but does not reach integrated (1.0))
+        k        = 0.001 (growth rate, calibrated)
+
+    OOA_conf < integrated_conf at all depths.
     Θ_OOA(t) = Θ_base(t) × OOA_penalty_factor (higher threshold, harder to emit)
     """
 
     OOA_PENALTY_FACTOR = 1.5  # 50% higher threshold for OOA chains
+    OOA_CONF_MAX = 0.85        # spec constant — asymptote below integrated (1.0)
+    OOA_K = 0.001              # spec growth rate
 
     def compute_ooa_confidence(
         self,
         observation_depth: int,
-        integrated_confidence: float,
+        integrated_confidence: float = 1.0,
     ) -> float:
         """
-        OOA confidence grows asymptotically toward integrated confidence.
-        Uses 1 - e^(-depth/1000) curve.
+        OOA_conf(depth) = conf_max × (1 - e^(-k·depth))   [spec §5.2]
+
+        conf_max = 0.85 per spec: OOA approaches but never reaches integrated
+        confidence. If the caller supplies an integrated_confidence below the
+        spec asymptote (a low-confidence integrated chain), the lower value
+        is respected — OOA can never out-confidence integration.
         """
         if observation_depth <= 0:
             return 0.0
-        factor = 1.0 - math.exp(-observation_depth / 1000.0)
-        return integrated_confidence * factor
+        # Spec asymptote: min(0.85, caller's integrated confidence)
+        conf_max = min(self.OOA_CONF_MAX, integrated_confidence)
+        factor = 1.0 - math.exp(-self.OOA_K * observation_depth)
+        return conf_max * factor
 
     def compute_ooa_threshold(self, base_threshold: float) -> float:
         """Θ_OOA = Θ_base × penalty_factor."""

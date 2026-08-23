@@ -12,11 +12,15 @@ L4.1 Diversity Weight:
     Full independence → d_j → 1 (maximum contribution)
 
 L4.2 Spiritual Consensus Score:
-    Σ(t) = Σⱼ [sⱼ · dⱼ · 𝟙(|vⱼ − v̄| ≤ δ)] / Σⱼ [sⱼ · dⱼ]
+    Σ(t) = Σⱼ [sⱼ · dⱼ · 𝟙(|vⱼ − v̄| ≤ δ(t))] / Σⱼ [sⱼ · dⱼ]
     sⱼ = stake weight
     dⱼ = diversity weight
     𝟙  = 1 if validator within consensus window δ, 0 otherwise
     v̄  = stake-diversity-weighted mean valuation
+
+Dynamic consensus window (whitepaper L4.2):
+    δ(t) = δ_base · (1 + V(t))
+    High volatility → wider window; Low volatility → tighter window
 
 L4.3 BFT Safety Condition:
     Safety holds iff  Σ_{honest} sⱼ · dⱼ  >  (2/3) · Σ_{all} sⱼ · dⱼ
@@ -24,11 +28,12 @@ L4.3 BFT Safety Condition:
     lim_{coordination→1} Σ_{Byzantine} sⱼ · dⱼ = 0
     Attack is structurally self-defeating.
 
-HHI Diversity Health:
+HHI Diversity Health (whitepaper L4.8 — 4 response tiers):
     HHI = Σⱼ (sⱼ · dⱼ / Σ_total)² × 10000
-    Healthy: HHI < 1500
-    Warning: HHI 1500–2500
-    Critical: HHI > 2500
+    HEALTHY:   HHI < 1500            — no action
+    WARNING:   HHI 1500–2500         — 2× reward for underrepresented architectures
+    DANGER:    HHI 2500–4000         — weight cap: no cluster > 15% effective weight
+    CRITICAL:  HHI > 4000            — consensus paused, governance emergency
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -149,19 +154,53 @@ def compute_diversity_weights(validators: List[Validator]) -> List[DiversityResu
     return results
 
 
+# ── Dynamic consensus window (whitepaper L4.2) ────────────────────────────────
+DELTA_BASE = 0.05   # δ_base — consensus agreement band at zero volatility
+
+
+def compute_dynamic_delta(delta_base: float, volatility: float) -> float:
+    """
+    δ(t) = δ_base · (1 + V(t))
+
+    High market volatility → wider consensus window (more tolerance for
+    valuation dispersion); low volatility → tighter window.
+    """
+    v = min(1.0, max(0.0, volatility))
+    return delta_base * (1.0 + v)
+
+
+def classify_hhi(hhi: float) -> str:
+    """
+    Whitepaper L4.8 — four response tiers (automatic, not governance-dependent):
+        HHI < 1500          HEALTHY  — no action
+        HHI 1500–2500       WARNING  — 2× reward for underrepresented architectures
+        HHI 2500–4000       DANGER   — weight cap: no cluster > 15% effective weight
+        HHI > 4000          CRITICAL — consensus paused, governance emergency
+    """
+    if hhi < 1500:
+        return "HEALTHY"
+    elif hhi < 2500:
+        return "WARNING"
+    elif hhi <= 4000:
+        return "DANGER"
+    return "CRITICAL"
+
+
 def compute_dw_bft_consensus(
     validators:        List[Validator],
-    delta:             float = 0.05,    # consensus agreement band width
+    delta:             float = DELTA_BASE,   # δ_base — consensus agreement band width
+    volatility:        Optional[float] = None,  # V(t) — enables dynamic δ(t) = δ_base·(1+V)
 ) -> BFTConsensusResult:
     """
-    L4.2: Σ(t) = Σⱼ [sⱼ · dⱼ · 𝟙(|vⱼ − v̄| ≤ δ)] / Σⱼ [sⱼ · dⱼ]
+    L4.2: Σ(t) = Σⱼ [sⱼ · dⱼ · 𝟙(|vⱼ − v̄| ≤ δ(t))] / Σⱼ [sⱼ · dⱼ]
 
     Step 1: compute diversity weights d_j for all validators
     Step 2: compute stake-diversity-weighted mean valuation v̄
     Step 3: determine which validators fall within consensus window
+            (dynamic: δ(t) = δ_base·(1+V(t)) when volatility is supplied)
     Step 4: compute Σ(t) = weighted fraction in consensus
     Step 5: check L4.3 BFT safety condition
-    Step 6: compute HHI diversity concentration index
+    Step 6: compute HHI diversity concentration index (4-tier classification)
     """
     if not validators:
         return BFTConsensusResult(
@@ -188,9 +227,12 @@ def compute_dw_bft_consensus(
             for v, r in zip(validators, div_results)
         ) / total_eff
 
-    # Step 3: consensus window membership 𝟙(|vⱼ − v̄| ≤ δ)
+    # Dynamic consensus window (whitepaper L4.2): δ(t) = δ_base · (1 + V(t))
+    effective_delta = compute_dynamic_delta(delta, volatility) if volatility is not None else delta
+
+    # Step 3: consensus window membership 𝟙(|vⱼ − v̄| ≤ δ(t))
     for v, r in zip(validators, div_results):
-        r.within_consensus = abs(v.valuation - v_bar) <= delta
+        r.within_consensus = abs(v.valuation - v_bar) <= effective_delta
 
     # Step 4: Σ(t)
     honest_eff = sum(
@@ -216,12 +258,7 @@ def compute_dw_bft_consensus(
             ((r.effective_weight / total_eff) * 100) ** 2
             for r in div_results
         )
-    if hhi < 1500:
-        hhi_health = "HEALTHY"
-    elif hhi < 2500:
-        hhi_health = "WARNING"
-    else:
-        hhi_health = "CRITICAL"
+    hhi_health = classify_hhi(hhi)
 
     # Self-defeating coordination proof
     n_byzantine = sum(1 for v in validators if v.is_byzantine)
@@ -246,7 +283,7 @@ def compute_dw_bft_consensus(
     return BFTConsensusResult(
         sigma                    = round(sigma, 6),
         consensus_value          = round(v_bar, 6),
-        consensus_window         = delta,
+        consensus_window         = round(effective_delta, 6),
         total_effective_stake    = round(total_eff, 6),
         honest_effective_stake   = round(honest_eff, 6),
         safety_holds             = safety_holds,
@@ -260,7 +297,7 @@ def compute_dw_bft_consensus(
         self_defeating_proof     = proof,
         whitepaper_formula       = (
             "L4.1: d_j = 1 − corr(M_j, M̄)  |  "
-            "L4.2: Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]  |  "
+            "L4.2: Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ(t))] / Σⱼ[sⱼ·dⱼ], δ(t)=δ_base·(1+V)  |  "
             "L4.3: Safety iff Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ"
         ),
     )

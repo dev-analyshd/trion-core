@@ -153,11 +153,9 @@ def detect_governance_capture(
 ) -> MFResult:
     """
     GOVERNANCE_CAPTURE (Whitepaper L1.2 TYPE 5):
-    MF = 0.50 × (vote_HHI - 4000) / 6000
-    Threshold: vote_HHI > 4000 AND proposal_age < 48h
+    Trigger: vote_HHI > 4000 AND proposal_age_at_vote < 48h
+    Score:   0.50 × (vote_HHI - 2500) / 7500
     Beanstalk scenario: same-block governance execution (HHI → 10000).
-
-    AWA (Adversarial Warning Alert) triggers at HHI > 4000 per whitepaper L1.2 TYPE 5.
     """
     detected = vote_hhi > hhi_threshold and proposal_age_hours < min_proposal_age_hours
     if detected:
@@ -168,15 +166,15 @@ def detect_governance_capture(
             mf_score=mf_score,
             confidence=0.92,
             description=(
-                f"Governance capture: HHI={vote_hhi:.0f} > 4000 (AWA threshold), "
+                f"Governance capture: HHI={vote_hhi:.0f} > 4000, "
                 f"proposal age={proposal_age_hours:.1f}h < 48h. "
-                f"MF = 0.50 × ({vote_hhi:.0f} - 4000) / 6000 = {mf_score:.4f}."
+                f"MF = 0.50 × ({vote_hhi:.0f} - 2500) / 7500 = {mf_score:.4f}."
             ),
             evidence={
                 "vote_hhi": vote_hhi,
                 "proposal_age_hours": proposal_age_hours,
-                "awa_threshold": 4000,
-                "formula": "0.50 × (vote_HHI - 4000) / 6000",
+                "trigger": "HHI > 4000 AND age < 48h",
+                "formula": "0.50 × (vote_HHI - 2500) / 7500",
             }
         )
     return MFResult(
@@ -188,31 +186,39 @@ def detect_governance_capture(
 
 
 def detect_mev_extraction(
-    mev_ratio_30d: float,     # fraction of value extracted by MEV bots
-    sandwich_count: int,      # number of sandwich attacks detected
+    mev_ratio_30d: float,          # mev_rate — extracted_value / total_volume (30-day rolling)
+    sandwich_count: int,           # number of sandwich attacks detected (evidence only)
+    sustained_days: float = 30.0,  # days the rate has been sustained (spec trigger: > 7 days;
+                                   # default 30 = the full rolling observation window)
     threshold_ratio: float = 0.005,
     max_ratio: float = 0.05,
 ) -> MFResult:
     """
     MEV_EXTRACTION_SUSTAINED (Whitepaper L1.2 TYPE 6):
-    MF = 0.40 × (mev_rate - 0.005) / 0.045
-    Threshold: mev_rate > 0.005 (0.5% MEV extraction rate)
+    mev_rate = extracted_value / total_volume (30-day rolling)
+    Trigger: mev_rate > 0.5% sustained > 7 days
+    Score:   0.40 × (mev_rate - 0.005) / 0.045
+
+    The score grows linearly beyond 0.40 for extreme extraction rates and is
+    capped only by the global MF bound of 1.0 (min applied in the aggregator).
     """
-    detected = mev_ratio_30d > threshold_ratio or (sandwich_count > 10 and mev_ratio_30d > 0)
+    detected = mev_ratio_30d > threshold_ratio and sustained_days > 7.0
     if detected:
-        mf_score = min(0.40, max(0.0, 0.40 * (mev_ratio_30d - 0.005) / 0.045))
+        mf_score = min(1.0, max(0.0, 0.40 * (mev_ratio_30d - 0.005) / 0.045))
         return MFResult(
             pattern_type="MEV_EXTRACTION_SUSTAINED",
             detected=True,
             mf_score=mf_score,
             confidence=0.75,
             description=(
-                f"MEV extraction: rate={mev_ratio_30d:.4f} > 0.005, "
+                f"MEV extraction sustained: rate={mev_ratio_30d:.4f} > 0.005 for "
+                f"{sustained_days:.0f} days (> 7 required), "
                 f"sandwich_count={sandwich_count}. "
                 f"MF = 0.40 × ({mev_ratio_30d:.4f} - 0.005) / 0.045 = {mf_score:.4f}."
             ),
             evidence={
                 "mev_rate_30d": mev_ratio_30d,
+                "sustained_days": sustained_days,
                 "sandwich_count": sandwich_count,
                 "formula": "0.40 × (mev_rate - 0.005) / 0.045",
             }
@@ -220,8 +226,11 @@ def detect_mev_extraction(
     return MFResult(
         pattern_type="MEV_EXTRACTION_SUSTAINED", detected=False,
         mf_score=0.0, confidence=0.80,
-        description=f"MEV rate {mev_ratio_30d:.4f} within normal range (< 0.005).",
-        evidence={"mev_rate_30d": mev_ratio_30d}
+        description=(
+            f"MEV rate {mev_ratio_30d:.4f} not sustained beyond threshold "
+            f"(needs > 0.005 for > 7 days; sustained {sustained_days:.0f} days)."
+        ),
+        evidence={"mev_rate_30d": mev_ratio_30d, "sustained_days": sustained_days}
     )
 
 

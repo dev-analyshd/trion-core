@@ -192,7 +192,7 @@ def compute_sc_score(wallets: List[WalletActivity]) -> float:
     return chains.count(most_common_chain) / len(wallets)
 
 
-BEO_CONFIDENCE_THRESHOLD = 0.75  # whitepaper L0.2: BEO_confidence >= 0.75 → same entity
+BEO_CONFIDENCE_THRESHOLD = 0.75  # whitepaper L0.2: BEO_valid iff BEO_confidence > 0.75
 
 
 def resolve_entity(
@@ -209,7 +209,7 @@ def resolve_entity(
     Whitepaper L0.2 exact formula:
       BEO_confidence = w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP
       w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (sum=1.00)
-      threshold: BEO_confidence >= 0.75 → same entity
+      threshold: BEO_valid iff BEO_confidence > 0.75 (strict)
 
     BP = behavioral pattern match score. When FAISS 128-dim embeddings are
     unavailable, a deterministic SimHash-style 128-dim fingerprint is derived
@@ -241,7 +241,7 @@ def resolve_entity(
     canonical_payload = "|".join(sorted_addrs).encode()
     canonical_id = "0x" + hashlib.sha3_256(canonical_payload).hexdigest()
 
-    same_entity = beo_confidence >= BEO_CONFIDENCE_THRESHOLD
+    same_entity = beo_confidence > BEO_CONFIDENCE_THRESHOLD  # spec: strict >
 
     return {
         "beo_confidence":   beo_confidence,
