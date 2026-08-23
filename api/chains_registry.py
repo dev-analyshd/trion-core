@@ -228,14 +228,33 @@ def _seed(chain_id: str) -> int:
     return int.from_bytes(h[:4], "big")
 
 
-def get_bh_stats(chain: dict) -> dict:
+def get_bh_stats(chain: dict, live_records: int | None = None) -> dict:
     """
-    Return deterministic BH FAISS stats for a chain.
-    Numbers are stable across calls — same chain always returns same values.
+    Return BH stats for a chain.
+
+    HONEST DATA MODEL (audit remediation):
+      - When `live_records` (real bh_ledger.db count for this chain) is
+        available, bh_proofs is the REAL count and stats_source="ledger".
+      - Otherwise the deterministic baseline is returned explicitly labeled
+        stats_source="estimated" — capacity-planning figures derived from
+        the chain's status/VM, NOT live measurements. Never presented as
+        indexed data.
     """
     s = _seed(chain["id"])
     status = chain["status"]
     vm = chain["vm"]
+
+    if live_records is not None:
+        return {
+            "bh_proofs": int(live_records),
+            "faiss_vectors": int(live_records),   # every BH has a FAISS vector
+            "last_block": 0,
+            "last_indexed_ts": None,
+            "indexer": chain.get("indexer", "trion-evm"),
+            "stats_source": "ledger",
+        }
+
+    # Deterministic capacity estimate (NOT live data)
     base_proofs = _PROOF_BASE.get(status, 45_000)
     base_block = _BLOCK_BASE.get(vm, 10_000_000)
 
@@ -248,27 +267,19 @@ def get_bh_stats(chain: dict) -> dict:
     faiss_frac = 0.70 + (s % 200) / 1000.0
     faiss_vectors = int(bh_proofs * faiss_frac)
 
-    # Last indexed timestamp: within last 5 minutes for live, hours for others
-    now = int(time.time())
-    if status == "live":
-        lag = s % 300          # 0-5 min
-    elif status == "testnet":
-        lag = s % 1800         # 0-30 min
-    else:
-        lag = s % 14400        # 0-4 hours
-
     return {
         "bh_proofs": bh_proofs,
         "faiss_vectors": faiss_vectors,
         "last_block": last_block,
-        "last_indexed_ts": now - lag,
+        "last_indexed_ts": None,   # never fabricate freshness for estimates
         "indexer": chain.get("indexer", "trion-evm"),
+        "stats_source": "estimated",
     }
 
 
-def enrich(chain: dict) -> dict:
-    """Return chain dict enriched with BH FAISS stats."""
-    return {**chain, **get_bh_stats(chain)}
+def enrich(chain: dict, live_records: int | None = None) -> dict:
+    """Return chain dict enriched with BH stats (real ledger counts preferred)."""
+    return {**chain, **get_bh_stats(chain, live_records)}
 
 
 def get_live_chain_stats() -> dict:
@@ -315,14 +326,17 @@ def get_all_chains():
 
 
 def get_enriched_chains():
-    """Return all chains enriched with BH FAISS stats and live SQLite counts."""
+    """Return all chains enriched with BH stats — REAL ledger counts preferred.
+
+    Audit remediation: chains with live bh_ledger.db records report the actual
+    count with stats_source="ledger"; all others are explicitly labeled
+    stats_source="estimated" (deterministic capacity figures, never presented
+    as indexed state).
+    """
     live_stats = get_live_chain_stats()
     enriched = []
     for c in CHAINS:
-        e = enrich(c)
-        # Overlay real bh_records count from SQLite if available.
-        # The chain_label convention in bh_ledger uses UPPER_SNAKE_CASE of the chain id.
-            # Use explicit bh_label if set, otherwise try id and name transforms
+        # Resolve the bh_ledger chain_label for this catalog entry
         explicit = c.get("bh_label")
         if explicit:
             label_candidates = [explicit]
@@ -330,13 +344,17 @@ def get_enriched_chains():
             label_candidates = [
                 c["id"].upper().replace("-", "_"),
                 c["name"].upper().replace(" ", "_").replace("-", "_"),
-                # Additional fuzzy: strip common suffixes
                 c["id"].upper().replace("-", "_") + "_MAINNET",
                 c["id"].upper().replace("-", "_") + "_DEVNET",
             ]
+        live_records = None
         for lbl in label_candidates:
             if lbl in live_stats:
-                e["bh_records_live"] = live_stats[lbl]
+                live_records = live_stats[lbl]
                 break
+
+        e = enrich(c, live_records)
+        if live_records is not None:
+            e["bh_records_live"] = live_records
         enriched.append(e)
     return enriched

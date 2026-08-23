@@ -514,11 +514,8 @@ def generate_intent_proof(witness: IntentWitness) -> ZKProof:
         circuit_type=CircuitType.INTENT_COMMITMENT,
         proof_data={
             "commitment_point":      intent_C.hex(),
-            "randomness":             intent_r.hex(),
             "amount_commitment":     amount_C.hex(),
-            "amount_randomness":     amount_r.hex(),
             "chain_commitment":      chain_C.hex(),
-            "chain_randomness":      chain_r.hex(),
             "challenge":             challenge.hex(),
             "nonce":                 witness.nonce.hex(),
             "amount_range_proof": {
@@ -631,7 +628,6 @@ def generate_complementarity_proof(witness: ComplementarityWitness) -> ZKProof:
         xor_proof.append({
             "index": i,
             "commitment": xor_comm.hex(),
-            "randomness": xor_rand.hex(),
             "is_complement": xor_val == 0xFF,
         })
 
@@ -641,11 +637,8 @@ def generate_complementarity_proof(witness: ComplementarityWitness) -> ZKProof:
         circuit_type=CircuitType.COMPLEMENTARITY,
         proof_data={
             "sense_commitment":     sense_C.hex(),
-            "sense_randomness":     sense_r.hex(),
             "antisense_commitment": anti_C.hex(),
-            "antisense_randomness": anti_r.hex(),
             "entity_commitment":   entity_C.hex(),
-            "entity_randomness":   entity_r.hex(),
             "xor_proof_samples":   xor_proof[:8],
             "challenge":           challenge.hex(),
             "strand_length":       len(witness.sense_strand),
@@ -767,13 +760,9 @@ def generate_behavioral_credential_proof(witness: BehavioralCredentialWitness) -
         circuit_type=CircuitType.BEHAVIORAL_CREDENTIAL,
         proof_data={
             "coherence_commitment": coherence_C.hex(),
-            "coherence_randomness": coherence_r.hex(),
             "mf_commitment":        mf_C.hex(),
-            "mf_randomness":        mf_r.hex(),
             "depth_commitment":     depth_C.hex(),
-            "depth_randomness":     depth_r.hex(),
             "entity_commitment":    entity_C.hex(),
-            "entity_randomness":    entity_r.hex(),
             "challenge":            challenge.hex(),
             "passes_coherence":     passes_coherence,
             "passes_manipulation":  passes_mf,
@@ -891,13 +880,9 @@ def generate_travel_rule_proof(witness: TravelRuleWitness) -> ZKProof:
         circuit_type=CircuitType.TRAVEL_RULE,
         proof_data={
             "originator_commitment":  orig_C.hex(),
-            "originator_randomness":  orig_r.hex(),
             "beneficiary_commitment": ben_C.hex(),
-            "beneficiary_randomness": ben_r.hex(),
             "amount_commitment":      amount_C.hex(),
-            "amount_randomness":      amount_r.hex(),
             "asset_commitment":       asset_C.hex(),
-            "asset_randomness":       asset_r.hex(),
             "challenge":              challenge.hex(),
             "originator_verified":    witness.originator_verified,
             "beneficiary_verified":  witness.beneficiary_verified,
@@ -1020,13 +1005,9 @@ def generate_iap_share_proof(witness: IAPShareWitness) -> ZKProof:
         circuit_type=CircuitType.IAP_SHARE,
         proof_data={
             "total_gas_commitment":  total_gas_C.hex(),
-            "total_gas_randomness":  total_gas_r.hex(),
             "entity_gas_commitment": entity_gas_C.hex(),
-            "entity_gas_randomness": entity_gas_r.hex(),
             "share_commitment":      share_C.hex(),
-            "share_randomness":      share_r.hex(),
             "entity_commitment":     entity_C.hex(),
-            "entity_randomness":     entity_r.hex(),
             "merkle_root":           merkle_root_val.hex(),
             "challenge":             challenge.hex(),
             "fair_allocation":       fair,

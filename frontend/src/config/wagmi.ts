@@ -43,6 +43,9 @@ export const CONTRACTS: Record<string, Record<number, string | null>> = {
     [mainnet.id]: null, [base.id]: null,
     [botChain.id]: null,
   },
+  coherenceVault: {
+    [mainnet.id]: null, [base.id]: null, [arbitrum.id]: null,
+  },
   oracleV3: {
     [botChain.id]: null,
   },
