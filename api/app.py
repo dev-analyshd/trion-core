@@ -1211,16 +1211,32 @@ def anima_signal(entity_id: str):
             "message": "No behavioral history in FAISS — ANIMA score requires observed on-chain activity.",
             "timestamp": int(time.time())
         }), 200
-    h = hashlib.sha256((entity_id + "archetype").encode()).digest()
-    archetype_idx = h[0] % 12
-    archetypes = ["Explorer","Creator","Sage","Hero","Outlaw","Magician",
-                  "Regular","Lover","Jester","Caregiver","Ruler","Innocent"]
+    # REAL archetype from the FAISS engine — the previous implementation
+    # fabricated the label from sha256(entity_id + "archetype") % 12 Jungian
+    # names, which had zero connection to actual behavioral clustering.
+    archetype = "UNCLASSIFIED"
+    archetype_distance = round(1.0 - planes["anima"], 6)
+    vector_neighbors = 0
+    try:
+        import urllib.request as _ur
+        with _ur.urlopen(
+            f"http://127.0.0.1:8000/api/v1/archetype/{entity_id}", timeout=3
+        ) as _r:
+            _arch = json.loads(_r.read())
+        if _arch.get("archetype_id") is not None and _arch.get("archetype_id", -1) >= 0:
+            archetype = _arch.get("archetype_name", f"CLUSTER_{_arch['archetype_id']}")
+            if _arch.get("arch_sim") is not None:
+                archetype_distance = round(1.0 - float(_arch["arch_sim"]), 6)
+        vector_neighbors = int(_arch.get("neighbors", 0) or 0)
+    except Exception:
+        pass
+
     return jsonify({
         "entity_id": entity_id,
         "anima_score": round(planes["anima"], 6),
-        "archetype": archetypes[archetype_idx],
-        "archetype_distance": round(1.0 - planes["anima"], 6),
-        "vector_neighbors": 5,
+        "archetype": archetype,
+        "archetype_distance": archetype_distance,
+        "vector_neighbors": vector_neighbors,
         "timestamp": int(time.time())
     })
 
