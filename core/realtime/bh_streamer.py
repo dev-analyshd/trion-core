@@ -129,9 +129,20 @@ def compute_bh(entity_id, event_type_id, magnitude_raw, chain_id, block_number, 
     mag_norm = min(1.0, math.log10(max(mag_human, 0) + 1) / math.log10(mag_max + 1)) if mag_human > 0 else 0.0
     mag_nano = int(mag_norm * 1e9)
 
-    eid_bytes = bytes.fromhex(entity_id.lower().replace("0x", "").ljust(64, "0")[:64])
+    # Entity → 32 bytes: hex addresses (EVM) pass through; non-hex
+    # (base58 Solana/Waves, base32 Stellar, bech32 Cosmos) are BEO-resolved
+    # via SHA3-256 — substrate-independent by construction (whitepaper L0.2).
+    _eid = entity_id.lower().replace("0x", "")
+    try:
+        eid_bytes = bytes.fromhex(_eid.ljust(64, "0")[:64])
+    except ValueError:
+        eid_bytes = hashlib.sha3_256(entity_id.lower().strip().encode()).digest()
     context = chain_id.to_bytes(4, "big") + event_type_id.to_bytes(4, "big")
-    bh_bytes = bytes.fromhex(block_hash.lower().replace("0x", "").ljust(64, "0")[:64])
+    _bh = block_hash.lower().replace("0x", "")
+    try:
+        bh_bytes = bytes.fromhex(_bh.ljust(64, "0")[:64])
+    except ValueError:
+        bh_bytes = hashlib.sha3_256(str(block_hash).encode()).digest()
 
     payload = eid_bytes + event_type_id.to_bytes(1, "big") + mag_nano.to_bytes(8, "big") + context + timestamp.to_bytes(8, "big") + chain_id.to_bytes(4, "big") + bh_bytes
 
@@ -176,6 +187,27 @@ def get_block_with_txs(rpc_url, block_num):
 
 class BHStreamer:
     def __init__(self, db_path="bh_ledger.db", chains=None, on_bh=None, max_txs_per_block=50):
+        # Railway/memory protection: cap concurrent chain workers.
+        # TRION_MAX_CHAINS=12 keeps RSS < 400MB on 512MB plans;
+        # unset or 0 = all chains (mainnet server spec).
+        _max_chains = int(os.environ.get("TRION_MAX_CHAINS", "0") or 0)
+        if _max_chains > 0 and chains is not None and len(chains) > _max_chains:
+            # Priority order: Ethereum L1 + L2s first (highest behavioral value)
+            _PRIORITY = ["ethereum", "arbitrum", "base", "optimism", "polygon",
+                         "bnb", "avalanche", "solana", "blast", "linea"]
+            _selected = []
+            for name in _PRIORITY:
+                for c in chains:
+                    if name in str(c).lower() and c not in _selected:
+                        _selected.append(c)
+                if len(_selected) >= _max_chains:
+                    break
+            for c in chains:
+                if len(_selected) >= _max_chains:
+                    break
+                if c not in _selected:
+                    _selected.append(c)
+            chains = _selected
         self.db_path = db_path
         self.chains = chains or CHAIN_RPCS
         self.on_bh = on_bh
@@ -214,7 +246,7 @@ class BHStreamer:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                 tx.get("hash", ""), bh["entity_id"], tx.get("from", ""), tx.get("to", ""),
                 bh["event_type_id"], bh["event_type"], bh["magnitude_norm"],
-                str(int(tx.get("value", "0x0"), 16)), tx.get("input", "")[:10],
+                str(int(tx.get("value", "0x0"), 16) if isinstance(tx.get("value", "0x0"), str) else int(tx.get("value", 0) or 0)), tx.get("input", "")[:10],
                 bh["sense_hex"], bh["antisense_hex"], bh["block_number"], bh["block_hash"],
                 bh["chain_id"], bh["chain_label"], bh["timestamp"], 1 if bh["valid"] else 0))
             conn.commit()
@@ -230,9 +262,11 @@ class BHStreamer:
             step = max(1, len(txs) // self.max_txs_per_block)
             txs = txs[::step][:self.max_txs_per_block]
 
-        block_num = int(block.get("number", "0x0"), 16)
+        _raw_num = block.get("number", "0x0")
+        block_num = int(_raw_num, 16) if isinstance(_raw_num, str) else int(_raw_num)
         block_hash = block.get("hash", "0x" + "00" * 32)
-        timestamp = int(block.get("timestamp", "0x0"), 16)
+        _raw_ts = block.get("timestamp", "0x0")
+        timestamp = int(_raw_ts, 16) if isinstance(_raw_ts, str) else int(_raw_ts or 0)
         chain_label = chain_config["name"]
 
         for tx in txs:
@@ -240,7 +274,8 @@ class BHStreamer:
                 continue
             from_addr = tx.get("from", "0x" + "00" * 20)
             input_data = tx.get("input", "0x")
-            value = int(tx.get("value", "0x0"), 16)
+            _raw_val = tx.get("value", "0x0")
+            value = int(_raw_val, 16) if isinstance(_raw_val, str) else int(_raw_val or 0)
             selector = input_data[:10] if input_data and input_data != "0x" else ""
             event_type_id = classify_event(selector, value, input_data != "0x")
 

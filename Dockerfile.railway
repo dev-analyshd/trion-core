@@ -185,6 +185,8 @@ ENV HOSTNAME=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
     TRION_ENABLE_FAISS=1 \
+    TRION_ENABLE_STREAMER=0 \
+    TRION_MAX_CHAINS=${TRION_MAX_CHAINS:-0} \
     TRION_ENABLE_RUST=0 \
     TRION_ENABLE_RELAYER=0 \
     TRION_ENABLE_ZG_SYNC=0 \
@@ -211,7 +213,7 @@ EXPOSE 10000
 
 # Shell form so ${PORT} (injected by Railway at runtime) is expanded by /bin/sh.
 # Falls back to 10000 when PORT is unset (local docker run without env).
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=15s --start-period=300s --retries=5 \
     CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]

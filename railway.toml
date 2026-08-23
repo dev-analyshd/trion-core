@@ -17,6 +17,13 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
 
+# ── Performance tuning ──────────────────────────────────────────────────────
+# TRION_MAX_CHAINS: cap concurrent chain-indexing threads.
+#   512MB Railway plan  → TRION_MAX_CHAINS=12
+#   8GB+ plan (default) → TRION_MAX_CHAINS=0 (all 78 chains)
+# TRION_ENABLE_STREAMER must stay 0 — the entrypoint owns the single
+# dedicated streamer process (prevents N_workers × 78-thread floods).
+
 [deploy]
 startCommand = "/app/railway-entrypoint.sh"
 healthcheckPath = "/api/v1/health"

@@ -184,7 +184,47 @@ if [ "${TRION_ENABLE_MONITORING:-0}" = "1" ]; then
     fi
 fi
 
-# ── Wait on Next.js (keep container alive) ─────────────────────────────────
+# ── Trap: clean shutdown of all services ────────────────────────────────────
+cleanup() {
+    log "Shutting down TRION stack..."
+    kill $NEXT_PID $FAISS_PID $FLASK_PID $BH_PID 2>/dev/null
+    wait 2>/dev/null
+    exit 0
+}
+trap cleanup SIGTERM SIGINT
+
+# ── Process watchdog: restart critical services if they die ────────────────
+(
+    while true; do
+        sleep 30
+        # FAISS watchdog
+        if ! kill -0 $FAISS_PID 2>/dev/null; then
+            log "FATAL: FAISS died — exiting for Railway restart"
+            kill -TERM $NEXT_PID 2>/dev/null
+            exit 1
+        fi
+        # Flask watchdog
+        if ! kill -0 $FLASK_PID 2>/dev/null; then
+            log "FATAL: Flask died — exiting for Railway restart"
+            kill -TERM $NEXT_PID 2>/dev/null
+            exit 1
+        fi
+    done
+) &
+WATCHDOG_PID=$!
+log "Watchdog active (PID $WATCHDOG_PID)"
+
+# ── Periodic status log (Railway logs) ──────────────────────────────────────
+(
+    while true; do
+        sleep 300
+        _bh_count=$(sqlite3 "${BH_LEDGER_DB}" "SELECT COUNT(*) FROM bh_ledger" 2>/dev/null || echo "?")
+        _vec_count=$(curl -s --max-time 5 "http://127.0.0.1:${FAISS_PORT}/health" 2>/dev/null | grep -o '"indexed_vectors":[0-9]*' | cut -d: -f2 || echo "?")
+        log "STATUS: bh_ledger=${_bh_count} vectors=${_vec_count:-busy} flask=$(kill -0 $FLASK_PID 2>/dev/null && echo UP || echo DOWN)"
+    done
+) &
 
 # ── Wait on Next.js (keep container alive) ─────────────────────────────────
 wait $NEXT_PID
+log "Next.js exited — container shutting down"
+cleanup
