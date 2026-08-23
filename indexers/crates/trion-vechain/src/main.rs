@@ -210,7 +210,8 @@ async fn main() -> Result<()> {
 
     let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(10_000u64);
-    let base      = std::env::var("VECHAIN_RPC_URL").unwrap_or_else(|_| THOR_URLS[0].into());
+    let mut base      = std::env::var("VECHAIN_RPC_URL").unwrap_or_else(|_| THOR_URLS[0].into());
+    let mut rpc_idx = 0usize;  // RPC failover rotation index
     let faiss     = FaissClient::new(&faiss_url)?;
     let state = IndexerState::new("vechain");
     let client    = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
@@ -222,7 +223,7 @@ async fn main() -> Result<()> {
 
         let best = match get_best_block(&client, &base).await {
             Ok(v) => v,
-            Err(e) => { warn!("VeChain best block error: {}", e); sleep(Duration::from_millis(poll_ms)).await; continue; }
+            Err(e) => { warn!("VeChain best block error: {} — rotating RPC", e); { rpc_idx += 1; base = THOR_URLS[rpc_idx % THOR_URLS.len()].into(); } sleep(Duration::from_millis(poll_ms)).await; continue; }
         };
         let latest = best.get("number").and_then(|v| v.as_u64()).unwrap_or(0);
         if latest == 0 { sleep(Duration::from_millis(poll_ms)).await; continue; }
