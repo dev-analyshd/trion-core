@@ -218,26 +218,96 @@ func (m *MeshNode) AttestationCount(entityID string) int {
 
 // ── Cryptographic Primitives ───────────────────────────────────────────────
 
-// DualStrandSign computes sense+antisense signatures for an attestation payload.
+// DualStrandSign computes sense+antisense signatures for an attestation payload
+// using the canonical TRION dual-strand construction (whitepaper L0.1):
+//
+//      sense     = SHA3-256(payload || 0x00)
+//      antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
+//
 // Uses SHA3-256 (Keccak, FIPS 202) — NOT SHA-256 — to match the Rust L0 pipeline
-// (trion-common::hash_dna::canonical_bh) for cross-system attestation verification.
+// (trion-common::hash_dna::canonical_bh) and Python core/primitives/behavioral_hash.py
+// for cross-system attestation verification. The XOR-NOT complement transform is
+// REQUIRED for cross-language consistency: it binds the two strands so that the
+// invariant
+//
+//      sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
+//
+// holds for every payload (verified identically in Python, Rust, TypeScript and
+// the meshsha3 golden vectors). Without it the antisense strand is an
+// uncorrelated hash and tampering with one strand is not detectable from the pair.
 func DualStrandSign(payload []byte) (sense, antisense string) {
-        s := meshsha3.Sum256(append(payload, 0x00))
-        a := meshsha3.Sum256(append(payload, 0xFF))
+        // Build the two domain-separated messages without aliasing the caller's
+        // backing array (append on a slice with spare capacity would mutate it).
+        p00 := make([]byte, len(payload), len(payload)+1)
+        copy(p00, payload)
+        p00 = append(p00, 0x00)
+
+        pff := make([]byte, len(payload), len(payload)+1)
+        copy(pff, payload)
+        pff = append(pff, 0xFF)
+
+        s := meshsha3.Sum256(p00)
+        hff := meshsha3.Sum256(pff)
+
+        // antisense = SHA3-256(payload||0xFF) XOR NOT(sense)
+        var a [32]byte
+        for i := 0; i < len(s); i++ {
+                a[i] = hff[i] ^ (s[i] ^ 0xFF) // hff[i] ^ ^s[i]
+        }
         return hex.EncodeToString(s[:]), hex.EncodeToString(a[:])
 }
 
-// DualStrandVerify confirms sense XOR antisense ≠ 0 (they must differ).
+// DualStrandVerify confirms the structural dual-strand invariant on a hex pair:
+// both strands must decode as 32-byte values and must differ. A canonically
+// signed pair always differs, because sense == antisense would require
+// SHA3-256(p||0x00) == SHA3-256(p||0xFF) — a SHA3 collision.
+//
+// This is the strand-only (payload-less) check; for the full cryptographic
+// cross-language invariant use DualStrandVerifyPayload.
 func DualStrandVerify(sense, antisense string) bool {
-        if sense == antisense {
-                return false // would mean hash collision
+        if len(sense) != 64 || len(antisense) != 64 {
+                return false
         }
-        for i := range sense {
-                if sense[i] != antisense[i] {
+        s, err1 := hex.DecodeString(sense)
+        a, err2 := hex.DecodeString(antisense)
+        if err1 != nil || err2 != nil || len(s) != 32 || len(a) != 32 {
+                return false
+        }
+        for i := range s {
+                if s[i] != a[i] {
                         return true
                 }
         }
-        return false
+        return false // identical strands → collision or non-canonical construction
+}
+
+// DualStrandVerifyPayload verifies the full canonical BH invariant
+// (whitepaper L0.1; identical to core/primitives/behavioral_hash.py):
+//
+//      antisense == SHA3-256(payload || 0xFF) XOR NOT(sense)
+//
+// equivalently: sense XOR antisense == NOT(SHA3-256(payload || 0xFF)).
+// This is the cross-language golden-vector check shared with the Rust, Python
+// and TypeScript implementations.
+func DualStrandVerifyPayload(payload []byte, sense, antisense string) bool {
+        if len(sense) != 64 || len(antisense) != 64 {
+                return false
+        }
+        s, err1 := hex.DecodeString(sense)
+        a, err2 := hex.DecodeString(antisense)
+        if err1 != nil || err2 != nil || len(s) != 32 || len(a) != 32 {
+                return false
+        }
+        pff := make([]byte, len(payload), len(payload)+1)
+        copy(pff, payload)
+        pff = append(pff, 0xFF)
+        hff := meshsha3.Sum256(pff)
+        for i := range s {
+                if a[i] != hff[i]^(s[i]^0xFF) {
+                        return false
+                }
+        }
+        return true
 }
 
 // MeshDiversityWeight computes d_j = sqrt(|S_j ∩ S_consensus| / max(|S_j|, 1))

@@ -70,6 +70,17 @@ BEO_confidence >= 0.85  ->  resolved (single canonical entity)
 BEO_confidence < 0.50  ->  new entity
 ```
 
+> **Implementation note: production threshold is 0.75 with five-factor weights
+> (CF 0.40/ST 0.25/SC 0.25/BP 0.10/GX 0.10) per July 2026 audit resolution.**
+> The production resolver (`anima-service/faiss_service.py`, mirrored in
+> `core/primitives/entity_resolution.py`) adds a fifth evidence channel —
+> GX, transaction-graph co-occurrence (w_GX = 0.10) — and resolves at
+> `BEO_CONFIDENCE_THRESHOLD = 0.75`:
+> `BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP + w_GX·GX) / Σw`.
+> The spec thresholds above describe the whitepaper's four-factor reference
+> model; the five-factor production values are canonical (audit finding L0.2,
+> resolved "code wins" — see `TRION_AUDIT_REPORT.md` §L0.2).
+
 ### Invariants
 
 - Resolution is monotonic: confidence can only be refined, never destroyed.

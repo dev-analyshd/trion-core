@@ -25,7 +25,8 @@ Where:
 
 - `V(t)` is volatility in `[0, 1]`, computed from L1.1 feature variance.
 - `Theta_min = 0.55` (permissive floor).
-- `Theta_max = 0.90` (strict ceiling).
+- `Theta_max = 0.92` (strict ceiling — matches whitepaper §7 and
+  `core/master/coherence.py::THETA_MAX`; corrected from 0.90 per July 2026 audit).
 
 ### Volatility Computation
 
