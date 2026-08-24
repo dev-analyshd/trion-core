@@ -93,6 +93,16 @@ CHAIN_RPCS: Dict[int, Dict] = {
     592:  {"name": "astar", "label": "Astar EVM", "rpc": "https://rpc.astar.network", "block_time": 12, "native_symbol": "ASTR", "decimals": 18},
     1101: {"name": "polygon_zkevm", "label": "Polygon zkEVM", "rpc": "https://zkevm-rpc.com", "block_time": 3, "native_symbol": "ETH", "decimals": 18},
     2222: {"name": "kava_evm", "label": "Kava EVM", "rpc": "https://evm.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 18},
+    # ── Gap-fill: manifest chains with VERIFIED public RPCs (all tested live) ──
+    61:      {"name": "etc", "label": "Ethereum Classic", "rpc": "https://etc.rivet.link", "block_time": 13, "native_symbol": "ETC", "decimals": 18},
+    97:      {"name": "bnb_testnet", "label": "BNB Testnet", "rpc": "https://bsc-testnet.publicnode.com", "block_time": 3, "native_symbol": "tBNB", "decimals": 18},
+    10200:   {"name": "chiado", "label": "Chiado (Gnosis)", "rpc": "https://rpc.chiadochain.net", "block_time": 5, "native_symbol": "xDAI", "decimals": 18},
+    43113:   {"name": "fuji", "label": "Avalanche Fuji", "rpc": "https://api.avax-test.network/ext/bc/C/rpc", "block_time": 2, "native_symbol": "AVAX", "decimals": 18},
+    84532:   {"name": "base_sepolia", "label": "Base Sepolia", "rpc": "https://sepolia.base.org", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
+    421614:  {"name": "arb_sepolia", "label": "Arbitrum Sepolia", "rpc": "https://sepolia-rollup.arbitrum.io/rpc", "block_time": 0.25, "native_symbol": "ETH", "decimals": 18},
+    11155111:{"name": "eth_sepolia", "label": "Ethereum Sepolia", "rpc": "https://ethereum-sepolia.publicnode.com", "block_time": 12, "native_symbol": "ETH", "decimals": 18},
+    11155420:{"name": "op_sepolia", "label": "Optimism Sepolia", "rpc": "https://sepolia.optimism.io", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
+    80002:   {"name": "polygon_amoy", "label": "Polygon Amoy", "rpc": "https://polygon-amoy-bor-rpc.publicnode.com", "block_time": 2, "native_symbol": "POL", "decimals": 18},
     8822: {"name": "iota_evm", "label": "IOTA EVM", "rpc": "https://json-rpc.evm.iotaledger.net", "block_time": 5, "native_symbol": "IOTA", "decimals": 18},
     677: {"name": "bot_chain", "label": "BOT Chain", "rpc": "https://rpc.botchain.ai", "block_time": 3, "native_symbol": "BOT", "decimals": 18},
     16602: {"name": "zg_newton", "label": "0G Newton", "rpc": "https://rpc.newton.0g.ai", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
@@ -646,6 +656,19 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
 
     # ── Additional Cosmos-family chains (public Tendermint RPCs) ──────────
     10014:  {"name": "kava", "label": "Kava", "vm": "COSMOS", "rpc": "https://rpc.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 6},
+
+    # ── Gap-fill: manifest Cosmos chains with VERIFIED public RPCs (cosmos.directory) ──
+    10002:  {"name": "juno", "label": "Juno", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/juno", "block_time": 6, "native_symbol": "JUNO", "decimals": 6},
+    10010:  {"name": "terra", "label": "Terra Phoenix", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/terra", "block_time": 6, "native_symbol": "LUNA", "decimals": 6},
+    10011:  {"name": "persistence", "label": "Persistence", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/persistence", "block_time": 6, "native_symbol": "XPRT", "decimals": 6},
+    10013:  {"name": "chihuahua", "label": "Chihuahua", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/chihuahua", "block_time": 6, "native_symbol": "HUAHUA", "decimals": 6},
+    10015:  {"name": "initia", "label": "Initia", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/initia", "block_time": 6, "native_symbol": "INIT", "decimals": 6},
+    10016:  {"name": "saga", "label": "Saga", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/saga", "block_time": 6, "native_symbol": "SAGA", "decimals": 6},
+    10017:  {"name": "noble", "label": "Noble", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/noble", "block_time": 6, "native_symbol": "USDC", "decimals": 6},
+    10019:  {"name": "axelar", "label": "Axelar", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/axelar", "block_time": 6, "native_symbol": "AXL", "decimals": 6},
+
+    # ── Gap-fill: Movement (Move VM, verified live) ──
+    20200:  {"name": "movement", "label": "Movement Mainnet", "vm": "MOVE", "rpc": "https://mainnet.movementnetwork.xyz", "block_time": 1, "native_symbol": "MOVE", "decimals": 8},
 }
 
 # ============================================================================
@@ -676,12 +699,16 @@ def fetch_cosmos_block(rpc_url, height):
         return None
 
 def fetch_aptos_block(rpc_url, height):
-    """Fetch Aptos block via REST."""
+    """Fetch Aptos block via REST (also serves Movement — same API shape)."""
     try:
         req = urllib.request.Request(f"{rpc_url}/v1/blocks/by_height/{height}", headers={"User-Agent": "TRION/1.0", "Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-            tx_count = data.get("block_height", 0)
+            # Aptos returns int; Movement returns str — coerce for both
+            try:
+                tx_count = int(data.get("block_height", 0))
+            except (TypeError, ValueError):
+                tx_count = 0
             return {"transactions": [{"hash": f"aptos_tx_{height}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(tx_count, 50))], "hash": data.get("previous_block_hash", "0x0"), "number": height}
     except:
         return None
@@ -911,7 +938,7 @@ def fetch_polkadot_block(rpc_url, block_num):
 VM_FETCHERS = {
     "SVM": lambda rpc, num: fetch_solana_block(rpc, num),
     "COSMOS": lambda rpc, num: fetch_cosmos_block(rpc, num),
-    "MOVE": lambda rpc, num: fetch_aptos_block(rpc, num) if "aptos" in rpc else fetch_sui_checkpoint(rpc, num),
+    "MOVE": lambda rpc, num: fetch_aptos_block(rpc, num) if ("aptos" in rpc or "movement" in rpc) else fetch_sui_checkpoint(rpc, num),
     "NEAR": lambda rpc, num: fetch_near_block(rpc, num),
     "TON": lambda rpc, num: fetch_ton_block(rpc, num),
     "STARKNET": lambda rpc, num: fetch_starknet_block(rpc, num),
@@ -940,7 +967,7 @@ def get_non_evm_latest_block(rpc_url, vm):
                 data = json.loads(resp.read())
                 return int(data.get("result", {}).get("response", {}).get("last_block_height", 0))
         elif vm == "MOVE":
-            if "aptos" in rpc_url:
+            if "aptos" in rpc_url or "movement" in rpc_url:
                 req = urllib.request.Request(f"{rpc_url}/v1", headers={"User-Agent": "TRION/1.0"})
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     data = json.loads(resp.read())
