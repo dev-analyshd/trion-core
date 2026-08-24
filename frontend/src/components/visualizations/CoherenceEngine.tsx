@@ -1,6 +1,11 @@
 /**
  * CoherenceEngine - Visualizes the 5 Behavioral Planes + Coherence computation
  * Aligned with TRION Whitepaper L5.2: C(t) = alpha*Phi + beta*M + gamma*Sigma + delta*K + epsilon*A
+ *
+ * Plane weights are fetched from /api/v1/coherence/profiles (L5.2 named
+ * weight profiles) with a fallback to the BALANCED defaults when the API is
+ * unreachable or returns malformed data — the visualization must never break
+ * just because the backend is down.
  */
 'use client';
 import { useEffect, useState } from 'react';
@@ -16,6 +21,14 @@ interface PlaneData {
   anima: number;
 }
 
+interface PlaneWeights {
+  physical: number;
+  mental: number;
+  spiritual: number;
+  conscious: number;
+  anima: number;
+}
+
 const PLANES = [
   { key: 'physical', symbol: 'Φ', name: 'Physical', color: '#ef4444', desc: 'Shannon entropy from transaction patterns', icon: Icons.Activity },
   { key: 'mental', symbol: 'M', name: 'Mental', color: '#f59e0b', desc: 'FAISS archetype prediction confidence', icon: Icons.Brain },
@@ -24,7 +37,25 @@ const PLANES = [
   { key: 'anima', symbol: 'A', name: 'ANIMA', color: '#8b5cf6', desc: 'Cross-domain intelligence absorption', icon: Icons.Sparkles },
 ];
 
-const WEIGHTS = { physical: 0.25, mental: 0.30, spiritual: 0.25, conscious: 0.10, anima: 0.10 };
+/** Fallback weights — L5.2 "BALANCED" profile (must match the API's
+ *  named_profiles.BALANCED so the fallback is invisible when consistent). */
+const DEFAULT_WEIGHTS: PlaneWeights = { physical: 0.25, mental: 0.30, spiritual: 0.25, conscious: 0.10, anima: 0.10 };
+
+/** Map an L5.2 named profile ({phi, m, sigma, k, anima}) to plane weights.
+ *  Returns null when the profile is missing or malformed. */
+function profileToWeights(profile: any): PlaneWeights | null {
+  if (!profile || typeof profile !== 'object') return null;
+  const w: PlaneWeights = {
+    physical: Number(profile.phi),
+    mental: Number(profile.m),
+    spiritual: Number(profile.sigma),
+    conscious: Number(profile.k),
+    anima: Number(profile.anima),
+  };
+  const values = Object.values(w);
+  if (values.some(v => !Number.isFinite(v) || v < 0)) return null;
+  return w;
+}
 
 export function CoherenceEngine({ entityId }: { entityId?: string }) {
   const defaultEntity = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
@@ -32,6 +63,13 @@ export function CoherenceEngine({ entityId }: { entityId?: string }) {
   
   const { data: planesAll } = useAPI(`/api/v1/planes/${eid}/all`, 8000);
   const { data: health } = useAPI('/api/v1/health', 5000);
+  // L5.2 weight profiles — long interval (weights change rarely, if ever)
+  const { data: profiles } = useAPI('/api/v1/coherence/profiles', 30000);
+  
+  // Live weights from the API with fallback to the BALANCED defaults
+  const liveWeights = profileToWeights(profiles?.named_profiles?.BALANCED);
+  const WEIGHTS: PlaneWeights = liveWeights ?? DEFAULT_WEIGHTS;
+  const weightsAreLive = liveWeights !== null;
   
   // Extract plane values with bootstrap fallbacks
   const planes: PlaneData = {
@@ -80,6 +118,11 @@ export function CoherenceEngine({ entityId }: { entityId?: string }) {
         <div>
           <h3 className="text-lg font-bold">Five-Plane Coherence Engine</h3>
           <p className="text-xs text-muted-foreground">C(t) = α·Φ + β·M + γ·Σ + δ·K + ε·A</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {weightsAreLive
+              ? 'Weights: live from /api/v1/coherence/profiles (BALANCED)'
+              : 'Weights: BALANCED defaults (API unavailable)'}
+          </p>
         </div>
         <div className={`px-3 py-1 rounded-full text-xs font-bold ${coherent ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
           {coherent ? 'COHERENT' : 'BELOW THRESHOLD'}
