@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "/app/railway-entrypoint.sh",
-    "healthcheckPath": "/api/v1/health",
+    "healthcheckPath": "/readyz",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
@@ -40,8 +40,8 @@
       "TRION_VALIDATOR_PORT": "6000",
       "TRION_PROMETHEUS_PORT": "9090",
       "TRION_GRAFANA_PORT": "3001",
-      "TRION_ENABLE_STREAMER": "0",
-      "TRION_MAX_CHAINS": "0"
+      "TRION_ENABLE_STREAMER": "1",
+      "TRION_MAX_CHAINS": "12"
     }
   }
 }

@@ -53,7 +53,7 @@ FROM python:3.11-slim
 LABEL maintainer="TRION Protocol"
 LABEL description="TRION Protocol - Railway deployment"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
-LABEL version="6.0.0"
+LABEL version="7.0.0"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
 # Optional full-stack build arg: set to 1 to install Rust/Haskell/Julia toolchains
@@ -157,8 +157,11 @@ COPY spec/            ./spec/
 # Runtime reports directory (created empty; populated at runtime)
 COPY reports/         ./reports/
 
-# ── BH ledger database initialization ────────────────────────────────────────
-COPY scripts/init_bh_ledger.py ./scripts/init_bh_ledger.py
+# ── Deployment preflight + BH ledger DB init scripts ────────────────────────
+COPY scripts/init_bh_ledger.py    ./scripts/init_bh_ledger.py
+COPY scripts/deploy_preflight.py   ./scripts/deploy_preflight.py
+RUN chmod +x ./scripts/init_bh_ledger.py ./scripts/deploy_preflight.py
+# Pre-create the bh_ledger schema at build time so first-start inserts work
 RUN python3 /app/scripts/init_bh_ledger.py 2>/dev/null || echo "BH ledger init skipped (non-fatal)"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
@@ -185,8 +188,10 @@ ENV HOSTNAME=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
     TRION_ENABLE_FAISS=1 \
-    TRION_ENABLE_STREAMER=0 \
-    TRION_MAX_CHAINS=${TRION_MAX_CHAINS:-0} \
+    # Streamer enabled — the entrypoint owns the single dedicated process
+    # (TRION_MAX_CHAINS caps concurrency; entrypoint prevents N-workers flood)
+    TRION_ENABLE_STREAMER=1 \
+    TRION_MAX_CHAINS=${TRION_MAX_CHAINS:-12} \
     TRION_ENABLE_RUST=0 \
     TRION_ENABLE_RELAYER=0 \
     TRION_ENABLE_ZG_SYNC=0 \
@@ -211,10 +216,11 @@ ENV HOSTNAME=0.0.0.0 \
 # Railway injects PORT at runtime. Default to 10000 for local docker runs.
 EXPOSE 10000
 
-# Shell form so ${PORT} (injected by Railway at runtime) is expanded by /bin/sh.
-# Falls back to 10000 when PORT is unset (local docker run without env).
+# Healthcheck uses /readyz (not /api/v1/health) so the container is "healthy"
+# only when the whole chain — Next.js → Flask → FAISS — is ready to serve.
+# /readyz returns 503 during cold-start, then 200 once FAISS index is loaded.
 HEALTHCHECK --interval=30s --timeout=15s --start-period=300s --retries=5 \
-    CMD curl -fs http://localhost:${PORT:-10000}/api/v1/health || exit 1
+    CMD curl -fs http://localhost:${PORT:-10000}/readyz || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/app/railway-entrypoint.sh"]
