@@ -1,0 +1,28 @@
+{
+  "name": "trion-zk-circuits",
+  "version": "1.0.0",
+  "description": "TRION Protocol BTCP ZK circuit suite — BTCP Master Implementation Spec §14.1 Phase 4 (zk_intent_commitment, zk_complementarity_proof, zk_iap_share_proof, zk_travel_rule, zk_behavioral_credential)",
+  "license": "CC0-1.0",
+  "private": true,
+  "scripts": {
+    "install:deps": "npm install",
+    "compile": "npm run compile:intent && npm run compile:complementarity && npm run compile:iap && npm run compile:travel && npm run compile:credential",
+    "compile:intent": "circom zk_intent_commitment/circuit.circom --r1cs --wasm --sym --output zk_intent_commitment/build",
+    "compile:complementarity": "circom zk_complementarity_proof/circuit.circom --r1cs --wasm --sym --output zk_complementarity_proof/build",
+    "compile:iap": "circom zk_iap_share_proof/circuit.circom --r1cs --wasm --sym --output zk_iap_share_proof/build",
+    "compile:travel": "circom zk_travel_rule/circuit.circom --r1cs --wasm --sym --output zk_travel_rule/build",
+    "compile:credential": "circom zk_behavioral_credential/circuit.circom --r1cs --wasm --sym --output zk_behavioral_credential/build",
+    "setup:powersoftau": "snarkjs powersoftau new bn128 14 pot14_0000.ptau -v && snarkjs powersoftau contribute pot14_0000.ptau pot14_0001.ptau --name='TRION contribution 1' -v && snarkjs powersoftau prepare phase2 pot14_0001.ptau pot14_final.ptau -v",
+    "setup:intent": "snarkjs groth16 setup zk_intent_commitment/build/circuit.r1cs pot14_final.ptau zk_intent_commitment/build/circuit_0000.zkey && snarkjs zkey contribute zk_intent_commitment/build/circuit_0000.zkey zk_intent_commitment/build/circuit_final.zkey --name='TRION phase2 1' -v && snarkjs zkey export verificationkey zk_intent_commitment/build/circuit_final.zkey zk_intent_commitment/build/verification_key.json",
+    "export:verifiers": "for c in zk_intent_commitment zk_complementarity_proof zk_iap_share_proof zk_travel_rule zk_behavioral_credential; do snarkjs zkey export solidityverifier $c/build/circuit_final.zkey $c/verifier.sol; done",
+    "prove:intent": "snarkjs groth16 prove zk_intent_commitment/build/circuit_final.zkey zk_intent_commitment/build/witness.wtns zk_intent_commitment/build/proof.json zk_intent_commitment/build/public.json",
+    "verify:intent": "snarkjs groth16 verify zk_intent_commitment/build/verification_key.json zk_intent_commitment/build/public.json zk_intent_commitment/build/proof.json"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5"
+  },
+  "devDependencies": {
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.4"
+  }
+}

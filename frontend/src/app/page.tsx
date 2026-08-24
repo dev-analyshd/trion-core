@@ -18,6 +18,7 @@ import { Sidebar, NAV } from '../components/Sidebar';
 import { LiveClock } from '../components/ui';
 import { CommandPalette } from '../components/CommandPalette';
 import { SettingsModal } from '../components/SettingsModal';
+import { ShortcutHelpDialog } from '../components/ShortcutHelpDialog';
 import { WalletButton } from '../components/wallet/WalletButton';
 import { useAPI, useTheme, useStream, useCounter } from '../lib/hooks';
 import { fmt, pct, tfmt, hex, compact } from '../lib/api';
@@ -403,6 +404,7 @@ function Home() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [theme, toggleTheme] = useTheme();
 
   const changePage = useCallback((p: string) => {
@@ -426,13 +428,7 @@ function Home() {
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
       if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         e.preventDefault();
-        alert(
-          'TRION Keyboard Shortcuts\n\n' +
-          '⌘K / Ctrl+K    Command palette\n' +
-          '⌘B / Ctrl+B    Toggle sidebar\n' +
-          '?                This help\n' +
-          'Esc             Close overlays\n'
-        );
+        setShortcutsOpen(v => !v);
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
@@ -508,6 +504,7 @@ function Home() {
         </main>
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ShortcutHelpDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }
