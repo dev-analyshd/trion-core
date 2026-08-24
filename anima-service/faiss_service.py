@@ -10318,6 +10318,17 @@ def api_health():
         "timestamp":       int(__import__("time").time()),
     }
 
+
+# ── Readiness probe — used by Railway/Compose to gate routing. ──────────────
+# Differs from /health: /readyz returns 503 if the index is still cold
+# (zero vectors AND FAISS_AVAILABLE is False), meaning the service is
+# not yet ready to serve traffic even though the process is alive.
+@app.get("/readyz", include_in_schema=False)
+def readyz():
+    if not FAISS_AVAILABLE or index is None:
+        return {"status": "not_ready", "reason": "faiss_index_uninitialized"}, 503
+    return {"status": "ready", "indexed_vectors": index.ntotal}
+
 # ════════════════════════════════════════════════════
 # TRION TRADING SIGNAL API
 # ════════════════════════════════════════════════════

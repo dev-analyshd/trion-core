@@ -1,55 +1,53 @@
 #!/usr/bin/env bash
 # =============================================================================
-# TRION Protocol — Railway Entrypoint
+# TRION Protocol — Railway / Container Entrypoint  (v2)
 #
-# CORE SERVICES (always started):
-#   1. FAISS ANIMA Engine         (port 8000, internal)
-#   2. BH Streamer                (background, 55 EVM chains)
-#   3. Flask Oracle API           (port 5000, internal)
-#   4. Next.js React Frontend     (port $PORT, exposed)
+# STARTUP ORDER (each step gates the next):
+#   0.  Preflight (env / storage / RPC sanity)            — fails fast, exits
+#   1.  BH ledger DB init                                  — fast, idempotent
+#   2.  FAISS ANIMA Engine (port $FAISS_PORT)              — waits for /readyz
+#   3.  Flask Oracle API (port $FLASK_PORT)                — waits for /readyz
+#   4.  BH Streamer (background)                           — best-effort
+#   5.  BH → FAISS backfill (background, delayed 60s)
+#   6.  Next.js frontend (port $PORT — public)
 #
-# OPTIONAL SERVICES (enable via env vars, default OFF):
+# HEALTH MODEL
+#   /healthz     — process is alive (always 200 once started)
+#   /readyz      — service is ready to serve (200 only after deps up)
+#   /api/v1/health  — Flask app-level health (deep, includes oracle stats)
+#
+# OPTIONAL SERVICES (env toggles, default OFF):
 #   TRION_ENABLE_VALIDATOR=1       — Go P2P Validator (port 6000)
-#   TRION_ENABLE_INDEXERS=1        — Rust indexers (if built)
-#   TRION_ENABLE_SIGNAL_PROCESSING=1 — C++ signal processing
-#   TRION_ENABLE_MONITORING=1      — Prometheus/Grafana configs available
-#
-# All source code included in image: Rust indexers, Go validator,
-# C++ signal processing, Haskell formal verification, Julia math,
-# Solidity/Vyper contracts, TypeScript SDK, WebAssembly.
-#
-# Next.js proxies /api/* to Flask — single exposed port.
-# Railway auto-detects the PORT env var.
+#   TRION_ENABLE_SIGNAL_PROCESSING=1 — C++ FFT signal engine
+#   TRION_ENABLE_MONITORING=1       — Prometheus/Grafana
 # =============================================================================
 set -u
 
 export PORT="${PORT:-10000}"
-
-log() { echo "[railway $(date +%H:%M:%S)] $*"; }
 export HOSTNAME="0.0.0.0"
 export FAISS_PORT="${FAISS_PORT:-8000}"
-
-# ── 0. Start Next.js FIRST (port listening immediately) ─────────────────────
-# Railway health check hits $PORT immediately. Start Next.js first so the
-# port is listening, even while backend services are still initializing.
-log "Starting Next.js frontend on :${PORT}..."
-cd /app/frontend
-PORT="${PORT}" node server.js &
-NEXT_PID=$!
-cd /app
-log "Next.js started in background (PID $NEXT_PID)"
-
 export FLASK_PORT="${FLASK_PORT:-5000}"
 export FAISS_SERVICE_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:${FAISS_PORT}}"
 export FAISS_URL="${FAISS_URL:-http://127.0.0.1:${FAISS_PORT}}"
 export ORACLE_API_URL="${ORACLE_API_URL:-http://127.0.0.1:${FLASK_PORT}}"
 export FLASK_URL="${FLASK_URL:-http://127.0.0.1:${FLASK_PORT}}"
-export BH_LEDGER_DB="/app/bh_ledger.db"
+export BH_LEDGER_DB="${BH_LEDGER_DB:-/app/bh_ledger.db}"
 export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 
+log()  { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
+warn() { echo "[entrypoint $(date +%H:%M:%S)] WARN: $*" >&2; }
+die()  { echo "[entrypoint $(date +%H:%M:%S)] FATAL: $*" >&2; exit 1; }
 
-# ── 1. FAISS ANIMA Engine ────────────────────────────────────────────────────
+# ── 0. Preflight (env / storage / RPC sanity) ─────────────────────────────
+log "Running preflight checks..."
+python3 /app/scripts/deploy_preflight.py || die "Preflight failed — refusing to start"
+
+# ── 1. BH ledger init (idempotent — safe to re-run) ────────────────────────
+log "Initializing BH ledger at ${BH_LEDGER_DB}..."
+python3 /app/scripts/init_bh_ledger.py 2>&1 | head -3 || warn "BH init non-fatal"
+
+# ── 2. FAISS ANIMA Engine ──────────────────────────────────────────────────
 log "Starting FAISS ANIMA Engine on :${FAISS_PORT}..."
 cd /app/anima-service
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
@@ -57,23 +55,26 @@ PORT="${FAISS_PORT}" FAISS_PORT="${FAISS_PORT}" \
 python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port "${FAISS_PORT}" --workers 1 &
 FAISS_PID=$!
 
-# Wait for FAISS to be ready
-for i in $(seq 1 30); do
-    if curl -fs "http://127.0.0.1:${FAISS_PORT}/healthz" >/dev/null 2>&1; then
+# Wait for FAISS to be READY (not just alive)
+FAISS_READY=false
+for i in $(seq 1 60); do
+    if curl -fs "http://127.0.0.1:${FAISS_PORT}/readyz" >/dev/null 2>&1; then
         log "FAISS ready after ${i}s"
+        FAISS_READY=true
         break
     fi
+    # If /readyz 503s but /healthz 200s, index is still cold — keep waiting
     sleep 1
 done
-
-# ── 2. BH Streamer (real-time behavioral hash ingestion) ─────────────────────
-log "Starting BH Streamer (55 EVM chains)..."
+if [ "${FAISS_READY}" != "true" ]; then
+    # Tolerate FAISS still warming — log warning, continue (Railway healthcheck
+    # will block routing on /readyz anyway). The watchdog will kill the
+    # container if FAISS truly dies (process not running).
+    warn "FAISS /readyz not green after 60s — continuing (cold start)"
+fi
 cd /app
-python3 /app/scripts/run_bh_streamer.py &
-BH_PID=$!
-log "BH Streamer PID: $BH_PID"
 
-# ── 3. Flask Oracle API ──────────────────────────────────────────────────────
+# ── 3. Flask Oracle API ────────────────────────────────────────────────────
 log "Starting Flask Oracle API on :${FLASK_PORT}..."
 cd /app
 gunicorn \
@@ -83,148 +84,161 @@ gunicorn \
     --timeout "${GUNICORN_TIMEOUT:-120}" \
     --keep-alive 5 \
     --log-level info \
+    --access-logfile - \
+    --error-logfile - \
     "api.app:app" &
 FLASK_PID=$!
 
-# Wait for Flask to be ready
-for i in $(seq 1 30); do
-    if curl -fs "http://127.0.0.1:${FLASK_PORT}/api/v1/health" >/dev/null 2>&1; then
+# Wait for Flask to be READY (probe /readyz — which itself probes FAISS)
+FLASK_READY=false
+for i in $(seq 1 60); do
+    if curl -fs "http://127.0.0.1:${FLASK_PORT}/readyz" >/dev/null 2>&1; then
         log "Flask ready after ${i}s"
+        FLASK_READY=true
         break
     fi
     sleep 1
 done
+if [ "${FLASK_READY}" != "true" ]; then
+    warn "Flask /readyz not green after 60s — continuing (FAISS may be cold)"
+fi
 
-# ── 3b. Auto-backfill BHs → FAISS vectors (background) ────────────────────
-log "Starting BH → FAISS auto-backfill in background..."
+# ── 4. BH Streamer (real-time behavioral hash ingestion) ──────────────────
+if [ "${TRION_ENABLE_STREAMER:-1}" = "1" ]; then
+    log "Starting BH Streamer..."
+    python3 /app/scripts/run_bh_streamer.py &
+    BH_PID=$!
+    log "BH Streamer PID: $BH_PID"
+else
+    BH_PID=""
+    log "BH Streamer disabled (TRION_ENABLE_STREAMER=0)"
+fi
+
+# ── 4b. Auto-backfill BHs → FAISS vectors (background, delayed) ───────────
 (
-    # Wait for Flask to be fully ready
-    sleep 15
-    # Give BH streamer time to accumulate some data
-    sleep 45
+    sleep 60   # let the streamer accumulate some data first
     log "Running BH → FAISS backfill..."
     if [ -f /app/anima-service/backfill_entity_records.py ]; then
         cd /app/anima-service
-        python3 backfill_entity_records.py --faiss-url "http://127.0.0.1:${FAISS_PORT}" --bh-db "${BH_LEDGER_DB}" --batch-size 500 2>&1 | tail -5 &
-        BACKFILL_PID=$!
-        log "Backfill started (PID $BACKFILL_PID)"
+        python3 backfill_entity_records.py \
+            --faiss-url "http://127.0.0.1:${FAISS_PORT}" \
+            --bh-db "${BH_LEDGER_DB}" \
+            --batch-size 500 2>&1 | tail -5 &
+        log "Backfill started (PID $!)"
     else
-        log "Backfill script not found — vectors will populate via scheduler (30min cycles)"
+        warn "Backfill script not found — vectors populate via 30min scheduler"
     fi
 ) &
 
-# ── 3c. Optional: Go P2P Validator Network ────────────────────────────────
-if [ "${TRION_ENABLE_VALIDATOR:-0}" = "1" ] && command -v go >/dev/null 2>&1; then
-    if [ -f /app/validator/go.mod ]; then
+# ── 5. Optional: Go P2P Validator Network ──────────────────────────────────
+VALIDATOR_PID=""
+if [ "${TRION_ENABLE_VALIDATOR:-0}" = "1" ]; then
+    if command -v go >/dev/null 2>&1 && [ -f /app/validator/go.mod ]; then
         log "Starting Go P2P Validator Network..."
         cd /app/validator
-        # Build if not already built
         if [ ! -f /app/validator/trion-validator ]; then
             log "Building validator binary (first run)..."
-            go build -o trion-validator ./cmd/validator/ 2>/dev/null || log "Validator build skipped (using source mode)"
+            go build -o trion-validator ./cmd/validator/ 2>&1 | tail -5 || warn "Build failed"
         fi
         if [ -f /app/validator/trion-validator ]; then
             ./trion-validator --port "${TRION_VALIDATOR_PORT:-6000}" &
+            VALIDATOR_PID=$!
+            log "Validator up (PID $VALIDATOR_PID, port ${TRION_VALIDATOR_PORT:-6000})"
         else
             go run ./cmd/validator/ --port "${TRION_VALIDATOR_PORT:-6000}" &
+            VALIDATOR_PID=$!
         fi
-        VALIDATOR_PID=$!
-        log "Go Validator started (PID $VALIDATOR_PID, port ${TRION_VALIDATOR_PORT:-6000})"
     else
-        log "Go Validator: source not found at /app/validator"
-    fi
-else
-    if [ "${TRION_ENABLE_VALIDATOR:-0}" = "1" ]; then
-        log "Go Validator enabled but 'go' command not found — skipping"
+        warn "Validator enabled but Go toolchain/source missing — skipping"
     fi
 fi
 
-# ── 3d. Optional: C++ Signal Processing Engine ───────────────────────────
-if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-0}" = "1" ] && command -v cmake >/dev/null 2>&1; then
-    if [ -f /app/signal-processing/CMakeLists.txt ]; then
+# ── 5b. Optional: C++ Signal Processing Engine ────────────────────────────
+SIGNAL_PID=""
+if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-0}" = "1" ]; then
+    if command -v cmake >/dev/null 2>&1 && [ -f /app/signal-processing/CMakeLists.txt ]; then
         log "Starting C++ Signal Processing Engine..."
         cd /app/signal-processing
-        # Build if not already built
         if [ ! -d /app/signal-processing/build ]; then
             log "Building signal processing (first run)..."
             mkdir -p build && cd build
-            cmake .. -DCMAKE_BUILD_TYPE=Release 2>/dev/null || log "CMake configure skipped"
-            make -j$(nproc) 2>/dev/null || log "Signal processing build skipped"
+            cmake .. -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -5 || warn "CMake configure failed"
+            make -j"$(nproc)" 2>&1 | tail -5 || warn "Build failed"
             cd /app/signal-processing
         fi
         if [ -f /app/signal-processing/build/trion_signal ]; then
             ./build/trion_signal &
             SIGNAL_PID=$!
-            log "C++ Signal Processing started (PID $SIGNAL_PID)"
+            log "Signal processing up (PID $SIGNAL_PID)"
         else
-            log "Signal processing binary not built — source available at /app/signal-processing"
+            warn "Signal processing binary not built"
         fi
-    fi
-else
-    if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-0}" = "1" ]; then
-        log "Signal Processing enabled but 'cmake' not found — skipping"
+    else
+        warn "Signal processing enabled but cmake/source missing"
     fi
 fi
 
-# ── 3e. Optional: TimescaleDB Akashic Index ──────────────────────────────
-if [ -n "${TIMESCALEDB_URL:-}" ]; then
-    log "TimescaleDB configured — Akashic Index will persist to TimescaleDB"
-    log "  Connection health check endpoint: /api/timescale/health"
-else
-    log "TimescaleDB not configured — Akashic Index using local storage only"
-fi
+# ── 6. Next.js frontend (PUBLIC PORT) ─────────────────────────────────────
+# Started LAST so all upstream deps are already up — Next.js's /readyz
+# probes Flask's /readyz which probes FAISS /readyz. Start earlier and the
+# very first healthcheck might land during warmup.
+log "Starting Next.js frontend on :${PORT}..."
+cd /app/frontend
+PORT="${PORT}" node server.js &
+NEXT_PID=$!
+cd /app
+log "Next.js started (PID $NEXT_PID)"
 
-# ── 3f. Optional: Prometheus Monitoring ─────────────────────────────────
-if [ "${TRION_ENABLE_MONITORING:-0}" = "1" ]; then
-    if [ -f /app/deploy/monitoring/prometheus.yml ]; then
-        log "Monitoring enabled — config at /app/deploy/monitoring/prometheus.yml"
-        log "  Prometheus port: ${TRION_PROMETHEUS_PORT:-9090}"
-        log "  Grafana port: ${TRION_GRAFANA_PORT:-3001}"
-        log "  (Install prometheus/grafana separately or use docker-compose for full monitoring)"
-    fi
-fi
-
-# ── Trap: clean shutdown of all services ────────────────────────────────────
+# ── Trap: clean shutdown of all services (SIGTERM/SIGINT) ─────────────────
 cleanup() {
-    log "Shutting down TRION stack..."
-    kill $NEXT_PID $FAISS_PID $FLASK_PID $BH_PID 2>/dev/null
+    log "Shutting down TRION stack (signal received)..."
+    for pid in $NEXT_PID $FLASK_PID $FAISS_PID $BH_PID $VALIDATOR_PID $SIGNAL_PID; do
+        [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
+    done
     wait 2>/dev/null
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# ── Process watchdog: restart critical services if they die ────────────────
+# ── Watchdog: restart-on-death of critical services ────────────────────────
 (
     while true; do
         sleep 30
-        # FAISS watchdog
-        if ! kill -0 $FAISS_PID 2>/dev/null; then
-            log "FATAL: FAISS died — exiting for Railway restart"
-            kill -TERM $NEXT_PID 2>/dev/null
+        # FAISS watchdog — critical
+        if ! kill -0 "$FAISS_PID" 2>/dev/null; then
+            warn "FAISS process died — exiting for Railway restart"
+            kill -TERM "$NEXT_PID" 2>/dev/null
             exit 1
         fi
-        # Flask watchdog
-        if ! kill -0 $FLASK_PID 2>/dev/null; then
-            log "FATAL: Flask died — exiting for Railway restart"
-            kill -TERM $NEXT_PID 2>/dev/null
+        # Flask watchdog — critical
+        if ! kill -0 "$FLASK_PID" 2>/dev/null; then
+            warn "Flask process died — exiting for Railway restart"
+            kill -TERM "$NEXT_PID" 2>/dev/null
             exit 1
+        fi
+        # BH Streamer watchdog — non-critical, just log
+        if [ -n "$BH_PID" ] && ! kill -0 "$BH_PID" 2>/dev/null; then
+            warn "BH Streamer process died — non-fatal, will restart in next deploy"
         fi
     done
 ) &
 WATCHDOG_PID=$!
 log "Watchdog active (PID $WATCHDOG_PID)"
 
-# ── Periodic status log (Railway logs) ──────────────────────────────────────
+# ── Periodic status log (Railway logs) ────────────────────────────────────
 (
     while true; do
         sleep 300
         _bh_count=$(sqlite3 "${BH_LEDGER_DB}" "SELECT COUNT(*) FROM bh_ledger" 2>/dev/null || echo "?")
-        _vec_count=$(curl -s --max-time 5 "http://127.0.0.1:${FAISS_PORT}/health" 2>/dev/null | grep -o '"indexed_vectors":[0-9]*' | cut -d: -f2 || echo "?")
-        log "STATUS: bh_ledger=${_bh_count} vectors=${_vec_count:-busy} flask=$(kill -0 $FLASK_PID 2>/dev/null && echo UP || echo DOWN)"
+        _vec_count=$(curl -s --max-time 5 "http://127.0.0.1:${FAISS_PORT}/health" 2>/dev/null \
+                     | grep -o '"indexed_vectors":[0-9]*' | cut -d: -f2 || echo "?")
+        _flask_ok=$(kill -0 "$FLASK_PID" 2>/dev/null && echo UP || echo DOWN)
+        _next_ok=$(kill -0 "$NEXT_PID" 2>/dev/null && echo UP || echo DOWN)
+        log "STATUS bh_ledger=${_bh_count} vectors=${_vec_count:-busy} flask=${_flask_ok} next=${_next_ok}"
     done
 ) &
 
-# ── Wait on Next.js (keep container alive) ─────────────────────────────────
-wait $NEXT_PID
+# ── Wait on Next.js (keep container alive) ────────────────────────────────
+wait "$NEXT_PID"
 log "Next.js exited — container shutting down"
 cleanup

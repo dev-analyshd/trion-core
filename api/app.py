@@ -1267,6 +1267,36 @@ def health():
     })
 
 
+@app.route("/readyz")
+def readyz():
+    """Readiness probe — used by Railway/Compose to gate routing.
+
+    Returns 503 (not ready) until BOTH:
+      * Flask itself can serve
+      * FAISS ANIMA service at FAISS_SERVICE_URL is up (1s timeout)
+
+    This prevents Next.js from proxying requests to Flask while Flask
+    is up but its downstream FAISS dependency is still cold-starting
+    (which otherwise surfaces as 500s during the first 10-15s after boot).
+    """
+    import urllib.request as _ur
+    faiss_url = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+    faiss_ok = False
+    faiss_vec = 0
+    try:
+        with _ur.urlopen(f"{faiss_url}/healthz", timeout=1.5) as _r:
+            faiss_ok = (_r.status == 200)
+    except Exception:
+        faiss_ok = False
+    if not faiss_ok:
+        return jsonify({"status": "not_ready",
+                        "reason": "faiss_unreachable",
+                        "faiss_url": faiss_url}), 503
+    return jsonify({"status": "ready",
+                    "faiss_url": faiss_url,
+                    "timestamp": int(time.time())})
+
+
 @app.route("/api/v1/stats")
 def stats():
     """Network stats — reads total_signals from the live oracle contract."""

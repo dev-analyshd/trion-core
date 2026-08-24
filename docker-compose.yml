@@ -1,30 +1,32 @@
 # =============================================================================
-# TRION Protocol — Docker Compose  (v4.1)
+# TRION Protocol — Docker Compose  (v5.0 — production-grade Railway parity)
 #
-# Profiles:
-#   dev  (default) — Oracle API + FAISS ANIMA only. Fast build, no Rust.
-#   full           — All 11 services, production parity (slow Rust build).
+# Three profiles, identical runtime contract as Railway:
+#
+#   dev       (default) Oracle API + FAISS only. Fast build (~3 min).
+#   railway   parity-test the Railway image locally before pushing.
+#   full      all optional subsystems (validator, signal processing, monitoring).
 #
 # Quick start (dev):
-#   cp .env.example .env          # set RELAYER_PRIVATE_KEY, DEPLOY_0G_PRIVATE
+#   cp .env.example .env
 #   docker compose up --build
 #
-# Full production parity:
+# Railway local parity test:
+#   docker compose --profile railway up --build
+#
+# Production full:
 #   docker compose --profile full up --build
-#   # or: docker build -f Dockerfile.render -t trion-core . && docker run -p 10000:10000 trion-core
 #
-# Key endpoints:
-#   http://localhost:5000/                        Dashboard
-#   http://localhost:5000/api/v1/health           Oracle API health
-#   http://localhost:5000/api/v1/zg               0G Mainnet ExecutionGate stats
-#   http://localhost:5000/api/v1/zg/proof         DA + Storage proof (mainnet)
-#   http://localhost:5000/api/v1/zg/integration   All 5 0G modules combined
-#   http://localhost:8000/health                  FAISS ANIMA Engine
+# Endpoints (dev):
+#   http://localhost:5000/                            Next.js UI
+#   http://localhost:5000/api/v1/health                Oracle health
+#   http://localhost:5000/readyz                       Readiness (503 → 200)
+#   http://localhost:8000/healthz                       FAISS ANIMA alive
+#   http://localhost:8000/readyz                        FAISS readiness
 #
-# 0G Mainnet:
-#   TRIONExecutionGate: 0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b
-#   Chain ID: 16661  |  RPC: https://evmrpc.0g.ai
-#   Explorer: https://chainscan.0g.ai
+# Healthcheck model (new in v5):
+#   /healthz     process is alive (always 200)
+#   /readyz       ready to serve (200 only when deps also ready)
 # =============================================================================
 
 services:
@@ -45,23 +47,27 @@ services:
     environment:
       PORT: "${PORT:-5000}"
       FAISS_PORT: "8000"
+      FLASK_PORT: "5000"
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"
       ORACLE_API_URL: "http://127.0.0.1:5000"
+      FLASK_URL: "http://127.0.0.1:5000"
       PYTHONUNBUFFERED: "1"
-      # 0G Mainnet — TRIONExecutionGate deployed 2026-05-14 block 33234152
+      # Streamer ON by default — entrypoint owns the single process
+      TRION_ENABLE_STREAMER: "1"
+      TRION_MAX_CHAINS: "${TRION_MAX_CHAINS:-12}"
       ZG_NETWORK: "mainnet"
       ZG_CHAIN_ID: "16661"
       ZERO_G_RPC: "https://evmrpc.0g.ai"
       ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
     volumes:
-      - faiss-data:/app/anima-service       # FAISS index + SQLite BH ledger — persists across restarts
+      - faiss-data:/app/anima-service
       - zg-state:/app/0g-state
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:5000/api/v1/health"]
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/readyz"]
       interval: 15s
       timeout: 5s
-      start_period: 45s
+      start_period: 60s
       retries: 5
     restart: unless-stopped
     deploy:
@@ -71,10 +77,7 @@ services:
         reservations:
           memory: 512m
 
-  # ── Railway-equivalent local deployment ─────────────────────────────────────
-  # Mirrors the production Railway image: Next.js + Flask + FAISS + BH Streamer.
-  # Use this to test Railway behaviour locally before pushing.
-  #   docker compose --profile railway up --build
+  # ── Railway parity: identical image as production Railway deploy ───────────
   trion-railway:
     build:
       context: .
@@ -98,13 +101,14 @@ services:
       PYTHONUNBUFFERED: "1"
       NODE_ENV: "production"
       TRION_ENABLE_FAISS: "1"
+      TRION_ENABLE_STREAMER: "1"
+      TRION_MAX_CHAINS: "${TRION_MAX_CHAINS:-12}"
       TRION_ENABLE_RUST: "0"
       TRION_ENABLE_RELAYER: "0"
       TRION_ENABLE_ZG_SYNC: "0"
       TRION_ENABLE_ZG_DA: "0"
       TRION_ENABLE_EXTRAS: "0"
       TRION_ENABLE_NATIVE: "0"
-      # 0G Mainnet — TRIONExecutionGate deployed 2026-05-14 block 33234152
       ZG_NETWORK: "mainnet"
       ZG_CHAIN_ID: "16661"
       ZERO_G_RPC: "https://evmrpc.0g.ai"
@@ -114,7 +118,7 @@ services:
       - zg-state:/app/0g-state
       - rust-logs:/tmp/trion-rust-logs
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:10000/api/v1/health"]
+      test: ["CMD", "curl", "-fs", "http://localhost:10000/readyz"]
       interval: 30s
       timeout: 10s
       start_period: 180s
@@ -127,7 +131,7 @@ services:
         reservations:
           memory: 512m
 
-  # ── Full production parity (all 11 services) ───────────────────────────────
+  # ── Full production parity (all subsystems) ───────────────────────────────
   trion-full:
     build:
       context: .
@@ -143,15 +147,14 @@ services:
     environment:
       PORT: "${PORT:-10000}"
       FAISS_PORT: "8000"
+      FLASK_PORT: "5000"
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"
       ORACLE_API_URL: "http://127.0.0.1:10000"
-      # 0G Mainnet — TRIONExecutionGate deployed 2026-05-14 block 33234152
       ZG_NETWORK: "mainnet"
       ZG_CHAIN_ID: "16661"
       ZERO_G_RPC: "https://evmrpc.0g.ai"
       ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
-      # Toggle subsystems (set to "0" to disable)
       TRION_ENABLE_FAISS: "1"
       TRION_ENABLE_RUST: "1"
       TRION_ENABLE_EXTRAS: "1"
@@ -162,12 +165,14 @@ services:
       TRION_ENABLE_EXT_RELAYER: "1"
       TRION_ENABLE_ZG_SYNC: "1"
       TRION_ENABLE_ZG_DA: "1"
+      TRION_ENABLE_VALIDATOR: "${TRION_ENABLE_VALIDATOR:-0}"
+      TRION_ENABLE_SIGNAL_PROCESSING: "${TRION_ENABLE_SIGNAL_PROCESSING:-0}"
     volumes:
-      - faiss-data:/app/anima-service       # FAISS index + SQLite BH ledger — persists across restarts
+      - faiss-data:/app/anima-service
       - zg-state:/app/0g-state
       - rust-logs:/tmp/trion-rust-logs
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:10000/api/v1/health"]
+      test: ["CMD", "curl", "-fs", "http://localhost:10000/readyz"]
       interval: 20s
       timeout: 8s
       start_period: 180s
@@ -182,10 +187,36 @@ services:
           memory: 2g
           cpus: "1"
 
+  # ── Optional Postgres for Akashic Index persistence (railway profile) ──────
+  # When DATABASE_URL is set, the Akashic Index persists behavioral memory to
+  # Postgres instead of local SQLite. Wire this service in with:
+  #   docker compose --profile railway --profile postgres up
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: trion
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trion_dev}
+      POSTGRES_DB: trion_akashic
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trion -d trion_akashic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
 volumes:
   faiss-data:
     driver: local
   zg-state:
     driver: local
   rust-logs:
+    driver: local
+  pg-data:
     driver: local
