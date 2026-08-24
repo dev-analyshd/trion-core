@@ -93,19 +93,9 @@ CHAIN_RPCS: Dict[int, Dict] = {
     592:  {"name": "astar", "label": "Astar EVM", "rpc": "https://rpc.astar.network", "block_time": 12, "native_symbol": "ASTR", "decimals": 18},
     1101: {"name": "polygon_zkevm", "label": "Polygon zkEVM", "rpc": "https://zkevm-rpc.com", "block_time": 3, "native_symbol": "ETH", "decimals": 18},
     2222: {"name": "kava_evm", "label": "Kava EVM", "rpc": "https://evm.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 18},
-    # ── Gap-fill: manifest chains with VERIFIED public RPCs (all tested live) ──
     61:      {"name": "etc", "label": "Ethereum Classic", "rpc": "https://etc.rivet.link", "block_time": 13, "native_symbol": "ETC", "decimals": 18},
-    97:      {"name": "bnb_testnet", "label": "BNB Testnet", "rpc": "https://bsc-testnet.publicnode.com", "block_time": 3, "native_symbol": "tBNB", "decimals": 18},
-    10200:   {"name": "chiado", "label": "Chiado (Gnosis)", "rpc": "https://rpc.chiadochain.net", "block_time": 5, "native_symbol": "xDAI", "decimals": 18},
-    43113:   {"name": "fuji", "label": "Avalanche Fuji", "rpc": "https://api.avax-test.network/ext/bc/C/rpc", "block_time": 2, "native_symbol": "AVAX", "decimals": 18},
-    84532:   {"name": "base_sepolia", "label": "Base Sepolia", "rpc": "https://sepolia.base.org", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
-    421614:  {"name": "arb_sepolia", "label": "Arbitrum Sepolia", "rpc": "https://sepolia-rollup.arbitrum.io/rpc", "block_time": 0.25, "native_symbol": "ETH", "decimals": 18},
-    11155111:{"name": "eth_sepolia", "label": "Ethereum Sepolia", "rpc": "https://ethereum-sepolia.publicnode.com", "block_time": 12, "native_symbol": "ETH", "decimals": 18},
-    11155420:{"name": "op_sepolia", "label": "Optimism Sepolia", "rpc": "https://sepolia.optimism.io", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
-    80002:   {"name": "polygon_amoy", "label": "Polygon Amoy", "rpc": "https://polygon-amoy-bor-rpc.publicnode.com", "block_time": 2, "native_symbol": "POL", "decimals": 18},
     8822: {"name": "iota_evm", "label": "IOTA EVM", "rpc": "https://json-rpc.evm.iotaledger.net", "block_time": 5, "native_symbol": "IOTA", "decimals": 18},
     677: {"name": "bot_chain", "label": "BOT Chain", "rpc": "https://rpc.botchain.ai", "block_time": 3, "native_symbol": "BOT", "decimals": 18},
-    16602: {"name": "zg_newton", "label": "0G Newton", "rpc": "https://rpc.newton.0g.ai", "block_time": 2, "native_symbol": "ETH", "decimals": 18},
 }
 
 EVENT_TYPES = {
