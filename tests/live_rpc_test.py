@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Live RPC connectivity test — every VM family via its actual indexer's endpoint."""
-import json, time, urllib.request, urllib.error, socket, sys
+import json, time, urllib.request, urllib.error, socket, sys, os
 
 socket.setdefaulttimeout(10)
-ROOT = "/home/z/my-project/trion-core"
+# Portable repo root: two levels above this file (tests/ -> repo root)
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def http_get_json(url, headers=None):
     req = urllib.request.Request(url, headers=headers or {"User-Agent": "trion-audit/1.0", "Accept": "application/json"})

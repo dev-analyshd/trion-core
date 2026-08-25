@@ -8,7 +8,9 @@ Skips routes that already have the decorator. Idempotent.
 import re
 from pathlib import Path
 
-APP_PY = Path('/home/z/my-project/repos/trion-core/api/app.py')
+# Portable repo root: this file lives in <repo>/scripts/
+_REPO = Path(__file__).resolve().parent.parent
+APP_PY = _REPO / 'api' / 'app.py'
 
 # Match: @app.route("/...<entity_id>...")\n[optional existing decorators]\ndef funcname(entity_id...):
 # We insert @require_entity_id() between the @app.route and the def, but only

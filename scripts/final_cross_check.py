@@ -5,13 +5,14 @@ TRION Protocol — FINAL Cross-Check Verification
 Runs through the entire Phase 1-8 checklist from
 TRION_UNIFIED_MASTER_COMMAND.md and verifies every item.
 
-Run: python3 /home/z/my-project/repos/trion-core/scripts/final_cross_check.py
+Run: python3 scripts/final_cross_check.py  (from anywhere — repo root is auto-detected)
 """
 import os
 import sys
 import subprocess
 
-REPO = '/home/z/my-project/repos/trion-core'
+# Portable repo root: parent of this file's directory (scripts/ -> repo root)
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 PASS = 0
 FAIL = 0
 

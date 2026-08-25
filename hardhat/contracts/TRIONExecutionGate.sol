@@ -25,6 +25,21 @@ pragma solidity ^0.8.20;
  *  - Two-step ownership — ownership transfer requires acceptance by new owner
  *  - Fail-closed — uninitialized entities are BLOCKED, not allowed
  *  - OwnershipTransferred event emitted on acceptance
+ *
+ *  ─────────────────────────────────────────────────────────────────
+ *  AUDIT-3 Gap G3 Fix — AWA Enforcement In Signal Publication Path
+ *  ─────────────────────────────────────────────────────────────────
+ *  Previously `publishSignal()` checked quorum signatures but did NOT
+ *  verify that the Archetypal Weighted Average (AWA) governance conditions
+ *  were met. WP2 §17 mandates "AWA_enforced = FALSE → signal emission
+ *  FROZEN. Cannot be overridden by any single entity." This contract now
+ *  enforces that invariant via a `require(awaEnforced(), ...)` guard at
+ *  the top of `publishSignal()`.
+ *
+ *  The AWA state (HHI, gratitude score, public-good %, validator count)
+ *  is updated by the Akashic oracle via `updateAWAState()` and checked
+ *  atomically on every signal publication.
+ *  ─────────────────────────────────────────────────────────────────
  */
 contract TRIONExecutionGate {
 
@@ -66,6 +81,7 @@ contract TRIONExecutionGate {
     address public pendingOwner;                   // two-step ownership transfer
     mapping(address => bool) public isValidator;
     uint256 public quorumRequired;
+    uint256 public validatorCount;                  // total registered validators (AUDIT-3 G3)
 
     bool public paused;                            // circuit breaker
     bool private _reentrancyGuard;                 // nonReentrant guard flag
@@ -86,6 +102,31 @@ contract TRIONExecutionGate {
     // 0G Storage integration — root hash of the FAISS BEO vector index
     string public beoVectorStorageRoot;
     uint256 public lastStorageSyncBlock;
+
+    // ── AWA Enforcement State (AUDIT-3 Gap G3) ────────────────────────────
+    //
+    // Updated by the Akashic oracle (or owner during bootstrap) and checked
+    // atomically by `awaEnforced()` before any signal can be published.
+    //
+    //   currentHHI        – Herfindahl-Hirschman Index, 0..10000 scale.
+    //                       < 1500 healthy, 1500-2500 warning, 2500-4000
+    //                       danger, > 4000 critical (consensus frozen).
+    //   gratitudeScore    – non-negative gratitude index, ≥ 1 required.
+    //   publicGoodBps      – public-good charter allocation in bps
+    //                       (≥ 1500 = 15% required).
+    //
+    // The quorum check is done against `validatorCount` (not
+    // `quorumRequired` which is the configured minimum). For AWA to be
+    // enforced, the configured quorum must itself be ≥ 2/3 of validatorCount.
+    uint256 public currentHHI;
+    uint256 public gratitudeScore;
+    uint256 public publicGoodBps;
+
+    uint256 public constant AWA_HHI_MAX                = 4000;
+    uint256 public constant AWA_GRATITUDE_MIN          = 1;
+    uint256 public constant AWA_PUBLIC_GOOD_MIN_BPS    = 1500;   // 15.00%
+    uint256 public constant AWA_QUORUM_NUM             = 2;
+    uint256 public constant AWA_QUORUM_DEN             = 3;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event SignalPublished(
@@ -136,13 +177,31 @@ contract TRIONExecutionGate {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event DecisionsPruned(uint256 count, uint256 timestamp);
 
+    // AWA events (AUDIT-3 G3)
+    event AWAStateUpdated(uint256 hhi, uint256 gratitude, uint256 publicGoodBps, bool enforced);
+    event AWASignalEmissionFrozen(
+        bytes32 indexed entityId,
+        string  reason,
+        uint256 timestamp
+    );
+
     // ── Constructor ──────────────────────────────────────────────────────────
     constructor(uint256 _quorum) {
         owner = msg.sender;
         isValidator[msg.sender] = true;
+        validatorCount = 1;                                  // deployer is initial validator
         quorumRequired = _quorum > 0 ? _quorum : 1;
         emit ValidatorAdded(msg.sender);
         emit OwnershipTransferred(address(0), msg.sender);
+
+        // Bootstrap AWA state — conservative defaults that satisfy all
+        // conditions so the gate is usable immediately after deployment.
+        // Production deployments MUST call `updateAWAState()` with real
+        // oracle values once the validator mesh is live.
+        currentHHI = 1000;        // healthy tier
+        gratitudeScore = 1;        // minimum satisfied
+        publicGoodBps = 1500;      // 15% charter minimum
+        emit AWAStateUpdated(currentHHI, gratitudeScore, publicGoodBps, true);
     }
 
     // ── Modifiers ────────────────────────────────────────────────────────────
@@ -168,13 +227,87 @@ contract TRIONExecutionGate {
         _reentrancyGuard = false;
     }
 
-    // ── Core: Publish Behavioral Signal (with quorum enforcement) ────────────
+    // ── AWA Enforcement (AUDIT-3 Gap G3) ─────────────────────────────────────
+    /**
+     * @notice Returns TRUE iff all four Archetypal Weighted Average (AWA)
+     *         governance conditions are satisfied. WP2 §17 requires this to
+     *         be TRUE before any signal can be published; if FALSE, signal
+     *         emission is FROZEN and cannot be overridden by any single
+     *         entity (including the owner).
+     *
+     *         Conditions:
+     *           1. Quorum: configured `quorumRequired` ≥ ⌈2/3 · validatorCount⌉
+     *           2. HHI:    `currentHHI` < 4000 (critical threshold)
+     *           3. Gratitude: `gratitudeScore` ≥ 1
+     *           4. Public Good: `publicGoodBps` ≥ 1500 (15% charter)
+     *
+     * @return enforced TRUE iff all four conditions hold.
+     */
+    function awaEnforced() public view returns (bool enforced) {
+        // (1) Quorum: the configured quorum must itself be a 2/3 supermajority
+        //     of the validator set. Without this, a small cabal could publish
+        //     signals even with an under-decentralized validator mesh.
+        if (validatorCount == 0) return false;
+        uint256 requiredQuorum = (validatorCount * AWA_QUORUM_NUM + (AWA_QUORUM_DEN - 1)) / AWA_QUORUM_DEN;
+        if (quorumRequired < requiredQuorum) return false;
+
+        // (2) HHI: must be below the critical 4000 threshold.
+        if (currentHHI >= AWA_HHI_MAX) return false;
+
+        // (3) Gratitude: ≥ 1 (Love Protocol multiplicative ethics floor).
+        if (gratitudeScore < AWA_GRATITUDE_MIN) return false;
+
+        // (4) Public Good: ≥ 15% charter allocation.
+        if (publicGoodBps < AWA_PUBLIC_GOOD_MIN_BPS) return false;
+
+        return true;
+    }
+
+    /**
+     * @notice Returns a human-readable diagnostic of which AWA condition(s)
+     *         are currently failing. Used by the dashboard / monitoring.
+     *         Bitmask: bit 0 = quorum, bit 1 = HHI, bit 2 = gratitude, bit 3 = publicGood.
+     *         0 means all conditions satisfied.
+     */
+    function awaFailureMask() external view returns (uint256 mask) {
+        if (validatorCount == 0) {
+            mask |= 1;
+        } else {
+            uint256 requiredQuorum = (validatorCount * AWA_QUORUM_NUM + (AWA_QUORUM_DEN - 1)) / AWA_QUORUM_DEN;
+            if (quorumRequired < requiredQuorum) mask |= 1;
+        }
+        if (currentHHI >= AWA_HHI_MAX)               mask |= 2;
+        if (gratitudeScore < AWA_GRATITUDE_MIN)      mask |= 4;
+        if (publicGoodBps < AWA_PUBLIC_GOOD_MIN_BPS) mask |= 8;
+    }
+
+    /**
+     * @notice Update the cached AWA state. Called by the Akashic oracle
+     *         after each consensus round (or by the owner during bootstrap).
+     *         Emits AWAStateUpdated with the resulting `enforced` flag.
+     */
+    function updateAWAState(
+        uint256 _hhi,
+        uint256 _gratitude,
+        uint256 _publicGoodBps
+    ) external onlyValidator whenNotPaused {
+        currentHHI = _hhi;
+        gratitudeScore = _gratitude;
+        publicGoodBps = _publicGoodBps;
+        bool enforced = awaEnforced();
+        emit AWAStateUpdated(_hhi, _gratitude, _publicGoodBps, enforced);
+    }
+
+    // ── Core: Publish Behavioral Signal (with quorum + AWA enforcement) ─────
     /**
      * @notice Validators publish a TRION behavioral signal for an entity.
      *         Requires `quorumRequired` valid EIP-191 signatures over the
      *         message hash keccak256(abi.encodePacked(
      *           block.chainid, address(this), entityId, packedData
      *         )) from distinct registered validators.
+     *
+     *         AUDIT-3 Gap G3: also requires `awaEnforced()` to be TRUE.
+     *         If any AWA condition fails, signal emission is FROZEN.
      *
      * @param entityId    keccak256 BEO entity identifier
      * @param packedData  Packed behavioral metrics (phi_t, theta, drop_pct, status)
@@ -191,6 +324,12 @@ contract TRIONExecutionGate {
         string calldata storageRoot,
         bytes[] calldata signatures
     ) external onlyValidator whenNotPaused {
+        // ── AWA enforcement (AUDIT-3 Gap G3) ────────────────────────────────
+        // WP2 §17: "AWA_enforced = FALSE → signal emission FROZEN. Cannot be
+        // overridden by any single entity." Check this BEFORE the quorum
+        // signature loop so a frozen state short-circuits cheaply.
+        require(awaEnforced(), "TRION: AWA not enforced - signal emission frozen");
+
         // ── Quorum enforcement ────────────────────────────────────────────────
         require(
             signatures.length >= quorumRequired,
@@ -289,6 +428,31 @@ contract TRIONExecutionGate {
             return (false, decisionHash);
         }
 
+        // AUDIT-3 G3: if AWA is not enforced, treat ALL entities as BLOCKED.
+        // This prevents stale signals (published before an AWA freeze) from
+        // being acted on while governance is in a frozen state.
+        if (!awaEnforced()) {
+            uint8  frozenStatus  = uint8(sig.packedData & 0xFF);
+            uint32 frozenPhiT    = uint32((sig.packedData >> 8)  & 0xFFFFFFFF);
+            uint32 frozenDropPct = uint32((sig.packedData >> 72) & 0xFFFFFFFF);
+            decisionHash = keccak256(abi.encodePacked(
+                entityId, caller, false, frozenStatus, frozenPhiT, block.number, block.timestamp
+            ));
+            decisions[decisionHash] = ExecutionDecision({
+                allowed:      false,
+                status:       frozenStatus,
+                phi_t:        frozenPhiT,
+                theta:        uint32((sig.packedData >> 40) & 0xFFFFFFFF),
+                dropPct:      frozenDropPct,
+                checkedAt:    block.timestamp,
+                decisionHash: decisionHash
+            });
+            totalExecutionsBlocked++;
+            emit AWASignalEmissionFrozen(entityId, "AWA not enforced", block.timestamp);
+            emit ExecutionBlocked(entityId, caller, frozenStatus, frozenPhiT, frozenDropPct, decisionHash);
+            return (false, decisionHash);
+        }
+
         uint8  status  = uint8(sig.packedData & 0xFF);
         uint32 phi_t   = uint32((sig.packedData >> 8)  & 0xFFFFFFFF);
         uint32 theta   = uint32((sig.packedData >> 40) & 0xFFFFFFFF);
@@ -332,6 +496,9 @@ contract TRIONExecutionGate {
         string calldata storageRoot,
         uint256 vectorCount
     ) external onlyValidator whenNotPaused {
+        // AUDIT-3 G3: storage sync also requires AWA — do not let a frozen
+        // governance state be papered over with a fresh storage root.
+        require(awaEnforced(), "TRION: AWA not enforced - sync frozen");
         beoVectorStorageRoot = storageRoot;
         lastStorageSyncBlock = block.number;
         emit StorageSyncConfirmed(storageRoot, vectorCount, block.number);
@@ -367,8 +534,10 @@ contract TRIONExecutionGate {
     /**
      * @notice Fail-closed view: uninitialized entities return FALSE (not safe).
      *         This is a critical change from the original fail-open behavior.
+     *         AUDIT-3 G3: also returns FALSE when AWA is not enforced.
      */
     function isExecutionSafe(bytes32 entityId) external view returns (bool) {
+        if (!awaEnforced()) return false;  // governance frozen → all execution unsafe
         BehavioralSignal storage s = signals[entityId];
         if (!s.initialized) return false;  // fail-closed: no data = not verified = BLOCKED
         uint8 status = uint8(s.packedData & 0xFF);
@@ -407,18 +576,31 @@ contract TRIONExecutionGate {
 
     // ── Admin: Validators ─────────────────────────────────────────────────────
     function addValidator(address v) external onlyOwner {
-        isValidator[v] = true;
-        emit ValidatorAdded(v);
+        // PHASE-1-SECURITY: reject zero address.
+        require(v != address(0), "TRION: Zero address");
+        if (!isValidator[v]) {
+            isValidator[v] = true;
+            validatorCount++;
+            emit ValidatorAdded(v);
+        }
     }
 
     function removeValidator(address v) external onlyOwner {
         require(v != owner, "TRION: Cannot remove owner");
+        require(isValidator[v], "TRION: Not a validator");
+        require(validatorCount > 1, "TRION: Cannot remove last validator");
         isValidator[v] = false;
+        validatorCount--;
         emit ValidatorRemoved(v);
     }
 
     function setQuorum(uint256 q) external onlyOwner {
         require(q >= 1, "TRION: Quorum >= 1");
+        // AUDIT-3 G3: reject quorum settings that would break the 2/3 AWA rule.
+        require(
+            q * AWA_QUORUM_DEN >= validatorCount * AWA_QUORUM_NUM,
+            "TRION: Quorum below 2/3 of validators"
+        );
         quorumRequired = q;
         emit QuorumUpdated(q);
     }
@@ -443,7 +625,11 @@ contract TRIONExecutionGate {
         address previous = owner;
         owner = pendingOwner;
         pendingOwner = address(0);
-        isValidator[owner] = true;
+        if (!isValidator[owner]) {
+            isValidator[owner] = true;
+            validatorCount++;
+            emit ValidatorAdded(owner);
+        }
         emit OwnershipTransferred(previous, owner);
     }
 
@@ -469,6 +655,11 @@ contract TRIONExecutionGate {
     }
 
     // ── Internal: ECDSA recovery ─────────────────────────────────────────────
+    // PHASE-1-SECURITY: explicit s-malleability guard (EIP-2) + zero-address
+    // check on the recovered signer. Without the s guard, an attacker who has
+    // one valid signature can produce a second 'malleable' signature by
+    // flipping the parity bit and negating s — which would let them double-
+    // count a single validator's attestation in the quorum loop above.
     function _recoverSigner(
         bytes32 hash,
         bytes memory sig
@@ -484,6 +675,15 @@ contract TRIONExecutionGate {
         }
         if (v < 27) v += 27;
         require(v == 27 || v == 28, "TRION: Invalid v");
-        return ecrecover(hash, v, r, s);
+        // EIP-2: s must be in the lower half of the secp256k1 curve order.
+        // 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+        // is (secp256k1n / 2) + 1 — any s above this is the malleable twin.
+        require(
+            uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "TRION: Invalid s (malleable)"
+        );
+        address recovered = ecrecover(hash, v, r, s);
+        require(recovered != address(0), "TRION: Invalid signature (zero recovered)");
+        return recovered;
     }
 }

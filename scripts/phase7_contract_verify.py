@@ -7,7 +7,7 @@ Verifies:
   7.2: Oracle signal bit layout matches relayer.js
   7.3: BEO identity cross-chain consistency (off-chain SHA3-256)
 
-Run: python3 /home/z/my-project/repos/trion-core/scripts/phase7_contract_verify.py
+Run: python3 scripts/phase7_contract_verify.py  (repo root auto-detected)
 """
 import os
 import re
