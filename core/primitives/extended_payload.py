@@ -32,7 +32,7 @@ Layout (big-endian throughout):
     btcp_version         1 byte    — BTCP protocol version (1..255)
     nonce                8 bytes   — uint64, replay-protection nonce
     ────────────────────────────────────────────────────────────────────────
-    Total:             144 bytes
+    Total:             176 bytes
 
 The dual-strand hash construction is identical to the 93-byte payload:
     sense     = SHA3-256(payload || 0x00)
@@ -88,7 +88,7 @@ _HEADER_LEN: int = 4  # DOMAIN_MAGIC only
 @dataclass
 class ExtendedBehavioralEvent:
     """
-    Fields required for the extended 144-byte BH payload.
+    Fields required for the extended 176-byte BH payload.
 
     All multi-byte integer fields are encoded big-endian.  `counterparty_id`
     MAY be all-zero bytes when no counterparty applies (e.g. MINT/BURN with
@@ -130,7 +130,7 @@ def _ctx_hash(context: bytes) -> bytes:
 
 def build_extended_payload(event: ExtendedBehavioralEvent) -> bytes:
     """
-    Construct the 144-byte extended BH payload.
+    Construct the 176-byte extended BH payload.
 
     The payload is laid out exactly as documented in the module docstring.
     All integer fields are big-endian.  Magnitude is normalized using the
@@ -214,7 +214,7 @@ def verify_xor_invariant(payload: bytes, sense: bytes, antisense: bytes) -> bool
 
 def compute_extended_bh(event: ExtendedBehavioralEvent) -> dict:
     """
-    Compute the extended 144-byte BH for an event.
+    Compute the extended 176-byte BH for an event.
 
     Returns a dict with the same key shape as `compute_behavioral_hash`
     plus the extended fields (counterparty_id, protocol_id, btcp_version,
