@@ -10,26 +10,26 @@ This module wires all 7 primitives together and exposes a unified
 health check + per-primitive status report.
 
 Primitive Map:
-  P1  Semi-Immutability          → src/planes/spiritual/epigenetic.py
-  P2  Behavioral Causal Keys     → src/security/living_security.py
-                                   src/security/genomic_genealogy.py  [NEW]
-  P3  Diversity-Weighted BFT     → validator/validator_network.go
-  P4  Behavioral ZK Proofs       → akashic/anima_regulatory.py       [UPGRADED]
-  P5  BIBL                       → src/core/bibl.py                  [UPGRADED]
-                                   src/core/bibl_pattern_store.py    [NEW]
-  P6  BIRP Identity Recovery     → src/signals/behavioral_identity_recovery.py [NEW]
-  P7  Regulatory Adaptation      → akashic/anima_regulatory.py       [UPGRADED]
+  P1  Semi-Immutability          → core/spiritual/epigenetic.py
+  P2  Behavioral Causal Keys     → core/spiritual/living_security/__init__.py
+                                   core/spiritual/living_security/genomic_genealogy.py  [NEW]
+  P3  Diversity-Weighted BFT     → validator/internal/p2p/consensus.go
+  P4  Behavioral ZK Proofs       → anima-service/anima_regulatory.py       [UPGRADED]
+  P5  BIBL                       → core/akashic/bibl.py                  [UPGRADED]
+                                   core/akashic/bibl_pattern_store.py    [NEW]
+  P6  BIRP Identity Recovery     → core/novel/behavioral_identity_recovery.py [NEW]
+  P7  Regulatory Adaptation      → anima-service/anima_regulatory.py       [UPGRADED]
 
 Supporting:
-  Master Equation C(t)           → src/core/coherence_engine.py
-  BRT Scheduler                  → akashic/brt_scheduler.py          [UPGRADED]
-  Signal Factory (19 types)      → src/signals/signal_factory.py     [UPGRADED]
-  Evolutionary Fitness F=PA·ICE·AS·Love → src/core/evolutionary_fitness.py
-  BEO Entity Resolution          → src/core/entity_resolution.py
-  Observer Effect / Reflexivity  → src/planes/anima/anima_reflexivity.py
-  BTCP Score                     → src/core/btcp_score.py
-  On-chain Oracle                → contracts/TRIONOracle.sol
-  Confidential Vault             → contracts/ConfidentialCoherenceVault.sol
+  Master Equation C(t)           → core/master/coherence.py
+  BRT Scheduler                  → anima-service/brt_scheduler.py          [UPGRADED]
+  Signal Factory (19 types)      → core/master/signal_factory.py     [UPGRADED]
+  Evolutionary Fitness F=PA·ICE·AS·Love → core/primitives/evolutionary_fitness.py
+  BEO Entity Resolution          → core/primitives/entity_resolution.py
+  Observer Effect / Reflexivity  → core/mental/anima/reflexivity.py
+  BTCP Score                     → core/master/btcp_score.py
+  On-chain Oracle                → contracts/solidity/TRIONOracle.sol
+  Confidential Vault             → contracts/solidity/ConfidentialCoherenceVault.sol
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -64,7 +64,7 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
             "Threat-level-gated mutation probability. EL expression enums."
         ),
         status="IMPLEMENTED",
-        files=["src/planes/spiritual/epigenetic.py"],
+        files=["core/spiritual/epigenetic.py"],
         is_new=False,
     ),
     PrimitiveStatus(
@@ -76,8 +76,8 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
         ),
         status="IMPLEMENTED",
         files=[
-            "src/security/living_security.py",
-            "src/security/genomic_genealogy.py",   # NEW
+            "core/spiritual/living_security/__init__.py",
+            "core/spiritual/living_security/genomic_genealogy.py",   # NEW
         ],
         is_new=False,
         note="genomic_genealogy.py is new — adds cross-validator lineage tracking.",
@@ -90,7 +90,7 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
             "Σ(t) with dynamic consensus window. HHI monitoring + geographic constraints."
         ),
         status="IMPLEMENTED",
-        files=["validator/validator_network.go"],
+        files=["validator/internal/p2p/consensus.go"],
         is_new=False,
     ),
     PrimitiveStatus(
@@ -102,7 +102,7 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
             "Verifies compliance predicate without revealing behavioral features."
         ),
         status="IMPLEMENTED",
-        files=["akashic/anima_regulatory.py"],
+        files=["anima-service/anima_regulatory.py"],
         is_new=True,
         note=(
             "Previous: SHA3-256 hash stub marked is_stub=True. "
@@ -120,8 +120,8 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
         ),
         status="IMPLEMENTED",
         files=[
-            "src/core/bibl.py",               # UPGRADED
-            "src/core/bibl_pattern_store.py", # NEW
+            "core/akashic/bibl.py",               # UPGRADED
+            "core/akashic/bibl_pattern_store.py", # NEW
         ],
         is_new=True,
         note=(
@@ -140,10 +140,10 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
             "Multi-party witness sharding across validators."
         ),
         status="IMPLEMENTED",
-        files=["src/signals/behavioral_identity_recovery.py"],
+        files=["core/novel/behavioral_identity_recovery.py"],
         is_new=True,
         note=(
-            "NOTE: src/signals/birp.py is the RELAY layer (signal packaging). "
+            "NOTE: core/novel/birp.py is the RELAY layer (signal packaging). "
             "This is the IDENTITY RECOVERY primitive — a completely different concept "
             "that was absent from the codebase before this integration."
         ),
@@ -158,7 +158,7 @@ PRIMITIVE_REGISTRY: List[PrimitiveStatus] = [
             "without restart. Per-chain strictest-jurisdiction resolution."
         ),
         status="IMPLEMENTED",
-        files=["akashic/anima_regulatory.py"],
+        files=["anima-service/anima_regulatory.py"],
         is_new=True,
         note=(
             "Previous: hardcoded TRAVEL_RULE_CHAINS set + static threshold. "
@@ -209,19 +209,19 @@ class TRIONPrimitives:
 
     def _supporting_status(self) -> List[dict]:
         return [
-            {"name": "Master Equation C(t)",               "status": "IMPLEMENTED", "file": "src/core/coherence_engine.py"},
-            {"name": "BRT Scheduler (observed timing)",     "status": "IMPLEMENTED", "file": "akashic/brt_scheduler.py"},
-            {"name": "Signal Factory (all 19 types)",       "status": "IMPLEMENTED", "file": "src/signals/signal_factory.py"},
-            {"name": "Evolutionary Fitness F=PA·ICE·AS·Love","status":"IMPLEMENTED","file": "src/core/evolutionary_fitness.py"},
-            {"name": "BEO Entity Resolution",               "status": "IMPLEMENTED", "file": "src/core/entity_resolution.py"},
-            {"name": "Observer Effect / Reflexivity",       "status": "IMPLEMENTED", "file": "src/planes/anima/anima_reflexivity.py"},
-            {"name": "BTCP Score",                          "status": "IMPLEMENTED", "file": "src/core/btcp_score.py"},
-            {"name": "On-chain Oracle",                     "status": "IMPLEMENTED", "file": "contracts/TRIONOracle.sol"},
-            {"name": "Confidential Vault",                   "status": "IMPLEMENTED", "file": "contracts/ConfidentialCoherenceVault.sol"},
-            {"name": "BIRP Relay Layer",                    "status": "IMPLEMENTED", "file": "src/signals/birp.py"},
-            {"name": "ANIMA Pattern Library (PCR)",         "status": "IMPLEMENTED", "file": "src/planes/anima/anima_pattern_library.py"},
-            {"name": "ANIMA Data Streams (4-stream arch.)", "status": "IMPLEMENTED", "file": "src/planes/anima/anima_data_streams.py"},
-            {"name": "ANIMA Engine (PCR·HA·CA + dist.)",   "status": "IMPLEMENTED", "file": "src/planes/anima/anima_engine.py"},
+            {"name": "Master Equation C(t)",               "status": "IMPLEMENTED", "file": "core/master/coherence.py"},
+            {"name": "BRT Scheduler (observed timing)",     "status": "IMPLEMENTED", "file": "anima-service/brt_scheduler.py"},
+            {"name": "Signal Factory (all 19 types)",       "status": "IMPLEMENTED", "file": "core/master/signal_factory.py"},
+            {"name": "Evolutionary Fitness F=PA·ICE·AS·Love","status":"IMPLEMENTED","file": "core/primitives/evolutionary_fitness.py"},
+            {"name": "BEO Entity Resolution",               "status": "IMPLEMENTED", "file": "core/primitives/entity_resolution.py"},
+            {"name": "Observer Effect / Reflexivity",       "status": "IMPLEMENTED", "file": "core/mental/anima/reflexivity.py"},
+            {"name": "BTCP Score",                          "status": "IMPLEMENTED", "file": "core/master/btcp_score.py"},
+            {"name": "On-chain Oracle",                     "status": "IMPLEMENTED", "file": "contracts/solidity/TRIONOracle.sol"},
+            {"name": "Confidential Vault",                   "status": "IMPLEMENTED", "file": "contracts/solidity/ConfidentialCoherenceVault.sol"},
+            {"name": "BIRP Relay Layer",                    "status": "IMPLEMENTED", "file": "core/novel/birp.py"},
+            {"name": "ANIMA Pattern Library (PCR)",         "status": "IMPLEMENTED", "file": "core/mental/anima/pattern_library.py"},
+            {"name": "ANIMA Data Streams (4-stream arch.)", "status": "IMPLEMENTED", "file": "core/mental/anima/data_streams.py"},
+            {"name": "ANIMA Engine (PCR·HA·CA + dist.)",   "status": "IMPLEMENTED", "file": "core/mental/anima/engine.py"},
         ]
 
     def import_check(self) -> Dict[str, str]:
@@ -236,21 +236,21 @@ class TRIONPrimitives:
             sys.path.insert(0, ws_root)
 
         modules = {
-            "epigenetic":           "src.planes.spiritual.epigenetic",
-            "living_security":      "src.security.living_security",
-            "genomic_genealogy":    "src.security.genomic_genealogy",
-            "coherence_engine":     "src.core.coherence_engine",
-            "bibl_pattern_store":   "src.core.bibl_pattern_store",
-            "evolutionary_fitness": "src.core.evolutionary_fitness",
-            "entity_resolution":    "src.core.entity_resolution",
-            "btcp_score":           "src.core.btcp_score",
-            "birp_recovery":        "src.signals.behavioral_identity_recovery",
-            "signal_factory":       "src.signals.signal_factory",
-            "birp_relay":           "src.signals.birp",
-            "anima_reflexivity":    "src.planes.anima.anima_reflexivity",
-            "anima_pattern_library":"src.planes.anima.anima_pattern_library",
-            "anima_data_streams":   "src.planes.anima.anima_data_streams",
-            "anima_engine":         "src.planes.anima.anima_engine",
+            "epigenetic":           "core.spiritual.epigenetic",
+            "living_security":      "core.spiritual.living_security",
+            "genomic_genealogy":    "core.spiritual.living_security.genomic_genealogy",
+            "coherence_engine":     "core.master.coherence",
+            "bibl_pattern_store":   "core.akashic.bibl_pattern_store",
+            "evolutionary_fitness": "core.primitives.evolutionary_fitness",
+            "entity_resolution":    "core.primitives.entity_resolution",
+            "btcp_score":           "core.master.btcp_score",
+            "birp_recovery":        "core.novel.behavioral_identity_recovery",
+            "signal_factory":       "core.master.signal_factory",
+            "birp_relay":           "core.novel.birp",
+            "anima_reflexivity":    "core.mental.anima.reflexivity",
+            "anima_pattern_library":"core.mental.anima.pattern_library",
+            "anima_data_streams":   "core.mental.anima.data_streams",
+            "anima_engine":         "core.mental.anima.engine",
         }
         results = {}
         for name, module_path in modules.items():

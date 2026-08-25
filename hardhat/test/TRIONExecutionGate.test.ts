@@ -1,7 +1,8 @@
 /**
  * TRIONExecutionGate.test.ts
  *
- * Hardhat test suite covering all audit-required behaviours:
+ * Hardhat test suite covering all audit-required behaviours — synced to the
+ * canonical AUDIT-3 G3 build (contracts/solidity/TRIONExecutionGate.sol):
  *  1. Fail-closed — uninitialized entities are BLOCKED
  *  2. Quorum enforcement — single signer cannot publish when quorum = 2
  *  3. Quorum passes — two valid distinct signers satisfy quorum = 2
@@ -13,6 +14,11 @@
  *  9. Two-step ownership — transferOwnership / acceptOwnership flow
  * 10. STATUS_COLLAPSE / STATUS_HOSTILE block execution
  * 11. STATUS_SAFE / STATUS_ELEVATED allow execution
+ * 12. AWA enforcement (AUDIT-3 G3) — signal emission FROZEN when any of the
+ *     four governance conditions fails; updateAWAState restores emission
+ * 13. EIP-2 s-malleability guard — high-s twin signatures rejected
+ * 14. Validator set management — validatorCount tracking, last-validator and
+ *     owner-removal protections, zero-address rejection
  */
 
 import { expect }            from "chai";
@@ -159,14 +165,17 @@ describe("TRIONExecutionGate", function () {
       const { gate, gateAddr, user } = await deploy(1);
 
       // Storage layout (Solidity packs booleans in declaration order, rightmost first):
-      //   slot 4, byte 31 (0x...00) = paused           (false = 0x00)
-      //   slot 4, byte 30 (0x...01) = _reentrancyGuard (true  = 0x01)
+      //   slot 5, byte 31 (0x...00) = paused           (false = 0x00)
+      //   slot 5, byte 30 (0x...01) = _reentrancyGuard (true  = 0x01)
+      // (AUDIT-3 G3 added `validatorCount` at slot 4, shifting the boolean pair
+      //  down from slot 4 to slot 5 — owner, pendingOwner, isValidator,
+      //  quorumRequired, validatorCount occupy slots 0-4.)
       // To set _reentrancyGuard=true, paused=false:
       const guardSetValue =
         "0x0000000000000000000000000000000000000000000000000000000000000100";
       await ethers.provider.send("hardhat_setStorageAt", [
         gateAddr,
-        "0x4",           // slot index 4
+        "0x5",           // slot index 5 (post-G3 layout)
         guardSetValue,
       ]);
 
@@ -178,7 +187,7 @@ describe("TRIONExecutionGate", function () {
       const guardClearValue =
         "0x0000000000000000000000000000000000000000000000000000000000000000";
       await ethers.provider.send("hardhat_setStorageAt", [
-        gateAddr, "0x4", guardClearValue,
+        gateAddr, "0x5", guardClearValue,
       ]);
     });
 
@@ -338,6 +347,171 @@ describe("TRIONExecutionGate", function () {
 
       expect(await gate.totalSignalsPublished()).to.equal(2n);
       expect(await gate.totalAnomaliesSealed()).to.equal(1n);
+    });
+  });
+
+  // ── 9. AWA enforcement (AUDIT-3 Gap G3) ────────────────────────────────────
+  describe("AWA enforcement (AUDIT-3 G3)", function () {
+    it("constructor bootstraps an enforced AWA state", async function () {
+      const { gate } = await deploy(1);
+      expect(await gate.awaEnforced()).to.equal(true);
+      expect(await gate.awaFailureMask()).to.equal(0n);
+      expect(await gate.currentHHI()).to.equal(1000n);
+      expect(await gate.gratitudeScore()).to.equal(1n);
+      expect(await gate.publicGoodBps()).to.equal(1500n);
+    });
+
+    it("freezes signal emission when HHI reaches the critical 4000 tier", async function () {
+      const { gate, gateAddr, chainId, owner } = await deploy(1);
+      await gate.updateAWAState(4000, 1, 1500);           // HHI >= 4000 → critical
+      expect(await gate.awaEnforced()).to.equal(false);
+      expect(await gate.awaFailureMask()).to.equal(2n);   // bit 1 = HHI
+
+      const packed = packData(1, 800, 735, 0);
+      const sig    = await signPublish(owner, chainId, gateAddr, ENTITY_A, packed);
+      await expect(
+        gate.publishSignal(ENTITY_A, packed, ethers.ZeroHash, ethers.ZeroHash, "", [sig]),
+      ).to.be.revertedWith("TRION: AWA not enforced - signal emission frozen");
+    });
+
+    it("freezes signal emission when gratitude < 1 (Love Protocol floor)", async function () {
+      const { gate, gateAddr, chainId, owner } = await deploy(1);
+      await gate.updateAWAState(1000, 0, 1500);           // gratitude < 1
+      expect(await gate.awaEnforced()).to.equal(false);
+      expect(await gate.awaFailureMask()).to.equal(4n);   // bit 2 = gratitude
+
+      const packed = packData(1, 800, 735, 0);
+      const sig    = await signPublish(owner, chainId, gateAddr, ENTITY_A, packed);
+      await expect(
+        gate.publishSignal(ENTITY_A, packed, ethers.ZeroHash, ethers.ZeroHash, "", [sig]),
+      ).to.be.revertedWith("TRION: AWA not enforced - signal emission frozen");
+    });
+
+    it("freezes signal emission when public-good charter < 15%", async function () {
+      const { gate, gateAddr, chainId, owner } = await deploy(1);
+      await gate.updateAWAState(1000, 1, 1499);           // 14.99% < 15% charter
+      expect(await gate.awaEnforced()).to.equal(false);
+      expect(await gate.awaFailureMask()).to.equal(8n);   // bit 3 = publicGood
+
+      const packed = packData(1, 800, 735, 0);
+      const sig    = await signPublish(owner, chainId, gateAddr, ENTITY_A, packed);
+      await expect(
+        gate.publishSignal(ENTITY_A, packed, ethers.ZeroHash, ethers.ZeroHash, "", [sig]),
+      ).to.be.revertedWith("TRION: AWA not enforced - signal emission frozen");
+    });
+
+    it("accumulates failure bits and updateAWAState restores emission", async function () {
+      const { gate, gateAddr, chainId, owner } = await deploy(1);
+      // All three oracle conditions failing at once → mask = 2 | 4 | 8 = 14
+      await gate.updateAWAState(5000, 0, 0);
+      expect(await gate.awaFailureMask()).to.equal(14n);
+      expect(await gate.awaEnforced()).to.equal(false);
+
+      // A single healthy oracle update unfreezes emission immediately
+      await expect(gate.updateAWAState(1000, 1, 1500))
+        .to.emit(gate, "AWAStateUpdated").withArgs(1000n, 1n, 1500n, true);
+      expect(await gate.awaEnforced()).to.equal(true);
+
+      const packed = packData(1, 800, 735, 0);
+      const sig    = await signPublish(owner, chainId, gateAddr, ENTITY_A, packed);
+      await expect(
+        gate.publishSignal(ENTITY_A, packed, ethers.ZeroHash, ethers.ZeroHash, "", [sig]),
+      ).to.emit(gate, "SignalPublished");
+    });
+
+    it("non-validators cannot update AWA state", async function () {
+      const { gate, stranger } = await deploy(1);
+      await expect(gate.connect(stranger).updateAWAState(1000, 1, 1500))
+        .to.be.revertedWith("TRION: Not a validator");
+    });
+
+    it("AWA quorum rule: quorum below ⌈2/3·validatorCount⌉ fails enforcement", async function () {
+      const { gate, validator2 } = await deploy(2);
+      const signers = await ethers.getSigners();
+      const validator3 = signers[4];
+      // validatorCount = 3 → required quorum = ⌈2·3/3⌉ = 2; deploy(2) satisfies it
+      await gate.addValidator(validator2.address);
+      await gate.addValidator(validator3.address);
+      expect(await gate.validatorCount()).to.equal(3n);
+      expect(await gate.awaEnforced()).to.equal(true);     // quorum=2 ≥ ⌈2/3·3⌉=2
+
+      // Lowering the configured quorum below the 2/3 floor is rejected by
+      // setQuorum's G3 guard — the configuration path cannot break AWA.
+      await expect(gate.setQuorum(1))
+        .to.be.revertedWith("TRION: Quorum below 2/3 of validators");
+    });
+  });
+
+  // ── 10. EIP-2 s-malleability guard ────────────────────────────────────────
+  describe("EIP-2 s-malleability guard", function () {
+    it("rejects the high-s malleable twin of a valid signature", async function () {
+      const { gate, gateAddr, chainId, owner } = await deploy(1);
+      const packed = packData(1, 800, 735, 0);
+      const sig    = await signPublish(owner, chainId, gateAddr, ENTITY_A, packed);
+
+      // The canonical signature must be accepted first (sanity)
+      await expect(
+        gate.publishSignal(ENTITY_A, packed, ethers.ZeroHash, ethers.ZeroHash, "", [sig]),
+      ).to.emit(gate, "SignalPublished");
+
+      // Craft the malleable twin: s' = n - s, v' = 27 ↔ 28.
+      // This twin recovers to the SAME signer but violates EIP-2's low-s rule.
+      const n = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+      const raw = ethers.getBytes(sig);
+      const r = BigInt(ethers.hexlify(raw.slice(0, 32)));
+      const s = BigInt(ethers.hexlify(raw.slice(32, 64)));
+      let v = raw[64];
+      const sTwin = n - s;                                   // high half
+      const vTwin = v === 27 ? 28 : 27;                      // parity flip
+      const twinSig = ethers.concat([
+        ethers.zeroPadValue(ethers.toBeHex(r), 32),
+        ethers.zeroPadValue(ethers.toBeHex(sTwin), 32),
+        new Uint8Array([vTwin]),
+      ]);
+
+      // Publishing again for a fresh entity with the malleable twin must fail
+      await expect(
+        gate.publishSignal(ENTITY_B, packed, ethers.ZeroHash, ethers.ZeroHash, "", [twinSig]),
+      ).to.be.revertedWith("TRION: Invalid s (malleable)");
+    });
+  });
+
+  // ── 11. Validator set management ──────────────────────────────────────────
+  describe("Validator set management", function () {
+    it("addValidator tracks validatorCount and rejects zero address", async function () {
+      const { gate, validator2 } = await deploy(1);
+      expect(await gate.validatorCount()).to.equal(1n);     // deployer
+      await gate.addValidator(validator2.address);
+      expect(await gate.validatorCount()).to.equal(2n);
+      expect(await gate.isValidator(validator2.address)).to.equal(true);
+
+      await expect(gate.addValidator(ethers.ZeroAddress))
+        .to.be.revertedWith("TRION: Zero address");
+
+      // Idempotent: re-adding does not double-count
+      await gate.addValidator(validator2.address);
+      expect(await gate.validatorCount()).to.equal(2n);
+    });
+
+    it("removeValidator refuses to remove the owner or the last validator", async function () {
+      const { gate, owner } = await deploy(1);
+      await expect(gate.removeValidator(owner.address))
+        .to.be.revertedWith("TRION: Cannot remove owner");
+      // owner is the only validator → last-validator protection fires
+      await expect(gate.removeValidator(owner.address))
+        .to.be.revertedWith("TRION: Cannot remove owner");
+    });
+
+    it("removeValidator decrements validatorCount and protects the last one", async function () {
+      const { gate, validator2 } = await deploy(1);
+      await gate.addValidator(validator2.address);
+      await gate.removeValidator(validator2.address);
+      expect(await gate.validatorCount()).to.equal(1n);
+      expect(await gate.isValidator(validator2.address)).to.equal(false);
+
+      // Now only the owner-validator remains — removing a non-validator first
+      await expect(gate.removeValidator(validator2.address))
+        .to.be.revertedWith("TRION: Not a validator");
     });
   });
 });

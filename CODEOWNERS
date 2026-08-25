@@ -3,8 +3,12 @@
 
 * @dev-analyshd
 
-# Whitepaper-critical modules
-src/core/coherence_engine.py   @dev-analyshd
-src/core/behavioral_hash.py    @dev-analyshd
-src/manipulation/             @dev-analyshd
-contracts/                    @dev-analyshd
+# Whitepaper-critical modules (current core/ layout)
+core/master/                 @dev-analyshd   # coherence engine, master equation, signal factory
+core/primitives/             @dev-analyshd   # behavioral hash, HashDNA, BEO resolution
+core/spiritual/              @dev-analyshd   # DW-BFT consensus, living security, PQC
+core/btcp/                   @dev-analyshd   # zero-bridge orchestration and routing
+contracts/                   @dev-analyshd   # all smart contracts (Solidity, Vyper, SVM, Move, Cairo, ink!, FunC, CosmWasm, Soroban, NEAR)
+indexers/                    @dev-analyshd   # Rust L0 indexer workspace
+validator/                   @dev-analyshd   # Go P2P validator mesh
+schema.sql                   @dev-analyshd   # TimescaleDB schema + thermodynamic triggers
