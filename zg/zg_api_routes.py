@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zg_config import ZG
+from zg_config import ZG, TRION_0G_DIR, AKASHIC_PROOF_ABI_PATH  # audit fix (ZG-1/ABI-1)
 
 zg_bp = Blueprint("zg", __name__)
 
@@ -49,21 +49,29 @@ def get_w3():
 
 
 def read_contract_abi() -> list:
-    abi_path = "artifacts/contracts/AkashicProof.sol/AkashicProof.json"
-    if os.path.exists(abi_path):
-        with open(abi_path) as f:
+    # audit fix (ABI-1): CWD-relative path never resolved (artifacts/ is at repo
+    # root). The canonical source-derived artifact is now committed — load it via
+    # zg_config.AKASHIC_PROOF_ABI_PATH.
+    if os.path.exists(AKASHIC_PROOF_ABI_PATH):
+        with open(AKASHIC_PROOF_ABI_PATH) as f:
             return json.load(f)["abi"]
-    # Fallback: minimal ABI derived from the Solidity source
-    # (sufficient for the view functions exposed by /api/v1/0g/proof)
+    # Fallback: minimal ABI matching the REAL signatures in
+    # contracts/solidity/AkashicProof.sol (audit fix ABI-2: previous fallback
+    # declared getFullProof with 4 outputs — the real function returns 10 —
+    # and getAllRootHashes with 1 output — real: (string[], bytes32[])).
     return [
         {"inputs": [], "name": "getFullProof", "outputs": [
-            {"type": "bytes32"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}
+            {"type": "string"}, {"type": "string"}, {"type": "uint256"},
+            {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"},
+            {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"},
+            {"type": "string"},
         ], "stateMutability": "view", "type": "function"},
         {"inputs": [], "name": "getAllRootHashes", "outputs": [
-            {"type": "bytes32[]"}
+            {"type": "string[]"}, {"type": "bytes32[]"}
         ], "stateMutability": "view", "type": "function"},
         {"inputs": [], "name": "getLatestSyncRecord", "outputs": [
-            {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}
+            {"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"},
+            {"type": "uint256"}, {"type": "uint256"}, {"type": "bytes32"},
         ], "stateMutability": "view", "type": "function"},
         {"inputs": [], "name": "getSyncCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
         {"inputs": [], "name": "getDABlobCount", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
@@ -332,17 +340,19 @@ def zg_compute_anima():
         "timestamp":  int(datetime.now(timezone.utc).timestamp() * 1000),
     }
 
-    compute_script = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "trion-0g", "src", "zg_compute_anima.ts"
-    )
+    # audit fix (ZG-1): was joined under <repo>/zg/trion-0g (never existed) —
+    # correct location is the repo root, resolved by zg_config.TRION_0G_DIR.
+    # cwd must also be the SDK dir so npx resolves @0glabs/0g-ts-sdk from
+    # trion-0g/node_modules (previously cwd=zg/ so module resolution always
+    # failed and the endpoint silently returned the "queued" fallback).
+    compute_script = os.path.join(TRION_0G_DIR, "src", "zg_compute_anima.ts")
 
     try:
         result = subprocess.run(
             ["npx", "tsx", compute_script],
             input=json.dumps(anima_request),
             capture_output=True, text=True, timeout=60,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
+            cwd=TRION_0G_DIR,
         )
         if result.returncode == 0:
             for line in result.stdout.strip().splitlines():

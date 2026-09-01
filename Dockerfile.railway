@@ -148,8 +148,11 @@ COPY docs/            ./docs/
 COPY akashic/         ./akashic/
 # Continuum state machine
 COPY continuum/       ./continuum/
-# SVM (Solana) indexer + adapter (Rust + TS + Python)
-COPY trion-svm/       ./trion-svm/
+# SVM (Solana) indexer + adapter — RELOCATED: Rust crate now at
+# indexers/crates/trion-svm (covered by COPY indexers/ above) and the TS/Python
+# adapter lives in chains/solana/ (covered by COPY chains/). The stale
+# `COPY trion-svm/` referenced a directory removed in the v2 restructure and
+# broke the Railway image build. Fixed 2026-09-01 (audit: DOCKER-2).
 # Network health monitor (Go)
 COPY network/         ./network/
 # Formal specification documents

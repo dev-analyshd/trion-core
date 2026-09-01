@@ -24,7 +24,7 @@ from typing import Optional
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zg_config import ZG
+from zg_config import ZG, TRION_0G_DIR, AKASHIC_PROOF_ABI_PATH  # audit fix (ZG-1/ABI-1)
 
 # ── Logging ───────────────────────────────────────────────────────
 os.makedirs(ZG.LOGS_DIR, exist_ok=True)
@@ -123,7 +123,11 @@ async def upload_via_sdk(file_path: str) -> Optional[str]:
     path as a CLI argument so the source file is never overwritten at runtime.
     """
     abs_path = os.path.abspath(file_path)
-    sdk_dir     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trion-0g")
+    # audit fix (ZG-1): was os.path.join(dirname(__file__), "trion-0g") — that
+    # resolves to <repo>/zg/trion-0g which does not exist, so every SDK upload
+    # failed silently and fell back to local SHA-256. Correct location is the
+    # repo root (sibling of zg/), resolved once in zg_config.TRION_0G_DIR.
+    sdk_dir     = TRION_0G_DIR
     script_path = os.path.join(sdk_dir, "zg_upload_single.mts")
 
     try:
@@ -721,12 +725,15 @@ async def main():
             w3 = None
 
     # Load AkashicProof ABI
+    # audit fix (ABI-1): was CWD-relative "artifacts/..." which never resolved
+    # — use the committed source-derived artifact via zg_config.
     abi = []
-    abi_path = "artifacts/contracts/AkashicProof.sol/AkashicProof.json"
-    if os.path.exists(abi_path):
-        with open(abi_path) as f:
+    if os.path.exists(AKASHIC_PROOF_ABI_PATH):
+        with open(AKASHIC_PROOF_ABI_PATH) as f:
             abi = json.load(f)["abi"]
         log.info("✓ AkashicProof ABI loaded")
+    else:
+        log.warning("AkashicProof ABI artifact missing — onchain paths disabled")
 
     # Run first sync immediately
     await run_sync_cycle(pool, w3, abi)

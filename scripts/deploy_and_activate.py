@@ -45,7 +45,10 @@ bytecode     = "0x" + contract_ifc["bin"]
 print(f"      ✓ Compiled: ABI has {len(abi)} entries, bytecode {len(bytecode)//2} bytes")
 
 # Save ABI to canonical artifact path (used by sync daemon + API)
-artifact_dir = Path("artifacts/contracts/AkashicProof.sol")
+# audit fix (ABI-1): anchor to repo root (was CWD-relative — failed when the
+# script was invoked from outside the repo root).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+artifact_dir = _REPO_ROOT / "artifacts" / "contracts" / "AkashicProof.sol"
 artifact_dir.mkdir(parents=True, exist_ok=True)
 artifact = {"abi": abi, "bytecode": bytecode, "contractName": "AkashicProof"}
 artifact_path = artifact_dir / "AkashicProof.json"

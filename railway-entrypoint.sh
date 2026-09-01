@@ -138,15 +138,21 @@ if [ "${TRION_ENABLE_VALIDATOR:-0}" = "1" ]; then
         cd /app/validator
         if [ ! -f /app/validator/trion-validator ]; then
             log "Building validator binary (first run)..."
-            go build -o trion-validator ./cmd/validator/ 2>&1 | tail -5 || warn "Build failed"
+            # audit fix: was ./cmd/validator/ (never existed) — actual package dir
+            # is ./cmd/trion-validator/. Fixed 2026-09-01 (audit: ENTRY-3).
+            go build -o trion-validator ./cmd/trion-validator/ 2>&1 | tail -5 || warn "Build failed"
         fi
         if [ -f /app/validator/trion-validator ]; then
-            ./trion-validator --port "${TRION_VALIDATOR_PORT:-6000}" &
-            VALIDATOR_PID=$!
-            log "Validator up (PID $VALIDATOR_PID, port ${TRION_VALIDATOR_PORT:-6000})"
+            # audit fix (ENTRY-4): cmd/trion-validator is a ONE-SHOT self-test
+            # (verifies mesh primitives: diversity weight, HHI, dual-strand
+            # signing) — it exits immediately and ignores --port. The mesh
+            # node library (MeshNode) has no server entrypoint yet. Run the
+            # self-test honestly instead of daemonizing a binary that exits.
+            ./trion-validator && log "Validator mesh self-test PASSED" \
+                                 || warn "Validator mesh self-test FAILED"
         else
-            go run ./cmd/validator/ --port "${TRION_VALIDATOR_PORT:-6000}" &
-            VALIDATOR_PID=$!
+            go run ./cmd/trion-validator/ && log "Validator mesh self-test PASSED" \
+                                           || warn "Validator mesh self-test FAILED"
         fi
     else
         warn "Validator enabled but Go toolchain/source missing — skipping"
@@ -166,12 +172,16 @@ if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-0}" = "1" ]; then
             make -j"$(nproc)" 2>&1 | tail -5 || warn "Build failed"
             cd /app/signal-processing
         fi
-        if [ -f /app/signal-processing/build/trion_signal ]; then
-            ./build/trion_signal &
-            SIGNAL_PID=$!
-            log "Signal processing up (PID $SIGNAL_PID)"
+        if [ -f /app/signal-processing/build/trion_fft_engine ]; then
+            # audit fix (ENTRY-5): CMake emits trion_fft_engine + trion_sensor_interface
+            # (there was never a trion_signal target). fft_engine is the binary with
+            # the --stdin JSON bridge used by core/native_bridge.py. Without a stdin
+            # producer it exits immediately — so verify it runs rather than daemonize.
+            echo '[1.0, 0.5, -0.25, 0.125]' | ./build/trion_fft_engine --stdin >/dev/null 2>&1 \
+                && log "FFT engine stdin bridge verified" \
+                || warn "FFT engine stdin bridge self-check failed"
         else
-            warn "Signal processing binary not built"
+            warn "Signal processing binary not built (expected trion_fft_engine)"
         fi
     else
         warn "Signal processing enabled but cmake/source missing"
