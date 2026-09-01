@@ -254,11 +254,21 @@ async function fetchSignal(entity) {
 async function checkSelfHalt() {
   try {
     const res = await fetch(`${ORACLE_API_URL}/api/v1/self`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      // audit fix (REL-1): was permissive (proceed on unreachable). relayer.js
+      // correctly halts fail-closed in the same situation — if the relayer
+      // cannot confirm the oracle's health, publishing on-chain risks
+      // propagating signals from a degraded oracle. Both relayers now share
+      // the same safety polarity.
+      console.warn(`[SELF-HALT] /api/v1/self returned HTTP ${res.status} — HALTING this cycle (fail-closed)`);
+      return true;
+    }
     const data = await res.json();
     return data?.status === "SILENCED";
-  } catch {
-    return false; // Permissive — proceed if unreachable
+  } catch (e) {
+    // audit fix (REL-1): unreachable oracle → halt (was: proceed).
+    console.warn(`[SELF-HALT] could not reach /api/v1/self (${e?.message || e}) — HALTING this cycle (fail-closed)`);
+    return true;
   }
 }
 
@@ -281,6 +291,17 @@ async function fetchLatestBlock(chain) {
 }
 
 async function pushBlockProof(chain, blockInfo, signal) {
+  // AUDIT FIX (REL-2) — HONEST PROVENANCE LABELING:
+  // The 128-dim features below are SYNTHETIC: derived from sha256 of
+  // (chain, blockInfo, time) — NOT from real on-chain behavioral data.
+  // The block height/label IS real (fetchLatestBlock), and the vector shape
+  // (9+9-complement+9-cross+4-stats+32 hash-derived) follows the BH feature
+  // layout, but no transaction-level behavior is observed in this mode.
+  // Downstream consumers MUST be able to filter these vectors — the payload
+  // now carries data_provenance: "SYNTHETIC_BLOCK_PROOF" and each vector is
+  // tagged synthetic=true. event_type stays 0 (TRANSFER) only as a schema
+  // placeholder; these are liveness attestations, not behavioral events.
+  //
   // Push behavioral vector to FAISS
   const entity = `extended:${chain.key}`;
   const seed = `${chain.key}:${blockInfo}:${Date.now()}`;
@@ -300,8 +321,15 @@ async function pushBlockProof(chain, blockInfo, signal) {
   while (features.length < 128) features.push(0);
 
   const payload = {
+    // audit fix (REL-2): provenance marker so synthetic block-proof vectors
+    // are distinguishable from real behavioral-indexer vectors downstream.
+    data_provenance: "SYNTHETIC_BLOCK_PROOF",
+    synthetic: true,
+    provenance_note: "features derived from sha256(chain:block:time) — block height is real, behavioral features are synthetic liveness attestations (no tx-level observation)",
     vectors: [{
       entity_id: entity,
+      synthetic: true,             // per-vector marker for FAISS consumers
+      data_provenance: "SYNTHETIC_BLOCK_PROOF",
       vector: features,
       magnitude: signal?.coherence || mean,
       entropy: mean,
@@ -312,9 +340,12 @@ async function pushBlockProof(chain, blockInfo, signal) {
       chain_label: chain.key.toUpperCase(),
       vm_type: chain.family,
       block_hash_hex: seedHash,
-      event_type: 0,
+      event_type: 0,               // placeholder — synthetic attestation, NOT a real TRANSFER event
       sense_hex: seedHash,
       antisense_hex: crypto.createHash("sha256").update(seed + ":antisense").digest("hex"),
+      // NOTE: sense/antisense here do NOT satisfy the canonical dual-strand
+      // invariant (sense XOR antisense == complement(sense)); they are seed
+      // commitments for dedup only. Canonical BHs come from indexers/crates/*.
     }],
     block_num: parseInt(blockInfo) || 0,
     block_features: features.slice(0, 9),
@@ -379,7 +410,12 @@ async function extendedRelayerCycle() {
 }
 
 async function extendedRelayerLoop() {
+  // audit fix (REL-2): one honest startup disclosure — block-proof mode vectors
+  // are synthetic liveness attestations (see pushBlockProof provenance labels).
   log(`Extended chain relayer started — ${EXTENDED_CHAINS.length} chains, poll=${EXTENDED_POLL}ms`);
+  log(`  NOTE: chains without keys run in SYNTHETIC BLOCK-PROOF mode — features are`);
+  log(`       hash-derived attestations tagged data_provenance=SYNTHETIC_BLOCK_PROOF,`);
+  log(`       not transaction-level behavioral events (see audit fix REL-2).`);
   while (true) {
     await extendedRelayerCycle();
     await new Promise((r) => setTimeout(r, EXTENDED_POLL));

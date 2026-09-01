@@ -31,12 +31,15 @@ echo "[1/7] ✓ Directories ready"
 
 # ── 2. Compile AkashicProof contract ────────────────────────────
 echo "[2/7] Compiling AkashicProof contract..."
-if command -v npx &>/dev/null && [ -f "hardhat.config.js" -o -f "hardhat.config.ts" ]; then
-  npx hardhat compile 2>&1 | tail -5
+# audit fix (SCRIPT-1): root hardhat.config.{js,ts} does not exist — the
+# Hardhat project lives in hardhat/ (hardhat/hardhat.config.ts). The old
+# check always failed, silently skipping the compile step.
+if command -v npx &>/dev/null && [ -f "hardhat/hardhat.config.ts" ]; then
+  (cd hardhat && npx hardhat compile 2>&1 | tail -5)
   echo "[2/7] ✓ Contract compiled"
 else
-  echo "[2/7] ⚠ Hardhat not configured — skipping compile"
-  echo "         Run: npx hardhat compile"
+  echo "[2/7] ⚠ Hardhat project not found (hardhat/hardhat.config.ts) — skipping compile"
+  echo "         Run: (cd hardhat && npx hardhat compile)"
 fi
 
 # ── 3. Deploy AkashicProof to 0G Chain ──────────────────────────

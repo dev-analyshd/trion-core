@@ -31,6 +31,7 @@ dependencies = [
     "pydantic>=2.13.3",
     "pyspx>=0.5.0",
     "pytest>=9.0.3",
+    "hypothesis>=6.100.0",  # audit fix (DEP-1): used by tests/unit/trion_protocol/test_property_based.py but was undeclared
     "python-dotenv>=1.0.0",
     "reportlab>=5.0.0",
     "requests>=2.33.0",

@@ -13,8 +13,10 @@
 
 Report security issues directly to: **trionprotocolbh@gmail.com**
 
-Please encrypt sensitive reports using our PGP key (fingerprint published
-in the `KEYS` file at the repository root) and include:
+<!-- audit fix (BUILD-4): the KEYS file was never committed — do not reference it.
+     Until a PGP key is published, reports should be sent as plain email with
+     the vulnerability description; coordinate encryption out-of-band. -->
+Please include:
 
 - Description of the vulnerability and affected component(s)
 - Steps to reproduce (with minimal PoC if possible)
@@ -177,5 +179,7 @@ reserve is capitalized on mainnet.
 ## Contact
 
 - Security email: **trionprotocolbh@gmail.com** (PGP-encrypted preferred)
-- PGP fingerprint: see `KEYS` file at repository root
+- PGP key: not yet published in this repository (audit fix BUILD-4 — the
+  previously referenced `KEYS` file was never committed); request the current
+  public key by email before sending encrypted reports
 - General security questions: open a GitHub Discussion (NOT an issue)

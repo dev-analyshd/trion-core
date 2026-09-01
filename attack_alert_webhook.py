@@ -43,6 +43,9 @@ app = Flask(__name__)
 
 ORACLE_URL    = os.getenv("ORACLE_API_URL", "http://127.0.0.1:5000")
 POLL_INTERVAL = int(os.getenv("WEBHOOK_POLL_INTERVAL_MS", "30000")) / 1000.0
+# NOTE(port): default 5001; the Replit deployment workflow sets WEBHOOK_PORT=6000
+# explicitly (and replit.md documents 6000) — always set WEBHOOK_PORT explicitly
+# in deployments rather than relying on this default. (audit note REL-3)
 PORT          = int(os.getenv("WEBHOOK_PORT", "5001"))
 
 MONITORED_ENTITIES = (os.getenv("MONITORED_ENTITIES") or
