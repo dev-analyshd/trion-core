@@ -81,7 +81,9 @@ if build_if_needed "trion-ton"; then
     sleep 0.3
 fi
 
-# PVM (Polkadot Mainnet — chain_id 900)
+# PVM (Polkadot Mainnet — chain_id 25000, matching indexers/crates/trion-pvm)
+# audit fix (REG-3): comment previously claimed chain_id 900, colliding with
+# the canonical SVM/Solana 900 in shared/chain_registry_complete.json.
 if build_if_needed "trion-pvm"; then
     restart_process "trion-pvm" \
         env FAISS_SERVICE_URL="$FAISS_URL" \
@@ -98,7 +100,9 @@ if build_if_needed "trion-starknet"; then
     pids+=($!)
 fi
 
-log "Native VM Rust indexers started: trion-near(1200) trion-ton(1100) trion-pvm(900) trion-starknet(8000) — all mainnet"
+# audit fix (REG-3): chain ids now match the actual indexer constants
+# (trion-near 23000, trion-ton 22000, trion-pvm 25000, trion-starknet 24000).
+log "Native VM Rust indexers started: trion-near(23000) trion-ton(22000) trion-pvm(25000) trion-starknet(24000) — all mainnet"
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"
