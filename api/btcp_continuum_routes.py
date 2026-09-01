@@ -190,6 +190,7 @@ def btcp_route():
             cc_coherence={int(k): v for k, v in data.get("cc_coherence", {1: 0.9}).items()},
             mf_scores={int(k): v for k, v in data.get("mf_scores", {1: 0.02}).items()},
             finality_dist={int(k): v for k, v in data.get("finality_dist", {1: 12.0}).items()},
+            beo_continuity={int(k): v for k, v in data.get("beo_continuity", {}).items()},
         )
         route = select_optimal_route(
             intent_value=float(data.get("intent_value", 1000.0)),
