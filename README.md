@@ -575,7 +575,7 @@ Five circuit types implemented for privacy-preserving BTCP operations:
 | **L0 Indexers** | Rust binaries | Canonical BH construction across chains |
 | **Relayer** | Node.js service | On-chain signal publication (DRY_RUN capable) |
 | **TimescaleDB** | PostgreSQL 18.4 | Hot behavioral storage, hypertables, BTCP route records |
-| **Next.js Dashboard** | Port $PORT | Institutional monitoring interface |
+| **Institutional Dashboard** | Port 3000, Next.js 16 | Terminal-grade monitoring: 9 views, live data only (see `frontend-institutional/`) |
 
 ### Quick Start
 
@@ -594,11 +594,27 @@ export PYTHONPATH=$(pwd)
 export FAISS_SERVICE_URL=http://127.0.0.1:8000
 cd ../api && python app.py &
 
+# Start the institutional dashboard (Next.js 16, 9 live views)
+cd frontend-institutional && bun install && bun run dev &
+
 # Verify
 curl http://127.0.0.1:5000/api/v1/health
 curl http://127.0.0.1:5000/api/v1/signal/uniswap
 curl http://127.0.0.1:5000/api/v1/btcp/orchestrator/status
 ```
+
+### Institutional Dashboard (`frontend-institutional/`)
+
+The institutional terminal frontend — every element wired to live Oracle data
+(no mock data, no placeholders). 9 hash-routed views: Command Center (T(t)
+master equation, coherence radar, moat decomposition, live BH stream), Signal
+Feed, BTCP Zero-Bridge (interactive K1 route simulator with fail-closed
+presets, escrow FSM, streamer control), Chain Coverage (160 unique chains ·
+22 VM families), Five-Plane Coherence (11 weight profiles), Security &
+Consensus (DW-BFT, HHI monitor, manipulation firewall), Governance & AWA
+(Love CLV, falsifiability registry), HashDNA Primitives (interactive hasher),
+Entity Explorer. Same-origin proxy architecture — the browser never issues
+cross-origin requests. See `frontend-institutional/README.md`.
 
 ### Containerized Deployment
 
