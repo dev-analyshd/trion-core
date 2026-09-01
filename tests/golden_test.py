@@ -321,6 +321,7 @@ print()
 print("✅ ALL SYSTEMS VERIFIED — TRION COMPLETE")
 print("   Behavioral Truth Infrastructure: OPERATIONAL")
 print("   Zero-Bridge (BTCP): FUNCTIONAL")
-print("   126 chains / 18 VM families: INTEGRATED")
+# audit fix (REG-2): was a hardcoded "126 chains" — report the real manifest counts
+print(f"   {n_chains} chains / {n_vms} VM families: INTEGRATED")
 print("   105 formulas: ENFORCED AS SPECIFIED")
 print("   36 inventions: PRESENT AND FUNCTIONING")

@@ -81,7 +81,7 @@ class ZGConfig:
     # Newton testnet RPC (chain 16600) — legacy AkashicProof
     NEWTON_RPC = os.getenv("ZG_NEWTON_RPC", "https://rpc-testnet.0g.ai")
 
-    # ── Contracts — Mainnet (Aristotle 16601) ─────────────────────
+    # ── Contracts — Mainnet (0G, chain 16661) ─────────────────────
     MAINNET_EXECUTION_GATE   = os.getenv("ZG_MAINNET_GATE_ADDR",   "")
     MAINNET_ORACLE_V3        = os.getenv("ZG_MAINNET_ORACLE_ADDR", "")
     MAINNET_AKASHIC_PROOF    = os.getenv("ZG_MAINNET_AKASHIC_ADDR","")

@@ -165,9 +165,11 @@ PVM_CHAIN_ID_MAX = 1099
 
 def _resolve_vm_type(chain_id: Optional[int], chain_label: Optional[str] = None) -> str:
     """Resolve VM type from chain_id or chain_label — all 11 VM families."""
-    # Explicit EVM chains (includes HashKey testnet 133, 0G Galileo 16602)
+    # Explicit EVM chains (includes HashKey testnet 133, 0G mainnet 16661,
+    # 0G Galileo 16602). Audit fix (ZG-2): 16601 was a typo — no such chain
+    # exists; canonical 0G mainnet id is 16661.
     evm_chains = {
-        1, 10, 56, 97, 133, 137, 177, 8453, 16601, 16602,
+        1, 10, 56, 97, 133, 137, 177, 8453, 16661, 16602,
         42161, 43114, 84532, 421614, 11155111
     }
     if chain_id is not None:

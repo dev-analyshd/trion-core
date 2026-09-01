@@ -166,8 +166,8 @@ CHAINS = [
     {"id": "tron-shasta", "name": "Tron Shasta", "vm": "TVM", "chain_id": 26001, "status": "testnet", "color": "#888888", "indexer": "trion-tron", "note": "gap-filled from shared manifest"},
     {"id": "bitcoin-testnet4", "name": "Bitcoin Testnet4", "vm": "UTXO", "chain_id": 21001, "status": "testnet", "color": "#888888", "indexer": "trion-utxo", "note": "gap-filled from shared manifest"},
     {"id": "bitcoin-cash", "name": "Bitcoin Cash", "vm": "UTXO", "chain_id": 21002, "status": "indexed", "color": "#888888", "indexer": "trion-utxo", "note": "gap-filled from shared manifest"},
-    {"id": "cardano-preprod", "name": "Cardano Preprod", "vm": "UTXO", "chain_id": 21007, "status": "testnet", "color": "#888888", "indexer": "trion-utxo", "note": "gap-filled from shared manifest"},
-    {"id": "algorand-testnet", "name": "Algorand Testnet", "vm": "UTXO", "chain_id": 21009, "status": "testnet", "color": "#888888", "indexer": "trion-utxo", "note": "gap-filled from shared manifest"},
+    {"id": "cardano-preprod", "name": "Cardano Preprod", "vm": "eUTXO", "chain_id": 9401, "status": "testnet", "color": "#0D1E2D", "indexer": "trion-cardano", "note": "canonical CARDANO-family id (was stale UTXO 21007 gap-fill duplicate)"},
+    {"id": "algorand-testnet", "name": "Algorand Testnet", "vm": "AVM", "chain_id": 8201, "status": "testnet", "color": "#000000", "indexer": "trion-algorand", "note": "canonical ALGORAND-family id (was stale UTXO 21009 gap-fill duplicate)"},
     {"id": "waves", "name": "Waves", "vm": "Waves", "chain_id": 30000, "status": "indexed", "color": "#888888", "indexer": "trion-waves", "note": "gap-filled from shared manifest"},
 ]
 
