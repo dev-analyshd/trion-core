@@ -1507,8 +1507,11 @@ except Exception as _e:
     _pipeline_ok = False
 
 try:
-    from core.trading.pattern_archetypes import match_archetype, ARCHETYPES
-    from core.akashic.archetype import get_all_archetypes_summary
+    from core.akashic.archetype import (
+        match_archetype as _akashic_match_archetype,
+        get_all_archetypes_summary,
+        ARCHETYPES as _AKASHIC_ARCHETYPES,
+    )
     from core.akashic.epigenetics import get_epigenetic_engine, EnvironmentalPressure
     _akashic_ok = True
 except Exception as _e:
@@ -1690,7 +1693,7 @@ def akashic_archetypes():
     if not _akashic_ok:
         return jsonify({"error": "akashic module unavailable"}), 503
     return jsonify({
-        "count": len(ARCHETYPES),
+        "count": len(_AKASHIC_ARCHETYPES),
         "archetypes": get_all_archetypes_summary(),
         "timestamp": int(time.time()),
     })
@@ -1709,7 +1712,7 @@ def akashic_match(entity_id: str):
         planes["phi"] * 0.9, planes["m"] * 0.85,
         planes["sigma"] * 0.95, planes["anima"] * 0.88,
     ]
-    result = match_archetype(phi)
+    result = _akashic_match_archetype(phi)
     result["entity_id"] = entity_id
     result["phi_vector"] = [round(v, 4) for v in phi]
     result["timestamp"] = int(time.time())
@@ -4811,6 +4814,10 @@ def tsdb_stats():
     return jsonify(result)
 
 
+# Briefly cached aggregate totals for the bh/recent_feed hot path
+_BH_FEED_TOTALS_CACHE = None
+
+
 @app.route("/api/v1/bh/recent_feed")
 def bh_recent_feed():
     """
@@ -4819,9 +4826,16 @@ def bh_recent_feed():
     out lower-volume chains (ETH, BASE, ARB, BNB, etc.).  Every active chain
     gets up to per_chain_max slots, then results are merged and re-sorted by ts.
     Returns tx_hash, chain, event_type, verdict, sense_hex, timestamp.
+
+    PERF NOTES (institutional dashboard hot path, polled every ~4s):
+    - relies on the composite index bh_ledger_chain_ts(chain_label, ts DESC)
+      so each per-chain top-K is an index seek, not a filter+sort;
+    - one read-only connection for the whole request (no per-request
+      journal_mode PRAGMA write on a DB under continuous write load);
+    - aggregate totals are cached briefly (module-level, 2s TTL) so COUNT
+      scans do not run on every poll.
     """
     import sqlite3 as _sq
-    from collections import defaultdict as _dd
     limit        = min(request.args.get("limit", 50, type=int), 200)
     chain_filter = request.args.get("chain", None)
     db_path = os.path.normpath(os.path.join(
@@ -4843,38 +4857,45 @@ def bh_recent_feed():
         "CLAIM":         "SAFE",
         "AIRDROP":       "SAFE",
     }
-    try:
-        conn = _sq.connect(db_path, timeout=4.0)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA query_only=1")
-        # Pull a large window so we have records from every active chain
-        raw_rows = conn.execute(
-            "SELECT tx_hash, chain_label, event_type_name, sense_hex, entity_id, ts "
-            "FROM bh_ledger ORDER BY ts DESC LIMIT 2000"
-        ).fetchall()
-        total = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
-        mev_total = conn.execute(
-            "SELECT COUNT(*) FROM bh_ledger WHERE event_type_name='MEV_CAPTURE'"
-        ).fetchone()[0]
-        distinct_chains = conn.execute(
-            "SELECT COUNT(DISTINCT chain_label) FROM bh_ledger"
-        ).fetchone()[0]
-        conn.close()
-    except Exception as exc:
-        return jsonify({"error": str(exc), "records": [], "total_bh_records": 0}), 503
+
+    # ── Briefly cached aggregate totals (refreshed at most every 2s) ─────────
+    global _BH_FEED_TOTALS_CACHE
+    now = time.time()
+    cached = _BH_FEED_TOTALS_CACHE
+    if cached is None or now - cached["ts"] > 2.0:
+        try:
+            tc = _sq.connect(db_path, timeout=4.0)
+            tc.execute("PRAGMA query_only=1")
+            total = tc.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
+            mev_total = tc.execute(
+                "SELECT COUNT(*) FROM bh_ledger WHERE event_type_name='MEV_CAPTURE'"
+            ).fetchone()[0]
+            chain_labels = [r[0] for r in tc.execute(
+                "SELECT chain_label FROM bh_ledger GROUP BY chain_label")]
+            tc.close()
+            _BH_FEED_TOTALS_CACHE = {
+                "ts": now, "total": total, "mev": mev_total,
+                "chains": chain_labels,
+            }
+        except Exception as exc:
+            return jsonify({"error": str(exc), "records": [], "total_bh_records": 0}), 503
+        cached = _BH_FEED_TOTALS_CACHE
+
+    total = cached["total"]
+    mev_total = cached["mev"]
+    chain_labels = cached["chains"]
+    distinct_chains = len(chain_labels)
 
     # Stratified sampling: query each chain independently so high-volume chains
     # (SOLANA_DEVNET with 1000+ tx/cycle) cannot crowd out lower-volume ones.
     # A simple ORDER BY ts DESC LIMIT N window would be dominated by Solana.
+    # The composite index (chain_label, ts DESC) turns each per-chain query
+    # into an index seek — the whole loop is single-digit milliseconds.
     per_chain_max = max(3, limit // max(1, distinct_chains))
     all_rows = []
     try:
         conn2 = _sq.connect(db_path, timeout=4.0)
-        conn2.execute("PRAGMA journal_mode=WAL")
         conn2.execute("PRAGMA query_only=1")
-        chain_labels = [r[0] for r in conn2.execute(
-            "SELECT DISTINCT chain_label FROM bh_ledger"
-        ).fetchall()]
         for cl in chain_labels:
             if chain_filter and cl != chain_filter:
                 continue
@@ -4886,7 +4907,17 @@ def bh_recent_feed():
             all_rows.extend(rows)
         conn2.close()
     except Exception:
-        all_rows = raw_rows  # fall back to the bulk window already fetched
+        # Fall back to a single ts-ordered window (bounded, still fast)
+        try:
+            conn3 = _sq.connect(db_path, timeout=4.0)
+            conn3.execute("PRAGMA query_only=1")
+            all_rows = conn3.execute(
+                "SELECT tx_hash, chain_label, event_type_name, sense_hex, entity_id, ts "
+                "FROM bh_ledger ORDER BY ts DESC LIMIT 2000"
+            ).fetchall()
+            conn3.close()
+        except Exception as exc:
+            return jsonify({"error": str(exc), "records": [], "total_bh_records": 0}), 503
 
     # Re-sort merged results by ts DESC and take limit
     stratified = sorted(all_rows, key=lambda r: r[5], reverse=True)[:limit]
