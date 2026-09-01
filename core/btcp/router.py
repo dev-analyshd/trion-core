@@ -109,6 +109,14 @@ class BIBLState:
     mf_scores:        Dict[int, float] = field(default_factory=dict)
     block_capacity:   Dict[int, float] = field(default_factory=dict)
     finality_dist:    Dict[int, float] = field(default_factory=dict)  # avg finality time (sec)
+    beo_continuity:   Dict[int, float] = field(default_factory=dict)  # chain_id → BEO continuity (Akashic lookup)
+
+
+# BEO bootstrap continuity for chains with no Akashic BEO history yet.
+# Per the whitepaper the BEO continuity factor should come from the Akashic
+# memory layer (BEO entity resolution); until an entity has ≥1 indexed epoch
+# of history we fall back to this documented bootstrap prior.
+BEO_BOOTSTRAP_DEFAULT = 0.8
 
 
 @dataclass
@@ -201,7 +209,9 @@ def select_optimal_route(
         gas = state.gas_forecasts.get(chain, state.gas_reference)
         fin = 1.0 - min(1.0, state.finality_dist.get(chain, 12.0) / 60.0)  # 60s = 0 conf
         cc = state.cc_coherence.get(chain, 0.5)
-        beo = 0.8  # would come from Akashic BEO lookup
+        # BEO continuity: real value from BIBLState (Akashic BEO lookup),
+        # falling back to the documented bootstrap prior for new entities.
+        beo = state.beo_continuity.get(chain, BEO_BOOTSTRAP_DEFAULT)
         vcount = validator_counts.get(chain, 10)
 
         for rt in RouteType:
