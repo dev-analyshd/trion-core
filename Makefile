@@ -54,8 +54,11 @@ install-node:
         done
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
-deploy:
-        bash scripts/deploy_testnet.sh
+# audit fix (BUILD-1): the old target ran scripts/deploy_testnet.sh, which was
+# removed in the mainnet-only restructure (commit 325ab95 "go-live gate").
+# The real deploy flow is preflight → mainnet deploy.
+deploy: preflight
+        python3 scripts/deploy_mainnet.py
 
 # ── Preflight (v7.0.0+) ─────────────────────────────────────────────────────
 # Validates env, storage, and (optionally) RPC reachability before any service starts.

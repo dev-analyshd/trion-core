@@ -1,9 +1,17 @@
 {
-  "extends": "../tsconfig.base.json",
+  "_note": "audit fix (BUILD-3): previously extended ../tsconfig.base.json — a path OUTSIDE the repository that was never committed, breaking `tsc --build` at the root. Inlined a self-contained base matching the repo's TS conventions (see chains/svm/tsconfig.json). There is no root src/ TypeScript tree today; this config exists for editor/tooling consistency.",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["scripts/**/*.ts", "sdk/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.mjs"]
 }

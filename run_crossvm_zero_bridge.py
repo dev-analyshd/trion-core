@@ -421,7 +421,10 @@ def main():
         "solana": solana_result,
         "type": "cross_vm_zero_bridge",
     }
-    result_path = Path("/home/z/my-project/repos/trion-core/crossvm_zero_bridge_result.json")
+    # audit fix (SCRIPT-2): was a hardcoded dev-machine path
+    # (/home/z/my-project/repos/trion-core/...) that fails on every other
+    # machine. Write next to the script instead.
+    result_path = Path(__file__).resolve().parent / "crossvm_zero_bridge_result.json"
     result_path.write_text(json.dumps(result, indent=2))
     print(f"  Result saved: {result_path}")
     print()
