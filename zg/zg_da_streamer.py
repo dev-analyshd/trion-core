@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from zg_config import ZG
+from zg_config import ZG, AKASHIC_PROOF_ABI_PATH  # audit fix (ABI-1): repo-anchored artifact path
 
 os.makedirs(ZG.LOGS_DIR, exist_ok=True)
 logging.basicConfig(
@@ -128,11 +128,12 @@ async def record_da_commitment_onchain(commitment: dict, w3, private_key: str,
         return
 
     try:
-        abi_path = "artifacts/contracts/AkashicProof.sol/AkashicProof.json"
-        if not os.path.exists(abi_path):
+        # audit fix (ABI-1): was CWD-relative "artifacts/..." — never resolved.
+        # Use the committed source-derived artifact via zg_config.
+        if not os.path.exists(AKASHIC_PROOF_ABI_PATH):
             return
 
-        with open(abi_path) as f:
+        with open(AKASHIC_PROOF_ABI_PATH) as f:
             abi = json.load(f)["abi"]
 
         contract = w3.eth.contract(

@@ -3,6 +3,43 @@ TRION 0G Network Configuration
 Single source of truth for all 0G endpoints and contract addresses.
 """
 import os
+
+
+def resolve_trion_0g_dir() -> str:
+    """
+    Resolve the trion-0g SDK directory (repo root, sibling of zg/).
+
+    Audit fix (ZG-1): zg_sync_daemon.py and zg_api_routes.py previously joined
+    `<repo>/zg/trion-0g` — a path that has never existed (trion-0g/ lives at the
+    repo root). The wrong join silently disabled every SDK upload/compute path.
+    Robust order: (1) repo root next to zg/, (2) env override,
+    (3) legacy in-dir fallback for exotic deployments.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(os.path.dirname(here), "trion-0g"),          # repo root
+        os.getenv("TRION_0G_DIR", ""),                             # explicit override
+        os.path.join(here, "trion-0g"),                             # legacy fallback
+    ]
+    for c in candidates:
+        if c and os.path.isdir(os.path.join(c, "src")):
+            return c
+    return candidates[0]  # best-effort default (repo root)
+
+
+TRION_0G_DIR = resolve_trion_0g_dir()
+
+# Repo root (parent of zg/) — anchors all CWD-independent path resolution.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Canonical AkashicProof ABI artifact (audit fix ABI-1): committed at
+# artifacts/contracts/AkashicProof.sol/AkashicProof.json, source-derived via
+# scripts/generate_akashic_abi.py. Previously referenced by 3 zg modules +
+# 2 deploy scripts as a CWD-relative path that never resolved.
+AKASHIC_PROOF_ABI_PATH = os.path.join(
+    REPO_ROOT, "artifacts", "contracts", "AkashicProof.sol", "AkashicProof.json"
+)
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -14,7 +51,10 @@ class ZGConfig:
     # ── Network mode: "mainnet" | "testnet" ──────────────────────
     NETWORK  = os.getenv("ZG_NETWORK", "mainnet")
 
-    # ── Aristotle Mainnet (chain 16601) — primary ─────────────────
+    # ── 0G Mainnet (chain 16661) — primary ─────────────────────────
+    # audit fix (ZG-2): comment previously said "Aristotle Mainnet (chain 16601)"
+    # — 16601 matches no chain anywhere in the codebase; the canonical 0G
+    # mainnet chain id is 16661 (Newton testnet 16600, Galileo testnet 16602).
     MAINNET_RPC      = os.getenv("ZG_MAINNET_RPC",     "https://evmrpc.0g.ai")
     MAINNET_INDEXER  = os.getenv("ZG_MAINNET_INDEXER", "https://indexer-storage.0g.ai")
     MAINNET_DA_RPC   = os.getenv("ZG_MAINNET_DA_RPC",  "https://da-rpc.0g.ai")

@@ -35,25 +35,32 @@ jobs:
             requests httpx uvicorn fastapi \
             faiss-cpu pydantic web3 \
             apscheduler feedparser langdetect \
-            vadersentiment psycopg2-binary
+            vadersentiment psycopg2-binary \
+            ecdsa pynacl hypothesis \
+            kyber-py dilithium-py pyspx
+
+      # NOTE(paths): after the v2 restructure the suites live under
+      # tests/unit/ and tests/integration/ — the pre-restructure paths
+      # (tests/test_*.py, tests/trion_protocol/) no longer exist and made
+      # this job fail on collection. Fixed 2026-09-01 (audit: CI-1).
 
       - name: Five Planes — C(t) assembly, Θ(t), Silence
-        run: python3 -m pytest tests/test_all_planes.py -v --tb=short
+        run: python3 -m pytest tests/unit/test_all_planes.py -v --tb=short
 
       - name: Whitepaper gap coverage (84 formulas)
-        run: python3 -m pytest tests/test_whitepaper_gaps.py -v --tb=short
+        run: python3 -m pytest tests/unit/test_whitepaper_gaps.py -v --tb=short
 
       - name: Trading signals — BTV, price feed, CEX
-        run: python3 -m pytest tests/test_trading_signals.py -v --tb=short
+        run: python3 -m pytest tests/unit/test_trading_signals.py -v --tb=short
 
       - name: TRION protocol unit tests
-        run: python3 -m pytest tests/trion_protocol/ -v --tb=short
+        run: python3 -m pytest tests/unit/trion_protocol/ -v --tb=short
 
       - name: Deep VM and 0G integration
-        run: python3 -m pytest tests/test_deep_vm_and_zg.py -v --tb=short
+        run: python3 -m pytest tests/integration/test_deep_vm_and_zg.py -v --tb=short
 
       - name: Stress tests — concurrency, throughput, resilience
-        run: python3 -m pytest tests/test_stress.py -v --tb=short
+        run: python3 -m pytest tests/unit/test_stress.py -v --tb=short
 
       - name: Attack simulator self-test
         run: python3 scripts/simulate_attacks.py
