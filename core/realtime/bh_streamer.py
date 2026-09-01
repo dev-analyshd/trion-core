@@ -254,6 +254,9 @@ class BHStreamer:
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain_label ON bh_ledger(chain_label)")
+        # Composite index: per-chain top-K queries (stratified feed sampling in
+        # api/app.py bh_recent_feed) become index seeks instead of filter+sort.
+        conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain_ts ON bh_ledger(chain_label, ts DESC)")
         conn.commit()
         conn.close()
 
