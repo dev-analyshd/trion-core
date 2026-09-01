@@ -51,23 +51,22 @@ jobs:
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
 
+      # audit fix (SC-2): the loop listed `zg` which has no package.json (no-op),
+      # while trion-0g/ and chains/<vm>/ (both with lockfiles) were unchecked.
+      # Discover every directory that actually ships a package.json instead.
       - name: Verify package-lock.json in sync
         run: |
           # `npm ci` fails if package-lock.json is out of sync with package.json
-          for dir in relayer zg hardhat; do
-            if [ -f "$dir/package.json" ]; then
-              echo "Checking $dir..."
-              (cd "$dir" && npm ci --ignore-scripts)
-            fi
+          for dir in $(git ls-files '*/package.json' | xargs -n1 dirname | sort -u); do
+            echo "Checking $dir..."
+            (cd "$dir" && npm ci --ignore-scripts)
           done
 
       - name: npm audit (production deps)
         run: |
-          for dir in relayer zg hardhat; do
-            if [ -f "$dir/package.json" ]; then
-              echo "Auditing $dir..."
-              (cd "$dir" && npm audit --omit=dev --audit-level=high || true)
-            fi
+          for dir in $(git ls-files '*/package.json' | xargs -n1 dirname | sort -u); do
+            echo "Auditing $dir..."
+            (cd "$dir" && npm audit --omit=dev --audit-level=high || true)
           done
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -129,11 +128,14 @@ jobs:
           solc-select install 0.8.20
           solc-select use 0.8.20
 
+      # audit fix (SC-1): paths were pre-restructure (contracts/<X>.sol) — actual
+      # locations are contracts/solidity/<X>.sol. The old paths always failed,
+      # silently masked by `|| true`.
       - name: Run Slither on TRIONExecutionGate
-        run: slither contracts/TRIONExecutionGate.sol --config-file slither.config.json || true
+        run: slither contracts/solidity/TRIONExecutionGate.sol --config-file slither.config.json || true
 
       - name: Run Slither on TRIONOracleV3
-        run: slither contracts/TRIONOracleV3.sol --config-file slither.config.json || true
+        run: slither contracts/solidity/TRIONOracleV3.sol --config-file slither.config.json || true
 
       - name: Run Slither on TRIONToken.vy
         run: slither contracts/vyper/TRIONToken.vy --config-file slither.config.json || true
