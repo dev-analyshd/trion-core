@@ -51,6 +51,10 @@ pub struct ForkAssessment {
 pub struct BIBLEngine {
     chain_states: HashMap<ChainId, PerChainState>,
     fork_assessments: Vec<ForkAssessment>,
+    /// Stored canonical block hashes per (chain_id, height). Indexers record
+    /// observed hashes here; `detect_fork` compares them against freshly
+    /// observed hashes at the same height to detect reorgs.
+    block_hashes: HashMap<(ChainId, u64), H256>,
     min_endpoints_per_chain: u32,
     fork_assessment_period_days: u64,
     canonical_chain_threshold: f64,
@@ -61,10 +65,19 @@ impl BIBLEngine {
         BIBLEngine {
             chain_states: HashMap::new(),
             fork_assessments: Vec::new(),
+            block_hashes: HashMap::new(),
             min_endpoints_per_chain: 3,
             fork_assessment_period_days: 90,
             canonical_chain_threshold: 0.66,
         }
+    }
+
+    /// Record the canonical block hash observed at a given height on a
+    /// chain. Callers (indexers/feeders) store hashes as they observe them;
+    /// `detect_fork` later compares these stored hashes against fresh
+    /// observations at the same height.
+    pub fn record_block_hash(&mut self, chain_id: ChainId, height: u64, block_hash: H256) {
+        self.block_hashes.insert((chain_id, height), block_hash);
     }
 
     /// Update chain state with latest BIBL metrics
@@ -145,25 +158,64 @@ impl BIBLEngine {
             .unwrap_or(false)
     }
 
-    /// Detect and assess a chain fork
+    /// Detect and assess a chain fork (reorg).
+    ///
+    /// Real check (replaces the previous hardcoded stub): compares the
+    /// stored block hash at `height` on `chain_id` (previously recorded via
+    /// `record_block_hash`) against `current_hash`, a freshly observed hash
+    /// at the same height. A fork is detected **iff the hashes mismatch** —
+    /// the block at `height` was reorganized.
+    ///
+    /// On detection the chain is suspended pending the fork assessment
+    /// period and a `ForkAssessment` is recorded and returned. Retention
+    /// metrics are zeroed (unknown at detection time — they are populated
+    /// via `update_fork_assessment` as observations arrive) and the
+    /// canonical chain is `None` (undetermined until the assessment
+    /// resolves). No values are fabricated.
+    ///
+    /// Returns `None` when no fork is detected: the hashes match, or no
+    /// hash was ever stored for that (chain, height) — nothing to compare
+    /// against. After a detection the stored hash is updated to the new
+    /// hash so the same reorg is not reported twice.
     pub fn detect_fork(
         &mut self,
         chain_id: ChainId,
-        chain_a_id: ChainId,
-        chain_b_id: ChainId,
-    ) -> ForkAssessment {
+        height: u64,
+        current_hash: H256,
+    ) -> Option<ForkAssessment> {
+        let fork_detected = self
+            .block_hashes
+            .get(&(chain_id, height))
+            .map_or(false, |stored| *stored != current_hash);
+
+        if !fork_detected {
+            return None;
+        }
+
+        // Reorg detected: adopt the new hash as the stored canonical hash
+        // so the same reorg is not re-detected on subsequent calls.
+        self.block_hashes.insert((chain_id, height), current_hash);
+
+        // Suspend the chain for the fork assessment period.
+        if let Some(state) = self.chain_states.get_mut(&chain_id) {
+            state.suspended = true;
+        }
+
         let assessment = ForkAssessment {
             original_chain: chain_id,
-            chain_a_validator_retention: 0.7,
-            chain_a_tvl_retention: 0.65,
-            chain_a_dev_activity: 0.8,
-            chain_b_validator_retention: 0.3,
-            chain_b_tvl_retention: 0.35,
-            chain_b_dev_activity: 0.2,
-            canonical_chain: Some(chain_a_id),
+            // Retention metrics unknown at detection time — filled in by
+            // update_fork_assessment() during the assessment window.
+            chain_a_validator_retention: 0.0,
+            chain_a_tvl_retention: 0.0,
+            chain_a_dev_activity: 0.0,
+            chain_b_validator_retention: 0.0,
+            chain_b_tvl_retention: 0.0,
+            chain_b_dev_activity: 0.0,
+            // Canonical chain undetermined until the assessment resolves.
+            canonical_chain: None,
         };
         self.fork_assessments.push(assessment.clone());
-        assessment
+        Some(assessment)
     }
 
     /// Update fork assessment with retention metrics
@@ -254,9 +306,40 @@ mod tests {
     #[test]
     fn test_fork_detection() {
         let mut bibl = BIBLEngine::new();
-        let assessment = bibl.detect_fork(1, 1, 99999);
 
+        // Track chain 1 state so suspension is observable
+        bibl.update_chain_state(
+            1,
+            0.9,
+            GasForecast::default(),
+            0.9,
+            0.01,
+            0.95,
+            12.0,
+            18_000_000,
+        );
+
+        let stored_hash = H256::sha3(b"chain_1_block_100");
+        bibl.record_block_hash(1, 100, stored_hash);
+
+        // Same hash at the same height → no fork
+        assert!(bibl.detect_fork(1, 100, stored_hash).is_none());
+        assert!(!bibl.is_chain_suspended(1));
+
+        // Different hash at the same height → fork detected (reorg)
+        let reorged_hash = H256::sha3(b"chain_1_block_100_reorged");
+        let assessment = bibl.detect_fork(1, 100, reorged_hash).unwrap();
         assert_eq!(assessment.original_chain, 1);
-        assert_eq!(assessment.canonical_chain, Some(1));
+        // No fabricated retention numbers or canonical winner: undetermined
+        // at detection time (resolved later via update_fork_assessment)
+        assert_eq!(assessment.canonical_chain, None);
+        // Chain suspended pending the fork assessment period
+        assert!(bibl.is_chain_suspended(1));
+
+        // No stored hash for this (chain, height) → nothing to compare
+        assert!(bibl.detect_fork(999, 5, reorged_hash).is_none());
+
+        // After adopting the reorged hash, re-checking it is not a new fork
+        assert!(bibl.detect_fork(1, 100, reorged_hash).is_none());
     }
 }
