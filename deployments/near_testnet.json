@@ -1,0 +1,10 @@
+{
+  "network": "near-testnet",
+  "accountId": "trion.testnet",
+  "codeHash": "9KiJfBmB71AXmgS6desdbHuAy4KnEwwxxY2hkDErae2M",
+  "deployTx": "BiK2tfmC2P3nsF4fGSVtH6kQensADhAtSQ7cucTRJKSr",
+  "deployedAt": "2026-09-02T09:35:00Z",
+  "balance": "3.208 NEAR",
+  "explorer": "https://testnet.nearblocks.io/address/trion.testnet",
+  "initTx": "BoZr1gZCmAEfp8SmjeTTKaYezXdtt7sUjFJYktj7zCMF"
+}
