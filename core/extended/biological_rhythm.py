@@ -30,12 +30,12 @@ Clock source: GPS primary, NTP redundant, phase-locked loops maintained.
 import time
 import math
 from dataclasses import dataclass
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 try:
     import numpy as _np
 except ImportError:  # pragma: no cover — numpy is a core dependency
-    _np = None
+    _np = None  # type: ignore[assignment]
 
 
 # ── Constants (whitepaper L6.2) ────────────────────────────────────────────
@@ -117,7 +117,7 @@ def compute_brt(timestamp: Optional[float] = None) -> BiologicalRhythm:
 def get_brt_dict(
     timestamp: Optional[float] = None,
     observed_timestamps: Optional[Sequence[float]] = None,
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
     Convenience: return BRT as dict for direct signal inclusion.
 
@@ -138,9 +138,10 @@ def get_brt_dict(
     always present and unchanged in meaning.
     """
     brt = compute_brt(timestamp)
-    out = brt.to_dict()
+    out: Dict[str, Any] = dict(brt.to_dict())
 
-    n_obs = len(observed_timestamps) if observed_timestamps else 0
+    ts = observed_timestamps or []
+    n_obs = len(ts)
     if n_obs < 24:
         out["brt_source"] = "CLOCK_FALLBACK"
         out["circadian_strength"] = 0.0
@@ -148,7 +149,7 @@ def get_brt_dict(
         return out
 
     angles = [(t % CIRCADIAN_SECONDS) / CIRCADIAN_SECONDS * 2.0 * math.pi
-              for t in observed_timestamps]
+              for t in ts]
     peak_phase, strength = _circular_mean_and_strength(angles)
 
     out["brt_source"] = "OBSERVED" if strength >= 0.20 else "OBSERVED_WEAK"
@@ -195,7 +196,7 @@ class BRTGasCorrelation:
     data_quality:       str            # OK | INSUFFICIENT_SAMPLES | ZERO_VARIANCE
     method:             str = "mardia_circular_linear_chi2_df2"
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "rhythm":         self.rhythm,
             "n_samples":      self.n_samples,

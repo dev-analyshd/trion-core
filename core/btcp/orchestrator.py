@@ -285,15 +285,17 @@ class PrivacyRouter:
         iaph = None
         if iap_economics:
             iaph = dict(iap_economics)
-        elif isinstance((behavioral_data or {}).get("iap_economics"), dict):
-            iaph = dict(behavioral_data["iap_economics"])
+        else:
+            _bd = behavioral_data or {}
+            _bd_iap = _bd.get("iap_economics")
+            if isinstance(_bd_iap, dict):
+                iaph = dict(_bd_iap)
         if iaph is None and gas_estimates:
             iaph = {}
-        if gas_estimates:
+        if gas_estimates and iaph is not None:
             # entity gas from the real VM-adapter estimates for this intent
             real_entity_gas = int(sum(
-                g.gas_limit for g in gas_estimates
-                if g is not None and getattr(g, "gas_limit", 0)
+                g.gas_limit for g in gas_estimates if g is not None
             ))
             if real_entity_gas > 0:
                 iaph.setdefault("entity_gas", real_entity_gas)
@@ -841,7 +843,7 @@ def self_test() -> Dict[str, Any]:
     # (dual-strand + block + IAP economics) so its proofs are all real.
     import secrets as _sec2
     w_sense = _sec2.token_bytes(32)
-    levels_data = {
+    levels_data: dict = {
         PrivacyLevel.BASIC: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
         PrivacyLevel.STANDARD: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
         PrivacyLevel.COMPLIANT: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
@@ -875,10 +877,12 @@ def self_test() -> Dict[str, Any]:
         )
         
         status = "✓" if result.success else "✗"
-        pending = [n for n, p in result.route.proofs.items()
+        route = result.route
+        assert route is not None, "demo: successful route must exist"
+        pending = [n for n, p in route.proofs.items()
                    if isinstance(p, dict) and p.get("status") == "zk_pending"]
         print(f"  {level.name}: {status} proofs={len(result.proofs_generated)} "
-              f"(pending: {', '.join(pending) or 'none'}) fee={result.route.total_fee:.8f}ETH time={result.execution_time_ms:.0f}ms")
+              f"(pending: {', '.join(pending) or 'none'}) fee={route.total_fee:.8f}ETH time={result.execution_time_ms:.0f}ms")
         if result.errors:
             print(f"    Errors: {result.errors[:2]}")
     
@@ -893,7 +897,9 @@ def self_test() -> Dict[str, Any]:
         intent_type="CROSS_CHAIN",
         privacy_level=PrivacyLevel.STANDARD,
     )
-    print(f"  EVM→SVM: {'✓' if cross_result.success else '✗'} source_vm={cross_result.route.source_vm.name} dest_vm={cross_result.route.dest_vm.name}")
+    cross_route = cross_result.route
+    assert cross_route is not None, "demo: cross-VM route must exist"
+    print(f"  EVM→SVM: {'✓' if cross_result.success else '✗'} source_vm={cross_route.source_vm.name} dest_vm={cross_route.dest_vm.name}")
     
     # List routes
     routes = orchestrator.list_routes()
