@@ -32,8 +32,17 @@ contract TRIONGuardV3 {
     bool public trionBypassActive;
     /// @notice SECURITY: bypass is TIME-LIMITED — auto-expires after this window.
     uint256 public constant BYPASS_MAX_WINDOW = 24 hours;
+    /// @notice SECURITY FIX (P1): lifetime budget of bypass (re-)arms. The 24h
+    ///         window + 1h cool-down alone let a persistent owner keep the
+    ///         firewall OFF ~96% of the time (24h on, 1h wait, re-arm forever).
+    ///         After BYPASS_MAX_RE_ARMS emergency windows the escape hatch is
+    ///         permanently exhausted — fail-closed by design; resetting it
+    ///         requires a governance-approved contract upgrade, not a call.
+    uint256 public constant BYPASS_MAX_RE_ARMS = 3;
     uint256 public bypassExpiresAt;
     uint256 public lastBypassExpiry;
+    /// @notice Number of bypass windows ever armed (max BYPASS_MAX_RE_ARMS).
+    uint256 public bypassReArmsUsed;
 
     event OracleUpdated(address indexed previous, address indexed next);
     event TrionBypassToggled(bool active);
@@ -42,6 +51,10 @@ contract TRIONGuardV3 {
     error CoherenceGateFailed(bytes32 txId);
     error Unauthorized();
     error BypassActive();
+    /// @notice SECURITY FIX (P1): raised once the lifetime bypass budget
+    ///         (BYPASS_MAX_RE_ARMS) is spent — the firewall can no longer be
+    ///         disabled without a contract upgrade.
+    error BypassBudgetExhausted(uint256 used, uint256 max);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -91,14 +104,22 @@ contract TRIONGuardV3 {
     /// @dev    SECURITY: enabling the bypass is bounded to a 24h maximum window
     ///         after which it auto-expires (enforced in onlyWhenCoherent), and
     ///         cannot be re-armed until a 1h cool-down after the previous
-    ///         expiry has elapsed. The owner therefore cannot keep the
-    ///         coherence firewall disabled indefinitely.
+    ///         expiry has elapsed. SECURITY FIX (P1): re-arming is additionally
+    ///         capped at BYPASS_MAX_RE_ARMS (3) uses for the contract's entire
+    ///         lifetime — worst case 72h of firewall-off EVER, after which the
+    ///         owner cannot keep the coherence firewall disabled at all
+    ///         (previously ~96% off-time was achievable by daily re-arming).
     function _toggleTrionBypass(bool _status) internal {
         if (_status) {
+            // SECURITY FIX (P1): lifetime budget — fail-closed once exhausted.
+            if (bypassReArmsUsed >= BYPASS_MAX_RE_ARMS) {
+                revert BypassBudgetExhausted(bypassReArmsUsed, BYPASS_MAX_RE_ARMS);
+            }
             // Cool-down: 1h after the previous bypass window expired
             if (lastBypassExpiry != 0 && block.timestamp < lastBypassExpiry + 1 hours) {
                 revert Unauthorized();
             }
+            bypassReArmsUsed += 1;
             bypassExpiresAt = block.timestamp + BYPASS_MAX_WINDOW;
         } else {
             if (trionBypassActive) {

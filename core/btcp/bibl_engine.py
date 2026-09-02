@@ -253,10 +253,43 @@ class BIBLEngine:
 
     # ── BIBL snapshot ─────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _finality_stats(dist: List[float]) -> Dict[str, float]:
+        """
+        Statistical finality distribution from OBSERVED finality samples.
+
+        Honest statistics over the values actually recorded via
+        update_chain_state() (rolling window of the last 100 observations).
+        With fewer than 2 samples the percentiles fall back to the single
+        observed value and the sample count discloses the evidence size —
+        no fabricated distribution parameters.
+        """
+        if not dist:
+            return {
+                "finality_p50_sec": 0.0,
+                "finality_p95_sec": 0.0,
+                "finality_sample_count": 0,
+            }
+        ordered = sorted(dist)
+        n = len(ordered)
+        p50 = ordered[min(n - 1, max(0, (n - 1) // 2))]
+        p95 = ordered[min(n - 1, max(0, int(round(0.95 * (n - 1)))))]
+        return {
+            "finality_p50_sec": p50,
+            "finality_p95_sec": p95,
+            "finality_sample_count": n,
+        }
+
     def get_bibl_snapshot(self) -> Dict[int, Dict]:
         """
         Get the current BIBL snapshot for all chains.
         Used by BTCP router Tier-2 route scoring.
+
+        Spec (BTCP Master Spec §Phase 2 Module 2.3): reads nl_score,
+        gas_forecast, cc_coherence, mf_score, block_capacity and the
+        finality distribution per chain — all from values supplied by
+        callers via update_chain_state() (this engine is a Tier-1 state
+        cache; it does not fabricate chain data).
         """
         snapshot = {}
         for chain_id, state in self._chain_states.items():
@@ -270,6 +303,9 @@ class BIBLEngine:
                 "mf_score": state.mf_score,
                 "block_capacity": state.block_capacity,
                 "finality_avg_sec": state.finality_avg_sec,
+                # Statistical finality distribution (Gap 12 / spec §2.3):
+                # real percentiles over the observed finality samples.
+                **self._finality_stats(state.finality_dist),
                 "diversity_penalty": self.diversity_penalty(chain_id),
                 "last_block": state.last_block,
                 "last_update": state.last_update,
@@ -293,6 +329,20 @@ if __name__ == "__main__":
     state = bibl.get_chain_state(1)
     assert state.nl_score == 0.85
     print(f"✓ Chain state updated: NL={state.nl_score}")
+
+    # Test 1b: Finality distribution statistics from observed samples
+    for f in (11.5, 12.5, 13.0, 14.0, 25.0):
+        bibl.update_chain_state(
+            chain_id=1, nl_score=0.85, gas_forecast=31.0,
+            gas_ci_95=(28.0, 34.0), cc_coherence=0.90, mf_score=0.02,
+            block_capacity=0.80, finality_sec=f, block_number=18000000,
+        )
+    snap1 = bibl.get_bibl_snapshot()[1]
+    assert snap1["finality_sample_count"] == 6  # 1 + 5 observed samples
+    assert snap1["finality_p50_sec"] == 12.5      # median of observed dist
+    assert snap1["finality_p95_sec"] == 25.0      # p95 tail
+    print(f"✓ Finality dist stats: p50={snap1['finality_p50_sec']}s "
+          f"p95={snap1['finality_p95_sec']}s n={snap1['finality_sample_count']}")
 
     # Test 2: Endpoint diversity (A1)
     div = EndpointDiversity(

@@ -1,28 +1,28 @@
 {
-  "version": "2.0.0",
-  "generated_by": "FIX-2 vm-chain-implementer",
-  "total_chains": 124,
+  "version": "2.1.0",
+  "generated_by": "P3-CONSOLIDATE chain-registry unification (base: FIX-2 vm-chain-implementer)",
+  "total_chains": 129,
   "integrated_chains": 41,
   "vm_families": 18,
   "vm_distribution": {
-    "EVM": 66,
     "COSMOS": 20,
-    "MOVE": 6,
-    "UTXO": 6,
-    "PVM": 3,
-    "SVM": 3,
+    "EVM": 71,
     "HEDERA": 2,
+    "MOVE": 6,
+    "MULTIVERSX": 1,
     "NEAR": 2,
+    "PVM": 3,
     "STARKNET": 2,
     "STELLAR": 2,
+    "SVM": 3,
     "TON": 2,
     "TRON": 2,
-    "ALGORAND": 2,
-    "CARDANO": 2,
-    "MULTIVERSX": 1,
+    "UTXO": 6,
     "VECHAIN": 1,
     "WAVES": 1,
-    "XRPL": 1
+    "XRPL": 1,
+    "ALGORAND": 2,
+    "CARDANO": 2
   },
   "schema": {
     "name": "Chain display name",
@@ -1647,6 +1647,75 @@
       "decimals": 6,
       "finalitySec": 20.0,
       "notes": "preprod testnet"
+    },
+    {
+      "name": "Harmony",
+      "vm": "EVM",
+      "chainId": 1666600000,
+      "rpc": "https://api.harmony.one",
+      "finalitySec": 2,
+      "gasUsd": 0.01,
+      "integrated": false,
+      "explorer": "https://explorer.harmony.one",
+      "nativeToken": "ONE",
+      "decimals": 18,
+      "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE); EPOS 2s blocks"
+    },
+    {
+      "name": "IoTeX",
+      "vm": "EVM",
+      "chainId": 4689,
+      "rpc": "https://babel-api.mainnet.iotex.io",
+      "finalitySec": 5,
+      "gasUsd": 0.01,
+      "integrated": false,
+      "explorer": "https://iotexscan.io",
+      "nativeToken": "IOTX",
+      "decimals": 18,
+      "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE)"
+    },
+    {
+      "name": "Conflux",
+      "vm": "EVM",
+      "chainId": 1030,
+      "rpc": "https://evm.confluxrpc.com",
+      "finalitySec": 6,
+      "gasUsd": 0.01,
+      "integrated": false,
+      "explorer": "https://confluxscan.io",
+      "nativeToken": "CFX",
+      "decimals": 18,
+      "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE); PoS finality ~6s"
+    },
+    {
+      "name": "Monad",
+      "vm": "EVM",
+      "chainId": 10143,
+      "rpc": "https://rpc.monad.xyz",
+      "finalitySec": 1,
+      "gasUsd": 0.01,
+      "integrated": false,
+      "explorer": "https://monadscan.com",
+      "nativeToken": "MON",
+      "decimals": 18,
+      "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE); 1s blocks, single-slot finality"
+    },
+    {
+      "name": "Abstract",
+      "vm": "EVM",
+      "chainId": 2741,
+      "rpc": "https://api.mainnet.abs.xyz",
+      "finalitySec": 3,
+      "gasUsd": 0.02,
+      "integrated": false,
+      "explorer": "https://explorer.abs.xyz",
+      "nativeToken": "ETH",
+      "decimals": 18,
+      "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE); zkEVM L2"
     }
+  ],
+  "sources": [
+    "shared/chain_registry_complete.json (124-chain canonical base, v2.0.0)",
+    "anima-service/chains_registry_evm.json (52-chain EVM backfill subset; 5 chains absent from the base were merged in; eth-mainnet RPC kept from the base)"
   ]
 }

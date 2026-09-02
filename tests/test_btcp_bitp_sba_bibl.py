@@ -9,7 +9,7 @@ Primitives under test
   BTCP  Behavioral Transaction Continuity Protocol Score  (src/core/btcp_score.py)
         BTCP = [0.25·NL + 0.20·GasNorm + 0.20·Finality + 0.15·CC + 0.20·BEO] × (1 − MF)
 
-  BITP  Behavioral Inter-block Transfer Protocol          (akashic/btcp_price_oracle.py)
+  BITP  Behavioral Inter-block Transfer Protocol          (core/price/btcp_price_oracle.py)
         Manipulation-resistant cross-chain price oracle + exchange-rate engine
 
   SBA   Sovereign Behavioral Assessment                   (src/planes/extended/sba.py)
@@ -41,7 +41,7 @@ from core.master.btcp_score import (
     compute_btcp_score,
     compute_bitp_match_quality,
 )
-from akashic.btcp_price_oracle import (
+from core.price.btcp_price_oracle import (
     BehavioralPriceOracle,
     BITPExchangeRateEngine,
     PriceSource,

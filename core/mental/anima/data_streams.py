@@ -279,7 +279,7 @@ class BiologicalEcologicalSignal:
     lunar_phase:                float   # [0, 1]
     seasonal_phase:             float   # [0, 1]
     circadian_phase_deviation:  float   # Deviation from 24h baseline
-    circadian_strength:         float   # Directional strength
+    circadian_strength:         float   # Directional strength (0.0 = no observed evidence)
 
     # L6.1 BC — Biological Capital
     bc_score:                   float   # [0, 1] ecosystem health
@@ -292,6 +292,9 @@ class BiologicalEcologicalSignal:
     xsl_keystone_score:         float   # Keystone species XSL
     xsl_decline_rate:           float   # Rate of XSL decline [0, 1]
     keystone_at_risk:           bool = False
+    # Honest BRT provenance: OBSERVED (circular stats from real timestamps)
+    # vs CLOCK_FALLBACK (wall-clock — strength carries no evidence)
+    brt_source:                 str = "CLOCK_FALLBACK"
 
     def feature_contribution(self) -> Dict[str, float]:
         return {
@@ -353,8 +356,8 @@ class ANIMADataStreamBundle:
             for k, v in sig.feature_contribution().items():
                 obs[k] = max(obs.get(k, 0.0), v)
 
-        for sig in self.nlp:
-            for k, v in sig.feature_contribution().items():
+        for nlp_sig in self.nlp:
+            for k, v in nlp_sig.feature_contribution().items():
                 obs[k] = obs.get(k, 0.0) * 0.5 + v * 0.5  # blend
 
         if self.biological:
@@ -427,6 +430,12 @@ class FetcherConfig:
     Maps the entity_id (typically an on-chain address or ticker) to the
     parameters each fetcher needs (e.g. CIK for SEC EDGAR, owner/repo for
     GitHub, region for GBIF).
+
+    observed_timestamps: optional event timestamps for the entity (e.g.
+        recent transaction times from the behavioral ledger). When supplied,
+        the Stream-4 BRT circadian phase is derived from these observations
+        via circular statistics (labeled OBSERVED) instead of wall-clock
+        time (labeled CLOCK_FALLBACK).
     """
     entity_id:         str
     github_owner:      Optional[str] = None
@@ -437,6 +446,7 @@ class FetcherConfig:
     ecological_taxon_key: Optional[int] = None
     ecological_species:    Optional[List[str]] = None
     academic_max_results: int = 10
+    observed_timestamps:   Optional[List[float]] = None
     news_ttl:          float = 300.0
     github_ttl:        float = 600.0
     arxiv_ttl:         float = 1800.0
@@ -674,19 +684,25 @@ class ANIMADataAggregator:
         try:
             query = cfg.ecological_species or cfg.ecological_region or "coral reef"
             sig = self._ecological_fetcher().compute_ecological_signal(species_query=query)
+            # BRT phases: derived from the entity's observed event timestamps
+            # when supplied (circular statistics, OBSERVED), otherwise
+            # wall-clock (CLOCK_FALLBACK). Strength is honestly 0.0 without
+            # observations — previously this call site silently fabricated a
+            # default of 0.5 via dict.get().
             from core.extended.biological_rhythm import get_brt_dict
-            brt = get_brt_dict(ts)
+            brt = get_brt_dict(ts, observed_timestamps=cfg.observed_timestamps)
             bc_score = float(sig.get("bc_score", 0.0) or 0.0)
             diversity = float(sig.get("diversity_score", 0.0) or 0.0)
             threat = float(sig.get("threat_ratio", 0.0) or 0.0)
             return BiologicalEcologicalSignal(
                 timestamp=ts,
-                circadian_phase=brt.get("circadian_phase", 0.5),
-                ultradian_phase=brt.get("ultradian_phase", 0.5),
-                lunar_phase=brt.get("lunar_phase", 0.5),
-                seasonal_phase=brt.get("seasonal_phase", 0.5),
+                circadian_phase=brt["circadian_phase"],
+                ultradian_phase=brt["ultradian_phase"],
+                lunar_phase=brt["lunar_phase"],
+                seasonal_phase=brt["seasonal_phase"],
                 circadian_phase_deviation=brt.get("circadian_phase_deviation", 0.0),
-                circadian_strength=brt.get("circadian_strength", 0.5),
+                circadian_strength=brt.get("circadian_strength", 0.0),
+                brt_source=str(brt.get("brt_source", "CLOCK_FALLBACK")),
                 bc_score=bc_score, bc_flow=diversity,
                 bc_resilience=1.0 - threat, bc_interdependence=diversity,
                 xsl_aggregate=bc_score,

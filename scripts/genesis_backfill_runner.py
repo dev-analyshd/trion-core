@@ -3,7 +3,7 @@
 TRION Genesis Backfill Runner (all chains) — per whitepaper mandate:
 every integrated L1/L2 and every VM, walked from genesis, zero gaps.
 
-Order: Ethereum -> Solana -> Arbitrum -> [remaining ~50 EVM mainnets] ->
+Order: Ethereum -> Solana -> Arbitrum -> [remaining ~60 EVM mainnets] ->
        11 Cosmos-SDK chains -> Aptos/Movement (Move VM) -> NEAR -> StarkNet ->
        Polkadot -> TON -> BTC/LTC/DOGE/DASH (UTXO) -> Sui -> Tron -> XRPL ->
        Algorand -> Hedera -> Stellar -> Cardano -> VeChain -> MultiversX -> Waves.
@@ -34,6 +34,7 @@ not to "finish" in one sitting.
 """
 import json
 import logging
+import re
 import subprocess
 import sys
 import time
@@ -43,7 +44,30 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [RUNNER] %(message)s
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
-EVM_REGISTRY = json.loads((ROOT / "akashic" / "chains_registry_evm.json").read_text())
+
+# ── Canonical chain registry (single source of truth, matrix #17) ──────────────
+# P3-CONSOLIDATE: previously this read "akashic/chains_registry_evm.json" — a
+# path that has never existed (the file lived in anima-service/), so the runner
+# crashed with FileNotFoundError at import time. It now derives its EVM stage
+# list from the unified registry config/chain_registry.json.
+REGISTRY = json.loads((ROOT / "config" / "chain_registry.json").read_text())
+
+# Testnets/devnets are excluded: this runner walks MAINNET history from genesis.
+_TESTNET_MARKERS = (
+    "testnet", "sepolia", "holesky", "chiado", "fuji", "amoy",
+    "preprod", "devnet", "galileo",
+)
+
+
+def _slug(name: str) -> str:
+    """Registry display name → chain label ("Arbitrum One" → "arbitrum-one")."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+EVM_MAINNETS = [
+    c for c in REGISTRY["chains"]
+    if c["vm"] == "EVM" and not any(m in c["name"].lower() for m in _TESTNET_MARKERS)
+]
 
 COSMOS_CHAINS = [
     "cosmos-hub", "kava", "injective", "sei", "dydx", "initia",
@@ -53,8 +77,9 @@ MOVE_CHAINS = ["aptos", "movement"]
 UTXO_CHAINS = ["btc", "ltc", "doge", "dash"]
 
 # Priority order requested by the user: ETH -> Solana -> Arbitrum first,
-# then everything else.
-PRIORITY_EVM = ["eth-mainnet", "arb-mainnet"]
+# then everything else. (Registry display names; slugged when passed to the
+# backfill stage, e.g. "Ethereum" -> "ethereum".)
+PRIORITY_EVM = ["Ethereum", "Arbitrum One"]
 
 
 def run(cmd: list, label: str):
@@ -167,18 +192,19 @@ def waves_stage():
 
 
 def full_cycle():
-    by_name = {c["chain_name"]: c for c in EVM_REGISTRY}
+    remaining = list(EVM_MAINNETS)
 
     # 1) Requested priority order
     for name in PRIORITY_EVM:
-        c = by_name.pop(name, None)
+        c = next((x for x in remaining if x["name"] == name), None)
         if c:
-            evm_stage(c["chain_name"], c["chain_id"], c["rpc"])
+            remaining.remove(c)
+            evm_stage(_slug(c["name"]), c["chainId"], c["rpc"])
     solana_stage()
 
     # 2) Every remaining EVM L1/L2
-    for c in by_name.values():
-        evm_stage(c["chain_name"], c["chain_id"], c["rpc"])
+    for c in remaining:
+        evm_stage(_slug(c["name"]), c["chainId"], c["rpc"])
 
     # 3) Every remaining VM family
     for name in COSMOS_CHAINS:
@@ -210,10 +236,10 @@ def full_cycle():
 if __name__ == "__main__":
     logger.info("=" * 70)
     logger.info(" TRION Genesis Backfill — ALL chains, ALL VMs")
-    logger.info(" %d EVM L1/L2s + Solana + %d Cosmos-SDK + %d Move VM + "
+    logger.info(" %d EVM mainnet L1/L2s + Solana + %d Cosmos-SDK + %d Move VM + "
                 "NEAR + StarkNet + Polkadot + TON + %d UTXO chains + "
                 "Sui + Tron + XRPL + Algorand + Hedera + Stellar + Cardano + "
-                "VeChain + MultiversX + Waves", len(EVM_REGISTRY),
+                "VeChain + MultiversX + Waves", len(EVM_MAINNETS),
                 len(COSMOS_CHAINS), len(MOVE_CHAINS), len(UTXO_CHAINS))
     logger.info(" Not covered (no genesis-walkable free public API): "
                 "Kadena, ICP, Bittensor, Flow, Canton, Quant, LayerZero")

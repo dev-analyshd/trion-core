@@ -150,11 +150,48 @@ class PrivacyRouter:
         intent: BTCPIntent,
         privacy_level: PrivacyLevel,
         behavioral_data: Optional[Dict[str, Any]] = None,
+        gas_estimates: Optional[List[Any]] = None,
+        iap_economics: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate ZK proofs appropriate for the requested privacy level.
         
         Returns a dict mapping circuit names to their proofs.
+
+        Honesty contract (deep-read fix):
+          - Every generated proof is REAL cryptography over REAL witness data
+            derived from the intent / caller-supplied values.
+          - When the witness data required by a circuit is not available
+            (e.g. the entity's HashDNA strands, or the IAP batch economics),
+            the circuit's entry is an honest deferral:
+                {"zk_proof": None, "status": "zk_pending", "reason": ...}
+            rather than fabricated proof bytes over random/hardcoded values.
+            verify_proofs() reports such routes as NOT fully proven (fail
+            closed).
+
+        Args:
+            intent: the BTCP intent (always the real source for the intent
+                commitment witness).
+            privacy_level: requested privacy level.
+            behavioral_data: optional real behavioral context. Recognized
+                keys for real witnesses:
+                  "genomic_sense"/"genomic_antisense" — hex bytes of the
+                      entity's HashDNA dual strands (complementarity proof);
+                  "block_number" — current block for that proof;
+                  "coherence"/"manipulation"/"liquidity"/"depth" —
+                      behavioral credential thresholds;
+                  "iap_economics" — dict with the IAP batch values.
+            gas_estimates: optional list of GasEstimate objects from the VM
+                adapters (real per-intent estimates). Used to derive the
+                entity's gas in the IAP witness when batch economics are
+                supplied.
+            iap_economics: optional dict with the IAP batch economics:
+                total_gas, entity_gas, total_btcp_fee_wei,
+                entity_share_wei, num_participants. These are batch-level
+                values owned by the IAP scheduler and cannot be derived
+                from a single intent — without them the IAP proof is
+                honestly deferred (previously hardcoded 1M gas / 151k
+                entity gas / 0.01 ETH fee / 0.0015 share / 10 participants).
         """
         proofs = {}
         
@@ -174,18 +211,44 @@ class PrivacyRouter:
         
         # Level 2+: Add complementarity proof
         if privacy_level >= PrivacyLevel.STANDARD:
-            # Generate dummy complementarity proof for routing
-            import secrets
-            sense = secrets.token_bytes(32)
-            antisense = bytes([b ^ 0xFF for b in sense])  # Perfect complement
-            comp_witness = ComplementarityWitness(
-                sense_strand=sense,
-                antisense_strand=antisense,
-                entity_id=intent.source_address,
-                block_number=18000000,
-            )
-            proof = self.zk.generate_complementarity(comp_witness)
-            proofs["complementarity"] = proof.to_dict()
+            # Real witness: the entity's HashDNA dual strands, supplied by
+            # the caller (e.g. from the behavioral ledger / genomic
+            # signature). Without them we do NOT fabricate strands — the
+            # previous implementation generated a "dummy" proof over
+            # secrets.token_bytes(32) with a hardcoded block 18,000,000.
+            bd = behavioral_data or {}
+            sense = bd.get("genomic_sense") or bd.get("sense_strand")
+            antisense = bd.get("genomic_antisense") or bd.get("antisense_strand")
+            block_number = bd.get("block_number")
+            if isinstance(sense, str):
+                sense = bytes.fromhex(sense.removeprefix("0x"))
+            if isinstance(antisense, str):
+                antisense = bytes.fromhex(antisense.removeprefix("0x"))
+            if isinstance(block_number, bool) or not isinstance(block_number, int):
+                block_number = None
+
+            if sense and antisense and block_number is not None:
+                comp_witness = ComplementarityWitness(
+                    sense_strand=sense,
+                    antisense_strand=antisense,
+                    entity_id=intent.source_address,
+                    block_number=block_number,
+                )
+                proof = self.zk.generate_complementarity(comp_witness)
+                proofs["complementarity"] = proof.to_dict()
+            else:
+                proofs["complementarity"] = {
+                    "zk_proof": None,
+                    "status": "zk_pending",
+                    "circuit": "complementarity",
+                    "reason": (
+                        "HashDNA dual-strand witness not supplied — refusing to "
+                        "fabricate proof bytes over random strands. Supply "
+                        "behavioral_data={'genomic_sense': <hex>, 'genomic_antisense': "
+                        "<hex>, 'block_number': <int>} from the entity's genomic "
+                        "signature to generate the real complementarity proof."
+                    ),
+                }
         
         # Level 3+: Add travel rule compliance
         if privacy_level >= PrivacyLevel.COMPLIANT:
@@ -214,17 +277,58 @@ class PrivacyRouter:
             proof = self.zk.generate_behavioral_credential(bc_witness)
             proofs["behavioral_credential"] = proof.to_dict()
         
-        # Always add IAP share proof for gas fairness
-        iap_witness = IAPShareWitness(
-            entity_id=intent.source_address,
-            total_gas=1_000_000,
-            entity_gas=151000,
-            total_btcp_fee=int(0.01 * 10**18),
-            entity_share=int(0.0015 * 10**18),
-            num_participants=10,
+        # Always add IAP share proof for gas fairness — but only with REAL
+        # batch economics. The previous implementation hardcoded
+        # total_gas=1,000,000 / entity_gas=151,000 / 0.01 ETH fee /
+        # 0.0015 share / 10 participants, presenting fabricated economics
+        # as a verified fairness proof.
+        iaph = None
+        if iap_economics:
+            iaph = dict(iap_economics)
+        else:
+            _bd = behavioral_data or {}
+            _bd_iap = _bd.get("iap_economics")
+            if isinstance(_bd_iap, dict):
+                iaph = dict(_bd_iap)
+        if iaph is None and gas_estimates:
+            iaph = {}
+        if gas_estimates and iaph is not None:
+            # entity gas from the real VM-adapter estimates for this intent
+            real_entity_gas = int(sum(
+                g.gas_limit for g in gas_estimates if g is not None
+            ))
+            if real_entity_gas > 0:
+                iaph.setdefault("entity_gas", real_entity_gas)
+
+        iap_required = (
+            "total_gas", "entity_gas", "total_btcp_fee_wei",
+            "entity_share_wei", "num_participants",
         )
-        proof = self.zk.generate_iap_share(iap_witness)
-        proofs["iap_share"] = proof.to_dict()
+        if iaph and all(k in iaph for k in iap_required):
+            iap_witness = IAPShareWitness(
+                entity_id=intent.source_address,
+                total_gas=int(iaph["total_gas"]),
+                entity_gas=int(iaph["entity_gas"]),
+                total_btcp_fee=int(iaph["total_btcp_fee_wei"]),
+                entity_share=int(iaph["entity_share_wei"]),
+                num_participants=int(iaph["num_participants"]),
+            )
+            proof = self.zk.generate_iap_share(iap_witness)
+            proofs["iap_share"] = proof.to_dict()
+        else:
+            proofs["iap_share"] = {
+                "zk_proof": None,
+                "status": "zk_pending",
+                "circuit": "iap_share",
+                "reason": (
+                    "IAP batch economics not supplied — total_gas/total_btcp_fee/"
+                    "entity_share/num_participants are batch-level values owned "
+                    "by the IAP scheduler and are not derivable from a single "
+                    "intent. Hardcoded placeholder economics removed; supply "
+                    "iap_economics={total_gas, entity_gas, total_btcp_fee_wei, "
+                    "entity_share_wei, num_participants} to generate the proof."
+                ),
+            }
         
         return proofs
     
@@ -245,6 +349,15 @@ class PrivacyRouter:
         
         for name, proof_data in proofs.items():
             if name not in circuit_map:
+                continue
+
+            # Honest pending handling: a deferred circuit has no proof bytes
+            # to verify — the route is NOT fully proven (fail closed).
+            if isinstance(proof_data, dict) and proof_data.get("status") == "zk_pending":
+                all_valid = False
+                errors.append(
+                    f"proof pending: {name} — {proof_data.get('reason', 'deferred')}"
+                )
                 continue
             
             # Reconstruct ZKProof from dict
@@ -364,6 +477,7 @@ class BTCPOrchestrator:
         privacy_level: PrivacyLevel = PrivacyLevel.BASIC,
         deadline_offset: int = 3600,
         behavioral_data: Optional[Dict[str, Any]] = None,
+        iap_economics: Optional[Dict[str, Any]] = None,
     ) -> OrchestrationResult:
         """
         Create and orchestrate a complete BTCP route.
@@ -375,6 +489,16 @@ class BTCPOrchestrator:
           4. Estimate gas for both chains
           5. Generate appropriate ZK proofs
           6. Track route status
+
+        Args:
+            behavioral_data: real behavioral context — supplies the HashDNA
+                strands/block for the complementarity proof and the
+                behavioral-credential thresholds. Circuits whose witness data
+                is not supplied are honestly deferred (status "zk_pending").
+            iap_economics: real IAP batch economics for the IAP share proof
+                (total_gas, entity_gas, total_btcp_fee_wei,
+                entity_share_wei, num_participants). Without them the IAP
+                proof is deferred instead of using hardcoded values.
         """
         start_time = time.perf_counter()
         errors = []
@@ -446,7 +570,12 @@ class BTCPOrchestrator:
         
         # Step 5: Generate ZK proofs
         try:
-            proofs = self.privacy_router.generate_proofs(intent, privacy_level, behavioral_data)
+            gas_estimates = [g for g in (source_gas, dest_gas) if g is not None]
+            proofs = self.privacy_router.generate_proofs(
+                intent, privacy_level, behavioral_data,
+                gas_estimates=gas_estimates,
+                iap_economics=iap_economics,
+            )
             proof_names = list(proofs.keys())
         except Exception as e:
             proofs = {}
@@ -657,16 +786,52 @@ def self_test() -> Dict[str, Any]:
             test_intent, level,
             behavioral_data={"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0}
         )
-        print(f"  {level.name}: {len(proofs)} proofs generated ({', '.join(proofs.keys())})")
+        pending = [n for n, p in proofs.items()
+                   if isinstance(p, dict) and p.get("status") == "zk_pending"]
+        real = [n for n in proofs if n not in pending]
+        print(f"  {level.name}: {len(real)} real proofs ({', '.join(real) or '—'})"
+              + (f" + {len(pending)} zk_pending ({', '.join(pending)})" if pending else ""))
         
         all_valid, errors = router.verify_proofs(proofs)
-        print(f"    All valid: {all_valid}")
+        print(f"    All valid: {all_valid} (fail-closed: pending proofs are not 'valid')")
         if errors:
-            print(f"    Errors: {errors}")
+            for e in errors:
+                print(f"    · {e[:110]}")
+    
+    # Test 2b: PrivacyRouter with REAL witness data → all-real proofs
+    print("\n🧪 Test 2b: PrivacyRouter with real witness data")
+    import secrets as _secrets
+    real_sense = _secrets.token_bytes(32)                      # test fixture strands
+    real_antisense = bytes(b ^ 0xFF for b in real_sense)       # true complement
+    real_proofs = router.generate_proofs(
+        test_intent, PrivacyLevel.STANDARD,
+        behavioral_data={
+            "genomic_sense": real_sense.hex(),
+            "genomic_antisense": real_antisense.hex(),
+            "block_number": 18_500_000,
+            "coherence": 0.75, "manipulation": 0.15,
+            "liquidity": 0.80, "depth": 500.0,
+        },
+        iap_economics={
+            "total_gas": 2_400_000, "entity_gas": 240_000,
+            "total_btcp_fee_wei": int(0.02 * 10**18),
+            "entity_share_wei": int(0.002 * 10**18),
+            "num_participants": 12,
+        },
+    )
+    pending_real = [n for n, p in real_proofs.items()
+                    if isinstance(p, dict) and p.get("status") == "zk_pending"]
+    print(f"  STANDARD + real witnesses: {len(real_proofs)} proofs, "
+          f"{len(pending_real)} pending ({', '.join(pending_real) or 'none'})")
+    all_valid_real, errors_real = router.verify_proofs(real_proofs)
+    print(f"    All valid: {all_valid_real}")
+    assert not pending_real, "real witness data must produce real proofs"
+    assert all_valid_real, f"real proofs must verify: {errors_real}"
     
     results["PrivacyRouter"] = {
         "proof_generation": True,
         "proof_verification": True,
+        "honest_pending_deferral": True,
         "pass": True,
     }
     
@@ -674,8 +839,30 @@ def self_test() -> Dict[str, Any]:
     print("\n🧪 Test 3: BTCPOrchestrator")
     orchestrator = BTCPOrchestrator()
     
-    # Test multiple privacy levels
+    # Test multiple privacy levels — the last one carries REAL witness data
+    # (dual-strand + block + IAP economics) so its proofs are all real.
+    import secrets as _sec2
+    w_sense = _sec2.token_bytes(32)
+    levels_data: dict = {
+        PrivacyLevel.BASIC: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
+        PrivacyLevel.STANDARD: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
+        PrivacyLevel.COMPLIANT: {"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
+        PrivacyLevel.FULL: {
+            "genomic_sense": w_sense.hex(),
+            "genomic_antisense": bytes(b ^ 0xFF for b in w_sense).hex(),
+            "block_number": 18_500_000,
+            "coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0,
+        },
+    }
     for level in [PrivacyLevel.BASIC, PrivacyLevel.STANDARD, PrivacyLevel.COMPLIANT, PrivacyLevel.FULL]:
+        iaph = None
+        if level == PrivacyLevel.FULL:
+            iaph = {
+                "total_gas": 2_400_000, "entity_gas": 240_000,
+                "total_btcp_fee_wei": int(0.02 * 10**18),
+                "entity_share_wei": int(0.002 * 10**18),
+                "num_participants": 12,
+            }
         result = orchestrator.create_route(
             source_chain=1,
             dest_chain=42161,
@@ -685,11 +872,17 @@ def self_test() -> Dict[str, Any]:
             asset="ETH",
             intent_type="SWAP",
             privacy_level=level,
-            behavioral_data={"coherence": 0.75, "manipulation": 0.15, "liquidity": 0.80, "depth": 500.0},
+            behavioral_data=levels_data[level],
+            iap_economics=iaph,
         )
         
         status = "✓" if result.success else "✗"
-        print(f"  {level.name}: {status} proofs={len(result.proofs_generated)} fee={result.route.total_fee:.8f}ETH time={result.execution_time_ms:.0f}ms")
+        route = result.route
+        assert route is not None, "demo: successful route must exist"
+        pending = [n for n, p in route.proofs.items()
+                   if isinstance(p, dict) and p.get("status") == "zk_pending"]
+        print(f"  {level.name}: {status} proofs={len(result.proofs_generated)} "
+              f"(pending: {', '.join(pending) or 'none'}) fee={route.total_fee:.8f}ETH time={result.execution_time_ms:.0f}ms")
         if result.errors:
             print(f"    Errors: {result.errors[:2]}")
     
@@ -704,17 +897,31 @@ def self_test() -> Dict[str, Any]:
         intent_type="CROSS_CHAIN",
         privacy_level=PrivacyLevel.STANDARD,
     )
-    print(f"  EVM→SVM: {'✓' if cross_result.success else '✗'} source_vm={cross_result.route.source_vm.name} dest_vm={cross_result.route.dest_vm.name}")
+    cross_route = cross_result.route
+    assert cross_route is not None, "demo: cross-VM route must exist"
+    print(f"  EVM→SVM: {'✓' if cross_result.success else '✗'} source_vm={cross_route.source_vm.name} dest_vm={cross_route.dest_vm.name}")
     
     # List routes
     routes = orchestrator.list_routes()
     print(f"  Total routes tracked: {len(routes)}")
     
-    # Verify proofs
+    # Verify proofs — the last route was created WITH real witness data
+    # (full behavioral context + IAP economics), so it verifies for real.
     if routes:
-        first_route_id = routes[0]["route_id"]
-        all_valid, errors = orchestrator.verify_route_proofs(first_route_id)
-        print(f"  Route proof verification: {'✓' if all_valid else '✗'}")
+        route_id_verified = None
+        for r in routes:
+            valid, _ = orchestrator.verify_route_proofs(r["route_id"])
+            if valid:
+                route_id_verified = r["route_id"]
+                break
+        if route_id_verified:
+            all_valid, errors = orchestrator.verify_route_proofs(route_id_verified)
+            print(f"  Route proof verification (real-witness route): {'✓' if all_valid else '✗'}")
+        else:
+            all_valid = False
+            print("  Route proof verification: ✗ (no route carried complete real witness data)")
+    else:
+        all_valid = False
     
     results["BTCPOrchestrator"] = {
         "route_creation": True,

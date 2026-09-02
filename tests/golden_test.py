@@ -267,7 +267,7 @@ check("Master formula suite: 105/105 checks pass", formula_ok)
 print("\n── STEP 9: 100+ Chains / 18 VM Families ──")
 # ══════════════════════════════════════════════════════════════════════════
 
-reg = json.load(open(os.path.join(os.path.dirname(__file__), "..", "shared", "chain_registry_complete.json")))
+reg = json.load(open(os.path.join(os.path.dirname(__file__), "..", "config", "chain_registry.json")))
 n_chains = len(reg["chains"])
 n_vms = len(set(c.get("vm") for c in reg["chains"]))
 check(f"Chain manifest: {n_chains} chains registered (spec: 100+)", n_chains >= 100)

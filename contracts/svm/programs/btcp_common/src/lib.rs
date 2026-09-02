@@ -340,4 +340,7 @@ pub enum BTCPError {
 
     #[msg("Relayer-only: timeout revert can be called by anyone")]
     NotRelayerForRevert,
+
+    #[msg("Insufficient lamports for the requested lock amount")]
+    InsufficientFunds,
 }
