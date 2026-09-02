@@ -7,7 +7,7 @@
 //! storage layout. Each Solidity `mapping(bytes32 => T)` becomes a cw_storage_plus
 //! `Map<Vec<u8>, T>` keyed by the canonical 32-byte identifier.
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
 /// Storage key namespaces.
@@ -55,6 +55,15 @@ pub struct Escrow {
     /// "uluna") — release/revert pay back in THIS denom. Previously hardcoded
     /// to "uatom", which broke every non-Atom CosmWasm chain.
     pub denom:          String,
+    /// SECURITY FIX (P1 — multi-denom payout duplication): exact per-denom
+    /// coins received at lock time. Previously only the joined denom string
+    /// + the SUM of all amounts were stored, so release/revert paid the total
+    /// amount of EVERY denom (lock 100uatom + 50ujuno → paid 150 uatom AND
+    /// 150 ujuno — 2x value out). This vector is now the authoritative payout
+    /// record; `denom`/`amount` are kept for display and legacy-state fallback
+    /// (`serde(default)` keeps pre-fix stored escrows deserializable).
+    #[serde(default)]
+    pub locked_coins:   Vec<Coin>,
     pub min_coherence:  u64,
     pub lock_height:    u64,
     pub timeout_blocks: u64,

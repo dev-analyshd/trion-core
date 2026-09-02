@@ -19,7 +19,13 @@ fn to_json_bytes<T: serde::Serialize>(v: &T) -> StdResult<Vec<u8>> {
     serde_json::to_vec(v).map_err(|e| StdError::generic_err(e.to_string()))
 }
 fn from_json_bytes<T: serde::de::DeserializeOwned>(b: &[u8]) -> StdResult<T> {
-    from_json_bytes(b).map_err(|e| StdError::generic_err(e.to_string()))
+    // SECURITY FIX (P1): this helper previously called ITSELF unconditionally —
+    // infinite recursion → stack overflow on EVERY state read (escrow
+    // release/revert, intent status updates, route finalization, gate reads,
+    // all queries), making the contract non-functional. Delegate to
+    // serde_json::from_slice, the deserializing counterpart of to_json_bytes
+    // above (serde_json is the backend this contract serializes state with).
+    serde_json::from_slice(b).map_err(|e| StdError::generic_err(e.to_string()))
 }
 
 use crate::state::{
@@ -365,13 +371,26 @@ fn execute_lock_escrow(
     if deps.storage.get(&k).is_some() {
         return Err(StdError::generic_err("TRION: escrow exists"));
     }
+    // SECURITY FIX (P1 — multi-denom payout duplication, lock side): validate
+    // the funds are a well-formed payout vector (no duplicate denoms, no
+    // zero-amount coins) and record them verbatim in `esc.locked_coins` so
+    // release/revert pay each denom exactly the amount locked for it.
+    let mut seen_denoms: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for c in &info.funds {
+        if c.amount.is_zero() {
+            return Err(StdError::generic_err("TRION: zero amount"));
+        }
+        if !seen_denoms.insert(c.denom.as_str()) {
+            return Err(StdError::generic_err("TRION: duplicate denom"));
+        }
+    }
+    // Checked sum (the previous `.sum().min(u128::MAX)` could panic on
+    // overflow with overflow-checks enabled, and the `.min()` was dead code).
     let amount_u128: u128 = info.funds.iter()
-        .map(|c| c.amount.u128())
-        .sum::<u128>().min(u128::MAX);
-    // Capture the ACTUAL denom(s) locked — release/revert pay back in the
-    // same denom. Multiple denoms: join with '+' (release splits them back
-    // proportionally by amount); single-denom (the normal BTCP case) stores
-    // the denom directly.
+        .try_fold(0u128, |acc, c| acc.checked_add(c.amount.u128()))
+        .ok_or_else(|| StdError::generic_err("TRION: amount overflow"))?;
+    // Capture the ACTUAL denom(s) locked (display + legacy-state fallback).
+    // The authoritative payout record is `locked_coins` above.
     let denom: String = if info.funds.len() == 1 {
         info.funds[0].denom.clone()
     } else {
@@ -385,6 +404,7 @@ fn execute_lock_escrow(
         destination:    dest_addr,
         amount:         amount_u128,
         denom,
+        locked_coins:   info.funds.clone(),
         min_coherence,
         lock_height:    env.block.height,
         timeout_blocks,
@@ -399,6 +419,27 @@ fn execute_lock_escrow(
     Ok(Response::new()
         .add_attribute("action", "lock_escrow")
         .add_attribute("amount", amount_u128.to_string()))
+}
+
+// ── Escrow payout helper ───────────────────────────────────────────────
+
+/// SECURITY FIX (P1 — multi-denom payout duplication): build the payout coin
+/// vector from the exact per-denom coins recorded at lock time. The previous
+/// code paid `esc.amount` (the SUM across all denoms) of EVERY denom in the
+/// joined string — locking 100uatom + 50ujuno paid out 150 uatom AND 150
+/// ujuno (2x value out). Legacy escrows written before the fix fall back to
+/// the single-denom encoding; legacy multi-denom state, whose per-denom split
+/// was never recorded, fails CLOSED (error) rather than overpaying.
+fn payout_coins(esc: &Escrow) -> StdResult<Vec<Coin>> {
+    if !esc.locked_coins.is_empty() {
+        return Ok(esc.locked_coins.clone());
+    }
+    if esc.denom.contains('+') {
+        return Err(StdError::generic_err(
+            "TRION: legacy multi-denom escrow lacks per-denom amounts",
+        ));
+    }
+    Ok(vec![Coin { denom: esc.denom.clone(), amount: Uint128::new(esc.amount) }])
 }
 
 fn execute_release_escrow(
@@ -427,13 +468,10 @@ fn execute_release_escrow(
     esc.settled_at  = env.block.time.seconds();
     deps.storage.set(&k, &to_json_bytes(&esc)?);
 
-    // Send the locked funds to the destination in the SAME denom(s) that
-    // were locked (was hardcoded "uatom" — broke Juno/Terra/etc.)
-    let coins: Vec<Coin> = esc
-        .denom
-        .split('+')
-        .map(|d| Coin { denom: d.to_string(), amount: Uint128::new(esc.amount) })
-        .collect();
+    // Send the locked funds to the destination in the SAME denom(s) and
+    // amounts that were locked (was hardcoded "uatom", then overpaid every
+    // denom the total amount — both fixed).
+    let coins: Vec<Coin> = payout_coins(&esc)?;
     Ok(Response::new()
         .add_message(BankMsg::Send { to_address: esc.destination.to_string(), amount: coins })
         .add_attribute("action", "release_escrow")
@@ -466,12 +504,9 @@ fn execute_revert_escrow(
     esc.reverted_at   = env.block.time.seconds();
     deps.storage.set(&k, &to_json_bytes(&esc)?);
 
-    // Return funds to the locker in the SAME denom(s) that were locked
-    let coins: Vec<Coin> = esc
-        .denom
-        .split('+')
-        .map(|d| Coin { denom: d.to_string(), amount: Uint128::new(esc.amount) })
-        .collect();
+    // Return funds to the locker in the SAME denom(s) and amounts that were
+    // locked — payout_coins pays each denom exactly once, exactly its share.
+    let coins: Vec<Coin> = payout_coins(&esc)?;
     Ok(Response::new()
         .add_message(BankMsg::Send { to_address: esc.locked_by.to_string(), amount: coins })
         .add_attribute("action", "revert_escrow")
