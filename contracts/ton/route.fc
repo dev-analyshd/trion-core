@@ -1,0 +1,161 @@
+;; route.fc — TRION BTCPRoute (TVM / FunC)
+;;
+;; Mirrors contracts/solidity/BTCPRoute.sol on TON.
+;; Route ID tracking with anchor_BH → execution_BH linking (BTCP §12.4:
+;; BEO identity continuity across chains requires the linked hash chain).
+;;
+;; Storage layout (cell):
+;;   owner_addr    (267 bits)
+;;   relayer_addr  (267 bits)
+;;   route_count   (64 bits)
+;;   routes_dict   (dict ref, key = 256-bit route_id)
+;;
+;; Route cell layout:
+;;   route_id      [256 bits]
+;;   anchor_bh     [256 bits]
+;;   execution_bh  [256 bits]  (0 while pending)
+;;   entity_id     [256 bits]
+;;   gas_saved     [64 bits]   (nanoTON saved vs single-chain execution)
+;;   finalized     [1 bit]
+;;   created_at    [64 bits]
+;;
+;; Op codes:
+;;   0x01 register_route   (relayer/owner)
+;;   0x02 finalize_route   (relayer/owner; links execution_BH)
+;;   0x03 set_relayer      (owner)
+
+#include "stdlib.fc";
+
+const int ERR_UNAUTHORIZED    = 100;
+const int ERR_ROUTE_EXISTS    = 130;
+const int ERR_ROUTE_NOT_FOUND = 131;
+const int ERR_ALREADY_FINAL   = 132;
+
+(slice, slice, int, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr   = ds~load_bits(267);
+    slice relayer_addr = ds~load_bits(267);
+    int   route_count  = ds~load_uint(64);
+    cell  routes_dict  = ds~load_ref();
+    return (owner_addr, relayer_addr, route_count, routes_dict);
+}
+
+() save_storage(slice owner_addr, slice relayer_addr, int route_count, cell routes_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_slice(relayer_addr)
+        .store_uint(route_count, 64)
+        .store_ref(routes_dict)
+    .end_cell());
+}
+
+int is_authorized(slice sender, slice owner_addr, slice relayer_addr) inline {
+    return equal_slices(sender, owner_addr) | equal_slices(sender, relayer_addr);
+}
+
+cell pack_route(int route_id, int anchor_bh, int execution_bh, int entity_id, int gas_saved, int finalized, int created_at) inline {
+    return begin_cell()
+        .store_uint(route_id,     256)
+        .store_uint(anchor_bh,    256)
+        .store_uint(execution_bh, 256)
+        .store_uint(entity_id,    256)
+        .store_uint(gas_saved,     64)
+        .store_uint(finalized,      1)
+        .store_uint(created_at,    64)
+    .end_cell();
+}
+
+(int, int, int, int, int, int, int) unpack_route(slice s) inline {
+    int route_id     = s~load_uint(256);
+    int anchor_bh    = s~load_uint(256);
+    int execution_bh = s~load_uint(256);
+    int entity_id    = s~load_uint(256);
+    int gas_saved    = s~load_uint(64);
+    int finalized    = s~load_uint(1);
+    int created_at   = s~load_uint(64);
+    return (route_id, anchor_bh, execution_bh, entity_id, gas_saved, finalized, created_at);
+}
+
+() dict_put_route(cell &routes_dict, int route_id, cell r) impure inline {
+    routes_dict~idict_set_ref(256, route_id, r);
+}
+
+cell dict_get_route(cell routes_dict, int route_id) inline {
+    (cell r, int found) = idict_get_ref?(routes_dict, 256, route_id);
+    throw_unless(ERR_ROUTE_NOT_FOUND, found);
+    return r;
+}
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int  flags = cs~load_uint(4);
+    throw_if(ERR_UNAUTHORIZED, flags & 1);   ;; ignore bounces
+    slice sender_addr = cs~load_bits(267);
+
+    if (in_msg_body.slice_empty?()) { return (); }
+    int op = in_msg_body~load_uint(32);
+
+    (slice owner_addr, slice relayer_addr, int route_count, cell routes_dict) = load_storage();
+
+    ;; ── 0x01 register_route ─────────────────────────────────────────────────
+    if (op == 1) {
+        throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        int route_id   = in_msg_body~load_uint(256);
+        int anchor_bh  = in_msg_body~load_uint(256);
+        int entity_id  = in_msg_body~load_uint(256);
+        int gas_saved  = in_msg_body~load_uint(64);
+
+        (cell existing, int found) = idict_get_ref?(routes_dict, 256, route_id);
+        throw_if(ERR_ROUTE_EXISTS, found);
+
+        cell r = pack_route(route_id, anchor_bh, 0, entity_id, gas_saved, 0, now());
+        routes_dict~dict_put_route(route_id, r);
+        save_storage(owner_addr, relayer_addr, route_count + 1, routes_dict);
+        return ();
+    }
+
+    ;; ── 0x02 finalize_route (link execution_BH) ─────────────────────────────
+    if (op == 2) {
+        throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        int route_id      = in_msg_body~load_uint(256);
+        int execution_bh  = in_msg_body~load_uint(256);
+
+        cell rc = dict_get_route(routes_dict, route_id);
+        var (rid, anchor_bh, _, entity_id, gas_saved, finalized, created_at) = unpack_route(rc.begin_parse());
+        throw_if(ERR_ALREADY_FINAL, finalized);
+
+        cell done = pack_route(rid, anchor_bh, execution_bh, entity_id, gas_saved, 1, created_at);
+        routes_dict~dict_put_route(route_id, done);
+        save_storage(owner_addr, relayer_addr, route_count, routes_dict);
+        return ();
+    }
+
+    ;; ── 0x03 set_relayer ────────────────────────────────────────────────────
+    if (op == 3) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        slice new_relayer = in_msg_body~load_bits(267);
+        save_storage(owner_addr, new_relayer, route_count, routes_dict);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+(int, int, int) get_route(int route_id) method_id {
+    (_, _, _, cell routes_dict) = load_storage();
+    cell rc = dict_get_route(routes_dict, route_id);
+    var (_, anchor_bh, execution_bh, _, _, finalized, _) = unpack_route(rc.begin_parse());
+    return (anchor_bh, execution_bh, finalized);
+}
+
+int is_finalized(int route_id) method_id {
+    (_, _, _, cell routes_dict) = load_storage();
+    cell rc = dict_get_route(routes_dict, route_id);
+    var (_, _, _, _, _, finalized, _) = unpack_route(rc.begin_parse());
+    return finalized;
+}
+
+int get_route_count() method_id {
+    (_, _, int route_count, _) = load_storage();
+    return route_count;
+}

@@ -1,0 +1,13 @@
+;; stdlib.fc — TRION TON: non-built-in helpers only
+;;
+;; ton-compiler built-ins (do NOT redefine): begin_parse, load_int/uint/bits/ref,
+;; begin_cell, end_cell, store_*, throw_*, send_raw_message, get_data, set_data,
+;; my_address, now, cell_hash, slice_hash, new_dict, cell_null?,
+;; dict_set (returns cell), min, max, abs.
+;;
+;; dict_get? (returning slice, int) and equal_slices are NOT built-in:
+
+int equal_slices(slice a, slice b) asm "SDEQ";
+
+;; dict_get? — returns (found_slice, found_flag); used as routes_dict.dict_get?(key_len, key)
+(slice, int) dict_get?(cell dict, int key_len, slice key) asm(key dict key_len) "DICTGET" "NULLSWAPIFNOT";

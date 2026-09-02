@@ -1,0 +1,197 @@
+;; staking.fc — TRION Validator Staking (TVM / FunC)
+;;
+;; Validator staking with coverage_tier_multiplier — the Coverage Bonus tier
+;; system (BTCP Master Spec Fix 4). Stake is held by the contract; effective
+;; stake = base_stake × tier_multiplier where tier rewards underserved-chain
+;; coverage (rarity analogue of the Rust validator_fee_calculator).
+;;
+;; Storage layout (cell):
+;;   owner_addr     (267 bits)
+;;   total_staked   (128 bits nanoTON)
+;;   stakes_dict    (dict ref, key = validator MsgAddress slice (267 bits))
+;;
+;; Stake cell layout:
+;;   validator      [267 bits MsgAddressInt]
+;;   base_stake     [128 bits nanoTON]
+;;   tier           [8 bits]   1=1x 2=5x 3=10x
+;;   staked_at      [64 bits]
+;;   last_update    [64 bits]
+;;
+;; Op codes:
+;;   0x01 stake       (validator; carries value; adds to base_stake)
+;;   0x02 set_tier    (owner; coverage tier assignment)
+;;   0x03 unstake     (validator; full withdrawal)
+
+#include "stdlib.fc";
+
+const int ERR_UNAUTHORIZED = 100;
+const int ERR_ZERO_AMOUNT  = 140;
+const int ERR_INVALID_TIER = 141;
+const int ERR_NOT_STAKED   = 142;
+const int ERR_SEND_FAILED  = 143;
+
+;; Tier multipliers (coverage bonus analogue): deeper chain coverage → higher
+;; effective stake weight. 1=1x (single chain), 2=5x (multi-chain), 3=10x (rare
+;; chain coverage).
+const int TIER_MULT_1 = 1;
+const int TIER_MULT_2 = 5;
+const int TIER_MULT_3 = 10;
+
+(slice, int, cell) load_storage() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_addr   = ds~load_bits(267);
+    int   total_staked = ds~load_uint(128);
+    cell  stakes_dict  = ds~load_ref();
+    return (owner_addr, total_staked, stakes_dict);
+}
+
+() save_storage(slice owner_addr, int total_staked, cell stakes_dict) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner_addr)
+        .store_uint(total_staked, 128)
+        .store_ref(stakes_dict)
+    .end_cell());
+}
+
+cell pack_stake(slice validator, int base_stake, int tier, int staked_at, int last_update) inline {
+    return begin_cell()
+        .store_slice(validator)
+        .store_uint(base_stake, 128)
+        .store_uint(tier,         8)
+        .store_uint(staked_at,   64)
+        .store_uint(last_update, 64)
+    .end_cell();
+}
+
+(slice, int, int, int, int) unpack_stake(slice s) inline {
+    slice validator  = s~load_bits(267);
+    int base_stake   = s~load_uint(128);
+    int tier         = s~load_uint(8);
+    int staked_at    = s~load_uint(64);
+    int last_update  = s~load_uint(64);
+    return (validator, base_stake, tier, staked_at, last_update);
+}
+
+;; Dict keyed by the 267-bit address slice is awkward in FunC; instead the
+;; stakes_dict is keyed by the validator's 256-bit hash(address). We compute
+;; the key as the SHA-256 of the address slice bits.
+int validator_key(slice validator) inline {
+    return slice_hash(validator);
+}
+
+() dict_put_stake(cell &stakes_dict, int key, cell s) impure inline {
+    stakes_dict~idict_set_ref(256, key, s);
+}
+
+cell dict_get_stake(cell stakes_dict, int key) inline {
+    (cell s, int found) = idict_get_ref?(stakes_dict, 256, key);
+    throw_unless(ERR_NOT_STAKED, found);
+    return s;
+}
+
+() send_ton(slice to_addr, int amount) impure inline {
+    var msg = begin_cell()
+        .store_uint(0x10, 6)                       ;; non-bounceable
+        .store_slice(to_addr)
+        .store_grams(0)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_grams(amount)
+        .store_uint(0, 64);
+    send_raw_message(msg.end_cell(), 3);
+}
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int  flags = cs~load_uint(4);
+    throw_if(ERR_UNAUTHORIZED, flags & 1);
+    slice sender_addr = cs~load_bits(267);
+
+    if (in_msg_body.slice_empty?()) { return (); }
+    int op = in_msg_body~load_uint(32);
+
+    (slice owner_addr, int total_staked, cell stakes_dict) = load_storage();
+    int key = validator_key(sender_addr);
+
+    ;; ── 0x01 stake ──────────────────────────────────────────────────────────
+    if (op == 1) {
+        throw_unless(ERR_ZERO_AMOUNT, msg_value > 0);
+        int new_base = msg_value;
+        int tier     = 1;
+        int now_ts   = now();
+
+        (cell existing, int found) = idict_get_ref?(stakes_dict, 256, key);
+        if (found) {
+            var (_, base_stake, old_tier, staked_at, _) = unpack_stake(existing.begin_parse());
+            new_base = base_stake + msg_value;
+            tier     = old_tier;
+            cell s2  = pack_stake(sender_addr, new_base, tier, staked_at, now_ts);
+            stakes_dict~dict_put_stake(key, s2);
+        } else {
+            cell s2 = pack_stake(sender_addr, new_base, tier, now_ts, now_ts);
+            stakes_dict~dict_put_stake(key, s2);
+        }
+        save_storage(owner_addr, total_staked + msg_value, stakes_dict);
+        return ();
+    }
+
+    ;; ── 0x02 set_tier (owner assigns coverage tier) ─────────────────────────
+    if (op == 2) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        slice validator_addr = in_msg_body~load_bits(267);
+        int   new_tier       = in_msg_body~load_uint(8);
+        throw_unless(ERR_INVALID_TIER, (new_tier >= 1) & (new_tier <= 3));
+
+        int vkey = validator_key(validator_addr);
+        cell sc  = dict_get_stake(stakes_dict, vkey);
+        var (_, base_stake, _, staked_at, _) = unpack_stake(sc.begin_parse());
+        cell s2 = pack_stake(validator_addr, base_stake, new_tier, staked_at, now());
+        stakes_dict~dict_put_stake(vkey, s2);
+        save_storage(owner_addr, total_staked, stakes_dict);
+        return ();
+    }
+
+    ;; ── 0x03 unstake (full withdrawal) ──────────────────────────────────────
+    if (op == 3) {
+        cell sc = dict_get_stake(stakes_dict, key);
+        var (_, base_stake, _, _, _) = unpack_stake(sc.begin_parse());
+        throw_unless(ERR_ZERO_AMOUNT, base_stake > 0);
+
+        ;; Clear the record BEFORE the external send (CEI)
+        var (d2, _) = idict_delete?(stakes_dict, 256, key);
+        save_storage(owner_addr, total_staked - base_stake, d2);
+        send_ton(sender_addr, base_stake);
+        return ();
+    }
+}
+
+;; ── get_methods ───────────────────────────────────────────────────────────────
+
+int get_effective_stake(slice validator) method_id {
+    (_, _, cell stakes_dict) = load_storage();
+    int key = validator_key(validator);
+    (cell sc, int found) = idict_get_ref?(stakes_dict, 256, key);
+    if (found) {
+        var (_, base_stake, tier, _, _) = unpack_stake(sc.begin_parse());
+        int mult = TIER_MULT_1;
+        if (tier == 2) { mult = TIER_MULT_2; }
+        if (tier == 3) { mult = TIER_MULT_3; }
+        return base_stake * mult;
+    }
+    return 0;
+}
+
+int get_base_stake(slice validator) method_id {
+    (_, _, cell stakes_dict) = load_storage();
+    int key = validator_key(validator);
+    (cell sc, int found) = idict_get_ref?(stakes_dict, 256, key);
+    if (found) {
+        var (_, base_stake, _, _, _) = unpack_stake(sc.begin_parse());
+        return base_stake;
+    }
+    return 0;
+}
+
+int get_total_staked() method_id {
+    (_, int total_staked, _) = load_storage();
+    return total_staked;
+}
