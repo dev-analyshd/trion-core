@@ -2,6 +2,7 @@
 # Canonical SVM programs live in contracts/svm/programs/.
 # Stale duplicates at chains/svm/programs/ were removed (CLEANUP-1).
 members = [
+    "../../contracts/svm/programs/btcp_common",
     "../../contracts/svm/programs/btcp_escrow",
     "../../contracts/svm/programs/btcp_intent",
     "../../contracts/svm/programs/btcp_route",
