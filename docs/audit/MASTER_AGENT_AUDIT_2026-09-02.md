@@ -147,3 +147,15 @@ Session: 2026-09-02 | Branch: agent-fix-phase-1 | Repo: /home/z/trion-core (back
 ### Risk Assessment:
 - Golden Rule verified: adversarial+BEO failure sets byte-identical on pristine backup vs fixed branch
 - Full tree: 108+3 failures are live-service integration tests (pre-existing, unchanged)
+
+## Audit Log Entry: Phase 4 FINAL — Matrix #2 result
+### Component: core/ (typing)
+### Decision: IMPROVED (158 errors vs 162 original baseline)
+### Evidence:
+- Original main (pristine backup): 162 errors / 39 files
+- After v2.2.0 changes (pre-typing-fix): 175 errors / 40 files (+13 new from our changes)
+- After typing fixes (commit 4366988): 158 errors / 37 files — BELOW baseline, 0 new errors
+- 158 remaining are pre-existing typing debt in files untouched this session (documented for CI)
+### Tests Run:
+- mypy 3-file isolated check: Success: no issues found
+- pytest tests/unit/: 570 passed, 6 skipped, 0 failed
