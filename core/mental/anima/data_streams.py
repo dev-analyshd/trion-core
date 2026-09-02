@@ -356,8 +356,8 @@ class ANIMADataStreamBundle:
             for k, v in sig.feature_contribution().items():
                 obs[k] = max(obs.get(k, 0.0), v)
 
-        for sig in self.nlp:
-            for k, v in sig.feature_contribution().items():
+        for nlp_sig in self.nlp:
+            for k, v in nlp_sig.feature_contribution().items():
                 obs[k] = obs.get(k, 0.0) * 0.5 + v * 0.5  # blend
 
         if self.biological:
@@ -702,7 +702,7 @@ class ANIMADataAggregator:
                 seasonal_phase=brt["seasonal_phase"],
                 circadian_phase_deviation=brt.get("circadian_phase_deviation", 0.0),
                 circadian_strength=brt.get("circadian_strength", 0.0),
-                brt_source=brt.get("brt_source", "CLOCK_FALLBACK"),
+                brt_source=str(brt.get("brt_source", "CLOCK_FALLBACK")),
                 bc_score=bc_score, bc_flow=diversity,
                 bc_resilience=1.0 - threat, bc_interdependence=diversity,
                 xsl_aggregate=bc_score,
