@@ -2,7 +2,9 @@
 TRION Chain Coverage Auditor
 =============================
 Cross-references every chain registry in the codebase and verifies:
-  1. shared/chain_registry_complete.json (canonical manifest)
+  1. config/chain_registry.json (canonical manifest, matrix #17 — unified in
+     P3-CONSOLIDATE from shared/chain_registry_complete.json +
+     anima-service/chains_registry_evm.json)
   2. indexers/crates/* (Rust indexer crates)
   3. core/btcp/mainnet_bootstrap.py (bootstrap registry)
   4. api/chains_registry.py (API/frontend registry)
@@ -26,8 +28,8 @@ print("═" * 76)
 # LOAD ALL REGISTRIES
 # ══════════════════════════════════════════════════════════════════════════════
 
-# 1. Canonical manifest
-shared = json.load(open(f"{ROOT}/shared/chain_registry_complete.json"))
+# 1. Canonical manifest (unified in P3-CONSOLIDATE, matrix #17)
+shared = json.load(open(f"{ROOT}/config/chain_registry.json"))
 shared_chains = {c["name"]: c for c in shared["chains"]}
 shared_by_vm = {}
 for c in shared["chains"]:
@@ -106,7 +108,7 @@ VM_TO_INDEXER = {
 }
 
 print(f"\nREGISTRY SIZES:")
-print(f"  shared/chain_registry_complete.json : {len(shared_chains)} chains, {len(shared_by_vm)} VMs")
+print(f"  config/chain_registry.json          : {len(shared_chains)} chains, {len(shared_by_vm)} VMs")
 print(f"  bootstrap (mainnet_bootstrap.py)    : {len(bootstrap_names)} chains, {len(bootstrap_by_vm)} VMs")
 print(f"  API (chains_registry.py)            : {len(api_names)} chains, {len(api_by_vm)} VMs")
 print(f"  indexer crates                      : {len(crates)} crates")
