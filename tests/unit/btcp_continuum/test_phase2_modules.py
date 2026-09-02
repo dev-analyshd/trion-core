@@ -237,6 +237,30 @@ class TestBIBLEngine:
         assert 1 in snapshot
         assert 137 not in snapshot  # suspended
 
+    def test_bibl_snapshot_finality_distribution(self):
+        """Spec §2.3: snapshot carries the statistical finality distribution
+        computed from OBSERVED finality samples (not just the mean)."""
+        bibl = BIBLEngine()
+        # A single sample: stats fall back to the observed value, count
+        # discloses the evidence size (no fabricated distribution).
+        bibl.update_chain_state(1, 0.85, 31.0, (28, 34), 0.9, 0.02, 0.8, 12.0, 100)
+        snap = bibl.get_bibl_snapshot()[1]
+        assert snap["finality_sample_count"] == 1
+        assert snap["finality_p50_sec"] == 12.0
+        assert snap["finality_p95_sec"] == 12.0
+
+        # Six observed samples → real percentiles over the recorded window
+        for f in (11.5, 12.5, 13.0, 14.0, 25.0):
+            bibl.update_chain_state(1, 0.85, 31.0, (28, 34), 0.9, 0.02, 0.8, f, 100)
+        snap = bibl.get_bibl_snapshot()[1]
+        assert snap["finality_sample_count"] == 6
+        assert snap["finality_p50_sec"] == 12.5   # median of {11.5,12,12.5,13,14,25}
+        assert snap["finality_p95_sec"] == 25.0   # p95 tail
+        # Spec-required Tier-1 fields all present and caller-supplied
+        for key in ("nl_score", "gas_forecast", "cc_coherence", "mf_score",
+                    "block_capacity", "finality_avg_sec"):
+            assert key in snap
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Module 2.4: BTCP Proof Builder Tests
