@@ -1,0 +1,81 @@
+{
+  "test": "BTC ↔ Starknet Zero-Bridge",
+  "startedAt": "2026-09-02T15:08:19.647Z",
+  "steps": [
+    {
+      "step": "load_btc_block",
+      "pass": true,
+      "blockHeight": 5127970,
+      "blockHash": "000000000000aa98e1b02d13db69652f33a619d238401507f2c4dbf955710660",
+      "timestamp": 1788367261
+    },
+    {
+      "step": "compute_beo",
+      "pass": true,
+      "btcBeoId": "0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee",
+      "snBeoId": "0x5262d6e55bfa4e3a5c7de7a70bdfa7f96e8329ed45ceaac9a5f99ce25313b692"
+    },
+    {
+      "step": "btcp_score",
+      "pass": true,
+      "score": 0.849235
+    },
+    {
+      "step": "construct_btc_anchor_bh",
+      "pass": true,
+      "bh": "0x6c55b14a462208335b68ee5db130bd03f697bebde7cce045de2cfe77729640f9",
+      "blockHash": "000000000000aa98e1b02d13db69652f33a619d238401507f2c4dbf955710660"
+    },
+    {
+      "step": "create_btc_lock_utxo",
+      "pass": true,
+      "escrowId": "0x52f58d38e597403c82017f4f792a5795c343c2d8c363a1356f708363e2a61423",
+      "lockTxHash": "0xa92e3fa6cd8a3182ae742b404023586b811f9626ad5300351a3a37ca59f9d4c4",
+      "amount": 10000
+    },
+    {
+      "step": "register_intent",
+      "pass": false,
+      "error": "Failed to analyze tip statistics (sequential): Failed to determine starting block number: RPC: starknet_getBlockWithTxs with params {\n  \"block_id\": \"latest\"\n}\n\n      -32701: error when dialing *******"
+    },
+    {
+      "step": "lock_escrow",
+      "pass": false,
+      "error": "RPC: starknet_getClassAt with params {\n  \"block_id\": \"latest\",\n  \"contract_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\"\n}\n\n      -32701: error when dialing ********: di"
+    },
+    {
+      "step": "register_route",
+      "pass": true,
+      "txHash": "0x4f48046910d3a40425e206ccb3aafc532a9022399c033dc0c44c389c5fe7680",
+      "anchorBH": "0x6c55b14a462208335b68ee5db130bd03f697bebde7cce045de2cfe77729640f9"
+    },
+    {
+      "step": "release_escrow",
+      "pass": false,
+      "error": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\",\n      \"calldata\": [\n   "
+    },
+    {
+      "step": "finalize_route",
+      "pass": true,
+      "txHash": "0x74c222611746c17f54a85d4b703542fa8c4852c09387a753bf3ca9a3a3d3033"
+    },
+    {
+      "step": "verify_btc_block",
+      "pass": true,
+      "blockHash": "000000000000aa98e1b02d13db69652f33a619d238401507f2c4dbf955710660"
+    }
+  ],
+  "assetsBridged": false,
+  "endedAt": "2026-09-02T15:08:55.952Z",
+  "btcBlock": {
+    "height": 5127970,
+    "hash": "000000000000aa98e1b02d13db69652f33a619d238401507f2c4dbf955710660",
+    "timestamp": 1788367261
+  },
+  "btcAddress": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+  "btcBeoId": "0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee",
+  "snBeoId": "0x5262d6e55bfa4e3a5c7de7a70bdfa7f96e8329ed45ceaac9a5f99ce25313b692",
+  "btcpScore": 0.849235,
+  "btcAnchorBH": "0x6c55b14a462208335b68ee5db130bd03f697bebde7cce045de2cfe77729640f9",
+  "executionBH": "0x09e7e028738ae36a7eb97e635280b8b5feeae2bb5125210957a6bb4d224e9e5d"
+}
