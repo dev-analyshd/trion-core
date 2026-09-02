@@ -55,14 +55,15 @@ impl GenesisCommitment {
     }
 
     /// Compute max sponsored entities based on Akashic depth
-    /// max_sponsored = floor(ln(d/d_min) × base_cap)
+    /// max_sponsored = floor(log₂(d/d_min) × base_cap)  [spec §14]
+    /// (base-2 logarithm — NOT natural log; aligns with sybil_resistance L1)
     pub fn layer1_max_sponsored(&self, akashic_depth: f64, d_min: f64) -> u32 {
-        if akashic_depth < d_min {
+        if akashic_depth <= d_min || d_min <= 0.0 {
             return 0;
         }
         let base_cap = 10u32;
         let ratio = akashic_depth / d_min;
-        (ratio.ln() * base_cap as f64).floor().max(0.0) as u32
+        (ratio.log2() * base_cap as f64).floor().max(0.0) as u32
     }
 
     /// Convenience: compute max sponsored
@@ -155,7 +156,7 @@ mod tests {
         let genesis = GenesisCommitment::new();
 
         assert_eq!(genesis.compute_max_sponsored(50.0), 0); // Below d_min
-        assert_eq!(genesis.compute_max_sponsored(100.0), 0); // Exactly d_min, ln(1)=0
+        assert_eq!(genesis.compute_max_sponsored(100.0), 0); // Exactly d_min, log₂(1)=0
         assert!(genesis.compute_max_sponsored(1000.0) > 0);
         assert!(genesis.compute_max_sponsored(5000.0) > genesis.compute_max_sponsored(1000.0));
 
