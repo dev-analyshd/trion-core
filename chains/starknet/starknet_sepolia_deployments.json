@@ -1,0 +1,87 @@
+{
+  "network": "starknet-sepolia",
+  "chainId": "SN_SEPOLIA",
+  "chainIdHex": "0x534e5f5345504f4c4941",
+  "deployedAt": "2026-09-02T07:04:04.926Z",
+  "deployer": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+  "gasToken": "STRK",
+  "contracts": [
+    {
+      "name": "TRIONOracle",
+      "address": "0x3ccfb9fcc9603ef545cbc53f863cda8b0a9e39096c0a2e840e8a712bd391714",
+      "classHash": "0x293d5b39bf5813c15c59989baaf315a0e34ed6a82f61bc857e972ba7a4a3235",
+      "txHash": "0x4342bf68ab48f93bd07883bb07f1aa336cf54e70402e6cdc10ec996f7475d8d",
+      "voyager": "https://sepolia.voyager.online/contract/0x3ccfb9fcc9603ef545cbc53f863cda8b0a9e39096c0a2e840e8a712bd391714",
+      "onChainVerification": {
+        "get_owner": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+        "get_score_count": "0x0"
+      }
+    },
+    {
+      "name": "BEOAttestation",
+      "address": "0x54025ed77656677e6835a9b7752b426d59f0e643490fba09ddcf7690446e687",
+      "classHash": "0x624bdad0b7367c899b5214751c6a5e81f0e72f028fcf2b5c848b243784a0c17",
+      "txHash": "0x69c3852d26eebfccc620a3f38aa323229fc662bb453e2039119554369939cd1",
+      "voyager": "https://sepolia.voyager.online/contract/0x54025ed77656677e6835a9b7752b426d59f0e643490fba09ddcf7690446e687",
+      "onChainVerification": {
+        "get_attester": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+        "total_attestations": "0x0"
+      }
+    },
+    {
+      "name": "BTCFiGuard",
+      "address": "0x28348cf996cd64737a7bfab31ffb00d9ebfc66d978b0fdfcbab372258ad8a85",
+      "classHash": "0x1d243dd5faf161d874885a5dfb5b056515ebe147bad3fa42eab87beb3f62999",
+      "txHash": "0x2822deb9b8c31a59cc3d461a0c296a1d07e4a5f0e5c32d3b049c3580b57b39a",
+      "voyager": "https://sepolia.voyager.online/contract/0x28348cf996cd64737a7bfab31ffb00d9ebfc66d978b0fdfcbab372258ad8a85",
+      "onChainVerification": {
+        "get_owner": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+        "get_oracle": "0x3ccfb9fcc9603ef545cbc53f863cda8b0a9e39096c0a2e840e8a712bd391714",
+        "get_safe_threshold": "0x1"
+      }
+    },
+    {
+      "name": "BTCPIntent",
+      "address": "0x54ac236fbc96793d3a89db9f84d69c708ee374ec7b53f4f89504778bfdb7915",
+      "classHash": "0x5cf5edb68aa2e54f7b83ae63c704ceb7637580d0af55a30ea2942c45d92eba7",
+      "txHash": "0x1fea8c0c4e0b3ff6366c6cc517f927ec1c763d431670fe9bc8a1986314eb447",
+      "voyager": "https://sepolia.voyager.online/contract/0x54ac236fbc96793d3a89db9f84d69c708ee374ec7b53f4f89504778bfdb7915",
+      "onChainVerification": {
+        "intent_count": "0x9"
+      }
+    },
+    {
+      "name": "BTCPRoute",
+      "address": "0xb0dedb7666e2a409f592b77ef381edc30b17edb823fbb2d6dd7d335896d2a",
+      "classHash": "0x5343269bc7a162ac077eb822066c251c5546cf206ae824015786cbe9984079b",
+      "txHash": "0x50e7daef1d795e914bc4aecaae4ae68eac8cb4819f64b7841b5ea240475416e",
+      "voyager": "https://sepolia.voyager.online/contract/0xb0dedb7666e2a409f592b77ef381edc30b17edb823fbb2d6dd7d335896d2a",
+      "onChainVerification": {
+        "route_count": "0x3"
+      }
+    },
+    {
+      "name": "BTCPEscrow",
+      "address": "0x494a9aea83de43cb66de126d8225bfabcac84c02a677623b61bee0fc3db5e36",
+      "classHash": "0x7e34da08b997ec149bdc793307c829a5de103f65de64561901d048cf6d04969",
+      "txHash": "0x6ce23693c81ae64f8efbe39b3baa0e114da23b6f4bb3d7fff9b93a145e0a796",
+      "voyager": "https://sepolia.voyager.online/contract/0x494a9aea83de43cb66de126d8225bfabcac84c02a677623b61bee0fc3db5e36",
+      "onChainVerification": {
+        "escrow_count": "0x3"
+      }
+    },
+    {
+      "name": "LiquidityOcean",
+      "address": "0x74f9d79a3eb1b8b71d482e2e6663f0c3617a1991769c4181642c27c9c98bf74",
+      "classHash": "0x7201ade293ec04d6a48fd9de469838265e38c5e71d3aab1f42742a867530c7",
+      "txHash": "0xc96b66317ad5f4bf13c9791733a6dfabd522360f0e31d0f1f54d6503ba5c0b",
+      "voyager": "https://sepolia.voyager.online/contract/0x74f9d79a3eb1b8b71d482e2e6663f0c3617a1991769c4181642c27c9c98bf74",
+      "onChainVerification": {
+        "get_owner": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+        "get_routing_threshold": "0x493e0",
+        "get_chain_count": "0x0",
+        "get_ocean_score": "0x0"
+      }
+    }
+  ]
+}
