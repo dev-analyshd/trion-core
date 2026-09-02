@@ -132,8 +132,14 @@ The through-line of the entire audit: **the project's own honesty labeling is it
 
 ---
 
+## 8.5 Supplement: PR #4 — Cairo contracts (merged during the read)
+
+After the main read completed, PR #4 (`feat: add Cairo 2.x contracts for Starknet deployment`, merge 59d9cd0) landed 22 new files. All were read in full and audited in **10-cairo-contracts-pr4-supplement.md**. Headline: a third Cairo generation now coexists with the two already in `chains/starknet/`; the ports are structurally clean Cairo 2.x but drop the EVM tier's security substance — `AttackSimulator.record_attack_proof` **hardcodes `would_have_blocked = true`** (self-labeled placeholder) and its `demo_attack_block` can never succeed (`assert(status != 1)` after `status = 1`); `TRIONFirewall.gate()` **always approves** ("Simplified: always approve for testing"); `ConfidentialCoherenceVault`'s coherence gate is an owner-set cache, the oracle is stored but never called, and `coherence_wrap` mints unbacked balance (no token custody); `TRIONOracleV3`'s `quorum_required` is stored but never checked and BTCP routes never expire; `AkashicProof` is deployer-asserted counters with an unused `manifest_hash` parameter; the `src/interfaces/` directory is **excluded from the build** (missing `mod interfaces;` in `lib.cairo`); no Cairo tests or CI were added. The Sensing Oracle port is the one near-production-quality contract.
+
+---
+
 ## 9. Overall assessment
 
 The repository's **mathematical skeleton is real and unusually well-documented** — formula-by-formula correspondence between whitepaper, spec, and code that is rare even in serious protocol repos. The **data spine (indexers → FAISS → ledger → ANIMA) is genuine**. The **security narrative is not yet real** — the immune system is substring matching, the consensus is a noisy echo, three of five planes are constants, and the flagship backtest proves zero discriminative power. The most valuable asset in the repo is its **honesty labeling culture and its own internal audit trail**; the recommended path is to finish the remediation arc it already started — label, persist, unify, and re-prove — rather than to continue layering claims on top of artifacts that cannot reproduce them.
 
-*Deep-read reports: 01-core-engine.md · 02-chains-and-trion-0g.md · 03-indexers-validator-relayer-supervisors.md · 04-contracts-zk-formal-math.md · 05-frontends-sdk.md · 06-api-anima-service.md · 07-docs-spec-rust-proof-ledger.md · 08-tests-backtest.md · 09-scripts-deploy-ci-top-level.md (this directory)*
+*Deep-read reports: 01-core-engine.md · 02-chains-and-trion-0g.md · 03-indexers-validator-relayer-supervisors.md · 04-contracts-zk-formal-math.md · 05-frontends-sdk.md · 06-api-anima-service.md · 07-docs-spec-rust-proof-ledger.md · 08-tests-backtest.md · 09-scripts-deploy-ci-top-level.md · 10-cairo-contracts-pr4-supplement.md (this directory)*
