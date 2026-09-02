@@ -902,5 +902,64 @@ The mathematics is proven. The code is working. The BTCP Zero-Bridge operates ac
 
 ---
 
+## BTCP Zero-Bridge — Live On-Chain Proofs
+
+The BTCP Zero-Bridge has been deployed and tested across **5 blockchain networks** with **16 contracts** on public testnets. All transactions are verifiable on public explorers.
+
+### Deployments Summary
+
+| Network | Contracts | Status |
+|---|---|---|
+| **Starknet Sepolia** | 7 (TRIONOracle, BEOAttestation, BTCFiGuard, BTCPIntent, BTCPRoute, BTCPEscrow, LiquidityOcean) | ✅ All verified on-chain (14/14 state reads) |
+| **EVM Base Sepolia** | 4 (BTCPEscrow, BTCPIntent, BTCPRoute, LiquidityOcean) | ✅ Deployed |
+| **EVM Arbitrum Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
+| **EVM OP Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
+| **EVM ETH Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
+| **NEAR testnet** | 1 (BTCPContract on trion.testnet) | ✅ Deployed |
+| **Solana devnet** | 1 (Native BTCP Escrow program) | ✅ Verified on-chain |
+
+### Key Results
+
+- **BEO Cross-VM Identity:** 8 VMs (Starknet, EVM×4, NEAR, Solana, TON) all produce the **identical BEO ID** for the same entity — substrate independence PROVEN.
+- **BTCP Score:** `0.8274` (≥ 0.50 threshold → ROUTE APPROVED)
+- **Bidirectional Zero-Bridge Test:** 9/9 phases passed (Starknet ↔ EVM ↔ NEAR ↔ Solana ↔ TON)
+- **Zero-Bridge Invariant:** `assets_bridged = false` — **no assets ever left their native chains**
+
+### Starknet Sepolia Contract Addresses
+
+| Contract | Address | Voyager |
+|---|---|---|
+| TRIONOracle | `0x3ccfb9fcc9603ef545cbc53f863cda8b0a9e39096c0a2e840e8a712bd391714` | [link](https://sepolia.voyager.online/contract/0x3ccfb9fcc9603ef545cbc53f863cda8b0a9e39096c0a2e840e8a712bd391714) |
+| BEOAttestation | `0x54025ed77656677e6835a9b7752b426d59f0e643490fba09ddcf7690446e687` | [link](https://sepolia.voyager.online/contract/0x54025ed77656677e6835a9b7752b426d59f0e643490fba09ddcf7690446e687) |
+| BTCFiGuard | `0x28348cf996cd64737a7bfab31ffb00d9ebfc66d978b0fdfcbab372258ad8a85` | [link](https://sepolia.voyager.online/contract/0x28348cf996cd64737a7bfab31ffb00d9ebfc66d978b0fdfcbab372258ad8a85) |
+| BTCPIntent | `0x54ac236fbc96793d3a89db9f84d69c708ee374ec7b53f4f89504778bfdb7915` | [link](https://sepolia.voyager.online/contract/0x54ac236fbc96793d3a89db9f84d69c708ee374ec7b53f4f89504778bfdb7915) |
+| BTCPRoute | `0xb0dedb7666e2a409f592b77ef381edc30b17edb823fbb2d6dd7d335896d2a` | [link](https://sepolia.voyager.online/contract/0xb0dedb7666e2a409f592b77ef381edc30b17edb823fbb2d6dd7d335896d2a) |
+| BTCPEscrow | `0x494a9aea83de43cb66de126d8225bfabcac84c02a677623b61bee0fc3db5e36` | [link](https://sepolia.voyager.online/contract/0x494a9aea83de43cb66de126d8225bfabcac84c02a677623b61bee0fc3db5e36) |
+| LiquidityOcean | `0x74f9d79a3eb1b8b71d482e2e6663f0c3617a1991769c4181642c27c9c98bf74` | [link](https://sepolia.voyager.online/contract/0x74f9d79a3eb1b8b71d482e2e6663f0c3617a1991769c4181642c27c9c98bf74) |
+
+### Cross-VM Deployments
+
+| Network | Address / Program ID | Explorer |
+|---|---|---|
+| Solana devnet | `4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s` | [explorer](https://explorer.solana.com/address/4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s?cluster=devnet) |
+| NEAR testnet | `trion.testnet` | [nearblocks](https://testnet.nearblocks.io/address/trion.testnet) |
+| ETH Sepolia BTCPEscrow | `0xa1e1C9eEd94290757Bc08876EbCC30E1e39B9b82` | [etherscan](https://sepolia.etherscan.io/address/0xa1e1C9eEd94290757Bc08876EbCC30E1e39B9b82) |
+| Base Sepolia BTCPEscrow | `0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e` | [basescan](https://sepolia.basescan.org/address/0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e) |
+
+### Full Proof Documentation
+
+See **[BTCP_ZERO_BRIDGE_PROOFS.md](./BTCP_ZERO_BRIDGE_PROOFS.md)** for:
+- All 16 contract addresses with explorer links
+- All transaction hashes from the bidirectional zero-bridge test
+- On-chain verification reads (14/14 succeeded)
+- BEO cross-VM identity proof (8 VMs, identical BEO ID)
+- BTCP score computation
+- Cross-VM route linkage (anchor_BH ↔ execution_BH)
+- Zero-bridge invariant proof (`assets_bridged = false`)
+
+Deployment records: [`deployments/`](./deployments/) directory contains JSON files for each network.
+
+---
+
 *TRION Protocol — Whitepaper v2.0 — 105 formulas enforced, 21 VM families, 94 BTCP module tests green*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  

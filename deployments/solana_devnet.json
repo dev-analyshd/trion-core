@@ -1,0 +1,12 @@
+{
+  "network": "solana-devnet",
+  "programId": "4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s",
+  "authority": "3f2qpAkVFfRGrp9h1F6AJyVyvMqoivMrxaD92R4waEmh",
+  "programDataAddress": "CewWubyafghhRNa4CNECPGXyz4zsvRTUUcg2vKEbVTqD",
+  "deployedAt": "2026-09-02T09:05:00Z",
+  "dataLength": 215944,
+  "deploySlot": 491903646,
+  "deployTx": "4HmJwpnaK76e6FKnNVaLA1XgosuL3tLT7DAdTxQkGxwtjzsBwdQhwDW4t4qM4JUeFgfkn3AEKKNix6B7ai1jFYcv",
+  "explorer": "https://explorer.solana.com/address/4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s?cluster=devnet",
+  "owner": "BPFLoaderUpgradeab1e11111111111111111111111"
+}
