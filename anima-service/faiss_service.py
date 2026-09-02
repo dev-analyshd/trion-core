@@ -4924,14 +4924,31 @@ def _compute_diversity_coefficient(validator_id: str) -> float:
 
 
 _BFT_DELTA_BASE: float = 0.15   # L4.2 base consensus window ±15% of weighted mean
+_BFT_VIEW_WINDOW: int  = 20     # per-validator behavioral observation window (records)
+_BFT_MIN_VOTERS: int   = 3      # minimum validators with real observations for a round
+
+# L4.1 honest cold-start baseline — mirrors core/spiritual/sigma_engine.py
+# SIGMA_BOOTSTRAP and config/deployment.env SIGMA_BOOTSTRAP=0.25.
+SIGMA_BOOTSTRAP_SERVICE: float = 0.25
+SIGMA_BOOTSTRAP_DISCLOSURE: str = (
+    "Σ plane operating at bootstrap baseline (0.25). Validators have not yet "
+    "observed enough behavioral records for this entity to form a real "
+    "consensus round. See docs/architecture/bootstrap.md."
+)
 
 
 def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.0) -> dict:
     """
     TRION-BFT round for a given entity signal.
 
-    Each validator produces a noisy observation of the current oracle state
-    drawn from a Gaussian centred on signal_value (std ≈ 0.05).
+    L4.1/L4.2 — Diversity-Weighted BFT consensus over INDEPENDENT validator
+    observations. Each validator observes the entity's actual behavioral
+    records (its own staggered view window — validators sync at different
+    block heights, so their views of the entity's recent history differ).
+    Observations are computed from REAL ingest data, NOT from the oracle's own
+    output (an echo of signal_value would make Σ circular and carry no
+    independent information).
+
     Voting power w_j = stake_j × d_j.
 
     L4.2 — Dynamic consensus window:
@@ -4940,6 +4957,13 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
         Pass 1 — compute v̄ (full weighted mean of all validator votes)
         Pass 2 — apply indicator 𝟙{|v_j − v̄| ≤ δ(t)}: exclude outlier validators
       Σ(t) = Σ_j[ s_j·d_j · 𝟙{|v_j − v̄| ≤ δ(t)} · v_j ] / Σ_j[ s_j·d_j · 𝟙 ]
+
+    Cold-start honesty: validators with no behavioral records for the entity
+    ABSTAIN (they cannot vote on what they have not observed). If fewer than
+    _BFT_MIN_VOTERS validators have data, the round is not fabricated — the
+    documented bootstrap value (0.25, matches core/spiritual/sigma_engine.py
+    SIGMA_BOOTSTRAP and config/deployment.env SIGMA_BOOTSTRAP) is returned
+    with status "bootstrap_cold_start".
 
     Returns { sigma, hhi, active_validators, weighted_mean, round_id,
               delta_t, excluded_validators, status }.
@@ -4950,28 +4974,70 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
         active = {vid: v for vid, v in _validator_registry.items() if v["online"]}
 
     if not active:
-        return {"sigma": 0.50, "hhi": 1.0, "active_validators": 0,
-                "weighted_mean": 0.50, "round_id": _bft_current_round,
+        return {"sigma": SIGMA_BOOTSTRAP_SERVICE, "hhi": 1.0, "active_validators": 0,
+                "weighted_mean": SIGMA_BOOTSTRAP_SERVICE, "round_id": _bft_current_round,
                 "delta_t": _BFT_DELTA_BASE, "excluded_validators": 0,
-                "status": "no_validators"}
+                "status": "no_validators",
+                "bootstrap": True,
+                "disclosure": SIGMA_BOOTSTRAP_DISCLOSURE}
 
-    import random
-    rng = random.Random(entity_id + str(_bft_current_round))
-
+    # ── Real observations: each validator reads the entity's behavioral records
+    # from its own staggered view window (per-validator sync offset). Validators
+    # with no records for this entity abstain — no fabricated votes.
+    beo_id   = resolve_beo(entity_id)
+    records  = entity_history.get(beo_id, [])
+    val_ids  = sorted(active.keys())  # deterministic ordering
     votes: Dict[str, float] = {}
     weights: Dict[str, float] = {}
-    hhi = _compute_region_hhi()
+    abstained = 0
 
-    for vid, v in active.items():
-        d_j  = _compute_diversity_coefficient(vid)
-        w_j  = v["stake"] * d_j
-        obs  = max(0.0, min(1.0, rng.gauss(signal_value, 0.05)))
+    for idx, vid in enumerate(val_ids):
+        v = active[vid]
+        d_j = _compute_diversity_coefficient(vid)
+        w_j = v["stake"] * d_j
+        # Staggered view window: validator idx sees a different suffix window
+        # of the entity's history (validators are height-offset observers).
+        window_size = _BFT_VIEW_WINDOW
+        start = max(0, len(records) - window_size - idx)
+        view = records[start:start + window_size]
+        if not view:
+            abstained += 1
+            continue  # abstain — no observed data for this entity
+        # Validator's local coherence estimate: similarity-to-archetype of the
+        # behavioral vectors it has actually observed.
+        sims = [r.get("arch_sim", 0.0) for r in view if r.get("arch_sim") is not None]
+        if not sims:
+            # Fall back to vector-magnitude coherence estimate (same measure
+            # the physical plane uses, but over the validator's own window).
+            sims = [float(np.mean(np.abs(np.array(r["vector"], dtype="float32"))))
+                    for r in view if r.get("vector")]
+        if not sims:
+            abstained += 1
+            continue
+        obs = max(0.0, min(1.0, float(np.mean(sims))))
         votes[vid]   = obs
         weights[vid] = w_j
 
-    # Pass 1 — compute v̄ (full weighted mean, all validators)
-    num1 = sum(weights[vid] * votes[vid] for vid in active)
-    den1 = sum(weights[vid] for vid in active)
+    voters = len(votes)
+    if voters < _BFT_MIN_VOTERS:
+        # Not enough validators have observed this entity — do NOT fabricate a
+        # consensus round. Return the documented bootstrap value honestly.
+        return {"sigma": SIGMA_BOOTSTRAP_SERVICE, "hhi": round(_compute_region_hhi(), 6),
+                "active_validators": len(active), "voters": voters,
+                "abstained": abstained,
+                "weighted_mean": SIGMA_BOOTSTRAP_SERVICE,
+                "round_id": _bft_current_round,
+                "delta_t": _BFT_DELTA_BASE, "excluded_validators": 0,
+                "status": "bootstrap_cold_start",
+                "bootstrap": True,
+                "disclosure": SIGMA_BOOTSTRAP_DISCLOSURE}
+
+    hhi = _compute_region_hhi()
+
+    # Pass 1 — compute v̄ (full weighted mean over VOTERS; abstainers have
+    # no observation and contribute no weight)
+    num1 = sum(weights[vid] * votes[vid] for vid in votes)
+    den1 = sum(weights[vid] for vid in votes)
     v_bar = (num1 / den1) if den1 > 0 else signal_value
 
     # L4.2 — dynamic consensus window
@@ -4982,7 +5048,7 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
     numerator   = 0.0
     denominator = 0.0
     excluded    = 0
-    for vid in active:
+    for vid in votes:
         if abs(votes[vid] - v_bar) <= delta_t:
             numerator   += weights[vid] * votes[vid]
             denominator += weights[vid]
@@ -5013,8 +5079,9 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
         sigma = discounted
 
     # Update coordination scores: validators within ±0.01 of each other are "coordinating"
+    # (only VOTERS participate — an abstaining validator cannot coordinate)
     obs_list = list(votes.values())
-    for vid in active:
+    for vid in votes:
         v = _validator_registry[vid]
         close_count = sum(1 for o in obs_list if abs(o - votes[vid]) < 0.01)
         coord_fraction = (close_count - 1) / max(len(obs_list) - 1, 1)
@@ -5034,11 +5101,14 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
         "sigma":                round(sigma, 6),
         "hhi":                  round(hhi, 6),
         "active_validators":    len(active),
+        "voters":               voters,
+        "abstained":            abstained,
         "weighted_mean":        round(v_bar, 6),
         "round_id":             _bft_current_round - 1,
         "delta_t":              round(delta_t, 6),    # L4.2 dynamic consensus window
         "excluded_validators":  excluded,              # validators outside δ(t) window
         "status":               "ok",
+        "bootstrap":            False,
     }
 
 
