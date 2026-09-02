@@ -1,0 +1,151 @@
+{
+  "test": "BTC ↔ Starknet Bidirectional Zero-Bridge Loop",
+  "startedAt": "2026-09-02T16:17:53.671Z",
+  "rounds": [
+    {
+      "direction": "btc2sn",
+      "round": 1,
+      "steps": [
+        {
+          "step": "register_intent",
+          "pass": true
+        },
+        {
+          "step": "lock_escrow",
+          "pass": true
+        },
+        {
+          "step": "register_route",
+          "pass": true
+        },
+        {
+          "step": "release_escrow",
+          "pass": true
+        },
+        {
+          "step": "finalize_route",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "btc2sn",
+      "round": 2,
+      "steps": [
+        {
+          "step": "register_intent",
+          "pass": true
+        },
+        {
+          "step": "lock_escrow",
+          "pass": true
+        },
+        {
+          "step": "register_route",
+          "pass": true
+        },
+        {
+          "step": "release_escrow",
+          "pass": true
+        },
+        {
+          "step": "finalize_route",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "btc2sn",
+      "round": 3,
+      "steps": [
+        {
+          "step": "register_intent",
+          "pass": true
+        },
+        {
+          "step": "error",
+          "pass": false,
+          "error": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\",\n      \"calldata\": [\n   "
+        }
+      ],
+      "passed": 1,
+      "failed": 1
+    },
+    {
+      "direction": "btc2sn",
+      "round": 4,
+      "steps": [
+        {
+          "step": "register_intent",
+          "pass": true
+        },
+        {
+          "step": "lock_escrow",
+          "pass": true
+        },
+        {
+          "step": "register_route",
+          "pass": true
+        },
+        {
+          "step": "release_escrow",
+          "pass": true
+        },
+        {
+          "step": "finalize_route",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "btc2sn",
+      "round": 5,
+      "steps": [],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "sn2btc",
+      "round": 1,
+      "steps": [],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "sn2btc",
+      "round": 2,
+      "steps": [],
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "direction": "sn2btc",
+      "round": 3,
+      "steps": [],
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "direction": "sn2btc",
+      "round": 4,
+      "steps": [],
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "direction": "sn2btc",
+      "round": 5,
+      "steps": [],
+      "passed": 0,
+      "failed": 1
+    }
+  ],
+  "assetsBridged": false,
+  "endedAt": "2026-09-02T16:38:10.670Z"
+}
