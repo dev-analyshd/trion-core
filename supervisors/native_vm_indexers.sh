@@ -83,7 +83,8 @@ fi
 
 # PVM (Polkadot Mainnet — chain_id 25000, matching indexers/crates/trion-pvm)
 # audit fix (REG-3): comment previously claimed chain_id 900, colliding with
-# the canonical SVM/Solana 900 in shared/chain_registry_complete.json.
+# the canonical SVM/Solana 900 in config/chain_registry.json (the unified
+# registry, formerly shared/chain_registry_complete.json).
 if build_if_needed "trion-pvm"; then
     restart_process "trion-pvm" \
         env FAISS_SERVICE_URL="$FAISS_URL" \

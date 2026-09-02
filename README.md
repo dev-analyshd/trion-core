@@ -707,13 +707,20 @@ trion-core/
 │   ├── brt_scheduler.py           # BRT optimal window calculation
 │   ├── anima_regulatory.py        # Regulatory behavioral signals
 │   ├── backfill_entity_records.py # BH → FAISS vector backfill
-│   └── chains_registry_evm.json   # 52 EVM chain configurations
+│   └── start.sh                   # service launcher
 ├── akashic/                       # Runtime Akashic state (SQLite DBs, FAISS index)
 │   └── __init__.py                # package marker; state files are gitignored
 │                                  # (btcp_price_oracle.py shim removed — canonical
 │                                  #  implementation: core/price/btcp_price_oracle.py)
 ├── adapters/                      # VM Adapter System (6 families)
 │   └── __init__.py                # EVM, SVM, Cosmos, Move, CosmWasm, OOA
+├── config/                        # Canonical configuration
+│   ├── chain_registry.json        # Single source of truth: 129 chains, 18 VMs
+│   │                              # (bindings: scripts/generate_chain_bindings.py
+│   │                              #  → core/generated_chain_bindings.py)
+│   ├── config.yaml                # Service configuration
+│   ├── bh_schema_v1.json          # Canonical BH schema (event enums source)
+│   └── deployment.env             # Deployment variables
 ├── zk/                            # Zero-Knowledge Proof System
 │   ├── __init__.py                # 5 circuits: Intent, Complementarity, Credential, Travel, IAP
 │   ├── circuits/                  # Circuit definitions
@@ -822,7 +829,14 @@ are atomic, tested, and preserve working behavior:
 ### Chain Registry Unification
 - **Chain-ID 900 collision resolved** (Polkadot vs Solana — `chain_id` is a
   canonical BH input, so this corrupted cross-VM identity). All 21 Rust indexer
-  crates now use the canonical numbering from `shared/chain_registry_complete.json`
+  crates use the canonical numbering from `config/chain_registry.json`
+- **Single source of truth (P3-CONSOLIDATE)**: `config/chain_registry.json`
+  (129 chains, 18 VM families) — unified from the former
+  `shared/chain_registry_complete.json` (124-chain canonical base) and
+  `anima-service/chains_registry_evm.json` (52-chain EVM backfill subset;
+  its 5 chains missing from the base were merged in). Generated Python
+  chain-id bindings: `scripts/generate_chain_bindings.py` →
+  `core/generated_chain_bindings.py`
 - Wrong/dead RPCs fixed (Hyperliquid mainnet was pointing at testnet; dead
   VeChain and Arbitrum endpoints replaced)
 - RPC failover rotation wired into all 8 previously dead-failover indexers
