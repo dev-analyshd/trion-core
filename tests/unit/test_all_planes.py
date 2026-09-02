@@ -566,6 +566,37 @@ def test_anima_reflexivity_dampening():
     assert 0 <= result.a_adj <= 1
 
 
+def test_anima_ecological_stream_brt_honesty():
+    from core.mental.anima.data_streams import ANIMADataAggregator, FetcherConfig
+
+    agg = ANIMADataAggregator()
+
+    class _FakeEco:
+        @staticmethod
+        def compute_ecological_signal(species_query):
+            return {"bc_score": 0.6, "diversity_score": 0.5, "threat_ratio": 0.2}
+
+    agg._eco = _FakeEco  # stub the network fetcher; BRT wiring is under test
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+
+    # Without observations: honest CLOCK_FALLBACK label and strength 0.0
+    # (previously the call site silently fabricated a 0.5 default)
+    cfg_clock = FetcherConfig(entity_id="0xTEST")
+    sig_clock = agg._fetch_ecological(cfg_clock, midnight + 12 * 3600)
+    assert sig_clock.brt_source == "CLOCK_FALLBACK"
+    assert sig_clock.circadian_strength == 0.0
+
+    # With observed timestamps: OBSERVED circular statistics flow into the
+    # biological stream
+    obs = [midnight + d * 86400 + 3600 * 13 for d in range(30)]
+    cfg_obs = FetcherConfig(entity_id="0xTEST", observed_timestamps=obs)
+    sig_obs = agg._fetch_ecological(cfg_obs, midnight + 12 * 3600)
+    assert sig_obs.brt_source == "OBSERVED"
+    assert sig_obs.circadian_strength > 0.5
+    assert 0.30 <= sig_obs.circadian_phase <= 0.60  # 13:00 UTC daytime peak
+    assert sig_obs.bc_score == 0.6  # real fetcher values pass through
+
+
 def test_intelligence_maintenance_healthy():
     from core.mental.intelligence_maintenance import (
         compute_im, ComponentAccuracy, ComponentHealth
