@@ -63,6 +63,27 @@ interface ITRIONOracleV3 {
         uint64 signalBlock
     );
 
+    /// @notice Emitted when SILENCE is formally recorded — VERSIONED (V2) with
+    ///         the full structured-null payload: coherence gap AND eta.
+    /// @dev    SECURITY FIX (P1, verification matrix #20): V1 SilenceRecorded
+    ///         carries coherenceGap but not the ETA to coherence recovery
+    ///         (spec §11 SILENCE = gap/plane/trend/eta; audit PART 11). Rather
+    ///         than mutate V1 — which would change its topic0 hash and break
+    ///         deployed indexers/ABIs (e.g. api/blockchain.py ORACLE_ABI) —
+    ///         the oracle emits BOTH V1 and V2 on silence. etaBlocks follows
+    ///         the core heuristic eta_blocks = int(gap × 1000)
+    ///         (core/master/coherence.py) with gap in ×1e6 fixed point,
+    ///         i.e. etaBlocks = coherenceGap / 1000.
+    event SilenceRecordedV2(
+        bytes32 indexed entityId,
+        uint256 coherenceScore,
+        uint256 threshold,
+        uint8 limitingPlane,
+        uint256 coherenceGap,
+        uint256 etaBlocks,
+        uint64 signalBlock
+    );
+
     struct Signal {
         uint256 packedData;
         bool initialized;
