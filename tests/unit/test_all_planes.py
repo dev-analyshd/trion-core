@@ -644,6 +644,76 @@ def test_living_security_product():
 
 # ─── NEW: L6-L9 Extended Plane Tests ─────────────────────────────
 
+# ─── L6.2 BRT (Biological Rhythm Timer) Tests ─────────────────────
+
+def test_brt_phases_match_spec():
+    from core.extended.biological_rhythm import compute_brt, RHYTHM_PERIODS
+    # Whitepaper L6.2: phase = (t mod T) / T for all four rhythms
+    for t in (0, 43200, 86400, 2551442, 31557600):
+        brt = compute_brt(t)
+        assert abs(brt.circadian_phase - (t % 86400) / 86400) < 1e-12
+        assert abs(brt.ultradian_phase - (t % 5400) / 5400) < 1e-12
+        assert abs(brt.lunar_phase - (t % 2551442) / 2551442) < 1e-12
+        assert abs(brt.seasonal_phase - (t % 31557600) / 31557600) < 1e-12
+    assert RHYTHM_PERIODS["circadian"] == 86400
+    assert RHYTHM_PERIODS["ultradian"] == 5400
+    assert RHYTHM_PERIODS["lunar"] == 2551442
+    assert RHYTHM_PERIODS["seasonal"] == 31557600
+
+
+def test_brt_gas_correlation_significant():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Gas price tracks circadian phase exactly → significant correlation
+    ts = np.arange(0, 86400 * 20, 1800.0)
+    gas = np.cos(2 * np.pi * ((ts % 86400) / 86400)) + 0.01
+    res = compute_brt_gas_correlation(ts.tolist(), gas.tolist(), rhythm="circadian")
+    assert res.data_quality == "OK"
+    assert res.significant is True
+    assert res.p_value <= 0.05
+    assert res.anima_fallback is False
+
+
+def test_brt_gas_correlation_noise_falls_back_to_anima():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Whitepaper rule: p > 0.05 → fall back to ANIMA forecast
+    rng = np.random.RandomState(42)
+    ts = rng.uniform(0, 86400 * 30, 500)
+    gas = rng.normal(50.0, 10.0, 500)  # pure noise, no rhythm link
+    res = compute_brt_gas_correlation(ts.tolist(), gas.tolist())
+    assert res.p_value > 0.05
+    assert res.significant is False
+    assert res.anima_fallback is True
+
+
+def test_brt_gas_correlation_insufficient_and_degenerate_data():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Too few samples → honest INSUFFICIENT_SAMPLES + ANIMA fallback
+    res = compute_brt_gas_correlation([1.0, 2.0, 3.0], [10.0, 20.0, 30.0])
+    assert res.data_quality == "INSUFFICIENT_SAMPLES"
+    assert res.anima_fallback is True
+    # Constant gas series → ZERO_VARIANCE + ANIMA fallback (no fake signal)
+    ts = np.arange(0, 86400, 300.0)
+    res_flat = compute_brt_gas_correlation(ts.tolist(), [42.0] * len(ts))
+    assert res_flat.data_quality == "ZERO_VARIANCE"
+    assert res_flat.anima_fallback is True
+
+
+def test_brt_observed_vs_clock_fallback_labeling():
+    from core.extended.biological_rhythm import get_brt_dict
+    # No observations → honest CLOCK_FALLBACK label, strength 0.0
+    d = get_brt_dict(43200)
+    assert d["circadian_phase"] == 0.5
+    assert d["brt_source"] == "CLOCK_FALLBACK"
+    assert d["circadian_strength"] == 0.0
+    # Daytime-only observations → OBSERVED circadian peak with strength > 0
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+    obs = [midnight + day * 86400 + 3600 * 13 for day in range(30)]
+    d2 = get_brt_dict(midnight + 12 * 3600, obs)
+    assert d2["brt_source"] == "OBSERVED"
+    assert d2["circadian_strength"] > 0.5
+    assert abs(d2["circadian_phase"] - 13 / 24) < 0.05
+
+
 def test_biological_capital_thriving():
     from core.extended.biological_capital import compute_bc, EcosystemProfile
     amazon = EcosystemProfile(
