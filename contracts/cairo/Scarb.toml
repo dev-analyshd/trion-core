@@ -1,0 +1,14 @@
+[package]
+name = "trion_cairo"
+version = "0.1.0"
+edition = "2023_11"
+authors = ["Hudu Yusuf (Analys) <analyshd@gmail.com>"]
+description = "TRION Protocol — Cairo contracts for Starknet deployment"
+license = "MIT"
+
+[dependencies]
+starknet = "2.8.4"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
