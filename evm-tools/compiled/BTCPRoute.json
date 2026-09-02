@@ -1,0 +1,457 @@
+{
+  "contractName": "BTCPRoute",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "oldRelayer",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newRelayer",
+          "type": "address"
+        }
+      ],
+      "name": "RelayerUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "gasSaved",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "beoContinuity",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "ccCoherence",
+          "type": "uint256"
+        }
+      ],
+      "name": "RouteFinalized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "intentHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "anchorChain",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "executionChain",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "routeType",
+          "type": "uint8"
+        }
+      ],
+      "name": "RoutePublished",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "gasSavedVsBridge",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "beoContinuity",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "ccCoherence",
+          "type": "uint256"
+        }
+      ],
+      "name": "finalizeRoute",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getRoute",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "routeId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "intentHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "anchorBH",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "executionBH",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "anchorChain",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "executionChain",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "entityId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "gasSavedVsBridge",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "beoContinuity",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "ccCoherence",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "routeType",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bool",
+              "name": "isVerified",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint256",
+              "name": "createdAt",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "finalizedAt",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct BTCPRoute.Route",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getRouteList",
+      "outputs": [
+        {
+          "internalType": "bytes32[]",
+          "name": "",
+          "type": "bytes32[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "intentHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "anchorChain",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "executionChain",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint8",
+          "name": "routeType",
+          "type": "uint8"
+        }
+      ],
+      "name": "publishRoute",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relayer",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "routeCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "routeList",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "routes",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "intentHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "anchorChain",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "executionChain",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "gasSavedVsBridge",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "beoContinuity",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "ccCoherence",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "routeType",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "isVerified",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "createdAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "finalizedAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newRelayer",
+          "type": "address"
+        }
+      ],
+      "name": "setRelayer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608080604052346100325760018060a01b03193381600354161760035533906004541617600455610b9c90816100378239f35b5f80fdfe6080806040526004361015610012575f80fd5b5f3560e01c908163066e9481146109fb575080632fa840fe146109c45780636548e9bc146108ec5780638406c079146108c45780638da5cb5b1461089c5780639bb86753146107d2578063afb054d014610468578063bf539cb41461044b578063c560c1f3146102675763e92076001461008a575f80fd5b34610263576020366003190112610263575f6101a06040516100ab81610b0f565b8281528260208201528260408201528260608201528260808201528260a08201528260c08201528260e0820152826101008201528261012082015282610140820152826101608201528261018082015201526004355f525f6020526101c060405f206101a060405161011c81610b0f565b600b83549384835260018101546020840152600281015460408401526003810154606084015267ffffffffffffffff6004820154818116608086015260401c1660a0840152600581015460c0840152600681015460e08401526007810154610100840152600881015461012084015260ff600982015481811661014086015260081c161515610160840152600a81015461018084015201548282015260405192835260208101516020840152604081015160408401526060810151606084015267ffffffffffffffff608082015116608084015267ffffffffffffffff60a08201511660a084015260c081015160c084015260e081015160e084015261010081015161010084015261012081015161012084015260ff61014082015116610140840152610160810151151561016084015261018081015161018084015201516101a0820152f35b5f80fd5b346102635760a0366003190112610263576004356024359060443591606435608435906102a960018060a01b038060045416331490811561043d575b50610b2c565b835f526020945f865260405f208054156104065760098101805460ff8160081c166103ce57861561039a57620f424080861115908161038f575b501561035a579160809593916101008896947fa9c92469362ec5eec393d5159a90a4f811101f223fc6054fc069e851ef6366ba99600385015584600685015585600785015586600885015561ff001916179055600b429101556040519384528784015260408301526060820152a260405160018152f35b60405162461bcd60e51b8152600481018a9052600d60248201526c494e56414c49445f53434f524560981b6044820152606490fd5b90508611158a6102e3565b60405162461bcd60e51b8152600481018a9052600c60248201526b0b48aa49ebe8ab08a86be84960a31b6044820152606490fd5b60405162461bcd60e51b8152600481018a9052601060248201526f1053149150511657d59154925192515160821b6044820152606490fd5b60405162461bcd60e51b815260048101889052600f60248201526e1493d5551157d393d517d193d55391608a1b6044820152606490fd5b9050600354163314876102a3565b34610263575f366003190112610263576020600254604051908152f35b346102635760e03660031901126102635760643567ffffffffffffffff811681036102635760843567ffffffffffffffff811681036102635760c43560ff81168103610263576004546104cf90336001600160a01b03918216149081156107c45750610b2c565b6004355f525f60205260405f2054610790576044351561075d57600660ff8216116107295760405161050081610b0f565b6004358152602435602082015260443560408201525f606082015267ffffffffffffffff8416608082015267ffffffffffffffff831660a082015260a43560c08201525f60e08201525f6101008201525f61012082015260ff82166101408201525f610160820152426101808201525f6101a08201526004355f525f602052600b6101a060405f2092805184556020810151600185015560408101516002850155606081015160038501556004840167ffffffffffffffff6080830151168154906fffffffffffffffff000000000000000060a085015160401b16916fffffffffffffffffffffffffffffffff19161717905560c0810151600585015560e08101516006850155610100810151600785015561012081015160088501556009840160ff6101408301511681549061ff00610160850151151560081b169161ffff191617179055610180810151600a8501550151910155600154680100000000000000008110156107155780600161067a9201600155610ac6565b9080549160031b5f199283600435831b921b19161790556002549081146107015760ff92600167ffffffffffffffff920160025581604051956044358752166020860152166040840152166060820152602435907f08e6a8742439810e14db59f927605367a0f7ac726a7c6a56bbc56491ca131282608060043592a3602060405160018152f35b634e487b7160e01b5f52601160045260245ffd5b634e487b7160e01b5f52604160045260245ffd5b60405162461bcd60e51b815260206004820152600c60248201526b494e56414c49445f5459504560a01b6044820152606490fd5b60405162461bcd60e51b815260206004820152600b60248201526a2d22a927afa0a721a427a960a91b6044820152606490fd5b60405162461bcd60e51b815260206004820152600c60248201526b524f5554455f45584953545360a01b6044820152606490fd5b9050600354163314856102a3565b34610263575f366003190112610263576040518060019160015490818352602080809401809360015f527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf690875f5b8281106108875750505050829003601f01601f1916820193905067ffffffffffffffff8411828510176107155760408481528185529151848201819052918401949291905f5b8281106108745785870386f35b8351875295810195928101928401610867565b83548552889590940193928101928101610821565b34610263575f366003190112610263576003546040516001600160a01b039091168152602090f35b34610263575f366003190112610263576004546040516001600160a01b039091168152602090f35b34610263576020366003190112610263576004356001600160a01b0381811691829003610263578060035416330361099357811561095f57816004549182167f605ca4e43489fb38b91aa63dd9147cd3847957694b080b9285ec898b34269f0c5f80a36001600160a01b03191617600455005b60405162461bcd60e51b815260206004820152600c60248201526b2d22a927afa922a620aca2a960a11b6044820152606490fd5b60405162461bcd60e51b81526020600482015260096024820152682727aa2fa7aba722a960b91b6044820152606490fd5b3461026357602036600319011261026357600435600154811015610263576109ed602091610ac6565b90546040519160031b1c8152f35b34610263576020366003190112610263576101c0906004355f525f60205260405f2080549060ff81808080808089600182015460028301546003840154916020600486015494600b600a6009600860076006600567ffffffffffffffff9d01549d01549d01549d01549d01549d01549e01549e8152015260408d015260608c015281811660808c015260401c1660a08a015260c089015260e088015261010087015261012086015281811661014086015260081c1615156101608401526101808301526101a0820152f35b600154811015610afb5760015f527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf601905f90565b634e487b7160e01b5f52603260045260245ffd5b6101c0810190811067ffffffffffffffff82111761071557604052565b15610b3357565b60405162461bcd60e51b815260206004820152600b60248201526a2727aa2fa922a620aca2a960a91b6044820152606490fdfea26469706673582212202e4c8c684691f33e04878fb24e6c45e61825cf817df4d8278ad33354b192c4f264736f6c63430008180033"
+}

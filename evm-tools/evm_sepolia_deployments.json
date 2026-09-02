@@ -1,0 +1,20 @@
+{
+  "network": "evm-sepolia-multi-chain",
+  "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "contracts": [
+    { "name": "BTCPEscrow@BaseSepolia",     "chain": "base-sepolia",       "chainId": 84532,    "address": "0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e" },
+    { "name": "BTCPIntent@BaseSepolia",     "chain": "base-sepolia",       "chainId": 84532,    "address": "0xb2f93dd84163A97674c36f6792688AdC7199272E" },
+    { "name": "BTCPRoute@BaseSepolia",      "chain": "base-sepolia",       "chainId": 84532,    "address": "0xBd046946f82D273bEec94430Ce3Ccbf38F19Ae46" },
+    { "name": "LiquidityOcean@BaseSepolia", "chain": "base-sepolia",       "chainId": 84532,    "address": "0xdbB9c74F1C2AED2CCdc3e2269f8EDEc927bdB890" },
+    { "name": "BTCPEscrow@ArbitrumSepolia", "chain": "arbitrum-sepolia",  "chainId": 421614,   "address": "0x506E59a84Bf0279a37e96046C92879BE8681578d" },
+    { "name": "BTCPIntent@ArbitrumSepolia", "chain": "arbitrum-sepolia",  "chainId": 421614,   "address": "0x61A1675D3cD63f03C36504791Ce47FD216231699" },
+    { "name": "BTCPEscrow@OPSepolia",       "chain": "optimism-sepolia",   "chainId": 11155420, "address": "0xb617c96EA602A8FC79163E1745a68c38540f1c79" },
+    { "name": "BTCPIntent@OPSepolia",       "chain": "optimism-sepolia",   "chainId": 11155420, "address": "0x3a260F5aDb96650F59E334D1F652db42f1184dab" },
+    { "name": "BTCPRoute@OPSepolia",        "chain": "optimism-sepolia",   "chainId": 11155420, "address": "0x23207B1146d5F5b9a0ce48E0c9FA256028b50D23" },
+    { "name": "LiquidityOcean@OPSepolia",   "chain": "optimism-sepolia",   "chainId": 11155420, "address": "0xD9E0C368479CA90bB696e0159fD7cA13C2447029" },
+    { "name": "BTCPEscrow@EthSepolia",      "chain": "ethereum-sepolia",   "chainId": 11155111, "address": "0xa1e1C9eEd94290757Bc08876EbCC30E1e39B9b82" },
+    { "name": "BTCPIntent@EthSepolia",      "chain": "ethereum-sepolia",   "chainId": 11155111, "address": "0xC716F2603aC35C7c6b81fbcAc29Fc1C9840F00bA" },
+    { "name": "BTCPRoute@EthSepolia",       "chain": "ethereum-sepolia",   "chainId": 11155111, "address": "0x3A8131589fbD7Be4Fa96B36497DbC77B627C20a4" },
+    { "name": "LiquidityOcean@EthSepolia",  "chain": "ethereum-sepolia",   "chainId": 11155111, "address": "0xd5FcC10911F6231DEf3eD2d02010B6f6f4E1134a" }
+  ]
+}
