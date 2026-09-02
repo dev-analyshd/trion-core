@@ -115,14 +115,21 @@ pub mod btcp_escrow {
 
     /// Lock native SOL in escrow.
     ///
-    /// Equivalent to Solidity `lockEscrow() external payable`.
-    /// Caller (relayer) must send SOL via the `vault_funder` account.
-    /// The SOL is transferred to the vault PDA which is owned by this program.
+    /// Equivalent to Solidity `lockEscrow() external payable` — `amount` is
+    /// the lamports to lock (the analog of msg.value).
+    /// Caller (relayer) must be authorized; the SOL is transferred from the
+    /// `vault_funder` signer to the vault PDA which is owned by this program.
+    ///
+    /// SECURITY FIX (P1): this previously locked `vault_funder.lamports()` —
+    /// the funder's ENTIRE wallet balance. The locked amount is now an
+    /// explicit argument; it is recorded in `Escrow.amount` and release/
+    /// revert pay out exactly that amount.
     pub fn lock_escrow(
         ctx: Context<LockEscrow>,
         escrow_id: [u8; 32],
         route_id: [u8; 32],
         entity_id: BEOIdentity,
+        amount: u64,
         min_coherence: u64,
         timeout_slots: u64,
     ) -> Result<()> {
@@ -133,8 +140,16 @@ pub mod btcp_escrow {
         require!(timeout_slots > 0, BTCPError::ZeroTimeout);
         require!(!entity_id.is_zero(), BTCPError::ZeroDestination);
 
-        let amount = ctx.accounts.vault_funder.lamports();
+        // SECURITY FIX (P1): encumber exactly the specified amount, never the
+        // funder's whole balance. The explicit balance check gives a clean
+        // typed error (the system-program transfer below would also fail on
+        // insufficient funds; the runtime additionally keeps the funder
+        // rent-exempt).
         require!(amount > 0, BTCPError::ZeroAmount);
+        require!(
+            ctx.accounts.vault_funder.lamports() >= amount,
+            BTCPError::InsufficientFunds
+        );
 
         let clock = Clock::get()?;
 
@@ -365,7 +380,9 @@ pub struct LockEscrow<'info> {
     #[account(mut)]
     pub relayer: Signer<'info>,
 
-    /// Account that provides the SOL to lock (must have enough lamports)
+    /// Account that provides the SOL to lock (must have at least `amount`
+    /// lamports — only the specified amount is transferred, NOT the whole
+    /// balance)
     #[account(mut)]
     pub vault_funder: Signer<'info>,
 
