@@ -9,6 +9,8 @@ the Private BIBL Computation Protocol (Gap 9 Resolution).
 Modules integrated:
   3.1: nl_score_engine.py     → NL(chain, t) for BIBL Tier 1
   3.2: btcp_price_oracle.py   → TRION VALUATION signal for routing/PMO
+      (canonical location: core/price/btcp_price_oracle.py — consolidated
+      from anima-service/ + akashic/ duplicates in P3-CONSOLIDATE)
   3.3: btcp_gas_forecast.py   → CI_95 gas prediction for normalize_gas()
   3.4: liquidity_ocean.py     → LIQUIDITY_OCEAN_SCORE for routing
   3.5: brt_scheduler.py       → Optimal window for DEFERRED routes
@@ -84,9 +86,10 @@ class BTCPIntegrationHub:
             self._initialization_errors.append(f"nl_score: {e}")
             status["nl_score"] = False
 
-        # 3.2: BTCP Price Oracle
+        # 3.2: BTCP Price Oracle (canonical: core/price/btcp_price_oracle.py —
+        # consolidated from anima-service/ + akashic/ duplicates in P3-CONSOLIDATE)
         try:
-            from btcp_price_oracle import BehavioralPriceOracle  # type: ignore
+            from core.price.btcp_price_oracle import BehavioralPriceOracle  # type: ignore
             self._price_oracle = BehavioralPriceOracle
             status["price_oracle"] = True
         except Exception as e:
