@@ -708,10 +708,10 @@ trion-core/
 │   ├── anima_regulatory.py        # Regulatory behavioral signals
 │   ├── backfill_entity_records.py # BH → FAISS vector backfill
 │   └── chains_registry_evm.json   # 52 EVM chain configurations
-├── akashic/                       # Additional Akashic services
-│   ├── btcp_price_oracle.py       # Behavioral price oracle for BITP
-│   ├── crispr_anomaly.py          # CRISPR pattern matching
-│   └── brt.py                     # Biological Rhythm Timer
+├── akashic/                       # Runtime Akashic state (SQLite DBs, FAISS index)
+│   └── __init__.py                # package marker; state files are gitignored
+│                                  # (btcp_price_oracle.py shim removed — canonical
+│                                  #  implementation: core/price/btcp_price_oracle.py)
 ├── adapters/                      # VM Adapter System (6 families)
 │   └── __init__.py                # EVM, SVM, Cosmos, Move, CosmWasm, OOA
 ├── zk/                            # Zero-Knowledge Proof System
