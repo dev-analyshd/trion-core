@@ -1,10 +1,14 @@
-"""TRION Akashic Records — Python package marker.
+"""TRION Akashic Records — runtime state directory + Python package marker.
 
-The `akashic/` directory historically held only SQLite database files
-(bibl_patterns.db, crispr_adaptive.db, epigenetic_immunity.db). Several
-test modules import from `akashic.btcp_price_oracle` and other Python
-modules. This package marker makes those imports resolvable.
+The `akashic/` directory holds the runtime SQLite databases and FAISS state
+(bibl_patterns.db, crispr_adaptive.db, epigenetic_immunity.db,
+validator_registry.db, akashic_state.db, akashic_faiss.index — all gitignored,
+created at runtime by core/akashic/, core/spiritual/, and anima-service
+consumers).
 
-The canonical implementations live in `anima-service/` and `core/akashic/`;
-shims here re-export them so existing code paths keep working.
+This package marker exists so the directory is always present and importable.
+It previously also held a `btcp_price_oracle.py` re-export shim — that
+duplicate was removed in P3-CONSOLIDATE; the canonical implementation now
+lives at `core/price/btcp_price_oracle.py` (the `anima-service/` hyphen makes
+a plain package import impossible, which is why the shim existed).
 """
