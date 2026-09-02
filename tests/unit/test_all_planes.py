@@ -250,10 +250,42 @@ def test_signal_factory():
     assert 'biological_time' in sig
     assert sig['signal_type'] == 'VALUATION'
 
+    # Provenance chain (deep-read bug: was always []). Must carry the actual
+    # computation sources: coherence engine, BRT derivation, genomic signature.
+    assert isinstance(sig['provenance'], list) and sig['provenance'], \
+        "provenance must never be empty"
+    sources = {p['source'] for p in sig['provenance']}
+    assert {'coherence_engine', 'brt', 'genomic_signature'} <= sources
+    assert all('ts' in p for p in sig['provenance'])
+
+    # Caller-supplied behavioral-hash provenance is carried first in the chain
+    sig2 = build_signal(entity, SignalType.VALUATION, coherence,
+                        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                        provenance=['bh_deadbeef'])
+    assert sig2['provenance'][0]['bh_id'] == 'bh_deadbeef'
+    assert sig2['provenance'][0]['source'] == 'behavioral_hash'
+
+    # BRT honest labeling: no observations → CLOCK_FALLBACK (was silently
+    # claimed via a broken `akashic.brt_scheduler` import that never resolved)
+    assert sig['biological_time'].get('brt_source') == 'CLOCK_FALLBACK'
+
+    # Observed timestamps → real circular statistics resolve (import fixed)
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+    obs = [midnight + d * 86400 + 3600 * 13 for d in range(48)]
+    sig3 = build_signal(entity, SignalType.VALUATION, coherence,
+                        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                        observed_timestamps=obs)
+    assert sig3['biological_time']['brt_source'] == 'OBSERVED'
+    assert sig3['biological_time']['circadian_strength'] > 0.20
+    brt_rec = [p for p in sig3['provenance'] if p['source'] == 'brt'][0]
+    assert brt_rec['data_source'] == 'OBSERVED'
+    assert brt_rec['observations'] == 48
+
     sil_coherence = {**coherence, "C":0.40,"emits":False,"silence":True,"coherence_gap":0.22}
     sil = build_silence(entity, sil_coherence)
     assert sil['silence']
     assert sil['silence_gap'] == 0.22
+    assert sil['provenance'], "SILENCE signals carry provenance too"
 
 
 # ─── BTCP Tests ──────────────────────────────────────────────────
