@@ -515,3 +515,147 @@ class TestSybilResistance:
         graph = {b"\x01"*32: [b"\x02"*32] * 25}
         suspicious = sr.layer5_detect_star_pattern(graph)
         assert len(suspicious) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Orchestrator ZK honesty (deep-read fix: dummy proof + hardcoded IAP economics)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestOrchestratorZKHonesty:
+    """
+    The STANDARD privacy level previously fabricated a "dummy complementarity
+    proof" from secrets.token_bytes(32) with a hardcoded block 18,000,000, and
+    the IAP share witness used hardcoded economics (1M gas / 151k entity gas /
+    0.01 ETH fee / 0.0015 share / 10 participants). Now:
+
+      - real witness data  -> real proofs (verified)
+      - missing witness    -> honest deferral {"zk_proof": None, "status":
+        "zk_pending"} and verify_proofs() fails closed.
+    """
+
+    def _intent(self):
+        from core.btcp.orchestrator import PrivacyRouter, PrivacyLevel
+        from adapters import BTCPIntent
+        import time as _t
+        intent = BTCPIntent(
+            intent_id="t_zk",
+            source_chain=1,
+            dest_chain=42161,
+            source_address="0x1F98431c8aD98523631AE4a59f267346ea31F984",
+            dest_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+            amount=10**18,
+            asset="ETH",
+            intent_type="SWAP",
+            deadline=int(_t.time()) + 3600,
+            nonce=7,
+        )
+        return intent
+
+    def test_missing_witness_defers_honestly(self):
+        from core.btcp.orchestrator import PrivacyRouter, PrivacyLevel
+        router = PrivacyRouter()
+        proofs = router.generate_proofs(self._intent(), PrivacyLevel.STANDARD)
+        # API shape preserved: keys still present
+        assert set(proofs) >= {"intent_commitment", "complementarity", "iap_share"}
+        # intent commitment is always real (derived from the actual intent)
+        assert proofs["intent_commitment"].get("status") != "zk_pending"
+        # no witness data → honest pending, never fake proof bytes
+        comp = proofs["complementarity"]
+        assert comp["zk_proof"] is None
+        assert comp["status"] == "zk_pending"
+        assert "reason" in comp
+        iap = proofs["iap_share"]
+        assert iap["zk_proof"] is None
+        assert iap["status"] == "zk_pending"
+        # fail closed: a route with deferred circuits is not "all valid"
+        all_valid, errors = router.verify_proofs(proofs)
+        assert all_valid is False
+        assert any("complementarity" in e for e in errors)
+        assert any("iap_share" in e for e in errors)
+
+    def test_real_witness_generates_real_proofs(self):
+        import secrets
+        from core.btcp.orchestrator import PrivacyRouter, PrivacyLevel
+        router = PrivacyRouter()
+        sense = secrets.token_bytes(32)                    # test fixture strands
+        antisense = bytes(b ^ 0xFF for b in sense)         # true complement
+        proofs = router.generate_proofs(
+            self._intent(), PrivacyLevel.STANDARD,
+            behavioral_data={
+                "genomic_sense": sense.hex(),
+                "genomic_antisense": antisense.hex(),
+                "block_number": 18_500_000,
+            },
+            iap_economics={
+                "total_gas": 2_400_000, "entity_gas": 240_000,
+                "total_btcp_fee_wei": int(0.02 * 10**18),
+                "entity_share_wei": int(0.002 * 10**18),
+                "num_participants": 12,
+            },
+        )
+        deferred = [n for n, p in proofs.items()
+                    if isinstance(p, dict) and p.get("status") == "zk_pending"]
+        assert not deferred, f"real witness must yield real proofs: {deferred}"
+        # the real IAP witness reflects the supplied economics, not the old
+        # hardcoded 1_000_000 gas / 10 participants. entity_gas is committed
+        # (not public); fair_allocation=True proves the supplied share
+        # matches the entity_gas/total_gas fraction (240k/2.4M = 1/12).
+        pi = proofs["iap_share"]["public_inputs"]
+        assert pi.get("total_gas") == 2_400_000
+        assert pi.get("num_participants") == 12
+        assert pi.get("fair_allocation") is True
+        all_valid, errors = router.verify_proofs(proofs)
+        assert all_valid, f"real proofs must verify: {errors}"
+
+    def test_gas_estimates_flow_into_iap_witness(self):
+        import secrets
+        from dataclasses import dataclass
+        from core.btcp.orchestrator import PrivacyRouter, PrivacyLevel
+
+        @dataclass
+        class _Gas:
+            gas_limit: int = 0
+
+        router = PrivacyRouter()
+        proofs = router.generate_proofs(
+            self._intent(), PrivacyLevel.BASIC,
+            gas_estimates=[_Gas(120_000), _Gas(80_000)],
+            iap_economics={
+                "total_gas": 2_400_000,
+                "total_btcp_fee_wei": int(0.02 * 10**18),
+                # fair share for a 200k/2.4M = 1/12 gas fraction — proves the
+                # real adapter estimates (120k + 80k) flowed into the witness:
+                # with the old hardcoded entity_gas (151k) this share would
+                # NOT verify as fair and the proof would fail.
+                "entity_share_wei": int(0.02 * 10**18 / 12),
+                "num_participants": 12,
+            },
+        )
+        pi = proofs["iap_share"]["public_inputs"]
+        assert pi.get("total_gas") == 2_400_000
+        assert pi.get("fair_allocation") is True
+        all_valid, errors = router.verify_proofs(proofs)
+        assert all_valid, f"proof over real estimates must verify: {errors}"
+
+    def test_orchestrator_route_keeps_pending_shape(self):
+        from core.btcp.orchestrator import BTCPOrchestrator, PrivacyLevel
+        orch = BTCPOrchestrator()
+        result = orch.create_route(
+            source_chain=1,
+            dest_chain=42161,
+            source_address="0x1F98431c8aD98523631AE4a59f267346ea31F984",
+            dest_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+            amount=10**18,
+            asset="ETH",
+            intent_type="SWAP",
+            privacy_level=PrivacyLevel.STANDARD,
+        )
+        assert result.success
+        route = result.route
+        # API shape preserved: proofs dict still carries all circuit keys
+        assert {"intent_commitment", "complementarity", "iap_share"} <= set(route.proofs)
+        assert route.proofs["complementarity"]["status"] == "zk_pending"
+        # zero-bridge invariant untouched
+        assert route.assets_bridged is False
+        d = route.to_dict()  # serialization still works with pending entries
+        assert "proofs" in d
