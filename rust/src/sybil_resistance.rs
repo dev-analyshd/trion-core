@@ -1,11 +1,11 @@
 //! sybil_resistance.rs — 5-layer Sponsored Genesis protection
-//! Per BTCP Master Implementation Spec §Phase 2
+//! Per BTCP Master Implementation Spec §14 / Phase 2
 //!
-//! Layer 1: max sponsored by Akashic depth
-//! Layer 2: scrutiny multiplier by number sponsored
-//! Layer 3: behavioral similarity sockpuppet detection
-//! Layer 4: minimum spacing between sponsorships
-//! Layer 5: star pattern detection in sponsor graph
+//! Layer 1: max_sponsored = floor(log₂(d/d_min) × BASE_SPONSOR_CAP)
+//! Layer 2: scrutiny multiplier = 1 + n × 0.2
+//! Layer 3: behavioral similarity > 0.85 → SOCKPUPPET_ALERT
+//! Layer 4: minimum spacing = BASE_SPACING × n² (7·n² days)
+//! Layer 5: star pattern (one sponsor > 20 sponsored) → SPONSOR_NETWORK_ANOMALY
 
 use crate::types::*;
 use std::collections::HashMap;
@@ -33,31 +33,34 @@ impl SybilResistance {
     }
 
     /// Layer 1: Maximum sponsored entities by Akashic depth
-    /// max_sponsored = floor(ln(d/d_min) × BASE_SPONSOR_CAP)
+    /// max_sponsored = floor(log₂(d/d_min) × BASE_SPONSOR_CAP)  [spec §14]
+    /// (base-2 logarithm — NOT natural log)
     pub fn layer1_max_sponsored(&self, d: f64, d_min: f64) -> u32 {
-        if d < d_min {
+        if d <= d_min || d_min <= 0.0 {
             return 0;
         }
         let ratio = d / d_min;
-        (ratio.ln() * BASE_SPONSOR_CAP as f64).floor().max(0.0) as u32
+        (ratio.log2() * BASE_SPONSOR_CAP as f64).floor().max(0.0) as u32
     }
 
     /// Layer 2: Scrutiny multiplier increases with each sponsorship
-    /// scrutiny = 1 + (n_sponsored × 0.5)
+    /// scrutiny = 1 + (n_sponsored × 0.2)  [spec §14]
     pub fn layer2_scrutiny_multiplier(&self, n_sponsored: u32) -> f64 {
-        1.0 + (n_sponsored as f64 * 0.5)
+        1.0 + (n_sponsored as f64 * 0.2)
     }
 
     /// Layer 3: Sockpuppet detection via behavioral similarity
-    /// cosine_similarity >= SIMILARITY_THRESHOLD → likely sockpuppet
+    /// cosine_similarity > SIMILARITY_THRESHOLD → SOCKPUPPET_ALERT
+    /// (strictly greater — exactly 0.85 is not an alert)
     pub fn layer3_is_sockpuppet(&self, cosine_similarity: f64) -> bool {
-        cosine_similarity >= SIMILARITY_THRESHOLD
+        cosine_similarity > SIMILARITY_THRESHOLD
     }
 
     /// Layer 4: Minimum spacing between sponsorships (days)
-    /// spacing = BASE × (1 + n_sponsored × 0.5)
+    /// MIN_SPACING(n) = BASE_SPACING × n²  [spec §14: 7·n² days]
     pub fn layer4_min_spacing_days(&self, n_sponsored: u32) -> u64 {
-        MIN_SPACING_BASE_DAYS * (100 + n_sponsored as u64 * 50) / 100
+        let n = n_sponsored as u64;
+        MIN_SPACING_BASE_DAYS.saturating_mul(n).saturating_mul(n)
     }
 
     /// Convenience alias
@@ -66,15 +69,16 @@ impl SybilResistance {
     }
 
     /// Layer 5: Detect star pattern in sponsor graph
-    /// One entity sponsoring many in a short time → suspicious
+    /// One entity sponsoring many unrelated entities in a short time →
+    /// SPONSOR_NETWORK_ANOMALY (threshold: strictly more than 20 sponsored)
     pub fn layer5_detect_star_pattern(
         &self,
         sponsor_graph: &HashMap<BEOId, Vec<BEOId>>,
     ) -> Vec<BEOId> {
         let mut suspicious = Vec::new();
         for (sponsor, sponsored) in sponsor_graph {
-            // Star pattern: one sponsor, many sponsored (≥ 5)
-            if sponsored.len() >= 5 {
+            // Star pattern: one sponsor, many sponsored (> 20 per spec §14)
+            if sponsored.len() > 20 {
                 suspicious.push(*sponsor);
             }
         }
@@ -125,7 +129,9 @@ impl SybilResistance {
 
         // Layer 4: spacing check
         if n > 0 {
-            let min_spacing_sec = self.layer4_min_spacing_days(n) * 24 * 60 * 60;
+            let min_spacing_sec = self
+                .layer4_min_spacing_days(n)
+                .saturating_mul(24 * 60 * 60);
             if let Some(records) = self.sponsorship_records.get(&sponsor) {
                 if let Some((_, last_ts)) = records.last() {
                     if current_timestamp - last_ts < min_spacing_sec {
@@ -148,7 +154,12 @@ mod tests {
         let sr = SybilResistance::new();
 
         assert_eq!(sr.layer1_max_sponsored(50.0, 100.0), 0); // Below minimum
-        assert_eq!(sr.layer1_max_sponsored(100.0, 100.0), 0); // ln(1) = 0
+        assert_eq!(sr.layer1_max_sponsored(100.0, 100.0), 0); // log₂(1) = 0
+        assert_eq!(sr.layer1_max_sponsored(1000.0, 0.0), 0); // d_min ≤ 0 guard
+        // Spec: floor(log₂(10) × 10) = floor(33.2) = 33
+        assert_eq!(sr.layer1_max_sponsored(1000.0, 100.0), 33);
+        // Spec: floor(log₂(100) × 10) = floor(66.4) = 66
+        assert_eq!(sr.layer1_max_sponsored(10000.0, 100.0), 66);
         assert!(sr.layer1_max_sponsored(1000.0, 100.0) > 0);
         assert!(sr.layer1_max_sponsored(10000.0, 100.0) > sr.layer1_max_sponsored(1000.0, 100.0));
 
@@ -158,26 +169,40 @@ mod tests {
     #[test]
     fn test_layer2_scrutiny() {
         let sr = SybilResistance::new();
+        // Spec: scrutiny = 1 + n × 0.2 (old test encoded the wrong 1 + n × 0.5)
         assert_eq!(sr.layer2_scrutiny_multiplier(0), 1.0);
-        assert_eq!(sr.layer2_scrutiny_multiplier(2), 2.0);
-        assert_eq!(sr.layer2_scrutiny_multiplier(4), 3.0);
+        assert!((sr.layer2_scrutiny_multiplier(1) - 1.2).abs() < 1e-9);
+        assert!((sr.layer2_scrutiny_multiplier(2) - 1.4).abs() < 1e-9);
+        assert!((sr.layer2_scrutiny_multiplier(4) - 1.8).abs() < 1e-9);
+        // 1 + 5×0.2 = 2.0 (matches the Python reference self-test)
+        assert_eq!(sr.layer2_scrutiny_multiplier(5), 2.0);
+        // Monotonically increasing in n
+        assert!(sr.layer2_scrutiny_multiplier(3) > sr.layer2_scrutiny_multiplier(2));
     }
 
     #[test]
     fn test_layer3_sockpuppet() {
         let sr = SybilResistance::new();
+        // Spec: strictly greater than 0.85 → SOCKPUPPET_ALERT
         assert!(sr.layer3_is_sockpuppet(0.92));
         assert!(!sr.layer3_is_sockpuppet(0.50));
         assert!(!sr.layer3_is_sockpuppet(SIMILARITY_THRESHOLD - 0.01));
-        assert!(sr.layer3_is_sockpuppet(SIMILARITY_THRESHOLD));
+        // Boundary: exactly 0.85 is NOT an alert (spec uses strict >; the
+        // old test asserted the >= boundary — updated to the spec behavior)
+        assert!(!sr.layer3_is_sockpuppet(SIMILARITY_THRESHOLD));
+        assert!(sr.layer3_is_sockpuppet(0.86));
     }
 
     #[test]
     fn test_layer4_min_spacing() {
         let sr = SybilResistance::new();
-        assert_eq!(sr.layer4_min_spacing_days(0), 7);
-        assert_eq!(sr.layer4_min_spacing_days(1), 10); // 7 × 1.5 = 10.5 → 10
-        assert_eq!(sr.layer4_min_spacing_days(3), 17); // 7 × 2.5 = 17.5 → 17
+        // Spec: MIN_SPACING(n) = 7 × n² days (old test encoded the linear
+        // 7 × (1 + 0.5n) formula — updated to the spec-quadratic values)
+        assert_eq!(sr.layer4_min_spacing_days(0), 0);
+        assert_eq!(sr.layer4_min_spacing_days(1), 7); // 7 × 1²
+        assert_eq!(sr.layer4_min_spacing_days(2), 28); // 7 × 2²
+        assert_eq!(sr.layer4_min_spacing_days(3), 63); // 7 × 3² (matches Python self-test)
+        assert_eq!(sr.layer4_min_spacing_days(5), 175); // 7 × 5²
     }
 
     #[test]
@@ -185,10 +210,11 @@ mod tests {
         let sr = SybilResistance::new();
         let mut graph = HashMap::new();
 
-        // Sponsor A has 6 sponsored → star pattern detected
+        // Sponsor A has 25 sponsored → star pattern detected (> 20 per spec;
+        // the old test used 6 with a ≥5 threshold — updated to spec values)
         let sponsor_a = H256::sha3(b"sponsor_a");
         let mut sponsored_a = Vec::new();
-        for i in 0..6 {
+        for i in 0..25 {
             sponsored_a.push(H256::sha3(format!("entity_{}", i).as_bytes()));
         }
         graph.insert(sponsor_a, sponsored_a);
@@ -197,9 +223,19 @@ mod tests {
         let sponsor_b = H256::sha3(b"sponsor_b");
         graph.insert(sponsor_b, vec![H256::sha3(b"e1"), H256::sha3(b"e2")]);
 
+        // Sponsor C has exactly 20 → below the strict > 20 threshold
+        let sponsor_c = H256::sha3(b"sponsor_c");
+        let mut sponsored_c = Vec::new();
+        for i in 0..20 {
+            sponsored_c.push(H256::sha3(format!("c_entity_{}", i).as_bytes()));
+        }
+        graph.insert(sponsor_c, sponsored_c);
+
         let suspicious = sr.layer5_detect_star_pattern(&graph);
         assert_eq!(suspicious.len(), 1);
-        assert_eq!(suspicious[0], sponsor_a);
+        assert!(suspicious.contains(&sponsor_a));
+        assert!(!suspicious.contains(&sponsor_b));
+        assert!(!suspicious.contains(&sponsor_c));
     }
 
     #[test]
@@ -215,9 +251,11 @@ mod tests {
         sr.record_sponsorship(sponsor, H256::sha3(b"e1"), now);
 
         // Second sponsorship too soon: should fail spacing check
+        // (Layer 4 with n=1 requires 7 × 1² = 7 days = 604800s)
         assert!(!sr.can_sponsor(sponsor, 8000.0, 100.0, 0.3, now + 1000));
 
         // Second sponsorship after enough time: should pass
+        // (30 days > 7 days required after the first sponsorship)
         let later = now + 30 * 24 * 60 * 60; // 30 days later
         assert!(sr.can_sponsor(sponsor, 8000.0, 100.0, 0.3, later));
 

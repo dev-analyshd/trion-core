@@ -66,8 +66,7 @@ until INIT_valid. This phase builds D(t) honestly.
    `node scripts/trion_master_indexer.mjs` + Rust indexers.
 3. Keep services running: `docker-compose up -d` (healthchecks + restart
    policies already configured).
-4. Monitor: Prometheus (`deploy/monitoring/`), attack webhook
-   (`attack_alert_webhook.py`), `/api/v1/health` probes.
+4. Monitor: Prometheus (`deploy/monitoring/`), `/api/v1/health` probes.
 5. **Do not deploy BTCPEscrow. Do not route value.** Bootstrap-phase security
    is classical (multi-sig + rate-limit) per §L4.7; value transfer waits for
    the living-security transition.

@@ -35,6 +35,10 @@ SIGNAL_TYPES = [
     "SYSTEMIC_RISK", "LIQUIDITY_HEALTH", "GOVERNANCE_SIGNAL",
     "CROSS_CHAIN_COHERENCE", "STABLECOIN_HEALTH", "MEV_EXPOSURE",
     "INSTITUTIONAL_BHV", "REGULATORY_BHV", "ECOSYSTEM_HEALTH", "BOOTSTRAP",
+    # BTCP signal type (canonical 19, whitepaper §11).
+    # SECURITY FIX (P1, verification matrix #19): BTCP_ROUTE was missing here
+    # (present in sdk/TrionSDK.ts, sdk/src/index.ts and core SignalType = 22).
+    "BTCP_ROUTE",
 ]
 
 EVENT_TYPES = [

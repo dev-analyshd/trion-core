@@ -250,10 +250,42 @@ def test_signal_factory():
     assert 'biological_time' in sig
     assert sig['signal_type'] == 'VALUATION'
 
+    # Provenance chain (deep-read bug: was always []). Must carry the actual
+    # computation sources: coherence engine, BRT derivation, genomic signature.
+    assert isinstance(sig['provenance'], list) and sig['provenance'], \
+        "provenance must never be empty"
+    sources = {p['source'] for p in sig['provenance']}
+    assert {'coherence_engine', 'brt', 'genomic_signature'} <= sources
+    assert all('ts' in p for p in sig['provenance'])
+
+    # Caller-supplied behavioral-hash provenance is carried first in the chain
+    sig2 = build_signal(entity, SignalType.VALUATION, coherence,
+                        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                        provenance=['bh_deadbeef'])
+    assert sig2['provenance'][0]['bh_id'] == 'bh_deadbeef'
+    assert sig2['provenance'][0]['source'] == 'behavioral_hash'
+
+    # BRT honest labeling: no observations → CLOCK_FALLBACK (was silently
+    # claimed via a broken `akashic.brt_scheduler` import that never resolved)
+    assert sig['biological_time'].get('brt_source') == 'CLOCK_FALLBACK'
+
+    # Observed timestamps → real circular statistics resolve (import fixed)
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+    obs = [midnight + d * 86400 + 3600 * 13 for d in range(48)]
+    sig3 = build_signal(entity, SignalType.VALUATION, coherence,
+                        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                        observed_timestamps=obs)
+    assert sig3['biological_time']['brt_source'] == 'OBSERVED'
+    assert sig3['biological_time']['circadian_strength'] > 0.20
+    brt_rec = [p for p in sig3['provenance'] if p['source'] == 'brt'][0]
+    assert brt_rec['data_source'] == 'OBSERVED'
+    assert brt_rec['observations'] == 48
+
     sil_coherence = {**coherence, "C":0.40,"emits":False,"silence":True,"coherence_gap":0.22}
     sil = build_silence(entity, sil_coherence)
     assert sil['silence']
     assert sil['silence_gap'] == 0.22
+    assert sil['provenance'], "SILENCE signals carry provenance too"
 
 
 # ─── BTCP Tests ──────────────────────────────────────────────────
@@ -534,6 +566,37 @@ def test_anima_reflexivity_dampening():
     assert 0 <= result.a_adj <= 1
 
 
+def test_anima_ecological_stream_brt_honesty():
+    from core.mental.anima.data_streams import ANIMADataAggregator, FetcherConfig
+
+    agg = ANIMADataAggregator()
+
+    class _FakeEco:
+        @staticmethod
+        def compute_ecological_signal(species_query):
+            return {"bc_score": 0.6, "diversity_score": 0.5, "threat_ratio": 0.2}
+
+    agg._eco = _FakeEco  # stub the network fetcher; BRT wiring is under test
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+
+    # Without observations: honest CLOCK_FALLBACK label and strength 0.0
+    # (previously the call site silently fabricated a 0.5 default)
+    cfg_clock = FetcherConfig(entity_id="0xTEST")
+    sig_clock = agg._fetch_ecological(cfg_clock, midnight + 12 * 3600)
+    assert sig_clock.brt_source == "CLOCK_FALLBACK"
+    assert sig_clock.circadian_strength == 0.0
+
+    # With observed timestamps: OBSERVED circular statistics flow into the
+    # biological stream
+    obs = [midnight + d * 86400 + 3600 * 13 for d in range(30)]
+    cfg_obs = FetcherConfig(entity_id="0xTEST", observed_timestamps=obs)
+    sig_obs = agg._fetch_ecological(cfg_obs, midnight + 12 * 3600)
+    assert sig_obs.brt_source == "OBSERVED"
+    assert sig_obs.circadian_strength > 0.5
+    assert 0.30 <= sig_obs.circadian_phase <= 0.60  # 13:00 UTC daytime peak
+    assert sig_obs.bc_score == 0.6  # real fetcher values pass through
+
+
 def test_intelligence_maintenance_healthy():
     from core.mental.intelligence_maintenance import (
         compute_im, ComponentAccuracy, ComponentHealth
@@ -643,6 +706,76 @@ def test_living_security_product():
 
 
 # ─── NEW: L6-L9 Extended Plane Tests ─────────────────────────────
+
+# ─── L6.2 BRT (Biological Rhythm Timer) Tests ─────────────────────
+
+def test_brt_phases_match_spec():
+    from core.extended.biological_rhythm import compute_brt, RHYTHM_PERIODS
+    # Whitepaper L6.2: phase = (t mod T) / T for all four rhythms
+    for t in (0, 43200, 86400, 2551442, 31557600):
+        brt = compute_brt(t)
+        assert abs(brt.circadian_phase - (t % 86400) / 86400) < 1e-12
+        assert abs(brt.ultradian_phase - (t % 5400) / 5400) < 1e-12
+        assert abs(brt.lunar_phase - (t % 2551442) / 2551442) < 1e-12
+        assert abs(brt.seasonal_phase - (t % 31557600) / 31557600) < 1e-12
+    assert RHYTHM_PERIODS["circadian"] == 86400
+    assert RHYTHM_PERIODS["ultradian"] == 5400
+    assert RHYTHM_PERIODS["lunar"] == 2551442
+    assert RHYTHM_PERIODS["seasonal"] == 31557600
+
+
+def test_brt_gas_correlation_significant():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Gas price tracks circadian phase exactly → significant correlation
+    ts = np.arange(0, 86400 * 20, 1800.0)
+    gas = np.cos(2 * np.pi * ((ts % 86400) / 86400)) + 0.01
+    res = compute_brt_gas_correlation(ts.tolist(), gas.tolist(), rhythm="circadian")
+    assert res.data_quality == "OK"
+    assert res.significant is True
+    assert res.p_value <= 0.05
+    assert res.anima_fallback is False
+
+
+def test_brt_gas_correlation_noise_falls_back_to_anima():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Whitepaper rule: p > 0.05 → fall back to ANIMA forecast
+    rng = np.random.RandomState(42)
+    ts = rng.uniform(0, 86400 * 30, 500)
+    gas = rng.normal(50.0, 10.0, 500)  # pure noise, no rhythm link
+    res = compute_brt_gas_correlation(ts.tolist(), gas.tolist())
+    assert res.p_value > 0.05
+    assert res.significant is False
+    assert res.anima_fallback is True
+
+
+def test_brt_gas_correlation_insufficient_and_degenerate_data():
+    from core.extended.biological_rhythm import compute_brt_gas_correlation
+    # Too few samples → honest INSUFFICIENT_SAMPLES + ANIMA fallback
+    res = compute_brt_gas_correlation([1.0, 2.0, 3.0], [10.0, 20.0, 30.0])
+    assert res.data_quality == "INSUFFICIENT_SAMPLES"
+    assert res.anima_fallback is True
+    # Constant gas series → ZERO_VARIANCE + ANIMA fallback (no fake signal)
+    ts = np.arange(0, 86400, 300.0)
+    res_flat = compute_brt_gas_correlation(ts.tolist(), [42.0] * len(ts))
+    assert res_flat.data_quality == "ZERO_VARIANCE"
+    assert res_flat.anima_fallback is True
+
+
+def test_brt_observed_vs_clock_fallback_labeling():
+    from core.extended.biological_rhythm import get_brt_dict
+    # No observations → honest CLOCK_FALLBACK label, strength 0.0
+    d = get_brt_dict(43200)
+    assert d["circadian_phase"] == 0.5
+    assert d["brt_source"] == "CLOCK_FALLBACK"
+    assert d["circadian_strength"] == 0.0
+    # Daytime-only observations → OBSERVED circadian peak with strength > 0
+    midnight = 1_700_000_000 - (1_700_000_000 % 86400)
+    obs = [midnight + day * 86400 + 3600 * 13 for day in range(30)]
+    d2 = get_brt_dict(midnight + 12 * 3600, obs)
+    assert d2["brt_source"] == "OBSERVED"
+    assert d2["circadian_strength"] > 0.5
+    assert abs(d2["circadian_phase"] - 13 / 24) < 0.05
+
 
 def test_biological_capital_thriving():
     from core.extended.biological_capital import compute_bc, EcosystemProfile

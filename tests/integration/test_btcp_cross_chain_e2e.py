@@ -121,6 +121,16 @@ class TestBTCPCrossChainE2E:
         """Step 1: Create a BTCP intent via the orchestrator."""
         print("\n[Step 1] Creating BTCP intent (swap on B while holding on A)")
 
+        # Real witness data for the STANDARD privacy level: the entity's
+        # HashDNA dual strands (test fixture — true complements) + current
+        # block, and IAP batch economics from the (test) IAP scheduler.
+        # Without these the orchestrator honestly defers the complementarity
+        # and IAP circuits (status "zk_pending") instead of fabricating
+        # proof bytes over random strands / hardcoded economics.
+        import secrets as _secrets
+        sense = _secrets.token_bytes(32)
+        antisense = bytes(b ^ 0xFF for b in sense)  # true complement (fixture)
+
         result = self.orchestrator.create_route(
             source_chain=CHAIN_A,
             dest_chain=CHAIN_B,
@@ -136,6 +146,16 @@ class TestBTCPCrossChainE2E:
                 "manipulation": 0.10,
                 "liquidity": 0.88,
                 "depth": 540.0,
+                "genomic_sense": sense.hex(),
+                "genomic_antisense": antisense.hex(),
+                "block_number": 18_500_000,
+            },
+            iap_economics={
+                "total_gas": 2_400_000,
+                "entity_gas": 240_000,
+                "total_btcp_fee_wei": int(0.02 * 10**18),
+                "entity_share_wei": int(0.002 * 10**18),
+                "num_participants": 12,
             },
         )
 
@@ -354,6 +374,14 @@ class TestBTCPCrossChainE2E:
         actual_circuits = set(self.route.proofs.keys())
         missing = expected_circuits - actual_circuits
         assert not missing, f"Missing proofs: {missing}"
+
+        # Honesty contract: with real witness data supplied in step 1, no
+        # circuit may be deferred — and without witness data (checked in the
+        # dedicated unit tests) the entries carry status "zk_pending" with
+        # zk_proof=None instead of fabricated proof bytes.
+        deferred = [n for n, p in self.route.proofs.items()
+                    if isinstance(p, dict) and p.get("status") == "zk_pending"]
+        assert not deferred, f"Unexpected deferred circuits: {deferred}"
 
         # Also add the route proof to the aggregator
         for name, proof_data in self.route.proofs.items():

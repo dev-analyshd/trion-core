@@ -14,6 +14,20 @@ pub const CERT_WINDOWS: [(u64, u64); 4] = [
     (1_000_000, 500000), // > $1M: 500k blocks
 ];
 
+/// Maximum number of blocks after the certification (anchor) block within
+/// which a BTCP proof remains valid (reorg / expiry guard).
+///
+/// `verify_proof` rejects a proof when
+/// `current_block > anchor_block + MAX_PROOF_VALIDITY_BLOCKS` (the anchor
+/// block is the certification block stored in the proof's diversity
+/// certificate). Past this window the certification is expired and the
+/// anchor may have been reorged out — the advertised reorg protection of
+/// this module depends on this check. Mirrors the Python reference
+/// (`core/btcp/modules.py`: `current_block > proof.certification_expiry →
+/// invalid`). Defaults to the most conservative certification window tier
+/// (`CERT_WINDOWS[0].1` = 50,000 blocks — the sub-$10k tier).
+pub const MAX_PROOF_VALIDITY_BLOCKS: u64 = 50_000;
+
 /// BTCP Proof Builder — constructs consensus proofs for cross-chain routes
 #[derive(Debug, Default)]
 pub struct BTCPProofBuilder {
@@ -94,7 +108,24 @@ impl BTCPProofBuilder {
     }
 
     /// Verify a BTCP proof
+    ///
+    /// Checks, in order (mirrors the Python reference Module 2.4):
+    /// 1. Reorg/expiry: current block must be within
+    ///    MAX_PROOF_VALIDITY_BLOCKS of the anchor (certification) block
+    /// 2. Consensus coherence exceeds threshold
+    /// 3. HHI indicates reasonable distribution (not too concentrated)
+    /// 4. Minimum validator signatures
+    /// 5. Version compatibility
     pub fn verify_proof(&self, proof: &BTCPProof, current_block: u64) -> bool {
+        // Reorg / expiry check: block-height validity window relative to the
+        // anchor (certification) block recorded in the diversity certificate.
+        // A proof consumed too many blocks after certification is stale —
+        // the anchor may no longer be part of the canonical chain.
+        let anchor_block = proof.consensus_proof.diversity_cert.block_number;
+        if current_block > anchor_block.saturating_add(MAX_PROOF_VALIDITY_BLOCKS) {
+            return false; // certification expired / anchor too deep (reorg risk)
+        }
+
         // Check consensus coherence exceeds threshold
         if proof.consensus_proof.coherence_score < proof.consensus_proof.threshold {
             return false;
@@ -214,6 +245,42 @@ mod tests {
         // Invalid: coherence below threshold
         proof.consensus_proof.coherence_score = 0.40;
         assert!(!builder.verify_proof(&proof, 18001000));
+    }
+
+    #[test]
+    fn test_verify_proof_expiry() {
+        let builder = BTCPProofBuilder::with_block(18000000);
+        let (sigs, weights, hhi) = BTCPProofBuilder::generate_mock_signatures(5);
+
+        // Proof certified (anchored) at block 18000000
+        let proof = builder.build_proof(
+            H256::sha3(b"anchor"),
+            H256::sha3(b"intent"),
+            "SPLIT",
+            18000000,
+            3000.0,
+            sigs,
+            weights,
+            hhi,
+            0.82,
+            0.55,
+            "2.0.0",
+        );
+
+        let anchor_block = proof.consensus_proof.diversity_cert.block_number;
+        assert_eq!(anchor_block, 18000000);
+
+        // Well within the validity window: valid
+        assert!(builder.verify_proof(&proof, 18001000));
+
+        // Last block of the validity window: still valid (window is inclusive)
+        assert!(builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS));
+
+        // One block past the window: expired (reorg / staleness risk)
+        assert!(!builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS + 1));
+
+        // Far past the window: expired
+        assert!(!builder.verify_proof(&proof, anchor_block + 500_000));
     }
 
     #[test]

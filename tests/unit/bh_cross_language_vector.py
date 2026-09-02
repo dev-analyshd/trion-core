@@ -14,7 +14,7 @@ import struct
 import sys
 from pathlib import Path
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "bh_schema_v1.json"
+SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "bh_schema_v1.json"
 
 
 def compute_bh(entity_id_hex: str, event_type: int, magnitude_norm: float,
@@ -59,23 +59,22 @@ def verify_invariant(sense_hex: str, antisense_hex: str,
 
 
 def main() -> int:
-    schema  = json.loads(SCHEMA_PATH.read_text())
-    vec_in  = schema["cross_language_test_vector"]["input"]
-    vec_exp = schema["cross_language_test_vector"]["expected"]
+    schema = json.loads(SCHEMA_PATH.read_text())
+    vec    = schema["test_vector"]
 
     sense, antisense = compute_bh(
-        entity_id_hex  = vec_in["entity_id_hex"],
-        event_type     = vec_in["event_type"],
-        magnitude_norm = vec_in["magnitude_norm"],
-        context        = vec_in["context"],
-        timestamp_secs = vec_in["timestamp_secs"],
-        chain_id       = vec_in["chain_id"],
-        block_hash_hex = vec_in["block_hash_hex"],
+        entity_id_hex  = vec["entity_id_hex"],
+        event_type     = vec["event_type"],
+        magnitude_norm = vec["magnitude_norm"],
+        context        = vec["context"],
+        timestamp_secs = vec["timestamp"],
+        chain_id       = vec["chain_id"],
+        block_hash_hex = vec["block_hash_hex"],
     )
 
     ok = True
-    expected_sense     = vec_exp["sense"]
-    expected_antisense = vec_exp["antisense"]
+    expected_sense     = vec["expected_sense"]
+    expected_antisense = vec["expected_antisense"]
 
     if sense != expected_sense:
         print(f"FAIL  sense mismatch\n  got : {sense}\n  want: {expected_sense}")
@@ -90,16 +89,16 @@ def main() -> int:
         print(f"PASS  antisense = {antisense}")
 
     # Also verify the dual-strand invariant
-    entity  = bytes.fromhex(vec_in["entity_id_hex"].zfill(64))[:32]
-    blk     = bytes.fromhex(vec_in["block_hash_hex"].zfill(64))[:32]
-    mag_n   = int(max(0.0, min(1.0, vec_in["magnitude_norm"])) * 1_000_000_000)
+    entity  = bytes.fromhex(vec["entity_id_hex"].zfill(64))[:32]
+    blk     = bytes.fromhex(vec["block_hash_hex"].zfill(64))[:32]
+    mag_n   = int(max(0.0, min(1.0, vec["magnitude_norm"])) * 1_000_000_000)
     payload = bytearray()
     payload += entity
-    payload += bytes([vec_in["event_type"]])
+    payload += bytes([vec["event_type"]])
     payload += struct.pack(">Q", mag_n)
-    payload += struct.pack(">Q", vec_in["context"])
-    payload += struct.pack(">Q", vec_in["timestamp_secs"])
-    payload += struct.pack(">I", vec_in["chain_id"])
+    payload += struct.pack(">Q", vec["context"])
+    payload += struct.pack(">Q", vec["timestamp"])
+    payload += struct.pack(">I", vec["chain_id"])
     payload += blk
 
     if verify_invariant(sense, antisense, bytes(payload)):
@@ -108,14 +107,14 @@ def main() -> int:
         print("FAIL  dual-strand XOR invariant broken")
         ok = False
 
-    # Verify event_type name is correct against schema
-    et_names = {e["value"]: e["name"] for e in schema["event_types"]}
-    et_val   = vec_in["event_type"]
-    et_name  = et_names.get(et_val, "UNKNOWN")
-    if et_name == vec_in["event_type_name"]:
-        print(f"PASS  event_type {et_val} = {et_name}")
+    # Verify event_type value is a member of the canonical schema enum
+    et_names = {e["id"]: e["name"] for e in schema["event_types"]}
+    et_val   = vec["event_type"]
+    et_name  = et_names.get(et_val)
+    if et_name is not None:
+        print(f"PASS  event_type {et_val} = {et_name} (canonical schema member)")
     else:
-        print(f"FAIL  event_type {et_val}: schema says '{et_name}', vector says '{vec_in['event_type_name']}'")
+        print(f"FAIL  event_type {et_val} is NOT in the canonical schema enum")
         ok = False
 
     print()

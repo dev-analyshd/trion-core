@@ -15,6 +15,24 @@ Extended 5 (beyond canonical 19, retained for coverage breadth):
 Every signal includes: CI_95 always, biological_time,
 full provenance chain, coherence breakdown.
 
+Provenance (whitepaper Section 11 — previously always empty, fixed):
+  Every signal carries a non-empty `provenance` list recording the actual
+  computation sources: caller-supplied source records (e.g. behavioral-hash
+  ids backing the signal) plus auto-recorded entries for the coherence
+  evaluation, the BRT phase derivation (OBSERVED vs CLOCK_FALLBACK), and
+  the genomic signature generation. Entries are factual records of what
+  produced the signal value — never fabricated hashes.
+
+BRT observed-timestamp path (fixed import):
+  compute_brt() derives circadian/ultradian phases from observed timestamps
+  via core.akashic.bibl.derive_brt_from_observations (real circular
+  statistics). The previous import target `akashic.brt_scheduler` never
+  existed in the akashic/ package (the real BRT scheduler lives in
+  anima-service/brt_scheduler.py, which is not importable as a Python
+  package — hyphenated directory, no __init__.py), so the observed path
+  silently degraded to wall-clock. The biological_time dict now carries
+  an honest `brt_source` label.
+
 SILENCE signal carries:
   coherence_gap, limiting_plane, coherence_trend, eta
 
@@ -62,19 +80,55 @@ def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> d
     """
     Biological Rhythm Timer — four phases.
     Uses observed timestamps for circadian/ultradian if available.
+
+    Observed-timestamp derivation delegates to
+    core.akashic.bibl.derive_brt_from_observations (circular mean +
+    resultant strength; CLOCK_FALLBACK below 48 observations or strength
+    ≤ 0.20). The dict additionally carries an honest `brt_source` label
+    ("OBSERVED" | "CLOCK_FALLBACK") and the observed circadian strength.
     """
     circ  = (unix_ts % 86400)    / 86400
     ultr  = (unix_ts % 5400)     / 5400
     lunar = (unix_ts % 2551442)  / 2551442
     seas  = (unix_ts % 31557600) / 31557600
 
+    brt_source         = "CLOCK_FALLBACK"
+    circadian_strength = 0.0
+
     if observed_timestamps and len(observed_timestamps) >= 24:
         try:
-            from akashic.brt_scheduler import derive_brt_phase
-            brt_obs = derive_brt_phase(observed_timestamps)
-            if brt_obs.data_source == "OBSERVED":
+            # Real observed-timestamp BRT via circular statistics.
+            # (The historical import `akashic.brt_scheduler` pointed at a
+            # module that never existed in akashic/ — the live scheduler is
+            # anima-service/brt_scheduler.py, not importable as a package.
+            # core.akashic.bibl implements the same derivation and is the
+            # canonical importable location — see deep-read finding #1.)
+            from core.akashic.bibl import derive_brt_from_observations
+            brt_obs = derive_brt_from_observations(observed_timestamps)
+            if brt_obs.brt_data_source == "OBSERVED":
                 circ = brt_obs.circadian_phase
                 ultr = brt_obs.ultradian_phase
+            brt_source         = brt_obs.brt_data_source
+            circadian_strength = brt_obs.circadian_strength
+        except ImportError as _brt_import_err:
+            # Direct-script execution: repo root not yet on sys.path —
+            # add it (mirrors core.akashic.bibl's own fallback) and retry.
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "..", ".."))
+            try:
+                from core.akashic.bibl import derive_brt_from_observations
+                brt_obs = derive_brt_from_observations(observed_timestamps)
+                if brt_obs.brt_data_source == "OBSERVED":
+                    circ = brt_obs.circadian_phase
+                    ultr = brt_obs.ultradian_phase
+                brt_source         = brt_obs.brt_data_source
+                circadian_strength = brt_obs.circadian_strength
+            except Exception:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "BRT observed phase derivation failed after path fixup: %s",
+                    _brt_import_err, exc_info=True
+                )
         except Exception as _brt_err:
             import logging as _logging
             _logging.getLogger(__name__).warning(
@@ -82,10 +136,12 @@ def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> d
             )
 
     return {
-        "circadian_phase":  circ,
-        "ultradian_phase":  ultr,
-        "lunar_phase":      lunar,
-        "seasonal_phase":   seas,
+        "circadian_phase":    circ,
+        "ultradian_phase":    ultr,
+        "lunar_phase":        lunar,
+        "seasonal_phase":     seas,
+        "brt_source":         brt_source,
+        "circadian_strength": round(circadian_strength, 6),
     }
 
 
@@ -111,6 +167,69 @@ def _genomic_signature(entity_id_str: str, generation: int = 0) -> str:
     return sense_b.hex() + antisense_b.hex()   # 128 hex chars = 64 bytes
 
 
+def _build_provenance(
+    caller_provenance: Optional[list],
+    coherence_result:  dict,
+    brt:               dict,
+    observed_timestamps: Optional[list],
+    entity_id_str:     str,
+    genomic_generation: int,
+    now:               float,
+) -> list:
+    """
+    Build the actual provenance chain for a TRIONSignal.
+
+    Layers (in order):
+      1. Caller-supplied source records — e.g. behavioral-hash ids or upstream
+         source dicts backing this signal (`provenance=[...]` argument).
+         Strings are normalized to {"source": "behavioral_hash", "bh_id": s}.
+      2. Coherence-engine evaluation record — the C(t)/Θ(t) computation that
+         gated the signal, with the contributing planes.
+      3. BRT derivation record — wall-clock vs OBSERVED circular statistics,
+         with the observation count.
+      4. Genomic-signature record — the dual-strand SHA3-256 generation.
+
+    All entries are factual descriptions of the computation performed;
+    no hashes or sources are fabricated.
+    """
+    prov: list = []
+
+    for entry in (caller_provenance or []):
+        if isinstance(entry, str):
+            prov.append({"source": "behavioral_hash", "bh_id": entry, "ts": int(now)})
+        elif isinstance(entry, dict):
+            prov.append(dict(entry))
+
+    planes = coherence_result.get("plane_breakdown", {}) or {}
+    prov.append({
+        "source":   "coherence_engine",
+        "stage":    "C(t)/Θ(t) evaluation",
+        "C":        coherence_result.get("C", 0.0),
+        "theta":    coherence_result.get("theta", 0.55),
+        "emits":    coherence_result.get("emits", False),
+        "planes":   sorted(planes.keys()) if planes else [],
+        "ts":       int(now),
+    })
+
+    prov.append({
+        "source":       "brt",
+        "stage":        "biological_time derivation",
+        "data_source":  brt.get("brt_source", "CLOCK_FALLBACK"),
+        "observations": len(observed_timestamps) if observed_timestamps else 0,
+        "ts":           int(now),
+    })
+
+    prov.append({
+        "source":     "genomic_signature",
+        "stage":      "dual-strand SHA3-256 (L0.1)",
+        "entity":     entity_id_str[:16] + ("…" if len(entity_id_str) > 16 else ""),
+        "generation": genomic_generation,
+        "ts":         int(now),
+    })
+
+    return prov
+
+
 def build_signal(
     entity_id:            object,
     signal_type:          SignalType,
@@ -120,6 +239,7 @@ def build_signal(
     ci_95_upper:          float = 1.0,
     extra:                Optional[dict] = None,
     observed_timestamps:  Optional[list] = None,
+    provenance:           Optional[list] = None,
     genomic_generation:   int = 0,
     immune_clearance:     bool = True,
     validator_count:      int = 0,
@@ -140,6 +260,14 @@ def build_signal(
       validator_hhi, reflexivity_flag, OE_factor, temporal_coherence,
       conf_genesis, silence_gap, limiting_plane, coherence_trend, eta_blocks,
       akashic_depth, timestamp, ttl_seconds.
+
+    Args:
+        provenance: optional caller-supplied source records (behavioral-hash
+            ids as strings, or source dicts) that back this signal. They are
+            placed first in the signal's provenance chain, followed by the
+            auto-recorded coherence/BRT/genomic entries. When omitted, the
+            chain still records the actual computation sources (it is never
+            an empty list).
     """
     now = time.time()
     brt = compute_brt(now, observed_timestamps)
@@ -156,6 +284,16 @@ def build_signal(
         conf_genesis = round(1.0 - _math.exp(-0.001 * float(depth)), 6)
 
     gen_sig = _genomic_signature(entity_id_str, genomic_generation)
+
+    prov = _build_provenance(
+        caller_provenance=provenance,
+        coherence_result=coherence_result,
+        brt=brt,
+        observed_timestamps=observed_timestamps,
+        entity_id_str=entity_id_str,
+        genomic_generation=genomic_generation,
+        now=now,
+    )
 
     signal = {
         "signal_id":          str(uuid.uuid4()),
@@ -191,7 +329,7 @@ def build_signal(
         "validator_hhi":      round(validator_hhi, 2),
         "reflexivity_flag":   reflexivity_flag,
         "temporal_coherence": round(temporal_coherence, 6),
-        "provenance":         [],
+        "provenance":         prov,
         **(extra or {}),
     }
     return signal
@@ -1078,11 +1216,49 @@ if __name__ == "__main__":
         assert "ci_95"           in sig, f"Missing CI_95 in {sig['signal_type']}"
         assert "biological_time" in sig, f"Missing BRT in {sig['signal_type']}"
         assert "coherence"       in sig, f"Missing coherence in {sig['signal_type']}"
+        # Provenance chain must be non-empty and carry factual source records
+        assert isinstance(sig["provenance"], list) and sig["provenance"], \
+            f"Empty provenance in {sig['signal_type']}"
+        sources = {p["source"] for p in sig["provenance"]}
+        assert "coherence_engine" in sources, f"Missing coherence provenance in {sig['signal_type']}"
+        assert "brt" in sources, f"Missing BRT provenance in {sig['signal_type']}"
+        assert "genomic_signature" in sources, f"Missing genomic provenance in {sig['signal_type']}"
+        assert sig["biological_time"].get("brt_source") == "CLOCK_FALLBACK", \
+            "no observations supplied → BRT must be honestly labeled CLOCK_FALLBACK"
+
+    # Caller-supplied provenance (behavioral hash ids) is carried first
+    sig_prov = build_signal(
+        entity, SignalType.VALUATION, coherence,
+        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+        provenance=["bh_abc123", {"source": "rpc", "chain_id": 1, "block": 18000000}],
+    )
+    assert sig_prov["provenance"][0]["bh_id"] == "bh_abc123"
+    assert sig_prov["provenance"][1]["source"] == "rpc"
+    assert len(sig_prov["provenance"]) == 5  # 2 caller + 3 auto records
+
+    # Observed-timestamp BRT path now actually resolves (broken import fixed)
+    import random as _random
+    _rng = _random.Random(99)
+    _midnight = 1700000000 - (1700000000 % 86400)
+    _obs = [_midnight + d * 86400 + _rng.uniform(32400, 61200)
+            for d in range(30) for _ in range(3)]
+    sig_obs = build_signal(
+        entity, SignalType.VALUATION, coherence,
+        signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+        observed_timestamps=_obs,
+    )
+    assert sig_obs["biological_time"]["brt_source"] == "OBSERVED", \
+        "observed-timestamp BRT derivation must resolve (import fixed)"
+    assert sig_obs["biological_time"]["circadian_strength"] > 0.20
+    brt_prov = [p for p in sig_obs["provenance"] if p["source"] == "brt"][0]
+    assert brt_prov["data_source"] == "OBSERVED"
+    assert brt_prov["observations"] == len(_obs)
 
     print("All 24 signal types:")
     for s in sigs:
         star = " *" if s["signal_type_id"] >= 19 else ""
-        print(f"  [{s['signal_type_id']:2d}] {s['signal_type']:28s} C={s['coherence']:.2f}  CI=[{s['ci_95'][0]:.2f},{s['ci_95'][1]:.2f}]{star}")
+        print(f"  [{s['signal_type_id']:2d}] {s['signal_type']:28s} C={s['coherence']:.2f}  CI=[{s['ci_95'][0]:.2f},{s['ci_95'][1]:.2f}]"
+              f"  prov={len(s['provenance'])} records{star}")
 
     print(f"\n  * = extended signals (whitepaper Section 11 original — L6–L9 planes)")
     print(f"\nPHASE 15 PASS — all {len(sigs)}/24 signal types built with full provenance")

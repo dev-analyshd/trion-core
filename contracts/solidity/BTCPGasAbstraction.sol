@@ -24,11 +24,16 @@ contract BTCPGasAbstraction {
     error DepositAlreadyExists(bytes32 intentHash);   // SECURITY: overwrite guard
     error QuoteNotExpired(bytes32 intentHash);        // SECURITY: refund only after quote expiry
     error OnlyPayer(bytes32 intentHash);              // SECURITY: refund goes to payer only
+    error TokenRefundFailed(bytes32 intentHash);      // SECURITY: payer remainder transfer failed
 
     event QuotePosted(bytes32 indexed intentHash, uint256 gasTotalUsd, uint256 serviceFeeUsd, uint64 expiresAt);
     event DepositPosted(bytes32 indexed intentHash, address indexed payer, address token, uint256 amount);
     event GasCovered(bytes32 indexed intentHash, address indexed payee, uint256 amountUsd, uint64 chain);
     event DepositRefunded(bytes32 indexed intentHash, address indexed payer, uint256 amount);
+    /// @notice SECURITY FIX (P1): the payer's unspent remainder (deposit above
+    ///         the actual cost: spent gas + earned service fee) refunded at
+    ///         coverGas time — previously this was silently forfeited.
+    event DepositRemainderRefunded(bytes32 indexed intentHash, address indexed payer, uint256 amount);
     event RelayerUpdated(address oldRelayer, address newRelayer);
 
     struct Quote {
@@ -109,16 +114,40 @@ contract BTCPGasAbstraction {
         Quote storage q = quotes[intentHash];
         uint256 payableUsd = spentUsd > q.gasTotalUsd ? q.gasTotalUsd : spentUsd;
         d.claimed = true;
-        uint256 requiredUsd = q.gasTotalUsd + q.serviceFeeUsd;
-        uint256 tokenAmount = (payableUsd * d.amount) / requiredUsd;
-        if (tokenAmount == 0) revert ZeroAmount();
-        if (tokenAmount > d.amount) tokenAmount = d.amount;
+        // SECURITY FIX (P1 — overpayment forfeit): the gas reimbursement is
+        // what was actually spent (capped at the quoted gas total) and is NOT
+        // scaled up by any deposit overpayment. The payer receives back
+        // everything above the actual cost (spent gas + earned service fee).
+        // Previously the old proportional formula inflated the payee's share
+        // on overpaid deposits and the leftover remainder was frozen in the
+        // contract — unrefundable (d.claimed blocks refund()) and unsweepable
+        // (still counted in _activeDepositsEth) — so the payer simply lost it.
+        uint256 gasReimbursement = payableUsd > d.amount ? d.amount : payableUsd;
+        uint256 feePortion = q.serviceFeeUsd;
+        if (feePortion + gasReimbursement > d.amount) feePortion = d.amount - gasReimbursement; // defensive rounding clamp
+        uint256 remainder = d.amount - gasReimbursement - feePortion;
+        if (gasReimbursement == 0) revert ZeroAmount();
         if (d.token == address(0)) {
-            _activeDepositsEth -= tokenAmount;  // SECURITY: fee-sweep accounting
-            (bool ok, ) = payee.call{value: tokenAmount}("");
+            // SECURITY: fee-sweep accounting — the deposit is fully settled
+            // here (reimbursement + refund + fee), so release it from the
+            // active-deposit ledger; only the earned service fee (feePortion)
+            // becomes sweepable excess.
+            _activeDepositsEth -= d.amount;
+            (bool ok, ) = payee.call{value: gasReimbursement}("");
             require(ok, "ETH payout failed");
+            if (remainder > 0) {
+                (bool refundOk, ) = d.payer.call{value: remainder}("");
+                require(refundOk, "ETH remainder refund failed");
+                emit DepositRemainderRefunded(intentHash, d.payer, remainder);
+            }
         } else {
-            IERC20Minimal(d.token).transfer(payee, tokenAmount);
+            IERC20Minimal(d.token).transfer(payee, gasReimbursement);
+            if (remainder > 0) {
+                if (!IERC20Minimal(d.token).transfer(d.payer, remainder)) {
+                    revert TokenRefundFailed(intentHash);
+                }
+                emit DepositRemainderRefunded(intentHash, d.payer, remainder);
+            }
         }
         emit GasCovered(intentHash, payee, payableUsd, executionChain);
     }

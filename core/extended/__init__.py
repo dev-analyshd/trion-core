@@ -9,7 +9,9 @@ Layers 6-9: Extended Intelligence Modules
 
 from .biological_rhythm import (
     BiologicalRhythm, compute_brt, get_brt_dict, BRT,
+    compute_brt_gas_correlation, BRTGasCorrelation,
     CIRCADIAN_SECONDS, ULTRADIAN_SECONDS, LUNAR_SECONDS, SEASONAL_SECONDS,
+    RHYTHM_PERIODS, BRT_GAS_ALPHA,
 )
 
 from .natural_liquidity import (
@@ -59,7 +61,9 @@ from .xsl_engine import (
 __all__ = [
     # BRT (Level 6)
     'BiologicalRhythm', 'compute_brt', 'get_brt_dict', 'BRT',
+    'compute_brt_gas_correlation', 'BRTGasCorrelation',
     'CIRCADIAN_SECONDS', 'ULTRADIAN_SECONDS', 'LUNAR_SECONDS', 'SEASONAL_SECONDS',
+    'RHYTHM_PERIODS', 'BRT_GAS_ALPHA',
     # NL (Level 7)
     'compute_ld', 'compute_lo', 'compute_lc', 'compute_ls', 'compute_nl',
     'NL_ALERT_THRESHOLD',

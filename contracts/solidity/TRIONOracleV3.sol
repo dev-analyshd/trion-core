@@ -76,6 +76,12 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     /// @notice Emitted when SILENCE is formally recorded (C(t) < Θ(t)).
     // SilenceRecorded event inherited from ITRIONOracleV3
 
+    /// @notice Emitted when SILENCE is formally recorded — V2 with the full
+    ///         structured-null payload (coherence gap + eta). Both V1 and V2
+    ///         are emitted on silence (V1 topic0 kept stable for existing
+    ///         indexers).
+    // SilenceRecordedV2 event inherited from ITRIONOracleV3
+
     constructor() {
         isValidator[msg.sender] = true;
     }
@@ -139,6 +145,13 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         if (!sig.coherent) {
             uint256 gap = sig.threshold > sig.coherenceScore ? sig.threshold - sig.coherenceScore : 0;
             emit SilenceRecorded(sig.entityId, sig.coherenceScore, sig.threshold, sig.limitingPlane, gap, blk);
+            // SECURITY FIX (P1, verification matrix #20): SILENCE emission must
+            // carry coherence_gap AND eta. eta_blocks = int(gap × 1000) per
+            // core/master/coherence.py, with the on-chain gap in ×1e6 fixed
+            // point → etaBlocks = gap / 1000. V2 event adds the eta field while
+            // V1 keeps its original topic0 for backward compatibility.
+            uint256 etaBlocks = gap / 1000;
+            emit SilenceRecordedV2(sig.entityId, sig.coherenceScore, sig.threshold, sig.limitingPlane, gap, etaBlocks, blk);
         }
     }
 
