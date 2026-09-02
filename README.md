@@ -96,6 +96,16 @@ Prediction confidence derived from archetype similarity in FAISS space, correcte
 ### L4 — Spiritual Plane Σ(t) & Conscious Plane K(t)
 **Diversity-Weighted Byzantine Fault Tolerance**: validators who think too much like the majority receive *diminished weight*, not increased rewards. `dⱼ = 1 − corr(Mⱼ, M̄)`. Perfect coordination = exactly zero effective power. The Conscious plane adds human-in-the-loop annotation with six anti-capture protections.
 
+> **Plane data status (honest disclosure, v2.2.0).** Σ(t) votes are computed
+> from validators' *real observed behavioral records* (per-validator staggered
+> view windows); validators without data **abstain**, and entities below
+> quorum receive the documented bootstrap value `Σ = 0.25` flagged
+> `bootstrap_cold_start` (see `config/deployment.env`, `core/spiritual/sigma_engine.py`).
+> K(t) is the real annotator-driven score once annotations exist; before that a
+> labeled proxy `0.7·Σ + 0.3·A` is used and flagged in signal output. ANIMA
+> crawls real sources (SEC EDGAR, GitHub, RSS, arXiv, regulatory feeds). No
+> plane silently fabricates data.
+
 ### L5 — Coherence Engine & Master Equation
 Five planes fuse into a single coherence score `C(t)`. The **Master Equation** amplifies truth by the system's own defensibility:
 ```
