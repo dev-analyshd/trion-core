@@ -221,10 +221,12 @@ escrow_pda, escrow_bump = Pubkey.find_program_address(
 | `destination` | ❌ | ❌ | Recipient address on release |
 | `system_program` | ❌ | ❌ | System Program |
 
-**Args:** `escrow_id: [u8; 32], route_id: [u8; 32], entity_id: BEOIdentity, min_coherence: u64, timeout_slots: u64`
+**Args:** `escrow_id: [u8; 32], route_id: [u8; 32], entity_id: BEOIdentity, amount: u64, min_coherence: u64, timeout_slots: u64`
 
-**Lamports:** The `vault_funder` must have enough SOL to cover both the escrow
-amount AND the rent for the escrow account (≈0.002 SOL).
+**Lamports:** Only `amount` lamports (the Solidity `msg.value` analog) are
+transferred from `vault_funder` to the vault PDA — the funder's remaining
+balance stays untouched. The `relayer` pays the escrow account rent
+(≈0.002 SOL).
 
 ---
 
@@ -330,6 +332,7 @@ The existing `trion-svm` Rust indexer crate needs to be extended with a
 4. Relayer triggers escrow locks:
    → On Solana: btcp_escrow.lock_escrow(
        escrow_id, route_id, BEO_B_solana,
+       amount = 500_000_000,        // 0.5 SOL in lamports — exactly what is locked
        min_coherence=500000, timeout_slots=300
      )
      [vault_funder = Entity A's Solana wallet, 0.5 SOL transferred to vault PDA]
