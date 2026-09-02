@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# TRION Protocol — Replit Setup Script
-# Run once after cloning/importing to install all Node.js dependencies across
-# every subproject in the workspace.
+# TRION Protocol — Dependency Setup Script
+# Run once after cloning to install all Node.js dependencies across every
+# subproject in the workspace.
 #
 # Python dependencies are managed via uv (pyproject.toml) and are installed
-# automatically when the workflows start (via `uv run`).
+# automatically when the services start (via `uv run`).
 #
 # Usage:
 #   bash scripts/setup.sh
@@ -71,10 +71,9 @@ echo "========================================================"
 echo " Setup complete."
 echo ""
 echo " Next steps:"
-echo "  1. Add Replit Secrets for your signing keys"
-echo "     (see 'Secrets Required' section in replit.md)"
-echo "  2. Start all workflows from the Replit Workflows panel:"
-echo "     Start application → FAISS ANIMA → Rust Indexers →"
-echo "     TRION Relayer → Extended Chain Relayer → Native Relayer →"
-echo "     Attack Alert Webhook → Genesis Backfill"
+echo "  1. Put your signing keys in .env"
+echo "     (copy .env.example → .env and fill in values)"
+echo "  2. Start the services (see docs/DEPLOYMENT.md):"
+echo "     docker-compose up -d   (or the systemd units in deploy/systemd)"
+echo "     oracle API :5000 → FAISS :8000 → indexers → relayers"
 echo "========================================================"
