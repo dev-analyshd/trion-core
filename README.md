@@ -736,18 +736,30 @@ trion-core/
 │   ├── circuits/                  # Circuit definitions
 │   ├── keys/                      # Proving/verification keys
 │   └── proofs/                    # Generated proof storage
-├── contracts/                     # Solidity & Vyper smart contracts
-│   ├── BTCPEscrow.sol             # Two-state atomic escrow
-│   ├── BTCPIntent.sol             # Intent registration
-│   ├── BTCPRoute.sol              # Route tracking
-│   ├── BehavioralLimitOrder.sol   # BLO storage & partial fills
-│   ├── LiquidityOcean.sol         # Form-equivalent liquidity
-│   ├── GenesisCommitment.sol      # Null-state entity genesis
-│   ├── TravelRuleCompliance.sol   # FATF compliance proofs
-│   ├── BTCPVersionRegistry.sol    # Protocol version management
-│   ├── TRIONOracleV3.sol          # Enhanced behavioral oracle
-│   ├── ConfidentialCoherenceVault.sol
-│   └── interfaces/
+├── contracts/                     # All smart contracts organized by VM family
+│   ├── README.md                  # Full contract index (65+ contracts, 9 VMs)
+│   ├── starknet/                  # Cairo contracts (8 — deployed on Sepolia)
+│   │   └── src/                   # TRIONOracle, BEOAttestation, BTCFiGuard, BTCP suite, LiquidityOcean
+│   ├── solidity/                  # EVM contracts (22 — deployed on ETH/Arb/OP/Base Sepolia)
+│   │   ├── BTCPEscrow.sol         # Two-state atomic escrow with G1 two-phase settlement
+│   │   ├── BTCPIntent.sol         # Intent registration
+│   │   ├── BTCPRoute.sol          # Route tracking
+│   │   ├── LiquidityOcean.sol     # Form-equivalent liquidity
+│   │   ├── TRIONOracleV3.sol      # Enhanced behavioral oracle
+│   │   ├── compiled/              # Compiled ABI + bytecode JSON artifacts
+│   │   └── interfaces/            # ITRIONOracle interfaces
+│   ├── vyper/                     # Vyper contracts (TRIONToken, TRIONStaking)
+│   ├── near/                      # NEAR Rust contracts (5)
+│   ├── svm/                       # Solana Anchor programs (4: escrow, intent, route, common)
+│   ├── ton/                       # TON FunC contracts (9: escrow, intent, route, oracle, etc.)
+│   ├── pvm/                       # Polkadot ink! contracts (8)
+│   ├── move/                      # Move contracts for Aptos/Sui (5)
+│   ├── soroban/                   # Stellar Soroban contract (1)
+│   ├── cosmwasm/                  # CosmWasm contract (1)
+│   ├── cairo/                     # Legacy Cairo contracts (12)
+│   ├── script/                    # Foundry deployment scripts
+│   ├── test/                      # Foundry tests
+│   └── foundry.toml               # Foundry configuration
 ├── indexers/                      # Rust L0 indexers (13 crates)
 ├── schema.sql                     # TimescaleDB schema + thermodynamic triggers
 │                                # + BTCP tables: routes, intents, escrows, clipboard, BLOs
@@ -948,16 +960,20 @@ The BTCP Zero-Bridge has been deployed and tested across **5 blockchain networks
 
 ### Full Proof Documentation
 
-See **[BTCP_ZERO_BRIDGE_PROOFS.md](./BTCP_ZERO_BRIDGE_PROOFS.md)** for:
-- All 16 contract addresses with explorer links
-- All transaction hashes from the bidirectional zero-bridge test
-- On-chain verification reads (14/14 succeeded)
-- BEO cross-VM identity proof (8 VMs, identical BEO ID)
-- BTCP score computation
-- Cross-VM route linkage (anchor_BH ↔ execution_BH)
-- Zero-bridge invariant proof (`assets_bridged = false`)
+All proofs and reports are in [`docs/proofs/`](./docs/proofs/):
 
-Deployment records: [`deployments/`](./deployments/) directory contains JSON files for each network.
+- **[BTCP_ZERO_BRIDGE_PROOFS.md](./docs/proofs/BTCP_ZERO_BRIDGE_PROOFS.md)** — All 16 contract addresses with explorer links, transaction hashes, on-chain verification reads (14/14 succeeded), BEO cross-VM identity proof (8 VMs), BTCP score computation, cross-VM route linkage, zero-bridge invariant proof (`assets_bridged = false`)
+- **[ZERO_BRIDGE_LOOP_RESULTS.md](./docs/proofs/ZERO_BRIDGE_LOOP_RESULTS.md)** — Automated 5-round loop test results (31/33 passed), contract security audit across all VMs, 141 on-chain transactions
+- **[starknet_verification_report.json](./docs/proofs/starknet_verification_report.json)** — Full Starknet contract verification (32/32 checks pass)
+- **[loop_test_report.json](./docs/proofs/loop_test_report.json)** — JSON test data from all loop test rounds
+
+Deployment records in [`docs/deployments/`](./docs/deployments/):
+- [`starknet_sepolia.json`](./docs/deployments/starknet_sepolia.json) — 7 Starknet contracts
+- [`evm_sepolia.json`](./docs/deployments/evm_sepolia.json) — 7 EVM contracts across 4 chains
+- [`near_testnet.json`](./docs/deployments/near_testnet.json) — NEAR testnet
+- [`solana_devnet.json`](./docs/deployments/solana_devnet.json) — Solana devnet
+
+Contract source code organized by VM in [`contracts/`](./contracts/) — see [`contracts/README.md`](./contracts/README.md) for full index.
 
 ---
 

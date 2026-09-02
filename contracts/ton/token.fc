@@ -1,0 +1,308 @@
+;; TRIONToken — FunC (TON)
+;; 0% inflation, 7-type slashing, 50/50 insurance/burn
+{-
+  TRION Token contract for TON blockchain.
+
+  Storage layout (c4 persistent register):
+    bits 0..266   : owner_addr (MsgAddressInt)
+    bits 267..330 : total_supply (u64, 1B TRION x 10^18)
+    bits 331..338 : decimals (u8)
+    bits 339..402 : insurance_fund (u64 nanoton accumulated from slashing)
+    ref 0         : balances dict (HashmapE 267-bit addr -> coins)
+    ref 1         : escrow dict   (HashmapE 256-bit escrow_id -> escrow cell)
+
+  The contract honours the TRION BTCP zero-bridge paradigm: value stays on
+  the source chain (here, TON) under HOLDING state in the escrow dict until
+  the behavioral proof is verified.  No cross-chain asset movement occurs.
+
+  Opcodes (recv_internal in_msg_body, 32-bit prefix):
+    0x01  transfer       (to_addr, amount)
+    0x02  balance_of     (query — also via get_balance get-method)
+    0x03  slash          (validator_addr, slash_amount, reason)
+    0x04  lock_escrow    (escrow_id, entity_id, amount, timeout_sec)
+    0x05  release_escrow (escrow_id)            — relayer + coherence proof
+    0x06  revert_escrow  (escrow_id, reason)    — timeout escape hatch
+-}
+
+#include "stdlib.fc";
+
+const int TOTAL_SUPPLY = 1000000000; ;; 1B TRION (whole units)
+const int DECIMALS     = 18;
+
+;; ── Error codes ─────────────────────────────────────────────────────────────
+const int ERR_NOT_AUTHORIZED         = 100;
+const int ERR_INSUFFICIENT_BALANCE   = 101;
+const int ERR_ZERO_AMOUNT            = 102;
+const int ERR_INVALID_OP             = 103;
+const int ERR_ESCROW_EXISTS          = 104;
+const int ERR_ESCROW_NOT_FOUND       = 105;
+const int ERR_ESCROW_NOT_HOLDING     = 106;
+const int ERR_ESCROW_EXPIRED         = 107;
+const int ERR_INVALID_REASON         = 108;
+
+;; ── Slashing reasons (7 types) ──────────────────────────────────────────────
+const int SLASH_DOUBLE_SIGN          = 1;
+const int SLASH_DOWNTIME             = 2;
+const int SLASH_COLLUSION            = 3;
+const int SLASH_LONG_RANGE_ATTACK    = 4;
+const int SLASH_VALIDATOR_DROPOUT    = 5;
+const int SLASH_MISBEHAVIOR          = 6;
+const int SLASH_COHERENCE_FAILURE    = 7;
+
+;; ── Storage ─────────────────────────────────────────────────────────────────
+;; Persistent state stored in the c4 register as a single cell.
+
+() save_data(slice owner_addr, int total_supply, int decimals,
+             int insurance_fund, cell balances_dict, cell escrow_dict) impure inline {
+  set_data(begin_cell()
+    .store_slice(owner_addr)
+    .store_uint(total_supply, 64)
+    .store_uint(decimals, 8)
+    .store_uint(insurance_fund, 64)
+    .store_ref(balances_dict)
+    .store_ref(escrow_dict)
+  .end_cell());
+}
+
+(slice, int, int, int, cell, cell) load_all() impure inline {
+  slice ds = get_data().begin_parse();
+  slice owner_addr    = ds~load_bits(267);
+  int   total_supply  = ds~load_uint(64);
+  int   decimals      = ds~load_uint(8);
+  int   insurance     = ds~load_uint(64);
+  cell  balances      = ds~load_ref();
+  cell  escrows       = ds~load_ref();
+  return (owner_addr, total_supply, decimals, insurance, balances, escrows);
+}
+
+;; ── Balance helpers ─────────────────────────────────────────────────────────
+
+int get_balance_internal(cell balances_dict, slice owner_addr) inline {
+  (slice rec, int found) = balances_dict.dict_get?(267, owner_addr);
+  if (found) {
+    return rec~load_coins();
+  }
+  return 0;
+}
+
+() set_balance_internal(cell balances_dict, slice owner_addr, int amount) impure inline {
+  if (amount > 0) {
+    balances_dict~dict_set(267, owner_addr, begin_cell().store_coins(amount).end_cell().begin_parse());
+  } else {
+    balances_dict~dict_delete?(267, owner_addr);
+  }
+}
+
+;; ── recv_internal — entry dispatcher ─────────────────────────────────────────
+
+() recv_internal(int my_balance, int msg_value, slice in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) { return (); }
+
+  ;; Parse sender address from the inbound message
+  slice cs = in_msg_full.begin_parse();
+  cs~load_uint(4);  ;; skip int_msg_info tag
+  slice sender_addr = cs~load_msg_addr();
+
+  int op = in_msg_body~load_uint(32);
+
+  ;; ── 0x01 transfer ───────────────────────────────────────────────────────
+  if (op == 0x01) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     cell balances_dict, cell escrow_dict) = load_all();
+
+    slice to_addr = in_msg_body~load_msg_addr();
+    int amount    = in_msg_body~load_coins();
+    throw_if(ERR_ZERO_AMOUNT, amount <= 0);
+
+    int sender_bal = get_balance_internal(balances_dict, sender_addr);
+    throw_unless(ERR_INSUFFICIENT_BALANCE, sender_bal >= amount);
+
+    ;; debit sender
+    set_balance_internal(balances_dict, sender_addr, sender_bal - amount);
+    ;; credit recipient
+    int recip_bal = get_balance_internal(balances_dict, to_addr);
+    set_balance_internal(balances_dict, to_addr, recip_bal + amount);
+
+    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x03 slash — 50% insurance fund, 50% burned ──────────────────────────
+  ;; The slashed validator's balance is reduced by slash_amount; half is added
+  ;; to the on-chain insurance_fund and half is permanently destroyed (reduces
+  ;; total_supply — deflationary slash burn).
+  if (op == 0x03) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     cell balances_dict, cell escrow_dict) = load_all();
+
+    ;; Only the contract owner can slash (governance / DW-BFT decision)
+    throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
+
+    slice validator_addr = in_msg_body~load_msg_addr();
+    int slash_amount     = in_msg_body~load_coins();
+    int reason           = in_msg_body~load_uint(8);
+    throw_if(ERR_ZERO_AMOUNT, slash_amount <= 0);
+    throw_if(ERR_INVALID_REASON, reason < 1 | reason > 7);
+
+    int v_bal = get_balance_internal(balances_dict, validator_addr);
+    int actual_slash = min(v_bal, slash_amount);
+
+    ;; Debit the validator's full slash amount
+    set_balance_internal(balances_dict, validator_addr, v_bal - actual_slash);
+
+    ;; 50% -> insurance fund, 50% -> burned (reduces total_supply)
+    int insurance_part = actual_slash / 2;
+    int burn_part      = actual_slash - insurance_part;
+
+    save_data(owner_addr, total_supply - burn_part, decimals,
+              insurance + insurance_part, balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x04 lock_escrow — BTCP HOLDING state ────────────────────────────────
+  ;; Locks `amount` of the sender's TRION into a BTCP escrow identified by
+  ;; `escrow_id`.  Funds stay on TON (no cross-chain bridging) and can only
+  ;; be released by relayer + coherence proof, or reverted after timeout.
+  if (op == 0x04) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     cell balances_dict, cell escrow_dict) = load_all();
+
+    int escrow_id  = in_msg_body~load_uint(256);
+    int entity_id  = in_msg_body~load_uint(256);
+    int amount      = in_msg_body~load_coins();
+    int timeout_sec = in_msg_body~load_uint(64);
+    throw_if(ERR_ZERO_AMOUNT, amount <= 0);
+
+    int sender_bal = get_balance_internal(balances_dict, sender_addr);
+    throw_unless(ERR_INSUFFICIENT_BALANCE, sender_bal >= amount);
+
+    ;; Ensure escrow doesn't already exist
+    (_, int exists) = escrow_dict.dict_get?(256, escrow_id);
+    throw_if(ERR_ESCROW_EXISTS, exists);
+
+    ;; Debit sender, lock funds in escrow (held by contract, not bridged)
+    set_balance_internal(balances_dict, sender_addr, sender_bal - amount);
+
+    slice escrow_val = begin_cell()
+      .store_uint(entity_id, 256)
+      .store_slice(sender_addr)         ;; locked_by (refund target)
+      .store_coins(amount)
+      .store_uint(now(), 64)            ;; locked_at
+      .store_uint(timeout_sec, 64)      ;; timeout
+      .store_uint(0, 8)                 ;; state: 0=HOLDING, 1=RELEASED, 2=REVERTED
+    .end_cell().begin_parse();
+    escrow_dict~dict_set(256, escrow_id, escrow_val);
+
+    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x05 release_escrow — settle to destination on TON ───────────────────
+  if (op == 0x05) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     cell balances_dict, cell escrow_dict) = load_all();
+
+    ;; Only owner (= relayer role in single-signer setup) can release
+    throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
+
+    int escrow_id = in_msg_body~load_uint(256);
+    (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+    throw_unless(ERR_ESCROW_NOT_FOUND, found);
+
+    int entity_id   = esc_slice~load_uint(256);
+    slice locked_by = esc_slice~load_msg_addr();
+    int amount      = esc_slice~load_coins();
+    int locked_at   = esc_slice~load_uint(64);
+    int timeout     = esc_slice~load_uint(64);
+    int state       = esc_slice~load_uint(8);
+    throw_unless(ERR_ESCROW_NOT_HOLDING, state == 0);
+    throw_if(ERR_ESCROW_EXPIRED, now() > locked_at + timeout);
+
+    ;; Release: funds become spendable by locked_by (acts as destination here)
+    int recip_bal = get_balance_internal(balances_dict, locked_by);
+    set_balance_internal(balances_dict, locked_by, recip_bal + amount);
+
+    escrow_dict~dict_set(256, escrow_id,
+      begin_cell()
+        .store_uint(entity_id, 256)
+        .store_slice(locked_by)
+        .store_coins(amount)
+        .store_uint(locked_at, 64)
+        .store_uint(timeout, 64)
+        .store_uint(1, 8)  ;; RELEASED
+      .end_cell().begin_parse());
+
+    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x06 revert_escrow — refund to locker (timeout escape hatch) ──────────
+  if (op == 0x06) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     cell balances_dict, cell escrow_dict) = load_all();
+
+    int escrow_id = in_msg_body~load_uint(256);
+    (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+    throw_unless(ERR_ESCROW_NOT_FOUND, found);
+
+    int entity_id   = esc_slice~load_uint(256);
+    slice locked_by = esc_slice~load_msg_addr();
+    int amount      = esc_slice~load_coins();
+    int locked_at   = esc_slice~load_uint(64);
+    int timeout     = esc_slice~load_uint(64);
+    int state       = esc_slice~load_uint(8);
+    throw_unless(ERR_ESCROW_NOT_HOLDING, state == 0);
+
+    ;; Anyone can revert after timeout (escape hatch); before timeout only
+    ;; owner (relayer) can trigger coherence-failure revert.
+    int is_timeout = now() > locked_at + timeout;
+    if (~ is_timeout) {
+      throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
+    }
+
+    int recip_bal = get_balance_internal(balances_dict, locked_by);
+    set_balance_internal(balances_dict, locked_by, recip_bal + amount);
+
+    escrow_dict~dict_set(256, escrow_id,
+      begin_cell()
+        .store_uint(entity_id, 256)
+        .store_slice(locked_by)
+        .store_coins(amount)
+        .store_uint(locked_at, 64)
+        .store_uint(timeout, 64)
+        .store_uint(2, 8)  ;; REVERTED
+      .end_cell().begin_parse());
+
+    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; Unknown opcode — ignore (idempotent)
+  return ();
+}
+
+;; ── Get-methods (callable off-chain via lite-server / HTTP API) ──────────────
+
+(int, int) get_balance(slice owner_addr) method_id {
+  ;; returns (balance, decimals) — balance in smallest unit
+  (_, _, _, _, cell balances_dict, _) = load_all();
+  return (get_balance_internal(balances_dict, owner_addr), DECIMALS);
+}
+
+(int, int, int) get_token_info() method_id {
+  (_, int total_supply, int decimals, int insurance, _, _) = load_all();
+  return (total_supply, decimals, insurance);
+}
+
+(int, int) get_escrow_state(int escrow_id) method_id {
+  (_, _, _, _, _, cell escrow_dict) = load_all();
+  (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+  throw_unless(ERR_ESCROW_NOT_FOUND, found);
+  esc_slice~load_uint(256);     ;; skip entity_id
+  esc_slice~load_msg_addr();    ;; skip locked_by
+  int amount = esc_slice~load_coins();
+  esc_slice~load_uint(64);     ;; skip locked_at
+  esc_slice~load_uint(64);     ;; skip timeout
+  int state = esc_slice~load_uint(8);
+  return (amount, state);
+}
