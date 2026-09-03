@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ethers } from 'ethers';
-const PK = '***REDACTED-EVM-DEPLOYER-KEY***';
+const PK = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY;
 const art = JSON.parse(fs.readFileSync(path.join('compiled', 'BTCPEscrow.json'), 'utf-8'));
 const provider = new ethers.JsonRpcProvider('https://ethereum-sepolia-rpc.publicnode.com', 11155111, { staticNetwork: true });
 const wallet = new ethers.Wallet(PK, provider);

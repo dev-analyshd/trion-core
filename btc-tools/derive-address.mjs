@@ -3,7 +3,7 @@
 import * as ecc from '@noble/secp256k1';
 import crypto from 'crypto';
 
-const evmPrivateKey = '***REDACTED-EVM-DEPLOYER-KEY***';
+const evmPrivateKey = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY;
 const privateKeyHex = evmPrivateKey.slice(2);
 const privateKeyBuffer = Buffer.from(privateKeyHex, 'hex');
 

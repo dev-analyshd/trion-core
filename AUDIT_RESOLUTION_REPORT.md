@@ -1,3 +1,10 @@
+# TRION Protocol — Internal Audit Resolution Report
+
+> **IMPORTANT:** This is a self-authored internal document tracking the resolution of
+> issues found during internal review. It is NOT an independent third-party audit.
+> Per the DD report §6.2, all audits in this repository are self-authored.
+> An external audit by a reputable firm is required before mainnet deployment.
+
 # TRION Protocol — Audit Resolution Report
 
 **Audit document:** `whitepapers audit (1).pdf` (18 pages, 30 findings)

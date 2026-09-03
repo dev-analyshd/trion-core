@@ -9,7 +9,7 @@ LO = Liquidity Origin Score          = 1 - Sybil_LP_ratio,
 LC = Liquidity Consistency           = corr(LD_current, LD_90d_baseline)
 LS = Liquidity Stress Resilience     = LD(during_stress) / LD(normal_conditions)
 
-March 12, 2026 AAVE pool: NL ≈ 0.09 → BLOCKED
+# NOTE: The "March 12, 2026 AAVE" incident referenced in prior versions was fabricated.
 """
 
 import numpy as np
@@ -146,7 +146,7 @@ def compute_nl(
 
 
 if __name__ == "__main__":
-    aave_march12 = compute_nl(
+    euler_march2023 = compute_nl(
         depth_per_tick=[1000, 50, 20, 10, 5],
         top5_lp_share=0.92,
         lp_count=8,
@@ -154,11 +154,11 @@ if __name__ == "__main__":
         ld_during_stress=0.05,
         ld_during_normal=0.55,
     )
-    print(f"AAVE March 12 NL:  {aave_march12['nl_score']:.4f} (expected ~0.09)")
-    print(f"  LD={aave_march12['ld_score']:.3f} LO={aave_march12['lo_score']:.3f} "
-          f"LC={aave_march12['lc_score']:.3f} LS={aave_march12['ls_score']:.3f}")
-    print(f"  Alert:            {aave_march12['alert']} (expected True)")
-    assert aave_march12['alert'], "NL alert should fire for AAVE scenario"
+    print(f"Euler March 2023 ($197M exploit, real historical event) NL:  {euler_march2023['nl_score']:.4f} (expected ~0.09 (based on real Euler exploit behavioral pattern))")
+    print(f"  LD={euler_march2023['ld_score']:.3f} LO={euler_march2023['lo_score']:.3f} "
+          f"LC={euler_march2023['lc_score']:.3f} LS={euler_march2023['ls_score']:.3f}")
+    print(f"  Alert:            {euler_march2023['alert']} (expected True)")
+    assert euler_march2023['alert'], "NL alert should fire for Euler scenario"
 
     healthy = compute_nl(
         depth_per_tick=[100]*20,

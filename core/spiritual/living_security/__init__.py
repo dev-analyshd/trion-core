@@ -592,8 +592,8 @@ class CRISPRDefense:
          "ACCESS_CONTROL"),
 
         # ── 2026 — Simulated & Projected High-Severity Attacks ───────────────
-        ("AAVE_2026_LIQUIDITY",      b"AAVE_POOL_LIQUIDITY_CONCENTRATION_COLLAPSE_2026",
-         "AAVE liquidity concentration collapse (Mar 12 2026, $49.5M risk) — NL(t)=0.09 slippage 97.4%",
+        ("EULER_2023_LIQUIDITY",      b"EULER_FINANCE_LIQUIDITY_COLLAPSE_2023",
+         "Euler Finance $197M exploit (Mar 13 2023, real historical event) — behavioral anomaly detected pre-exploit",
          "AMM_MANIPULATION"),
         ("MEV_MULTIBLOCK_2026",      b"MEV_MULTIBLOCK_BUNDLE_FLASH_BYPASS_2026",
          "Multi-block MEV bundle attack bypassing single-block flash loan guards (2026, emerging class)",

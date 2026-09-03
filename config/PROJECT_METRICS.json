@@ -1,0 +1,43 @@
+{
+  "metrics": {
+    "tracked_files": 956,
+    "programming_languages": 14,
+    "smart_contracts": {
+      "solidity": 22,
+      "vyper": 2,
+      "cairo": 10,
+      "move": 5,
+      "func": 9,
+      "ink": 8,
+      "soroban": 1,
+      "cosmwasm": 1,
+      "svm_native": 1,
+      "total": 59
+    },
+    "rust_modules": 17,
+    "python_modules": 291,
+    "indexer_crates": 21,
+    "github_workflows": 10,
+    "chains_supported": 113,
+    "vm_families": 14,
+    "chains_indexed_live": 48,
+    "test_files": 42,
+    "falsifiability_conditions": 15,
+    "whitepaper_formulas": 57,
+    "formal_proofs": 9,
+    "backtest_exploits": 30,
+    "backtest_value_at_risk_usd": 3315800000,
+    "backtest_f1": 0.8571,
+    "backtest_fpr": 1.0,
+    "backtest_recall": 1.0,
+    "backtest_precision": 0.75,
+    "deployed_contracts_testnet": 17,
+    "chains_deployed_on": 5,
+    "zero_bridge_transactions": 200,
+    "zero_bridge_vms_tested": 8,
+    "starknet_verification_checks": 32,
+    "github_workflows_passing": 10
+  },
+  "note": "This is the single source of truth for all numerical claims. All docs should reference this file.",
+  "last_updated": "2026-09-03"
+}

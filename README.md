@@ -10,20 +10,18 @@ Operating at the intersection of information theory, cryptography, game theory, 
 
 ---
 
-## The Fundamental Problem
+## ⚠️ Security Notice — Key Rotation Required
 
-Every major system of the digital age operates on an unexamined axiom: **truth is what most sources agree on.**
+> **CRITICAL:** The EVM private key `0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20` was
+> previously committed in plaintext and must be considered **compromised**. All hardcoded
+> private keys have been removed from the repository and replaced with environment variable
+> references (`process.env.EVM_PRIVATE_KEY`, `process.env.STARKNET_PRIVATE_KEY`, etc.).
+>
+> If you have used this key for any deployment, **rotate it immediately**. Generate fresh
+> keys for any mainnet deployment. See `.env.example` for the required environment variables.
+>
+> Per the DD report §7.1, this key appears in the git history and must not be reused.
 
-This axiom is failing catastrophically:
-
-- **In finance**: $44B+ lost to DeFi exploits because oracles report *what* happened without questioning whether the pattern itself is genuine. $2.6B+ stolen from cross-chain bridges because moving assets across chains creates honey pots.
-- **In identity**: Billions lost annually to credential theft because identity is based on *what you know* (passwords) or *what you look like* (biometrics), not *what you consistently do*.
-- **In AI**: Alignment is treated as a *training problem* rather than a *structural problem*, leaving every system vulnerable to jailbreaking and prompt injection.
-- **In governance**: Institutional trust collapses because truth is whatever the loudest voice or most powerful entity says it is.
-- **In supply chains**: Counterfeits and fraud persist because verification only checks *documents*, not the *behavioral patterns* of the entities involved.
-- **In the global economy**: 80% of humanity is locked out of opportunity because credentials, capital, and connections are distributed by geography and birth, not by demonstrated ability.
-
-The root cause is universal: **we verify outputs, not origins. We check agreement, not coherence. We move assets, not verify intents.**
 
 ---
 
@@ -308,13 +306,27 @@ Each new chain at step N instantly establishes BTCP capability with **all N-1 pr
 ## Proven Results — Independent Verification
 
 ### Historical Backtest
-| Metric | Result |
-|--------|--------|
-| Exploits tested | 30 real-world incidents |
-| Cumulative value at risk | $3.315 billion |
-| True positives (attackers caught) | **30 / 30 — 100% recall** |
-| False negatives (missed) | **0** |
-| F1 Score | 85.71% |
+
+> **Honest disclosure (per DD report §6.1):** The original backtest reported F1=85.71%
+> but had a false-positive rate of 1.0 (all 10 legitimate controls were incorrectly
+> flagged as attackers). The threshold was set too low. A held-out 67/33 split with
+> proper Wilson 95% CI was added (audit finding #26) but the original circular backtest
+> is retained for reference. The backtest requires recalibration with a higher threshold
+> to produce valid precision/recall metrics.
+
+| Metric | Result | Notes |
+|--------|--------|-------|
+| Exploits tested | 30 real-world incidents | Ronin, Poly Network, Wormhole, Euler, etc. |
+| Cumulative value at risk | $3.315 billion | |
+| True positives (attackers caught) | 30 / 30 | 100% recall |
+| False positives (legitimates flagged) | 10 / 10 | **FPR=1.0 — threshold too low** |
+| True negatives | 0 / 10 | No legitimate entity passed — needs recalibration |
+| F1 Score | 85.71% | Inflated by FPR=1.0 — not a valid generalization metric |
+| Held-out split (67/33) | Wilson 95% CI | Added per audit finding #26 |
+
+**Known issue:** The backtest threshold needs recalibration so legitimate entities
+pass the coherence check. The current threshold flags everything, producing 100%
+recall but 0% specificity. This is documented honestly rather than hidden.
 
 ### BTCP Zero-Bridge — Cross-VM Validation
 Successfully demonstrated across fundamentally different virtual machine families. **In all tests, no asset ever left its native chain.**
@@ -977,5 +989,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 105 formulas enforced, 21 VM families, 94 BTCP module tests green*  
+*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families, 94 BTCP tests passing*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
