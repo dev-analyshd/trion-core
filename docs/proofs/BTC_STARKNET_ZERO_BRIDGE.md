@@ -69,7 +69,7 @@ The zero-bridge solves this using **Observation-Only Anchoring (OOA)**:
 |---|---|
 | Bitcoin address (P2WPKH) | `tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks` |
 | Bitcoin address (P2PKH) | `mvRDo6WAH7uP8QJxu7tLjHU7f8b54UeECH` |
-| Bitcoin WIF | `***REDACTED-BITCOIN-WIF-KEY***` |
+| Bitcoin WIF | `[REDACTED — was committed in plaintext; treat this key and both addresses above as burned and never reuse them]` |
 | BEO ID | `0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee` |
 | Chain ID | 100 (Bitcoin in TRION system) |
 | Block height | 5127970 |
