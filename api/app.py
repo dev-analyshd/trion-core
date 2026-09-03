@@ -4008,35 +4008,118 @@ def resonance(entity_a: str, entity_b: str):
     })
 
 
-# ── 19 Signal Types Registry ──────────────────────────────────────────────────
+# ── Signal Types Registry (core enum: 24 = 19 whitepaper §11 + 5 extended) ────
 @app.route("/api/v1/signal/types")
 def signal_types():
-    """Complete 19-signal-type registry per whitepaper Section 11."""
-    types = [
-        {"id": 0,  "name": "VALUATION",             "description": "Entity has sufficient behavioral depth and coherence — C(t) ≥ Θ(t)"},
-        {"id": 1,  "name": "SILENCE",                "description": "Coherence below threshold — insufficient data or manipulation detected"},
-        {"id": 2,  "name": "MANIPULATION_ALERT",     "description": "MF score exceeds threshold — wash trading, sybil, MEV, governance capture, pump or fake volume detected"},
-        {"id": 3,  "name": "GENESIS",                "description": "New entity — no behavioral history; conf_genesis = 1-e^(-0.001·D)"},
-        {"id": 4,  "name": "RESURRECTION",           "description": "Dormant entity reactivated — Δ_resurrection score computed with κ decay"},
-        {"id": 5,  "name": "FORK_DIVERGENCE",        "description": "Fork event detected — CC_A/CC_B continuity coefficients determine history inheritance"},
-        {"id": 6,  "name": "TRAJECTORY",             "description": "ANIMA pre-manifestation — full probability distribution over behavioral outcomes, not point prediction"},
-        {"id": 7,  "name": "NEGATIVE_SPACE",         "description": "Absence of expected behavioral patterns constitutes a signal — notable by what is missing"},
-        {"id": 8,  "name": "PHASE_TRANSITION",       "description": "Entity crossing phase boundary (SOLID→LIQUID→GAS→PLASMA) — thermodynamic state change"},
-        {"id": 9,  "name": "SYSTEMIC_RISK",          "description": "Protocol dependency cascade — failure of one protocol transmits risk to dependents"},
-        {"id": 10, "name": "LIQUIDITY_HEALTH",       "description": "NL = LD·LO·LC·LS — liquidity depth × orderbook shape × concentration × stability"},
-        {"id": 11, "name": "GOVERNANCE_SIGNAL",      "description": "On-chain governance health — quorum, HHI, proposal quality, participation alignment"},
-        {"id": 12, "name": "CROSS_CHAIN_COHERENCE",  "description": "Behavioral coherence of entity across multiple chains — cross-chain behavioral alignment"},
-        {"id": 13, "name": "STABLECOIN_HEALTH",      "description": "Peg stability + reserve transparency + behavioral liquidity — stablecoin-specific signal"},
-        {"id": 14, "name": "MEV_EXPOSURE",           "description": "Entity's exposure to MEV extraction — EP.VC calibrated, sandwich/frontrun/backrun risk"},
-        {"id": 15, "name": "INSTITUTIONAL_BHV",      "description": "Large entity behavioral patterns — whale accumulation, institutional-scale coordination"},
-        {"id": 16, "name": "REGULATORY_BHV",         "description": "Behavioral patterns associated with regulatory compliance or evasion"},
-        {"id": 17, "name": "ECOSYSTEM_HEALTH",       "description": "BC(ecosystem) = Flow·Resilience·Uniqueness·Interdependence; EP = VC·PA·DC"},
-        {"id": 18, "name": "BOOTSTRAP",              "description": "System-level signal during bootstrap period — exponential confidence growth e^(-0.0001·D)"},
-    ]
+    """Signal-type registry AS IMPLEMENTED in the core enum.
+
+    TRUE STRUCTURE (this endpoint previously claimed "19 per whitepaper
+    Section 11" while listing only the divergent ids 0-18 subset — fixed to
+    report the real registry):
+      * The core registry (core/master/signal_factory.SignalType) defines
+        24 types — a hard parity constraint shared with the wasm signal
+        processor (signal_type_count() == 24) and the on-chain type ids
+        (spec/signal_types.md: "new types require a protocol fork").
+      * 19 of the 24 are the whitepaper §11 canonical types. Two carry
+        internal name drift: REGULATORY_BEHAVIORAL→REGULATORY_BHV (id 16)
+        and MEV_BEHAVIORAL→MEV_EXPOSURE (id 14). This endpoint performs the
+        whitepaper ↔ internal name ↔ id translation; the core enum members
+        are NOT renamed (24-type parity is load-bearing).
+      * 5 types are extended beyond whitepaper §11: RESURRECTION (4),
+        NEGATIVE_SPACE (7), INSTITUTIONAL_BHV (15), ECOSYSTEM_HEALTH (17),
+        BOOTSTRAP (18).
+    """
+    from core.master.signal_factory import SignalType
+
+    # Whitepaper §11 canonical name → internal SignalType enum name
+    # (identity except where the internal name drifted).
+    WHITEPAPER_11_INTERNAL = {
+        "VALUATION":             "VALUATION",
+        "SILENCE":               "SILENCE",
+        "LIQUIDITY_HEALTH":      "LIQUIDITY_HEALTH",
+        "MANIPULATION_ALERT":    "MANIPULATION_ALERT",
+        "TRAJECTORY":            "TRAJECTORY",
+        "SYSTEMIC_RISK":         "SYSTEMIC_RISK",
+        "GOVERNANCE_SIGNAL":     "GOVERNANCE_SIGNAL",
+        "CROSS_CHAIN_COHERENCE": "CROSS_CHAIN_COHERENCE",
+        "STABLECOIN_HEALTH":     "STABLECOIN_HEALTH",
+        "PHASE_TRANSITION":      "PHASE_TRANSITION",
+        "FORK_DIVERGENCE":       "FORK_DIVERGENCE",
+        "GENESIS":               "GENESIS",
+        "REGULATORY_BEHAVIORAL": "REGULATORY_BHV",      # internal name drift
+        "SOVEREIGN_BEHAVIORAL":  "SOVEREIGN_BEHAVIORAL",
+        "MEV_BEHAVIORAL":        "MEV_EXPOSURE",        # internal name drift
+        "ENERGY_PARTICIPATION":  "ENERGY_PARTICIPATION",
+        "BIOLOGICAL_CAPITAL":    "BIOLOGICAL_CAPITAL",
+        "BTCP_ROUTE":            "BTCP_ROUTE",
+        "CONSENSUS_ADAPTATION":  "CONSENSUS_ADAPTATION",
+    }
+    DESCRIPTIONS = {
+        "VALUATION":             "Entity has sufficient behavioral depth and coherence — C(t) ≥ Θ(t); core asset behavioral valuation with probability distribution",
+        "SILENCE":               "Structured null — coherence below threshold; carries gap, limiting_plane, trend, eta",
+        "MANIPULATION_ALERT":    "MF score exceeds threshold — wash trading, sybil, MEV, governance capture, pump or fake volume detected",
+        "GENESIS":               "New entity — no behavioral history; conf_genesis = 1-e^(-0.001·D)",
+        "RESURRECTION":          "Dormant entity reactivated — Δ_resurrection score computed with κ decay",
+        "FORK_DIVERGENCE":       "Fork event detected — CC_A/CC_B continuity coefficients determine history inheritance",
+        "TRAJECTORY":            "ANIMA pre-manifestation — full probability distribution over behavioral outcomes, not point prediction",
+        "NEGATIVE_SPACE":        "Absence of expected behavioral patterns constitutes a signal — notable by what is missing",
+        "PHASE_TRANSITION":      "Entity crossing phase boundary (SOLID→LIQUID→GAS→PLASMA) — thermodynamic state change",
+        "SYSTEMIC_RISK":         "Protocol dependency cascade — failure of one protocol transmits risk to dependents",
+        "LIQUIDITY_HEALTH":      "NL = LD·LO·LC·LS — liquidity depth × orderbook shape × concentration × stability (NL < 0.30 alert)",
+        "GOVERNANCE_SIGNAL":     "On-chain governance health — quorum, HHI, proposal quality, participation alignment",
+        "CROSS_CHAIN_COHERENCE": "Behavioral coherence of entity across multiple chains — cross-chain behavioral alignment",
+        "STABLECOIN_HEALTH":     "Peg stability + reserve transparency + behavioral liquidity — stablecoin-specific signal",
+        "MEV_EXPOSURE":          "Whitepaper §11 name: MEV_BEHAVIORAL — MEV extraction pattern signal; entity exposure to sandwich/frontrun/backrun risk",
+        "INSTITUTIONAL_BHV":     "Large entity behavioral patterns — whale accumulation, institutional-scale coordination",
+        "REGULATORY_BHV":        "Whitepaper §11 name: REGULATORY_BEHAVIORAL — behavioral precursors to regulatory action",
+        "ECOSYSTEM_HEALTH":      "BC(ecosystem) = Flow·Resilience·Uniqueness·Interdependence; EP = VC·PA·DC",
+        "BOOTSTRAP":             "System-level signal during bootstrap period — exponential confidence growth e^(-0.0001·D)",
+        "SOVEREIGN_BEHAVIORAL":  "L8.1 SBA — sovereign entity behavioral divergence signal",
+        "ENERGY_PARTICIPATION":  "L7.2 EP = Value Creation Ratio — value to purpose vs. extracted (VC·PA·DC)",
+        "BIOLOGICAL_CAPITAL":    "L6.1 BC ecosystem health signal — Flow·Resilience·Uniqueness·Interdependence",
+        "BTCP_ROUTE":            "Cross-chain behavioral routing signal — BTCP route established/executed (whitepaper §18)",
+        "CONSENSUS_ADAPTATION":  "Temporary consensus parameter recommendation to chains — C(t) threshold adaptation event",
+    }
+    internal_to_whitepaper = {v: k for k, v in WHITEPAPER_11_INTERNAL.items()}
+
+    types = []
+    for st in SignalType:
+        internal_name = st.name
+        whitepaper_name = internal_to_whitepaper.get(internal_name)
+        types.append({
+            "id":             int(st),
+            "name":           internal_name,          # code-internal name (core enum)
+            "whitepaper_name": whitepaper_name,       # §11 canonical name; None → extended
+            "source":         "whitepaper §11" if whitepaper_name
+                              else "extended beyond whitepaper §11",
+            "description":    DESCRIPTIONS.get(internal_name, ""),
+        })
+
+    canonical = [t for t in types if t["whitepaper_name"]]
+    extended  = [t for t in types if not t["whitepaper_name"]]
+
     return jsonify({
-        "total":      len(types),
-        "signal_types": types,
-        "whitepaper": "Section 11 — Signal Registry",
+        "total":                        len(types),
+        "canonical_per_whitepaper":     len(canonical),
+        "extended_beyond_whitepaper":   len(extended),
+        "signal_types":                 types,
+        "name_drift": [
+            {"whitepaper_name": "REGULATORY_BEHAVIORAL",
+             "internal_name": "REGULATORY_BHV", "id": 16},
+            {"whitepaper_name": "MEV_BEHAVIORAL",
+             "internal_name": "MEV_EXPOSURE", "id": 14},
+        ],
+        "parity_note": (
+            "The core registry is a hard 24-type parity constraint (wasm "
+            "signal_processor signal_type_count() == 24; spec/signal_types.md: "
+            "new types require a protocol fork; on-chain type ids mirror the "
+            "same 24). The 24 = 19 whitepaper §11 canonical types (two with "
+            "internal name drift, mapped here) + 5 extended types "
+            "(ids 4, 7, 15, 17, 18). Core enum members are not renamed; the "
+            "API performs the whitepaper ↔ internal ↔ id translation."
+        ),
+        "whitepaper": "TRION Whitepaper Section 11 — The 19 Signal Types "
+                      "(canonical subset of the 24-type core registry)",
         "timestamp":  int(time.time()),
     })
 

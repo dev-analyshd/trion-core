@@ -1,6 +1,28 @@
 {
+  "status": "unverified — self-reported",
   "network": "evm-sepolia-multi-chain",
+  "note": "PURGE-2: none of the BTCP contract addresses below have deployment evidence in this repo — no deploy receipts, no compiled artifacts bound to these addresses, no on-chain reads; they appear only in README.md and docs/proofs/*.md (self-referential). proof-ledger/deploy_{arb,eth,base,op}_sepolia.json record DIFFERENT addresses for the same contracts on the same chains (e.g. Arbitrum BTCPEscrow 0xA4FCF1f348f91A287De3C736c1Ed477Ae8dbA369 there vs 0x506E59a84Bf0279a37e96046C92879BE8681578d here) — conflicting self-reports. evm-tools/deploy-missing.mjs hardcodes three of the escrow addresses below as 'existingEscrow' assumptions, which is not corroboration. Entries are kept as self-reported for traceability only.",
   "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "deployer_source": "Same EOA in proof-ledger/deploy_*_sepolia.json and spec/BTCP_SPEC.txt (self-consistent tooling default; no signed-tx evidence in repo).",
+  "corroborated_oracles": {
+    "note": "The only Sepolia EVM addresses with real repo corroboration (relayer tooling / whitepaper spec / live code). These are TRIONOracleV3 deployments, NOT the BTCP contracts listed below, and are kept here because they are the verified relay targets:",
+    "TRIONOracleV3@ArbitrumSepolia": {
+      "address": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
+      "corroboration": "spec/BTCP_SPEC.txt (whitepaper spec), core/trading/live_feed.py watch-list, backtest/publish_proof.js + backtest/results/onchain_proof.json, relayer/relayer.js addrDefault — strongest corroboration in the repo"
+    },
+    "TRIONOracleV3@EthSepolia": {
+      "address": "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39",
+      "corroboration": "relayer/relayer.js addrDefault + proof-ledger/deploy_eth_sepolia.json (self-reported)"
+    },
+    "TRIONOracleV3@BaseSepolia": {
+      "address": "0x7ADF5B7273883C50EFc005BA7EdD3F379Af9680C",
+      "corroboration": "relayer/relayer.js addrDefault + proof-ledger/deploy_base_sepolia.json (self-reported)"
+    },
+    "TRIONOracleV3@OPSepolia": {
+      "address": "0x708193f93Fb897fbeA72e7e7D19237770F19E969",
+      "corroboration": "relayer/relayer.js addrDefault + proof-ledger/deploy_op_sepolia.json (self-reported)"
+    }
+  },
   "contracts": [
     { "name": "BTCPEscrow@BaseSepolia",     "chain": "base-sepolia",       "chainId": 84532,    "address": "0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e" },
     { "name": "BTCPIntent@BaseSepolia",     "chain": "base-sepolia",       "chainId": 84532,    "address": "0xb2f93dd84163A97674c36f6792688AdC7199272E" },

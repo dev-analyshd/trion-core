@@ -1,8 +1,9 @@
 {
+  "status": "unverified — self-reported",
   "network": "starknet-sepolia",
   "chainId": "SN_SEPOLIA",
   "chainIdHex": "0x534e5f5345504f4c4941",
-  "deployedAt": "2026-09-02T07:04:04.926Z",
+  "note": "PURGE-2: the previous deployedAt (2026-09-02T07:04:04.926Z) was future-dated and has been removed. The per-contract onChainVerification values are self-reported: no RPC logs, request transcripts, or verification scripts in this repo reproduce them. Addresses/classHash/txHash are retained as self-reported records — the same values are wired into chains/starknet/starknet_sepolia_deployments.json, chains/starknet/src/verify-contracts.ts / verify-all.ts, and btc-tools/btc-starknet-*.mjs, which is internal consistency, not on-chain proof. To upgrade this file to 'verified', re-run chains/starknet/src/verify-all.ts against a Starknet Sepolia RPC and record the responses.",
   "deployer": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
   "gasToken": "STRK",
   "contracts": [

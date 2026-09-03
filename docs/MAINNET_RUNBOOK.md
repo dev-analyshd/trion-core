@@ -14,7 +14,7 @@ development sandbox**.
 |---|---|---|
 | Contract suites (9 VM languages) | ✅ compile clean | solc 0.8.24 viaIR, Scarb, cargo (ink!/NEAR/CosmWasm/Anchor), FunC |
 | Security hardening | ✅ applied | reentrancy guards, ACL, drain-proof sweep, timelocked bypass, route freshness — all in-tree |
-| Test battery | ✅ green | 105/105 formulas, 94/94 Rust, 6/6 ZK, 671 Python, 30/30 Golden Test |
+| Test battery | ✅ green | as of 2026-09-03: 104/105 formulas (PQC check needs optional libs), 117 Rust `#[test]` (not compiled in sandbox), 6/6 ZK, 571 unit + 121 adversarial + 186 integration pytest, hardhat 43, 30/30 Golden Test |
 | Key hygiene | ✅ fixed | relayer env-only; hardhat **fails closed** on mainnets without a key |
 | Deployment infra | ✅ present | Docker ×3, compose, systemd ×4, nginx, Prometheus+alerts, webhook alerter |
 | Preflight gate | ✅ new | `scripts/mainnet_preflight.py` — automated blocker detection |

@@ -1,10 +1,8 @@
 {
+  "status": "unverified — self-reported",
   "network": "near-testnet",
+  "note": "PURGE-2: the previous file claimed codeHash, deployTx, initTx, balance and deployedAt=2026-09-02T09:35:00Z (future-dated). None of those values appeared anywhere else in the repo — only re-stated in README.md and docs/proofs/*.md — and there are no deploy receipts, state reads, or on-chain verification transcripts. Removed as fabricated (same pattern as the solana_devnet.json programId). accountId is retained because chains/near/deploy_wasm.mjs hardcodes it as the deploy target; that is a script default, not evidence of a live deployment.",
   "accountId": "trion.testnet",
-  "codeHash": "9KiJfBmB71AXmgS6desdbHuAy4KnEwwxxY2hkDErae2M",
-  "deployTx": "BiK2tfmC2P3nsF4fGSVtH6kQensADhAtSQ7cucTRJKSr",
-  "deployedAt": "2026-09-02T09:35:00Z",
-  "balance": "3.208 NEAR",
-  "explorer": "https://testnet.nearblocks.io/address/trion.testnet",
-  "initTx": "BoZr1gZCmAEfp8SmjeTTKaYezXdtt7sUjFJYktj7zCMF"
+  "accountId_source": "chains/near/deploy_wasm.mjs (deploy script target). Corroborated only by tooling, not by any on-chain record in this repo.",
+  "when_redeploying": "Run chains/near/deploy_wasm.mjs with NEAR credentials, capture the real deploy tx / code hash / balance from the explorer, then update this file together with README.md and docs/proofs/*.md."
 }

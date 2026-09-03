@@ -190,6 +190,26 @@ async function nativeRelayerLoop() {
 // Handles: UTXO, Cosmos, Move, SUI, TRON, PI, XRPL, Algorand, Hedera, etc.
 // Block-proof mode for chains without native signing SDKs.
 // ═══════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ CHAIN-ID SCHEME COLLISION (PURGE-2, documented — IDs deliberately NOT changed):
+// The chainId values below are the FOURTH ad-hoc chain-ID namespace in this repo:
+//   1. canonical:    config/chain_registry.json (validated by core/generated_chain_bindings.py + tests)
+//   2. bh_streamer:  core/realtime/bh_streamer.py  (solana 200101, cosmos 200201, …)
+//   3. bootstrap:    scripts/mainnet_bootstrap.py  (Solana 5773521, synthetic Cosmos sha3 ids, …)
+//   4. this file:    btc=2000, ltc=2010, doge=2020, dash=2030, cosmos-hub=4001 …, sui=6001, …
+// They disagree with the canonical registry on nearly every chain — e.g. canonical
+// Bitcoin 21000 (here 2000), Litecoin 21004 (here 2010), Cosmos Hub 10000 (here 4001),
+// Aptos 20000 (here 5001), Sui 20100 (here 6001), Stellar 27000 (here 8800).
+// Meanwhile the NATIVE-VM half of this relayer (NATIVE_VMS → chains/<vm>/execute.ts) uses the
+// canonical IDs (Solana 900/901/902, Sui 20100, Polkadot 25000, …), so the same logical chain
+// can be ingested under two different IDs depending on the code path, and FAISS entity
+// namespaces keyed by chainId will not match across them.
+// Changing these IDs in place would break the relayer's running assumptions (dedup state,
+// memo parsing, stored chainId labels). MARKED FOR CANONICAL MIGRATION: re-point this list at
+// config/chain_registry.json ids in a coordinated change together with a FAISS re-ingest and
+// dedup reset (same migration required for bh_streamer.py and mainnet_bootstrap.py).
+//
+// ═══════════════════════════════════════════════════════════════════════════
 
 const EXTENDED_CHAINS = [
   // UTXO chains (5)

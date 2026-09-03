@@ -72,17 +72,19 @@
 
 ---
 
-## 4. Solana Devnet — Native BTCP Escrow Program
+## 4. Solana Devnet — BTCP Escrow Program (NOT DEPLOYED)
+
+> **PURGE-2 correction:** the program ID previously listed here (`4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s`) matched no `declare_id!()` in any program source, and the authority / size / deploy slot / deploy TX / balance rows had no on-chain record anywhere in the repo — all removed as fabricated. See `docs/deployments/solana_devnet.json` for the honest deployment record.
 
 | Field | Value |
 |---|---|
-| Program ID | `4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s` |
-| Authority | `3f2qpAkVFfRGrp9h1F6AJyVyvMqoivMrxaD92R4waEmh` |
-| Size | 215,944 bytes |
-| Deploy Slot | 491,903,646 |
-| Deploy TX | `4HmJwpnaK76e6FKnNVaLA1XgosuL3tLT7DAdTxQkGxwtjzsBwdQhwDW4t4qM4JUeFgfkn3AEKKNix6B7ai1jFYcv` |
-| Explorer | [solana explorer](https://explorer.solana.com/address/4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s?cluster=devnet) |
-| Program Balance | 1.369 SOL |
+| Program ID | `54r6REJKQ3d2MSV7zYikwiPmck3h7QRaeG44vnRHetWZ` — `declare_id!()` in `contracts/svm/programs/btcp_escrow/src/lib.rs` (source-declared default ID; **no on-chain deployment record in this repo**) |
+| Authority | [REMOVED — fabricated] |
+| Size | [REMOVED — fabricated] |
+| Deploy Slot | [REMOVED — fabricated] |
+| Deploy TX | [REMOVED — fabricated] |
+| Explorer | — (not deployed) |
+| Program Balance | [REMOVED — fabricated] |
 
 ---
 
@@ -103,7 +105,7 @@ BEO(SOLANA)      = 0x4bb0410b8a1239364a4e7b38f98b837cdfe9b30fb32336d06bb698e4f58
 BEO(TON)         = 0x4bb0410b8a1239364a4e7b38f98b837cdfe9b30fb32336d06bb698e4f589d16a
 ```
 
-**Result:** All 8 VMs produce IDENTICAL BEO IDs — substrate independence PROVEN. The same entity is recognized across all chains without any bridge.
+**Result:** All 8 VMs produce IDENTICAL BEO IDs — substrate independence demonstrated in this recorded test run (self-reported; the cross-VM evidence scripts in this repo cannot be re-run end-to-end — see `docs/deep-read/FINDINGS.md`). The same entity is recognized across all chains without any bridge.
 
 ### Phase 1: BTCP Score ✅
 

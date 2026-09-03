@@ -21,12 +21,13 @@ FIX-CLAIMS (chain-ID collision): the previous default was 101 — a local id tha
 collided with chains/sui (Sui, since moved to canonical 20100) and drifted from
 the canonical registry. config/chain_registry.json (single source of truth per
 P3-CONSOLIDATE; see core/generated_chain_bindings.py) assigns Solana Mainnet=900,
-and chains/svm/execute.ts already used 900. NOTE pre-existing inconsistencies
-left in place (fixture/data entanglement — see FIX-CLAIMS report):
-api/chains_registry.py display entry still says chain_id 101 (plus a duplicate
-solana-mainnet=900 entry); tests/integration/test_anima_full.py §2e posts
-(101, "solana"); crossvm fixtures use 900 for "Solana Devnet" while canonical
-Devnet is 901; core/realtime/bh_streamer.py uses 200101 for solana.
+and chains/svm/execute.ts already used 900. GAP-PY follow-up: the
+api/chains_registry.py display entries are now re-pointed to the canonical ids
+(solana=900, solana-dev=901, sui=20100). Pre-existing inconsistencies left in
+place (fixture/data entanglement — see FIX-CLAIMS report):
+tests/integration/test_anima_full.py §2e posts (101, "solana"); crossvm
+fixtures use 900 for "Solana Devnet" while canonical Devnet is 901;
+core/realtime/bh_streamer.py uses 200101 for solana.
 """
 from __future__ import annotations
 

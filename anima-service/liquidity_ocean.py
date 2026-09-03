@@ -3,11 +3,37 @@ liquidity_ocean.py — Liquidity Ocean: cross-chain NL signal aggregation
 Aggregates NL scores across all integrated chains into a coherent ocean signal.
 L_ocean(t) = Σ (NL_k × W_k × availability_k) / Σ W_k
 Spec: BTCP Master Implementation Spec §7.2
+
+ALSO re-exported from this module (the spec §6.1 pseudocode names this file):
+the per-asset, form-equivalent LIQUIDITY_OCEAN_SCORE engine —
+    LIQUIDITY_OCEAN_SCORE = Σ_forms [VALUE × 1/shift_cost
+                                      × 1/time_to_convert × BEO_health]
+("No Asset Has Zero Liquidity"). Canonical implementation:
+core/extended/natural_liquidity.py (importable package path, next to the
+L7.1 NL engine); re-exported here so BOTH import paths work:
+    from liquidity_ocean import liquidity_ocean_score, LiquidityOceanEngine, ...
+    from core.extended.natural_liquidity import liquidity_ocean_score, ...
+and so the BTCP integration hub import (`from liquidity_ocean import
+LiquidityOceanEngine`, core/btcp/integration.py module 3.4) resolves.
 """
 
 import math
 from typing import Optional
 from nl_score_engine import compute_nl_score, apply_oe_correction
+
+# ─── §6.1 form-equivalent Liquidity Ocean (re-export) ──────────────────────
+# The repo-root import-path bootstrap is performed by the nl_score_engine
+# import above (allowlisted P3-CONSOLIDATE path fixup) — this file itself
+# introduces NO new path bootstrap (tests/unit/test_no_sys_path_hacks.py
+# guard stays green).
+from core.extended.natural_liquidity import (  # noqa: E402,F401  (re-export)
+    liquidity_ocean_score,
+    build_liquidity_ocean_signal,
+    LiquidityOceanEngine,
+    LIQUIDITY_OCEAN_ROUTING_THRESHOLD,
+    OCEAN_REF_SHIFT_COST,
+    OCEAN_REF_SHIFT_TIME,
+)
 
 # ─── Chain weight configuration ───────────────────────────────────────────────
 CHAIN_WEIGHTS = {
@@ -163,6 +189,17 @@ if __name__ == "__main__":
     import json
 
     ocean = LiquidityOcean(oe_factor=0.05)
+
+    # §6.1 form-equivalent demo (spec formula, synthetic example values)
+    forms = [
+        {"form": "USDC",    "value": 250_000_000.0, "shift_cost": 0.0002, "time_to_convert": 5.0,   "beo_health": 0.95},
+        {"form": "aUSDC",   "value": 120_000_000.0, "shift_cost": 0.0009, "time_to_convert": 900.0, "beo_health": 0.80},
+        {"form": "cUSDC",   "value":  40_000_000.0, "shift_cost": 0.0006, "time_to_convert": 120.0, "beo_health": 0.85},
+    ]
+    ocean6 = liquidity_ocean_score("USDC", forms)
+    print("§6.1 LIQUIDITY_OCEAN_SCORE (USDC, 3 equivalent forms):")
+    print(json.dumps({k: v for k, v in ocean6.items() if k != "signal"}, indent=2, default=str))
+    print()
 
     # Simulate updates for a few chains
     for chain_id, scale in [(42161, 1.0), (8453, 0.8), (10, 0.75), (1, 1.2)]:
