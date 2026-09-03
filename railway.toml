@@ -1,8 +1,5 @@
 # =============================================================================
-# TRION Protocol — Railway Deployment Configuration (TOML format)
-#
-# Railway auto-detects this file OR railway.json (json takes precedence).
-# This file is kept for CLI deployments: `railway up`
+# TRION Protocol — Railway Deployment Configuration (TOML)
 #
 # Deploy to Railway:
 #   1. Install Railway CLI: npm i -g @railway/cli
@@ -17,23 +14,12 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
 
-# ── Performance tuning ──────────────────────────────────────────────────────
-# TRION_MAX_CHAINS: cap concurrent chain-indexing threads.
-#   512MB Railway plan  → TRION_MAX_CHAINS=12
-#   8GB+ plan (default) → TRION_MAX_CHAINS=0 (all 96 mainnet chains)
-# The entrypoint owns the single dedicated streamer process (prevents
-# N_workers × 96-thread floods); TRION_ENABLE_STREAMER=1 turns it on.
-
 [deploy]
 startCommand = "/app/railway-entrypoint.sh"
 healthcheckPath = "/readyz"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
-
-# ── Non-secret variables (set automatically) ────────────────────────────────
-# Secret variables (private keys) must be set in Railway Dashboard → Variables.
-# See .env.railway for the full list.
 
 [deploy.env]
 HOSTNAME = "0.0.0.0"
@@ -49,15 +35,6 @@ PYTHONDONTWRITEBYTECODE = "1"
 TRION_ENABLE_FAISS = "1"
 TRION_ENABLE_STREAMER = "1"
 TRION_MAX_CHAINS = "12"
-TRION_ENABLE_RUST = "0"
-TRION_ENABLE_RELAYER = "0"
-TRION_ENABLE_ZG_SYNC = "0"
-TRION_ENABLE_ZG_DA = "0"
-TRION_ENABLE_EXTRAS = "0"
-TRION_ENABLE_NATIVE = "0"
 DATABASE_URL = ""
 TIMESCALEDB_URL = ""
-ZG_NETWORK = "mainnet"
-ZG_CHAIN_ID = "16661"
-ZERO_G_RPC = "https://evmrpc.0g.ai"
-ZG_EXECUTION_GATE_ADDR = "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+BH_LEDGER_DB = "/app/bh_ledger.db"

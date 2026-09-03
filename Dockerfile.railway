@@ -1,37 +1,27 @@
 # =============================================================================
-# TRION Protocol — Railway Dockerfile  (Full-stack capable, default lightweight)
+# TRION Protocol — Railway Dockerfile v8.0  (Full-stack, all components)
 # =============================================================================
 #
-# DEFAULT: Lightweight mode for Railway free/hobby tier:
-#   - Core: Flask + FAISS + BH Streamer + Next.js
-#   - All source code included (Rust, Go, C++, Haskell, Julia, Solidity, Vyper)
-#   - Optional services disabled by default (enable via env vars)
+# Builds and deploys ALL TRION components:
+#   - Flask Oracle API (port 5000)
+#   - FAISS ANIMA Engine (port 8000)
+#   - Next.js Frontend (port $PORT — public)
+#   - BH Streamer (real-time behavioral hash ingestion)
+#   - All source code: Python, Rust, Go, C++, Haskell, Julia, Solidity, Cairo
 #
-# OPTIONAL SERVICES (set env var to 1 to enable):
-#   TRION_ENABLE_VALIDATOR=1       — Go P2P validator network (port 6000)
-#   TRION_ENABLE_INDEXERS=1        — Rust indexer binaries (if built)
-#   TRION_ENABLE_SIGNAL_PROCESSING=1 — C++ signal processing engine
-#   TRION_ENABLE_MONITORING=1      — Prometheus + Grafana
+# Build: docker build -f Dockerfile.railway -t trion-protocol .
+# Run:   docker run -p 10000:10000 -e PORT=10000 trion-protocol
 #
-# FULL STACK BUILD (heavier, longer build):
-#   docker build --build-arg TRION_FULL_STACK=1 -f Dockerfile.railway .
-#   Installs Rust + Haskell toolchains for native compilation
-#
-# Build time (default): ~5 minutes | Image size: ~800MB
-# Build time (full stack): ~20+ minutes | Image size: ~2GB+
+# Build time: ~8 minutes | Image size: ~1.2GB
 # =============================================================================
 
 # ─── Stage 1: Build Next.js frontend ─────────────────────────────────────────
-# Build timestamp arg — rebuild frontend when code changes (--build-arg BUILD_TIMESTAMP=$(date +%s))
-ARG BUILD_TIMESTAMP=unknown
 FROM node:20-slim AS next-builder
 
 WORKDIR /build
 
 # Copy frontend package.json and install deps
 COPY frontend/package.json frontend/package-lock.json* ./
-# Force cache invalidation on new builds
-ENV BUILD_TIMESTAMP=1787199600
 RUN npm install --legacy-peer-deps --silent
 
 # Copy frontend source
@@ -40,28 +30,24 @@ COPY frontend/ ./
 # Build Next.js standalone
 ENV NEXT_PUBLIC_API_BASE=""
 ENV FLASK_URL="http://127.0.0.1:5000"
-# CACHE BUST: Force rebuild when frontend source changes
-RUN echo "Build timestamp: 1787199600" && echo "Source hash:" && find . -type f -name "*.tsx" -o -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs cat | sha256sum | head -c 16
 RUN npm run build 2>&1 | tail -20
 
 # Verify standalone output exists
 RUN test -f /build/.next/standalone/server.js && echo "OK: standalone build" || { echo "FATAL: no standalone"; exit 1; }
 
-# ─── Stage 2: Runtime (Python + Node.js) ────────────────────────────────────
+# ─── Stage 2: Runtime (Python + Node.js + all languages) ───────────────────
 FROM python:3.11-slim
 
 LABEL maintainer="TRION Protocol"
-LABEL description="TRION Protocol - Railway deployment"
+LABEL description="TRION Protocol - Full Railway deployment"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
-LABEL version="7.0.0"
+LABEL version="8.0.0"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
-# Optional full-stack build arg: set to 1 to install Rust/Haskell/Julia toolchains
-ARG TRION_FULL_STACK=0
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl bash tini ca-certificates gnupg libssl3 libpq5 \
         gcc g++ python3-dev cmake pkg-config \
+        golang \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -71,15 +57,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-# ── Optional: Go and Julia runtimes (best-effort, don't fail build) ───────────
-# These may not be available in Debian slim repos; install if available
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends golang 2>/dev/null || echo "Go not available in repos" \
-    && apt-get install -y --no-install-recommends julia 2>/dev/null || echo "Julia not available in repos" \
-    && rm -rf /var/lib/apt/lists/* \
-    && (command -v go && go version || true) \
-    && (command -v julia && julia --version || true)
 
 WORKDIR /app
 
@@ -91,21 +68,21 @@ COPY --from=next-builder /build/public /app/frontend/public
 # ── Python dependencies ──────────────────────────────────────────────────────
 COPY api/requirements.txt ./api/requirements.txt
 COPY anima-service/requirements.txt ./anima-service/requirements.txt
+COPY pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir \
     -r api/requirements.txt \
     -r anima-service/requirements.txt \
-    numpy scipy scikit-learn gunicorn web3 eth-account feedparser vaderSentiment
-# PHASE-1-SECURITY: force-upgrade pynacl (cosmpy transitively pins 1.6.0
-# which has PYSEC-2026-3002). --no-deps avoids the cosmpy resolver conflict.
-RUN pip install --no-cache-dir --no-deps pynacl==1.6.2
+    numpy scipy scikit-learn gunicorn web3 eth-account feedparser vaderSentiment \
+    flask-cors apscheduler langdetect psycopg2-binary hypothesis ecdsa pynacl \
+    && pip install --no-cache-dir --no-deps pynacl==1.6.2
 
-# ── Application source ───────────────────────────────────────────────────────
+# ── Application source (ALL directories) ─────────────────────────────────────
 COPY api/             ./api/
 COPY anima-service/   ./anima-service/
 COPY core/            ./core/
 COPY zk/              ./zk/
+COPY zk-circuits/     ./zk-circuits/
 COPY adapters/        ./adapters/
-# src/ was removed (deprecated shim layer) — all code is in core/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
 COPY trion-0g/        ./trion-0g/
@@ -119,16 +96,15 @@ COPY sdk/             ./sdk/
 COPY proof-ledger/    ./proof-ledger/
 COPY serve.py         ./serve.py
 COPY main.py          ./main.py
-COPY deployments.json ./deployments.json
 COPY zg/              ./zg/
 COPY schema.sql       ./schema.sql
 COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
 
-# ── Additional source directories (all components, workflows, languages) ──
-# Rust workspace (BTCP router, dispute resolution, intent aggregator, etc.)
+# ── All language source directories ──────────────────────────────────────────
+# Rust workspace (BTCP router, 19 spec modules, 94 tests)
 COPY rust/            ./rust/
-# Rust L0 indexer crates (16 crates, EVM + Bot Chain + extended VM)
+# Rust L0 indexer crates (21 chain crates)
 COPY indexers/        ./indexers/
 # Go P2P validator network
 COPY validator/       ./validator/
@@ -136,36 +112,36 @@ COPY validator/       ./validator/
 COPY signal-processing/ ./signal-processing/
 # Haskell formal verification (9 theorems)
 COPY formal/          ./formal/
-# Solidity dev environment
+# Solidity dev environment (Hardhat)
 COPY hardhat/         ./hardhat/
 # Backtesting framework
 COPY backtest/        ./backtest/
-# Production deployment configs
+# Production deployment configs (Docker, Nginx, systemd)
 COPY deploy/          ./deploy/
-# ARCHITECTURE.md, DEPLOYMENT.md
+# Documentation
 COPY docs/            ./docs/
 # Akashic state storage
 COPY akashic/         ./akashic/
 # Continuum state machine
 COPY continuum/       ./continuum/
-# SVM (Solana) indexer + adapter — RELOCATED: Rust crate now at
-# indexers/crates/trion-svm (covered by COPY indexers/ above) and the TS/Python
-# adapter lives in chains/solana/ (covered by COPY chains/). The stale
-# `COPY trion-svm/` referenced a directory removed in the v2 restructure and
-# broke the Railway image build. Fixed 2026-09-01 (audit: DOCKER-2).
 # Network health monitor (Go)
 COPY network/         ./network/
 # Formal specification documents
 COPY spec/            ./spec/
-# Runtime reports directory (created empty; populated at runtime)
+# Reports directory
 COPY reports/         ./reports/
+# BTC tools (zero-bridge test scripts)
+COPY btc-tools/       ./btc-tools/
+# EVM tools (Solidity compiler + deployers)
+COPY evm-tools/       ./evm-tools/
 
-# ── Deployment preflight + BH ledger DB init scripts ────────────────────────
+# ── Deployment scripts ────────────────────────────────────────────────────────
 COPY scripts/init_bh_ledger.py    ./scripts/init_bh_ledger.py
 COPY scripts/deploy_preflight.py   ./scripts/deploy_preflight.py
 RUN chmod +x ./scripts/init_bh_ledger.py ./scripts/deploy_preflight.py
-# Pre-create the bh_ledger schema at build time so first-start inserts work
-RUN python3 /app/scripts/init_bh_ledger.py 2>/dev/null || echo "BH ledger init skipped (non-fatal)"
+
+# Pre-create the bh_ledger schema at build time
+RUN python3 /app/scripts/init_bh_ledger.py 2>/dev/null || echo "BH ledger init (non-fatal)"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 COPY railway-entrypoint.sh ./railway-entrypoint.sh
@@ -175,10 +151,6 @@ RUN chmod +x ./railway-entrypoint.sh
 RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data
 
 # ── Environment ───────────────────────────────────────────────────────────────
-# Note: PORT is injected by Railway at runtime — do NOT set it here as a static ENV.
-# The entrypoint script reads PORT from the environment and defaults to 10000.
-# Optional service toggles (default OFF — set TRION_ENABLE_*=1 to activate).
-# Validator (Go), Rust indexers, C++ signal processing, Prometheus/Grafana.
 ENV HOSTNAME=0.0.0.0 \
     PYTHONPATH=/app \
     FAISS_PORT=8000 \
@@ -191,10 +163,8 @@ ENV HOSTNAME=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
     TRION_ENABLE_FAISS=1 \
-    # Streamer enabled — the entrypoint owns the single dedicated process
-    # (TRION_MAX_CHAINS caps concurrency; entrypoint prevents N-workers flood)
     TRION_ENABLE_STREAMER=1 \
-    TRION_MAX_CHAINS=${TRION_MAX_CHAINS:-12} \
+    TRION_MAX_CHAINS=12 \
     TRION_ENABLE_RUST=0 \
     TRION_ENABLE_RELAYER=0 \
     TRION_ENABLE_ZG_SYNC=0 \
@@ -221,7 +191,6 @@ EXPOSE 10000
 
 # Healthcheck uses /readyz (not /api/v1/health) so the container is "healthy"
 # only when the whole chain — Next.js → Flask → FAISS — is ready to serve.
-# /readyz returns 503 during cold-start, then 200 once FAISS index is loaded.
 HEALTHCHECK --interval=30s --timeout=15s --start-period=300s --retries=5 \
     CMD curl -fs http://localhost:${PORT:-10000}/readyz || exit 1
 
