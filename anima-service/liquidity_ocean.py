@@ -94,9 +94,9 @@ class LiquidityOcean:
         self,
         chain_id:      int,
         pool_depths:   list[float],
-        pool_corrs:    list[float],
-        depth_history: list[float],
-        price_history: list[float],
+        pool_corrs:    Optional[list[float]] = None,
+        depth_history: Optional[list[float]] = None,
+        price_history: Optional[list[float]] = None,
         is_ooa:        bool = False,
     ) -> dict:
         """

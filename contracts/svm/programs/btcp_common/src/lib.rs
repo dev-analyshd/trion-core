@@ -343,4 +343,7 @@ pub enum BTCPError {
 
     #[msg("Insufficient lamports for the requested lock amount")]
     InsufficientFunds,
+
+    #[msg("Invalid argument")]
+    InvalidArgument,
 }

@@ -59,10 +59,12 @@ surface signal temporarily movable by anyone with sufficient capital. They do no
 behavioral reality.
 **Price is a signal about current market state. Behavioral reality is the accumulated history of
 what actually happened.** These are categorically different.
-On March 12, 2026, a user attempted to swap $50 million USDT for AAVE through the Aave
-interface. CoW Swap routers executed correctly. The slippage warning was shown and confirmed.
-The user received 324 AAVE — a catastrophic outcome from a pool with insufficient liquidity
-depth.
+On March 12, 2026 — [SIMULATED SCENARIO: the following incident is a
+hypothetical illustration, not a documented real event; it is retained as a
+motivating example only] — a user attempted to swap $50 million USDT for AAVE
+through the Aave interface. CoW Swap routers executed correctly. The slippage
+warning was shown and confirmed. The user received 324 AAVE — a catastrophic
+outcome from a pool with insufficient liquidity depth.
 Spot price feeds were functioning correctly. No oracle manipulation had occurred. The oracle did
 its job — it reported the right price. What no oracle reported — because no oracle can currently
 produce this signal — was the behavioral state of the AAVE liquidity pool: thin depth, mercenary
@@ -594,7 +596,7 @@ Falsification: no statistically significant correlation over 90-day,
 1M+ block sample.
 ```
 ### L7.1 — Natural Liquidity Score (LIQUIDITY_HEALTH)
-The signal that would have prevented the March 12, 2026 incident:
+The signal that would have prevented the (simulated) March 12, 2026 incident:
 ```
 NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)
 LD = Liquidity Depth Entropy
@@ -614,7 +616,8 @@ High: liquidity holds under stress (committed providers)
 Low: liquidity disappears under stress (mercenary providers)
 NL < 0.30 → LIQUIDITY_HEALTH signal emitted automatically
 ```
-**March 12, 2026 retrospective:** AAVE pool NL score ≈ 0.09. A TRION-integrated interface would
+**March 12, 2026 retrospective (SIMULATED SCENARIO — synthetic illustration, not a real event):**
+AAVE pool NL score ≈ 0.09. A TRION-integrated interface would
 have received this score — not a checkbox warning.
 ### L7.2 — BITP Matching Score (Behavioral Intent Transaction Protocol)
 ```
@@ -1244,8 +1247,12 @@ Protocol |
 chain behavioral continuity |
 ---
 ## 23. REAL-WORLD VALIDATION
-### The March 12, 2026 Aave Incident
-**What happened:** A user attempted to swap $50 million USDT for AAVE. They received 324 AAVE.
+### The March 12, 2026 Aave Incident — [SIMULATED SCENARIO]
+
+> NOTE: This incident is a hypothetical illustration, not a documented real-world
+event. It is used as a motivating test vector for the NL engine.
+
+**What happened (simulated):** A user attempted to swap $50 million USDT for AAVE. They received 324 AAVE.
 The pool had insufficient liquidity depth to absorb the trade.
 **What TRION would have produced:**
 ```

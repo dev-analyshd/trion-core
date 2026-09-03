@@ -360,6 +360,12 @@ pub struct ShadowSource {
     pub confidence_weight: f64,
     pub diversity_factor: f64,
     pub source_chain: ChainId,
+    /// Provenance disclosure: `true` when this source was fabricated by
+    /// `ShadowObserver::collect_shadow_sources` (placeholder simulation
+    /// derived from timestamps — NOT real indexer data) rather than read
+    /// from a real indexer / oracle / DEX / governance feed. Downstream
+    /// consumers MUST check this flag before trusting the source.
+    pub simulated: bool,
 }
 
 /// Route failure information

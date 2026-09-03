@@ -25,6 +25,18 @@ _log = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+
+# ── Synthetic-data disclosure helper (audit FIX-PY) ──────────────────────────
+# Every endpoint whose per-entity values are hash/RNG-seeded demo data (rather
+# than real measured behavior) MUST spread this into its jsonify response dict.
+# Do NOT add it to endpoints backed by the real signal/coherence/threshold/NL
+# engines operating on measured inputs.
+def _synthetic_note(
+    reason: str = "deterministic demo data seeded from entity id — not measured behavior",
+) -> dict:
+    """Standard disclosure keys for hash-seeded synthetic endpoints."""
+    return {"is_synthetic": True, "synthetic_reason": reason}
+
 # ── In-process rate limiter (sliding window, per-IP) ─────────────────────────
 # Phase 2.3: Hardened with background cleanup thread + env-configurable limits.
 #
@@ -1463,6 +1475,10 @@ def leaderboard():
     return jsonify({
         "leaderboard":       entries,
         "total_tracked":     len(seeds),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "entities are hardcoded seed names; archetype, signal_count and mf_score are hash-derived; plane values fall back to neutral priors when FAISS has no history."
+        ),
         "market_volatility": round(vol, 4),
         "dynamic_threshold": round(theta, 6),
         "timestamp":         int(time.time()),
@@ -1577,6 +1593,10 @@ def audit_contract(address: str):
             "findings": [],
             "status": "rpc_timeout",
             "disclosure": "Live RPC audit timed out. Behavioral proxy score shown.",
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "risk proxy deterministically derived from sha256(address) after live-RPC timeout — not a measured audit."
+        ),
             "whitepaper": "L8.1",
         }
 
@@ -2144,6 +2164,11 @@ def agent_train_label():
         "label": label,
         "phi": phi,
         "training_id": f"train_{seed:08x}",
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "training_id is derived from sha256(entity_id:label:phi) and nothing is persisted — "
+            "this is a no-op acknowledgement, not a real training event."
+        ),
         "message": "Signal label recorded for TRION agent pipeline online learning.",
         "timestamp": int(time.time()),
     })
@@ -2163,6 +2188,10 @@ def epigenetics_pressure(entity_id: str):
     pressure_idx = round((methylation + (1 - acetylation) + phospho + ubiquitin) / 4, 4)
     return jsonify({
         "entity_id": entity_id,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "methylation/acetylation/phosphorylation/ubiquitin scores are hash-derived from sha3-256(entity_id), not measured epigenetic pressure."
+        ),
         "epigenetic_pressure": {
             "methylation_score":  methylation,
             "acetylation_score":  acetylation,
@@ -2838,6 +2867,9 @@ def sba_signal(nation_id: str):
         stablecoin_flow_bias     = _seed(24, 0.3, 0.80),
         fx_alignment             = _seed(25, 0.4, 0.85),
     )
+    result["is_synthetic"] = True
+    result["synthetic_reason"] = ("SBA formula engine is real; inputs (GDP, policy alignment, "
+                                   "signal accuracy) are deterministic hash-derived demo values, not sovereign data feeds.")
     result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
     result["timestamp"] = int(time.time())
     return jsonify(result)
@@ -2883,6 +2915,9 @@ def xsl_signal(entity_id: str):
         slippage_pct          = _seed(41, 0.001, 0.010),
         failure_rate          = _seed(42, 0.01, 0.08),
     )
+    result["is_synthetic"] = True
+    result["synthetic_reason"] = ("XSL formula engine is real; chain behavioral vectors and bridge "
+                                   "metrics are deterministic hash-derived demo values, not measured cross-species data.")
     result["timestamp"] = int(time.time())
     return jsonify(result)
 
@@ -2955,6 +2990,10 @@ def security_complexity(entity_id: str):
     return jsonify({
         "entity_id":     entity_id,
         "k_current_bits": round(result.k_current, 2),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "GK(t)/GK(t-1) inputs are sha3-256 hashes of the entity_id string; the Kolmogorov-bound engine is real but operates on demo keys."
+        ),
         "k_previous_bits": round(result.k_previous, 2),
         "delta_k_bits":  round(result.delta_k, 2),
         "delta_k_max":   round(result.delta_k_max, 2),
@@ -2999,6 +3038,10 @@ def governance_geo():
     result = compute_geo_enforcement(sample_validators)
     return jsonify({
         "geo_compliant":           result.geo_compliant,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "computed over a static sample validator registry, not the live validator network."
+        ),
         "awa_geo_status":          result.awa_geo_status,
         "n_continents":            result.n_continents,
         "n_continents_required":   4,
@@ -3300,8 +3343,18 @@ def liquidity_score(asset_address: str):
         "alert":            alert,
         "limiting_factor":  min({"LD": ld, "LO": lo, "LC": lc, "LS": ls}, key=lambda k: {"LD":ld,"LO":lo,"LC":lc,"LS":ls}[k]),
         "recommendation":   "DO_NOT_ROUTE" if nl_final < 0.30 else ("ROUTE_WITH_CAUTION" if nl_final < 0.60 else "ROUTE_APPROVED"),
-        "formula":          "NL = min(LD, LO, LC, LS) × raw_nl",
-        "whitepaper":       "L2.2",
+        "is_synthetic":     True,
+        "synthetic_reason": (
+            "FAISS liquidity engine unreachable — LD/LO/LC/LS fallback values are "
+            "deterministically derived from sha256(asset_address), NOT measured pool data."
+        ),
+        "formula":          "fallback: nl_score = min(LD, LO, LC, LS) × raw_nl (hash-seeded demo only — NOT the whitepaper NL formula)",
+        "formula_note":     (
+            "Whitepaper L7.1 defines NL = LD × LO × LC × LS, implemented in "
+            "core/extended/natural_liquidity.py and served live by the anima-service "
+            "at /api/v1/liquidity/<asset> when reachable."
+        ),
+        "whitepaper":       "L7.1",
         "timestamp":        int(time.time()),
     })
 
@@ -3322,6 +3375,10 @@ def genesis_signal(asset_id: str):
         "asset_id":        asset_id,
         "signal_type":     "GENESIS",
         "phi_seed":        phi_seed,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "FAISS genesis engine unreachable — phi_seed/confidence are deterministically derived from sha256(asset_id), not measured behavioral history."
+        ),
         "conf_genesis":    c_genesis,
         "confidence":      conf,
         "threshold":       theta,
@@ -3337,7 +3394,12 @@ def genesis_signal(asset_id: str):
 @app.route("/api/v1/security/<entity_id>/mf")
 @require_entity_id()
 def security_mf(entity_id: str):
-    """Manipulation Fingerprint (MF) score for entity — whitepaper L2.1."""
+    """Manipulation Fingerprint (MF) score for entity — whitepaper L2.1.
+
+    DISCLOSURE: the 7-pattern detector engine is real, but the per-entity pattern
+    inputs are hash-seeded demo values (see is_synthetic in the response), not
+    measured on-chain evidence.
+    """
     from core.physical.manipulation_detector import (
         detect_wash_trading, detect_sybil_liquidity,
         detect_governance_capture, detect_mev_extraction,
@@ -3372,6 +3434,10 @@ def security_mf(entity_id: str):
             for p in patterns
         ],
         "detected_count": len(detected),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "the 7-pattern detector engine is real (core/physical/manipulation_detector.py), but its inputs here (cyclic ratio, LP share, HHI, MEV rate, sync ratios, round-trip ratio) are hash-seeded from sha256(entity_id) — per-entity evidence is fabricated demo data."
+        ),
         "formula":     "MF = max(detected pattern scores); ORACLE_ATTACK=1.0 overrides all",
         "whitepaper":  "L2.1",
         "timestamp":   int(time.time()),
@@ -3399,6 +3465,10 @@ def security_genomic(entity_id: str):
         "hash_function":  "SHA3-256",
         "evolution_rule": "GK(t) = Hash_DNA(GK(t-1) || BE(t) || TM(t) || CV(t))",
         "bootstrap":      True,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "demo genomic key evolved from entity_id-derived hash inputs; not an observed behavioral epoch. The Hash_DNA dual-strand algorithm itself is real."
+        ),
         "disclosure":     "Public portion only. Sense strand is public; antisense verifiable without payload.",
         "formula":        "sense=SHA3(payload||0x00); antisense=SHA3(payload||0xFF) XOR complement(sense)",
         "whitepaper":     "L4.3",
@@ -3449,6 +3519,10 @@ def resurrection(entity_id: str):
         "dormancy_type":         result.dormancy_type.value,
         "kappa":                 result.kappa,
         "delta_resurrection":    round(result.delta_resurrection, 6),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "dormancy profile and pre/reactivation features are hash-derived from entity_id; the Δ_resurrection formula engine is real."
+        ),
         "decay_component":       round(result.decay_component, 6),
         "continuity_component":  round(result.continuity_component, 6),
         "context_component":     round(result.context_component, 6),
@@ -3506,6 +3580,10 @@ def fork_resolution_legacy(asset_id: str):
         "dominant_chain":        result.dominant_chain,
         "contested":             result.contested,
         "holder_count_pre_fork": result.holder_count_pre_fork,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event."
+        ),
         "holders_retained_a":    result.holders_retained_a,
         "holders_retained_b":    result.holders_retained_b,
         "holders_split":         result.holders_split,
@@ -3551,6 +3629,10 @@ def trajectory_anomaly_legacy(entity_id: str):
         "entity_id":           entity_id,
         "signal_type":         traj_sig["signal_type"],
         "kl_divergence":       round(result.kl_divergence, 6),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "P_expected/P_actual distributions are hash-derived from entity_id; the KL anomaly engine is real."
+        ),
         "theta_anomaly":       result.theta_anomaly,
         "anomaly_detected":    result.anomaly_detected,
         "genesis_invalidated": result.genesis_invalidated,
@@ -3594,6 +3676,10 @@ def biological_capital(ecosystem: str):
     return jsonify({
         **signal,
         "bc_score":       round(result.bc, 6),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "ecosystem profile (NPP, biomass, endemics) hash-derived from the ecosystem name; the BC formula engine is real."
+        ),
         "flow":           round(result.flow, 6),
         "resilience":     round(result.resilience, 6),
         "uniqueness":     round(result.uniqueness, 6),
@@ -3644,6 +3730,10 @@ def energy_participation(entity_id: str):
         "entity_id":     entity_id,
         "signal_type":   "ECOSYSTEM_HEALTH",
         "ep":            round(result.ep, 6),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "protocol economics and developer data are hash-derived from entity_id; the EP=VC·PA·DC engine is real."
+        ),
         "vc":            round(result.vc, 6),
         "pa":            round(result.pa, 6),
         "dc":            round(result.dc, 6),
@@ -3684,6 +3774,10 @@ def validator_hhi():
     result = compute_hhi_enforcement(validators, hhi_days_above_2500=0)
     return jsonify({
         "hhi":                     round(result.hhi, 2),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "validator set deterministically generated from sha256('validator_i') — not the live validator registry."
+        ),
         "tier":                    result.tier.value,
         "validator_count":         result.validator_count,
         "total_effective_stake":   round(result.total_effective_stake, 2),
@@ -3764,6 +3858,10 @@ def validators_list():
         "tier":                  hhi_result.tier.value,
         "validator_count":       hhi_result.validator_count,
         "source":                "local-fallback",
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "FAISS unreachable — validator mesh deterministically derived from sha256('validator_i'); not live validator state."
+        ),
         "whitepaper":            "L4.8",
         "timestamp":             int(time.time()),
     })
@@ -3787,6 +3885,10 @@ def validator_reward(validator_id: str):
         "falsifiability_bonus":    fals_bonus,
         "slashing_deduction":      slashing,
         "total_reward":            total_reward,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "reward components (base, diversity, falsifiability, slashing) are hash-derived from validator_id, not staking-ledger data."
+        ),
         "minority_region_bonus":   minority_region,
         "effective_reward":        round(total_reward * (1.5 if minority_region else 1.0), 4),
         "formula":                 "R = base · diversity_mult · (1 + fals_bonus) - slashing; minority_region → 1.5× multiplier",
@@ -3816,6 +3918,10 @@ def information_conservation():
         "decay_rate":       decay_rate,
         "conserved":        conserved,
         "conservation_gap": round(abs(di_dt), 4),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "I_in/I_out/I_current are time-modulated deterministic demo values, not measured information flows."
+        ),
         "status":           "CONSERVED" if conserved else "LEAK_DETECTED",
         "formula":          "dI/dt = I_in - I_out - λ·I; I_decay = λ·I_current",
         "whitepaper":       "L9.2",
@@ -3844,6 +3950,10 @@ def evolutionary_fitness(component: str):
     return jsonify({
         "component":        component,
         "fitness":          fitness,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "PA/ICE/AS/Love/moat components are hash-derived from the component name; the F formula is applied to demo inputs."
+        ),
         "pa":               pa,
         "ice":              ice,
         "as":               as_,
@@ -3882,6 +3992,10 @@ def resonance(entity_a: str, entity_b: str):
         "entity_a":     entity_a,
         "entity_b":     entity_b,
         "resonance":    r_ab,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "Φ, TC and correlation values are hash-derived from the entity ids; not measured plane data."
+        ),
         "in_resonance": in_resonance,
         "correlation":  corr,
         "phi_a":        phi_a,
@@ -3953,6 +4067,10 @@ def negative_space(entity_id: str):
         "entity_id":          entity_id,
         "signal_type":        "NEGATIVE_SPACE",
         "silence_score":      silence_score,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "expected/observed transaction, volume and governance rates are hash-derived from entity_id, not measured activity."
+        ),
         "signal_strength":    signal_strength,
         "notable_absences":   notable_absences,
         "expected_tx_rate":   expected_tx_rate,
@@ -3996,6 +4114,10 @@ def mev_exposure(entity_id: str):
         "entity_id":          entity_id,
         "signal_type":        "MEV_EXPOSURE",
         "mev_exposure_rate":  mev_exposure_rate,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "transaction counts, sandwich/frontrun/backrun rates and value-at-risk are hash-derived from entity_id, not measured MEV data."
+        ),
         "risk_level":         risk_level,
         "total_txns_analyzed":total_txns,
         "mev_txns": {
@@ -4033,6 +4155,10 @@ def cross_chain_coherence(entity_id: str):
         "entity_id":          entity_id,
         "signal_type":        "CROSS_CHAIN_COHERENCE",
         "cross_chain_coherence": coherence,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "per-chain scores are hash-derived from sha256(entity_id + chain); not measured cross-chain behavior."
+        ),
         "mean_score":         mean_score,
         "variance":           variance,
         "chain_scores":       scores,
@@ -4067,6 +4193,10 @@ def stablecoin_health(asset: str):
         "asset":                 asset,
         "signal_type":           "STABLECOIN_HEALTH",
         "health_score":          health_score,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "peg price, reserve ratio, transparency and redemption rate are hash-derived from the asset name, not reserve-audit data."
+        ),
         "label":                 label,
         "peg_price":             peg_price,
         "peg_deviation":         peg_deviation,
@@ -4106,6 +4236,10 @@ def dependency_graph():
         "total_protocols":    len(protocols),
         "tier_1_protocols":   [p["id"] for p in protocols if p["tier"] == 1],
         "total_tvl_at_risk":  total_tvl_at_risk,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "static illustrative protocol/TVL dependency table; not live on-chain dependency data."
+        ),
         "cascade_paths": [
             {"trigger": "chainlink_failure", "affected": ["aave_v3", "compound", "gmx", "synthetix"], "severity": "CRITICAL"},
             {"trigger": "uniswap_v3_failure","affected": ["curve", "balancer", "aave"], "severity": "HIGH"},
@@ -4152,6 +4286,10 @@ def dormancy_taxonomy(entity_id: str):
     return jsonify({
         "entity_id":          entity_id,
         "dormancy_type":      dtype,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "dormancy days, team/governance activity and exploit severity are hash-derived from entity_id, not observed dormancy history."
+        ),
         "kappa":              kappa,
         "dormancy_days":      dormancy_days,
         "decay_factor":       decay,
@@ -4187,6 +4325,10 @@ def transduction_integrity(sensor_id: str):
     return jsonify({
         "sensor_id":          sensor_id,
         "transduction_integrity": ti,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "raw signal, noise floor, calibration error and latency are hash-derived from sensor_id; the TI formula is applied to demo inputs."
+        ),
         "raw_signal":         raw_signal,
         "noise_floor":        noise_floor,
         "calibration_error":  calibration_err,
@@ -4212,6 +4354,10 @@ def predictive_limit():
     return jsonify({
         "akashic_depth":           depth,
         "max_achievable_accuracy": accuracy,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "depth and observer-effect values are time-modulated deterministic demo values, not measured data."
+        ),
         "delta_t":                 delta_t,
         "delta_accuracy":          delta_acc,
         "limit_product":           limit_prod,
@@ -4249,6 +4395,10 @@ def moat():
             "N_network_moat":         n_moat,
         },
         "akashic_depth":  depth,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "moat components are time-modulated deterministic demo values (sin/cos of wall-clock); not measured moat data."
+        ),
         "chains_indexed": 37,
         "total_chains_whitepaper": 55,
         "formula":        "M_moat = D·Q·R·X·F·N  (whitepaper L0.5 — multiplicative product)",
@@ -4284,6 +4434,10 @@ def brt(entity_id: str = "system"):
             "seasonal_phase":   seas,
         },
         "phase_labels":     phase_labels,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "rhythm phases are real wall-clock values, but the per-entity offset is hash-derived demo; the production BRT uses observed tx timestamps (anima-service brt_scheduler)."
+        ),
         "formula":          "circadian=(t%86400)/86400; ultradian=(t%5400)/5400; lunar=(t%2551442)/2551442; seasonal=(t%31557600)/31557600",
         "whitepaper":       "L6.2",
         "timestamp":        int(ts),
@@ -4452,6 +4606,10 @@ def convergence_theorem_legacy():
         "C_star":              c_star,
         "C_t":                 c_t,
         "convergence_rate":    conv_rate,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "akashic depth is a time-modulated deterministic demo value, not measured depth."
+        ),
         "lambda":              lambda_,
         "eta_to_1pct_of_Cstar": eta_steps,
         "gap":                 round(c_star - c_t, 6),
@@ -4517,6 +4675,11 @@ def behavioral_hash_get(entity_id: str):
             "timestamp":     result["timestamp"],
         },
         "event_types": EVENT_TYPE_NAMES,
+        **_synthetic_note(
+            "the BH dual-strand hash engine is real, but the GET demo event (entity bytes, "
+            "block hash, magnitude, context) is deterministically derived from sha3-256(entity_id) — "
+            "not a measured on-chain transaction (see /api/v1/bh/ledger/<id> for real per-tx BHs)."
+        ),
         "formula":     "sense=SHA3-256(payload||0x00); antisense=SHA3-256(payload||0xFF)⊕complement(sense)",
         "magnitude_formula": "M_norm=log10(USD_value+1)/log10(max_90d+1)  [whitepaper L0.1 §3.2]",
         "whitepaper":  "L0.1",
@@ -5594,6 +5757,10 @@ def signal_by_type(type_name: str, entity_id: str):
                 "whitepaper":  "Section 11",
             }), 400
 
+        sig["is_synthetic"] = True
+        sig["synthetic_reason"] = ("coherence engine is real, but the type-specific payload fields "
+                                   "(genesis/resurrection/fork/trajectory/MEV/... values) are hash-derived "
+                                   "from entity_id, not measured evidence.")
         sig["whitepaper"] = "Section 11"
         return jsonify(sig)
 
@@ -5670,6 +5837,10 @@ def sigma_bft(entity_id: str):
     return jsonify({
         "entity_id":      entity_id,
         "sigma_t":        sigma_t,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "validators are simulated with a random.Random seeded from sha3-256(entity_id); not the live validator mesh (live Σ resolution is attempted in _get_sigma_plane)."
+        ),
         "delta_t":        round(delta_t, 6),
         "delta_base":     delta_base,
         "v_bar":          round(v_bar, 6),
@@ -5728,6 +5899,10 @@ def genomic_key_evolution(entity_id: str):
     return jsonify({
         "entity_id":        entity_id,
         "current_generation": n_generations,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "key lineage is evolved from entity_id-derived hashes (demo generations/triggers); the Hash_DNA evolution engine itself is real."
+        ),
         "key_hash":         node.key_hash if node else "none",
         "rotation_trigger": node.rotation_trigger if node else "none",
         "contamination":    round(graph.contamination_score(entity_id), 6),
@@ -5787,6 +5962,10 @@ def bootstrap_weight(entity_id: str):
         "akashic_depth":     depth,
         "lambda_boot":       lambda_boot,
         "bootstrap_weight":  bw,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "akashic depth is hash-derived from entity_id (5000 + 2000·h[8]/255), not the entity's measured depth."
+        ),
         "bootstrap_mode":    bw > 0.50,
         "mature_mode":       bw < 0.10,
         "SEC_boot":          sec_boot,
@@ -5840,6 +6019,10 @@ def source_credibility(source_id: str):
     return jsonify({
         "source_id":           source_id,
         "credibility":         cred_decayed,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "blocks alive, verification events and decay window are hash-derived from source_id, not a tracked credibility ledger."
+        ),
         "credibility_tier":    cred_tier,
         "steady_state_cred":   cred_steady_state,
         "alpha_decay":         alpha_decay,
@@ -5883,6 +6066,10 @@ def dw_bft():
 
     return jsonify({
         "sigma":                   result.sigma,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "consensus math engine is real, but the validator set is a built-in demo set (build_demo_validators), not the live validator registry."
+        ),
         "consensus_value":         result.consensus_value,
         "consensus_window_delta":  result.consensus_window,
         "total_effective_stake":   result.total_effective_stake,
@@ -5993,6 +6180,10 @@ def structured_silence(entity_id):
         "entity_id":               entity_id,
         "signal_type":             signal_type,
         "coherence_insufficient":  coherence_insufficient,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "plane scores, trends and volatility are RNG-seeded from hash(entity_id) — a simulated silence profile, not measured plane data."
+        ),
         "c_t":                     round(c_t, 6),
         "theta_t":                 round(theta, 6),
         "gap":                     round(gap, 6),
@@ -6104,6 +6295,10 @@ def homomorphic_mapping(chain, entity_id):
         "feature_vector":     u_vec.features,
         "feature_names":      u_vec.feature_names,
         "maturity_weight":    u_vec.maturity_weight,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "the raw chain event (value, block, all extras) is RNG-seeded from hash(entity_id+chain); the homomorphic mapping H itself is the real implementation."
+        ),
         "t_canonical":        u_vec.t_canonical,
         "finality_delta_s":   u_vec.finality_delta,
         "normalization":      u_vec.normalization_used,
@@ -6177,6 +6372,10 @@ def phase_transition():
 
     return jsonify({
         "psi_t":                    round(psi_t, 4),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "endogenous/total truth weights are deterministic hardcoded estimates (chain counts and market assumptions), not measured market weights."
+        ),
         "psi_critical":             psi_critical,
         "psi_to_critical":          round(psi_to_critical, 4),
         "current_phase":            "LOW_ORDER" if psi_t < psi_critical else "PHASE_TRANSITION",
@@ -6201,28 +6400,35 @@ def phase_transition():
 @app.route("/api/v1/whitepaper/coverage")
 def whitepaper_coverage():
     """
-    All 59 whitepaper formulas — implementation status and API endpoint map.
-    This endpoint is the authoritative reference for hackathon judges.
+    All whitepaper formulas — implementation status and API endpoint map.
+
+    Status labels are verified per endpoint:
+      LIVE          — computed from real measured/indexed data by a real engine.
+      SYNTHETIC-DEMO — the formula engine exists, but the per-entity values are
+                      deterministic demo/synthetic inputs (hash/RNG-seeded or
+                      time-modulated). Those endpoints carry is_synthetic=true.
+    This is a self-reported coverage map — synthetic-demo entries disclose their
+    nature. It is not an independent audit or an authoritative reference.
     """
     formulas = [
         # L0 — Foundation
-        {"id":"L0.1","name":"Behavioral Hash BH(entity,t)","formula":"sense=SHA3(payload‖0x00); antisense=SHA3(payload‖0xFF)⊕¬sense","status":"LIVE","endpoints":["/api/v1/bh/<entity_id>","/api/v1/bh POST"],"whitepaper":"L0.1"},
+        {"id":"L0.1","name":"Behavioral Hash BH(entity,t)","formula":"sense=SHA3(payload‖0x00); antisense=SHA3(payload‖0xFF)⊕¬sense","status":"LIVE","synthetic_reason":"POST computes real BHs from submitted events and /api/v1/bh/ledger serves indexer-produced per-tx BHs; the GET /api/v1/bh/<entity_id> demo path uses hash-seeded event inputs and carries is_synthetic=true.","endpoints":["/api/v1/bh/<entity_id>","/api/v1/bh POST","/api/v1/bh/ledger/<id>"],"whitepaper":"L0.1"},
         {"id":"L0.2","name":"BEO Entity Resolution","formula":"BEO_score=w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"whitepaper":"L0.2"},
-        {"id":"L0.3","name":"Resonance R(A,B)","formula":"R(A,B)=|corr(Φ_A,Φ_B)|·TC_A·TC_B","status":"LIVE","endpoints":["/api/v1/resonance/<a>/<b>"],"whitepaper":"L0.3"},
-        {"id":"L0.4","name":"Information Conservation dI/dt≥0","formula":"I_TRION=BH_gen+A_abs-S_emit-E_lost","status":"LIVE","endpoints":["/api/v1/information/conservation"],"whitepaper":"L0.4"},
-        {"id":"L0.5","name":"M_moat(t)=D·Q·R·X·F·N","formula":"M_moat=D_data·Q_quality·R_reflex·X_cross·F_fals·N_network","status":"LIVE","endpoints":["/api/v1/moat","/api/v1/signal/<id>"],"whitepaper":"L0.5"},
-        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love·N","formula":"F=PA·ICE·AS·Love·N_moat","status":"LIVE","endpoints":["/api/v1/fitness/<component>"],"whitepaper":"L0.6"},
-        {"id":"L0.7","name":"Behavioral True Value BTV","formula":"BTV=P_ref×Ω×(1−MF_discount)×C_weight×NL_weight","status":"LIVE","endpoints":["/api/v1/price/btv/<base>","/api/v1/price/hierarchy"],"whitepaper":"L0.7"},
-        {"id":"L0.8","name":"Inverted Price Feed — C_manipulate(D)","formula":"C_manipulate(D)=K·e^(α·D(t)); strictly monotonically increasing; at D→∞: cost→∞","status":"LIVE","endpoints":["/api/v1/inverted_price_feed","/api/v1/inverted_price_feed/<asset>"],"whitepaper":"L0.8"},
+        {"id":"L0.3","name":"Resonance R(A,B)","formula":"R(A,B)=|corr(Φ_A,Φ_B)|·TC_A·TC_B","status":"SYNTHETIC-DEMO","synthetic_reason":"Φ/TC/correlation hash-derived from entity ids.","endpoints":["/api/v1/resonance/<a>/<b>"],"whitepaper":"L0.3"},
+        {"id":"L0.4","name":"Information Conservation dI/dt≥0","formula":"I_TRION=BH_gen+A_abs-S_emit-E_lost","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/information/conservation"],"whitepaper":"L0.4"},
+        {"id":"L0.5","name":"M_moat(t)=D·Q·R·X·F·N","formula":"M_moat=D_data·Q_quality·R_reflex·X_cross·F_fals·N_network","status":"SYNTHETIC-DEMO","synthetic_reason":"/api/v1/moat returns time-modulated demo values (the signal pipeline's moat_factor is engine-computed).","endpoints":["/api/v1/moat","/api/v1/signal/<id>"],"whitepaper":"L0.5"},
+        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love·N","formula":"F=PA·ICE·AS·Love·N_moat","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"whitepaper":"L0.6"},
+        {"id":"L0.7","name":"Behavioral True Value BTV","formula":"BTV=P_ref×Ω×(1−MF_discount)×C_weight×NL_weight","status":"SYNTHETIC-DEMO","synthetic_reason":"BTV engine is real; price baselines are hardcoded bootstrap values until relayer data arrives.","endpoints":["/api/v1/price/btv/<base>","/api/v1/price/hierarchy"],"whitepaper":"L0.7"},
+        {"id":"L0.8","name":"Inverted Price Feed — C_manipulate(D)","formula":"C_manipulate(D)=K·e^(α·D(t)); strictly monotonically increasing; at D→∞: cost→∞","status":"SYNTHETIC-DEMO","synthetic_reason":"real formula computed over BTV-engine values with hardcoded baseline prices.","endpoints":["/api/v1/inverted_price_feed","/api/v1/inverted_price_feed/<asset>"],"whitepaper":"L0.8"},
         # L1 — Physical Plane
         {"id":"L1.1","name":"Φ(t) Shannon Entropy","formula":"Φ=Σ_k[-p_k·log2(p_k)]; 9 dimensions","status":"LIVE","endpoints":["/api/v1/planes/<id>/physical"],"whitepaper":"L1.1"},
-        {"id":"L1.2","name":"Manipulation Fingerprint MF","formula":"MF=max(WASH,SYBIL,GOV,MEV,PUMP,FVOL)","status":"LIVE","endpoints":["/api/v1/security/<id>/mf"],"whitepaper":"L1.2"},
+        {"id":"L1.2","name":"Manipulation Fingerprint MF","formula":"MF=max(WASH,SYBIL,GOV,MEV,PUMP,FVOL)","status":"SYNTHETIC-DEMO","synthetic_reason":"real 7-pattern detector fed hash-seeded demo inputs (see /api/v1/security/<id>/mf is_synthetic).","endpoints":["/api/v1/security/<id>/mf"],"whitepaper":"L1.2"},
         {"id":"L1.3","name":"TC(t) Temporal Coherence","formula":"TC=1-max_i(|t_plane_i-t_ref|)/TTL_min","status":"LIVE","endpoints":["/api/v1/transduction/<id>","/api/v1/signal/<id>"],"whitepaper":"L1.3"},
-        {"id":"L1.4","name":"TI(sensor) Transduction Integrity","formula":"TI=Calibration·Drift·CrossVerification","status":"LIVE","endpoints":["/api/v1/transduction/<sensor_id>","/api/v1/signal/<id>"],"whitepaper":"L1.4"},
+        {"id":"L1.4","name":"TI(sensor) Transduction Integrity","formula":"TI=Calibration·Drift·CrossVerification","status":"SYNTHETIC-DEMO","synthetic_reason":"sensor metrics hash-derived from sensor_id.","endpoints":["/api/v1/transduction/<sensor_id>","/api/v1/signal/<id>"],"whitepaper":"L1.4"},
         {"id":"L1.5","name":"Φ_adj(t)=Φ(t)·(1-MF)·TI","formula":"Φ_adj=Φ·(1-MF_score)·mean(TI_scores)","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"whitepaper":"L1.5"},
         # L2 — Mental Plane Inputs
-        {"id":"L2.1","name":"MF 7 manipulation patterns","formula":"WASH=0.70·cyclic; SYBIL=0.60·conc; GOV=0.50·(HHI-2500)/7500","status":"LIVE","endpoints":["/api/v1/security/<id>/mf"],"whitepaper":"L2.1"},
-        {"id":"L2.2","name":"Akashic Genomic Key GK","formula":"GK=sense‖antisense SHA3 dual-strand","status":"LIVE","endpoints":["/api/v1/security/<id>/genomic","/api/v1/gk/<id>"],"whitepaper":"L2.2"},
+        {"id":"L2.1","name":"MF 7 manipulation patterns","formula":"WASH=0.70·cyclic; SYBIL=0.60·conc; GOV=0.50·(HHI-2500)/7500","status":"SYNTHETIC-DEMO","synthetic_reason":"real detector engine; API inputs hash-seeded demo values.","endpoints":["/api/v1/security/<id>/mf"],"whitepaper":"L2.1"},
+        {"id":"L2.2","name":"Akashic Genomic Key GK","formula":"GK=sense‖antisense SHA3 dual-strand","status":"SYNTHETIC-DEMO","synthetic_reason":"demo keys evolved from entity_id hashes; Hash_DNA algorithm itself is real.","endpoints":["/api/v1/security/<id>/genomic","/api/v1/gk/<id>"],"whitepaper":"L2.2"},
         {"id":"L2.3","name":"Akashic Depth D(t)","formula":"D=Σ_τ[BH(τ)·e^(-λ(t-τ))·(1+0.1·(N_chains-1))]","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"whitepaper":"L2.3"},
         {"id":"L2.4","name":"conf_genesis=1-e^(-0.001·D)","formula":"conf_genesis=1-e^(-0.001·D(t))","status":"LIVE","endpoints":["/api/v1/genesis/<id>","/api/v1/signal/<id>"],"whitepaper":"L2.4"},
         # L3 — Mental Plane
@@ -6231,80 +6437,81 @@ def whitepaper_coverage():
         {"id":"L3.3","name":"ANIMA Score A(t)","formula":"A=f(entropy_vectors,archetype_match,phase_weight)","status":"LIVE","endpoints":["/api/v1/anima/<id>","/api/v1/planes/<id>/anima"],"whitepaper":"L3.3"},
         {"id":"L3.4","name":"Archetype Classification","formula":"12 archetypes; Bayesian posterior over behavioral profile","status":"LIVE","endpoints":["/api/v1/akashic/archetypes"],"whitepaper":"L3.4"},
         {"id":"L3.5","name":"ANIMA Reflexivity","formula":"A_adj=A·(1-β_reflex·ANIMA_reflex)","status":"LIVE","endpoints":["/api/v1/anima/intelligence"],"whitepaper":"L3.5"},
-        {"id":"L3.6","name":"Predictive Completeness Limit","formula":"ΔAcc·Δt ≥ ℏ_behavior (Heisenberg analogy)","status":"LIVE","endpoints":["/api/v1/predictive_limit"],"whitepaper":"L3.6"},
+        {"id":"L3.6","name":"Predictive Completeness Limit","formula":"ΔAcc·Δt ≥ ℏ_behavior (Heisenberg analogy)","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/predictive_limit"],"whitepaper":"L3.6"},
         # L4 — Spiritual Plane
-        {"id":"L4.1","name":"Σ(t) BFT consensus","formula":"Σ=Σ[s_j·d_j·1_{|v_j-v̄|≤δ}]/Σ[s_j·d_j]","status":"LIVE","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.1"},
-        {"id":"L4.2","name":"δ(t) dynamic consensus window","formula":"δ(t)=δ_base·(1+V(t))","status":"LIVE","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.2"},
-        {"id":"L4.3","name":"GK Genomic Key Evolution","formula":"GK(t)=Hash_DNA(GK(t-1)‖BE‖TM‖CV)","status":"LIVE","endpoints":["/api/v1/gk/<id>"],"whitepaper":"L4.3"},
-        {"id":"L4.4","name":"d_j Validator Diversity","formula":"d_j=1-corr(M_j,M̄)","status":"LIVE","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.4"},
-        {"id":"L4.5","name":"CRED(s,t) Source Credibility","formula":"CRED=CRED·α+verif_events·β","status":"LIVE","endpoints":["/api/v1/credibility/<source_id>"],"whitepaper":"L4.5"},
+        {"id":"L4.1","name":"Σ(t) BFT consensus","formula":"Σ=Σ[s_j·d_j·1_{|v_j-v̄|≤δ}]/Σ[s_j·d_j]","status":"SYNTHETIC-DEMO","synthetic_reason":"validators simulated with RNG seeded from the entity hash.","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.1"},
+        {"id":"L4.2","name":"δ(t) dynamic consensus window","formula":"δ(t)=δ_base·(1+V(t))","status":"SYNTHETIC-DEMO","synthetic_reason":"validators simulated with RNG seeded from the entity hash.","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.2"},
+        {"id":"L4.3","name":"GK Genomic Key Evolution","formula":"GK(t)=Hash_DNA(GK(t-1)‖BE‖TM‖CV)","status":"SYNTHETIC-DEMO","synthetic_reason":"key lineage demo, evolved from entity_id hash.","endpoints":["/api/v1/gk/<id>"],"whitepaper":"L4.3"},
+        {"id":"L4.4","name":"d_j Validator Diversity","formula":"d_j=1-corr(M_j,M̄)","status":"SYNTHETIC-DEMO","synthetic_reason":"demo validator mental readings.","endpoints":["/api/v1/sigma/<id>"],"whitepaper":"L4.4"},
+        {"id":"L4.5","name":"CRED(s,t) Source Credibility","formula":"CRED=CRED·α+verif_events·β","status":"SYNTHETIC-DEMO","synthetic_reason":"blocks/verification events hash-derived from source_id.","endpoints":["/api/v1/credibility/<source_id>"],"whitepaper":"L4.5"},
         {"id":"L4.6","name":"Slashing S_slash","formula":"S_slash=stake·severity_multiplier","status":"LIVE","endpoints":["/api/v1/governance/slashing/conditions"],"whitepaper":"L4.6"},
-        {"id":"L4.7","name":"Bootstrap weight e^(-λ·D)","formula":"bw=e^(-λ_boot·D(t))","status":"LIVE","endpoints":["/api/v1/bootstrap/weight/<id>"],"whitepaper":"L4.7"},
-        {"id":"L4.8","name":"HHI validator concentration","formula":"HHI=Σ_i(stake_i/total)²·10000","status":"LIVE","endpoints":["/api/v1/validator/hhi"],"whitepaper":"L4.8"},
-        {"id":"L4.9","name":"Validator reward R_v","formula":"R_v=base_rate·accuracy·(1-HHI/10000)","status":"LIVE","endpoints":["/api/v1/validator/reward/<id>"],"whitepaper":"L4.9"},
+        {"id":"L4.7","name":"Bootstrap weight e^(-λ·D)","formula":"bw=e^(-λ_boot·D(t))","status":"SYNTHETIC-DEMO","synthetic_reason":"depth hash-derived from entity_id.","endpoints":["/api/v1/bootstrap/weight/<id>"],"whitepaper":"L4.7"},
+        {"id":"L4.8","name":"HHI validator concentration","formula":"HHI=Σ_i(stake_i/total)²·10000","status":"SYNTHETIC-DEMO","synthetic_reason":"validator set generated from sha256('validator_i'), not the live registry.","endpoints":["/api/v1/validator/hhi"],"whitepaper":"L4.8"},
+        {"id":"L4.9","name":"Validator reward R_v","formula":"R_v=base_rate·accuracy·(1-HHI/10000)","status":"SYNTHETIC-DEMO","synthetic_reason":"reward components hash-derived from validator_id.","endpoints":["/api/v1/validator/reward/<id>"],"whitepaper":"L4.9"},
         # L5 — Master Equation
         {"id":"L5.1","name":"Θ(t) dynamic threshold","formula":"Θ=Θ_min+(Θ_max-Θ_min)·V(t)","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"whitepaper":"L5.1"},
         {"id":"L5.2","name":"C(t) five-plane coherence","formula":"C=α·Φ_adj+β·M_adj+γ·Σ+δ·K+ε·A","status":"LIVE","endpoints":["/api/v1/signal/<id>","/api/v1/coherence/profiles"],"whitepaper":"L5.2"},
         {"id":"L5.3","name":"T(t) master equation","formula":"T(t)=[C≥Θ]·C(t)·e^(M_moat(t))","status":"LIVE","endpoints":["/api/v1/trion/<id>","/api/v1/signal/<id>"],"whitepaper":"L5.3"},
         {"id":"L5.4","name":"SILENCE struct","formula":"SILENCE:{gap,limiting_plane,trend,ETA}","status":"LIVE","endpoints":["/api/v1/signal/<id>","/api/v1/trion/<id>"],"whitepaper":"L5.4"},
         # L6 — Akashic / ANIMA
-        {"id":"L6.1","name":"BC(ecosystem)","formula":"BC=Flow·Resilience·Uniqueness·Interdependence","status":"LIVE","endpoints":["/api/v1/bc/<ecosystem>"],"whitepaper":"L6.1"},
-        {"id":"L6.2","name":"BRT Biological Rhythm Timer","formula":"circadian=(t%86400)/86400; ultradian/lunar/seasonal","status":"LIVE","endpoints":["/api/v1/brt/<id>","/api/v1/signal/<id>"],"whitepaper":"L6.2"},
+        {"id":"L6.1","name":"BC(ecosystem)","formula":"BC=Flow·Resilience·Uniqueness·Interdependence","status":"SYNTHETIC-DEMO","synthetic_reason":"ecosystem profile hash-derived from the ecosystem name.","endpoints":["/api/v1/bc/<ecosystem>"],"whitepaper":"L6.1"},
+        {"id":"L6.2","name":"BRT Biological Rhythm Timer","formula":"circadian=(t%86400)/86400; ultradian/lunar/seasonal","status":"SYNTHETIC-DEMO","synthetic_reason":"clock phases are real; per-entity offset is hash-derived demo (production BRT uses observed tx timestamps in anima-service).","endpoints":["/api/v1/brt/<id>","/api/v1/signal/<id>"],"whitepaper":"L6.2"},
         {"id":"L6.3","name":"Akashic Index K(D,t)","formula":"K=Σ BH_records weighted by recency+cross-chain","status":"LIVE","endpoints":["/api/v1/planes/<id>/conscious"],"whitepaper":"L6.3"},
         # L7 — Signal Types
         {"id":"L7.1","name":"NL Liquidity Health","formula":"NL=LD·LO·LC·LS","status":"LIVE","endpoints":["/api/v1/liquidity/<asset>","/api/v1/signal/type/LIQUIDITY_HEALTH/<id>"],"whitepaper":"L7.1"},
-        {"id":"L7.2","name":"EP Ecosystem Pressure","formula":"EP=VC·PA·DC","status":"LIVE","endpoints":["/api/v1/ep/<id>"],"whitepaper":"L7.2"},
-        {"id":"L7.3","name":"NEGATIVE_SPACE signal","formula":"absence of expected patterns = signal","status":"LIVE","endpoints":["/api/v1/negative_space/<id>","/api/v1/signal/type/NEGATIVE_SPACE/<id>"],"whitepaper":"L7.3"},
-        {"id":"L7.4","name":"MEV_EXPOSURE signal","formula":"MEV_rate=(sandwich+frontrun+backrun)/total","status":"LIVE","endpoints":["/api/v1/mev/<id>","/api/v1/signal/type/MEV_EXPOSURE/<id>"],"whitepaper":"L7.4"},
-        {"id":"L7.5","name":"CROSS_CHAIN_COHERENCE","formula":"CC=mean(chain_scores)·(1-variance·5)","status":"LIVE","endpoints":["/api/v1/cross_chain/<id>","/api/v1/signal/type/CROSS_CHAIN_COHERENCE/<id>"],"whitepaper":"L7.5"},
+        {"id":"L7.2","name":"EP Ecosystem Pressure","formula":"EP=VC·PA·DC","status":"SYNTHETIC-DEMO","synthetic_reason":"protocol economics hash-derived from entity_id.","endpoints":["/api/v1/ep/<id>"],"whitepaper":"L7.2"},
+        {"id":"L7.3","name":"NEGATIVE_SPACE signal","formula":"absence of expected patterns = signal","status":"SYNTHETIC-DEMO","synthetic_reason":"expected/observed rates hash-derived from entity_id.","endpoints":["/api/v1/negative_space/<id>","/api/v1/signal/type/NEGATIVE_SPACE/<id>"],"whitepaper":"L7.3"},
+        {"id":"L7.4","name":"MEV_EXPOSURE signal","formula":"MEV_rate=(sandwich+frontrun+backrun)/total","status":"SYNTHETIC-DEMO","synthetic_reason":"MEV counts hash-derived from entity_id.","endpoints":["/api/v1/mev/<id>","/api/v1/signal/type/MEV_EXPOSURE/<id>"],"whitepaper":"L7.4"},
+        {"id":"L7.5","name":"CROSS_CHAIN_COHERENCE","formula":"CC=mean(chain_scores)·(1-variance·5)","status":"SYNTHETIC-DEMO","synthetic_reason":"chain scores hash-derived from entity_id+chain.","endpoints":["/api/v1/cross_chain/<id>","/api/v1/signal/type/CROSS_CHAIN_COHERENCE/<id>"],"whitepaper":"L7.5"},
         # L8 — Governance
-        {"id":"L8.1","name":"SBA(nation)","formula":"SBA=0.25E+0.25I+0.20S+0.15G+0.15C","status":"LIVE","endpoints":["/api/v1/sba/<nation_id>"],"whitepaper":"L8.1"},
+        {"id":"L8.1","name":"SBA(nation)","formula":"SBA=0.25E+0.25I+0.20S+0.15G+0.15C","status":"SYNTHETIC-DEMO","synthetic_reason":"SBA formula engine real; inputs hash-derived demo values.","endpoints":["/api/v1/sba/<nation_id>"],"whitepaper":"L8.1"},
         {"id":"L8.2","name":"AWA anti-weaponization","formula":"4-condition state machine; HHI>4000 triggers","status":"LIVE","endpoints":["/api/v1/governance/awa"],"whitepaper":"L8.2"},
         {"id":"L8.3","name":"Gratitude Protocol","formula":"G(t)=G(t-1)·0.95 per week","status":"LIVE","endpoints":["/api/v1/governance/gratitude"],"whitepaper":"L8.3"},
         {"id":"L8.4","name":"F1–F15 Falsifiability","formula":"15 explicit invalidation conditions","status":"LIVE","endpoints":["/api/v1/governance/falsifiability"],"whitepaper":"L8.4"},
         {"id":"L8.5","name":"Initialization Ceremony","formula":"4-of-4 multi-sig genesis event","status":"LIVE","endpoints":["/api/v1/governance/ceremony"],"whitepaper":"L8.5"},
         # L9 — Conservation
-        {"id":"L9.1","name":"XSL Cross-Ledger","formula":"XSL=TV·FS·RR/(1+TP)","status":"LIVE","endpoints":["/api/v1/xsl/<id>"],"whitepaper":"L9.1"},
-        {"id":"L9.2","name":"I_TRION conservation law","formula":"I=BH_gen+A_abs-S_emit-E_lost; dI/dt≥0","status":"LIVE","endpoints":["/api/v1/information/conservation"],"whitepaper":"L9.2"},
+        {"id":"L9.1","name":"XSL Cross-Ledger","formula":"XSL=TV·FS·RR/(1+TP)","status":"SYNTHETIC-DEMO","synthetic_reason":"XSL formula engine real; inputs hash-derived demo values.","endpoints":["/api/v1/xsl/<id>"],"whitepaper":"L9.1"},
+        {"id":"L9.2","name":"I_TRION conservation law","formula":"I=BH_gen+A_abs-S_emit-E_lost; dI/dt≥0","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/information/conservation"],"whitepaper":"L9.2"},
         # Signal Type Endpoints — all 19
-        {"id":"SIG-0","name":"VALUATION signal","formula":"C(t)≥Θ(t)→emit signal_value","status":"LIVE","endpoints":["/api/v1/signal/type/VALUATION/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-1","name":"SILENCE signal","formula":"C(t)<Θ(t)→SILENCE{gap,limiting,ETA}","status":"LIVE","endpoints":["/api/v1/signal/type/SILENCE/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-2","name":"MANIPULATION_ALERT","formula":"MF>threshold→alert with pattern breakdown","status":"LIVE","endpoints":["/api/v1/signal/type/MANIPULATION_ALERT/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-3","name":"GENESIS","formula":"conf_genesis=1-e^(-0.001·D)","status":"LIVE","endpoints":["/api/v1/signal/type/GENESIS/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-4","name":"RESURRECTION","formula":"κ_decay dormancy; behavioral continuity check","status":"LIVE","endpoints":["/api/v1/signal/type/RESURRECTION/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-5","name":"FORK_DIVERGENCE","formula":"CC_A/CC_B continuity coefficients","status":"LIVE","endpoints":["/api/v1/signal/type/FORK_DIVERGENCE/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-6","name":"TRAJECTORY","formula":"ANIMA pre-manifestation probability distribution","status":"LIVE","endpoints":["/api/v1/signal/type/TRAJECTORY/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-7","name":"NEGATIVE_SPACE","formula":"absence as signal","status":"LIVE","endpoints":["/api/v1/signal/type/NEGATIVE_SPACE/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-8","name":"PHASE_TRANSITION","formula":"SOLID→LIQUID→GAS→PLASMA thermodynamic","status":"LIVE","endpoints":["/api/v1/signal/type/PHASE_TRANSITION/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-9","name":"SYSTEMIC_RISK","formula":"cascade risk via protocol dependency graph","status":"LIVE","endpoints":["/api/v1/signal/type/SYSTEMIC_RISK/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-10","name":"LIQUIDITY_HEALTH","formula":"NL=LD·LO·LC·LS","status":"LIVE","endpoints":["/api/v1/signal/type/LIQUIDITY_HEALTH/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-11","name":"GOVERNANCE_SIGNAL","formula":"HHI+quorum+AWA health","status":"LIVE","endpoints":["/api/v1/signal/type/GOVERNANCE_SIGNAL/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-12","name":"CROSS_CHAIN_COHERENCE","formula":"behavioral alignment across chains","status":"LIVE","endpoints":["/api/v1/signal/type/CROSS_CHAIN_COHERENCE/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-13","name":"STABLECOIN_HEALTH","formula":"peg+collateral+liquidity","status":"LIVE","endpoints":["/api/v1/signal/type/STABLECOIN_HEALTH/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-14","name":"MEV_EXPOSURE","formula":"sandwich+frontrun+backrun rate","status":"LIVE","endpoints":["/api/v1/signal/type/MEV_EXPOSURE/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-15","name":"INSTITUTIONAL_BHV","formula":"whale regime classification","status":"LIVE","endpoints":["/api/v1/signal/type/INSTITUTIONAL_BHV/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-16","name":"REGULATORY_BHV","formula":"CRED+AML+JRS compliance tier","status":"LIVE","endpoints":["/api/v1/signal/type/REGULATORY_BHV/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-17","name":"ECOSYSTEM_HEALTH","formula":"BC=Flow·Resilience·Uniqueness·Interdep","status":"LIVE","endpoints":["/api/v1/signal/type/ECOSYSTEM_HEALTH/<id>"],"whitepaper":"§11"},
-        {"id":"SIG-18","name":"BOOTSTRAP","formula":"bw=e^(-λ·D); bootstrap→mature transition","status":"LIVE","endpoints":["/api/v1/signal/type/BOOTSTRAP/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-0","name":"VALUATION signal","formula":"C(t)≥Θ(t)→emit signal_value","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/VALUATION/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-1","name":"SILENCE signal","formula":"C(t)<Θ(t)→SILENCE{gap,limiting,ETA}","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/SILENCE/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-2","name":"MANIPULATION_ALERT","formula":"MF>threshold→alert with pattern breakdown","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/MANIPULATION_ALERT/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-3","name":"GENESIS","formula":"conf_genesis=1-e^(-0.001·D)","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/GENESIS/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-4","name":"RESURRECTION","formula":"κ_decay dormancy; behavioral continuity check","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/RESURRECTION/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-5","name":"FORK_DIVERGENCE","formula":"CC_A/CC_B continuity coefficients","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/FORK_DIVERGENCE/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-6","name":"TRAJECTORY","formula":"ANIMA pre-manifestation probability distribution","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/TRAJECTORY/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-7","name":"NEGATIVE_SPACE","formula":"absence as signal","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/NEGATIVE_SPACE/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-8","name":"PHASE_TRANSITION","formula":"SOLID→LIQUID→GAS→PLASMA thermodynamic","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/PHASE_TRANSITION/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-9","name":"SYSTEMIC_RISK","formula":"cascade risk via protocol dependency graph","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/SYSTEMIC_RISK/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-10","name":"LIQUIDITY_HEALTH","formula":"NL=LD·LO·LC·LS","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/LIQUIDITY_HEALTH/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-11","name":"GOVERNANCE_SIGNAL","formula":"HHI+quorum+AWA health","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/GOVERNANCE_SIGNAL/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-12","name":"CROSS_CHAIN_COHERENCE","formula":"behavioral alignment across chains","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/CROSS_CHAIN_COHERENCE/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-13","name":"STABLECOIN_HEALTH","formula":"peg+collateral+liquidity","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/STABLECOIN_HEALTH/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-14","name":"MEV_EXPOSURE","formula":"sandwich+frontrun+backrun rate","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/MEV_EXPOSURE/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-15","name":"INSTITUTIONAL_BHV","formula":"whale regime classification","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/INSTITUTIONAL_BHV/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-16","name":"REGULATORY_BHV","formula":"CRED+AML+JRS compliance tier","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/REGULATORY_BHV/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-17","name":"ECOSYSTEM_HEALTH","formula":"BC=Flow·Resilience·Uniqueness·Interdep","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/ECOSYSTEM_HEALTH/<id>"],"whitepaper":"§11"},
+        {"id":"SIG-18","name":"BOOTSTRAP","formula":"bw=e^(-λ·D); bootstrap→mature transition","status":"SYNTHETIC-DEMO","synthetic_reason":"coherence engine real; type-specific payload fields hash-derived from entity_id.","endpoints":["/api/v1/signal/type/BOOTSTRAP/<id>"],"whitepaper":"§11"},
         # L10 — Phase 10 / Mainnet
-        {"id":"L10.1","name":"Living Index LI(entity,t)","formula":"LI=T(t)·M_moat·SEC(t)·BC·EP·BRT_phase","status":"LIVE","endpoints":["/api/v1/living_index/<id>"],"whitepaper":"L10.1"},
+        {"id":"L10.1","name":"Living Index LI(entity,t)","formula":"LI=T(t)·M_moat·SEC(t)·BC·EP·BRT_phase","status":"SYNTHETIC-DEMO","synthetic_reason":"SEC/BC/EP components hash-derived; coherence from the live engine.","endpoints":["/api/v1/living_index/<id>"],"whitepaper":"L10.1"},
         {"id":"L10.2","name":"Universal Asset Identifier (UAI)","formula":"UAI=SHA3(chain_id||address||entity_type||genesis_block)","status":"LIVE","endpoints":["/api/v1/universal_asset/<chain>/<address>"],"whitepaper":"L10.2"},
-        {"id":"L10.3","name":"Emergence Verification","formula":"emergence=C(t)>max(Φ_adj,M_adj,Σ,K,A)","status":"LIVE","endpoints":["/api/v1/emergence/<id>"],"whitepaper":"L10.3"},
+        {"id":"L10.3","name":"Emergence Verification","formula":"emergence=C(t)>max(Φ_adj,M_adj,Σ,K,A)","status":"SYNTHETIC-DEMO","synthetic_reason":"plane scores live; 90d accuracy record RNG-seeded.","endpoints":["/api/v1/emergence/<id>"],"whitepaper":"L10.3"},
         {"id":"L10.4","name":"DNA Immune System","formula":"INNATE+ADAPTIVE+MEMORY; CRISPR defense library","status":"LIVE","endpoints":["/api/v1/immune/<id>"],"whitepaper":"L10.4"},
         {"id":"L10.5","name":"Chameleon Protocol","formula":"output=T_true+ε(σ); σ escalates on adversarial probing","status":"LIVE","endpoints":["/api/v1/chameleon/<id>"],"whitepaper":"L10.5"},
-        {"id":"L10.6","name":"Manifestation Gap Monitor","formula":"MG(S,t)=B_predicted(t)-B_observed(t); rolling recalibration","status":"LIVE","endpoints":["/api/v1/manifestation_gap/<id>"],"whitepaper":"L10.6"},
+        {"id":"L10.6","name":"Manifestation Gap Monitor","formula":"MG(S,t)=B_predicted(t)-B_observed(t); rolling recalibration","status":"SYNTHETIC-DEMO","synthetic_reason":"MG history RNG-seeded from the entity hash.","endpoints":["/api/v1/manifestation_gap/<id>"],"whitepaper":"L10.6"},
         {"id":"L10.7","name":"TRION Token Distribution","formula":"Fixed genesis supply; 5 utility classes; 15% public good","status":"LIVE","endpoints":["/api/v1/token/distribution"],"whitepaper":"L10.7"},
         {"id":"L10.8","name":"10-Phase Roadmap Status","formula":"L0→L10 gate completion; team size; capital milestones","status":"LIVE","endpoints":["/api/v1/phases"],"whitepaper":"L10.8"},
         # ── Whitepaper Gap Fill (2026-05-19) ──────────────────────────────────
-        {"id":"L4.1","name":"Diversity Weight d_j","formula":"d_j = 1 − corr(M_j, M̄)","status":"LIVE","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.1 — Diversity-Weighted BFT"},
-        {"id":"L4.2","name":"Spiritual Consensus Σ(t)","formula":"Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]","status":"LIVE","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.2"},
-        {"id":"L4.3","name":"BFT Safety Condition","formula":"Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ; lim_{coord→1} Σ_Byz sⱼ·dⱼ=0","status":"LIVE","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.3"},
-        {"id":"L5.4","name":"Structured Silence Signal","formula":"Gap=Θ(t)−C(t); limiting_plane=argmin(planes); ETA to threshold","status":"LIVE","endpoints":["/api/v1/silence/<entity_id>"],"whitepaper":"V1 Step 8 — Threshold & Emission"},
-        {"id":"H1","name":"Homomorphic Behavioral Mapping H: Dₐ→U","formula":"rel(e₁,e₂) in A ≅ rel(H(e₁),H(e₂)) in U; t_canonical=t_obs+Δf(A); f_norm=(f_raw−μ)/σ; w_A=1−e^(−λ·T)","status":"LIVE","endpoints":["/api/v1/homomorphic/<chain>/<entity_id>","/api/v1/homomorphic/adaptive_layer"],"whitepaper":"v0.4 Section 4+5"},
-        {"id":"Ψ1","name":"Phase Transition Order Parameter Ψ(t)","formula":"Ψ(t) = Endogenous_Truth_Weight / Total_Truth_Weight; Ψ_c = phase transition threshold","status":"LIVE","endpoints":["/api/v1/phase_transition"],"whitepaper":"v0.4 Section 12.2"},
+        {"id":"L4.1","name":"Diversity Weight d_j","formula":"d_j = 1 − corr(M_j, M̄)","status":"SYNTHETIC-DEMO","synthetic_reason":"demo validator set; consensus math engine real.","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.1 — Diversity-Weighted BFT"},
+        {"id":"L4.2","name":"Spiritual Consensus Σ(t)","formula":"Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ[sⱼ·dⱼ]","status":"SYNTHETIC-DEMO","synthetic_reason":"demo validator set; consensus math engine real.","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.2"},
+        {"id":"L4.3","name":"BFT Safety Condition","formula":"Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ; lim_{coord→1} Σ_Byz sⱼ·dⱼ=0","status":"SYNTHETIC-DEMO","synthetic_reason":"demo validator set; consensus math engine real.","endpoints":["/api/v1/dw_bft"],"whitepaper":"V1 L4.3"},
+        {"id":"L5.4","name":"Structured Silence Signal","formula":"Gap=Θ(t)−C(t); limiting_plane=argmin(planes); ETA to threshold","status":"SYNTHETIC-DEMO","synthetic_reason":"plane scores/trends RNG-seeded from the entity hash.","endpoints":["/api/v1/silence/<entity_id>"],"whitepaper":"V1 Step 8 — Threshold & Emission"},
+        {"id":"H1","name":"Homomorphic Behavioral Mapping H: Dₐ→U","formula":"rel(e₁,e₂) in A ≅ rel(H(e₁),H(e₂)) in U; t_canonical=t_obs+Δf(A); f_norm=(f_raw−μ)/σ; w_A=1−e^(−λ·T)","status":"SYNTHETIC-DEMO","synthetic_reason":"mapping algorithm real; raw event inputs RNG-seeded demo.","endpoints":["/api/v1/homomorphic/<chain>/<entity_id>","/api/v1/homomorphic/adaptive_layer"],"whitepaper":"v0.4 Section 4+5"},
+        {"id":"Ψ1","name":"Phase Transition Order Parameter Ψ(t)","formula":"Ψ(t) = Endogenous_Truth_Weight / Total_Truth_Weight; Ψ_c = phase transition threshold","status":"SYNTHETIC-DEMO","synthetic_reason":"market-share weights are deterministic estimates, not measured.","endpoints":["/api/v1/phase_transition"],"whitepaper":"v0.4 Section 12.2"},
     ]
 
     live_count  = sum(1 for f in formulas if f["status"] == "LIVE")
+    synth_count = sum(1 for f in formulas if f["status"] == "SYNTHETIC-DEMO")
     total_count = len(formulas)
     formula_ids = sorted(set(f["id"] for f in formulas if f["id"].startswith("L")))
 
@@ -6317,11 +6524,18 @@ def whitepaper_coverage():
         "falsifiability_conditions": 15,
         "chains_indexed": 37,
         "formulas":          formulas,
+        "live_count":        live_count,
+        "synthetic_demo_count": synth_count,
+        "status_legend":     {
+            "LIVE": "computed from real measured/indexed data by a real engine",
+            "SYNTHETIC-DEMO": "real formula engine; per-entity values are deterministic demo inputs (hash/RNG-seeded or time-modulated); endpoints carry is_synthetic=true",
+        },
         "note":              (
-            "All 65 formulas implemented (+6 whitepaper gaps filled 2026-05-19: "
-            "L4.1 d_j, L4.2 Σ(t), L4.3 BFT safety, L5.4 Structured Silence, "
-            "H1 Homomorphic Mapping + Adaptive Layer, Ψ1 Phase Transition). "
-            "37 chains indexed. 13 Rust L0 crates. L10 phase complete."
+            "All 65 formula engines exist (+6 whitepaper gaps filled 2026-05-19). "
+            f"{live_count} are backed by real measured data; {synth_count} run on "
+            "deterministic demo inputs and are labeled SYNTHETIC-DEMO — see the "
+            "is_synthetic flags on those endpoints. This endpoint is a self-report, "
+            "not an independent audit. 37 chains indexed. 13 Rust L0 crates."
         ),
         "whitepaper":        "TRION Protocol Complete — all L0–L10 + v0.4 gaps",
         "timestamp":         int(time.time()),
@@ -6510,6 +6724,10 @@ def convergence_theorem(entity_id: str):
         "akashic_depth":      depth,
         "T_t":                round(data.get("trion_truth_value", 0.0), 6),
         "H_irreducible":      H_irreducible,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "akashic depth is hash-derived from entity_id; H components are constants/formula outputs on that synthetic depth."
+        ),
         "H_components": {
             "H_quantum":      H_quantum,
             "H_observer":     H_observer,
@@ -6598,6 +6816,10 @@ def fork_resolution(entity_id: str):
         "divergence_flag": divergence_flag,
         "dominant_fork":   dominant,
         "kl_divergence":   kl_div,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
+        ),
         "signal": {
             "type":        "FORK_DIVERGENCE",
             "fork_a_signal": round(d_a / depth_pre, 4),
@@ -6679,6 +6901,10 @@ def trajectory_anomaly(entity_id: str):
         "entity_id":          entity_id,
         "archetype":          archetype_name,
         "kl_divergence":      kl_div,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "P_expected and P_actual are RNG-seeded (entity hash + archetype-name hash); archetype population baseline constants are synthetic calibration values."
+        ),
         "kl_mean_baseline":   kl_mean,
         "kl_std_baseline":    kl_std,
         "theta_anomaly":      round(theta_anomaly, 6),
@@ -6998,6 +7224,10 @@ def manifestation_gap(entity_id: str):
     return jsonify({
         "entity_id":          entity_id,
         "MG_current":         mg_current,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "the 20-point MG history and reflexivity are RNG-seeded from sha3-256(entity_id); ANIMA plane score is from the live engine."
+        ),
         "MG_rolling_mean":    mg_rolling_mean,
         "MG_rolling_std":     mg_rolling_std,
         "MG_trend":           mg_trend,
@@ -7090,6 +7320,10 @@ def emergence_verification(entity_id: str):
         "max_single_plane_score": round(max_single, 6),
         "max_plane":              max_plane_name,
         "emergence_margin":       emergence_margin,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "plane scores and C(t) are from the live signal engine, but the 90-day accuracy record is RNG-seeded from the entity hash — no real 90d out-of-sample track exists."
+        ),
         "emergence_confirmed":    emergence_confirmed,
         "plane_scores":           {k: round(v, 6) for k, v in plane_scores.items()},
         "empirical_90d": {
@@ -7183,6 +7417,10 @@ def living_index(entity_id: str):
     return jsonify({
         "entity_id":      entity_id,
         "LI":             LI_norm,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "SEC/BC/EP/BRT components are hash-derived from entity_id (deterministic proxies); coherence and moat come from the live signal engine."
+        ),
         "LI_raw":         round(LI_raw, 6),
         "grade":          grade,
         "components": {
@@ -7298,6 +7536,10 @@ def universal_asset_identifier(chain: str, address: str):
         "uai_short":    uai_hex[:16] + "…",
         "entity_type":  "PROTOCOL",
         "estimated_depth": depth_est,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "the UAI itself is a real canonical SHA3 of (chain_id, address, type, genesis_block); estimated depth/age/chains-present are hash-derived, not measured."
+        ),
         "estimated_age_days": age_days,
         "chains_present":  chain_count,
         "beo_ready":    chain_count >= 2,
@@ -8279,6 +8521,10 @@ def attacks_library():
     return jsonify({
         "total_attacks": len(out),
         "total_protected_usd": total_protected,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "historical exploits are real public events, but the stored φ phase values, detection lead times and 'protected' totals are retrospective reconstructions (simulations), not live detections."
+        ),
         "total_protected_fmt": f"${total_protected:,}",
         "crispr_signatures": crispr_size,
         "vm_breakdown": vm_breakdown,
@@ -8341,6 +8587,10 @@ def demo_simulate_attack():
         "gate_contract": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
         "gate_chain": "0G Mainnet (16661)",
         "final_verdict": "BLOCKED — STATUS_HOSTILE",
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "replay of a stored attack reconstruction with fabricated φ phase values; the verdict is simulated, not a live gate decision."
+        ),
         "trion_call": "TRIONExecutionGate.checkExecution(attacker) → (false, 'HOSTILE')",
         "timestamp": now,
     })
@@ -8551,6 +8801,10 @@ def zg_agent_id(entity_id: str):
             "gate_contract":    "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
         },
         "timestamp": int(time.time()),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "archetype, role, trust and risk level are hash-derived from entity_id (phi is pulled live from FAISS when reachable)."
+        ),
         "whitepaper": "0G Agent Identity Standard — Agentic Infrastructure Track 1",
     })
 
@@ -8569,12 +8823,14 @@ def kv_get_signal(entity_id: str):
     phi   = round(0.30 + seed * 0.65, 4)
     theta = round(0.55 + 0.37 * _market_volatility(), 4)
     allowed = phi >= theta
+    phi_source = "hash_seeded_fallback"
 
     try:
         with _ur.urlopen(f"http://127.0.0.1:8000/planes/{entity_id}/physical", timeout=2) as r:
             pd = _j.loads(r.read())
             phi = round(pd.get("phi", phi), 4)
             allowed = phi >= theta
+            phi_source = "faiss_planes"
     except Exception:
         pass
 
@@ -8610,6 +8866,12 @@ def kv_get_signal(entity_id: str):
         "gas_savings":      "~85% vs direct checkExecution() call",
         "timestamp":        int(time.time()),
         "whitepaper":       "L10.4 — Hot Signal Distribution via 0G KV",
+        "is_synthetic":     phi_source != "faiss_planes",
+        "synthetic_reason": (
+            "phi falls back to a hash-seeded value when FAISS is unreachable; "
+            "kv_root/merkle_proof are hashes of a key string, not of stored data."
+        ),
+        "phi_source":       phi_source,
     })
 
 
@@ -8668,9 +8930,11 @@ def _live_bh_count_str() -> str:
 @app.route("/api/v1/zg/full_stack")
 def zg_full_stack():
     """
-    All 6 0G components in one judge-friendly call.
-    Chain + Storage + DA + Compute + KV + Agent ID — each serving a distinct architectural role.
-    This is the primary judge endpoint.
+    All 6 0G components in one call. Chain + Storage + DA + Compute + KV +
+    Agent ID — each serving a distinct architectural role.
+    Self-reported integration summary: live values are pulled where reachable
+    (chain, FAISS, BH ledger); component statuses, kv_root/merkle_root and the
+    project metrics below are demo presentation values (see is_synthetic).
     """
     import urllib.request as _ur, json as _j, hashlib
 
@@ -8794,6 +9058,13 @@ def zg_full_stack():
         "chains_indexed":   37,
         "vm_families":      13,
         "bh_records":       _live_bh_count_str(),
+        **_synthetic_note(
+            "self-reported integration summary: chain block, faiss_vectors and bh_records are "
+            "pulled live where reachable, but component statuses ('BROKER CONNECTED', '4 STREAMS "
+            "ACTIVE', …), kv_root/merkle_root (a time-seeded hash) and the project metrics "
+            "(api_routes, tests_passing, providers, contracts_deployed) are hardcoded demo "
+            "presentation values, not verified runtime measurements."
+        ),
         "api_routes":       139,
         "tests_passing":    328,
         "rust_crates":      13,
@@ -8873,6 +9144,10 @@ def love_protocol(entity_id: str):
 
     return jsonify({
         "entity_id":    entity_id,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "PG/CS/AL/TP/RC love components, trust chain, longevity and trust-web nodes are hash-derived from entity_id; the MF input is also a hash-derived proxy."
+        ),
         "plane":        "Lambda (λ) — Altruistic Behavioral Plane",
         "love_signal": {
             "L_t":          l_t,
@@ -8953,6 +9228,10 @@ def love_global():
     network_health = "CONSTRUCTIVE" if civ_love_index > 0.35 else "DEGRADED"
 
     return jsonify({
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "exemplar leaderboard, entity distribution counts and trust-web statistics are hardcoded illustrative demo values, not live aggregates."
+        ),
         "global_love_index": {
             "CLV":           civ_love_index,
             "network_health":network_health,
@@ -9043,6 +9322,10 @@ def trion_trade(entity_id: str):
         "signal":       "TRION Trade",
         "decision":     decision,
         "tts":          tts,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "love components are hash-derived from entity_id and the MF score is a sha256-based proxy; coherence/planes come from the live signal engine."
+        ),
         "confidence_interval_90": {"lo": ci_lo, "hi": ci_hi},
         "components": {
             "coherence":     round(coherence, 4),
@@ -9783,6 +10066,10 @@ def phase_signal(entity_id: str = None):
         "scope":                 "system_wide" if entity_id is None else f"entity:{entity_id}",
         "phase":                 phase,
         "phase_confidence":      phase_conf,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "phase, plane scores, confidence and velocity are hash-derived from sha256(scope + 'phase_signal'), not measured cross-asset data."
+        ),
         "recommended_posture":   RISK_POSTURES[phase],
         "planes": {
             "phi":   phi_now,
@@ -9865,6 +10152,10 @@ def order_parameter():
         "psi_t":                     psi_t,
         "psi_critical":              psi_c,
         "distance_to_transition":    distance_to_transition,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "truth-weight breakdown is derived from an hourly sha256 hash and hardcoded adoption metrics, not measured market weights."
+        ),
         "phase":                     "LOW_ORDER" if psi_t < 0.10 else ("RISING" if psi_t < 0.40 else ("APPROACHING" if psi_t < psi_c else "PHASE_TRANSITION_COMPLETE")),
         "truth_weight_breakdown": {
             "endogenous_trion":  w_endogenous,
@@ -10005,6 +10296,10 @@ def genesis_fingerprint(asset_id: str):
         "genesis_fingerprint": fp.summary(),
         "risk_score":          risk,
         "risk_label":          "HIGH" if risk > 0.65 else ("MEDIUM" if risk > 0.35 else "LOW"),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "the 6-dimension fingerprint and archetype vectors are RNG-seeded from sha256(asset_id) (np.random.seed); the genesis-inference engine is real but operates on synthetic fingerprints."
+        ),
         "archetype_inference": {
             "best_archetype":       result["best_archetype"],
             "genesis_stage_value":  result["genesis_stage_value"],
@@ -10225,6 +10520,10 @@ def manipulation_attack_cost(entity_id: str):
             },
         },
         "joint_attack_probability": p_joint_success,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "depth, attack probabilities, costs and downstream volumes are hash-derived from entity_id — an illustrative economic model, not measured attack economics."
+        ),
         "formula":                  "P(success) = P(Φ_spoof) · P(Μ_compromise) · P(Σ_collusion)",
         "total_attack_cost_m":      total_attack_cost_m,
         "max_downstream_profit_m":  max_profit_m,

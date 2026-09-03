@@ -1,10 +1,17 @@
 //! btcp_proof_builder.rs — BTCP proof construction with reorg protection
 //! Per BTCP Master Implementation Spec §Phase 2
+//!
+//! HONEST LIMITATION: `verify_proof` performs STRUCTURAL checks only.
+//! This crate has no secp256k1/ECDSA dependency (see Cargo.toml: sha3 +
+//! hex only), so no signature is ever cryptographically verified here.
+//! The best outcome is `ProofVerificationStatus::UnverifiedSignatures` —
+//! on-chain/quorum verification is required before releasing funds.
 
 use crate::types::*;
+use std::collections::HashSet;
 
-/// Simple deterministic pseudo-random generator based on SHA3
-/// Used for test mock signature generation
+/// Deterministic SHA3-based pseudo-random fixture generation —
+/// TEST-ONLY (see `generate_mock_signatures_for_tests` in `mod tests`)
 
 /// Certification window constants by value tier
 pub const CERT_WINDOWS: [(u64, u64); 4] = [
@@ -27,6 +34,56 @@ pub const CERT_WINDOWS: [(u64, u64); 4] = [
 /// invalid`). Defaults to the most conservative certification window tier
 /// (`CERT_WINDOWS[0].1` = 50,000 blocks — the sub-$10k tier).
 pub const MAX_PROOF_VALIDITY_BLOCKS: u64 = 50_000;
+
+/// Outcome of `BTCPProofBuilder::verify_proof`.
+///
+/// HONEST LIMITATION — no cryptographic signature verification is
+/// performed by this crate: there is no secp256k1/ECDSA dependency, so no
+/// signature is ever checked against a public key or validator set. The
+/// best possible outcome is [`ProofVerificationStatus::UnverifiedSignatures`]:
+/// every *structural* check passed (validity window, coherence, HHI, ≥3
+/// distinct signers with well-formed 65-byte signatures, version), but
+/// the signatures themselves remain unverified. An on-chain / quorum
+/// signature verification step (recover pubkey → derive address → check
+/// validator-set membership) is REQUIRED before this proof may release
+/// any funds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProofVerificationStatus {
+    /// All structural checks passed; the signatures are 65-byte
+    /// well-formed and come from ≥3 distinct validator IDs — but they are
+    /// NOT cryptographically verified. On-chain/quorum verification is
+    /// required before release.
+    UnverifiedSignatures,
+    /// Certification expired: current block is beyond the anchor block's
+    /// reorg-protection window (`MAX_PROOF_VALIDITY_BLOCKS`).
+    Expired,
+    /// Coherence score below the consensus threshold.
+    CoherenceBelowThreshold,
+    /// Validator set too concentrated (HHI above the 0.5 limit).
+    TooConcentrated,
+    /// Fewer than 3 validator signatures.
+    InsufficientSigners,
+    /// The same validator_id appears more than once in the signature set
+    /// (padding the signer count with duplicates is not consensus).
+    DuplicateSigner,
+    /// A signature is not a well-formed 65-byte secp256k1 ECDSA value
+    /// (r[32] || s[32] || v[1]) — length/shape check only, NOT a
+    /// cryptographic check.
+    MalformedSignature,
+    /// Incompatible proof version.
+    VersionIncompatible,
+}
+
+impl ProofVerificationStatus {
+    /// True when the proof passed every check this crate can perform.
+    ///
+    /// NOTE: even `true` does NOT mean the signatures were verified —
+    /// the best outcome this crate can produce is
+    /// [`ProofVerificationStatus::UnverifiedSignatures`].
+    pub fn passed_structural_checks(&self) -> bool {
+        matches!(self, Self::UnverifiedSignatures)
+    }
+}
 
 /// BTCP Proof Builder — constructs consensus proofs for cross-chain routes
 #[derive(Debug, Default)]
@@ -107,51 +164,86 @@ impl BTCPProofBuilder {
         CERT_WINDOWS[0].1
     }
 
-    /// Verify a BTCP proof
+    /// Verify a BTCP proof (structural checks only — see below).
     ///
     /// Checks, in order (mirrors the Python reference Module 2.4):
     /// 1. Reorg/expiry: current block must be within
     ///    MAX_PROOF_VALIDITY_BLOCKS of the anchor (certification) block
     /// 2. Consensus coherence exceeds threshold
     /// 3. HHI indicates reasonable distribution (not too concentrated)
-    /// 4. Minimum validator signatures
+    /// 4. Minimum 3 signatures, from 3 *distinct* validator IDs, each
+    ///    signature a well-formed 65-byte value (r||s||v — length check
+    ///    only, not a cryptographic check)
     /// 5. Version compatibility
-    pub fn verify_proof(&self, proof: &BTCPProof, current_block: u64) -> bool {
+    ///
+    /// HONEST LIMITATION: signatures are NOT cryptographically verified
+    /// (no secp256k1/ECDSA dependency in this crate). On success this
+    /// returns [`ProofVerificationStatus::UnverifiedSignatures`] — an
+    /// on-chain / quorum verification step is REQUIRED before the proof
+    /// may be used to release funds.
+    pub fn verify_proof(&self, proof: &BTCPProof, current_block: u64) -> ProofVerificationStatus {
         // Reorg / expiry check: block-height validity window relative to the
         // anchor (certification) block recorded in the diversity certificate.
         // A proof consumed too many blocks after certification is stale —
         // the anchor may no longer be part of the canonical chain.
         let anchor_block = proof.consensus_proof.diversity_cert.block_number;
         if current_block > anchor_block.saturating_add(MAX_PROOF_VALIDITY_BLOCKS) {
-            return false; // certification expired / anchor too deep (reorg risk)
+            return ProofVerificationStatus::Expired; // certification expired / anchor too deep (reorg risk)
         }
 
         // Check consensus coherence exceeds threshold
         if proof.consensus_proof.coherence_score < proof.consensus_proof.threshold {
-            return false;
+            return ProofVerificationStatus::CoherenceBelowThreshold;
         }
 
         // Check HHI indicates reasonable distribution (not too concentrated)
         if proof.consensus_proof.diversity_cert.hhi > 0.5 {
-            return false;
+            return ProofVerificationStatus::TooConcentrated;
         }
 
         // Check minimum validator signatures
         if proof.consensus_proof.validator_signatures.len() < 3 {
-            return false;
+            return ProofVerificationStatus::InsufficientSigners;
+        }
+
+        // Distinct, well-formed signers: one signature per validator, each
+        // exactly 65 bytes (secp256k1 ECDSA r[32] || s[32] || v[1]). This is
+        // a length/shape check only — it is NOT a cryptographic check.
+        let mut seen_validators = HashSet::new();
+        for sig in &proof.consensus_proof.validator_signatures {
+            if !seen_validators.insert(sig.validator_id) {
+                return ProofVerificationStatus::DuplicateSigner;
+            }
+            if sig.signature.len() != 65 {
+                return ProofVerificationStatus::MalformedSignature;
+            }
         }
 
         // Check version compatibility
         if proof.btcp_version.major < 1 {
-            return false;
+            return ProofVerificationStatus::VersionIncompatible;
         }
 
-        true
+        // All structural checks passed — but the signatures remain
+        // UNVERIFIED (no crypto in this crate). On-chain/quorum
+        // verification is required before releasing funds.
+        ProofVerificationStatus::UnverifiedSignatures
     }
+}
 
-    /// Generate mock validator signatures for testing
-    /// Uses deterministic SHA3-based pseudo-random generation
-    pub fn generate_mock_signatures(num: u32) -> (Vec<WeightedSignature>, Vec<f64>, f64) {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Generate mock validator signatures FOR TESTS ONLY.
+    ///
+    /// TEST FIXTURE FABRICATION — deliberately NOT production code:
+    /// the "signatures" are deterministic 65-byte filler (not real
+    /// secp256k1 ECDSA values) and would never pass real cryptographic
+    /// verification. This function lives inside `#[cfg(test)]` so it can
+    /// never be compiled into a production path. Uses deterministic
+    /// SHA3-based pseudo-random generation.
+    fn generate_mock_signatures_for_tests(num: u32) -> (Vec<WeightedSignature>, Vec<f64>, f64) {
         let mut sigs = Vec::new();
         let mut weights = Vec::new();
 
@@ -159,13 +251,14 @@ impl BTCPProofBuilder {
             // Deterministic pseudo-random based on index
             let seed1 = H256::sha3(format!("stake_{}", i).as_bytes());
             let seed2 = H256::sha3(format!("div_{}", i).as_bytes());
-            
+
             let stake_weight = 0.5 + (seed1.0[0] as f64 / 255.0);
             let diversity_weight = 0.7 + (seed2.0[0] as f64 / 255.0) * 0.3;
 
             sigs.push(WeightedSignature {
                 validator_id: H256::sha3(format!("validator_{}", i).as_bytes()),
-                signature: vec![i as u8; 64],
+                // 65 bytes: secp256k1 ECDSA r[32] || s[32] || v[1] shape
+                signature: vec![i as u8; 65],
                 stake_weight,
                 diversity_weight,
             });
@@ -178,17 +271,12 @@ impl BTCPProofBuilder {
 
         (sigs, weights, hhi)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 
     #[test]
     fn test_build_proof() {
         let builder = BTCPProofBuilder::with_block(18000000);
 
-        let (sigs, weights, hhi) = BTCPProofBuilder::generate_mock_signatures(5);
+        let (sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
 
         let proof = builder.build_proof(
             H256::sha3(b"anchor"),
@@ -223,7 +311,7 @@ mod tests {
     #[test]
     fn test_verify_proof() {
         let builder = BTCPProofBuilder::with_block(18000000);
-        let (sigs, weights, hhi) = BTCPProofBuilder::generate_mock_signatures(5);
+        let (sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
 
         let mut proof = builder.build_proof(
             H256::sha3(b"anchor"),
@@ -239,18 +327,24 @@ mod tests {
             "2.0.0",
         );
 
-        // Valid proof
-        assert!(builder.verify_proof(&proof, 18001000));
+        // Structural checks pass — but signatures remain UNVERIFIED
+        // (this is the best outcome this crate can produce).
+        let status = builder.verify_proof(&proof, 18001000);
+        assert_eq!(status, ProofVerificationStatus::UnverifiedSignatures);
+        assert!(status.passed_structural_checks());
 
         // Invalid: coherence below threshold
         proof.consensus_proof.coherence_score = 0.40;
-        assert!(!builder.verify_proof(&proof, 18001000));
+        assert_eq!(
+            builder.verify_proof(&proof, 18001000),
+            ProofVerificationStatus::CoherenceBelowThreshold
+        );
     }
 
     #[test]
     fn test_verify_proof_expiry() {
         let builder = BTCPProofBuilder::with_block(18000000);
-        let (sigs, weights, hhi) = BTCPProofBuilder::generate_mock_signatures(5);
+        let (sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
 
         // Proof certified (anchored) at block 18000000
         let proof = builder.build_proof(
@@ -271,27 +365,124 @@ mod tests {
         assert_eq!(anchor_block, 18000000);
 
         // Well within the validity window: valid
-        assert!(builder.verify_proof(&proof, 18001000));
+        assert_eq!(
+            builder.verify_proof(&proof, 18001000),
+            ProofVerificationStatus::UnverifiedSignatures
+        );
 
         // Last block of the validity window: still valid (window is inclusive)
-        assert!(builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS));
+        assert_eq!(
+            builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS),
+            ProofVerificationStatus::UnverifiedSignatures
+        );
 
         // One block past the window: expired (reorg / staleness risk)
-        assert!(!builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS + 1));
+        assert_eq!(
+            builder.verify_proof(&proof, anchor_block + MAX_PROOF_VALIDITY_BLOCKS + 1),
+            ProofVerificationStatus::Expired
+        );
 
         // Far past the window: expired
-        assert!(!builder.verify_proof(&proof, anchor_block + 500_000));
+        assert_eq!(
+            builder.verify_proof(&proof, anchor_block + 500_000),
+            ProofVerificationStatus::Expired
+        );
     }
 
     #[test]
     fn test_hhi_calculation() {
-        let builder = BTCPProofBuilder::new();
-        let (_, _, hhi_5) = BTCPProofBuilder::generate_mock_signatures(5);
-        let (_, _, hhi_100) = BTCPProofBuilder::generate_mock_signatures(100);
+        let (_, _, hhi_5) = generate_mock_signatures_for_tests(5);
+        let (_, _, hhi_100) = generate_mock_signatures_for_tests(100);
 
         // More validators = lower HHI = more distributed
         assert!(hhi_100 < hhi_5);
         println!("HHI (5 validators): {:.4}", hhi_5);
         println!("HHI (100 validators): {:.6}", hhi_100);
+    }
+
+    #[test]
+    fn test_verify_proof_rejects_duplicate_signers() {
+        // Padding the signer count with a duplicate validator_id is not
+        // consensus — the same validator signing twice counts once.
+        let builder = BTCPProofBuilder::with_block(18000000);
+        let (mut sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
+
+        // Duplicate the first validator's ID under the second signature
+        sigs[1].validator_id = sigs[0].validator_id;
+
+        let proof = builder.build_proof(
+            H256::sha3(b"anchor"),
+            H256::sha3(b"intent"),
+            "SPLIT",
+            18000000,
+            3000.0,
+            sigs,
+            weights,
+            hhi,
+            0.82,
+            0.55,
+            "2.0.0",
+        );
+
+        assert_eq!(
+            builder.verify_proof(&proof, 18001000),
+            ProofVerificationStatus::DuplicateSigner
+        );
+    }
+
+    #[test]
+    fn test_verify_proof_rejects_malformed_signatures() {
+        // Signatures must be well-formed 65-byte values (r||s||v);
+        // a 64-byte blob is malformed. (Length check only — still NOT
+        // a cryptographic verification.)
+        let builder = BTCPProofBuilder::with_block(18000000);
+        let (mut sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
+
+        // Truncate one signature to 64 bytes
+        sigs[0].signature.truncate(64);
+
+        let proof = builder.build_proof(
+            H256::sha3(b"anchor"),
+            H256::sha3(b"intent"),
+            "SPLIT",
+            18000000,
+            3000.0,
+            sigs,
+            weights,
+            hhi,
+            0.82,
+            0.55,
+            "2.0.0",
+        );
+
+        assert_eq!(
+            builder.verify_proof(&proof, 18001000),
+            ProofVerificationStatus::MalformedSignature
+        );
+    }
+
+    #[test]
+    fn test_verify_proof_rejects_insufficient_signers() {
+        let builder = BTCPProofBuilder::with_block(18000000);
+        let (sigs, weights, hhi) = generate_mock_signatures_for_tests(2);
+
+        let proof = builder.build_proof(
+            H256::sha3(b"anchor"),
+            H256::sha3(b"intent"),
+            "SPLIT",
+            18000000,
+            3000.0,
+            sigs,
+            weights,
+            hhi,
+            0.82,
+            0.55,
+            "2.0.0",
+        );
+
+        assert_eq!(
+            builder.verify_proof(&proof, 18001000),
+            ProofVerificationStatus::InsufficientSigners
+        );
     }
 }

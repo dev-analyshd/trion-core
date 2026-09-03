@@ -170,4 +170,4 @@ if __name__ == "__main__":
     )
     print(f"Healthy pool NL:   {healthy['nl_score']:.4f} (expected > 0.60)")
     assert healthy['nl_score'] > 0.50, "Healthy pool should score well"
-    print("PHASE 16 PASS — NL engine verified, March 12 scenario passes")
+    print("PHASE 16 PASS — NL engine verified, simulated March 12 scenario (synthetic test vector) passes")

@@ -12,10 +12,21 @@ Solana JSON-RPC (getSlot / getBlock) instead of eth_blockNumber / eth_getBlock.
 
 Environment:
   SOLANA_RPC_URL    Solana JSON-RPC endpoint  (default: https://api.mainnet-beta.solana.com)
-  SOLANA_CHAIN_ID   Numeric chain id          (default: 101  — mainnet-beta)
+  SOLANA_CHAIN_ID   Numeric chain id          (default: 900  — canonical Solana Mainnet SVM id)
   SOLANA_LABEL      Human label               (default: "SOLANA_MAINNET")
   FAISS_SERVICE_URL FAISS ingest target       (default: http://127.0.0.1:8000)
   POLL_SLEEP_MS     Slot poll interval        (default: 800ms — Solana slot ≈400ms)
+
+FIX-CLAIMS (chain-ID collision): the previous default was 101 — a local id that
+collided with chains/sui (Sui, since moved to canonical 20100) and drifted from
+the canonical registry. config/chain_registry.json (single source of truth per
+P3-CONSOLIDATE; see core/generated_chain_bindings.py) assigns Solana Mainnet=900,
+and chains/svm/execute.ts already used 900. NOTE pre-existing inconsistencies
+left in place (fixture/data entanglement — see FIX-CLAIMS report):
+api/chains_registry.py display entry still says chain_id 101 (plus a duplicate
+solana-mainnet=900 entry); tests/integration/test_anima_full.py §2e posts
+(101, "solana"); crossvm fixtures use 900 for "Solana Devnet" while canonical
+Devnet is 901; core/realtime/bh_streamer.py uses 200101 for solana.
 """
 from __future__ import annotations
 
@@ -31,7 +42,7 @@ from typing import Any
 import requests
 
 SOLANA_RPC_URL    = os.environ.get("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
-SOLANA_CHAIN_ID   = int(os.environ.get("SOLANA_CHAIN_ID", "101"))
+SOLANA_CHAIN_ID   = int(os.environ.get("SOLANA_CHAIN_ID", "900"))  # canonical Solana Mainnet (was 101 — see module docstring)
 SOLANA_LABEL      = os.environ.get("SOLANA_LABEL", "SOLANA_MAINNET")
 FAISS_SERVICE_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000").rstrip("/")
 POLL_SLEEP_MS     = int(os.environ.get("POLL_SLEEP_MS", "800"))

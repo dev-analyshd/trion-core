@@ -26,7 +26,11 @@ Knowledge of `(value_i, others[N-1])` such that — **without revealing the prov
 
 Template parameters: `ZKIAPShareProof(nOthers, valBits, gasBits)` — pool size and ranges are configurable (`main` uses 7 others / 96-bit / 96-bit).
 
-## Circuit metrics (compiled with circom 2.1.9)
+## Circuit metrics — SELF-REPORTED (circom 2.1.9), UNVERIFIED
+
+FIX-CLAIMS: the counts below require a local circom build to reproduce; no
+build artifacts (`.r1cs`/`.zkey`/`verifier.sol`) are committed and `node_modules`
+is not vendored, so they are not verifiable from this repo.
 
 - **Constraints:** 1,066 non-linear (2 quadratic share constraints + 10 × `Num2Bits` range checks ≈ 1,050)
 - **Proving scheme:** Groth16 over BN254 (snarkjs) — proof ≈ ~200 bytes

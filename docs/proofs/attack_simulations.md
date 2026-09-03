@@ -1,9 +1,14 @@
-# Attack Simulation Proofs — 7/7 BLOCKED
+# Attack Simulation Proofs — 7/7 BLOCKED (simulated)
 
 ## Summary
 
-Running `python3 simulate_attacks.py` verifies TRION blocks all 7 historical DeFi attacks.
-**Total value protected: $388.9M**
+Running `python3 simulate_attacks.py` simulates TRION blocking 7 historical DeFi
+attacks (retrospective replay on reconstructed inputs — not live detections).
+**Total value protected (simulated): $388.9M**
+
+> NOTE: Attack #7 ("AAVE March 12 2026") is a **SIMULATED SCENARIO** — a synthetic
+> test vector, not a real historical event. It is retained as a deterministic
+> NL-engine regression input only.
 
 ```
 python3 simulate_attacks.py
@@ -53,9 +58,14 @@ python3 simulate_attacks.py
 - **Detection**: MF=0.65 (cyclic arbitrage + liquidity drain pattern)
 - **Blocking plane**: Physical + NL
 
-### 7. AAVE March 12 2026
-- **Type**: LIQUIDITY_HEALTH
-- **Loss**: $49.5M (avoided)
+### 7. [SIMULATED SCENARIO] AAVE March 12 2026
+
+> **This is a simulated scenario — NOT a real historical event.** The "March 12
+> 2026 AAVE incident" was fabricated in prior versions and is retained only as a
+> deterministic NL-engine test vector (simulated $49.5M loss).
+
+- **Type**: LIQUIDITY_HEALTH (synthetic input)
+- **Loss**: $49.5M (simulated, avoided in simulation only)
 - **TRION response**: C(t)=0.405 < θ=0.809 → SILENCE
 - **Detection**: NL=0.067 (single LP 91% of pool, extreme concentration)
 - **Blocking plane**: Physical (NL component)

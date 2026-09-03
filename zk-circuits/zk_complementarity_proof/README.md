@@ -25,7 +25,11 @@ Public inputs: `[entity_id_A, entity_id_B, intent_hash_A, intent_hash_B, toleran
 | `intent_hash_A`, `intent_hash_B` | public | commitments from Phase 1 |
 | `tolerance` | public | magnitude tolerance (scaled) |
 
-## Circuit metrics (compiled with circom 2.1.9)
+## Circuit metrics — SELF-REPORTED (circom 2.1.9), UNVERIFIED
+
+FIX-CLAIMS: the counts below require a local circom build to reproduce; no
+build artifacts (`.r1cs`/`.zkey`/`verifier.sol`) are committed and `node_modules`
+is not vendored, so they are not verifiable from this repo.
 
 - **Constraints:** 1,126 non-linear + 1 linear (dominated by 2 × `Poseidon(8)` ≈ 640 each; `LessThan(65)` × 2, `Num2Bits(64)` × 3, `IsEqual` × 2)
 - **Proving scheme:** Groth16 over BN254 (snarkjs) — proof ≈ ~200 bytes

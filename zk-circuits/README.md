@@ -4,9 +4,17 @@
 
 The five Circom circuits required by the spec (items 19–23), closing the "ZK CIRCUITS — MISSING (entirely new work)" audit gap. The Python NIZK reference implementation (`core/btcp/orchestrator.py`, `PrivacyLevel` 0–4) predates this suite; these circuits are the production SNARK realization.
 
+> **VERIFIABILITY NOTE (FIX-CLAIMS):** no build artifacts are committed to this
+> repo (no `.r1cs`, `.zkey`, `verification_key.json`, `proof.json`, or generated
+> `verifier.sol`; `node_modules` is not vendored). Everything below that depends
+> on a circom/snarkjs build — constraint counts, witness validation, the Groth16
+> end-to-end run — is **self-reported and NOT reproducible from the repo as
+> committed**. Reproduce locally: `npm install && npm run compile` (requires
+> circom ≥ 2.1.x installed from source), then follow the trusted-setup commands.
+
 ## Circuits
 
-| # | Circuit | Spec item | Proves | Constraints (circom 2.1.9) |
+| # | Circuit | Spec item | Proves | Constraints (circom 2.1.9 — unverified¹) |
 |---|---|---|---|---|
 | 19 | `zk_intent_commitment` | §5.6 Phase 1 | knowledge of `(intent_fields, nonce)` s.t. `commitment == Poseidon(intent_hash, nonce)` — MEV bots see nothing actionable | 642 |
 | 20 | `zk_complementarity_proof` | §5.6 Phase 2 | `asset_in_A == asset_out_B ∧ asset_out_A == asset_in_B ∧ \|mag_A − mag_B\| ≤ tolerance` without revealing values | 1,126 |
@@ -14,7 +22,11 @@ The five Circom circuits required by the spec (items 19–23), closing the "ZK C
 | 22 | `zk_travel_rule` | §14.1 item 22 | `disclosure_hash == Poseidon(disclosure_fields)` and disclosure submitted (FATF R.16) | 477 |
 | 23 | `zk_behavioral_credential` | §14.1 item 23 | behavioral_hash coherent with BEO pattern commitment (Sensing Oracle credential) | 1,319 |
 
-All circuits: **Groth16** over BN254, **circom 2.1.x** syntax, **circomlib 2.x** `Poseidon`/`LessThan`/`IsEqual`/`Num2Bits` gadgets. Each directory contains `circuit.circom`, `README.md` (metrics, trusted setup, verifier note, integration points) and `input.example.json` (a valid witness input — all five have been witness-validated; `zk_intent_commitment` has been proven+verified end-to-end with Groth16).
+¹ **Unverified — requires local circom build; artifacts not committed.** These
+numbers are self-reported from a developer machine and cannot be reproduced
+from the committed repo (no `.r1cs` files, no `node_modules`).
+
+All circuits: **Groth16** over BN254, **circom 2.1.x** syntax, **circomlib 2.x** `Poseidon`/`LessThan`/`IsEqual`/`Num2Bits` gadgets. Each directory contains `circuit.circom`, `README.md` (metrics, trusted setup, verifier note, integration points) and `input.example.json` (an example witness input; the claims that "all five have been witness-validated" and that `zk_intent_commitment` was "proven+verified end-to-end with Groth16" are **self-reported and not reproducible from this repo** — no witness files, proofs, or verification keys are committed).
 
 ## Prerequisites
 
@@ -73,10 +85,13 @@ Spec §5.6 four-phase flow implemented by 19+20 together: **Commit** (zk_intent_
 
 ## Status
 
-- [x] All five circuits compile (circom 2.1.9) with constraint counts recorded per README
-- [x] Valid example witnesses for all five (`input.example.json`, snarkjs `wtns calculate` OK)
-- [x] End-to-end Groth16 prove+verify executed for `zk_intent_commitment` (`OK!`)
-- [x] Soundness spot-check: `zk_complementarity_proof` rejects non-complementary intents
+Self-reported by the author; **none of the checked items below is reproducible
+from this repo as committed** (no build artifacts, no node_modules):
+
+- [ ] All five circuits compile (circom 2.1.9) with constraint counts recorded per README — UNVERIFIED (needs local circom build; artifacts not committed)
+- [ ] Valid example witnesses for all five (`input.example.json`, snarkjs `wtns calculate` OK) — self-reported, no witness artifacts committed
+- [ ] End-to-end Groth16 prove+verify executed for `zk_intent_commitment` (`OK!`) — self-reported, NOT reproducible from the repo (no `.r1cs`/`.zkey`/`proof.json`/`verification_key.json` committed)
+- [ ] Soundness spot-check: `zk_complementarity_proof` rejects non-complementary intents — self-reported, no recorded test output
 - [ ] Production multiparty ceremony (Powers of Tau + per-circuit phase 2)
 - [ ] On-chain verifier deployments (Arbitrum Sepolia per `deployments.json`)
 - [ ] v2 proof aggregation for `zk_behavioral_credential` (Nova folding / recursive proofs)

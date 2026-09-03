@@ -9929,7 +9929,7 @@ async def system_falsifiability():
                 "id":      "PRED_002",
                 "claim":   "NL < 0.30 pools suffer >10% slippage on $1M+ swaps",
                 "status":  "CONFIRMED",
-                "evidence": "AAVE March 12, 2026: NL=0.09, $50M → 97.4% slippage",
+                "evidence": "[SIMULATED SCENARIO] AAVE March 12, 2026: NL=0.09, $50M → 97.4% slippage (synthetic test vector, not a real event)",
             },
             {
                 "id":      "PRED_003",
@@ -10014,6 +10014,16 @@ async def planes_physical(entity_id: str):
         "entity_id": entity_id,
         "phi_raw":   round(phi, 6),
         "phi_adj":   phi_adj,
+        # DISCLOSURE (audit finding): f1..f9 below are NOT the per-dimension
+        # Shannon entropies from the indexer — they are a fabricated linear
+        # decomposition (phi × fixed weight). The 9 real features are computed
+        # by the indexers/backfills and stored in block_features.
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "phi/phi_adj/mf are computed from real indexed vectors, but the f1..f9 "
+            "feature breakdown is a fabricated linear decomposition (phi × fixed "
+            "weight), not the measured 9 Shannon entropy dimensions."
+        ),
         "features": {
             "f1_volume_entropy":         round(phi * 0.15, 6),
             "f2_counterparty_diversity":  round(phi * 0.15, 6),
@@ -10296,6 +10306,11 @@ async def liquidity_nl_score(asset_address: str):
     )
     nl_result["asset_address"] = asset_address
     nl_result["signal_coherence"] = phi_val
+    nl_result["input_disclosure"] = (
+        "NL engine (core/extended/natural_liquidity.py) is real; pool structure "
+        "inputs (depth ticks, LP share, stress/normal LD) are approximated from the "
+        "entity's behavioral vector, not measured pool data."
+    )
     nl_result["timestamp"] = int(__import__("time").time())
     return nl_result
 
@@ -10309,7 +10324,7 @@ async def genesis_endpoint(asset_id: str):
     import numpy as _np4
     depth = index.ntotal if index is not None else 0
     _np4.random.seed(abs(hash(asset_id)) % (2**31))
-    fv   = _np4.random.normal(0.5, 0.15, 128)
+    fv = _np4.random.normal(0.5, 0.15, 128)
     conf = 1.0 - _math.exp(-0.001 * min(depth, 100_000))
     return {
         "asset_id":       asset_id,
@@ -10317,6 +10332,11 @@ async def genesis_endpoint(asset_id: str):
         "conf_genesis":   round(conf, 6),
         "method":         "genesis_inference",
         "best_archetype": "DEFAULT_BALANCED",
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "genesis_value is RNG-seeded from hash(asset_id) — a deterministic demo "
+            "prior, not measured behavior. conf_genesis is a real function of depth."
+        ),
         "disclosure":     f"Genesis inference: conf={conf:.3f}. Confidence grows with behavioral history.",
         "akashic_depth":  depth,
         "timestamp":      int(_time.time()),
@@ -10499,6 +10519,9 @@ async def get_trading_signal(
                 0.45 + seed * 0.10, 0.55,
                 0.60 + seed * 0.10, 0.55, 0.70,
             ])
+            phi_source = "seed_fallback"   # deterministic entity-id-derived fallback
+        else:
+            phi_source = "faiss_reconstruct"
 
         try:
             asset_profile = AssetProfile(profile.upper())
@@ -10529,6 +10552,13 @@ async def get_trading_signal(
             mf_score=0.0,
             chain_id=chain_id,
         )
+        signal["is_synthetic"] = (phi_source == "seed_fallback")
+        signal["synthetic_reason"] = (
+            "phi_features fall back to deterministic entity-id-derived values "
+            "when the FAISS vector cannot be reconstructed (IndexIVFPQ without "
+            "direct map); the signal engine itself is real."
+        )
+        signal["phi_source"] = phi_source
         return signal
 
     except Exception as e:

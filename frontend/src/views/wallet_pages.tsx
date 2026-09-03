@@ -95,7 +95,11 @@ const ASSETS = [
   { symbol: 'ETH', name: 'Ethereum', address: '0x0000000000000000000000000000000000000000', color: '#627eea' },
   { symbol: 'USDC', name: 'USD Coin', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', color: '#2775ca' },
   { symbol: 'WBTC', name: 'Wrapped BTC', address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', color: '#f7931a' },
-  { symbol: 'BOT', name: 'BOT Chain', address: '0xD5452816194a3784dBa983426cCe7c122F4abd30', color: '#22d3ee' },
+  // PLACEHOLDER — no deployment record: the previously hardcoded BOT token
+  // address had no deployment record anywhere in this repo (FIX-CLAIMS).
+  // Zero address used so the UI keeps rendering; replace when a real
+  // deployment exists.
+  { symbol: 'BOT', name: 'BOT Chain (placeholder)', address: '0x0000000000000000000000000000000000000000', color: '#22d3ee' },
 ];
 
 export function WalletBTCPPage() {

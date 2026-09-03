@@ -254,6 +254,17 @@ CREATE TABLE IF NOT EXISTS genesis_bootstrap_progress (
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- BTCP — Behavioral Transaction Continuity Protocol
 -- Schema additions per BTCP Master Implementation Spec (April 2026)
+--
+-- FIX-CLAIMS honesty note (Phase-0 status): the 7 Phase-0 BTCP tables below
+-- (btcp_intent_registry, btcp_routes, btcp_escrow_states, blo_orders,
+-- bitp_clipboard, shadow_observations, genesis_commitments) define the
+-- Phase-0 BTCP schema as correct DDL — but they are currently DEAD DDL:
+-- no INSERT/SELECT against them exists in any .py/.rs in this repo.
+-- Runtime writes currently flow through the anima-service SQLite layer
+-- (bh_ledger, entity_records, ... in faiss_service.py), which is disjoint
+-- from this schema. Wiring these tables to live writers is tracked as a
+-- BTCP-integration TODO — until then, this section is a schema declaration,
+-- not a running subsystem.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- ── BTCP Route type enum ──────────────────────────────────────────────────────
@@ -296,7 +307,11 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ── BTCP Intent Registry ──────────────────────────────────────────────────────
--- Every intent ever submitted. Append-only (thermodynamic conservation).
+-- Every intent ever submitted.
+-- NOTE: no append-only trigger enforced on this table yet — enforcement TODO
+-- (unlike akashic_bh which has one). The earlier comment claiming "Append-only
+-- (thermodynamic conservation)" described an aspiration, not an enforced
+-- constraint (FIX-CLAIMS).
 CREATE TABLE IF NOT EXISTS btcp_intent_registry (
     intent_hash         BYTEA            PRIMARY KEY,
     entity_id           BYTEA            NOT NULL REFERENCES beo_registry(entity_id),

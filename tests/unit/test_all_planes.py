@@ -88,7 +88,7 @@ def test_nl_score():
         baseline_ld_90d=[0.5]*5,
         ld_during_stress=0.05, ld_during_normal=0.55,
     )
-    assert result['alert'], "AAVE scenario should trigger alert"
+    assert result['alert'], "simulated AAVE scenario (synthetic test vector, not a real event) should trigger alert"
     assert result['nl_score'] < 0.30
 
 

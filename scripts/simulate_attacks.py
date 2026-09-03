@@ -1,7 +1,10 @@
 """
 TRION Protocol — Historical Exploit Simulation
 Replays DeFi attacks against TRION's behavioral oracle.
-Proves that TRION would have blocked each attack.
+Simulates whether TRION would have blocked each attack (retrospective
+simulation — this is evidence of detector behavior on reconstructed inputs,
+NOT proof of live detection). The "AAVE March 12 2026" entry is a SIMULATED
+SCENARIO (synthetic test vector, not a real historical event).
 
 Usage:
     python3 simulate_attacks.py              (all attacks, offline mode)
@@ -84,13 +87,16 @@ ATTACKS = [
         "sim_params": {"sync_buy_ratios": [0.95, 0.94, 0.93, 0.92], "entity_count": 4},
     },
     {
-        "name":        "AAVE March 12 2026",
+        "name":        "[SIMULATED SCENARIO] AAVE March 12 2026",
         "date":        "2026-03-12",
         "block":       40_000_000,
         "loss_usd":    49_500_000,
         "tx":          "0x",
         "attack_type": "LIQUIDITY_HEALTH",
         "entity_id":   "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "note":        ("SIMULATED SCENARIO — not a real historical event. The 'March 12 2026 "
+                        "AAVE incident' was fabricated in prior versions and is retained only "
+                        "as a deterministic NL-engine test vector (simulated $49.5M)."),
         "sim_params": {
             "nl_depth": [1000, 50, 20, 10, 5],
             "nl_top5_lp_share": 0.92, "nl_lp_count": 8,
@@ -329,8 +335,9 @@ def main():
         sil    = str(r.get("silence", r.get("signal_type") == "SILENCE"))
         print(f"  {r['attack']:<22} {mf_str:>8} {c_str:>8} {sil:>8}  {blocked_str}")
     print("═" * 68)
-    print(f"\n  BLOCKED: {blocked_count}/{len(results)} attacks")
-    print(f"  VALUE PROTECTED: ${total_protected:,.0f}")
+    print(f"\n  BLOCKED: {blocked_count}/{len(results)} attacks (retrospective simulation)")
+    print(f"  VALUE PROTECTED: ${total_protected:,.0f} (simulated; includes "
+          f"[SIMULATED SCENARIO] AAVE $49,500,000 which is not a real event)")
 
     save_csv(results)
     print("\n[JSON] Full signal dump:")

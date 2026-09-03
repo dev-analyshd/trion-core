@@ -25,7 +25,11 @@ Together (1)∧(2)∧(3): the **behavioral_hash is coherent with the BEO pattern
 | `pattern_commitment` | public | commitment the Sensing Oracle signed |
 | `credential` | public | the issued ZK credential |
 
-## Circuit metrics (compiled with circom 2.1.9)
+## Circuit metrics — SELF-REPORTED (circom 2.1.9), UNVERIFIED
+
+FIX-CLAIMS: the counts below require a local circom build to reproduce; no
+build artifacts (`.r1cs`/`.zkey`/`verifier.sol`) are committed and `node_modules`
+is not vendored, so they are not verifiable from this repo.
 
 - **Constraints:** 1,319 non-linear (3 × `Poseidon` + 7 × `Num2Bits(32)`)
 - **Proving scheme:** Groth16 over BN254 (snarkjs) — proof ≈ ~200 bytes

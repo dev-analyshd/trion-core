@@ -3,13 +3,23 @@
 //!
 //! Disputes are resolved by the Conscious (K) plane.
 //! 5 annotators review each case. 3/5 majority determines outcome.
-//! Commit-reveal voting prevents vote bias.
+//!
+//! IMPLEMENTATION STATUS (honest — what the code ACTUALLY does):
+//! - Voting is plain open boolean voting: `cast_vote` records a visible
+//!   yes/no vote plus a rationale hash. There is NO commit-reveal phase —
+//!   later voters can see earlier votes, so the spec's vote-bias
+//!   protection is NOT implemented.
+//! - There is NO stake-and-slash (spec Gap I): annotators bond no stake
+//!   and cannot be slashed for bad-faith voting.
+//! - `select_annotators` returns the FIRST 5 registered annotators, not a
+//!   random/weighted selection.
 
 use crate::types::*;
 use std::collections::HashMap;
 
 /// Dispute Resolver — Conscious Layer dispute resolution
-/// 5 annotators. 3/5 majority. Commit-reveal voting.
+/// 5 annotators. 3/5 majority. Plain open voting — commit-reveal and
+/// stake-and-slash are NOT implemented (see module docs for details).
 #[derive(Debug, Default)]
 pub struct DisputeResolver {
     cases: HashMap<H256, DisputeCase>,
@@ -78,6 +88,10 @@ impl DisputeResolver {
     }
 
     /// Cast a vote on a dispute case
+    ///
+    /// Plain open voting: the bool vote is recorded as-is (visible to
+    /// later voters — commit-reveal is NOT implemented). The 5th vote
+    /// auto-resolves the case by 3/5 majority.
     pub fn cast_vote(
         &mut self,
         case_id: &H256,

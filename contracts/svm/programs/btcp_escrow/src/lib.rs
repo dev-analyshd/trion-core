@@ -30,12 +30,19 @@ use btcp_common::*;
 pub struct ProgramConfig {
     pub owner: Pubkey,
     pub relayer: Pubkey,
+    /// Dedicated TRION consensus authority for RELEASES (whitepaper:
+    /// "TRION consensus is the only oracle"). When non-default, only this
+    /// key may call release_escrow — the general relayer can no longer
+    /// self-attest coherence and release funds. Default (all-zero) means
+    /// bootstrap mode: releases fall back to owner/relayer authorization,
+    /// documented as a trusted-relayer assumption.
+    pub oracle: Pubkey,
     pub count: u64,
     pub bump: u8,
 }
 
 impl ProgramConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 8 + 1;
+    pub const SIZE: usize = 8 + 32 + 32 + 32 + 8 + 1;
 
     pub fn is_authorized(&self, signer: &Pubkey) -> bool {
         signer == &self.owner || signer == &self.relayer
@@ -43,6 +50,18 @@ impl ProgramConfig {
 
     pub fn is_owner(&self, signer: &Pubkey) -> bool {
         signer == &self.owner
+    }
+
+    /// RELEASE authority. When an oracle key is bound, only that key may
+    /// release. In bootstrap mode (oracle unset) the owner (not the
+    /// relayer) releases — narrower than the previous owner-or-relayer
+    /// gate, and honestly documented as trusted-operator.
+    pub fn is_release_authority(&self, signer: &Pubkey) -> bool {
+        if self.oracle == Pubkey::default() {
+            signer == &self.owner
+        } else {
+            signer == &self.oracle
+        }
     }
 }
 
@@ -108,6 +127,9 @@ pub mod btcp_escrow {
         let config = &mut ctx.accounts.config;
         config.owner = ctx.accounts.payer.key();
         config.relayer = ctx.accounts.payer.key();
+        // Bootstrap: no oracle bound yet — releases require the owner key
+        // (trusted-operator mode) until bind_oracle() is called.
+        config.oracle = Pubkey::default();
         config.count = 0;
         config.bump = ctx.bumps.config;
         Ok(())
@@ -212,15 +234,23 @@ pub mod btcp_escrow {
 
     /// Release escrow to destination. Requires TRION consensus verification.
     ///
-    /// Equivalent to Solidity `releaseEscrow()`.
+    /// Equivalent to Solidity `releaseEscrow() `.
     /// Transfers SOL from vault PDA to destination.
+    ///
+    /// AUTHORITY: `is_release_authority` — when a TRION oracle key is bound
+    /// (bind_oracle), ONLY the oracle may release. The caller-supplied
+    /// `coherence` remains an attestation, but the submitting key is the
+    /// dedicated consensus authority (separated from the general relayer
+    /// that handles locks/reverts). Mirrors the EVM tier's oracle-gated
+    /// release and the Vyper reference (BTCP_ESCROW.vy) where release is
+    /// permissionless but oracle-verdict-gated.
     pub fn release_escrow(
         ctx: Context<ReleaseEscrow>,
         execution_bh: [u8; 32],
         coherence: u64,
     ) -> Result<()> {
         let config = &ctx.accounts.config;
-        require!(config.is_authorized(&ctx.accounts.relayer.key()), BTCPError::NotAuthorized);
+        require!(config.is_release_authority(&ctx.accounts.relayer.key()), BTCPError::NotAuthorized);
 
         let escrow = &mut ctx.accounts.escrow;
         require!(escrow.state == EscrowState::Holding, BTCPError::NotHolding);
@@ -347,6 +377,25 @@ pub mod btcp_escrow {
         config.relayer = new_relayer;
 
         emit!(RelayerUpdated { old_relayer, new_relayer });
+        Ok(())
+    }
+
+    /// Bind the TRION consensus oracle key — the ONLY key that may release
+    /// escrows thereafter. One-way by policy: once a non-default oracle is
+    /// bound, this function cannot rebind it (only the oracle itself could,
+    /// and it never will by construction — see require). Owner-gated.
+    ///
+    /// Whitepaper: "TRION consensus is the only oracle" — removes the
+    /// trusted-relayer release assumption entirely once bound.
+    pub fn bind_oracle(ctx: Context<BindOracle>, new_oracle: Pubkey) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        require!(config.is_owner(&ctx.accounts.owner.key()), BTCPError::NotOwner);
+        require!(new_oracle != Pubkey::default(), BTCPError::InvalidArgument);
+        // One-way: an already-bound oracle cannot be replaced.
+        require!(config.oracle == Pubkey::default(), BTCPError::NotAuthorized);
+
+        config.oracle = new_oracle;
+        emit!(OracleBound { oracle: new_oracle });
         Ok(())
     }
 }
@@ -485,6 +534,14 @@ pub struct SetRelayer<'info> {
     pub owner: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct BindOracle<'info> {
+    #[account(mut, seeds = [SEED_CONFIG], bump = config.bump)]
+    pub config: Account<'info, ProgramConfig>,
+
+    pub owner: Signer<'info>,
+}
+
 // ── Events ──────────────────────────────────────────────────────────────────
 
 #[event]
@@ -526,4 +583,10 @@ pub struct RelayerUpdated {
     pub old_relayer: Pubkey,
     #[index]
     pub new_relayer: Pubkey,
+}
+
+#[event]
+pub struct OracleBound {
+    #[index]
+    pub oracle: Pubkey,
 }

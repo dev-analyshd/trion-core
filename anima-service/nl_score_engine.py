@@ -9,7 +9,8 @@ CANONICAL FORMULA (whitepaper L7.1):
     LC = Liquidity Consistency        — deviation of current LD from 90d baseline
     LS = Liquidity Stress Resilience  — LD(during_stress) / LD(normal_conditions)
 
-    NL < 0.30 → LIQUIDITY_HEALTH signal emitted (see March 12, 2026 AAVE incident)
+    NL < 0.30 → LIQUIDITY_HEALTH signal emitted (see the simulated March 12, 2026
+    AAVE scenario — a synthetic test vector, NOT a real historical event)
 
 This module previously implemented a non-spec two-factor approximation
 (LC × LS × volatility_damper) that omitted LD and LO entirely. It has been

@@ -11,7 +11,15 @@ import { createRequire } from "module";
 const _require = createRequire(import.meta.url);
 
 const FAISS_URL = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID  = 101;
+// FIX-CLAIMS (chain-ID collision): was 101, which collided with the local
+// Solana id used by chains/svm/svm_indexer.py (since moved to canonical 900)
+// and with Sui test fixtures, so Sui vectors ingested with 101 were
+// indistinguishable from Solana vectors. Canonical Sui Mainnet id is 20100
+// per config/chain_registry.json (MOVE).
+// Unresolved leftovers (documented, NOT changed — fixture/data entanglement):
+// relayer/relayer_non_evm.js uses sui=6001; faiss_service's SUI range is
+// 6000-6099; tests/integration/test_akashic_category4.py maps MOVE_SUI:[101].
+const CHAIN_ID  = 20100;
 const VM_TYPE   = "SUI";
 const SUI_RPC   = process.env.SUI_RPC ?? "https://fullnode.mainnet.sui.io/";
 
