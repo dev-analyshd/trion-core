@@ -12,20 +12,28 @@
 ;;   escrow_count  (64 bits)
 ;;   escrows_dict  (dict ref, key = 256-bit escrow_id, value = escrow cell)
 ;;
-;; Escrow cell layout:
-;;   escrow_id      [256 bits]
-;;   route_id       [256 bits]
-;;   entity_id      [256 bits]
-;;   destination    [267 bits MsgAddressInt]
-;;   amount         [128 bits nanoTON]
-;;   min_coherence  [64 bits]  (×1_000_000)
-;;   lock_ts        [64 bits]  (unix seconds at lock)
-;;   timeout_secs   [64 bits]
-;;   state          [8 bits]   0=HOLDING 1=RELEASED 2=REVERTED 3=EMERGENCY_REVERTED
-;;   revert_reason  [8 bits]
-;;   settled_at     [64 bits]
-;;   reverted_at    [64 bits]
-;;   locked_by      [267 bits MsgAddressInt]
+;; Escrow record layout — split across 2 cells (TVM cells hold at most 1023
+;; data bits; the old flat 1766-bit layout made end_cell() throw cell-overflow
+;; on every lock, bricking the contract):
+;;   ROOT cell (976 bits) — hot fields checked by every op:
+;;     escrow_id      [256 bits]
+;;     route_id       [256 bits]
+;;     amount         [128 bits nanoTON]
+;;     min_coherence  [64 bits]  (×1_000_000)
+;;     lock_ts        [64 bits]  (unix seconds at lock)
+;;     timeout_secs   [64 bits]
+;;     state          [8 bits]   0=HOLDING 1=RELEASED 2=REVERTED 3=EMERGENCY_REVERTED
+;;     revert_reason  [8 bits]
+;;     settled_at     [64 bits]
+;;     reverted_at    [64 bits]
+;;   REF 0 (790 bits) — entity metadata + both payout addresses:
+;;     entity_id      [256 bits]
+;;     destination    [267 bits MsgAddressInt]
+;;     locked_by      [267 bits MsgAddressInt]
+;;
+;; The record cell is stored as a dict VALUE REF (idict_set_ref), so each dict
+;; node cell carries only the key label + 1 ref — immune to the 1023-bit
+;; node-cell limit even in adversarial single-entry worst cases.
 ;;
 ;; Op codes:
 ;;   0x01 lock_escrow          (relayer/owner, carries value)
@@ -34,6 +42,16 @@
 ;;   0x04 emergency_revert     (ANYONE; after 7 days — Gap 8 escape hatch)
 ;;   0x05 set_relayer          (owner)
 ;;   0x06 transfer_ownership   (owner)
+;;
+;; Message bodies (first cell must stay ≤ 1023 bits — chains build the root
+;; cell plus refs; refs must be read in the same order they were stored):
+;;   0x01 lock:  root = op[8] escrow_id[256] route_id[256] min_coherence[64]
+;;                    timeout_secs[64]                                 (648 bits)
+;;               ref 0 = entity_id[256] destination[267]                (523 bits)
+;;   0x02:       op[8] escrow_id[256] execution_bh[256] coherence[64]   (584 bits)
+;;   0x03:       op[8] escrow_id[256] reason[8]                         (272 bits)
+;;   0x04:       op[8] escrow_id[256]                                   (264 bits)
+;;   0x05/0x06:  op[8] new_addr[267]                                   (275 bits)
 ;;
 ;; Whitepaper: BTCP §4.3 (Six-Step Execution) + §11 (Five Final Fixes).
 
@@ -86,16 +104,29 @@ int is_authorized(slice sender, slice owner_addr, slice relayer_addr) inline {
 }
 
 ;; ── Escrow (de)serialisation ─────────────────────────────────────────────────
+;;
+;; Cell-overflow-safe layout (TVM limit: 1023 data bits / cell):
+;;   root (976 bits) = escrow_id, route_id, amount, min_coherence, lock_ts,
+;;                     timeout_secs, state, revert_reason, settled_at,
+;;                     reverted_at
+;;   ref 0 (790 bits) = entity_id, destination, locked_by
+;; pack writes the tail cell first and then the root with one store_ref;
+;; unpack reads the root fields and then exactly one load_ref, in the same
+;; order.  The returned tuple keeps the original flat field order, so every
+;; call site destructures exactly as before (pure serialization-layer fix).
 
 cell pack_escrow(int escrow_id, int route_id, int entity_id, slice destination,
                  int amount, int min_coherence, int lock_ts, int timeout_secs,
                  int state, int revert_reason, int settled_at, int reverted_at,
                  slice locked_by) inline {
+    cell tail = begin_cell()
+        .store_uint(entity_id,     256)
+        .store_slice(destination)          ;; 267 bits
+        .store_slice(locked_by)            ;; 267 bits
+    .end_cell();
     return begin_cell()
         .store_uint(escrow_id,     256)
         .store_uint(route_id,      256)
-        .store_uint(entity_id,     256)
-        .store_slice(destination)          ;; 267 bits
         .store_uint(amount,        128)
         .store_uint(min_coherence,  64)
         .store_uint(lock_ts,        64)
@@ -104,16 +135,14 @@ cell pack_escrow(int escrow_id, int route_id, int entity_id, slice destination,
         .store_uint(revert_reason,   8)
         .store_uint(settled_at,      64)
         .store_uint(reverted_at,     64)
-        .store_slice(locked_by)             ;; 267 bits
+        .store_ref(tail)                   ;; 790-bit overflow cell
     .end_cell();
 }
 
-;; Unpacks from the dict value slice (dict stores the cell body directly).
+;; Unpacks the escrow record cell (as returned by idict_get_ref?).
 (int, int, int, slice, int, int, int, int, int, int, int, int, slice) unpack_escrow(slice s) inline {
     int escrow_id     = s~load_uint(256);
     int route_id      = s~load_uint(256);
-    int entity_id     = s~load_uint(256);
-    slice destination = s~load_bits(267);
     int amount        = s~load_uint(128);
     int min_coherence = s~load_uint(64);
     int lock_ts       = s~load_uint(64);
@@ -122,7 +151,10 @@ cell pack_escrow(int escrow_id, int route_id, int entity_id, slice destination,
     int revert_reason = s~load_uint(8);
     int settled_at    = s~load_uint(64);
     int reverted_at   = s~load_uint(64);
-    slice locked_by   = s~load_bits(267);
+    slice tail        = s~load_ref().begin_parse();
+    int entity_id     = tail~load_uint(256);
+    slice destination = tail~load_bits(267);
+    slice locked_by   = tail~load_bits(267);
     return (escrow_id, route_id, entity_id, destination, amount, min_coherence,
             lock_ts, timeout_secs, state, revert_reason, settled_at, reverted_at, locked_by);
 }
@@ -177,12 +209,14 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
     ;; ── 0x01 lock_escrow ────────────────────────────────────────────────────
     if (op == 1) {
         throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        ;; lock body mirrors the record split (root 648 bits, ref 523 bits):
         int escrow_id     = in_msg_body~load_uint(256);
         int route_id      = in_msg_body~load_uint(256);
-        int entity_id     = in_msg_body~load_uint(256);
-        slice destination = in_msg_body~load_bits(267);
         int min_coherence = in_msg_body~load_uint(64);
         int timeout_secs  = in_msg_body~load_uint(64);
+        slice eb          = in_msg_body~load_ref().begin_parse();
+        int entity_id     = eb~load_uint(256);
+        slice destination = eb~load_bits(267);
 
         throw_unless(ERR_ZERO_AMOUNT, msg_value > 0);
         throw_unless(ERR_ZERO_TIMEOUT, timeout_secs > 0);

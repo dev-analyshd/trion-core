@@ -5,11 +5,28 @@
 
   Storage layout (c4 persistent register):
     bits 0..266   : owner_addr (MsgAddressInt)
-    bits 267..330 : total_supply (u64, 1B TRION x 10^18)
-    bits 331..338 : decimals (u8)
-    bits 339..402 : insurance_fund (u64 nanoton accumulated from slashing)
+    bits 267..330 : total_supply (u64) — 1_000_000_000, i.e. 1B WHOLE TRION
+                    units.  TRUTHFUL-NOTE: the raw 18-decimal supply
+                    (1B × 10^18 = 10^27) does NOT fit in u64 (max ≈ 1.8e19),
+                    so this u64 counter deliberately tracks whole units only;
+                    `decimals` below is display metadata.  Per-address balances
+                    use TVM coins (varUInteger 16, values up to 2^128−1), which
+                    CAN hold raw 18-decimal amounts (10^27 < 2^128).  As long
+                    as slash amounts are denominated in the same whole-unit
+                    ledger unit as total_supply, the u64 fields stay in range
+                    (total_supply only ever decreases; burn_part ≤ balance).
+    bits 331..338 : decimals (u8) — display-only metadata (18)
+    bits 339..402 : insurance_fund (u64, same whole-unit ledger denomination)
     ref 0         : balances dict (HashmapE 267-bit addr -> coins)
-    ref 1         : escrow dict   (HashmapE 256-bit escrow_id -> escrow cell)
+    ref 1         : escrow dict (HashmapE 256-bit escrow_id (slice key) ->
+                    ref to escrow record cell, ≤ 791 bits, fits one cell)
+
+  Escrow record cell (≤ 791 bits, single cell — no split needed):
+    entity_id [256] locked_by [267 MsgAddressInt] amount [coins ≤ 132]
+    locked_at [64] timeout [64] state [8]   0=HOLDING 1=RELEASED 2=REVERTED
+  Dict values are stored as a single ref to the record cell so dict node
+  cells never exceed the 1023-bit limit even in single-entry worst cases
+  (key label ≤ 256 bits + 1 ref).
 
   The contract honours the TRION BTCP zero-bridge paradigm: value stays on
   the source chain (here, TON) under HOLDING state in the escrow dict until
@@ -95,7 +112,7 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
 
 ;; ── recv_internal — entry dispatcher ─────────────────────────────────────────
 
-() recv_internal(int my_balance, int msg_value, slice in_msg_full, slice in_msg_body) impure {
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
   if (in_msg_body.slice_empty?()) { return (); }
 
   ;; Parse sender address from the inbound message
@@ -176,22 +193,26 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     int sender_bal = get_balance_internal(balances_dict, sender_addr);
     throw_unless(ERR_INSUFFICIENT_BALANCE, sender_bal >= amount);
 
-    ;; Ensure escrow doesn't already exist
-    (_, int exists) = escrow_dict.dict_get?(256, escrow_id);
+    ;; Ensure escrow doesn't already exist (dict keys are SLICES — build the
+    ;; 256-bit key slice from the int escrow_id; int keys are a type error
+    ;; for dict_get?/dict_set)
+    slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
+    (_, int exists) = escrow_dict.dict_get?(256, ekey);
     throw_if(ERR_ESCROW_EXISTS, exists);
 
     ;; Debit sender, lock funds in escrow (held by contract, not bridged)
     set_balance_internal(balances_dict, sender_addr, sender_bal - amount);
 
-    slice escrow_val = begin_cell()
+    cell esc_cell = begin_cell()
       .store_uint(entity_id, 256)
       .store_slice(sender_addr)         ;; locked_by (refund target)
       .store_coins(amount)
       .store_uint(now(), 64)            ;; locked_at
       .store_uint(timeout_sec, 64)      ;; timeout
       .store_uint(0, 8)                 ;; state: 0=HOLDING, 1=RELEASED, 2=REVERTED
-    .end_cell().begin_parse();
-    escrow_dict~dict_set(256, escrow_id, escrow_val);
+    .end_cell();                        ;; ≤ 791 bits — fits one cell
+    ;; dict value = one ref to the record cell (matches load_ref reads)
+    escrow_dict~dict_set(256, ekey, begin_cell().store_ref(esc_cell).end_cell().begin_parse());
 
     save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
     return ();
@@ -206,8 +227,10 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
 
     int escrow_id = in_msg_body~load_uint(256);
-    (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+    slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
+    (slice esc_val, int found) = escrow_dict.dict_get?(256, ekey);
     throw_unless(ERR_ESCROW_NOT_FOUND, found);
+    slice esc_slice = esc_val~load_ref().begin_parse();  ;; record cell
 
     int entity_id   = esc_slice~load_uint(256);
     slice locked_by = esc_slice~load_msg_addr();
@@ -222,15 +245,16 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     int recip_bal = get_balance_internal(balances_dict, locked_by);
     set_balance_internal(balances_dict, locked_by, recip_bal + amount);
 
-    escrow_dict~dict_set(256, escrow_id,
-      begin_cell()
+    cell released_cell = begin_cell()
         .store_uint(entity_id, 256)
         .store_slice(locked_by)
         .store_coins(amount)
         .store_uint(locked_at, 64)
         .store_uint(timeout, 64)
         .store_uint(1, 8)  ;; RELEASED
-      .end_cell().begin_parse());
+      .end_cell();
+    escrow_dict~dict_set(256, ekey,
+      begin_cell().store_ref(released_cell).end_cell().begin_parse());
 
     save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
     return ();
@@ -242,8 +266,10 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
      cell balances_dict, cell escrow_dict) = load_all();
 
     int escrow_id = in_msg_body~load_uint(256);
-    (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+    slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
+    (slice esc_val, int found) = escrow_dict.dict_get?(256, ekey);
     throw_unless(ERR_ESCROW_NOT_FOUND, found);
+    slice esc_slice = esc_val~load_ref().begin_parse();  ;; record cell
 
     int entity_id   = esc_slice~load_uint(256);
     slice locked_by = esc_slice~load_msg_addr();
@@ -263,15 +289,16 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     int recip_bal = get_balance_internal(balances_dict, locked_by);
     set_balance_internal(balances_dict, locked_by, recip_bal + amount);
 
-    escrow_dict~dict_set(256, escrow_id,
-      begin_cell()
+    cell reverted_cell = begin_cell()
         .store_uint(entity_id, 256)
         .store_slice(locked_by)
         .store_coins(amount)
         .store_uint(locked_at, 64)
         .store_uint(timeout, 64)
         .store_uint(2, 8)  ;; REVERTED
-      .end_cell().begin_parse());
+      .end_cell();
+    escrow_dict~dict_set(256, ekey,
+      begin_cell().store_ref(reverted_cell).end_cell().begin_parse());
 
     save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
     return ();
@@ -296,8 +323,10 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
 
 (int, int) get_escrow_state(int escrow_id) method_id {
   (_, _, _, _, _, cell escrow_dict) = load_all();
-  (slice esc_slice, int found) = escrow_dict.dict_get?(256, escrow_id);
+  slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
+  (slice esc_val, int found) = escrow_dict.dict_get?(256, ekey);
   throw_unless(ERR_ESCROW_NOT_FOUND, found);
+  slice esc_slice = esc_val~load_ref().begin_parse();  ;; record cell
   esc_slice~load_uint(256);     ;; skip entity_id
   esc_slice~load_msg_addr();    ;; skip locked_by
   int amount = esc_slice~load_coins();

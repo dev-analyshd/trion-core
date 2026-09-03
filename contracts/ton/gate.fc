@@ -7,12 +7,17 @@
 ;;   owner_addr (267 bits)
 ;;   gates_dict (dict, key=256-bit gate_id, value=gate cell ref)
 ;;
-;; Gate cell:
+;; Gate cell (320 bits — fits a single cell, no split needed):
 ;;   custom_threshold [64 bits] (0 = use route threshold)
 ;;   check_count      [64 bits]
 ;;   pass_count       [64 bits]
 ;;   block_count      [64 bits]
 ;;   last_phi         [64 bits]
+;;
+;; Dict values are stored as a single ref to the gate cell
+;; (begin_cell().store_ref(gc).end_cell().begin_parse()), matching the
+;; load_ref() read pattern — the old write stored bits inline, so every read
+;; threw cell-underflow.
 ;;
 ;; Op codes:
 ;;   0x01  set_gate_threshold
@@ -93,7 +98,8 @@ cell pack_gate(int threshold, int checks, int passes, int blocks, int phi) inlin
         }
 
         cell new_gc = pack_gate(threshold, checks, passes, blocks, phi);
-        gates_dict~dict_set(256, gkey, new_gc.begin_parse());
+        ;; dict value = one ref to the gate cell (matches load_ref reads)
+        gates_dict~dict_set(256, gkey, begin_cell().store_ref(new_gc).end_cell().begin_parse());
         save_storage(owner_addr, gates_dict);
         return ();
     }
@@ -125,7 +131,8 @@ cell pack_gate(int threshold, int checks, int passes, int blocks, int phi) inlin
         else { blocks = blocks + 1; }
 
         cell new_gc = pack_gate(threshold, checks, passes, blocks, phi);
-        gates_dict~dict_set(256, gkey, new_gc.begin_parse());
+        ;; dict value = one ref to the gate cell (matches load_ref reads)
+        gates_dict~dict_set(256, gkey, begin_cell().store_ref(new_gc).end_cell().begin_parse());
         save_storage(owner_addr, gates_dict);
 
         throw_unless(ERR_GATE_BLOCKED, passed);

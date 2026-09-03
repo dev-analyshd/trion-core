@@ -9,22 +9,36 @@
 ;;   intent_count (64 bits)
 ;;   intents_dict (dict, key=256-bit intent_hash, value=intent cell ref)
 ;;
-;; Intent cell layout:
-;;   intent_hash  [256 bits]
-;;   entity_id    [256 bits]
-;;   action       [8 bits]
-;;   asset_in     [256 bits]
-;;   asset_out    [256 bits]
-;;   magnitude    [64 bits]
-;;   source_chain [64 bits]
-;;   deadline     [64 bits]
-;;   status       [8 bits]
-;;   created_at   [64 bits]
+;; Intent cell layout — split across 2 cells (TVM cells hold at most 1023
+;; data bits; the old flat 1296-bit layout made end_cell() throw cell-overflow
+;; on every register, bricking the contract):
+;;   ROOT cell (784 bits) — control/lifecycle fields:
+;;     intent_hash  [256 bits]
+;;     entity_id    [256 bits]
+;;     action       [8 bits]
+;;     magnitude    [64 bits]
+;;     source_chain [64 bits]
+;;     deadline     [64 bits]
+;;     status       [8 bits]
+;;     created_at   [64 bits]
+;;   REF 0 (512 bits) — asset pair (only needed for re-packing):
+;;     asset_in     [256 bits]
+;;     asset_out    [256 bits]
+;;
+;; Dict values are stored as a single ref to the record cell
+;; (begin_cell().store_ref(rec).end_cell().begin_parse()), which matches the
+;; load_ref() read pattern below and keeps dict node cells tiny.
 ;;
 ;; Op codes:
 ;;   0x01  register_intent
 ;;   0x02  update_intent_status
 ;;   0x03  get_intent (get method preferred)
+;;
+;; Message bodies (first cell ≤ 1023 bits; senders build root + refs):
+;;   0x01 register: root = op[32] hash[256] entity[256] action[8] mag[64]
+;;                       chain[64] deadline[64]                        (744 bits)
+;;                  ref 0 = asset_in[256] asset_out[256]               (512 bits)
+;;   0x02 update:   op[32] hash[256] new_status[8]                    (296 bits)
 
 #include "stdlib.fc";
 
@@ -55,15 +69,43 @@ const int ERR_INVALID_TRANSITION     = 114;
 }
 
 ;; ── Intent packing ────────────────────────────────────────────────────────────
+;;
+;; Cell-overflow-safe layout (TVM limit: 1023 data bits / cell):
+;;   root (784 bits) = hash, entity, action, magnitude, source_chain,
+;;                     deadline, status, created_at  (hot fields: status,
+;;                     action, magnitude are all root-local for get_intent)
+;;   ref 0 (512 bits) = asset_in, asset_out
 
 cell pack_intent(int hash, int entity, int action, int ain, int aout, int mag, int chain, int dl, int status, int ts) inline {
+    cell assets = begin_cell()
+        .store_uint(ain,   256)
+        .store_uint(aout,  256)
+    .end_cell();
     return begin_cell()
         .store_uint(hash,   256).store_uint(entity,  256)
-        .store_uint(action,  8) .store_uint(ain,     256)
-        .store_uint(aout,   256).store_uint(mag,      64)
-        .store_uint(chain,   64).store_uint(dl,        64)
-        .store_uint(status,   8).store_uint(ts,        64)
+        .store_uint(action,   8)
+        .store_uint(mag,     64).store_uint(chain,    64)
+        .store_uint(dl,      64).store_uint(status,    8)
+        .store_uint(ts,      64)
+        .store_ref(assets)                  ;; 512-bit overflow cell
     .end_cell();
+}
+
+;; Unpacks the intent record cell — returns the original flat field order so
+;; call sites keep destructuring exactly as before.
+(int, int, int, int, int, int, int, int, int, int) unpack_intent(slice s) inline {
+    int hash   = s~load_uint(256);
+    int entity = s~load_uint(256);
+    int action = s~load_uint(8);
+    int mag    = s~load_uint(64);
+    int chain  = s~load_uint(64);
+    int dl     = s~load_uint(64);
+    int status = s~load_uint(8);
+    int ts     = s~load_uint(64);
+    slice assets = s~load_ref().begin_parse();
+    int ain    = assets~load_uint(256);
+    int aout   = assets~load_uint(256);
+    return (hash, entity, action, ain, aout, mag, chain, dl, status, ts);
 }
 
 ;; ── Status transition validator ───────────────────────────────────────────────
@@ -96,11 +138,13 @@ int valid_transition(int from, int to) inline {
         int hash   = in_msg_body~load_uint(256);
         int entity = in_msg_body~load_uint(256);
         int action = in_msg_body~load_uint(8);
-        int ain    = in_msg_body~load_uint(256);
-        int aout   = in_msg_body~load_uint(256);
         int mag    = in_msg_body~load_uint(64);
         int chain  = in_msg_body~load_uint(64);
         int dl     = in_msg_body~load_uint(64);
+        ;; asset pair lives in the body's overflow ref (root is 744 bits)
+        slice ab   = in_msg_body~load_ref().begin_parse();
+        int ain    = ab~load_uint(256);
+        int aout   = ab~load_uint(256);
 
         throw_if(ERR_INVALID_ACTION, action > 4);
         throw_if(ERR_ZERO_MAGNITUDE, mag == 0);
@@ -111,8 +155,8 @@ int valid_transition(int from, int to) inline {
 
         int ts = now();
         cell ic = pack_intent(hash, entity, action, ain, aout, mag, chain, dl, 0, ts);
-        slice val = ic.begin_parse();
-        intents_dict~dict_set(256, key, val);
+        ;; dict value = one ref to the record cell (matches load_ref reads)
+        intents_dict~dict_set(256, key, begin_cell().store_ref(ic).end_cell().begin_parse());
         save_storage(owner_addr, intent_count + 1, intents_dict);
         return ();
     }
@@ -129,26 +173,29 @@ int valid_transition(int from, int to) inline {
         (slice rec_slice, int found) = intents_dict.dict_get?(256, key);
         throw_unless(ERR_INTENT_NOT_FOUND, found);
 
-        ;; read current status from the cell
+        ;; read current status from the record ROOT cell (skip hash, entity,
+        ;; action, mag, chain, deadline = 712 bits — all root-local now)
         cell rec_cell = rec_slice~load_ref();
         slice rs = rec_cell.begin_parse();
-        rs~skip_bits(256 + 256 + 8 + 256 + 256 + 64 + 64 + 64); ;; skip to status
+        rs~skip_bits(256 + 256 + 8 + 64 + 64 + 64);
         int cur_status = rs~load_uint(8);
 
         throw_unless(ERR_INVALID_TRANSITION, valid_transition(cur_status, new_status));
 
-        ;; re-read full record to rebuild
+        ;; re-read full record to rebuild (root fields, then the assets ref)
         slice rs2 = rec_cell.begin_parse();
         int h  = rs2~load_uint(256); int e  = rs2~load_uint(256);
-        int a  = rs2~load_uint(8);   int ai = rs2~load_uint(256);
-        int ao = rs2~load_uint(256); int m  = rs2~load_uint(64);
+        int a  = rs2~load_uint(8);   int m  = rs2~load_uint(64);
         int sc = rs2~load_uint(64);  int d  = rs2~load_uint(64);
         rs2~load_uint(8); ;; old status
         int ts = rs2~load_uint(64);
+        slice assets = rs2~load_ref().begin_parse();
+        int ai = assets~load_uint(256);
+        int ao = assets~load_uint(256);
 
         cell new_cell = pack_intent(h, e, a, ai, ao, m, sc, d, new_status, ts);
-        slice new_val = new_cell.begin_parse();
-        intents_dict~dict_set(256, key, new_val);
+        ;; dict value = one ref to the record cell (matches load_ref reads)
+        intents_dict~dict_set(256, key, begin_cell().store_ref(new_cell).end_cell().begin_parse());
         save_storage(owner_addr, intent_count, intents_dict);
         return ();
     }
@@ -164,8 +211,9 @@ int valid_transition(int from, int to) inline {
     cell rc = rec_slice~load_ref();
     slice s = rc.begin_parse();
     s~skip_bits(256 + 256);  int action = s~load_uint(8);
-    s~skip_bits(256 + 256);  int mag    = s~load_uint(64);
-    s~skip_bits(64 + 64);    int status = s~load_uint(8);
+    int mag = s~load_uint(64);            ;; magnitude now sits in the root cell
+    s~skip_bits(64 + 64);                ;; source_chain + deadline
+    int status = s~load_uint(8);
     return (action, mag, status);
 }
 

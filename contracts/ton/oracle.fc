@@ -9,7 +9,7 @@
 ;;   version     (8 bits)
 ;;   routes_dict (dict, key = 256-bit route_id, value = route cell)
 ;;
-;; Route cell layout:
+;; Route cell layout (961 bits — fits a single cell, no split needed):
 ;;   route_id        [256 bits]
 ;;   anchor_bh       [256 bits]
 ;;   execution_bh    [256 bits]
@@ -17,6 +17,11 @@
 ;;   threshold_score [64 bits]
 ;;   published_at    [64 bits]  (unix timestamp)
 ;;   is_active       [1 bit]
+;;
+;; Dict values are stored as a single ref to the record cell — NOT inline:
+;; reads use load_ref(), and a worst-case single-entry dict node with an
+;; inline 961-bit value would be 256 (key label) + 961 = 1217 bits > 1023.
+;; With the value as a ref, the node cell is just the key label + 1 ref.
 ;;
 ;; Op codes:
 ;;   0x01  publish_btcp_route
@@ -114,10 +119,10 @@ cell pack_route(int route_id, int anchor_bh, int exec_bh, int coherence, int thr
         int ts = now();
         cell route_cell = pack_route(route_id, anchor_bh, exec_bh, coherence, threshold, ts, 1);
 
-        ;; store route in dict keyed by route_id (256-bit)
+        ;; store route in dict keyed by route_id (256-bit) — value = one ref
+        ;; to the record cell (matches the load_ref reads below)
         slice key = begin_cell().store_uint(route_id, 256).end_cell().begin_parse();
-        slice val = route_cell.begin_parse();
-        routes_dict~dict_set(256, key, val);
+        routes_dict~dict_set(256, key, begin_cell().store_ref(route_cell).end_cell().begin_parse());
 
         save_storage(owner_addr, route_count + 1, version, routes_dict);
         return ();
