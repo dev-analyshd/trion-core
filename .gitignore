@@ -167,3 +167,7 @@ akashic/*.db
 akashic/validator_registry.db
 akashic/invisibility_petitions.db
 akashic/elder_wisdom.db
+
+# BTCP persistent state (12-b)
+db/
+btcp_state.db

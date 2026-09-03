@@ -28,10 +28,20 @@ License: CC0
 
 from __future__ import annotations
 
+import sys
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Dict, List, Optional
+
+# Persistence (S7): escrow states survive restarts via the shared SQLite
+# state store. The plain-name fallback covers direct script execution
+# (``python core/btcp/escrow_monitor.py``) — the script's own directory is
+# already on sys.path in that mode.
+try:
+    from .state_store import BtcpStateStore
+except ImportError:  # pragma: no cover - direct script execution
+    from state_store import BtcpStateStore
 
 
 class EscrowState(IntEnum):
@@ -74,16 +84,97 @@ class Escrow:
     settlement_verified: bool = False
 
 
+# ── Persistence (S7) ─────────────────────────────────────────────────────────
+# Explicit row serialization: bytes / IntEnum / None fields are not directly
+# JSON-serializable, so Escrow ⇄ row conversion is written out by hand.
+
+ESCROW_ROW_TYPE = "escrow_v1"
+
+
+def _escrow_to_row(esc: Escrow) -> Dict[str, object]:
+    """Escrow → JSON-safe row dict for BtcpStateStore."""
+    return {
+        "escrow_id":           esc.escrow_id,
+        "route_id":            esc.route_id,
+        "entity_id":           esc.entity_id.hex(),
+        "amount":              esc.amount,
+        "lock_block":          esc.lock_block,
+        "lock_timestamp":      esc.lock_timestamp,
+        "timeout_blocks":      esc.timeout_blocks,
+        "state":               esc.state.name,
+        "revert_reason":       esc.revert_reason.name,
+        "settled_at":          esc.settled_at,
+        "reverted_at":         esc.reverted_at,
+        "parent_escrow_id":    esc.parent_escrow_id,
+        "settlement_verified": esc.settlement_verified,
+    }
+
+
+def _escrow_from_row(row: Dict[str, object]) -> Escrow:
+    """Row dict → Escrow (inverse of _escrow_to_row)."""
+    return Escrow(
+        escrow_id=row["escrow_id"],
+        route_id=row["route_id"],
+        entity_id=bytes.fromhex(row["entity_id"]),
+        amount=float(row["amount"]),
+        lock_block=int(row["lock_block"]),
+        lock_timestamp=float(row["lock_timestamp"]),
+        timeout_blocks=int(row["timeout_blocks"]),
+        state=EscrowState[row["state"]],
+        revert_reason=RevertReason[row["revert_reason"]],
+        settled_at=row.get("settled_at"),
+        reverted_at=row.get("reverted_at"),
+        parent_escrow_id=row.get("parent_escrow_id"),
+        settlement_verified=bool(row.get("settlement_verified", False)),
+    )
+
+
 class EscrowMonitor:
     """
     Monitors escrow states and triggers transitions.
 
     In production, this would be a Rust service subscribing to chain events.
-    Here it's a Python in-memory state machine for testing and integration.
+    Here it's a Python state machine for testing and integration — with its
+    mutable state write-through persisted to SQLite (S7): a restart reloads
+    escrows instead of wiping them.
+
+    ``state_db``: optional SQLite path (default: env TRION_STATE_DB, then
+    ``db/btcp_state.db``; test-context constructions get an isolated temp
+    store — see core/btcp/state_store.py).
     """
 
-    def __init__(self):
+    def __init__(self, state_db: Optional[str] = None):
+        self._store = BtcpStateStore(state_db)
         self._escrows: Dict[str, Escrow] = {}
+        self._load()
+
+    # ── Persistence (S7) ────────────────────────────────────────────────
+
+    def _load(self) -> None:
+        """Load persisted escrows into memory (malformed rows are skipped)."""
+        for escrow_id, (type_tag, row) in self._store.get_escrows().items():
+            if type_tag != ESCROW_ROW_TYPE:
+                continue
+            try:
+                self._escrows[escrow_id] = _escrow_from_row(row)
+            except (KeyError, ValueError, TypeError):
+                print(
+                    f"[btcp.escrow_monitor] skipping malformed persisted escrow "
+                    f"{escrow_id!r}",
+                    file=sys.stderr,
+                )
+
+    def _persist(self, escrow_id: str) -> None:
+        """Write one escrow through to SQLite (upsert)."""
+        esc = self._escrows.get(escrow_id)
+        if esc is None:
+            return
+        self._store.save_escrow(escrow_id, _escrow_to_row(esc), ESCROW_ROW_TYPE)
+
+    def reload(self) -> None:
+        """Re-read persisted escrow state from SQLite, replacing memory."""
+        self._escrows = {}
+        self._load()
 
     def lock_escrow(
         self,
@@ -112,6 +203,7 @@ class EscrowMonitor:
             parent_escrow_id=parent_escrow_id,
         )
         self._escrows[escrow_id] = esc
+        self._persist(escrow_id)
         return esc
 
     def verify_settlement(self, escrow_id: str) -> bool:
@@ -120,6 +212,7 @@ class EscrowMonitor:
         if not esc or esc.state != EscrowState.HOLDING:
             return False
         esc.settlement_verified = True
+        self._persist(escrow_id)
         return True
 
     def release_escrow(
@@ -145,6 +238,7 @@ class EscrowMonitor:
 
         esc.state = EscrowState.RELEASED
         esc.settled_at = time.time()
+        self._persist(escrow_id)
         return True
 
     def enter_pending_akashic(self, escrow_id: str) -> bool:
@@ -153,6 +247,7 @@ class EscrowMonitor:
         if not esc or esc.state != EscrowState.HOLDING:
             return False
         esc.state = EscrowState.PENDING_AKASHIC
+        self._persist(escrow_id)
         return True
 
     def release_from_pending_akashic(
@@ -168,6 +263,7 @@ class EscrowMonitor:
             return False
         esc.state = EscrowState.RELEASED
         esc.settled_at = time.time()
+        self._persist(escrow_id)
         return True
 
     def revert_escrow(
@@ -194,6 +290,7 @@ class EscrowMonitor:
         esc.state = EscrowState.REVERTED
         esc.revert_reason = reason
         esc.reverted_at = time.time()
+        self._persist(escrow_id)
 
         # Cascade revert parent
         if esc.parent_escrow_id:
@@ -217,6 +314,7 @@ class EscrowMonitor:
         esc.state = EscrowState.EMERGENCY_REVERTED
         esc.revert_reason = RevertReason.EMERGENCY_ESCAPE
         esc.reverted_at = time.time()
+        self._persist(escrow_id)
 
         # Cascade to parent
         if esc.parent_escrow_id:
@@ -235,6 +333,7 @@ class EscrowMonitor:
         parent.state = EscrowState.REVERTED
         parent.revert_reason = RevertReason.CASCADE_REVERT
         parent.reverted_at = time.time()
+        self._persist(parent_id)
 
         # Recursively cascade to grandparent
         if parent.parent_escrow_id:
@@ -259,7 +358,13 @@ class EscrowMonitor:
 if __name__ == "__main__":
     print("=== Escrow Monitor Self-test ===\n")
 
-    mon = EscrowMonitor()
+    # Hermetic self-test DB (S7): persistence is exercised without touching
+    # the shared production store.
+    import os as _os
+    import tempfile as _tempfile
+    _db = _os.path.join(_tempfile.mkdtemp(prefix="btcp_escrow_selftest_"), "btcp_state.db")
+
+    mon = EscrowMonitor(state_db=_db)
 
     # Test 1: Normal lock → release
     mon.lock_escrow("esc1", "route1", b"\x01" * 32, 1000.0, 1000, block_number=100)
@@ -314,5 +419,19 @@ if __name__ == "__main__":
         print(f"✓ Emergency escape after 7 days")
     finally:
         _time.time = old_time
+
+    # Test 6: Persistence (S7) — a second monitor on the same DB sees the
+    # escrows and their terminal states; reload() re-reads from SQLite.
+    mon2 = EscrowMonitor(state_db=_db)
+    assert mon2.get_escrow("esc1") is not None
+    assert mon2.get_escrow("esc1").state == EscrowState.RELEASED
+    assert mon2.get_escrow("esc1").settlement_verified  # two-phase flag survived
+    assert mon2.get_escrow("parent").state == EscrowState.REVERTED
+    assert mon2.get_escrow("parent").revert_reason == RevertReason.CASCADE_REVERT
+    assert mon2.get_escrow("child").revert_reason == RevertReason.TIMEOUT
+    mon2.lock_escrow("esc5", "route5", b"\x06" * 32, 123.0, 100, block_number=100)
+    mon.reload()
+    assert mon.get_escrow("esc5") is not None  # reload picked up mon2's write
+    print("✓ Persistence: second instance + reload() see escrow state")
 
     print("\nPHASE 2.2 PASS — Escrow Monitor implemented")

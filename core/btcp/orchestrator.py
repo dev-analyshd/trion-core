@@ -44,6 +44,15 @@ from adapters import (
     CHAIN_VM_MAP,
 )
 
+# Persistence (S7): tracked routes survive restarts via the shared SQLite
+# state store. The plain-name fallback covers direct script execution
+# (``python core/btcp/orchestrator.py``) — the script's own directory is
+# already on sys.path in that mode.
+try:
+    from .state_store import BtcpStateStore
+except ImportError:  # pragma: no cover - direct script execution
+    from state_store import BtcpStateStore
+
 
 # ── Enumerations ────────────────────────────────────────────────────────────
 
@@ -131,6 +140,88 @@ class OrchestrationResult:
             "errors": self.errors,
             "execution_time_ms": round(self.execution_time_ms, 2),
         }
+
+
+# ── Persistence (S7): route row serialization ───────────────────────────────
+# BTCPRoute carries nested BTCPIntent / GasEstimate objects and IntEnum
+# fields — none of which are directly JSON-serializable — so the ⇄ row
+# conversion is written out by hand instead of guessing with asdict.
+
+ROUTE_ROW_TYPE = "btcp_route_v1"
+
+
+def _gas_to_row(gas: Optional[GasEstimate]) -> Optional[Dict[str, Any]]:
+    """GasEstimate → JSON-safe row dict (None passes through)."""
+    if gas is None:
+        return None
+    return {
+        "gas_limit":     gas.gas_limit,
+        "gas_price":     gas.gas_price,
+        "estimated_fee": gas.estimated_fee,
+        "fee_token":     gas.fee_token,
+        "vm_type":       gas.vm_type.name,
+    }
+
+
+def _gas_from_row(row: Optional[Dict[str, Any]]) -> Optional[GasEstimate]:
+    """Row dict → GasEstimate (inverse of _gas_to_row)."""
+    if row is None:
+        return None
+    return GasEstimate(
+        gas_limit=row["gas_limit"],
+        gas_price=row["gas_price"],
+        estimated_fee=row["estimated_fee"],
+        fee_token=row.get("fee_token", ""),
+        vm_type=VMType[row["vm_type"]],
+    )
+
+
+def _route_to_row(route: BTCPRoute) -> Dict[str, Any]:
+    """BTCPRoute → JSON-safe row dict for BtcpStateStore."""
+    return {
+        "route_id":       route.route_id,
+        "intent":         route.intent.to_dict() if route.intent is not None else None,
+        "source_vm":      route.source_vm.name,
+        "dest_vm":        route.dest_vm.name,
+        "source_encoded": route.source_encoded,
+        "dest_encoded":   route.dest_encoded,
+        "source_gas":     _gas_to_row(route.source_gas),
+        "dest_gas":       _gas_to_row(route.dest_gas),
+        "proofs":         route.proofs,
+        "privacy_level":  route.privacy_level.name,
+        "status":         route.status.name,
+        "total_fee":      route.total_fee,
+        "assets_bridged": route.assets_bridged,
+        "btcp_score":     route.btcp_score,
+        "route_type":     route.route_type,
+        "created_at":     route.created_at,
+        "updated_at":     route.updated_at,
+    }
+
+
+def _route_from_row(row: Dict[str, Any]) -> BTCPRoute:
+    """Row dict → BTCPRoute (inverse of _route_to_row)."""
+    intent_row = row.get("intent")
+    intent = BTCPIntent(**intent_row) if intent_row else None
+    return BTCPRoute(
+        route_id=row["route_id"],
+        intent=intent,
+        source_vm=VMType[row["source_vm"]],
+        dest_vm=VMType[row["dest_vm"]],
+        source_encoded=row.get("source_encoded", ""),
+        dest_encoded=row.get("dest_encoded", ""),
+        source_gas=_gas_from_row(row.get("source_gas")),
+        dest_gas=_gas_from_row(row.get("dest_gas")),
+        proofs=row.get("proofs") or {},
+        privacy_level=PrivacyLevel[row["privacy_level"]],
+        status=RouteStatus[row["status"]],
+        total_fee=float(row.get("total_fee", 0.0)),
+        assets_bridged=bool(row.get("assets_bridged", False)),
+        btcp_score=float(row.get("btcp_score", 0.0)),
+        route_type=row.get("route_type", "SINGLE_CHAIN"),
+        created_at=float(row.get("created_at", 0.0)),
+        updated_at=float(row.get("updated_at", 0.0)),
+    )
 
 
 # ── Privacy Router ──────────────────────────────────────────────────────────
@@ -457,13 +548,47 @@ class BTCPOrchestrator:
       - Gas estimation
       - Route tracking and status management
     
+    Tracked routes are write-through persisted to SQLite (S7): a restart
+    reloads routes instead of wiping them.
+
+    ``state_db``: optional SQLite path (default: env TRION_STATE_DB, then
+    ``db/btcp_state.db``; test-context constructions get an isolated temp
+    store — see core/btcp/state_store.py).
+
     This is the main entry point for BTCP operations in the TRION engine.
     """
     
-    def __init__(self):
+    def __init__(self, state_db: Optional[str] = None):
         self.privacy_router = PrivacyRouter()
         self.gateway = CrossVMGateway()
         self._routes: Dict[str, BTCPRoute] = {}
+        self._store = BtcpStateStore(state_db)
+        self._load_routes()
+
+    # ── Persistence (S7) ────────────────────────────────────────────────
+
+    def _load_routes(self) -> None:
+        """Load persisted routes into memory (malformed rows are skipped)."""
+        for route_id, (type_tag, row) in self._store.get_routes().items():
+            if type_tag != ROUTE_ROW_TYPE:
+                continue
+            try:
+                self._routes[route_id] = _route_from_row(row)
+            except (KeyError, ValueError, TypeError):
+                print(
+                    f"[btcp.orchestrator] skipping malformed persisted route "
+                    f"{route_id!r}",
+                    file=sys.stderr,
+                )
+
+    def _persist_route(self, route: BTCPRoute) -> None:
+        """Write one route through to SQLite (upsert)."""
+        self._store.save_route(route.route_id, _route_to_row(route), ROUTE_ROW_TYPE)
+
+    def reload(self) -> None:
+        """Re-read persisted routes from SQLite, replacing memory."""
+        self._routes = {}
+        self._load_routes()
     
     def create_route(
         self,
@@ -599,6 +724,7 @@ class BTCPOrchestrator:
         )
         
         self._routes[route.route_id] = route
+        self._persist_route(route)
         
         execution_time = (time.perf_counter() - start_time) * 1000
         
@@ -623,6 +749,7 @@ class BTCPOrchestrator:
             return False
         route.status = status
         route.updated_at = time.time()
+        self._persist_route(route)
         return True
     
     def list_routes(self) -> List[Dict[str, Any]]:
@@ -837,7 +964,11 @@ def self_test() -> Dict[str, Any]:
     
     # Test 3: BTCPOrchestrator
     print("\n🧪 Test 3: BTCPOrchestrator")
-    orchestrator = BTCPOrchestrator()
+    import tempfile as _tempfile
+    # Hermetic self-test DB (S7): persistence is exercised without touching
+    # the shared production store.
+    _state_db = os.path.join(_tempfile.mkdtemp(prefix="btcp_orch_selftest_"), "btcp_state.db")
+    orchestrator = BTCPOrchestrator(state_db=_state_db)
     
     # Test multiple privacy levels — the last one carries REAL witness data
     # (dual-strand + block + IAP economics) so its proofs are all real.
@@ -930,6 +1061,23 @@ def self_test() -> Dict[str, Any]:
         "routes_tracked": len(routes),
         "pass": True,
     }
+    
+    # Route persistence (S7): a second orchestrator on the same state DB
+    # sees the routes above; update_route_status write-through survives a
+    # reload.
+    orchestrator2 = BTCPOrchestrator(state_db=_state_db)
+    reloaded_route = orchestrator2.get_route(cross_route.route_id)
+    assert reloaded_route is not None, "persisted route must reload"
+    assert reloaded_route.source_vm == cross_route.source_vm
+    assert reloaded_route.dest_vm == cross_route.dest_vm
+    assert reloaded_route.intent.amount == cross_route.intent.amount
+    assert reloaded_route.proofs.keys() == cross_route.proofs.keys()
+    assert reloaded_route.assets_bridged is False  # zero-bridge invariant survives
+    orchestrator.update_route_status(cross_route.route_id, RouteStatus.COMPLETED)
+    orchestrator2.reload()
+    assert (orchestrator2.get_route(cross_route.route_id).status
+            == RouteStatus.COMPLETED)
+    print("  Route persistence: second instance + reload() see tracked routes")
     
     # Test 4: ProofAggregator
     print("\n🧪 Test 4: ProofAggregator")
