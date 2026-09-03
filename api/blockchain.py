@@ -250,48 +250,53 @@ class ChainRelay:
         Publish behavioral truth signal on-chain via TRIONSensingOracle.
         Returns dict with tx_hash, arbiscan_url, block_number, or error.
 
-        This was previously a dead handler (empty body after the ready check).
-        Fixed per DD report §7.2 — now implements the full publish flow.
+        Builds the 6-arg publishBehavioralTruth call (entityId, commitment,
+        score, threshold, coherent, plane index) exactly as the ORACLE_ABI
+        specifies.
         """
         if not self.ready:
             return {"error": "chain_not_ready", "published": False}
 
-        try:
-            # Pack the signal data
-            score_scaled = int(score * 1e6)
-            threshold_scaled = int(threshold * 1e6)
-            status = 1 if coherent else 0  # SAFE=1, SILENCE=0
+        with self._lock:
+            try:
+                ts = int(time.time())
+                eid_b32     = self._entity_to_bytes32(entity_id)
+                commit_b32  = self._commitment(entity_id, score, ts)
+                score_int   = int(score * 1_000_000)
+                thresh_int  = int(threshold * 1_000_000)
+                plane_idx   = self._plane_index(limiting_plane)
 
-            # Build the transaction
-            nonce = self.w3.eth.get_transaction_count(self.account.address)
-            tx = self.contract.functions.publishBehavioralTruth(
-                entity_id.encode('utf-8').ljust(32, b'\x00')[:32],  # bytes32 entity_id
-                score_scaled,
-                threshold_scaled,
-                limiting_plane.encode('utf-8')[:8],  # first 8 bytes of plane name
-                status,
-            ).build_transaction({
-                'from': self.account.address,
-                'nonce': nonce,
-                'gas': 200000,
-                'gasPrice': self.w3.eth.gas_price,
-                'chainId': self.chain_id,
-            })
+                nonce = self._w3.eth.get_transaction_count(self._account.address)
+                gas_price = self._w3.eth.gas_price
+                gas_price_bumped = int(gas_price * 1.2)
 
-            # Sign and send
-            signed = self.account.sign_transaction(tx)
-            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                tx = self._oracle.functions.publishBehavioralTruth(
+                    eid_b32, commit_b32, score_int, thresh_int,
+                    coherent, plane_idx
+                ).build_transaction({
+                    "from":     self._account.address,
+                    "nonce":    nonce,
+                    "gas":      200_000,
+                    "gasPrice": gas_price_bumped,
+                    "chainId":  self._w3.eth.chain_id,
+                })
 
-            return {
-                "tx_hash": tx_hash.hex(),
-                "arbiscan_url": f"https://sepolia.arbiscan.io/tx/{tx_hash.hex()}",
-                "block_number": receipt['blockNumber'],
-                "status": receipt['status'],
-                "published": True,
-            }
-        except Exception as e:
-            return {"error": str(e), "published": False}
+                signed = self._account.sign_transaction(tx)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+                tx_hex = tx_hash.hex()
+
+                log.info("TX sent: %s entity=%s coherent=%s", tx_hex, entity_id[:18], coherent)
+                return {
+                    "published":     True,
+                    "tx_hash":       tx_hex,
+                    "arbiscan_url":  ARBISCAN_TX.format(tx_hex),
+                    "timestamp":     ts,
+                    "score_on_chain": score_int,
+                    "threshold_on_chain": thresh_int,
+                }
+            except Exception as e:
+                log.error("publish_signal error: %s", e)
+                return {"error": str(e), "published": False}
 
     def publish_behavioral_signal_v3(self,
             entity_b32: bytes,
@@ -408,48 +413,6 @@ class ChainRelay:
             }
         except Exception as e:
             return {"error": str(e)}
-
-        with self._lock:
-            try:
-                w3 = self._w3
-                ts = int(time.time())
-                eid_b32     = self._entity_to_bytes32(entity_id)
-                commit_b32  = self._commitment(entity_id, score, ts)
-                score_int   = int(score * 1_000_000)
-                thresh_int  = int(threshold * 1_000_000)
-                plane_idx   = self._plane_index(limiting_plane)
-
-                nonce = w3.eth.get_transaction_count(self._account.address)
-                gas_price = w3.eth.gas_price
-                gas_price_bumped = int(gas_price * 1.2)
-
-                tx = self._oracle.functions.publishBehavioralTruth(
-                    eid_b32, commit_b32, score_int, thresh_int,
-                    coherent, plane_idx
-                ).build_transaction({
-                    "from":     self._account.address,
-                    "nonce":    nonce,
-                    "gas":      200_000,
-                    "gasPrice": gas_price_bumped,
-                    "chainId":  421614,
-                })
-
-                signed = self._account.sign_transaction(tx)
-                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-                tx_hex = tx_hash.hex()
-
-                log.info("TX sent: %s entity=%s coherent=%s", tx_hex, entity_id[:18], coherent)
-                return {
-                    "published":     True,
-                    "tx_hash":       tx_hex,
-                    "arbiscan_url":  ARBISCAN_TX.format(tx_hex),
-                    "timestamp":     ts,
-                    "score_on_chain": score_int,
-                    "threshold_on_chain": thresh_int,
-                }
-            except Exception as e:
-                log.error("publish_signal error: %s", e)
-                return {"error": str(e), "published": False}
 
     def get_chain_stats(self) -> dict:
         """Read live stats from the oracle contract."""
