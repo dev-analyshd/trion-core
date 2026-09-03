@@ -15,7 +15,7 @@
 import { RpcProvider, Account, Contract, cairo, hash, num, stark } from "starknet";
 import axios from "axios";
 import * as dotenv from "dotenv";
-import { getProvider } from "./provider.js";
+import { getWorkingProvider } from "./provider.js";
 import { STARKNET_CONFIG } from "./config.js";
 
 dotenv.config();
@@ -167,7 +167,7 @@ export async function generateBIRPProof(
   }
 
   try {
-    const provider = getProvider();
+    const provider = await getWorkingProvider();
     const accountAddress = process.env.STARKNET_ACCOUNT_ADDRESS ?? "";
     const account  = new Account(provider, accountAddress, privateKey);
     const contract = new Contract(BIRP_ABI, BIRP_ADDRESS, account);
@@ -205,7 +205,7 @@ export async function verifyBIRPCommitment(commitment: string): Promise<{
 } | null> {
   if (!BIRP_ADDRESS) return null;
   try {
-    const provider = getProvider();
+    const provider = await getWorkingProvider();
     const contract = new Contract(BIRP_ABI, BIRP_ADDRESS, provider);
     const proof    = await contract.call("verify_commitment", [commitment]);
     if (!proof || !proof[0]) return null;

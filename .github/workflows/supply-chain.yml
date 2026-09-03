@@ -19,11 +19,10 @@ jobs:
         run: pip install uv
       - name: Verify uv.lock is in sync
         run: uv lock --check
-        continue-on-error: true
       - name: Run pip-audit on locked dependencies
         run: |
           pip install pip-audit
-          pip-audit -r <(uv export --format requirements-txt --no-hashes 2>/dev/null) || true
+          pip-audit -r <(uv export --format requirements-txt --no-hashes 2>/dev/null)
 
   node-lockfile:
     name: Node.js — Lockfile Integrity & Audit
@@ -37,13 +36,13 @@ jobs:
         run: |
           for dir in $(git ls-files '*/package.json' | xargs -n1 dirname | sort -u); do
             echo "Checking $dir..."
-            (cd "$dir" && npm install --no-package-lock --ignore-scripts) || true
+            (cd "$dir" && npm install --no-package-lock --ignore-scripts)
           done
       - name: npm audit (production deps)
         run: |
           for dir in $(git ls-files '*/package.json' | xargs -n1 dirname | sort -u); do
             echo "Auditing $dir..."
-            (cd "$dir" && npm audit --omit=dev --audit-level=high) || true
+            (cd "$dir" && npm audit --omit=dev --audit-level=high)
           done
 
   rust-lockfile:
@@ -64,13 +63,13 @@ jobs:
             fi
           done
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked || true
+        run: cargo install cargo-audit --locked
       - name: cargo audit
         run: |
           for dir in indexers rust; do
             if [ -f "$dir/Cargo.lock" ]; then
               echo "Auditing $dir..."
-              (cd "$dir" && cargo audit) || true
+              (cd "$dir" && cargo audit)
             fi
           done
 
@@ -89,6 +88,6 @@ jobs:
           solc-select install 0.8.24
           solc-select use 0.8.24
       - name: Run Slither on TRIONExecutionGate
-        run: slither contracts/solidity/TRIONExecutionGate.sol --config-file slither.config.json || true
+        run: slither contracts/solidity/TRIONExecutionGate.sol --config-file slither.config.json
       - name: Run Slither on TRIONOracleV3
-        run: slither contracts/solidity/TRIONOracleV3.sol --config-file slither.config.json || true
+        run: slither contracts/solidity/TRIONOracleV3.sol --config-file slither.config.json

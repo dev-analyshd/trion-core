@@ -14,4 +14,3 @@ jobs:
       - name: Compile contracts
         working-directory: hardhat
         run: npx hardhat compile
-        continue-on-error: true

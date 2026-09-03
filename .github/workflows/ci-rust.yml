@@ -9,10 +9,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Check indexers
         run: cd indexers && cargo check --workspace
-        continue-on-error: true
       - name: Test trion-common
         run: cd indexers && cargo test -p trion-common --lib
-        continue-on-error: true
 
   btcp-core:
     name: BTCP core crate (19 spec modules, 94 tests)
@@ -22,7 +20,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Check BTCP core
         run: cd rust && cargo check
-        continue-on-error: true
       - name: Test BTCP core
         run: cd rust && cargo test
-        continue-on-error: true

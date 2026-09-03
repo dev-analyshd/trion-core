@@ -14,4 +14,3 @@ jobs:
         run: cd sdk/src && npm install typescript --save-dev
       - name: Type check
         run: cd sdk/src && npx tsc --noEmit
-        continue-on-error: true

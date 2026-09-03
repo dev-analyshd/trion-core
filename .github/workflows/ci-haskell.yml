@@ -11,10 +11,8 @@ jobs:
           cabal-version: '3.10'
       - name: Run theorem self-check
         run: runghc formal/src/TRION/Theorems.hs
-        continue-on-error: true
       - name: Install hspec and run test suite
         run: |
           cabal update
           cabal install --lib hspec --package-env .
           runghc -i formal/src/TRION formal/test/Spec.hs
-        continue-on-error: true
