@@ -429,7 +429,7 @@ the README then quietly converts into "proven" capability bullets. The correct m
 of the corpus is: a research program whose own documents rate a third of its mechanisms at coin-flip
 odds or worse, wrapped in a presentation layer that reports those mechanisms as shipped.
 7.1 Committed credentials — the cross-document smoking gun
-The repository ships, in plain text, the private key ***REDACTED***...***REDACTED*** in five committed scripts
+The repository ships, in plain text, the private key [REDACTED] in five committed scripts
 (evm-tools/deploy-evm.mjs, deploy-eth.mjs, deploy-cross-chain.mjs, deploy-missing.mjs,
 btc-tools/derive-address.mjs); the corresponding address is
 0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20 — which is simultaneously (a) the deployer of
