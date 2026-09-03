@@ -10,14 +10,23 @@
 ;;   route_count   (64 bits)
 ;;   routes_dict   (dict ref, key = 256-bit route_id)
 ;;
-;; Route cell layout:
-;;   route_id      [256 bits]
-;;   anchor_bh     [256 bits]
-;;   execution_bh  [256 bits]  (0 while pending)
-;;   entity_id     [256 bits]
-;;   gas_saved     [64 bits]   (nanoTON saved vs single-chain execution)
-;;   finalized     [1 bit]
-;;   created_at    [64 bits]
+;; Route record layout — split across 2 cells (TVM cells hold at most 1023
+;; data bits; four 256-bit hashes cannot share one cell — 256×4 = 1024 > 1023
+;; — and the old flat 1153-bit layout made end_cell() throw cell-overflow on
+;; every register):
+;;   ROOT cell (897 bits) — hot fields (get_route / is_finalized need only
+;;   these; no ref traversal):
+;;     route_id      [256 bits]
+;;     anchor_bh     [256 bits]
+;;     execution_bh  [256 bits]  (0 while pending)
+;;     gas_saved     [64 bits]   (nanoTON saved vs single-chain execution)
+;;     finalized     [1 bit]
+;;     created_at    [64 bits]
+;;   REF 0 (256 bits) — metadata only used for re-packing:
+;;     entity_id     [256 bits]
+;;
+;; Message bodies all fit a single cell (≤ 1023 bits): register = 864 bits,
+;; finalize = 544 bits, set_relayer = 299 bits — no body split needed.
 ;;
 ;; Op codes:
 ;;   0x01 register_route   (relayer/owner)
@@ -53,26 +62,37 @@ int is_authorized(slice sender, slice owner_addr, slice relayer_addr) inline {
     return equal_slices(sender, owner_addr) | equal_slices(sender, relayer_addr);
 }
 
+;; Cell-overflow-safe layout (TVM limit: 1023 data bits / cell):
+;;   root (897 bits) = route_id, anchor_bh, execution_bh, gas_saved,
+;;                     finalized, created_at
+;;   ref 0 (256 bits) = entity_id
+
 cell pack_route(int route_id, int anchor_bh, int execution_bh, int entity_id, int gas_saved, int finalized, int created_at) inline {
+    cell tail = begin_cell()
+        .store_uint(entity_id, 256)
+    .end_cell();
     return begin_cell()
         .store_uint(route_id,     256)
         .store_uint(anchor_bh,    256)
         .store_uint(execution_bh, 256)
-        .store_uint(entity_id,    256)
         .store_uint(gas_saved,     64)
         .store_uint(finalized,      1)
         .store_uint(created_at,    64)
+        .store_ref(tail)                   ;; 256-bit overflow cell
     .end_cell();
 }
 
+;; Unpacks the route record cell — returns the original flat field order so
+;; call sites keep destructuring exactly as before.
 (int, int, int, int, int, int, int) unpack_route(slice s) inline {
     int route_id     = s~load_uint(256);
     int anchor_bh    = s~load_uint(256);
     int execution_bh = s~load_uint(256);
-    int entity_id    = s~load_uint(256);
     int gas_saved    = s~load_uint(64);
     int finalized    = s~load_uint(1);
     int created_at   = s~load_uint(64);
+    slice tail       = s~load_ref().begin_parse();
+    int entity_id    = tail~load_uint(256);
     return (route_id, anchor_bh, execution_bh, entity_id, gas_saved, finalized, created_at);
 }
 

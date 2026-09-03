@@ -9,25 +9,42 @@
 ;;   commitment_count (64 bits)
 ;;   commitments_dict (dict, key=256-bit commitment_id, value=commitment cell ref)
 ;;
-;; Commitment cell:
-;;   entity_id    [256 bits]
-;;   route_id     [256 bits]
-;;   asset        [256 bits]
-;;   amount       [64 bits]
-;;   min_coherence[64 bits]
-;;   expiry       [64 bits]
-;;   status       [8 bits]
-;;   created_at   [64 bits]
-;;   execution_bh [256 bits]
-;;   settled_at   [64 bits]
-;;   revert_at    [64 bits]
-;;   revert_code  [8 bits]
+;; Commitment cell layout — split across 2 cells (TVM cells hold at most 1023
+;; data bits; the old flat 1424-bit layout made end_cell() throw cell-overflow
+;; on every commit, bricking the contract):
+;;   ROOT cell (968 bits) — identity + value + status (all fields needed by
+;;   the settle/revert guards and get_commitment — no ref traversal):
+;;     entity_id    [256 bits]
+;;     route_id     [256 bits]
+;;     asset        [256 bits]
+;;     amount       [64 bits]
+;;     min_coherence[64 bits]
+;;     expiry       [64 bits]
+;;     status       [8 bits]
+;;   REF 0 (456 bits) — lifecycle/settlement fields (needed to re-pack):
+;;     created_at   [64 bits]
+;;     execution_bh [256 bits]
+;;     settled_at   [64 bits]
+;;     revert_at    [64 bits]
+;;     revert_code  [8 bits]
+;;
+;; Dict values are stored as a single ref to the record cell
+;; (begin_cell().store_ref(rec).end_cell().begin_parse()), which matches the
+;; load_ref() read pattern below and keeps dict node cells tiny.
 ;;
 ;; Op codes:
 ;;   0x01  commit_liquidity
 ;;   0x02  settle_commitment   (owner only)
 ;;   0x03  revert_commitment   (owner only)
 ;;   0x10  transfer_ownership
+;;
+;; Message bodies (first cell ≤ 1023 bits; senders build root + refs):
+;;   0x01 commit: root = op[32] cid[256] entity[256] route[256] amount[64]
+;;                     min_coh[64] expiry[64]                        (992 bits)
+;;                ref 0 = asset[256]                                 (256 bits)
+;;   0x02 settle:  op[32] cid[256] exec_bh[256] coherence[64]        (608 bits)
+;;   0x03 revert:  op[32] cid[256] reason[8]                         (296 bits)
+;;   0x10:         op[32] new_owner[267]                             (299 bits)
 
 #include "stdlib.fc";
 
@@ -58,10 +75,22 @@ const int ERR_COHERENCE_LOW      = 134;
     .end_cell());
 }
 
+;; Cell-overflow-safe layout (TVM limit: 1023 data bits / cell):
+;;   root (968 bits) = entity, route, asset, amount, min_coh, expiry, status
+;;   ref 0 (456 bits) = created_at, execution_bh, settled_at, revert_at,
+;;                     revert_code
+
 cell pack_commitment(
     int entity, int route, int asset, int amount, int min_coh, int expiry,
     int status, int ts, int exec_bh, int settled_at, int revert_at, int revert_code
 ) inline {
+    cell tail = begin_cell()
+        .store_uint(ts,            64)
+        .store_uint(exec_bh,      256)
+        .store_uint(settled_at,    64)
+        .store_uint(revert_at,     64)
+        .store_uint(revert_code,    8)
+    .end_cell();
     return begin_cell()
         .store_uint(entity,       256)
         .store_uint(route,        256)
@@ -70,12 +99,28 @@ cell pack_commitment(
         .store_uint(min_coh,       64)
         .store_uint(expiry,        64)
         .store_uint(status,         8)
-        .store_uint(ts,            64)
-        .store_uint(exec_bh,      256)
-        .store_uint(settled_at,    64)
-        .store_uint(revert_at,     64)
-        .store_uint(revert_code,    8)
+        .store_ref(tail)                   ;; 456-bit overflow cell
     .end_cell();
+}
+
+;; Unpacks the commitment record cell — returns the original flat field order
+;; so call sites keep destructuring exactly as before.
+(int, int, int, int, int, int, int, int, int, int, int, int) unpack_commitment(slice s) inline {
+    int entity  = s~load_uint(256);
+    int route   = s~load_uint(256);
+    int asset   = s~load_uint(256);
+    int amount  = s~load_uint(64);
+    int min_coh = s~load_uint(64);
+    int expiry  = s~load_uint(64);
+    int status  = s~load_uint(8);
+    slice tail  = s~load_ref().begin_parse();
+    int ts      = tail~load_uint(64);
+    int exec_bh = tail~load_uint(256);
+    int settled = tail~load_uint(64);
+    int rev_at  = tail~load_uint(64);
+    int rcode   = tail~load_uint(8);
+    return (entity, route, asset, amount, min_coh, expiry, status, ts,
+            exec_bh, settled, rev_at, rcode);
 }
 
 ;; ── recv_internal ─────────────────────────────────────────────────────────────
@@ -96,10 +141,12 @@ cell pack_commitment(
         int cid       = in_msg_body~load_uint(256);
         int entity    = in_msg_body~load_uint(256);
         int route     = in_msg_body~load_uint(256);
-        int asset     = in_msg_body~load_uint(256);
         int amount    = in_msg_body~load_uint(64);
         int min_coh   = in_msg_body~load_uint(64);
         int expiry    = in_msg_body~load_uint(64);
+        ;; asset lives in the body's overflow ref (body root is 992 bits)
+        slice cb      = in_msg_body~load_ref().begin_parse();
+        int asset     = cb~load_uint(256);
 
         throw_if(ERR_INVALID_SCORE, min_coh > 1000000);
 
@@ -111,7 +158,8 @@ cell pack_commitment(
         throw_if(ERR_EXPIRED, expiry <= ts);
 
         cell cc = pack_commitment(entity, route, asset, amount, min_coh, expiry, 0, ts, 0, 0, 0, 0);
-        cdict~dict_set(256, ckey, cc.begin_parse());
+        ;; dict value = one ref to the record cell (matches load_ref reads)
+        cdict~dict_set(256, ckey, begin_cell().store_ref(cc).end_cell().begin_parse());
         save_storage(owner_addr, ccount + 1, cdict);
         return ();
     }
@@ -138,14 +186,18 @@ cell pack_commitment(
         int min_coh = s~load_uint(64);
         int expiry  = s~load_uint(64);
         int status  = s~load_uint(8);
-        int ts      = s~load_uint(64);
+        ;; created_at lives in the overflow ref; the remaining tail fields are
+        ;; rebuilt from this op's inputs, so only ts is read back
+        slice tl  = s~load_ref().begin_parse();
+        int ts    = tl~load_uint(64);
 
         throw_if(ERR_ALREADY_FINAL, status != 0);
         throw_if(ERR_EXPIRED, now() > expiry);
         throw_if(ERR_COHERENCE_LOW, coherence < min_coh);
 
         cell new_cc = pack_commitment(entity, route, asset, amount, min_coh, expiry, 1, ts, exec_bh, now(), 0, 0);
-        cdict~dict_set(256, ckey, new_cc.begin_parse());
+        ;; dict value = one ref to the record cell (matches load_ref reads)
+        cdict~dict_set(256, ckey, begin_cell().store_ref(new_cc).end_cell().begin_parse());
         save_storage(owner_addr, ccount, cdict);
         return ();
     }
@@ -171,12 +223,16 @@ cell pack_commitment(
         int min_coh = s~load_uint(64);
         int expiry  = s~load_uint(64);
         int status  = s~load_uint(8);
-        int ts      = s~load_uint(64);
+        ;; created_at lives in the overflow ref; remaining tail fields are
+        ;; rebuilt from this op's inputs, so only ts is read back
+        slice tl  = s~load_ref().begin_parse();
+        int ts    = tl~load_uint(64);
 
         throw_if(ERR_ALREADY_FINAL, status != 0);
 
         cell new_cc = pack_commitment(entity, route, asset, amount, min_coh, expiry, 2, ts, 0, 0, now(), reason);
-        cdict~dict_set(256, ckey, new_cc.begin_parse());
+        ;; dict value = one ref to the record cell (matches load_ref reads)
+        cdict~dict_set(256, ckey, begin_cell().store_ref(new_cc).end_cell().begin_parse());
         save_storage(owner_addr, ccount, cdict);
         return ();
     }
@@ -205,6 +261,7 @@ cell pack_commitment(
     int min_coh = s~load_uint(64);
     s~skip_bits(64);              ;; expiry
     int status  = s~load_uint(8);
+    ;; amount / min_coh / status are all root-local — no ref needed here
     return (amount, min_coh, status);
 }
 
