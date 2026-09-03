@@ -28,7 +28,7 @@ Please include:
 
 | Time | Action |
 |------|--------|
-| T+0     | Reporter emails `trionprotocolbh@gmail.com` (PGP-encrypted). |
+| T+0     | Reporter emails `trionprotocolbh@gmail.com`. A PGP key will be published here *before* any bounty program with monetary rewards goes live; until then, coordinate encryption out-of-band if the report is sensitive. |
 | T+48h  | Maintainers acknowledge receipt and assign a tracking ID. |
 | T+7d   | Maintainers confirm or reject the report. Initial triage. |
 | T+30d  | Patch prepared on a private advisory branch. |
