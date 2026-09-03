@@ -336,9 +336,9 @@ Successfully demonstrated across fundamentally different virtual machine familie
 | **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
 | **Master Formula Suite** | 104/105 (bare env) | PQC check requires optional crypto libs — 105/105 only with them (audit finding); every other whitepaper formula verified against its implementation (L0–L9) |
-| **Rust BTCP Crate** | 117 `#[test]` fns — not compiled here (as of 2026-09-03) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
+| **Rust BTCP Crate** | 146 `#[test]` fns — not compiled here (as of 2026-09-03) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
 | **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
-| **Python Unit + Adversarial** | 571 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
+| **Python Unit + Adversarial** | 603 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
 
 ---
 
@@ -889,9 +889,9 @@ are atomic, tested, and preserve working behavior:
 | Suite | Result |
 |-------|--------|
 | Master formula verification (105 formulas) | 104/105 in a bare environment (PQC check needs optional crypto libs; audit finding) |
-| Rust BTCP crate | 117 `#[test]` fns — not compiled here (as of 2026-09-03) |
+| Rust BTCP crate | 146 `#[test]` fns — not compiled here (as of 2026-09-03) |
 | ZK circuit self-tests | 6/6 PASS |
-| Python unit + adversarial | 571 unit passed (5 skipped) + 121 adversarial passed (pytest, as of 2026-09-03) |
+| Python unit + adversarial | 603 unit passed (5 skipped) + 121 adversarial passed (pytest, as of 2026-09-03) |
 | Python integration | 186 passing in the Stage-2 battery; a fresh-sandbox re-run on 2026-09-03 gave 185 passed, 21 skipped, 1 network-timing failure, 1 service-dependent error (208 collected) |
 | Hardhat (TRIONExecutionGate) | 43 tests (hardhat/test) |
 | Golden test (BEO/BH pipeline) | PASS (30/30) |
@@ -979,5 +979,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families — test counts as of 2026-09-03: pytest 571 unit + 121 adversarial + 186 integration; 117 Rust `#[test]` (not compiled here); hardhat 43*  
+*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families — test counts as of 2026-09-03: pytest 603 unit + 121 adversarial + 186 integration; 146 Rust `#[test]` (not compiled here); hardhat 43*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  

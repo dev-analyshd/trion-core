@@ -42,6 +42,7 @@ REVERTED: constant(uint8) = 3
 # ── Oracle interface (TRIONOracleV3) ─────────────────────────────────────────
 interface ITRIONOracleV3:
     def verifyExecution(txId: bytes32) -> (bool, uint32, uint32): view
+    def routeBinding(routeId: bytes32) -> (bytes32, uint256, bool, uint256, uint256, uint256): view
 
 # ── Storage ──────────────────────────────────────────────────────────────────
 struct EscrowRecord:
@@ -137,27 +138,38 @@ def release(escrow_id: bytes32, btcp_route_signal: bytes32):
     Release escrowed funds to destination — TRION consensus gated.
 
     Permissionless: anyone may submit, but the submission must carry a
-    btcp_route_signal that the linked oracle verifies as safe:
+    btcp_route_signal that the linked oracle verifies as safe AND that is
+    bound to THIS escrow:
 
-        is_safe, coherence, threshold =
-            trion_oracle.verifyExecution(btcp_route_signal)
+        anchor_bh, attestations, is_safe, coherence, threshold, ts =
+            trion_oracle.routeBinding(btcp_route_signal)
 
-        require is_safe AND coherence >= threshold
-
-    The oracle enforces quorum + freshness on the route verdict itself,
-    so a single validator cannot unilaterally release funds.
+        require anchor_bh == escrow_id      <- binding (route-spoof fix)
+        require is_safe
+        require attestations >= 2            <- quorum floor
+        require block.timestamp - ts <= 300  <- freshness
+        require coherence >= threshold
     """
     record: EscrowRecord = self.escrows[escrow_id]
     assert record.state == HOLDING, "BTCP: not in HOLDING state"
 
-    # Verify TRION consensus proof
+    # Verify TRION consensus proof — BOUND to this escrow via anchorBH.
+    # (M3 fix: a quorum-safe verdict attested for a DIFFERENT escrow can
+    # never release this one; one fresh verdict cannot be replayed across
+    # multiple unrelated escrows.)
+    anchor_bh: bytes32 = empty(bytes32)
+    attestations: uint256 = 0
     is_safe: bool = False
-    coherence: uint32 = 0
-    threshold: uint32 = 0
-    is_safe, coherence, threshold = self.trion_oracle.verifyExecution(
+    coherence: uint256 = 0
+    threshold: uint256 = 0
+    ts: uint256 = 0
+    anchor_bh, attestations, is_safe, coherence, threshold, ts = self.trion_oracle.routeBinding(
         btcp_route_signal
     )
+    assert anchor_bh == escrow_id, "BTCP: verdict not bound to this escrow"
     assert is_safe, "BTCP: TRION consensus proof invalid"
+    assert attestations >= 2, "BTCP: quorum unmet"
+    assert block.timestamp - ts <= 300, "BTCP: verdict stale"
     assert coherence >= threshold, "BTCP: coherence below threshold"
 
     # Check-effects-interactions: terminal state BEFORE transfer

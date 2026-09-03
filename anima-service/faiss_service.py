@@ -10306,11 +10306,17 @@ async def liquidity_nl_score(asset_address: str):
     )
     nl_result["asset_address"] = asset_address
     nl_result["signal_coherence"] = phi_val
-    nl_result["input_disclosure"] = (
+    # L4 fix: machine-readable synthetic flag alongside the prose disclosure
+    # (the /api/v1/whitepaper/coverage map counts this endpoint, so its
+    # approximated inputs must carry the same is_synthetic key as the other
+    # hash-seeded endpoints).
+    nl_result["is_synthetic"] = True
+    nl_result["synthetic_reason"] = (
         "NL engine (core/extended/natural_liquidity.py) is real; pool structure "
         "inputs (depth ticks, LP share, stress/normal LD) are approximated from the "
         "entity's behavioral vector, not measured pool data."
     )
+    nl_result["input_disclosure"] = nl_result["synthetic_reason"]
     nl_result["timestamp"] = int(__import__("time").time())
     return nl_result
 
