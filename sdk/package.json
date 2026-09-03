@@ -1,0 +1,22 @@
+{
+  "name": "@trion-protocol/sdk",
+  "version": "1.0.0",
+  "description": "TRION Protocol TypeScript SDK \u2014 Behavioral Truth Oracle",
+  "main": "dist/trion.js",
+  "types": "dist/trion.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": [
+    "trion",
+    "oracle",
+    "defi",
+    "behavioral",
+    "blockchain"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

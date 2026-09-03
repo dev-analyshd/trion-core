@@ -8,5 +8,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: cd sdk && npm install --legacy-peer-deps
-      - run: cd sdk && npx tsc --noEmit
+      - run: cd sdk/src && npm install --legacy-peer-deps && npm install typescript
+      - run: cd sdk/src && npx tsc --noEmit
