@@ -752,3 +752,82 @@ def orchestrator_status():
         },
         "timestamp": int(time.time()),
     })
+
+
+# ── Phase 6: Sanctions screening (J1) ─────────────────────────────────────────
+
+_SANCTIONS_ORACLE = None
+
+
+def _get_sanctions_oracle():
+    """Lazily construct the shared SanctionsOracle singleton (J1)."""
+    global _SANCTIONS_ORACLE
+    if _SANCTIONS_ORACLE is None:
+        from core.price.btcp_price_oracle import SanctionsOracle
+        _SANCTIONS_ORACLE = SanctionsOracle()
+    return _SANCTIONS_ORACLE
+
+
+@btcp_bp.route("/api/v1/btcp/sanctions/<address>", methods=["GET"])
+def btcp_sanctions_check(address):
+    """
+    Check an address against the TRION sanctions oracle (J1).
+
+    Response fields:
+      sanctioned  — true only when the address is on a loaded list
+      lists       — which lists matched (or SCREENING_UNAVAILABLE on error)
+      confidence  — 1.0 for a confirmed hit, lower for fuzzy matches
+      coverage    — how many addresses the oracle currently holds and when
+                    the list was last refreshed; integrators MUST treat a
+                    zero-coverage oracle as "cannot screen", not "clean".
+    """
+    oracle = _get_sanctions_oracle()
+    try:
+        result = oracle.is_sanctioned(address)
+    except Exception as e:
+        return jsonify({
+            "sanctioned": True,
+            "lists": ["SCREENING_UNAVAILABLE"],
+            "confidence": 0.0,
+            "error": str(e),
+        }), 503
+    result["coverage"] = {
+        "entries": oracle.count(),
+        "last_refresh": oracle._last_refresh,
+        "list_hash": oracle._list_hash,
+        "note": ("sanctions feed not loaded — treat every 'not sanctioned' "
+                 "answer as unverified until entries > 0") if oracle.count() == 0 else "",
+    }
+    return jsonify(result)
+
+
+@btcp_bp.route("/api/v1/btcp/sanctions", methods=["POST"])
+def btcp_sanctions_upsert():
+    """
+    Add (or delist) an entry on the sanctions oracle.
+
+    Intended for the signed oracle feed verifier in production; requires the
+    admin token when TRION_ADMIN_TOKEN is set. Payload:
+      {"address": "0x..", "lists": ["OFAC_SDN"], "confidence": 1.0,
+       "remove": false}
+    """
+    admin_token = None
+    import os
+    admin_token = os.environ.get("TRION_ADMIN_TOKEN")
+    if admin_token:
+        auth = request.headers.get("Authorization", "")
+        if auth != f"Bearer {admin_token}":
+            return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    address = data.get("address", "")
+    if not isinstance(address, str) or len(address) < 10:
+        return jsonify({"error": "address required"}), 400
+    oracle = _get_sanctions_oracle()
+    if data.get("remove"):
+        oracle.remove_delisted(address)
+        return jsonify({"address": address, "removed": True})
+    lists = data.get("lists") or ["OFAC_SDN"]
+    confidence = float(data.get("confidence", 1.0))
+    oracle.add_sanctioned(address, lists, confidence)
+    return jsonify({"address": address, "added": True, "lists": lists,
+                    "confidence": confidence, "entries": oracle.count()})
