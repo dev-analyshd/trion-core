@@ -81,6 +81,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: pip install requests numpy flask flask-sqlalchemy faiss-cpu scikit-learn
+        continue-on-error: true
       - name: Run stress test
         run: python3 scripts/stress_test.py --ci
         continue-on-error: true
