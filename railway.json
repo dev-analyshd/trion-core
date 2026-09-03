@@ -25,23 +25,16 @@
       "PYTHONUNBUFFERED": "1",
       "PYTHONDONTWRITEBYTECODE": "1",
       "TRION_ENABLE_FAISS": "1",
+      "TRION_ENABLE_STREAMER": "1",
+      "TRION_MAX_CHAINS": "12",
       "TRION_ENABLE_RELAYER": "0",
-      "TRION_ENABLE_RUST": "0",
-      "TRION_ENABLE_ZG_SYNC": "0",
-      "TRION_ENABLE_ZG_DA": "0",
-      "TRION_ENABLE_EXTRAS": "0",
-      "TRION_ENABLE_NATIVE": "0",
-      "DATABASE_URL": "",
-      "TIMESCALEDB_URL": "",
       "TRION_ENABLE_VALIDATOR": "0",
       "TRION_ENABLE_INDEXERS": "0",
       "TRION_ENABLE_SIGNAL_PROCESSING": "0",
       "TRION_ENABLE_MONITORING": "0",
-      "TRION_VALIDATOR_PORT": "6000",
-      "TRION_PROMETHEUS_PORT": "9090",
-      "TRION_GRAFANA_PORT": "3001",
-      "TRION_ENABLE_STREAMER": "1",
-      "TRION_MAX_CHAINS": "12"
+      "DATABASE_URL": "",
+      "TIMESCALEDB_URL": "",
+      "BH_LEDGER_DB": "/app/bh_ledger.db"
     }
   }
 }
