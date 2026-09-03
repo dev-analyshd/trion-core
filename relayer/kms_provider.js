@@ -19,10 +19,19 @@
  *   KMS_PROVIDER=yubihsm  (production)   — use YUBIHSM_KEY_ID + YUBIHSM_AUTH_KEY
  *   KMS_PROVIDER=pkcs11   (production)   — use PKCS11_MODULE_PATH + PKCS11_KEY_ID
  *
- * Each provider exposes a unified `signMessage(payload)` interface returning
- * a 65-byte EIP-191 signature. The relayer uses this to construct the
- * `bytes[] calldata signatures` array required by TRIONExecutionGate
- * and TRIONOracleV3.
+ * Each provider exposes a unified interface:
+ *   - `signMessage(payload)` → 65-byte EIP-191 (personal_sign) signature.
+ *     The relayer uses this to construct the `bytes[] calldata signatures`
+ *     array required by TRIONExecutionGate and TRIONOracleV3.
+ *   - `signDigest(digest)`   → 65-byte r||s||v signature over a raw 32-byte
+ *     digest. Used by the KmsEthersSigner adapter (below) to sign actual
+ *     EIP-155/EIP-1559 transactions — the private key never leaves the
+ *     KMS/HSM boundary, only signature bytes do.
+ *
+ * Ethereum addresses are derived with Keccak-256 (ethers `keccak256`) —
+ * NOT NIST SHA3-256. The previous `createHash("sha3-256")` derivation
+ * (audit finding S7) produced wrong addresses for every non-env provider,
+ * so the signature v-recovery verification could never pass.
  *
  * SECURITY NOTE: The `env` provider is the ONLY one that exposes the raw
  * private key in memory. All other providers keep the key material inside
@@ -32,8 +41,10 @@
  * License: CC0
  */
 
-import { ethers } from "ethers";
-import { createHash } from "node:crypto";
+import { ethers, keccak256, hexlify } from "ethers";
+
+// secp256k1 group order — used for EIP-2 canonical low-s normalization
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 
 // ── Provider enum ─────────────────────────────────────────────────────────────
 
@@ -51,9 +62,11 @@ const PROVIDERS = {
 
 /**
  * Create a wallet/signer based on the configured KMS_PROVIDER.
- * Returns an object with `address` and `signMessage(payload: bytes) → bytes`.
+ * Returns an object with `address`, `signMessage(payload: bytes) → bytes`
+ * (EIP-191) and `signDigest(digest: bytes32) → bytes` (raw digest — for
+ * transaction signing via KmsEthersSigner).
  *
- * @returns {Promise<{address: string, signMessage: (payload: Uint8Array) => Promise<Uint8Array>}>}
+ * @returns {Promise<{address: string, signMessage: (payload: Uint8Array) => Promise<Uint8Array>, signDigest: (digest: Uint8Array) => Promise<Uint8Array>, provider: string}>}
  */
 export async function createSigner() {
   switch (KMS_PROVIDER) {
@@ -91,14 +104,20 @@ function createEnvSigner() {
     "[KMS] WARNING: Using env-var private key (development mode). " +
     "For production, set KMS_PROVIDER=aws|gcp|yubihsm|pkcs11."
   );
+
+  /** Sign a raw 32-byte digest (NO EIP-191 prefix) → 65-byte r||s||v. */
+  const signDigest = async (digest) => {
+    assertDigest32(digest);
+    const sig = wallet.signingKey.sign(ethers.getBytes(digest));
+    return ethers.getBytes(sig.serialized);
+  };
+
   return {
     address: wallet.address,
-    signMessage: async (payload) => {
-      // EIP-191: prefix with "\x19Ethereum Signed Message:\n32" + payload
-      const digest = ethers.hashMessage(payload);
-      const sig = await wallet.signMessage(payload);
-      return ethers.getBytes(sig);
-    },
+    // EIP-191: prefix with "\x19Ethereum Signed Message:\n<len>" + payload
+    signMessage: async (payload) =>
+      signDigest(ethers.getBytes(ethers.hashMessage(payload))),
+    signDigest,
     provider: PROVIDERS.ENV,
   };
 }
@@ -129,39 +148,34 @@ async function createAwsKmsSigner() {
   const pubResp = await kmsClient.send(new getPublicKey({ KeyId: keyId }));
   const pubKey = pubResp.PublicKey;
   // Derive Ethereum address: keccak256(uncompressed_pubkey[1:])[12:32]
-  const address = "0x" +
-    createHash("sha3-256").update(Buffer.from(pubKey).slice(1, 65)).digest("hex").slice(24);
+  // (Keccak-256 via ethers — NOT NIST SHA3-256; audit finding S7 fix)
+  const address = ethAddressFromPublicKey(pubKey);
 
   console.log(`[KMS] AWS KMS signer ready: key=${keyId.slice(0, 16)}… addr=${address}`);
 
+  /** Sign a raw 32-byte digest inside KMS → canonical 65-byte r||s||v. */
+  const signDigest = async (digest) => {
+    assertDigest32(digest);
+    const digestBytes = ethers.getBytes(digest);
+    const resp = await kmsClient.send(new signCommand({
+      KeyId: keyId,
+      // MessageType DIGEST: AWS signs this exact 32-byte digest as-is.
+      // (The old MessageType RAW made AWS pre-hash with SHA-256 — a digest
+      // Ethereum's keccak-based EIP-191/EIP-155 verification can never match.)
+      Message: digestBytes,
+      MessageType: "DIGEST",
+      SigningAlgorithm: "ECDSA_SHA_256",
+    }));
+    // AWS KMS returns a DER-encoded signature; convert to r||s||v
+    return derSignatureToEth(Buffer.from(resp.Signature), digestBytes, address);
+  };
+
   return {
     address,
-    signMessage: async (payload) => {
-      const resp = await kmsClient.send(new signCommand({
-        KeyId: keyId,
-        Message: payload,
-        MessageType: "RAW",
-        SigningAlgorithm: "ECDSA_SHA_256",
-      }));
-      // AWS KMS returns DER-encoded signature; convert to r||s||v
-      const derSig = Buffer.from(resp.Signature);
-      const { r, s } = parseDerSignature(derSig);
-      // Recover v by attempting both 27 and 28
-      const digest = ethers.hashMessage(payload);
-      let v = 27;
-      let sigBytes = ethers.getBytes(
-        ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-      );
-      // Verify against the address; flip v if needed
-      const recovered = ethers.recoverAddress(payload, sigBytes);
-      if (recovered.toLowerCase() !== address.toLowerCase()) {
-        v = 28;
-        sigBytes = ethers.getBytes(
-          ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-        );
-      }
-      return sigBytes;
-    },
+    // EIP-191 (personal_sign) quorum signature via the KMS
+    signMessage: async (payload) =>
+      signDigest(ethers.getBytes(ethers.hashMessage(payload))),
+    signDigest,
     provider: PROVIDERS.AWS,
   };
 }
@@ -185,34 +199,30 @@ async function createGcpKmsSigner() {
   }
 
   const [pubResp] = await kms.getPublicKey({ name: keyName });
-  // pubResp.pem is a PEM-encoded EC P-256 public key
+  // pubResp.pem is a PEM-encoded EC public key
   const address = deriveEthAddressFromPem(pubResp.pem);
 
   console.log(`[KMS] GCP KMS signer ready: key=${keyName.slice(-32)} addr=${address}`);
 
+  /** Sign a raw 32-byte digest inside KMS → canonical 65-byte r||s||v. */
+  const signDigest = async (digest) => {
+    assertDigest32(digest);
+    const digestBytes = ethers.getBytes(digest);
+    const [signResp] = await kms.cryptoKeyVersionsAsymmetricSign({
+      name: keyName,
+      // GCP signs the provided 32-byte digest as-is (it is NOT re-hashed),
+      // so the keccak-based EIP-191/EIP-155 digest can be fed straight in.
+      digest: { sha256: digestBytes },
+    });
+    // GCP returns a DER-encoded signature; convert to r||s||v
+    return derSignatureToEth(Buffer.from(signResp.signature), digestBytes, address);
+  };
+
   return {
     address,
-    signMessage: async (payload) => {
-      const digest = await kms.cryptoKeyVersionsAsymmetricSign({
-        name: keyName,
-        digest: { sha256: payload },
-      });
-      const derSig = Buffer.from(digest[0].signature);
-      const { r, s } = parseDerSignature(derSig);
-      // Recover v same as AWS
-      let v = 27;
-      let sigBytes = ethers.getBytes(
-        ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-      );
-      const recovered = ethers.recoverAddress(payload, sigBytes);
-      if (recovered.toLowerCase() !== address.toLowerCase()) {
-        v = 28;
-        sigBytes = ethers.getBytes(
-          ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-        );
-      }
-      return sigBytes;
-    },
+    signMessage: async (payload) =>
+      signDigest(ethers.getBytes(ethers.hashMessage(payload))),
+    signDigest,
     provider: PROVIDERS.GCP,
   };
 }
@@ -239,46 +249,40 @@ async function createYubiHsmSigner() {
     throw new Error(`YubiHSM public key fetch failed: ${pubResp.status} ${pubResp.statusText}`);
   }
   const pubKeyInfo = await pubResp.json();
-  const address = "0x" +
-    createHash("sha3-256").update(Buffer.from(pubKeyInfo.public_key, "hex").slice(1, 65)).digest("hex").slice(24);
+  // Keccak-256 address derivation (audit finding S7 fix)
+  const address = ethAddressFromPublicKey(pubKeyInfo.public_key);
 
   console.log(`[KMS] YubiHSM signer ready: key_id=${keyId} addr=${address}`);
 
+  /** Sign a raw 32-byte digest on the HSM → canonical 65-byte r||s||v. */
+  const signDigest = async (digest) => {
+    assertDigest32(digest);
+    const digestBytes = ethers.getBytes(digest);
+    // Sign via the connector's sign-ecdsa endpoint (signs the given digest)
+    const signResp = await fetch(`${connectorUrl}/connector/api/v1/keys/${keyId}/sign-ecdsa`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Auth-Key": authKey.toString(),
+        "X-Auth-Password": password,
+      },
+      body: JSON.stringify({
+        digest: hexlify(digestBytes).slice(2),
+      }),
+    });
+    if (!signResp.ok) {
+      throw new Error(`YubiHSM sign failed: ${signResp.status} ${signResp.statusText}`);
+    }
+    const sigInfo = await signResp.json();
+    // Response signature is DER-encoded; convert to r||s||v
+    return derSignatureToEth(Buffer.from(sigInfo.signature, "hex"), digestBytes, address);
+  };
+
   return {
     address,
-    signMessage: async (payload) => {
-      // Sign via the connector's sign-ecdsa endpoint
-      const signResp = await fetch(`${connectorUrl}/connector/api/v1/keys/${keyId}/sign-ecdsa`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Auth-Key": authKey.toString(),
-          "X-Auth-Password": password,
-        },
-        body: JSON.stringify({
-          digest: createHash("sha256").update(payload).digest("hex"),
-        }),
-      });
-      if (!signResp.ok) {
-        throw new Error(`YubiHSM sign failed: ${signResp.status} ${signResp.statusText}`);
-      }
-      const sigInfo = await signResp.json();
-      const derSig = Buffer.from(sigInfo.signature, "hex");
-      const { r, s } = parseDerSignature(derSig);
-      // Recover v
-      let v = 27;
-      let sigBytes = ethers.getBytes(
-        ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-      );
-      const recovered = ethers.recoverAddress(payload, sigBytes);
-      if (recovered.toLowerCase() !== address.toLowerCase()) {
-        v = 28;
-        sigBytes = ethers.getBytes(
-          ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-        );
-      }
-      return sigBytes;
-    },
+    signMessage: async (payload) =>
+      signDigest(ethers.getBytes(ethers.hashMessage(payload))),
+    signDigest,
     provider: PROVIDERS.YUBIHSM,
   };
 }
@@ -317,41 +321,129 @@ async function createPkcs11Signer() {
   }
   // Extract the EC point — for secp256k1, this is an uncompressed point
   const ecPoint = pubKeyObj.point;
-  const address = "0x" +
-    createHash("sha3-256").update(ecPoint.slice(1, 65)).digest("hex").slice(24);
+  // Keccak-256 address derivation (audit finding S7 fix); also unwraps the
+  // ASN.1 OCTET STRING some PKCS#11 modules wrap the point in
+  const address = ethAddressFromPublicKey(ecPoint);
 
   console.log(`[KMS] PKCS#11 signer ready: module=${modulePath} key=${keyId} addr=${address}`);
 
+  /** Sign a raw 32-byte digest on the HSM → canonical 65-byte r||s||v. */
+  const signDigest = async (digest) => {
+    assertDigest32(digest);
+    const digestBytes = ethers.getBytes(digest);
+    const privKeyObj = session.find({ id: Buffer.from(keyId, "hex"), class: 3 /* PRIVATE_KEY */ })[0];
+    if (!privKeyObj) {
+      throw new Error(`PKCS#11 private key with id ${keyId} not found`);
+    }
+    // CKM_ECDSA signs the precomputed digest directly (no re-hashing) —
+    // required for keccak-based EIP-191/EIP-155 verification
+    const derSig = privKeyObj.sign("ECDSA", Buffer.from(digestBytes));
+    return derSignatureToEth(Buffer.from(derSig), digestBytes, address);
+  };
+
   return {
     address,
-    signMessage: async (payload) => {
-      const privKeyObj = session.find({ id: Buffer.from(keyId, "hex"), class: 3 /* PRIVATE_KEY */ })[0];
-      if (!privKeyObj) {
-        throw new Error(`PKCS#11 private key with id ${keyId} not found`);
-      }
-      // Sign the SHA-256 hash of the payload
-      const hash = createHash("sha256").update(payload).digest();
-      const derSig = privKeyObj.sign("SHA256", hash);  // returns DER
-      const { r, s } = parseDerSignature(Buffer.from(derSig));
-      // Recover v
-      let v = 27;
-      let sigBytes = ethers.getBytes(
-        ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-      );
-      const recovered = ethers.recoverAddress(payload, sigBytes);
-      if (recovered.toLowerCase() !== address.toLowerCase()) {
-        v = 28;
-        sigBytes = ethers.getBytes(
-          ethers.Signature.from({ r: "0x" + r.toString("hex"), s: "0x" + s.toString("hex"), v }).serialized
-        );
-      }
-      return sigBytes;
-    },
+    signMessage: async (payload) =>
+      signDigest(ethers.getBytes(ethers.hashMessage(payload))),
+    signDigest,
     provider: PROVIDERS.PKCS11,
   };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Buffer → BigInt (big-endian; empty buffer → 0n). */
+function bufToBigInt(buf) {
+  return BigInt("0x" + (buf.toString("hex") || "0"));
+}
+
+/**
+ * Assert that `digest` is exactly 32 bytes — the only thing an ECDSA
+ * secp256k1 signer may sign.
+ * @param {Uint8Array|string} digest
+ */
+function assertDigest32(digest) {
+  const bytes = ethers.getBytes(digest);
+  if (bytes.length !== 32) {
+    throw new Error(`signDigest: digest must be 32 bytes, got ${bytes.length}`);
+  }
+}
+
+/**
+ * Derive an Ethereum address from an secp256k1 public key using Keccak-256.
+ *
+ * Ethereum addresses are the last 20 bytes of keccak256(X || Y) — Keccak-256
+ * (pre-NIST padding), NOT Node's createHash("sha3-256") (NIST SHA3-256,
+ * different padding → different digest). The previous SHA3-based derivation
+ * produced wrong addresses for every non-env KMS provider (audit finding S7),
+ * so the providers' signature v-recovery verification could never pass.
+ *
+ * Accepts:
+ *   - a 65-byte uncompressed point (04 || X || Y) as Buffer/Uint8Array
+ *   - the same as a hex string (with or without 0x prefix)
+ *   - a DER SubjectPublicKeyInfo blob (AWS KMS GetPublicKey / GCP KMS PEM
+ *     body) — the uncompressed point is the trailing 65 bytes
+ *
+ * @param {Buffer|Uint8Array|string} pubKey
+ * @returns {string} 0x-prefixed 40-hex-char address
+ */
+export function ethAddressFromPublicKey(pubKey) {
+  let point = typeof pubKey === "string"
+    ? Buffer.from(pubKey.replace(/^0x/i, ""), "hex")
+    : Buffer.from(pubKey);
+  if (point.length > 65) {
+    // DER SubjectPublicKeyInfo (or ASN.1 OCTET STRING) wrapper — the
+    // uncompressed EC point is the trailing 65 bytes
+    point = point.subarray(point.length - 65);
+  }
+  if (point.length !== 65 || point[0] !== 0x04) {
+    throw new Error(
+      `Expected 65-byte uncompressed secp256k1 public key (04 || X || Y), got ${point.length} byte(s)`
+    );
+  }
+  const pubkeyNoPrefixHex = hexlify(point.subarray(1, 65)); // 04-stripped point
+  // getAddress() applies the EIP-55 checksum (and validates the length)
+  return ethers.getAddress("0x" + keccak256(pubkeyNoPrefixHex).slice(-40));
+}
+
+/**
+ * Convert a DER-encoded secp256k1 ECDSA signature (as returned by AWS KMS,
+ * GCP KMS, YubiHSM 2 and PKCS#11 HSMs) over `digest` into the canonical
+ * 65-byte Ethereum form r||s||v with v ∈ {27, 28}.
+ *
+ * `s` is normalized to its low form (EIP-2) and `v` is recovered by
+ * verifying the signature against the derived `address`. This is the check
+ * that proves the KMS key really owns the address: if the key and the
+ * address disagree the recovery can never succeed, so we fail closed and
+ * throw instead of returning an unverifiable signature.
+ *
+ * @param {Buffer} der DER-encoded ECDSA signature
+ * @param {Uint8Array} digest 32-byte digest that was signed
+ * @param {string} address expected Ethereum address
+ * @returns {Uint8Array} 65-byte r||s||v signature
+ */
+function derSignatureToEth(der, digest, address) {
+  const { r, s } = parseDerSignature(der);
+  const rBig = bufToBigInt(r);
+  let sBig = bufToBigInt(s);
+  if (sBig > SECP256K1_N / 2n) {
+    sBig = SECP256K1_N - sBig; // EIP-2: canonical low-s
+  }
+  const rHex = rBig.toString(16).padStart(64, "0");
+  const sHex = sBig.toString(16).padStart(64, "0");
+  for (const v of [27, 28]) {
+    // serialized = 65-byte r||s||v as a 0x-hex string (recoverAddress takes
+    // a hex string / Signature, not a raw Uint8Array)
+    const sigHex = ethers.Signature.from({ r: "0x" + rHex, s: "0x" + sHex, v }).serialized;
+    if (ethers.recoverAddress(digest, sigHex).toLowerCase() === address.toLowerCase()) {
+      return ethers.getBytes(sigHex);
+    }
+  }
+  throw new Error(
+    "KMS signature does not recover to the derived address — the KMS key and " +
+    "the derived Ethereum address do not match (wrong key or wrong digest)"
+  );
+}
 
 /**
  * Parse a DER-encoded ECDSA signature into its r and s components.
@@ -380,12 +472,73 @@ function deriveEthAddressFromPem(pem) {
     .replace("-----END PUBLIC KEY-----", "")
     .replace(/\s/g, "");
   const raw = Buffer.from(b64, "base64");
-  // The last 65 bytes are the uncompressed EC point (04 || X || Y)
-  const point = raw.slice(-65);
-  if (point[0] !== 0x04) {
-    throw new Error("Expected uncompressed EC point (prefix 0x04)");
+  // raw is a DER SubjectPublicKeyInfo; ethAddressFromPublicKey() takes the
+  // trailing 65 bytes (the uncompressed EC point) and applies Keccak-256
+  // (audit finding S7 fix — was createHash("sha3-256"))
+  return ethAddressFromPublicKey(raw);
+}
+
+// ── ethers-compatible signer adapter ──────────────────────────────────────────
+
+/**
+ * KmsEthersSigner — wraps a KMS provider signer ({ address, signMessage,
+ * signDigest }) in an ethers v6 AbstractSigner so it can be used anywhere
+ * ethers expects a Signer:
+ *
+ *   - signMessage()     → EIP-191 quorum signatures produced inside the KMS
+ *   - sendTransaction() → EIP-155/EIP-1559 transaction signing: the digest
+ *                         keccak256(rlp(unsigned tx)) is signed inside the
+ *                         KMS/HSM via signDigest() and the signed tx is
+ *                         broadcast through the connected provider
+ *
+ * The private key never leaves the KMS/HSM boundary — only signature bytes.
+ */
+export class KmsEthersSigner extends ethers.AbstractSigner {
+  #kms;
+
+  /**
+   * @param {{address: string, signMessage: Function, signDigest: Function}} kmsSigner
+   * @param {null | import("ethers").Provider} provider
+   */
+  constructor(kmsSigner, provider) {
+    super(provider);
+    this.#kms = kmsSigner;
   }
-  return "0x" + createHash("sha3-256").update(point.slice(1)).digest("hex").slice(24);
+
+  async getAddress() { return this.#kms.address; }
+
+  connect(provider) { return new KmsEthersSigner(this.#kms, provider); }
+
+  async signMessage(message) {
+    const payload = typeof message === "string"
+      ? ethers.toUtf8Bytes(message)
+      : ethers.getBytes(message);
+    return hexlify(await this.#kms.signMessage(payload));
+  }
+
+  async signTransaction(tx) {
+    // AbstractSigner.sendTransaction() passes an already-populated
+    // Transaction; direct callers may pass a TransactionLike.
+    let unsignedTx = tx;
+    if (!(unsignedTx instanceof ethers.Transaction)) {
+      const populated = this.provider
+        ? await this.populateTransaction(unsignedTx)
+        : { ...unsignedTx };
+      // `from` is this signer's own address — not part of the signed payload
+      delete populated.from;
+      unsignedTx = ethers.Transaction.from(populated);
+    }
+    // The digest a signer must authorize: keccak256(rlp(unsigned tx)) —
+    // transactions are NOT EIP-191 prefixed
+    const digest = ethers.getBytes(unsignedTx.unsignedHash);
+    const sigBytes = await this.#kms.signDigest(digest);
+    // v ∈ {27,28} → yParity; ethers serializes EIP-155 v = chainId*2 + 35 + yParity
+    unsignedTx.signature = ethers.Signature.from(hexlify(sigBytes));
+    return unsignedTx.serialized;
+  }
+
+  // sendTransaction() is inherited from ethers.AbstractSigner:
+  //   populateTransaction → signTransaction → provider.broadcastTransaction
 }
 
 // ── Self-test ─────────────────────────────────────────────────────────────────
@@ -406,9 +559,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   createSigner()
     .then((signer) => {
       console.log(`✓ Signer ready: provider=${signer.provider} address=${signer.address}`);
-      const testPayload = ethers.toUtf8Bytes("test message");
-      return signer.signMessage(testPayload).then((sig) => {
-        console.log(`✓ Sign message: ${signer.address} returned ${sig.length}-byte signature`);
+      const testDigest = ethers.getBytes(ethers.keccak256(ethers.toUtf8Bytes("test digest")));
+      return signer.signDigest(testDigest).then((sig) => {
+        console.log(`✓ Sign digest : ${signer.address} returned ${sig.length}-byte r||s||v signature`);
+        const testPayload = ethers.toUtf8Bytes("test message");
+        return signer.signMessage(testPayload).then((sig2) => {
+          console.log(`✓ Sign message: ${signer.address} returned ${sig2.length}-byte EIP-191 signature`);
+        });
       });
     })
     .catch((e) => {
