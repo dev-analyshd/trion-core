@@ -10,21 +10,6 @@ Operating at the intersection of information theory, cryptography, game theory, 
 
 ---
 
-## ⚠️ Security Notice — Key Rotation Required
-
-> **CRITICAL:** The EVM private key `0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20` was
-> previously committed in plaintext and must be considered **compromised**. All hardcoded
-> private keys have been removed from the repository and replaced with environment variable
-> references (`process.env.EVM_PRIVATE_KEY`, `process.env.STARKNET_PRIVATE_KEY`, etc.).
->
-> If you have used this key for any deployment, **rotate it immediately**. Generate fresh
-> keys for any mainnet deployment. See `.env.example` for the required environment variables.
->
-> Per the DD report §7.1, this key appears in the git history and must not be reused.
-
-
----
-
 ## The TRION Paradigm Shift
 
 TRION replaces the axiom of *truth-as-agreement* with **truth-as-coherence**.
