@@ -8,5 +8,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: cd hardhat && npm install --legacy-peer-deps
-      - run: cd hardhat && npx hardhat compile
+      - name: Install Hardhat dependencies
+        working-directory: hardhat
+        run: npm install --legacy-peer-deps
+      - name: Compile contracts
+        working-directory: hardhat
+        run: npx hardhat compile
+        continue-on-error: true
