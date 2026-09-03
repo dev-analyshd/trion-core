@@ -1,3 +1,6 @@
+> **NOTE:** This changelog is self-authored and should not be considered
+> independent validation. An external audit is required.
+
 # TRION Protocol — Full-Completion Changelog (v2.1)
 
 **Date:** 2026-08-23

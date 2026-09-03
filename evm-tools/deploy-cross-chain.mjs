@@ -4,7 +4,7 @@ import path from 'path';
 import { ethers } from 'ethers';
 import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PK = '***REDACTED-EVM-DEPLOYER-KEY***';
+const PK = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY;
 const art = JSON.parse(fs.readFileSync(path.join(__dirname, 'compiled', 'BTCPEscrow.json'), 'utf-8'));
 const chains = [
   { name: 'Arbitrum Sepolia', chainId: 421614,  rpc: 'https://sepolia-rollup.arbitrum.io/rpc' },

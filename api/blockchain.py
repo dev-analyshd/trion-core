@@ -247,11 +247,51 @@ class ChainRelay:
     def publish_signal(self, entity_id: str, score: float, threshold: float,
                        coherent: bool, limiting_plane: str) -> dict:
         """
-        Publish behavioral truth signal on-chain.
+        Publish behavioral truth signal on-chain via TRIONSensingOracle.
         Returns dict with tx_hash, arbiscan_url, block_number, or error.
+
+        This was previously a dead handler (empty body after the ready check).
+        Fixed per DD report §7.2 — now implements the full publish flow.
         """
         if not self.ready:
             return {"error": "chain_not_ready", "published": False}
+
+        try:
+            # Pack the signal data
+            score_scaled = int(score * 1e6)
+            threshold_scaled = int(threshold * 1e6)
+            status = 1 if coherent else 0  # SAFE=1, SILENCE=0
+
+            # Build the transaction
+            nonce = self.w3.eth.get_transaction_count(self.account.address)
+            tx = self.contract.functions.publishBehavioralTruth(
+                entity_id.encode('utf-8').ljust(32, b'\x00')[:32],  # bytes32 entity_id
+                score_scaled,
+                threshold_scaled,
+                limiting_plane.encode('utf-8')[:8],  # first 8 bytes of plane name
+                status,
+            ).build_transaction({
+                'from': self.account.address,
+                'nonce': nonce,
+                'gas': 200000,
+                'gasPrice': self.w3.eth.gas_price,
+                'chainId': self.chain_id,
+            })
+
+            # Sign and send
+            signed = self.account.sign_transaction(tx)
+            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+            return {
+                "tx_hash": tx_hash.hex(),
+                "arbiscan_url": f"https://sepolia.arbiscan.io/tx/{tx_hash.hex()}",
+                "block_number": receipt['blockNumber'],
+                "status": receipt['status'],
+                "published": True,
+            }
+        except Exception as e:
+            return {"error": str(e), "published": False}
 
     def publish_behavioral_signal_v3(self,
             entity_b32: bytes,

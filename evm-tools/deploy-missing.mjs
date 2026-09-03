@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMPILED = path.join(__dirname, 'compiled');
-const PK = '***REDACTED-EVM-DEPLOYER-KEY***';
+const PK = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY;
 
 function loadArt(name) { return JSON.parse(fs.readFileSync(path.join(COMPILED, `${name}.json`), 'utf-8')); }
 

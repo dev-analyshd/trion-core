@@ -38,7 +38,7 @@ const SN_C = { intent: snAddr('BTCPIntent'), route: snAddr('BTCPRoute'), escrow:
 
 const BTC_ADDRESS = 'tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks';
 
-const snPk = process.env.STARKNET_PRIVATE_KEY || '***REDACTED-STARKNET-DEPLOYER-KEY***';
+const snPk = process.env.STARKNET_PRIVATE_KEY;
 const snAccountAddr = process.env.STARKNET_ACCOUNT_ADDRESS || '0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82';
 const snProvider = new RpcProvider({ nodeUrl: STARKNET_RPC });
 const snAccount = new Account({ provider: snProvider, address: snAccountAddr, signer: snPk, feeEstimateMultiplier: 1.5 });
