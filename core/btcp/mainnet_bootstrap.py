@@ -163,6 +163,15 @@ def build_chain_registry() -> List[ChainConfig]:
                                   None, None, None, sym, dec, bt, fin, sym, True, time.time()))
 
     # ── Phase 3: Cross-VM (Solana SVM) ───────────────────────────────────────
+    # FIX-CLAIMS (chain-ID collision, documented not fixed): this registry uses
+    # LOCAL ids that conflict with the canonical config/chain_registry.json /
+    # core/generated_chain_bindings.py: Solana here is 5773521 (canonical: 900),
+    # Aptos 20000 vs canonical 5001, TON 22000 vs canonical 1100, and Cosmos
+    # chains without ids get sha3-derived synthetic ids via _stable_chain_id()
+    # (canonical: 10000+ series). Changing them risks breaking
+    # tests/chain_coverage_audit.py / golden-test consumers and the API display
+    # of this bootstrap plan — orchestrator decision required to reconcile this
+    # registry with the canonical one. Polkadot 25000 here DOES match canonical.
     chains.extend([
         ChainConfig(5773521, "Solana", VmFamily.SVM, "https://api.mainnet-beta.solana.com",
                     "https://solscan.io", BootstrapPhase.PHASE_3_CROSS_VM,

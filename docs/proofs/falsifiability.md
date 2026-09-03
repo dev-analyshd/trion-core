@@ -12,8 +12,8 @@ Every claim is testable and has been documented here.
 **Test**: Monitor all entities where Φ_mean_30d < 0.30. Check Chainalysis/Nansen
 tags within 90 days. Target: 70%+ correlation.
 
-**Current evidence**: 
-- AAVE March 12 pre-event: Φ declined from 0.65 → 0.12 over 48h before pool collapse
+**Current evidence** (retrospective/simulated inputs, not live observations):
+- [SIMULATED SCENARIO] AAVE March 12 (synthetic test vector — see docs/proofs/attack_simulations.md #7): Φ declined from 0.65 → 0.12 over 48h before simulated pool collapse
 - Rodeo Finance: Φ = 0.08 at attack block (normal: 0.55)
 - Jimbos Protocol: Φ = 0.06 at attack (3-block window)
 
@@ -23,11 +23,11 @@ tags within 90 days. Target: 70%+ correlation.
 
 **Test**: Route $1M USDT through pools with NL 0.05–0.30 and record actual vs expected.
 
-**Proof case**: AAVE March 12, 2026
-- NL score at execution time: 0.09
-- $50M USDT input → 324 AAVE output (expected: ~12,500 AAVE)
-- Slippage: 97.4%
-- TRION NL_HEALTH signal would have prevented this.
+**Proof case**: [SIMULATED SCENARIO] AAVE March 12, 2026 — synthetic test vector, NOT a real event
+- NL score at execution time: 0.09 (simulated inputs)
+- $50M USDT input → 324 AAVE output (expected: ~12,500 AAVE) (simulated)
+- Slippage: 97.4% (simulated)
+- TRION NL_HEALTH signal would have prevented this in simulation.
 
 ## Prediction 3: Σ SILENCE During Governance Attacks
 
@@ -52,7 +52,7 @@ through HHI monitoring. HHI > 4000 → DANGER → Σ discount.
 | Mango Markets | 0.88 (pump) | 0 | YES |
 | Jimbos Protocol | 1.0 (oracle) | 0 | YES |
 | Rodeo Finance | 1.0 (oracle) | 0 | YES |
-| AAVE March 12 | 0.42 (NL) | 0 | YES (via NL) |
+| [SIM] AAVE March 12 | 0.42 (NL, synthetic input) | 0 | YES (via NL) |
 
 **Total protected**: $388M across 6 replayed attacks.
 

@@ -25,7 +25,11 @@ The PII only ever exists in the off-chain VASP-to-VASP message; a regulator with
 | `disclosure_submitted` | public | attestation flag (constrained `=== 1`) |
 | `amount` | public | transfer amount |
 
-## Circuit metrics (compiled with circom 2.1.9)
+## Circuit metrics — SELF-REPORTED (circom 2.1.9), UNVERIFIED
+
+FIX-CLAIMS: the counts below require a local circom build to reproduce; no
+build artifacts (`.r1cs`/`.zkey`/`verifier.sol`) are committed and `node_modules`
+is not vendored, so they are not verifiable from this repo.
 
 - **Constraints:** 477 non-linear + 1 linear (1 × `Poseidon(7)` + `Num2Bits(96)`)
 - **Proving scheme:** Groth16 over BN254 (snarkjs) — proof ≈ ~200 bytes

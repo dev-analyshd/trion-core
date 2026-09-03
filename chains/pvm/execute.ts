@@ -15,7 +15,15 @@ import fs from "fs";
 
 const FAISS_URL  = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
 const WS_RPC     = process.env.DOT_WS_RPC ?? "wss://rpc.polkadot.io";
-const CHAIN_ID   = 900;
+// FIX-CLAIMS (chain-ID collision): was 900, which is the CANONICAL Solana
+// Mainnet SVM id in config/chain_registry.json (and anima-service/faiss_service
+// classifies 900-999 as SVM). A PVM executor submitting chain_id 900 corrupts
+// chain identity — Polkadot behavioral vectors would be counted as Solana.
+// Canonical Polkadot id is 25000 (see core/generated_chain_bindings.py
+// CHAIN_ID_POLKADOT). NOTE: faiss_service's legacy PVM range is 1000-1099
+// (with 901 also PVM there) — that registry conflicts with canonical and is
+// tracked as an unresolved collision (see FIX-CLAIMS report).
+const CHAIN_ID   = 25000;
 const VM_TYPE    = "PVM";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

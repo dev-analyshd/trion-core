@@ -348,18 +348,22 @@ def build(out_path):
     # ── SECTION 5 — Historical Backtest ─────────────────────────────────────
     story += section_header("5  Historical Exploit Backtest — $3.315B", ST)
     story.append(Paragraph(
-        "30 real-world exploit addresses (2016–2023) were scored against TRION's C(t) < Θ(t) gate. "
-        "Every attacker produced Structured Silence. Zero were missed.",
+        "[SIMULATED SCENARIO] Retrospective backtest: 30 real-world exploit addresses "
+        "(2016–2023) were scored against TRION's C(t) < Θ(t) gate. "
+        "Every attacker produced Structured Silence. Zero were missed. "
+        "(Simulation on reconstructed inputs — not live detections; the "
+        "[SIMULATED SCENARIO] AAVE 2026 row ($49.5M) is a synthetic test vector, "
+        "not a real event, and is included in the $3.315B total.)",
         ST["body"]
     ))
     story.append(Spacer(1, 3*mm))
 
     story.append(stat_box([
-        ("30 / 30", "Exploits Caught"),
-        ("0",       "False Negatives"),
-        ("100%",    "Recall"),
-        ("85.71%",  "F1 Score"),
-        ("$3.315B", "Value Protected"),
+        ("30 / 30", "Exploits Caught (sim)"),
+        ("0",       "False Negatives (sim)"),
+        ("100%",    "Recall (simulated)"),
+        ("85.71%",  "F1 Score (simulated)"),
+        ("$3.315B", "Value Protected (incl. SIM $49.5M)"),
     ]))
     story.append(Spacer(1, 3*mm))
 
@@ -374,7 +378,7 @@ def build(out_path):
         ["Harmony Horizon",            "$100,000,000","PRIVATE_KEY_COMPROMISE","0.000","0.550","✓ BLOCKED"],
         ["Mango Markets",              "$117,000,000","ORACLE_MANIPULATION",   "0.000","0.550","✓ BLOCKED"],
         ["Harvest Finance",            "$34,000,000", "FLASH_LOAN",            "0.000","0.550","✓ BLOCKED"],
-        ["AAVE March 2026",            "$49,500,000", "LIQUIDITY_HEALTH",      "0.405","0.809","✓ BLOCKED"],
+        ["AAVE March 2026 [SIMULATED]", "$49,500,000 (sim)", "LIQUIDITY_HEALTH",      "0.405","0.809","✓ BLOCKED (SIM)"],
         ["+ 20 more (all blocked)…",   "",            "",                      "",     "",     "✓ 30 / 30"],
     ]
     bt = tbl(bt_data, [44*mm, 28*mm, 44*mm, 14*mm, 14*mm, 26*mm], extra_styles=[

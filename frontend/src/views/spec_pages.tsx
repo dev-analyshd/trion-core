@@ -161,27 +161,38 @@ export const CONTINUUM_DATA = {
   ],
 };
 
+// HONESTY NOTE (FIX-CLAIMS): The previous version of this block presented three
+// "LIVE" BOT-Chain mainnet contracts with IMPOSSIBLE addresses (42/34/37 hex
+// chars instead of 40), invented call/write/BEO counters, invented metrics,
+// fabricated deployer stats, and future-dated "deployed Aug 12, 2026"
+// milestones. No BOT Chain deployment record exists anywhere in this repo.
+// All fabricated data was removed; the cards below are honest placeholders
+// that keep the original layout/types.
 export const BOTCHAIN_DATA = {
   chainId: 677,
   chainName: 'BOT Chain',
   tagline: 'The first home of the AI agent behavioral economy.',
-  status: 'LIVE',
+  status: 'UNDEPLOYED (addresses were fabricated — removed)',
+  // Explicit element type keeps the card renderer's optional stat accesses
+  // (c.calls / c.writes / c.beos) type-safe; the fields are intentionally
+  // absent — there are no real stats to show for undeployed contracts.
   contracts: [
-    { name: 'TRION Oracle V3', address: '0x714Ea58861F3e4221f83f9e0a3e682Ba4be682Ba4b', purpose: 'Emits on-chain coherence signals', calls: 3842, status: 'LIVE', color: '#10b981' },
-    { name: 'Behavioral Hash Ledger', address: '0xf4420893A27a5B6F9e8D7c3E5b9A6Dc6D4', purpose: 'Records behavioral hashes from relayer', writes: 3841, status: 'LIVE', color: '#10b981' },
-    { name: 'BEO Identity + DW-BFT Registry', address: '0xdbd3C2f67A9eD118F9c8e7aE4B4c4a446D00E', purpose: 'BEO identity binding + sybil-resistant checkpoints', beos: 1247, status: 'LIVE', color: '#10b981' },
-  ],
+    { name: 'TRION Oracle V3', address: 'NOT DEPLOYED — no address', purpose: 'Emits on-chain coherence signals', status: 'UNDEPLOYED', color: '#94a3b8' },
+    { name: 'Behavioral Hash Ledger', address: 'NOT DEPLOYED — no address', purpose: 'Records behavioral hashes from relayer', status: 'UNDEPLOYED', color: '#94a3b8' },
+    { name: 'BEO Identity + DW-BFT Registry', address: 'NOT DEPLOYED — no address', purpose: 'BEO identity binding + sybil-resistant checkpoints', status: 'UNDEPLOYED', color: '#94a3b8' },
+  ] as Array<{ name: string; address: string; purpose: string; status: string; color: string; calls?: number; writes?: number; beos?: number }>,
+  // No deployment ever occurred — all runtime metrics are zero by definition.
   metrics: {
-    bhPerDay: 28800, bhGrowth: '+12%', beosMinted: 1247,
-    btcpRoutes: 47, btcpInbound: 28, btcpOutbound: 19, btcpNetting: 4,
-    gasSavedTotal: 1247.50,
+    bhPerDay: 0, bhGrowth: '—', beosMinted: 0,
+    btcpRoutes: 0, btcpInbound: 0, btcpOutbound: 0, btcpNetting: 0,
+    gasSavedTotal: 0,
   },
   milestones: [
-    { name: '3 Core Contracts Deployed', status: 'complete', date: 'Aug 12, 2026', desc: 'TRIONOracleV3, BehavioralHashLedger, BEOIdentityRegistry deployed' },
-    { name: 'Relayer Running', status: 'complete', date: 'Aug 12, 2026', desc: 'Relayer streaming behavioral hashes at 3-second cadence.' },
-    { name: 'BOT Chain Gas Sponsorship', status: 'pending', date: 'In negotiation', desc: '2,500 BOT requested for sustained relayer operation.' },
-    { name: 'AIDID <-> BEO Binding', status: 'in-progress', date: 'Phase 1', desc: 'Bind BOT Chain AI agent identity to TRION BEOs. Highest priority.' },
-    { name: 'BDEX ExecutionGate Hook', status: 'ready', date: 'Phase 1.5', desc: 'Pre-trade behavioral filter on BOT Chain DEX. Blocks 7 exploit patterns.' },
+    { name: '3 Core Contracts Deployed', status: 'pending', date: 'Not deployed', desc: 'TRIONOracleV3, BehavioralHashLedger, BEOIdentityRegistry have no deployment record (the previous "deployed Aug 12, 2026" claim was fabricated).' },
+    { name: 'Relayer Running', status: 'pending', date: 'Not started', desc: 'No relayer is streaming behavioral hashes to BOT Chain (previous claim fabricated).' },
+    { name: 'BOT Chain Gas Sponsorship', status: 'planned', date: 'Unverified', desc: 'Gas sponsorship is a proposal only — no agreement is evidenced in this repo.' },
+    { name: 'AIDID <-> BEO Binding', status: 'planned', date: 'Phase 1', desc: 'Bind BOT Chain AI agent identity to TRION BEOs. Highest priority.' },
+    { name: 'BDEX ExecutionGate Hook', status: 'planned', date: 'Phase 1.5', desc: 'Pre-trade behavioral filter on BOT Chain DEX. Blocks 7 exploit patterns.' },
     { name: 'DePIN GPU ANIMA Workload', status: 'planned', date: 'Phase 2', desc: 'ANIMA 59-language inference, FAISS vector search on DePIN GPUs.' },
     { name: 'BTCP Zero-Bridge Demo', status: 'planned', date: 'Phase 2', desc: 'BOT Chain <-> Ethereum <-> Arbitrum <-> 0G. No bridges. Only behavioral facts.' },
     { name: '100K AI Agent Economy', status: 'vision', date: 'Phase 3', desc: '100,000 AI agents with BEO identity, operating across 100 chains.' },
@@ -194,11 +205,13 @@ export const BOTCHAIN_DATA = {
     { title: 'First Live BTCP Demo', desc: 'BOT Chain <-> ETH <-> ARB <-> 0G zero-bridge cross-chain routing demonstration.', icon: 'zap' },
     { title: 'VC Introduction Access', desc: 'Access to BOT Chain investors including Bitget and OKX for future ecosystem growth.', icon: 'trending' },
   ],
+  // Previous deployer stats (address balance, 39 totalTxs, gas, block range,
+  // "~15 minutes, Aug 12 2026") were fabricated — no deployment record exists.
   deployer: {
-    address: '0x2b6eAF215ce4627eA489D01D98C3EDAfc6415657',
-    balance: '0.5328 BOT remaining', totalTxs: 39,
-    gasUsed: '6,605,575', blockRange: '19399409 -> 19399557',
-    timeWindow: '~15 minutes, Aug 12 2026',
+    address: 'NOT DEPLOYED — previous address had no deployment record',
+    balance: '—', totalTxs: 0,
+    gasUsed: '—', blockRange: '—',
+    timeWindow: '—',
   },
 };
 
@@ -500,8 +513,8 @@ export function BotChainSpecPage() {
         <StatCard label="Gas Saved" value={`$${fmt(m.gasSavedTotal)}`} color="amber" />
       </div>
 
-      {/* 3. Deployed Contracts */}
-      <Card title="Deployed Contracts - 3 Core Contracts LIVE on BOT Chain Mainnet" live>
+      {/* 3. Contracts (NOT deployed — see HONESTY NOTE above) */}
+      <Card title={'Contracts - None Deployed on BOT Chain (previous "LIVE" entries were fabricated)'}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {BOTCHAIN_DATA.contracts.map(c => (
             <div key={c.name} className="p-4 rounded-lg border border-border">
@@ -522,7 +535,7 @@ export function BotChainSpecPage() {
       </Card>
 
       {/* 4. Integration Milestones */}
-      <Card title="Integration Milestones - 8-Step Roadmap" live>
+      <Card title="Integration Milestones - 8-Step Roadmap">
         <div className="space-y-3">
           {BOTCHAIN_DATA.milestones.map(ms => (
             <div key={ms.name} className="flex items-start gap-3 p-3 rounded border border-border">
@@ -585,9 +598,10 @@ export function BotChainSpecPage() {
       </Card>
 
       {/* 8. CTA */}
-      <Card title="The 3 Contracts Are Already LIVE">
+      <Card title="BOT Chain Integration - Not Yet Live">
         <p className="text-sm text-muted-foreground mb-4">
-          The question is not whether to build - it is whether to fuel what is already running.
+          Nothing is deployed yet. The question is not whether to fuel what is running —
+          it is whether to build and deploy it honestly first.
         </p>
         <a href="/btcp" className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
           Learn How BTCP Routing Works {'->'}

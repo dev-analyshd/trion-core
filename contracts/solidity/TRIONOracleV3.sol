@@ -90,9 +90,28 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     ///         Matches the legacy 300s signal freshness bound.
     uint256 public constant BTCP_ROUTE_FRESHNESS_SECONDS = 300;
 
-    // ── Publish BTCP Route signal (Fix 1) ────────────────────────────────────
-    // Called by the relayer/owner BEFORE the escrow release attempt.
-    // Stores the route with its coherence proof so verifyExecution returns true.
+    // ── BTCP route quorum attestations ────────────────────────────────────────
+    // SECURITY (whitepaper: "TRION consensus is the only oracle"): a route
+    // verdict must be backed by the same quorum discipline as signals.
+    // Previously ANY single validator (or the owner) could mark any route
+    // safe AND overwrite prior verdicts — strictly weaker than
+    // publishSignal(), which already required quorumRequired ECDSA
+    // validator signatures. Route values are now immutable after the first
+    // attestation: later attestations must submit identical values (a
+    // mismatch is a dispute — the route simply never reaches quorum,
+    // fail-closed). A route only becomes verifiable once at least
+    // quorumRequired distinct authorized attestors have attested.
+    mapping(bytes32 => mapping(address => bool)) public routeAttested;
+    mapping(bytes32 => uint256) public routeAttestationCount;
+
+    // ── Publish/attest BTCP Route signal (Fix 1, quorum-gated) ──────────────
+    // Called by relayers/validators BEFORE the escrow release attempt.
+    // Each distinct authorized caller may attest once per routeId. The
+    // first attestation writes the route values (immutable thereafter);
+    // each new distinct attestor refreshes the freshness timestamp.
+    // verifyExecution() only returns isSafe=true when
+    // routeAttestationCount >= quorumRequired — the same bar as
+    // publishSignal().
     function publishBTCPRoute(
         bytes32 routeId,
         bytes32 anchorBH,
@@ -104,14 +123,35 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
             msg.sender == owner() || isValidator[msg.sender],
             "TRION: not authorized"
         );
-        btcpRoutes[routeId] = BTCPRoute({
-            anchorBH:    anchorBH,
-            executionBH: executionBH,
-            coherence:   coherenceScore,
-            threshold:   thresholdScore,
-            isSafe:      coherenceScore >= thresholdScore,
-            timestamp:   block.timestamp
-        });
+
+        BTCPRoute storage route = btcpRoutes[routeId];
+        if (route.timestamp == 0) {
+            // First attestation — values become immutable for this routeId.
+            route.anchorBH    = anchorBH;
+            route.executionBH = executionBH;
+            route.coherence   = coherenceScore;
+            route.threshold   = thresholdScore;
+            route.isSafe      = coherenceScore >= thresholdScore;
+            route.timestamp   = block.timestamp;
+        } else {
+            // Subsequent attestations must match the etched values exactly.
+            // A mismatched validator is treated as a dispute — reverting
+            // keeps the route below quorum (fail-closed) instead of letting
+            // one party overwrite or flip another's verdict.
+            require(
+                route.anchorBH == anchorBH &&
+                route.executionBH == executionBH &&
+                route.coherence == coherenceScore &&
+                route.threshold == thresholdScore,
+                "TRION: route values mismatch - disputed"
+            );
+            route.timestamp = block.timestamp; // freshness refreshed by attestor
+        }
+
+        if (!routeAttested[routeId][msg.sender]) {
+            routeAttested[routeId][msg.sender] = true;
+            routeAttestationCount[routeId]++;
+        }
         emit BTCPRoutePublished(routeId, coherenceScore >= thresholdScore);
     }
 
@@ -255,11 +295,15 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         // SECURITY: BTCP routes are subject to the same freshness window as
         // legacy signals — a stale "safe" verdict must not be replayable
         // forever (previously routes never expired).
+        // SECURITY: a route verdict additionally requires
+        // routeAttestationCount >= quorumRequired distinct attestations —
+        // a single-attested route is NOT verifiable (fail-closed).
         BTCPRoute memory route = btcpRoutes[txId];
         if (route.timestamp > 0) {
             bool routeFresh = (block.timestamp - route.timestamp) < BTCP_ROUTE_FRESHNESS_SECONDS;
+            bool routeQuorum = routeAttestationCount[txId] >= quorumRequired;
             return (
-                route.isSafe && routeFresh,
+                route.isSafe && routeFresh && routeQuorum,
                 uint32(route.coherence > type(uint32).max ? type(uint32).max : route.coherence),
                 uint32(route.threshold > type(uint32).max ? type(uint32).max : route.threshold)
             );

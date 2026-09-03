@@ -58,7 +58,7 @@ Session: 2026-09-02 | Branch: agent-fix-phase-1 | Repo: /home/z/trion-core (back
 - LO: 1 − Sybil_LP_ratio with top5_share/(BEO_count/5) ✓ (:33-42)
 - LC: Pearson corr(recent, 90d baseline) with documented degenerate scalar path ✓ (:60-109)
 - LS: LD_stress/LD_normal capped [0,1] ✓ (:112-115)
-- March 12 2026 AAVE scenario: NL=0.0000 < 0.30, alert=True, assert passes ✓
+- Simulated March 12 2026 AAVE scenario (synthetic test vector, not a real event): NL=0.0000 < 0.30, alert=True, assert passes ✓
 - Healthy pool: NL=0.7489 > 0.60 ✓
 ### Tests Run: python3 core/extended/natural_liquidity.py → PHASE 16 PASS
 ### Risk Assessment: none — verified spec-exact
@@ -136,7 +136,7 @@ Session: 2026-09-02 | Branch: agent-fix-phase-1 | Repo: /home/z/trion-core (back
 | 10 | schema loads | PASS (structural: 86 statements + balanced DO blocks; psql unavailable) |
 | 11 | docker-compose build | N/A — no docker in sandbox |
 | 12 | five-plane real | PASS (Σ real-data + honest bootstrap; tests/unit/test_all_planes.py green) |
-| 13 | NL complete | PASS (AAVE scenario NL < 0.30, assert passes) |
+| 13 | NL complete | PASS (simulated AAVE scenario NL < 0.30, assert passes — synthetic test vector) |
 | 14 | BH cross-lang | PASS (sense+antisense byte-exact vs canonical vector) — was BROKEN on original main (path + key bugs, fixed in cca4e3e) |
 | 15 | BTCP escrow forge test | N/A — deferred to CI |
 | 16 | ZK circuits npm test | N/A — deferred (circuits verified real+sound by deep-read) |

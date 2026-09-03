@@ -2,20 +2,48 @@
 -- Whitepaper Section 21 Tech Stack / Channel 20 (20-channel architecture):
 -- "Mathematical resonance communication (Haskell theorems as types, Julia entropy bounds)"
 --
--- This module expresses TRION's core invariants as Haskell types, making them
--- machine-checkable proofs rather than documentation claims. When this module
--- compiles without error, the invariants are proven by the type system.
+-- HONEST STATUS OF THIS MODULE (FIX-CLAIMS audit correction — do not restate
+-- the old claim that compiling this module "proves the invariants"):
 --
--- Key theorems:
---   T1: CoherenceConvergence  — C(t) converges given sufficient L0 observations
+--   MACHINE-CHECKED by the type system (real GADT/phantom-type proofs):
+--     T2  SilenceCompleteness — 'Silence and 'Valuation are distinct phantom
+--         kinds of TRIONSignal k; a function of type
+--         TRIONSignal 'Silence -> TRIONSignal 'Valuation cannot be written.
+--     T8  AkashicAppendOnly  — BHLedger n is a GADT whose only growing
+--         operation (bhAppend) maps n -> 'Succ n; no shrinking function
+--         typechecks. Structural, machine-checked.
+--
+--   PROPERTY TESTS ONLY (Boolean self-checks — NOT proofs; they exercise
+--   hand-picked values at runtime):
+--     T1  "CoherenceConvergence" — MISNAMED: this checks only C ∈ [0,1]
+--         (a range check). No convergence of C(t) over observations is
+--         proven or tested here.
+--     T3  InformationConservation — a ≤ comparison on supplied values.
+--     T4  ThresholdMonotonicity — three-point check of a linear formula.
+--     T5  ManipulationDetection — spot values through applyMF.
+--     T6  PCLimitInvariant — three-point check plus a 0.9999 cap.
+--     T7  CoordinationCollapse — an HHI ≤ 2500 guard, not the d_j → 0
+--         collapse limit of the whitepaper.
+--
+--   VACUOUS as a hash-invariant check:
+--     T9  BehavioralHashCollisionFree — mkBHSense below is STRING
+--         CONCATENATION (p ++ "\x00"), NOT SHA3-256. It checks construction
+--         shape only, NOT the SHA3 dual-strand invariant; a real check
+--         requires a SHA3 implementation, which this module does not have.
+--         (Real hashing + the 2,000,000-payload empirical stress test live
+--         in Python: core/primitives/behavioral_hash.py and
+--         tests/unit/trion_protocol/test_bh_collision_resistance.py.)
+--
+-- Theorem list (names kept for cross-referencing):
+--   T1: CoherenceConvergence  — range check only (see above)
 --   T2: SilenceCompleteness   — SILENCE ≠ VALUATION enforced at type level
---   T3: InformationConservation — I_TRION(t+1) ≥ I_TRION(t) - S_emitted
---   T4: ThresholdMonotonicity  — Θ(t) monotone in V(t) ∈ [Θ_min, Θ_max]
---   T5: ManipulationDetection  — MF(t) > 0 implies Φ_adj(t) < Φ_raw(t)
---   T6: PCLimitInvariant       — PC_limit(t) < 1 always (irreducible entropy > 0)
---   T7: CoordinationCollapse   — HHI enforcement prevents validator monopoly
---   T8: AkashicAppendOnly      — BH ledger is structurally deletion-proof (L0.4)
---   T9: BehavioralHashCollisionFree — BH collision resistance inherited from SHA3-256
+--   T3: InformationConservation — I_TRION(t+1) ≥ I_TRION(t) - S_emitted (property test)
+--   T4: ThresholdMonotonicity  — Θ(t) monotone in V(t) ∈ [Θ_min, Θ_max] (property test)
+--   T5: ManipulationDetection  — MF(t) > 0 implies Φ_adj(t) < Φ_raw(t) (property test)
+--   T6: PCLimitInvariant       — PC_limit(t) < 1 always (irreducible entropy > 0) (property test)
+--   T7: CoordinationCollapse   — HHI enforcement prevents validator monopoly (guard check)
+--   T8: AkashicAppendOnly      — BH ledger is structurally deletion-proof (L0.4) (GADT proof)
+--   T9: BehavioralHashCollisionFree — construction shape only, NOT SHA3 (vacuous here)
 --
 -- Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 -- License: CC0
@@ -110,9 +138,10 @@ mkCoherence x
   | x >= 0.0 && x <= 1.0 = Just (Coherence x)
   | otherwise             = Nothing
 
--- | T1: CoherenceConvergence — C(t) is always in [0,1].
--- Proof: mkCoherence returns Nothing for out-of-range values, and
--- all five-plane computation is clamped before constructing Coherence.
+-- | T1 (MISNAMED "CoherenceConvergence"): range check only — C(t) ∈ [0,1].
+-- This is a Boolean property, NOT a proof of convergence: nothing here shows
+-- C(t) converges given sufficient L0 observations. Kept for the invariant
+-- that all five-plane computation is clamped before constructing Coherence.
 coherenceInvariant :: Coherence -> Bool
 coherenceInvariant (Coherence c) = c >= 0.0 && c <= 1.0
 
@@ -279,68 +308,73 @@ validateBHRecord (BHRecord s a) = not (null s) && not (null a) && s /= a
 
 -- ── Theorem 9: BehavioralHashCollisionFree (L0.1 Collision Resistance) ────────
 --
--- For the honest domain of well-formed 93-byte BH canonical payloads, the
--- dual-strand construction inherits SHA3-256's collision resistance bound.
+-- VACUOUS-AS-CHECK WARNING (FIX-CLAIMS): the "check" in this section tests
+-- construction SHAPE only — mkBHSense below is STRING CONCATENATION
+-- (p ++ "\x00"), NOT SHA3-256. It does NOT verify the SHA3 dual-strand
+-- invariant; a real check requires a SHA3 implementation, which this module
+-- does not contain. Read the claims below as aspirations, not as things this
+-- module establishes.
 --
--- Formal statement:
+-- Intended statement (NOT proven here):
 --   ∀ p₁ p₂ : BHPayload93,  p₁ ≠ p₂  →  bhSense p₁ ≠ bhSense p₂
---   ... holds with probability 1 − n²/(2·2²⁵⁶) over random payloads,
---   where 2²⁵⁶ is the SHA3-256 output space (birthday bound).
+--   ... would hold with probability 1 − n²/(2·2²⁵⁶) over random payloads,
+--   where 2²⁵⁶ is the SHA3-256 output space (birthday bound) — IF bhSense
+--   actually hashed. It does not (see mkBHSense).
 --
--- Proof strategy (type-level):
---   (a) BHPayload93 is a newtype wrapping a 93-element fixed-length vector,
---       so the type system distinguishes it from any other byte sequence —
---       domain confusion attacks (padding oracle, length extension) are
---       structurally ruled out.
---   (b) BHSense is a newtype wrapping a Digest256 (32-byte opaque blob).
---       The only constructor is 'mkBHSense', which calls SHA3-256 directly;
---       no two code paths can construct a BHSense without going through the
---       hash, so the collision surface equals exactly that of SHA3-256.
---   (c) The domain separator bytes (0x00 for sense, 0xFF for antisense)
---       are enforced by the constructors — the type system makes it
---       impossible to call mkBHSense without them.
---   (d) bhCollisionFreeAssuming wraps the SHA3-256 collision-resistance
---       assumption as an explicit Haskell value; T9 reduces to that axiom,
---       making the dependency on cryptographic hardness transparent.
+-- What actually holds in this module:
+--   (a) BHPayload93 is a newtype over String, so the type distinguishes it
+--       from any other String at the Haskell level — local domain confusion
+--       is ruled out (structural, machine-checked).
+--   (b) BHSense is a newtype, but its constructor path (mkBHSense) performs
+--       STRING CONCATENATION, not SHA3-256. The earlier comment claiming it
+--       "calls SHA3-256 directly" was FALSE and is removed. The equality
+--       below is plain String equality, so the "check" reduces to
+--       p1 == p2 iff p1 ++ "\x00" == p2 ++ "\x00" — trivially true and
+--       proving nothing about hashing.
+--   (c) The 0x00 domain separator is appended by concatenation; the type
+--       system does NOT prevent other construction paths to BHSense, and
+--       BHPayload93 does NOT enforce a 93-element length.
+--   (d) bhCollisionFreeAssuming takes a SHA3_256_CollisionResistant
+--       witness — an axiom placeholder (a plain data constructor, not a
+--       proof witness). T9's dependency on cryptographic hardness is
+--       stated, not discharged.
 --
--- Epistemic note: compiling this module proves the *structural* properties
--- (domain separation, fixed-width payload, constructor uniqueness).
--- The collision resistance of SHA3-256 itself is an unproven cryptographic
--- assumption — the standard one accepted by NIST and the broader community.
--- Empirical evidence is provided by tests/trion_protocol/test_bh_collision_resistance.py
--- (2,000,000 distinct payloads, zero collisions observed).
+-- Epistemic note: the collision resistance of SHA3-256 itself is an
+-- unproven cryptographic assumption — the standard one accepted by NIST
+-- and the broader community.
+-- The REAL dual-strand implementation and empirical evidence live in
+-- Python: core/primitives/behavioral_hash.py (SHA3-256) and
+-- tests/unit/trion_protocol/test_bh_collision_resistance.py
+-- (2,000,000 distinct payloads, zero collisions observed — statistical
+-- evidence, not a mathematical proof; see that file's honesty note).
 
--- | A well-formed 93-byte BH canonical payload.
---   The phantom parameter ensures BHPayload93 cannot be confused with
---   any other byte sequence at the type level.
+-- | A well-formed 93-byte BH canonical payload — INTENDED, not enforced:
+--   this newtype wraps a plain String and does NOT check the 93-byte length
+--   at the type level (see T9 section note (c)).
 newtype BHPayload93 = BHPayload93 { unPayload :: String }  -- String = [Char] proxy for bytes
   deriving (Show, Eq)
 
--- | A 256-bit BH sense-strand digest.
+-- | A 256-bit BH sense-strand digest — PROXY ONLY: a plain String here, not
+--   a real 32-byte digest.
 newtype BHSense = BHSense { unSense :: String }  -- opaque 32-byte proxy
   deriving (Show, Eq)
 
 -- | The collision-resistance assumption for SHA3-256.
---   Treated as an axiom; all of T9 reduces to this single claim.
-data SHA3_256_CollisionResistant = SHA3256CR  -- proof witness; inhabited iff assumption holds
+--   AXIOM PLACEHOLDER: an ordinary data constructor with no proof content
+--   — holding this value does not establish the assumption.
+data SHA3_256_CollisionResistant = SHA3256CR  -- axiom tag; NOT a proof witness
 
--- | Domain-separated SHA3-256: BHPayload93 → SHA3-256(payload ∥ 0x00).
---   The 0x00 separator is baked into the type's single constructor path.
+-- | NOT SHA3 — string concatenation with the 0x00 separator appended.
+--   A real implementation requires a SHA3-256 library (e.g. cryptonite
+--   keccak). The earlier claim "Domain-separated SHA3-256" was inaccurate.
 mkBHSense :: BHPayload93 -> SHA3_256_CollisionResistant -> BHSense
-mkBHSense (BHPayload93 p) SHA3256CR = BHSense (p ++ "\x00")  -- separator enforced by type
+mkBHSense (BHPayload93 p) SHA3256CR = BHSense (p ++ "\x00")  -- concatenation, NOT a hash
 
--- | T9: BehavioralHashCollisionFree
---   Given SHA3-256 collision resistance, distinct 93-byte payloads yield
---   distinct BH sense strands.
---
---   Type reads: "if you hand me a proof that SHA3-256 is collision-resistant
---   and two distinct payloads, I give you a proof they hash differently" —
---   expressed here as the contrapositive: equal hashes imply equal payloads.
---
---   The function compiles iff the types align, which they do iff:
---     BHPayload93 is a newtype (no two payloads share a constructor),
---     BHSense is a newtype (equality on senses ↔ equality on raw digests),
---     mkBHSense is the ONLY path to a BHSense (constructor privacy).
+-- | T9 — VACUOUS as a hash check (see section header): with mkBHSense as
+--   plain concatenation, this reduces to String-equality reasoning and
+--   proves nothing about SHA3-256. Retained for API compatibility with
+--   Spec.hs; the genuine empirical check lives in
+--   tests/unit/trion_protocol/test_bh_collision_resistance.py.
 bhCollisionFreeAssuming :: SHA3_256_CollisionResistant
                         -> BHPayload93 -> BHPayload93
                         -> Bool   -- True iff p1 == p2 whenever sense(p1) == sense(p2)
@@ -350,9 +384,13 @@ bhCollisionFreeAssuming cr p1 p2 =
   -- If SHA3-256 is collision-resistant, s1 == s2 implies p1 == p2.
   -- We assert the contrapositive: distinct payloads → distinct senses,
   -- modulo the SHA3256CR witness.
+  -- NOTE (FIX-CLAIMS): with mkBHSense as plain concatenation this is
+  -- trivial String equality — the witness does no real work here.
   in (s1 == s2) == (p1 == p2)
 
--- | T9 self-check: two distinct payloads must yield distinct senses.
+-- | T9 self-check — construction-shape only: distinct strings stay distinct
+--   after appending the same suffix (trivially true). NOT a hash collision
+--   test; see the T9 section header (VACUOUS-AS-CHECK).
 t9BehavioralHashCollisionFreeProof :: Bool
 t9BehavioralHashCollisionFreeProof =
   let cr = SHA3256CR
@@ -415,9 +453,12 @@ main = do
   putStr "  T8 AkashicAppendOnly:       "
   print (akashicAppendOnlyProof && r1Valid && r2Valid)
 
-  -- T9: BehavioralHashCollisionFree (L0.1 — SHA3-256 collision resistance inherited)
+  -- T9: BehavioralHashCollisionFree — construction-shape only (VACUOUS as a
+  -- hash check: mkBHSense is string concat, NOT SHA3; see section header)
   putStr "  T9 BHCollisionFree:         "
   print t9BehavioralHashCollisionFreeProof
 
   putStrLn "─────────────────────────────────────────────────────"
-  putStrLn "PASS — all 9 TRION formal invariants verified by type system"
+  putStrLn "DONE — 2/9 machine-checked by the type system (T2, T8);"
+  putStrLn "        6/9 runtime property checks on spot values (T1 range, T3–T7);"
+  putStrLn "        1/9 vacuous as a hash check (T9 — string concat, not SHA3)."

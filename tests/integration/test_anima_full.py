@@ -76,20 +76,35 @@ except ImportError:
 # ── ANIMA sub-modules imported directly for unit tests ───────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# FIX (AUDIT-PY / FIX-PY): the previous imports used nonexistent `akashic.*`
+# module paths (ModuleNotFoundError → tests silently skipped). The real
+# implementations live at:
+#   * canonical NL engine  → core/extended/natural_liquidity.py (L7.1)
+#   * legacy-shaped wrapper → anima-service/nl_score_engine.py (delegates to
+#     the canonical engine; tests/conftest.py puts anima-service on sys.path)
+#   * LiquidityOcean        → anima-service/liquidity_ocean.py
+#   * ZK/jurisdiction       → anima-service/anima_regulatory.py
 try:
-    from akashic.nl_score_engine import compute_nl_score, apply_oe_correction
+    # Canonical engine of record (whitepaper L7.1: NL = LD·LO·LC·LS).
+    from core.extended.natural_liquidity import (
+        compute_nl as _canonical_compute_nl,
+        NL_ALERT_THRESHOLD as NL_ALERT_THRESHOLD_TEST,
+    )
+    # Legacy-shaped wrapper over the canonical engine.
+    from nl_score_engine import compute_nl_score, apply_oe_correction
     _NL_OK = True
 except Exception:
+    NL_ALERT_THRESHOLD_TEST = 0.30   # whitepaper L7.1 default
     _NL_OK = False
 
 try:
-    from akashic.liquidity_ocean import LiquidityOcean
+    from liquidity_ocean import LiquidityOcean
     _OCEAN_OK = True
 except Exception:
     _OCEAN_OK = False
 
 try:
-    from akashic.anima_regulatory import (
+    from anima_regulatory import (
         BehavioralZKProver,
         JurisdictionRegistry,
         ZKBehavioralProof,
@@ -849,6 +864,34 @@ class TestNLFormula:
         for comp in ("ld", "lo", "lc", "ls"):
             info(f"  {comp}", result.get(comp))
         ok("PASS — all four NL components present")
+
+    @pytest.mark.skipif(not _NL_OK, reason="nl_score_engine not importable")
+    def test_nl_canonical_engine_contract(self):
+        sep("§12f — canonical engine (core/extended/natural_liquidity.py) contract")
+        # Real engine of record: NL = LD · LO · LC · LS (whitepaper L7.1).
+        # Simulated AAVE-2026 test vector (synthetic input, not a real event).
+        hostile = _canonical_compute_nl(
+            depth_per_tick=[1000, 50, 20, 10, 5],
+            top5_lp_share=0.92, lp_count=8,
+            baseline_ld_90d=[0.5, 0.6, 0.55, 0.48, 0.52],
+            ld_during_stress=0.05, ld_during_normal=0.55,
+        )
+        healthy = _canonical_compute_nl(
+            depth_per_tick=[100] * 20,
+            top5_lp_share=0.35, lp_count=200,
+            baseline_ld_90d=[0.9] * 10,
+            ld_during_stress=0.85, ld_during_normal=0.9,
+        )
+        for comp in ("nl_score", "ld_score", "lo_score", "lc_score", "ls_score"):
+            assert comp in hostile, f"canonical engine must expose {comp}"
+        assert 0.0 <= hostile["nl_score"] <= 1.0 and 0.0 <= healthy["nl_score"] <= 1.0
+        assert hostile["nl_score"] < NL_ALERT_THRESHOLD_TEST <= 1.0
+        assert hostile["alert"] is True
+        assert hostile["recommendation"] == "DO_NOT_ROUTE"
+        assert healthy["nl_score"] > hostile["nl_score"]
+        info("hostile nl (simulated AAVE vector)", hostile["nl_score"])
+        info("healthy nl", healthy["nl_score"])
+        ok("PASS — canonical NL engine contract verified (product of 4 components)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

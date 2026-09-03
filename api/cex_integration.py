@@ -639,6 +639,8 @@ def cex_feed():
             signal_type = "MANIP_ALERT"
 
         # OE factor — correlation between published signal and behavioral change
+        # DISCLOSURE: this value is hash-seeded from (symbol, 5-minute time bucket) —
+        # a deterministic demo placeholder, NOT a measured observer-effect correlation.
         h = hashlib.sha256(f"{symbol}:{now//300}".encode()).digest()
         oe = round(0.40 + 0.55 * (h[6] / 255.0), 4)
 
@@ -655,6 +657,11 @@ def cex_feed():
             "sec_t":           round(sec_t, 4),
             "akashic_depth":   akashic_depth,
             "oe_factor":       oe,
+            "oe_factor_is_synthetic": True,
+            "oe_factor_synthetic_reason": (
+                "hash-seeded from (symbol, 5-minute bucket) — deterministic demo "
+                "placeholder, not a measured observer-effect correlation"
+            ),
             "emitting":        emitting,
             "silence_reason":  None if emitting else f"C(t)={coherence:.3f} < Θ(t)={theta:.3f}",
             "cex_action": (
@@ -685,6 +692,10 @@ def cex_feed():
             "MANIP_ALERT": "Flag affected pair in risk system. Alert compliance. Consider circuit break.",
         },
         "refresh_interval_seconds": 60,
+        "oe_factor_disclosure": (
+            "Per-signal oe_factor values are synthetic (hash-seeded placeholders); "
+            "coherence/mf/archetype are pulled live from the oracle pipeline."
+        ),
         "timestamp": now,
     })
 

@@ -39,18 +39,29 @@ impl StateCapsuleBuilder {
         }
     }
 
-    /// Convenience builder with minimal parameters
+    /// Convenience builder with minimal parameters.
+    ///
+    /// The anchor `block_hash` MUST be supplied by the caller — it is the
+    /// real hash of `anchor_block` on `anchor_chain` (read from the chain /
+    /// indexer). This method previously fabricated a synthetic hash
+    /// (`H(block_number)`), which misrepresented provenance; that
+    /// fabrication is removed.
+    ///
+    /// NOTE: the staleness CI95 default `(0.0, 0.02)` is a placeholder —
+    /// callers should pass the output of `estimate_staleness` via
+    /// `build_capsule` instead of relying on this convenience default.
     pub fn build(
         &self,
         anchor_chain: ChainId,
         anchor_block: u64,
+        block_hash: H256,
         price: f64,
         balance: u128,
     ) -> BehavioralStateCapsule {
         self.build_capsule(
             anchor_chain,
             anchor_block,
-            H256::sha3(format!("block_{}", anchor_block).as_bytes()),
+            block_hash,
             PricePoint {
                 asset_pair: "DEFAULT".to_string(),
                 price,
@@ -117,10 +128,20 @@ mod tests {
     #[test]
     fn test_simple_build() {
         let builder = StateCapsuleBuilder::new();
-        let capsule = builder.build(1, 18000000, 2000.0, 100_000_000_000_000_000_000u128);
+
+        // Caller supplies the real anchor block hash — none is fabricated.
+        let real_block_hash = H256::sha3(b"real_block_hash_from_chain");
+        let capsule = builder.build(
+            1,
+            18000000,
+            real_block_hash,
+            2000.0,
+            100_000_000_000_000_000_000u128,
+        );
 
         assert_eq!(capsule.anchor_chain, 1);
         assert_eq!(capsule.price_a.price, 2000.0);
+        assert_eq!(capsule.block_hash_a, real_block_hash);
         assert!(capsule.escrow_lock);
     }
 

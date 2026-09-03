@@ -585,6 +585,15 @@ if __name__ == "__main__":
 # ============================================================================
 # NON-EVM CHAIN CONFIGS — All 16 VM families
 # ============================================================================
+# FIX-CLAIMS (chain-ID collision, documented not fixed): the ids below are a
+# THIRD namespace that conflicts with the canonical config/chain_registry.json
+# (single source of truth per P3-CONSOLIDATE; see core/generated_chain_bindings.py):
+#   solana here 200101 vs canonical 900 (svm_indexer/execute.ts also 900;
+#   mainnet_bootstrap.py uses 5773521; api display registry uses 101/900);
+#   cosmos_hub here 200201 vs canonical 10000; aptos 200301 vs canonical 5001.
+# Historical SQLite rows are keyed on these ids, so renumbering would orphan
+# existing data — left for the orchestrator to reconcile. relayer/
+# relayer_non_evm.js is yet a FOURTH ad-hoc scheme (btc=2000, sui=6001...).
 
 NON_EVM_CHAINS: Dict[int, Dict] = {
     # ── VM Family 2: SVM (Solana) ──────────────────────────────────────────

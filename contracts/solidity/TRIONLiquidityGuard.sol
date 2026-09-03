@@ -4,7 +4,9 @@ pragma solidity ^0.8.20;
 /**
  * @title TRIONLiquidityGuard
  * @notice NL-score gated swap router guard.
- *         Blocks execution if NL < 0.30 (reproduces AAVE March 2026 prevention).
+ *         Blocks execution if NL < 0.30 (reproduces the simulated "AAVE March
+ *         2026" scenario — a synthetic test vector from the NL test suite,
+ *         NOT a real historical event).
  *
  * Integration: call checkNL(asset) before any swap/deposit.
  * Returns: (bool safe, uint256 nlScore, string reason)

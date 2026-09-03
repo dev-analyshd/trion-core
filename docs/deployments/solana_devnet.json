@@ -1,12 +1,16 @@
 {
+  "status": "not deployed",
   "network": "solana-devnet",
-  "programId": "4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s",
-  "authority": "3f2qpAkVFfRGrp9h1F6AJyVyvMqoivMrxaD92R4waEmh",
-  "programDataAddress": "CewWubyafghhRNa4CNECPGXyz4zsvRTUUcg2vKEbVTqD",
-  "deployedAt": "2026-09-02T09:05:00Z",
-  "dataLength": 215944,
-  "deploySlot": 491903646,
-  "deployTx": "4HmJwpnaK76e6FKnNVaLA1XgosuL3tLT7DAdTxQkGxwtjzsBwdQhwDW4t4qM4JUeFgfkn3AEKKNix6B7ai1jFYcv",
-  "explorer": "https://explorer.solana.com/address/4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s?cluster=devnet",
-  "owner": "BPFLoaderUpgradeab1e11111111111111111111111"
+  "note": "FIX-CLAIMS: previous entries in this file were fabricated. The programId 4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s matched no declare_id!() in any program source; authority/programDataAddress/deployTx/deploySlot had no on-chain record anywhere in the repo; and deployedAt was future-dated (2026-09-02). All fabricated fields removed.",
+  "programs": {
+    "btcp_escrow": "54r6REJKQ3d2MSV7zYikwiPmck3h7QRaeG44vnRHetWZ",
+    "btcp_intent": "EgPA8JdQBKDF4fAGG1LsG5cqTpPoSXZBVUPoFLP2KJsj",
+    "btcp_route": "9B9Mb8uBB1sHrTvX53B9vP9c96Hb5uENjyPngmK5PBYK"
+  },
+  "program_id_source": "declare_id!() values from contracts/svm/programs/<name>/src/lib.rs. These are source-declared default IDs, NOT evidence of deployment: the repo contains no build artifacts (.so), no keypair files, and no verifiable deploy receipts. btcp_common is a library crate with no program ID.",
+  "known_id_drift": {
+    "anchor_toml": "contracts/svm/Anchor.toml still lists placeholder IDs BTCP1111.../BTCP2222.../BTCP3333... for both localnet and devnet, which disagree with the declare_id!() values above; anchor verification would fail as configured.",
+    "crossvm_tests": "tests/crossvm/run_btcp_crossvm_full.py hardcodes btcp_route = 9B9Mb8uBB1sHrTvX53B9vP9c96Hb5uENjyPngmK5PBYK (matches declare_id!())."
+  },
+  "when_redeploying": "Run contracts/svm/scripts/deploy.sh, capture the real on-chain program IDs, then update declare_id!(), Anchor.toml, and this file together."
 }

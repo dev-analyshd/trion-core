@@ -21,7 +21,11 @@ Knowledge of `(intent_fields[6], nonce, entity_id)` such that — **without reve
 | `intent_hash` | public | `H_intent` stored in `BTCPIntent.sol` |
 | `commitment` | public | `Poseidon(intent_hash, nonce)` submitted on-chain |
 
-## Circuit metrics (compiled with circom 2.1.9)
+## Circuit metrics — SELF-REPORTED (circom 2.1.9), UNVERIFIED
+
+FIX-CLAIMS: the counts below require a local circom build to reproduce; no
+build artifacts (`.r1cs`/`.zkey`/`verifier.sol`) are committed and `node_modules`
+is not vendored, so they are not verifiable from this repo.
 
 - **Constraints:** 642 non-linear (2 × Poseidon: `Poseidon(8)` + `Poseidon(2)`)
 - **Proving scheme:** Groth16 over BN254 (snarkjs) — proof ≈ 128 fields / ~200 bytes on-chain calldata
@@ -49,7 +53,13 @@ npx snarkjs groth16 prove zk_intent_commitment/build/circuit_final.zkey zk_inten
 npx snarkjs groth16 verify zk_intent_commitment/build/verification_key.json zk_intent_commitment/build/public.json zk_intent_commitment/build/proof.json
 ```
 
-Status: the full pipeline above (compile → witness → setup → prove → verify) has been executed end-to-end successfully with `input.example.json` (`snarkjs groth16 verify` → `OK!`).
+Status (FIX-CLAIMS): the claim that the full pipeline above (compile → witness
+→ setup → prove → verify) "has been executed end-to-end successfully" with
+`input.example.json` (`snarkjs groth16 verify` → `OK!`) is **self-reported and
+NOT reproducible from this repo** — no `.r1cs`, `.zkey`, `proof.json`,
+`public.json`, or `verification_key.json` artifacts are committed, and
+`node_modules` (circomlib/snarkjs) is not vendored. Reproduce locally with
+`npm install && npm run compile:intent` followed by the commands above.
 
 ## verifier.sol template note
 

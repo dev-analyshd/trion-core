@@ -31,8 +31,9 @@ then Security → Correctness → Completeness → Consolidation → Verificatio
 - **TRIONGuardV3**: 24h bypass was re-armable (~96% firewall-off time) — capped
   at 3 lifetime re-arms (fail-closed exhaustion).
 - **NL score engine verified spec-exact** (whitepaper L7.1): LD entropy, LO
-  sybil ratio, LC Pearson-vs-baseline, LS stress ratio; March 12 2026 AAVE
-  scenario NL=0.000 < 0.30 → alert fires (matrix #13 PASS).
+  sybil ratio, LC Pearson-vs-baseline, LS stress ratio; simulated March 12 2026
+  AAVE scenario (synthetic test vector, not a real event) NL=0.000 < 0.30 →
+  alert fires (matrix #13 PASS).
 - **Schema audit**: all 7 spec-required BTCP tables present (33 total) with FK
   constraints; sqlglot-validated (86 statements; DO-blocks structurally balanced).
 
