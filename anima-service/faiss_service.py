@@ -97,7 +97,7 @@ def _db_write_with_retry(fn, max_retries: int = 8):
             return None   # Non-fatal: drop the write, keep service alive
     return None
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
@@ -344,6 +344,41 @@ _mag_max_90d: float = 1.0                        # initialised to 1.0 to avoid l
 # history that survives restarts and supports complex time-series queries.
 _TSDB_URL: Optional[str] = os.environ.get("TIMESCALEDB_URL") or os.environ.get("DATABASE_URL")
 _tsdb_ready: bool = False
+
+# P0 fix: async pool for async signal-history queries. Previously `_ts_pool`
+# was referenced in signal_history_v2() but never defined → NameError on every
+# call. Created lazily from TIMESCALEDB_URL; stays None (endpoint degrades to
+# the honest "TimescaleDB not available" response) when unset or unreachable.
+_ts_pool: Optional[Any] = None
+_ts_pool_init_failed: bool = False
+
+
+async def _get_ts_pool():
+    """Lazily create the asyncpg pool used by /api/v1/signal/{id}/history.
+
+    Returns the pool, or None when TimescaleDB is not configured/available
+    (the caller then degrades gracefully). Failure is cached so we do not
+    retry a dead DSN on every request.
+    """
+    global _ts_pool, _ts_pool_init_failed
+    if _ts_pool is not None:
+        return _ts_pool
+    if _ts_pool_init_failed or not _TSDB_URL:
+        return None
+    try:
+        import asyncpg  # optional dependency (pyproject: asyncpg>=0.31)
+        url = _TSDB_URL
+        if url.startswith("postgres://"):  # asyncpg wants postgresql://
+            url = url.replace("postgres://", "postgresql://", 1)
+        _ts_pool = await asyncpg.create_pool(
+            url, min_size=1, max_size=4, command_timeout=10
+        )
+        logger.info("[TimescaleDB] asyncpg pool created for signal history queries")
+    except Exception as e:
+        logger.warning("[TimescaleDB] asyncpg pool unavailable: %s", e)
+        _ts_pool_init_failed = True
+        _ts_pool = None
+    return _ts_pool
 
 # ── L0.2 BEO confidence scoring state ───────────────────────────────────────────
 # Whitepaper L0.2: BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP + w_GX·GX) / Σw
@@ -4372,11 +4407,17 @@ def get_reflexivity(entity_id: str):
 
 
 @app.post("/api/v1/anima/reflexivity/{entity_id}/publish")
-def record_signal_publication(entity_id: str, anima_score: float, phi_before: float):
+def anima_record_signal_publication(entity_id: str, anima_score: float, phi_before: float):
     """
     L3.5 — Record that an ANIMA signal was published for this entity.
     Called by oracle/relayer on each signal publication.
     phi_before = entity Φ(t) at time of publication.
+
+    NOTE: deliberately NOT named `record_signal_publication` — that name is
+    the L3.2 Observer-Effect tracker defined above; a same-named route here
+    previously shadowed it and silently broke OE tracking (the
+    /observer_effect/{id}/record_publication route was calling THIS function
+    with mismatched positional args).
     """
     _anima.record_signal_publication(entity_id, anima_score, phi_before)
     return {"status": "ok", "entity_id": entity_id, "anima_score": anima_score}
@@ -10288,8 +10329,9 @@ async def genesis_endpoint(asset_id: str):
 async def signal_history_v2(entity_id: str, limit: int = 100):
     """Historical signals — from TimescaleDB if available."""
     try:
-        if _ts_pool:
-            async with _ts_pool.acquire() as conn:
+        pool = await _get_ts_pool()
+        if pool:
+            async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     """SELECT signal_value, coherence, threshold, mf_score,
                               signal_type, timestamp

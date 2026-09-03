@@ -690,7 +690,14 @@ export async function verifyCoherenceWasm(
     const wasm = await loadWasmProcessor();
     const computeFn = wasm.exports.compute_coherence as (
         p: number, m: number, s: number, k: number, a: number
-    ) => number;
+    ) => number | undefined;
+
+    if (typeof computeFn !== "function") {
+        throw new Error(
+            "signal_processor.wasm does not export compute_coherence — " +
+            "rebuild the module from signal_processor.wat (see sdk/src/wasm/)."
+        );
+    }
 
     const computed = computeFn(phi, mental, sigma, conscious, anima);
     const valid = Math.abs(computed - expectedCoherence) <= tolerance;
@@ -700,17 +707,37 @@ export async function verifyCoherenceWasm(
 /**
  * Compute Shannon entropy of a value distribution using WASM.
  * Faster than pure JS for large datasets.
+ *
+ * H = -Σ p·log2(p), p = v_i / Σv (positive values only) — mirrors
+ * core/physical/phi_engine.py shannon_entropy().
  */
 export async function computeEntropyWasm(values: Float64Array): Promise<number> {
     const wasm = await loadWasmProcessor();
-    const mem = (wasm.exports.memory as WebAssembly.Memory).buffer;
+    const mem = wasm.exports.memory as WebAssembly.Memory | undefined;
+    const entropyFn = wasm.exports.shannon_entropy as
+        ((ptr: number, len: number) => number) | undefined;
 
-    // Copy values into WASM memory
+    if (typeof entropyFn !== "function" || !(mem instanceof WebAssembly.Memory)) {
+        throw new Error(
+            "signal_processor.wasm does not export shannon_entropy/memory — " +
+            "rebuild the module from signal_processor.wat (see sdk/src/wasm/)."
+        );
+    }
+
+    if (values.length === 0) return 0;
+
+    // Copy values into WASM memory (offset 0, 8 bytes per f64).
+    // The module declares one 64 KiB page — guard against overflow.
+    const maxValues = mem.buffer.byteLength / 8;
+    if (values.length > maxValues) {
+        throw new Error(
+            `values.length ${values.length} exceeds wasm memory capacity ${maxValues}`
+        );
+    }
     const offset = 0;
-    const view = new Float64Array(mem, offset, values.length);
+    const view = new Float64Array(mem.buffer, offset, values.length);
     view.set(values);
 
-    const entropyFn = wasm.exports.shannon_entropy as (ptr: number, len: number) => number;
     return entropyFn(offset, values.length);
 }
 

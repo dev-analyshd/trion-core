@@ -62,7 +62,12 @@ impl EscrowMonitor {
         }
     }
 
-    /// Create a new escrow record
+    /// Create a new escrow record.
+    ///
+    /// `created_block` MUST be the chain height at which the escrow was
+    /// locked (observed from the chain, not a default). The previous
+    /// version hardcoded 0, which made every escrow instantly "timed out"
+    /// at real chain heights (millions) — a P0 correctness bug.
     pub fn create_escrow(
         &mut self,
         escrow_id: H256,
@@ -70,6 +75,7 @@ impl EscrowMonitor {
         amount: u128,
         chain_id: ChainId,
         timeout_blocks: u64,
+        created_block: u64,
     ) -> Escrow {
         let now = current_timestamp();
         let escrow = Escrow {
@@ -79,7 +85,7 @@ impl EscrowMonitor {
             chain_id,
             counterparty: None,
             timeout_blocks,
-            created_block: 0,
+            created_block,
             state: EscrowState::Holding,
             created_at: now,
             akashic_recovery_seconds: AKASHIC_RECOVERY_SECONDS,
@@ -225,6 +231,7 @@ mod tests {
             1_000_000_000_000_000_000u128,
             chain,
             100,
+            0, // test chain height baseline (explicitly passed)
         );
         id
     }
@@ -271,6 +278,30 @@ mod tests {
 
         // Timed out
         assert!(monitor.is_timed_out(&id, 150));
+    }
+
+    #[test]
+    fn test_created_block_from_real_chain_height() {
+        // Regression: created_block used to be hardcoded 0, so escrows
+        // locked at real chain heights (e.g. Arbitrum ~200M) were instantly
+        // "timed out". Timeout math must anchor to the observed height.
+        let mut monitor = EscrowMonitor::new();
+        let id = H256::sha3(b"escrow_real_height");
+        monitor.create_escrow(
+            id,
+            H256::sha3(b"entity"),
+            1_500_000_000_000_000_000u128,
+            42161,
+            100,       // 100-block timeout
+            200_000_000, // locked at Arbitrum height 200M
+        );
+
+        // Just after locking — NOT timed out
+        assert!(!monitor.is_timed_out(&id, 200_000_050));
+        // After timeout window — timed out
+        assert!(monitor.is_timed_out(&id, 200_000_101));
+        // process_timeouts at the lock height must revert nothing
+        assert!(monitor.process_timeouts(200_000_050).is_empty());
     }
 
     #[test]

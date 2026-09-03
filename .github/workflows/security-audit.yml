@@ -10,11 +10,9 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r api/requirements.txt || true
+          pip install -r api/requirements.txt
           pip install numpy scipy scikit-learn flask flask-cors web3 requests
       - name: Run attack simulator
         run: python3 scripts/simulate_attacks.py
-        continue-on-error: true
       - name: Run cross-language vector test
         run: python3 tests/unit/bh_cross_language_vector.py
-        continue-on-error: true

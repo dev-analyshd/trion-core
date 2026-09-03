@@ -81,10 +81,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: pip install requests numpy flask flask-sqlalchemy faiss-cpu scikit-learn
-        continue-on-error: true
       - name: Run stress test
         run: python3 scripts/stress_test.py --ci
-        continue-on-error: true
 
   deploy:
     name: Deploy — Trigger Production Deploy
@@ -92,6 +90,11 @@ jobs:
     needs: [test-python, compile-solidity]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      # Tolerated failure: the Render deploy hook is a POST to a secret URL.
+      # Forks and PRs from contributors without the secret legitimately
+      # cannot trigger deploys — this step is a notification, not a test.
+      # Everything that GATES quality (test-python, compile-solidity,
+      # compile-rust, stress-test) runs strict above.
       - name: Trigger Render deploy webhook
         run: |
           HTTP_STATUS=$(curl -s -o /tmp/render_response.txt -w "%{http_code}" \

@@ -166,4 +166,133 @@
     (i32.and
       (i32.ge_s (local.get $type_id) (i32.const 19))
       (i32.le_s (local.get $type_id) (i32.const 23))))
+
+  ;; ── SDK P0 fix: coherence verification + entropy (TrionSDK.ts depends on these) ──
+
+  ;; log2(x) for x > 0 — implemented without the f64.log2 opcode so the
+  ;; module builds with every wat2wasm (incl. wabt/wasmtime builds that
+  ;; reject transcendental opcodes in text form).
+  ;; Method: normalize x = m·2^e with m ∈ [0.5,1), then
+  ;;   log2(m) = (2/ln2)·artanh(y), y = (m-1)/(m+1), y ∈ [-1/3, 0)
+  ;;   artanh(y) = Σ_{k=0}^{13} y^(2k+1)/(2k+1)
+  ;; 14 terms bound the remainder by ~|y|^29/29 ≈ 1e-15 for |y| ≤ 1/3.
+  (func $log2 (param $x f64) (result f64)
+    (local $m f64) (local $e i32) (local $y f64)
+    (local $term f64) (local $sum f64) (local $k i32)
+    (local $y2 f64)
+    (local.set $m (local.get $x))
+    ;; normalize m into [0.5, 1)
+    (loop $norm_lo
+      (if (f64.lt (local.get $m) (f64.const 0.5))
+        (then
+          (local.set $m (f64.mul (local.get $m) (f64.const 2.0)))
+          (local.set $e (i32.sub (local.get $e) (i32.const 1)))
+          (br $norm_lo))))
+    (loop $norm_hi
+      (if (f64.ge (local.get $m) (f64.const 1.0))
+        (then
+          (local.set $m (f64.div (local.get $m) (f64.const 2.0)))
+          (local.set $e (i32.add (local.get $e) (i32.const 1)))
+          (br $norm_hi))))
+    ;; y = (m-1)/(m+1)
+    (local.set $y
+      (f64.div
+        (f64.sub (local.get $m) (f64.const 1.0))
+        (f64.add (local.get $m) (f64.const 1.0))))
+    (local.set $y2 (f64.mul (local.get $y) (local.get $y)))
+    ;; series: sum = Σ y^(2k+1)/(2k+1), k = 0..13
+    (local.set $term (local.get $y))
+    (local.set $k (i32.const 0))
+    (loop $series
+      (if (i32.lt_s (local.get $k) (i32.const 14))
+        (then
+          (local.set $sum
+            (f64.add (local.get $sum)
+              (f64.div (local.get $term)
+                (f64.convert_i32_s
+                  (i32.add (i32.mul (local.get $k) (i32.const 2)) (i32.const 1))))))
+          (local.set $term (f64.mul (local.get $term) (local.get $y2)))
+          (local.set $k (i32.add (local.get $k) (i32.const 1)))
+          (br $series))))
+    ;; log2(x) = 2.885390081777927 · sum + e
+    (f64.add
+      (f64.mul (f64.const 2.885390081777927) (local.get $sum))
+      (f64.convert_i32_s (local.get $e))))
+
+  ;; compute_coherence(phi, mental, sigma, conscious, anima) → f64
+  ;; C(t) = 0.25·Φ + 0.30·M + 0.25·Σ + 0.10·K + 0.10·A   (DEFAULT_BALANCED profile)
+  ;; Matches core/master/coherence.py (canonical five-plane weighted sum),
+  ;; clamped to [0, 1]. Used by TrionSDK.verifyCoherenceWasm() for
+  ;; client-side tamper detection of server-reported coherence.
+  (func $compute_coherence (export "compute_coherence")
+      (param $phi f64) (param $mental f64) (param $sigma f64)
+      (param $conscious f64) (param $anima f64)
+      (result f64)
+    (local $c f64)
+    (local.set $c
+      (f64.add
+        (f64.add
+          (f64.add
+            (f64.mul (f64.const 0.25) (local.get $phi))
+            (f64.mul (f64.const 0.30) (local.get $mental)))
+          (f64.add
+            (f64.mul (f64.const 0.25) (local.get $sigma))
+            (f64.mul (f64.const 0.10) (local.get $conscious))))
+        (f64.mul (f64.const 0.10) (local.get $anima))))
+    ;; clamp to [0, 1]
+    (f64.min (f64.const 1.0)
+      (f64.max (f64.const 0.0) (local.get $c))))
+
+  ;; shannon_entropy(ptr: i32, len: i32) → f64
+  ;; H = -Σ p·log2(p) where p = v_i / Σv (positive values only).
+  ;; Mirrors core/physical/phi_engine.py shannon_entropy(). Values are read
+  ;; from linear memory as f64 at 8-byte stride starting at `ptr`.
+  (func $shannon_entropy (export "shannon_entropy") (param $ptr i32) (param $len i32) (result f64)
+    (local $i i32)
+    (local $total f64)
+    (local $h f64)
+    (local $v f64)
+    (local $p f64)
+    ;; Pass 1: total = Σ (v > 0)
+    (local.set $i (i32.const 0))
+    (loop $sum_loop
+      (if (i32.lt_u (local.get $i) (local.get $len))
+        (then
+          (local.set $v
+            (f64.load
+              (i32.add
+                (local.get $ptr)
+                (i32.mul (local.get $i) (i32.const 8)))))
+          (if (f64.gt (local.get $v) (f64.const 0.0))
+            (then
+              (local.set $total (f64.add (local.get $total) (local.get $v)))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $sum_loop))))
+    ;; guard: empty or all-zero input → 0.0
+    (if (f64.le (local.get $total) (f64.const 0.0))
+      (then (return (f64.const 0.0))))
+    ;; Pass 2: H = -Σ p·log2(p)
+    (local.set $i (i32.const 0))
+    (loop $ent_loop
+      (if (i32.lt_u (local.get $i) (local.get $len))
+        (then
+          (local.set $v
+            (f64.load
+              (i32.add
+                (local.get $ptr)
+                (i32.mul (local.get $i) (i32.const 8)))))
+          (if (f64.gt (local.get $v) (f64.const 0.0))
+            (then
+              (local.set $p (f64.div (local.get $v) (local.get $total)))
+              (local.set $h
+                (f64.add (local.get $h)
+                  (f64.mul (local.get $p) (call $log2 (local.get $p)))))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $ent_loop))))
+    ;; negate: H = -H (H accumulated as Σ p·log2(p) ≤ 0)
+    (f64.neg (local.get $h)))
+
+  ;; Export linear memory so the SDK can write input arrays for
+  ;; shannon_entropy and read back results.
+  (export "memory" (memory 0))
 )

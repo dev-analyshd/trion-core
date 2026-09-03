@@ -31,6 +31,15 @@ import os
 import json
 import time
 
+# ── TimescaleDB store (P0 fix: was referenced but never imported) ─────────────
+# core/akashic/timescale_store.py provides get_timescale_store(); it degrades
+# gracefully to None when psycopg2 is not installed or TIMESCALEDB_URL is unset.
+try:
+    from core.akashic.timescale_store import get_timescale_store, PSYCOPG2_OK as TIMESCALE_AVAILABLE
+except ImportError:
+    get_timescale_store = None
+    TIMESCALE_AVAILABLE = False
+
 dashboard_bp = Blueprint("dashboard_bp", __name__, url_prefix="/app")
 
 def _redirect_to_react():

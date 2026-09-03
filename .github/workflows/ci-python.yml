@@ -11,7 +11,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pytest numpy scipy scikit-learn flask flask-cors requests web3
-          pip install -r api/requirements.txt -r anima-service/requirements.txt || true
+          pip install -r api/requirements.txt -r anima-service/requirements.txt
       - name: Run unit tests
-        run: python -m pytest tests/unit/ -q --tb=short -x || true
-        continue-on-error: true
+        run: python -m pytest tests/unit/ -q --tb=short -x

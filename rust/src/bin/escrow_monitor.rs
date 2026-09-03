@@ -18,13 +18,15 @@ fn main() {
     let escrow_a_id = H256::sha3(b"escrow_arbitrum");
     let escrow_b_id = H256::sha3(b"escrow_solana");
 
-    // Create escrows on both chains
+    // Create escrows on both chains (created_block = observed chain height;
+    // timeouts are anchored to the real lock height, not block 0)
     let escrow_a = monitor.create_escrow(
         escrow_a_id,
         entity_a,
         1_500_000_000_000_000_000u128, // 1.5 ETH
         42161, // Arbitrum
-        100,   // timeout blocks
+        100,       // timeout blocks
+        200_000_000, // locked at observed Arbitrum height
     );
 
     let escrow_b = monitor.create_escrow(
@@ -33,6 +35,7 @@ fn main() {
         5_000_000_000u128, // 5 SOL lamports equivalent
         900, // Solana
         100, // timeout blocks
+        300_000_000, // locked at observed Solana slot
     );
 
     // Link escrows to route
@@ -44,9 +47,9 @@ fn main() {
     println!("  Chain B (Solana):   {} — {} units — {:?}",
         escrow_b.chain_id, escrow_b.amount, escrow_b.state);
 
-    // Process timeouts (should be none yet)
-    let reverted = monitor.process_timeouts(50);
-    println!("\nTimeouts at block 50: {}", reverted.len());
+    // Process timeouts (should be none — checked just after lock height)
+    let reverted = monitor.process_timeouts(200_000_050);
+    println!("\nTimeouts at block 200_000_050: {}", reverted.len());
 
     // Demonstrate atomic release
     println!("\nExecuting atomic dual-chain release...");
