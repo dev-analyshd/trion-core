@@ -288,7 +288,7 @@ Each new chain at step N instantly establishes BTCP capability with **all N-1 pr
 
 ---
 
-## Proven Results — Independent Verification
+## Reported Results — Backtest & Verification Status
 
 ### Historical Backtest
 
@@ -303,7 +303,7 @@ Each new chain at step N instantly establishes BTCP capability with **all N-1 pr
 |--------|--------|-------|
 | Exploits tested | 30 real-world incidents | Ronin, Poly Network, Wormhole, Euler, etc. |
 | Cumulative value at risk | $3.315 billion | |
-| True positives (attackers caught) | 30 / 30 | 100% recall |
+| True positives (attackers caught) | 30 / 30 | 100% recall — degenerate flag-everything run (see FPR=1.0 below) |
 | False positives (legitimates flagged) | 10 / 10 | **FPR=1.0 — threshold too low** |
 | True negatives | 0 / 10 | No legitimate entity passed — needs recalibration |
 | F1 Score | 85.71% | Inflated by FPR=1.0 — not a valid generalization metric |
@@ -335,10 +335,10 @@ Successfully demonstrated across fundamentally different virtual machine familie
 | **BEO Cross-VM Identity** | 5/5 PASS | 6 different VMs → byte-for-byte identical beo_id |
 | **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
-| **Master Formula Suite** | 105/105 PASS | Every whitepaper formula verified against its implementation (L0–L9) |
-| **Rust BTCP Crate** | 94/94 PASS | All 19 spec modules; full 7-route-type selection; netting tolerance |
+| **Master Formula Suite** | 104/105 (bare env) | PQC check requires optional crypto libs — 105/105 only with them (audit finding); every other whitepaper formula verified against its implementation (L0–L9) |
+| **Rust BTCP Crate** | 117 `#[test]` fns — not compiled here (as of 2026-09-03) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
 | **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
-| **Python Unit + Adversarial** | 671 pass | Unit, adversarial, manipulation, stress — live-service tests auto-skip |
+| **Python Unit + Adversarial** | 571 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
 
 ---
 
@@ -350,7 +350,7 @@ TRION does not merely operate. It **accumulates strength.** Every block processe
 |-----------|---------------------|---------------------------|
 | **Akashic Depth** | Non-decreasing integral of behavioral history. The past cannot be manufactured. | Entities with established history have a provenance advantage no new entrant can replicate. |
 | **Vector Index Learning** | More behavioral vectors = tighter archetype clusters = superior anomaly detection. | Forgery difficulty grows exponentially with index size. |
-| **Immune Memory** | Permanent learning of attack patterns. Each attack closes a vulnerability forever. | Attack surface shrinks geometrically over time. |
+| **Immune Memory** | Persistent signature library (SQLite-backed): observed attack signatures are stored and matched by ASCII byte-pattern in later scans. | Known-signature coverage grows with library size — no claim of "closing" vulnerabilities (see audit note above). |
 | **Bayesian Calibration** | Archetype confidence converges toward certainty with each settlement. | Signal accuracy asymptotically approaches theoretical limits. |
 | **Identity Network Effects** | More entities with verified BEOs = higher value of participation for all. | Switching costs compound with behavioral depth. |
 | **BTCP Liquidity Network** | More chains participating = deeper liquidity across the zero-bridge network. | Cross-chain exchange becomes cheaper and more efficient as the network grows. |
@@ -643,14 +643,16 @@ TRION's security is **biological in conception, mathematical in implementation.*
 |-----------|----------|
 | **Genomic Key Evolution** | Credentials rotate with behavior; theft is self-invalidating |
 | **Complementary Strand** | Any modification to the sense strand breaks the HashDNA invariant |
-| **Immune System** | Innate (CRISPR signature matching) + Adaptive (novel pattern characterization) + Memory (permanent) |
+| **Immune System** | Innate (byte-pattern anomaly memory) + Adaptive (novel pattern characterization) + Memory (persistent signature library — see CRISPR note below) |
 | **Epigenetic Layer** | System phenotype shifts under threat: NORMAL → ELEVATED → DEFENSIVE → LOCKDOWN |
 | **Genetic Recombination** | Daily re-derivation from full history renders pre-recombination attack vectors obsolete |
 | **Cryptographic Noise** | Decoy signals scale 2.5× under probing; noise pattern is itself authentication |
 | **Mitochondrial Core** | Independent integrity DNA continuously self-authenticates the protocol |
-| **CRISPR Defense** | Surgical excision of known attack patterns, not merely detection |
+| **CRISPR Defense** | Byte-pattern anomaly memory (ASCII signature matching — not behavioral-vector distance) |
 
 The system does not rely on a single security barrier. It is a **living defense-in-depth architecture** where each component compensates for potential weaknesses in others.
+
+> **Audit note on the immune layer (per docs/deep-read/FINDINGS.md):** CRISPR defense matches known ASCII attack-signature strings by substring search against transaction bytes — a byte-pattern anomaly memory, not behavioral-vector distance matching; it does not "excise" anything, and the shipped library includes simulated future-dated entries.
 
 ---
 
@@ -803,7 +805,7 @@ Per the **BTCP Master Implementation Spec**, the BTCP core is implemented in **R
 ```bash
 cd rust
 cargo build --release
-cargo test --release    # 85 tests, all passing
+cargo test --release    # 117 #[test] functions in rust/src (grep count as of 2026-09-03; not compiled in this environment — run to verify)
 ```
 
 **Run Binaries:**
@@ -886,10 +888,13 @@ are atomic, tested, and preserve working behavior:
 ### Verification Status
 | Suite | Result |
 |-------|--------|
-| Master formula verification (105 formulas) | 105/105 PASS |
-| Rust BTCP crate | 94/94 PASS |
+| Master formula verification (105 formulas) | 104/105 in a bare environment (PQC check needs optional crypto libs; audit finding) |
+| Rust BTCP crate | 117 `#[test]` fns — not compiled here (as of 2026-09-03) |
 | ZK circuit self-tests | 6/6 PASS |
-| Python unit + adversarial | 671 passed, 5 skipped, 0 failed |
+| Python unit + adversarial | 571 unit passed (5 skipped) + 121 adversarial passed (pytest, as of 2026-09-03) |
+| Python integration | 186 passing in the Stage-2 battery; a fresh-sandbox re-run on 2026-09-03 gave 185 passed, 21 skipped, 1 network-timing failure, 1 service-dependent error (208 collected) |
+| Hardhat (TRIONExecutionGate) | 43 tests (hardhat/test) |
+| Golden test (BEO/BH pipeline) | PASS (30/30) |
 | Indexer workspace compile | 21/21 crates clean |
 | Solidity compile (solc 0.8.24, viaIR) | all hardened contracts clean |
 | Frontend TypeScript | tsc --noEmit clean |
@@ -911,25 +916,25 @@ The mathematics is proven. The code is working. The BTCP Zero-Bridge operates ac
 
 ---
 
-## BTCP Zero-Bridge — Live On-Chain Proofs
+## BTCP Zero-Bridge — On-Chain Proofs (self-reported deployment records)
 
-The BTCP Zero-Bridge has been deployed and tested across **5 blockchain networks** with **16 contracts** on public testnets. All transactions are verifiable on public explorers.
+The BTCP Zero-Bridge was reportedly deployed and tested across **5 blockchain networks** with **16 contracts** on public testnets. **Deployment records in this repo are self-reported and not independently verified** — the Solana devnet record was fabricated and purged (see `docs/deployments/`); the only Sepolia address backed by spec + relayer tooling is the Arbitrum TRIONOracleV3 oracle (`0xb819c63c…58b3`).
 
 ### Deployments Summary
 
 | Network | Contracts | Status |
 |---|---|---|
-| **Starknet Sepolia** | 7 (TRIONOracle, BEOAttestation, BTCFiGuard, BTCPIntent, BTCPRoute, BTCPEscrow, LiquidityOcean) | ✅ All verified on-chain (14/14 state reads) |
-| **EVM Base Sepolia** | 4 (BTCPEscrow, BTCPIntent, BTCPRoute, LiquidityOcean) | ✅ Deployed |
-| **EVM Arbitrum Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
-| **EVM OP Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
-| **EVM ETH Sepolia** | 1 (BTCPEscrow) | ✅ Deployed |
-| **NEAR testnet** | 1 (BTCPContract on trion.testnet) | ✅ Deployed |
-| **Solana devnet** | 1 (Native BTCP Escrow program) | ✅ Verified on-chain |
+| **Starknet Sepolia** | 7 (TRIONOracle, BEOAttestation, BTCFiGuard, BTCPIntent, BTCPRoute, BTCPEscrow, LiquidityOcean) | Self-reported — starknet_sepolia.json (state reads not reproducible from this repo) |
+| **EVM Base Sepolia** | 4 (BTCPEscrow, BTCPIntent, BTCPRoute, LiquidityOcean) | Self-reported — evm_sepolia.json (conflicting addresses in proof-ledger/) |
+| **EVM Arbitrum Sepolia** | 1 (BTCPEscrow) | Self-reported — evm_sepolia.json (conflicting addresses in proof-ledger/) |
+| **EVM OP Sepolia** | 1 (BTCPEscrow) | Self-reported — evm_sepolia.json (conflicting addresses in proof-ledger/) |
+| **EVM ETH Sepolia** | 1 (BTCPEscrow) | Self-reported — evm_sepolia.json (conflicting addresses in proof-ledger/) |
+| **NEAR testnet** | 1 (BTCPContract on trion.testnet) | Self-reported — near_testnet.json (deploy-script target only) |
+| **Solana devnet** | 1 (Native BTCP Escrow program) | ❌ Not deployed — fabricated record purged (solana_devnet.json) |
 
 ### Key Results
 
-- **BEO Cross-VM Identity:** 8 VMs (Starknet, EVM×4, NEAR, Solana, TON) all produce the **identical BEO ID** for the same entity — substrate independence PROVEN.
+- **BEO Cross-VM Identity:** 8 VMs (Starknet, EVM×4, NEAR, Solana, TON) all produce the **identical BEO ID** for the same entity — substrate independence demonstrated in the recorded test reports (self-reported; the cross-VM evidence scripts in this repo cannot be re-run end-to-end — see docs/deep-read/FINDINGS.md).
 - **BTCP Score:** `0.8274` (≥ 0.50 threshold → ROUTE APPROVED)
 - **Bidirectional Zero-Bridge Test:** 9/9 phases passed (Starknet ↔ EVM ↔ NEAR ↔ Solana ↔ TON)
 - **Zero-Bridge Invariant:** `assets_bridged = false` — **no assets ever left their native chains**
@@ -950,7 +955,7 @@ The BTCP Zero-Bridge has been deployed and tested across **5 blockchain networks
 
 | Network | Address / Program ID | Explorer |
 |---|---|---|
-| Solana devnet | `4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s` | [explorer](https://explorer.solana.com/address/4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s?cluster=devnet) |
+| Solana devnet | `54r6REJKQ3d2MSV7zYikwiPmck3h7QRaeG44vnRHetWZ` — btcp_escrow `declare_id!`, source-declared; **not deployed on-chain** (the ID previously listed here was fabricated — see [solana_devnet.json](./docs/deployments/solana_devnet.json)) | — |
 | NEAR testnet | `trion.testnet` | [nearblocks](https://testnet.nearblocks.io/address/trion.testnet) |
 | ETH Sepolia BTCPEscrow | `0xa1e1C9eEd94290757Bc08876EbCC30E1e39B9b82` | [etherscan](https://sepolia.etherscan.io/address/0xa1e1C9eEd94290757Bc08876EbCC30E1e39B9b82) |
 | Base Sepolia BTCPEscrow | `0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e` | [basescan](https://sepolia.basescan.org/address/0x8b38D55ea5BC978D2818DDfAfedfb0F26423bC0e) |
@@ -974,5 +979,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families, 94 BTCP tests passing*  
+*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families — test counts as of 2026-09-03: pytest 571 unit + 121 adversarial + 186 integration; 117 Rust `#[test]` (not compiled here); hardhat 43*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  

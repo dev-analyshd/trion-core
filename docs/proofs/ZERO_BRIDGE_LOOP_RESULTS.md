@@ -65,7 +65,7 @@
 | VM | Contract | Address/ID |
 |---|---|---|
 | **NEAR testnet** | BTCPContract | `trion.testnet` (code hash: `9KiJfBmB71AXmgS6desdbHuAy4KnEwwxxY2hkDErae2M`) |
-| **Solana devnet** | BTCP Escrow (native BPF) | `4TseNzK1Wm7CTNKvg6ciBRp4HzKyZfwxpoNG5Rg3WU3s` |
+| **Solana devnet** | BTCP Escrow (native BPF) | `54r6REJKQ3d2MSV7zYikwiPmck3h7QRaeG44vnRHetWZ` (btcp_escrow `declare_id!()` — **not deployed on-chain**; the ID previously listed here was fabricated, see docs/deployments/solana_devnet.json) |
 | **TON testnet** | BEO identity computed | (chainId 1100) |
 
 ---
@@ -159,7 +159,7 @@ BEO(SOLANA)      = 0x4bb0410b8a1239364a4e7b38f98b837cdfe9b30fb32336d06bb698e4f58
 BEO(TON)         = 0x4bb0410b8a1239364a4e7b38f98b837cdfe9b30fb32336d06bb698e4f589d16a
 ```
 
-**Substrate independence PROVEN** — the same entity is recognized across all chains without any bridge.
+**Substrate independence demonstrated** (recorded test report — self-reported; the cross-VM evidence scripts in this repo cannot be re-run end-to-end, see docs/deep-read/FINDINGS.md) — the same entity is recognized across all chains without any bridge.
 
 ---
 

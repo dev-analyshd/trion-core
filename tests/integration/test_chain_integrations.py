@@ -34,7 +34,11 @@ import pytest
 # ─── helpers ────────────────────────────────────────────────────────────────
 
 LIVE = os.environ.get("LIVE", "") not in ("", "0", "false")
-ROOT = Path(__file__).parent.parent
+# Repo root: this file lives at <repo>/tests/integration/ — THREE levels up.
+# (Was parent.parent = tests/, which resolved every ROOT-relative indexer
+# path — chains/svm/svm_indexer.py, indexers/crates/*, supervisors/* —
+# under tests/ and failed with FileNotFoundError. Found by FIX-CLAIMS.)
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 def _fake_evm_response(chain_id: int) -> dict:
     return {"jsonrpc": "2.0", "id": 1, "result": hex(chain_id)}
@@ -609,7 +613,11 @@ INDEXER_FILES = [
     ("supervisors/evm_extras_indexers.sh",               "EVM extras supervisor"),
     ("supervisors/native_vm_indexers.sh",                "Native VM supervisor"),
     ("relayer/relayer.js",                               "EVM relayer — multi-chain"),
-    ("native-relayer/native_relayer.js",                 "Native VM relayer"),
+    # Stale path fixed with the ROOT bug: the native VM relayer lives at
+    # relayer/relayer_non_evm.js — "native-relayer/native_relayer.js" never
+    # existed in the repo (previously masked by the FileNotFoundError from
+    # the wrong ROOT).
+    ("relayer/relayer_non_evm.js",                       "Native VM (non-EVM) relayer"),
 ]
 
 @pytest.mark.parametrize("rel_path,description", INDEXER_FILES)

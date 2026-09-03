@@ -5,17 +5,29 @@
  */
 
 export type SignalType =
-  | "VALUATION" | "SILENCE" | "MANIPULATION_ALERT"
-  | "GENESIS" | "RESURRECTION" | "FORK_DIVERGENCE"
-  | "TRAJECTORY" | "NEGATIVE_SPACE" | "PHASE_TRANSITION"
-  | "SYSTEMIC_RISK" | "LIQUIDITY_HEALTH" | "GOVERNANCE_SIGNAL"
-  | "CROSS_CHAIN_COHERENCE" | "STABLECOIN_HEALTH" | "MEV_EXPOSURE"
-  | "INSTITUTIONAL_BHV" | "REGULATORY_BHV" | "ECOSYSTEM_HEALTH"
-  | "BOOTSTRAP"
-  // ── BTCP signal type (canonical 19, whitepaper §11) ────────────────────────
-  // SECURITY FIX (P1, verification matrix #19): BTCP_ROUTE was missing here
-  // (present in sdk/TrionSDK.ts, sdk/src/index.ts and core SignalType = 22).
-  | "BTCP_ROUTE";
+    | 'VALUATION'
+    | 'SILENCE'
+    | 'GENESIS'
+    | 'BOOTSTRAP'
+    | 'MANIPULATION_ALERT'
+    | 'TEMPORAL_ANOMALY'
+    | 'UNKNOWN'
+    // ── BTCP Signal Types (April 2026) ────────────────────────────────────────
+    | 'BTCP_ROUTE'              // BTCP route selected + executed (anchor_BH → exec_BH)
+    | 'BEHAVIORAL_TRUTH'        // TRION truth signal consensus proof emitted
+    | 'SHADOW_CHAIN'            // OOA shadow observation: non-integrated chain data
+    | 'LIQUIDITY_OCEAN'         // Cross-chain NL aggregation signal
+    | 'CONSENSUS_ADAPTATION'    // C(t) threshold adaptation event
+    | 'CHAIN_RELIABILITY'       // Per-chain reliability score update
+    | 'BTCP_ESCROW_EVENT'       // BTCP_ESCROW lock / release / revert event
+    | 'BTCP_TIMEOUT'            // BTCP route timeout — escrow reverted
+    | 'GENESIS_COMMITMENT'      // Null-state genesis commitment registered
+    | 'RESURRECTION';           // Dormant entity resumed behavioral activity
+
+// TAXONOMY UNIFICATION (GAP-PY): this union previously carried a THIRD,
+// disjoint 19-type set that dropped 9 of the 10 BTCP-era names — it now
+// matches sdk/TrionSDK.ts and sdk/src/index.ts exactly (the 17-literal set
+// incl. the BTCP names above), so all three SDK surfaces agree.
 
 export type AssetProfile =
   | "DEFAULT" | "NEW_TOKEN" | "MATURE_PROTOCOL"
