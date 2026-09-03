@@ -24,10 +24,21 @@ License: CC0
 
 from __future__ import annotations
 
+import os
+import threading
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Dict, List, Optional, Tuple
 import math
+
+# Persistence (S7): reserve balances survive restarts via the shared SQLite
+# state store. The plain-name fallback covers direct script execution
+# (``python core/btcp/router.py``) — the script's own directory is already
+# on sys.path in that mode.
+try:
+    from .state_store import BtcpStateStore
+except ImportError:  # pragma: no cover - direct script execution
+    from state_store import BtcpStateStore
 
 
 class RouteType(IntEnum):
@@ -57,8 +68,44 @@ MIN_VALIDATORS_PER_ROUTE = 3
 # ── Gap E: Behavioral Balance Reservation ─────────────────────────────────────
 # Concurrent routes must not double-spend the same source assets. The BEO
 # balance is tracked and intents reserve against it in real time.
+#
+# Persistence (S7): the reservation map is process-global module state — it
+# is lazily loaded from the shared SQLite state store on first access and
+# written through on every mutation, so reservations survive restarts.
 
 _balance_reservations: Dict[bytes, float] = {}
+
+# Shared reservation store (lazy — created on first balance access).
+_balance_store: Optional[BtcpStateStore] = None
+_balance_store_lock = threading.Lock()
+
+
+def _balance_store_instance() -> BtcpStateStore:
+    """Lazily create the reservation store and load persisted state once."""
+    global _balance_store
+    if _balance_store is None:
+        with _balance_store_lock:
+            if _balance_store is None:
+                store = BtcpStateStore()
+                _balance_store = store
+                _load_reservations(store)
+    return _balance_store
+
+
+def _load_reservations(store: BtcpStateStore) -> None:
+    """Populate the in-memory reservation map from the store."""
+    for key, reserved in store.get_balances().items():
+        try:
+            _balance_reservations[bytes.fromhex(key)] = reserved
+        except ValueError:
+            continue  # corrupt key — skip, never crash routing
+
+
+def _persist_reservation(entity_id: bytes) -> None:
+    """Write one reservation through to SQLite (upsert)."""
+    store = _balance_store
+    if store is not None:
+        store.save_balance(entity_id.hex(), _balance_reservations.get(entity_id, 0.0))
 
 
 def reserve_balance(entity_id: bytes, intent_value: float, available: float) -> bool:
@@ -66,22 +113,38 @@ def reserve_balance(entity_id: bytes, intent_value: float, available: float) -> 
 
     Returns True if the reservation fits; False if insufficient unreserved
     balance (prevents double-spending across concurrent routes)."""
+    _balance_store_instance()  # S7: ensure persisted state is loaded
     current = _balance_reservations.get(entity_id, 0.0)
     if current + intent_value > available:
         return False
     _balance_reservations[entity_id] = current + intent_value
+    _persist_reservation(entity_id)
     return True
 
 
 def release_balance(entity_id: bytes, intent_value: float) -> None:
     """Release a reservation (route finalized/reverted)."""
+    _balance_store_instance()  # S7: ensure persisted state is loaded
     current = _balance_reservations.get(entity_id, 0.0)
     _balance_reservations[entity_id] = max(0.0, current - intent_value)
+    _persist_reservation(entity_id)
 
 
 def reserved_balance(entity_id: bytes) -> float:
     """Total currently-reserved value for an entity."""
+    _balance_store_instance()  # S7: ensure persisted state is loaded
     return _balance_reservations.get(entity_id, 0.0)
+
+
+def reload_reservations() -> None:
+    """Re-read persisted reservations from SQLite (S7 restart semantics).
+
+    Module-level analogue of the ``reload()`` method on the class-based BTCP
+    modules: replaces the in-memory reservation map with the current SQLite
+    contents (first ensuring the store is initialized)."""
+    store = _balance_store_instance()
+    _balance_reservations.clear()
+    _load_reservations(store)
 
 
 # ── Gap G: BTCP_ROUTE_OE_FACTOR ──────────────────────────────────────────────
@@ -242,6 +305,8 @@ def select_optimal_route(
 if __name__ == "__main__":
     print("=== BTCP Router Self-test ===\n")
 
+    import tempfile
+
     state = BIBLState(
         nl_scores={1: 0.85, 137: 0.90, 8453: 0.88},
         gas_forecasts={1: 31.0, 137: 0.50, 8453: 0.98},
@@ -289,5 +354,21 @@ if __name__ == "__main__":
         beo_continuity=0.8, cc_coherence=0.9, intent_value=1000.0,
     )
     assert not route_is_valid(invalid_route, state, validator_count=10)
+
+    # Test 5: Reservation persistence (S7) — reservations survive a restart
+    _db = os.path.join(
+        tempfile.mkdtemp(prefix="btcp_router_selftest_"), "btcp_state.db")
+    _balance_store = BtcpStateStore(state_db=_db)  # hermetic self-test store
+    _balance_reservations.clear()
+    _ent = b"\x02" * 32
+    assert reserve_balance(_ent, 400.0, 1000.0)
+    assert reserved_balance(_ent) == 400.0
+    # Simulate a restart: in-memory map wiped, re-loaded from SQLite
+    _balance_reservations.clear()
+    reload_reservations()
+    assert reserved_balance(_ent) == 400.0
+    release_balance(_ent, 150.0)
+    assert _balance_store.get_balances() == {_ent.hex(): 250.0}
+    print("\n✓ Reservation persistence: reload_reservations() restores state after restart")
 
     print("\nPHASE 2.1 PASS — BTCP Router implemented")
