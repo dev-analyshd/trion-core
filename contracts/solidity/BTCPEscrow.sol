@@ -24,17 +24,27 @@ pragma solidity ^0.8.24;
 ///      • Zero-address checks on every address parameter and admin setter.
 ///      • All ETH transfers use `.call{value:}()` with explicit return-value check.
 ///      • ORACLE-GATED RELEASE — bind a TRION oracle (one-way) and releases
-///        additionally require its quorum+freshness route verdict.
+///        additionally require its quorum+freshness route verdict, bound to
+///        the escrow via the route's anchorBH (route-spoof prevention).
 interface ITRIONOracleEscrowView {
-    /// @notice TRIONOracleV3.verifyExecution — route/signal safety verdict.
-    /// @return isSafe    True only when the route has quorum attestations,
-    ///                   is coherent, and is fresh (see TRIONOracleV3).
-    /// @return coherence Coherence score ×1e6.
-    /// @return threshold Threshold score ×1e6.
+    /// @notice verifyExecution — legacy route/signal safety verdict.
     function verifyExecution(bytes32 txId)
         external
         view
         returns (bool isSafe, uint32 coherence, uint32 threshold);
+
+    /// @notice routeBinding — flat verdict view with binding + quorum fields.
+    function routeBinding(bytes32 routeId)
+        external
+        view
+        returns (
+            bytes32 anchorBH,
+            uint256 attestationCount,
+            bool isSafe,
+            uint256 coherence,
+            uint256 threshold,
+            uint256 timestamp
+        );
 }
 
 contract BTCPEscrow {
@@ -171,19 +181,39 @@ contract BTCPEscrow {
         emit TRIONOracleBound(oracle, uint64(block.timestamp));
     }
 
-    /// @dev Internal consensus gate. Reverts when the bound oracle does not
-    ///      verify the route as safe with coherence ≥ minCoherence and
-    ///      coherence ≥ oracle threshold. No-op in trusted-relayer mode
+    /// @dev Internal consensus gate (H1 fix: verdict is BOUND to this escrow).
+    ///      Loads the route verdict via the oracle's routeBinding() view and
+    ///      requires: anchorBH == escrowId (the binding — a quorum-safe
+    ///      verdict for an UNRELATED route can never release this escrow),
+    ///      attestationCount ≥ quorum, isSafe, freshness ≤ 300s, and both
+    ///      coherence ≥ minCoherence and ≥ oracle threshold. Reverts when
+    ///      the bound oracle fails any check. No-op in trusted-relayer mode
     ///      (oracle unbound) — that mode remains documented above.
-    function _consensusGate(bytes32 routeId, uint256 minCoherence) internal view {
+    function _consensusGate(
+        bytes32 escrowId,
+        bytes32 routeId,
+        uint256 minCoherence
+    ) internal view {
         if (trionOracle == address(0)) {
             return; // trusted-relayer mode (documented)
         }
-        (bool isSafe, uint32 coherence, uint32 threshold) =
-            ITRIONOracleEscrowView(trionOracle).verifyExecution(routeId);
+        (
+            bytes32 anchorBH,
+            uint256 attestationCount,
+            bool isSafe,
+            uint256 oracleCoherence,
+            uint256 oracleThreshold,
+            uint256 ts
+        ) = ITRIONOracleEscrowView(trionOracle).routeBinding(routeId);
+        // H1: the verdict must be bound to THIS escrow — anchorBH carries the
+        // escrowId the route was attested for. Route substitution (pointing
+        // the escrow at an unrelated fresh quorum-safe route) fails here.
+        require(anchorBH == escrowId, "ORACLE_ROUTE_NOT_BOUND_TO_ESCROW");
         require(isSafe, "ORACLE_CONSENSUS_UNSAFE");
-        require(coherence >= minCoherence, "ORACLE_COHERENCE_INSUFFICIENT");
-        require(coherence >= threshold, "ORACLE_BELOW_THRESHOLD");
+        require(attestationCount >= 2, "ORACLE_QUORUM_UNMET");
+        require(block.timestamp - ts <= 300, "ORACLE_VERDICT_STALE");
+        require(oracleCoherence >= minCoherence, "ORACLE_COHERENCE_INSUFFICIENT");
+        require(oracleCoherence >= oracleThreshold, "ORACLE_BELOW_THRESHOLD");
     }
 
     /// @notice Lock native tokens in escrow. Caller must send value with tx.
@@ -343,10 +373,11 @@ contract BTCPEscrow {
         require(coherence >= esc.minCoherence, "COHERENCE_INSUFFICIENT");
         // G1: Two-Phase Confirmation — settlement check must be verified
         require(esc.settlementCheckHash != bytes32(0), "SETTLEMENT_NOT_VERIFIED");
-        // ORACLE-GATED: when a TRION oracle is bound, its quorum+freshness
-        // verdict on the linked route gates the release independently of
-        // the caller-supplied coherence.
-        _consensusGate(esc.routeId, esc.minCoherence);
+        // ORACLE-GATED (H1 fix): when a TRION oracle is bound, its quorum+
+        // freshness verdict — bound to THIS escrow via anchorBH — gates the
+        // release independently of the caller-supplied coherence. A route
+        // attested for a different escrow cannot release this one.
+        _consensusGate(escrowId, esc.routeId, esc.minCoherence);
 
         // ── PHASE-1-SECURITY: state update BEFORE external call (CEI pattern) ──
         // Mark as RELEASED and clear the amount before transferring value,
@@ -390,8 +421,9 @@ contract BTCPEscrow {
         require(block.timestamp <= esc.lockTimestamp + AKASHIC_RECOVERY_SECONDS, "AKASHIC_WINDOW_EXPIRED");
         require(coherence >= esc.minCoherence, "COHERENCE_INSUFFICIENT");
         require(esc.settlementCheckHash != bytes32(0), "SETTLEMENT_NOT_VERIFIED");
-        // ORACLE-GATED: same consensus gate as releaseEscrow().
-        _consensusGate(esc.routeId, esc.minCoherence);
+        // ORACLE-GATED (H1 fix): same escrow-bound consensus gate as
+        // releaseEscrow().
+        _consensusGate(escrowId, esc.routeId, esc.minCoherence);
 
         // ── PHASE-1-SECURITY: CEI pattern — clear state BEFORE external call ──
         uint256 amountToTransfer = esc.amount;

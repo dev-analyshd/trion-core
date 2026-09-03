@@ -209,13 +209,19 @@ def build_escrow_initialize_ix(program_id, config_pda, payer):
 def build_escrow_lock_ix(program_id, config_pda, relayer, vault_funder,
                           escrow_pda, vault_pda, destination,
                           escrow_id_bytes, route_id_bytes, entity_id_bytes,
-                          min_coherence, timeout_slots):
-    """Build btcp_escrow.lock_escrow instruction"""
+                          amount, min_coherence, timeout_slots):
+    """Build btcp_escrow.lock_escrow instruction.
+
+    ABI matches on-chain lock_escrow(escrow_id, route_id, entity_id,
+    amount, min_coherence, timeout_slots) -- the amount u64 (explicit
+    lock amount, SECURITY FIX P1) must be encoded after entity_id.
+    """
     disc = anchor_discriminator("global", "lock_escrow")
     data = (disc
             + escrow_id_bytes           # [u8; 32]
             + route_id_bytes            # [u8; 32]
             + entity_id_bytes           # BEOIdentity = [u8; 32]
+            + borsh_u64(amount)         # u64 -- explicit lamports to lock
             + borsh_u64(min_coherence)  # u64
             + borsh_u64(timeout_slots)) # u64
     keys = [
@@ -458,7 +464,9 @@ def main():
         BTCP_ESCROW_ID, escrow_config_pda, sol_kp_A.pubkey(), sol_kp_A.pubkey(),
         escrow_pda_A, vault_pda_A, sol_kp_B.pubkey(),
         escrow_id_sol_bytes, route_id_bytes, entity_B_beo_bytes,
-        500000, 300  # min_coherence=0.50×1e6, timeout=300 slots
+        500000,   # amount: lamports to lock (0.5 SOL)
+        500000,   # min_coherence = 0.50x1e6
+        300       # timeout = 300 slots
     )
 
     # 4. Release Escrow

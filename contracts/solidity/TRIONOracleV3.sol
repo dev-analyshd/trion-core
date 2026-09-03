@@ -145,14 +145,51 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
                 route.threshold == thresholdScore,
                 "TRION: route values mismatch - disputed"
             );
-            route.timestamp = block.timestamp; // freshness refreshed by attestor
+            // NOTE: a duplicate re-attestation does NOT refresh freshness
+            // (M2 fix) — only a NEW distinct attestor does, below.
         }
 
         if (!routeAttested[routeId][msg.sender]) {
             routeAttested[routeId][msg.sender] = true;
             routeAttestationCount[routeId]++;
+            // SECURITY (M2 fix): freshness is refreshed ONLY by a NEW distinct
+            // attestor. Previously any matching re-attestation (duplicate)
+            // refreshed the timestamp, letting one authorized attestor keep
+            // a stale verdict alive forever.
+            if (btcpRoutes[routeId].timestamp < block.timestamp) {
+                btcpRoutes[routeId].timestamp = block.timestamp;
+            }
         }
         emit BTCPRoutePublished(routeId, coherenceScore >= thresholdScore);
+    }
+
+    // ── Route binding view (H1 fix support) ────────────────────────────────────
+    /// @notice Flat, Vyper-friendly view of a route verdict INCLUDING the
+    ///         binding fields escrows need. Escrows settle only via a route
+    ///         whose anchorBH equals the escrowId — a quorum-safe verdict
+    ///         for an UNRELATED route/escrow can then never release funds
+    ///         (the route-spoof attack).
+    function routeBinding(bytes32 routeId)
+        external
+        view
+        returns (
+            bytes32 anchorBH,
+            uint256 attestationCount,
+            bool isSafe,
+            uint256 coherence,
+            uint256 threshold,
+            uint256 timestamp
+        )
+    {
+        BTCPRoute memory r = btcpRoutes[routeId];
+        return (
+            r.anchorBH,
+            routeAttestationCount[routeId],
+            r.isSafe,
+            r.coherence,
+            r.threshold,
+            r.timestamp
+        );
     }
 
     // ── Publish rich behavioral signal (V3 enhancement) ─────────────────────
@@ -333,14 +370,26 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         return (uint8(p & 0xFF), uint32((p >> 8) & 0xFFFFFFFF), uint32((p >> 40) & 0xFFFFFFFF), uint64((p >> 72) & 0xFFFFFFFFFFFFFFFF), uint64((p >> 136) & 0xFFFFFFFFFFFFFFFF));
     }
 
+    /// @notice Register a validator. Owner-gated.
+    /// @dev GOVERNANCE TRUST ASSUMPTION (documented, not enforced on-chain):
+    ///      the owner can add validators and therefore influence quorum
+    ///      composition. Mitigations: (1) quorumRequired has a hard floor
+    ///      of 2 so one key alone never marks a route safe; (2) route values
+    ///      are etched by the FIRST attestation and disputes fail closed;
+    ///      (3) the honest long-term path per the whitepaper is a validator
+    ///      set with on-chain stake-and-slash (see docs: trust model). A
+    ///      malicious owner remains a single point of trust until then.
     function addValidator(address _v) external onlyOwner {
         // PHASE-1-SECURITY: prevent registering the zero address as a validator.
         require(_v != address(0), "TRION: zero address");
         isValidator[_v] = true;
     }
     function setQuorum(uint256 _q) external onlyOwner {
-        // PHASE-1-SECURITY: enforce a sane minimum quorum (>=1).
-        require(_q >= 1, "TRION: quorum < 1");
+        // PHASE-1-SECURITY: enforce a hard minimum quorum of 2 — a single
+        // attestor must never be able to mark a route safe (the original
+        // audit finding). Quorum 1 would let the owner self-attest and
+        // release via one signature; 2 keeps the consensus bar meaningful.
+        require(_q >= 2, "TRION: quorum < 2");
         quorumRequired = _q;
     }
 }
