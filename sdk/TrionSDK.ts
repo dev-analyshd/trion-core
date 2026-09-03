@@ -468,18 +468,25 @@ export class TrionSDK {
 
     /**
      * Checks if an entity is sanctioned via the TRION sanctions oracle (J1).
+     *
+     * Fail-closed: if the oracle cannot be reached we return sanctioned=true
+     * with the SCREENING_UNAVAILABLE marker list, so callers block the
+     * entity instead of waving it through. confidence=0 signals an
+     * unverified result, not a confirmed hit.
      */
     static async checkSanctions(
         apiBaseUrl: string,
         address: string,
     ): Promise<SanctionsResult> {
         try {
-            const url = `${apiBaseUrl.replace(/\/$/, '')}/api/btcp/sanctions/${address}`;
+            const url = `${apiBaseUrl.replace(/\/$/, '')}/api/v1/btcp/sanctions/${address}`;
             const res = await fetch(url);
-            if (!res.ok) return { sanctioned: false, lists: [], confidence: 1 };
+            if (!res.ok) {
+                return { sanctioned: true, lists: ['SCREENING_UNAVAILABLE'], confidence: 0 };
+            }
             return res.json() as Promise<SanctionsResult>;
         } catch {
-            return { sanctioned: false, lists: [], confidence: 1 };
+            return { sanctioned: true, lists: ['SCREENING_UNAVAILABLE'], confidence: 0 };
         }
     }
 }
