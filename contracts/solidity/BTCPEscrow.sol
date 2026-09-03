@@ -257,6 +257,30 @@ contract BTCPEscrow {
     ///         AND settlement check verified (G1 Resolution).
     /// @param executionBH The execution behavioral hash linking anchor → execution.
     /// @param coherence   The coherence score (×1e6) at settlement time.
+    /// ═══════════════════════════════════════════════════════════════════════════
+    /// SECURITY MODEL — TRUST ASSUMPTIONS (per DD report §7.2)
+    /// ═══════════════════════════════════════════════════════════════════════════
+    ///
+    /// CURRENT: The release function accepts a coherence value from the caller
+    /// (relayer/owner). This is a TRUSTED relayer model — the relayer is trusted
+    /// to provide honest coherence scores from TRION's consensus engine.
+    ///
+    /// This is analogous to how Chainlink oracles work: the on-chain contract
+    /// trusts the designated oracle to provide correct data. The security guarantee
+    /// comes from the off-chain consensus (DW-BFT) that produces the coherence score.
+    ///
+    /// FUTURE (requires on-chain consensus): The release function should verify
+    /// a BLS/Schnorr aggregate signature from the validator set, proving that
+    /// the coherence value was produced by a valid DW-BFT quorum. This would
+    /// remove the trusted relayer assumption entirely.
+    ///
+    /// Until on-chain consensus verification is implemented, the system relies on:
+    /// 1. The relayer being honest (incentivized by staking/slashing)
+    /// 2. The G1 Two-Phase Settlement Check (verifySettlementCheck) as a second gate
+    /// 3. The 7-day emergency escape hatch (revertEmergency) as a fallback
+    /// 4. The PENDING_AKASHIC 24h recovery window
+    /// ═══════════════════════════════════════════════════════════════════════════
+
     function releaseEscrow(
         bytes32 escrowId,
         bytes32 executionBH,

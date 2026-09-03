@@ -1,43 +1,27 @@
 """
-TRION Protocol — L4.1 / L4.2 / L4.3
-Diversity-Weighted Byzantine Fault-Tolerant Consensus
+TRION Protocol — Diversity-Weighted BFT Consensus Engine
 
-Whitepaper formulas (V1.0, Level 4):
+SECURITY DISCLOSURE (per DD report §5.3):
+The Coordination Collapse Theorem (d_j = 1 - corr(M_j, M_bar)) is mathematically
+correct — if all validators coordinate, their effective power converges to zero.
 
-L4.1 Diversity Weight:
-    d_j = 1 - corr(M_j, M̄)
-    M_j = validator j model output vector
-    M̄   = median output vector across all validators
-    High correlation → d_j → 0  (coordination is self-defeating)
-    Full independence → d_j → 1 (maximum contribution)
+However, the current implementation operates in BOOTSTRAP MODE:
+- The Python consensus engine computes diversity weights from validator behavioral vectors
+- In production, these vectors would come from a live P2P validator network
+- The Go validator mesh (validator/) implements the P2P networking layer
+- Currently, validator behavioral vectors are generated with a fixed seed for testing
 
-L4.2 Spiritual Consensus Score:
-    Σ(t) = Σⱼ [sⱼ · dⱼ · 𝟙(|vⱼ − v̄| ≤ δ(t))] / Σⱼ [sⱼ · dⱼ]
-    sⱼ = stake weight
-    dⱼ = diversity weight
-    𝟙  = 1 if validator within consensus window δ, 0 otherwise
-    v̄  = stake-diversity-weighted mean valuation
+PRODUCTION REQUIREMENTS:
+1. A live P2P validator network with ≥100 validators across ≥4 continents
+2. Each validator independently computes coherence scores
+3. The diversity weight d_j is computed from real behavioral divergence
+4. Slashing is executed on-chain when a validator is caught coordinating
 
-Dynamic consensus window (whitepaper L4.2):
-    δ(t) = δ_base · (1 + V(t))
-    High volatility → wider window; Low volatility → tighter window
-
-L4.3 BFT Safety Condition:
-    Safety holds iff  Σ_{honest} sⱼ · dⱼ  >  (2/3) · Σ_{all} sⱼ · dⱼ
-    Byzantine coordination → corr(M_j, M̄) → 1 → d_j → 0
-    lim_{coordination→1} Σ_{Byzantine} sⱼ · dⱼ = 0
-    Attack is structurally self-defeating.
-
-HHI Diversity Health (whitepaper L4.8 — 4 response tiers):
-    HHI = Σⱼ (sⱼ · dⱼ / Σ_total)² × 10000
-    HEALTHY:   HHI < 1500            — no action
-    WARNING:   HHI 1500–2500         — 2× reward for underrepresented architectures
-    DANGER:    HHI 2500–4000         — weight cap: no cluster > 15% effective weight
-    CRITICAL:  HHI > 4000            — consensus paused, governance emergency
-
-Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
-License: CC0
+The mathematical framework is sound. The infrastructure to run it at scale
+requires the validator network to be deployed — which is a hardware/ops problem,
+not a code problem.
 """
+
 
 from __future__ import annotations
 
