@@ -270,15 +270,46 @@ class BTCPProofBuilder:
         return proof, attestation
 
     def verify_proof(self, proof: BTCPProof, current_block: int) -> bool:
-        """Verify a BTCP_proof on the receiving chain."""
+        """Verify a BTCP_proof on the receiving chain.
+
+        Structural checks mirror rust/src/btcp_proof_builder.rs verify_proof
+        so a proof accepted here is also accepted by the rust verifier (and
+        vice versa) — the old python checks were strictly weaker (no HHI,
+        no signer-count, no distinct-signer/shape checks), so a python-built
+        proof could pass here and fail on the rust side:
+          * certification window (expiry / anchor depth)
+          * coherence above threshold
+          * HHI not too concentrated — the python spiritual plane emits HHI on
+            the 0-10000 scale, rust on 0-1; values > 1 are normalised before
+            the shared > 0.5 rejection threshold
+          * >= 3 validator signatures (rust: InsufficientSigners)
+          * distinct signers, each signature exactly 65 bytes
+            (secp256k1 ECDSA r[32] || s[32] || v[1]) — shape check only;
+            cryptographic verification is the on-chain quorum's job
+        """
         if current_block > proof.certification_expiry:
             return False  # certification expired
-        if not proof.consensus_proof.validator_signatures:
-            return False
+        sigs = proof.consensus_proof.validator_signatures
+        if len(sigs) < 3:
+            return False  # insufficient signers (rust parity)
         if proof.consensus_proof.coherence_score <= 0:
             return False
         if proof.consensus_proof.threshold_margin < 0:
             return False  # coherence below threshold
+        hhi = float(proof.consensus_proof.hhi_at_emission)
+        if hhi > 1.0:
+            hhi = hhi / 10_000.0  # python 0-10000 scale → rust 0-1 scale
+        if hhi > 0.5:
+            return False  # too concentrated (rust parity)
+        seen = set()
+        for sig in sigs:
+            vid = sig.validator_id if isinstance(sig.validator_id, bytes) else bytes(sig.validator_id)
+            if vid in seen:
+                return False  # duplicate signer (rust parity)
+            seen.add(vid)
+            s = sig.signature if isinstance(sig.signature, bytes) else bytes(sig.signature)
+            if len(s) != 65:
+                return False  # malformed signature shape (rust parity)
         return True
 
     # ── FIX-3: Real validator signature aggregation (gap-fill #2) ────────────────

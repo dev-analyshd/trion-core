@@ -272,11 +272,48 @@ class TestBTCPProofBuilder:
         proof = pb.build_proof(
             anchor_bh=b"\x01"*32, intent_hash=b"\x02"*32,
             route_type=1, certification_block=18000000, value_usd=5000.0,
-            validator_signatures=[ValidatorSignature(b"\x03"*32, b"\x04"*65, 0.8)],
+            validator_signatures=[
+                ValidatorSignature(b"\x03"*32, b"\x04"*65, 0.8),
+                ValidatorSignature(b"\x05"*32, b"\x06"*65, 0.7),
+                ValidatorSignature(b"\x07"*32, b"\x08"*65, 0.6),
+            ],
             diversity_weights=[0.8, 0.7, 0.6], hhi=1500.0,
             coherence=0.85, threshold=0.55,
         )
         assert pb.verify_proof(proof, current_block=18000001)
+
+    def test_verify_proof_rust_parity_rejections(self):
+        """The rust verifier's structural rejections must fire here too."""
+        pb = BTCPProofBuilder()
+        good = dict(
+            anchor_bh=b"\x01"*32, intent_hash=b"\x02"*32,
+            route_type=1, certification_block=18000000, value_usd=5000.0,
+            diversity_weights=[0.8, 0.7, 0.6], hhi=1500.0,
+            coherence=0.85, threshold=0.55,
+        )
+        three = [
+            ValidatorSignature(b"\x03"*32, b"\x04"*65, 0.8),
+            ValidatorSignature(b"\x05"*32, b"\x06"*65, 0.7),
+            ValidatorSignature(b"\x07"*32, b"\x08"*65, 0.6),
+        ]
+        # < 3 signers rejected (rust: InsufficientSigners)
+        p1 = pb.build_proof(validator_signatures=three[:2], **good)
+        assert not pb.verify_proof(p1, current_block=18000001)
+        # duplicate signer rejected (rust: DuplicateSigner)
+        p2 = pb.build_proof(validator_signatures=[three[0], three[0], three[1]], **good)
+        assert not pb.verify_proof(p2, current_block=18000001)
+        # wrong-length signature rejected (rust: MalformedSignature)
+        bad = [ValidatorSignature(b"\x03"*32, b"\x04"*64, 0.8)] + three[1:]
+        p3 = pb.build_proof(validator_signatures=bad, **good)
+        assert not pb.verify_proof(p3, current_block=18000001)
+        # concentrated HHI rejected on BOTH scales (rust: TooConcentrated)
+        p4 = pb.build_proof(validator_signatures=three, **{**good, "hhi": 0.9})       # rust scale
+        assert not pb.verify_proof(p4, current_block=18000001)
+        p5 = pb.build_proof(validator_signatures=three, **{**good, "hhi": 9000.0})    # py scale
+        assert not pb.verify_proof(p5, current_block=18000001)
+        # py-scale 1500 (= 0.15 rust) still accepted
+        p6 = pb.build_proof(validator_signatures=three, **good)
+        assert pb.verify_proof(p6, current_block=18000001)
 
     def test_expired_proof_fails(self):
         pb = BTCPProofBuilder()
