@@ -87,11 +87,11 @@ SEED_INTENT = b"intent"
 SEED_ROUTE  = b"route"
 SEED_VAULT  = b"vault"
 
-WORK_DIR = Path("/home/user/.super_doubao/super-doubao-runtime/workspace/btcp_crossvm_full_test")
+WORK_DIR = Path(os.environ.get("TRION_TEST_WORKSPACE", "/tmp/btcp_crossvm_full_test"))
 WORK_DIR.mkdir(exist_ok=True)
 
 # Load compiled contracts
-with open("/home/user/.super_doubao/super-doubao-runtime/workspace/btcp_test/compiled_contracts.json") as f:
+with open(os.environ.get("TRION_COMPILED_CONTRACTS", "hardhat/compiled_contracts.json")) as f:
     COMPILED = json.load(f)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

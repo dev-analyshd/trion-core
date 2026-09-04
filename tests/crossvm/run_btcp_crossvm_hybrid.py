@@ -44,11 +44,11 @@ BOT_CHAIN_ID = 968
 SOL_RPC = "https://api.devnet.solana.com"
 SOL_CHAIN_ID = 900  # TRION internal SVM ID
 
-WORK_DIR = Path("/home/user/.super_doubao/super-doubao-runtime/workspace/btcp_crossvm_test")
+WORK_DIR = Path(os.environ.get("TRION_TEST_WORKSPACE", "/tmp/btcp_crossvm_test"))
 WORK_DIR.mkdir(exist_ok=True)
 
 # Load compiled contracts from previous test
-with open("/home/user/.super_doubao/super-doubao-runtime/workspace/btcp_test/compiled_contracts.json") as f:
+with open(os.environ.get("TRION_COMPILED_CONTRACTS", "hardhat/compiled_contracts.json")) as f:
     COMPILED = json.load(f)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
