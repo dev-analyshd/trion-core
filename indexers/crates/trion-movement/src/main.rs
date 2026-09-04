@@ -15,7 +15,7 @@
  *   f8 — Payload type entropy    H(entry_function/script/multisig)
  *   f9 — Sequence delta entropy  H(sequence_number gaps)
  *
- * Chain ID: 5002 (MOVEMENT_MAINNET)
+ * Chain ID: 20200 (MOVEMENT_MAINNET)
  */
 
 use anyhow::Result;
@@ -30,7 +30,7 @@ use trion_common::{
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
-const CHAIN_ID:  u64  = 5002;
+const CHAIN_ID:  u64  = 20200;  // canonical registry id (config/chain_registry.json)
 const CHAIN_LBL: &str = "MOVEMENT_MAINNET";
 const VM_TYPE:   &str = "MOVE";
 
