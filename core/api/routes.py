@@ -3,6 +3,10 @@ TRION Protocol — Complete REST API Routes
 All endpoints documented and implemented.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 API_SPEC = {
     "version": "1.0.0",
     "base_url": "https://trion-protocol.replit.app",
@@ -46,4 +50,9 @@ API_SPEC = {
     }
 }
 
-print(f"API surface: {len(API_SPEC['endpoints'])} endpoints across all whitepaper sections")
+# Import-time diagnostics go to the module logger at DEBUG level (silenced
+# by default) instead of stdout — a bare print() here fired on every import.
+logger.debug(
+    "API surface: %d endpoints across all whitepaper sections",
+    len(API_SPEC["endpoints"]),
+)
