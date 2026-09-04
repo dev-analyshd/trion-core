@@ -20,7 +20,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Next.js `output: 'standalone'` (frontend/next.config.ts) emits a
+# Next.js `output: 'standalone'` (frontend/next.config.js) emits a
 # self-contained server at .next/standalone/server.js — copy that plus the
 # static assets and public dir it serves. `node server.js` from a plain
 # `.next` output would not work.

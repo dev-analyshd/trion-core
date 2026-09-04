@@ -32,6 +32,13 @@ COPY serve.py ./serve.py
 
 # Create data and logs directories
 RUN mkdir -p /app/data /app/logs
+# The Flask app and the in-process BH streamer open the ledger at the
+# repo-root path (/app/bh_ledger.db, cwd-relative in api/app.py + serve.py's
+# init guard). Symlink it onto the /app/data volume so compose/systemd can
+# persist and share the live ledger with the FAISS service (mounted at
+# /app/data there too, BH_LEDGER_DB=/app/data/bh_ledger.db). sqlite follows
+# the symlink and creates the file inside the volume on first write.
+RUN ln -s data/bh_ledger.db /app/bh_ledger.db
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \

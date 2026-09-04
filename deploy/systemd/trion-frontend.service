@@ -7,9 +7,9 @@ Type=simple
 User=trion
 WorkingDirectory=/opt/trion/frontend
 # Build first: cd /opt/trion/frontend && npm ci && npm run build — Next.js
-# `output: 'standalone'` (next.config.ts) emits the self-contained server at
-# .next/standalone/server.js (running `node server.js` from the frontend
-# root never worked: there is no server.js there).
+# `output: 'standalone'` (frontend/next.config.js) emits the self-contained
+# server at .next/standalone/server.js (running `node server.js` from the
+# frontend root never worked: there is no server.js there).
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=FLASK_URL=http://127.0.0.1:5000

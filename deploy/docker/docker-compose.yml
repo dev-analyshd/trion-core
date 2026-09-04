@@ -1,4 +1,15 @@
-# TRION Protocol — Docker Compose Production Deployment
+# TRION Protocol — Docker Compose Multi-Service Stack
+#
+# What this deploys: the FULL TRION topology, one container per service —
+# FAISS ANIMA (:8000), Oracle API + websocket (serve.py, :5000), the BH
+# streamer (in-process inside the single serve.py process — see the api
+# service TRION_STREAMER_INPROCESS note), the Go validator build+self-test
+# gate (one-shot), the Next.js dashboard (:3000), nginx reverse proxy + the
+# Prometheus/Grafana monitoring stack. All services are read-only observers
+# of the chains — no relayer, no signing keys. The relayer/full stack lives
+# in Dockerfile.render (render-entrypoint.sh) or runs standalone via
+# supervisors/trion_and_zg_relayer.sh.
+#
 # Usage: docker-compose up -d
 
 version: "3.8"
@@ -14,8 +25,13 @@ services:
     environment:
       - FAISS_PORT=8000
       - FAISS_INDEX_PATH=/data/faiss.index
+      # Same live BH ledger the api/streamer writes (shared `ledger_data`
+      # volume, mounted at /app/data) — the FAISS BH→vector scheduler and
+      # /stats read the ledger the stack is actually producing.
+      - BH_LEDGER_DB=/app/data/bh_ledger.db
     volumes:
       - faiss_data:/data
+      - ledger_data:/app/data
       - ./logs:/app/logs
     networks:
       - trion_internal
@@ -30,6 +46,18 @@ services:
   # Runs serve.py (Flask + flask-socketio): serves the REST API on :5000 AND
   # the /socket.io/ websocket push channel (/feed namespace) that nginx
   # proxies and the dashboard's live signal feed consumes.
+  #
+  # Streamer profile: serve.py here is a SINGLE process (no gunicorn
+  # workers), so the in-process BH streamer gate is the correct mode —
+  # TRION_STREAMER_INPROCESS=1 (api/app.py default is 0, which is right for
+  # gunicorn/multi-worker images). The docker entrypoint profile instead
+  # runs the standalone scripts/run_bh_streamer.py + gate 0 here — never both.
+  #
+  # The BH ledger lives on the shared `ledger_data` volume (/app/data) —
+  # mounted here (writer: serve.py + its in-process streamer) and in the
+  # faiss service below (reader) so both see the same live ledger
+  # (api/app.py resolves it via /app/bh_ledger.db, a symlink to
+  # /app/data/bh_ledger.db baked into Dockerfile.api).
   api:
     build:
       context: .
@@ -44,10 +72,10 @@ services:
       - FLASK_PORT=5000
       - PORT=5000
       - FAISS_SERVICE_URL=http://faiss:8000
-      - CHAIN_ID=421614
-      - NETWORK=arbitrum-sepolia
+      - TRION_STREAMER_INPROCESS=1
+      - BH_LEDGER_DB=/app/data/bh_ledger.db
     volumes:
-      - api_data:/app/data
+      - ledger_data:/app/data
       - ./logs:/app/logs
     networks:
       - trion_internal
@@ -111,9 +139,12 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # SSL certificates: trion.conf expects them at /etc/letsencrypt/live/<domain>/
+    # (Certbot layout). Provision them on the host and bind-mount that tree:
+    #   - ./deploy/nginx/letsencrypt:/etc/letsencrypt:ro
     volumes:
       - ./deploy/nginx/trion.conf:/etc/nginx/conf.d/trion.conf:ro
-      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+      - ./deploy/nginx/letsencrypt:/etc/letsencrypt:ro
       - nginx_cache:/var/cache/nginx
       - ./logs:/var/log/nginx
     networks:
@@ -160,7 +191,7 @@ networks:
 
 volumes:
   faiss_data:
-  api_data:
+  ledger_data:
   nginx_cache:
   prometheus_data:
   grafana_data:
