@@ -95,3 +95,33 @@ the branch force-pushed, so hashes below are post-purge.
 6. **On-chain slashing bridge** from Go evidence to `TRIONStaking.vy`.
 7. **PQC KMS live smoke tests** (AWS/GCP/YubiHSM with real keys) and Starknet/TON/Move toolchain compilation (no compilers in this environment; verified structurally).
 8. **Bounty capitalization** and published PGP key before any paid disclosure program.
+
+---
+
+## Post-report residual sweep (2026-09-04, second pass)
+
+A re-verification pass over the C6/5.5 count-drift family found the "count purge"
+commits (`c09ff10`/`c03c2af`) had missed a tail of stale figures. Each was fixed
+in its own verified commit (endpoint smoke-tested before commit; unit suite
+608 passed / 6 skipped without a live server, stress suite 17/17 with one;
+contract checks 36 + 10 + 19; Go 4/4 packages):
+
+| Residual finding | Fix commit |
+|---|---|
+| `/api/v1/phases` still reported `chains_indexed: 37` | `4808490` |
+| `/api/v1/zg/full_stack` still reported 37 chains / 13 VMs | `b0263f4` |
+| `/api/v1/inversion` fell back to 37 when the moat service was down | `1907573` |
+| Ψ(t) phase-transition estimate multiplied a 37-chain coverage into its math | `a663f76` |
+| A dozen docstrings/descriptions still said "37 chains" / "13 Rust L0 crates" (21 exist) | `5254c24` |
+| Phase-signal `akashic_coverage` and order-parameter adoption metrics said 37 | `5731bb4` |
+| BTV price-engine confidence normalized active chains against a hardcoded 37 | `d54d6c5` |
+| `mainnet_bootstrap` docstrings claimed 106 chains / 14 VMs while building 152 / 20 | `be869b1` |
+| Institutional README view table said "160 unique · 22 VMs" | `87dc8fb` |
+| `.gitignore` comment claimed hardhat ABI JSONs "stay tracked" — false since the later cleanup deleted them | `34040ea` |
+| `/api/v1/bh/vm_feed` attribution line said "13 VM families" | `c837424` |
+| `PROJECT_METRICS.tracked_files` said 956; the tree tracks 995 | `a7c282a` |
+| Go health-monitor header claimed "35 chains"; its list has 19 endpoints | `e9d0858` (+ gofmt pass `8837467`) |
+
+Also caught during the sweep: a stale server instance from the pre-purge code was
+serving old counts on port 5000 (restarted; runtime state, not repo state), and
+the Edit-tool tab-expansion accident on `health_monitor.go` was amended before push.
