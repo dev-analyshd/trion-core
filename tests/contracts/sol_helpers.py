@@ -27,10 +27,18 @@ import solcx
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SOLC_VERSION = "0.8.24"
 
-sys.path.insert(0, REPO)
-from core.consensus.certificate import (  # noqa: E402
-    CanonicalCertificate as PyCanonicalCertificate,
-)
+# Load the reference encoder by file path — no sys.path mutation (the repo's
+# import-hygiene policy, tests/unit/test_no_sys_path_hacks.py). Works both
+# under pytest (tests/conftest.py provides the root for other imports) and
+# when this file is executed directly.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location(
+    "core.consensus.certificate", os.path.join(REPO, "core", "consensus", "certificate.py"))
+import sys as _sys
+_mod = _ilu.module_from_spec(_spec)
+_sys.modules[_spec.name] = _mod
+_spec.loader.exec_module(_mod)
+PyCanonicalCertificate = _mod.CanonicalCertificate
 
 SOLIDITY = os.path.join(REPO, "contracts", "solidity")
 
@@ -233,11 +241,42 @@ def sign_cert(harness: EvmHarness, cert: PyCanonicalCertificate, signers):
 def sign_cert_with_weights(harness, cert, signers, stake, diversity):
     """Sign + attach the envelope weight CLAIMS (§4) in signer-sorted order.
 
-    signers/stake/diversity are index-aligned; returns the fully assembled
-    (signatures, stakeWeights, diversityWeights) call arguments.
+    `stake`/`diversity` may be either an index-aligned list (matching
+    `signers`) or an address-keyed mapping ({addr: value}); returns the fully
+    assembled (signatures, stakeWeights, diversityWeights, sorted_addrs) call
+    arguments.
     """
     sigs, _, _, sorted_addrs = sign_cert(harness, cert, signers)
     by_addr = {v["addr"]: i for i, v in enumerate(signers)}
-    stakes = [stake[by_addr[a]] for a in sorted_addrs]
-    divs = [diversity[by_addr[a]] for a in sorted_addrs]
+
+    def _pick(weights, addr):
+        if isinstance(weights, dict):
+            return weights[addr]
+        return weights[by_addr[addr]]
+
+    stakes = [_pick(stake, a) for a in sorted_addrs]
+    divs = [_pick(diversity, a) for a in sorted_addrs]
     return sigs, stakes, divs, sorted_addrs
+
+
+# ── receipt event decoding (web3 v7 receipts carry raw logs) ────────────────
+
+_TOPIC_CACHE = {}
+
+
+def event_names(contract, rcpt):
+    """Decode a tx receipt's logs into event names (topic0 → name)."""
+    abi = contract.abi
+    key = id(abi)
+    if key not in _TOPIC_CACHE:
+        m = {}
+        for item in abi:
+            if item.get("type") == "event" and not item.get("anonymous", False):
+                sig = item["name"] + "(" + ",".join(
+                    i["type"] for i in item.get("inputs", [])) + ")"
+                m[Web3.keccak(text=sig)] = item["name"]
+        _TOPIC_CACHE[key] = m
+    names = []
+    for log in rcpt["logs"]:
+        names.append(_TOPIC_CACHE[key].get(log["topics"][0], "<unknown>"))
+    return names

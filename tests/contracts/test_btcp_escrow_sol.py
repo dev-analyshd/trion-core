@@ -69,6 +69,15 @@ contract MockTRIONOracle {
         Verdict memory v = verdicts[routeId];
         return (v.anchorBH, v.attestationCount, v.isSafe, v.coherence, v.threshold, v.ts);
     }
+
+    // M-05: the escrow pins the dynamic route-quorum view at BIND time
+    // (setTRIONOracle reverts without it). V3 formula: max(2, ceil(2n/3)).
+    uint256 public validatorCount = 2;  // quorum = 2: keeps the count-calibrated cases below meaningful
+    function minRouteAttestations() external view returns (uint256) {
+        uint256 n = validatorCount;
+        uint256 twoThirds = (2 * n + 2) / 3;
+        return twoThirds > 2 ? twoThirds : 2;
+    }
 }
 """
 
@@ -113,9 +122,10 @@ def main():
     # trusted-relayer model).
     escrow.functions.releaseEscrow(escrow_id, w3.keccak(text="execBH"), 900_000).transact(
         {"from": acct, "gas": 1_000_000})
-    state_idx = 9  # Escrow struct field order: escrowId,routeId,entityId,destination,amount,minCoherence,lockBlock,lockTimestamp,timeoutBlocks,state,...
+    # split getter (via-ir stack budget): state is field 6 of getEscrowCore
+    core = escrow.functions.getEscrowCore(escrow_id).call()
     check("unbound mode releases via trusted relayer",
-          escrow.functions.escrows(escrow_id).call()[state_idx] == 3)
+          core[6] == 3)
     # state field index verified below via a second lock
 
     print("\n2) one-way oracle binding")
