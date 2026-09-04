@@ -364,6 +364,10 @@ class BHStreamer:
         # Composite index: per-chain top-K queries (stratified feed sampling in
         # api/app.py bh_recent_feed) become index seeks instead of filter+sort.
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain_ts ON bh_ledger(chain_label, ts DESC)")
+        # ── Chain-id namespace migration: re-key legacy streamer rows to the ──
+        # ── canonical registry ids (NON_EVM_CHAINS re-key). Idempotent.      ──
+        for _old, _new in _LEGACY_STREAMER_CHAIN_IDS.items():
+            conn.execute("UPDATE bh_ledger SET chain_id = ? WHERE chain_id = ?", (_new, _old))
         conn.commit()
         conn.close()
 
@@ -694,50 +698,47 @@ if __name__ == "__main__":
     print("\nStopped.")
 
 # ============================================================================
-# NON-EVM CHAIN CONFIGS — All 16 VM families
+# NON-EVM CHAIN CONFIGS — 17 VM families (18th is EVM, in CHAIN_RPCS)
 # ============================================================================
-# FIX-CLAIMS (chain-ID collision, documented not fixed): the ids below are a
-# THIRD namespace that conflicts with the canonical config/chain_registry.json
-# (single source of truth per P3-CONSOLIDATE; see core/generated_chain_bindings.py):
-#   solana here 200101 vs canonical 900 (svm_indexer/execute.ts also 900;
-#   mainnet_bootstrap.py uses 5773521; api display registry uses 101/900);
-#   cosmos_hub here 200201 vs canonical 10000; aptos 200301 vs canonical 5001.
-# Historical SQLite rows are keyed on these ids, so renumbering would orphan
-# existing data — left for the orchestrator to reconcile. relayer/
-# relayer_non_evm.js is yet a FOURTH ad-hoc scheme (btc=2000, sui=6001...).
+# Chain IDs are the CANONICAL registry ids (config/chain_registry.json /
+# core/generated_chain_bindings.py — single source of truth per P3-CONSOLIDATE).
+# Older ledgers written with the legacy 2001xx streamer namespace are migrated
+# by _init_db (see _LEGACY_STREAMER_CHAIN_IDS) so no history is orphaned.
+# The relayer (relayer/relayer_non_evm.js) still carries its own legacy
+# namespace — separately marked for canonical migration there.
 
 NON_EVM_CHAINS: Dict[int, Dict] = {
     # ── VM Family 2: SVM (Solana) ──────────────────────────────────────────
-    200101: {"name": "solana", "label": "Solana", "vm": "SVM", "rpc": "https://api.mainnet-beta.solana.com", "block_time": 0.4, "native_symbol": "SOL", "decimals": 9},
+    900: {"name": "solana", "label": "Solana", "vm": "SVM", "rpc": "https://api.mainnet-beta.solana.com", "block_time": 0.4, "native_symbol": "SOL", "decimals": 9},
 
     # ── VM Family 3: Cosmos (6 chains) ─────────────────────────────────────
-    200201: {"name": "cosmos_hub", "label": "Cosmos Hub", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/cosmoshub", "block_time": 6, "native_symbol": "ATOM", "decimals": 6},
-    200202: {"name": "osmosis", "label": "Osmosis", "vm": "COSMOS", "rpc": "https://rpc.osmosis.zone", "block_time": 6, "native_symbol": "OSMO", "decimals": 6},
-    200203: {"name": "injective", "label": "Injective", "vm": "COSMOS", "rpc": "https://sentry-lcd.injective.network", "block_time": 2, "native_symbol": "INJ", "decimals": 18},
-    200204: {"name": "celestia", "label": "Celestia", "vm": "COSMOS", "rpc": "https://rpc.celestia.pops.one", "block_time": 12, "native_symbol": "TIA", "decimals": 6},
-    200205: {"name": "dydx", "label": "dYdX", "vm": "COSMOS", "rpc": "https://dYdX-rpc.lava.build", "block_time": 2, "native_symbol": "DYDX", "decimals": 18},
-    200206: {"name": "sei", "label": "Sei", "vm": "COSMOS", "rpc": "https://sei-rpc.polkachu.com", "block_time": 0.5, "native_symbol": "SEI", "decimals": 6},
+    10000: {"name": "cosmos_hub", "label": "Cosmos Hub", "vm": "COSMOS", "rpc": "https://rpc.cosmos.directory/cosmoshub", "block_time": 6, "native_symbol": "ATOM", "decimals": 6},
+    10001: {"name": "osmosis", "label": "Osmosis", "vm": "COSMOS", "rpc": "https://rpc.osmosis.zone", "block_time": 6, "native_symbol": "OSMO", "decimals": 6},
+    10004: {"name": "injective", "label": "Injective", "vm": "COSMOS", "rpc": "https://sentry-lcd.injective.network", "block_time": 2, "native_symbol": "INJ", "decimals": 18},
+    10003: {"name": "celestia", "label": "Celestia", "vm": "COSMOS", "rpc": "https://rpc.celestia.pops.one", "block_time": 12, "native_symbol": "TIA", "decimals": 6},
+    10006: {"name": "dydx", "label": "dYdX", "vm": "COSMOS", "rpc": "https://dYdX-rpc.lava.build", "block_time": 2, "native_symbol": "DYDX", "decimals": 18},
+    10005: {"name": "sei", "label": "Sei", "vm": "COSMOS", "rpc": "https://sei-rpc.polkachu.com", "block_time": 0.5, "native_symbol": "SEI", "decimals": 6},
 
     # ── VM Family 4: Move (Aptos, Sui) ─────────────────────────────────────
-    200301: {"name": "aptos", "label": "Aptos", "vm": "MOVE", "rpc": "https://fullnode.mainnet.aptoslabs.com", "block_time": 1, "native_symbol": "APT", "decimals": 8},
-    200302: {"name": "sui", "label": "Sui", "vm": "MOVE", "rpc": "https://fullnode.mainnet.sui.io", "block_time": 0.5, "native_symbol": "SUI", "decimals": 9},
+    20000: {"name": "aptos", "label": "Aptos", "vm": "MOVE", "rpc": "https://fullnode.mainnet.aptoslabs.com", "block_time": 1, "native_symbol": "APT", "decimals": 8},
+    20100: {"name": "sui", "label": "Sui", "vm": "MOVE", "rpc": "https://fullnode.mainnet.sui.io", "block_time": 0.5, "native_symbol": "SUI", "decimals": 9},
 
     # ── VM Family 5: NEAR ──────────────────────────────────────────────────
-    200401: {"name": "near", "label": "NEAR", "vm": "NEAR", "rpc": "https://rpc.mainnet.near.org", "block_time": 1, "native_symbol": "NEAR", "decimals": 24},
+    23000: {"name": "near", "label": "NEAR", "vm": "NEAR", "rpc": "https://rpc.mainnet.near.org", "block_time": 1, "native_symbol": "NEAR", "decimals": 24},
 
     # ── VM Family 6: TON ───────────────────────────────────────────────────
-    200501: {"name": "ton", "label": "TON", "vm": "TON", "rpc": "https://toncenter.com/api/v2", "block_time": 5, "native_symbol": "TON", "decimals": 9},
+    22000: {"name": "ton", "label": "TON", "vm": "TON", "rpc": "https://toncenter.com/api/v2", "block_time": 5, "native_symbol": "TON", "decimals": 9},
 
     # ── VM Family 7: Starknet ───────────────────────────────────────────────
-    200601: {"name": "starknet", "label": "Starknet", "vm": "STARKNET", "rpc": "https://starknet-mainnet.public.blastapi.io", "block_time": 3, "native_symbol": "ETH", "decimals": 18},
+    24000: {"name": "starknet", "label": "Starknet", "vm": "STARKNET", "rpc": "https://starknet-mainnet.public.blastapi.io", "block_time": 3, "native_symbol": "ETH", "decimals": 18},
 
     # ── VM Family 8: Tron ──────────────────────────────────────────────────
-    200701: {"name": "tron", "label": "Tron", "vm": "TRON", "rpc": "https://api.trongrid.io", "block_time": 3, "native_symbol": "TRX", "decimals": 6},
+    26000: {"name": "tron", "label": "Tron", "vm": "TRON", "rpc": "https://api.trongrid.io", "block_time": 3, "native_symbol": "TRX", "decimals": 6},
 
     # ── VM Family 9: UTXO (Bitcoin, Litecoin, Dogecoin) ────────────────────
-    200801: {"name": "bitcoin", "label": "Bitcoin", "vm": "UTXO", "rpc": "https://blockstream.info/api", "block_time": 600, "native_symbol": "BTC", "decimals": 8},
-    200802: {"name": "litecoin", "label": "Litecoin", "vm": "UTXO", "rpc": "https://litecoinblockexplorer.net/api", "block_time": 150, "native_symbol": "LTC", "decimals": 8},
-    200803: {"name": "dogecoin", "label": "Dogecoin", "vm": "UTXO", "rpc": "https://dogeblocks.com/api", "block_time": 60, "native_symbol": "DOGE", "decimals": 8},
+    21000: {"name": "bitcoin", "label": "Bitcoin", "vm": "UTXO", "rpc": "https://blockstream.info/api", "block_time": 600, "native_symbol": "BTC", "decimals": 8},
+    21004: {"name": "litecoin", "label": "Litecoin", "vm": "UTXO", "rpc": "https://litecoinblockexplorer.net/api", "block_time": 150, "native_symbol": "LTC", "decimals": 8},
+    21003: {"name": "dogecoin", "label": "Dogecoin", "vm": "UTXO", "rpc": "https://dogeblocks.com/api", "block_time": 60, "native_symbol": "DOGE", "decimals": 8},
 
     # ── VM Family 10: Stellar ──────────────────────────────────────────────
     # id 27000 = canonical registry id (config/chain_registry.json). Was 200901,
@@ -748,22 +749,22 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
     27000: {"name": "stellar", "label": "Stellar", "vm": "STELLAR", "rpc": "https://horizon.stellar.org", "block_time": 5, "native_symbol": "XLM", "decimals": 7},
 
     # ── VM Family 11: Hedera ───────────────────────────────────────────────
-    201001: {"name": "hedera", "label": "Hedera", "vm": "HEDERA", "rpc": "https://mainnet.hashio.io/api", "block_time": 2, "native_symbol": "HBAR", "decimals": 8},
+    28000: {"name": "hedera", "label": "Hedera", "vm": "HEDERA", "rpc": "https://mainnet.hashio.io/api", "block_time": 2, "native_symbol": "HBAR", "decimals": 8},
 
     # ── VM Family 12: MultiversX ───────────────────────────────────────────
-    201101: {"name": "multiversx", "label": "MultiversX", "vm": "MULTIVERSX", "rpc": "https://api.multiversx.eu", "block_time": 6, "native_symbol": "EGLD", "decimals": 18},
+    32000: {"name": "multiversx", "label": "MultiversX", "vm": "MULTIVERSX", "rpc": "https://api.multiversx.eu", "block_time": 6, "native_symbol": "EGLD", "decimals": 18},
 
     # ── VM Family 13: Vechain ──────────────────────────────────────────────
-    201201: {"name": "vechain", "label": "Vechain", "vm": "VECHAIN", "rpc": "https://mainnet.vechain.org", "block_time": 10, "native_symbol": "VET", "decimals": 18},
+    29000: {"name": "vechain", "label": "Vechain", "vm": "VECHAIN", "rpc": "https://mainnet.vechain.org", "block_time": 10, "native_symbol": "VET", "decimals": 18},
 
     # ── VM Family 14: Waves ────────────────────────────────────────────────
-    201301: {"name": "waves", "label": "Waves", "vm": "WAVES", "rpc": "https://nodes.wavesnodes.com", "block_time": 60, "native_symbol": "WAVES", "decimals": 8},
+    30000: {"name": "waves", "label": "Waves", "vm": "WAVES", "rpc": "https://nodes.wavesnodes.com", "block_time": 60, "native_symbol": "WAVES", "decimals": 8},
 
     # ── VM Family 15: XRPL ─────────────────────────────────────────────────
-    201401: {"name": "xrpl", "label": "XRPL", "vm": "XRPL", "rpc": "https://s1.ripple.com:51234", "block_time": 4, "native_symbol": "XRP", "decimals": 6},
+    31000: {"name": "xrpl", "label": "XRPL", "vm": "XRPL", "rpc": "https://s1.ripple.com:51234", "block_time": 4, "native_symbol": "XRP", "decimals": 6},
 
     # ── VM Family 16: Polkadot (PVM) ──────────────────────────────────────
-    201501: {"name": "polkadot", "label": "Polkadot", "vm": "PVM", "rpc": "https://rpc.polkadot.io", "block_time": 6, "native_symbol": "DOT", "decimals": 10},
+    25000: {"name": "polkadot", "label": "Polkadot", "vm": "PVM", "rpc": "https://rpc.polkadot.io", "block_time": 6, "native_symbol": "DOT", "decimals": 10},
     25002:  {"name": "kusama", "label": "Kusama", "vm": "PVM", "rpc": "https://kusama-rpc.polkadot.io", "block_time": 6, "native_symbol": "KSM", "decimals": 12},
 
     # ── VM Family 17: Algorand (AVM) ──────────────────────────────────────
@@ -794,6 +795,27 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
 # ============================================================================
 # NON-EVM BLOCK FETCHERS
 # ============================================================================
+
+# Legacy streamer namespace → canonical registry id. Applied by
+# BHStreamer._init_db so ledgers written before the re-key keep their history.
+_LEGACY_STREAMER_CHAIN_IDS: Dict[int, int] = {
+    200101: 900,    # solana
+    200201: 10000, 200202: 10001, 200203: 10004, 200204: 10003,
+    200205: 10006, 200206: 10005,  # cosmos family
+    200301: 20000, 200302: 20100,  # aptos, sui
+    200401: 23000,  # near
+    200501: 22000,  # ton
+    200601: 24000,  # starknet
+    200701: 26000,  # tron
+    200801: 21000, 200802: 21004, 200803: 21003,  # bitcoin, litecoin, dogecoin
+    201001: 28000,  # hedera
+    201101: 32000,  # multiversx
+    201201: 29000,  # vechain
+    201301: 30000,  # waves
+    201401: 31000,  # xrpl
+    201501: 25000,  # polkadot
+}
+
 
 def _synthetic_tx_sender(chain_name: str, tx_hash: str) -> str:
     """
