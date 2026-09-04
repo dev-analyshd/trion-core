@@ -507,6 +507,13 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
 
         // §6 steps 2, 4, 6-pre — EPOCH + registry conformance (H-01/H-03)
         uint32 epoch = CanonicalCertificate.epochOf(payload);
+        // P-EVM-01 defense-in-depth: this oracle indexes certificates for
+        // THIS chain only — foreign-dest-chain certificates are rejected at
+        // the observability surface too (escrows re-verify independently).
+        require(
+            CanonicalCertificate.destChainOf(payload) == uint32(block.chainid),
+            "TRION: dest chain not this chain"
+        );
         _checkEpochAndRegistry(epoch, payload);
 
         // §6 steps 5-6 — SIGNATURES + weight quorum (H-04)
