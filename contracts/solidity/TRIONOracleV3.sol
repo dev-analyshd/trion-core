@@ -511,7 +511,7 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         // THIS chain only — foreign-dest-chain certificates are rejected at
         // the observability surface too (escrows re-verify independently).
         require(
-            CanonicalCertificate.destChainOf(payload) == uint32(block.chainid),
+            uint256(CanonicalCertificate.destChainOf(payload)) == block.chainid,
             "TRION: dest chain not this chain"
         );
         _checkEpochAndRegistry(epoch, payload);
