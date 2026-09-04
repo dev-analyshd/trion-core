@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "generated": "2026-09-04",
+    "method": "extracted from tests/master_formula_verification.py execution (105/105) + spec/FORMULA_REFERENCE.md cross-check",
+    "authority": "master command \u00a718 \u2014 one canonical definition per formula"
+  },
+  "counts": {
+    "formulas_verified": 105,
+    "verified_result": "ALL FORMULAS ENFORCED AS SPECIFIED",
+    "inventions": 36,
+    "inventions_result": "PRESENT AND FUNCTIONING"
+  },
+  "core_formulas": {
+    "C(t)_5plane": {
+      "definition": "C(t) = 0.25\u00b7Phi + 0.30\u00b7M + 0.25\u00b7Sigma + 0.10\u00b7K + 0.10\u00b7A",
+      "impl": [
+        "core/master/coherence.py",
+        "rust/src/master_equation.rs",
+        "wasm"
+      ],
+      "weights_profiles": 7
+    },
+    "Theta_dynamic": {
+      "definition": "Theta = 0.55 + 0.37\u00b7clamp(V,0,1)",
+      "impl": [
+        "core/master/coherence.py",
+        "rust/src/master_equation.rs"
+      ]
+    },
+    "master_T(t)": {
+      "definition": "T(t) = [C>=Theta]\u00b7C\u00b7e^(M_moat\u00b7t), moat clamped min(\u00b7,36)",
+      "impl": [
+        "core/master/master_equation.py",
+        "rust/src/master_equation.rs"
+      ]
+    },
+    "magnitude_nano": {
+      "definition": "trunc(clamp(log10(raw/10^dec + 1)/log10(1001),0,1)\u00b71e9)",
+      "impl": [
+        "core/realtime/bh_streamer.py",
+        "indexers (21 crates)",
+        "chains/shared/canonical_bh.ts",
+        "core/primitives/behavioral_hash.py"
+      ]
+    },
+    "dual_strand": {
+      "definition": "sense=SHA3-256(p||0x00); antisense=SHA3-256(p||0xFF) XOR NOT(sense)",
+      "impl": [
+        "all 4 languages"
+      ],
+      "vectors": 52
+    },
+    "NL_liquidity_ocean": {
+      "definition": "\u00a76.1 SUM VALUE\u00b7(1/cost)\u00b7(1/time)\u00b7BEO_health, normalized",
+      "impl": [
+        "core/extended/natural_liquidity.py"
+      ],
+      "tests": 32
+    },
+    "shannon_entropy": {
+      "definition": "-SUM p\u00b7log2(p)",
+      "impl": [
+        "core",
+        "rust common",
+        "wasm",
+        "signal-processing C++"
+      ],
+      "parity": "\u22642e-15 wasm\u2194py"
+    },
+    "validator_quorum": {
+      "definition": "DIV-BFT strict 3p>2t; certificate w_j = s_j\u00b7d_j \u00d71e6, threshold from registry",
+      "impl": [
+        "validator/internal/consensus (Go)",
+        "contracts (all tiers)",
+        "core/consensus/certificate.py"
+      ]
+    },
+    "HHI_bound": {
+      "definition": "HHI \u2264 4000 \u00d71e4 (4-tier freeze 1500/2500/4000)",
+      "impl": [
+        "Go mesh",
+        "python consensus",
+        "certificate"
+      ]
+    },
+    "cert_TTL": {
+      "definition": "3600/86400/259200/604800 s (\u00a79.2 second-based)",
+      "impl": [
+        "core/consensus/certificate.py",
+        "contracts"
+      ]
+    }
+  },
+  "notes": [
+    "No duplicate/contradictory formula found across languages this sweep; the 3 prior disjoint signal-type taxonomies are unified (24 canonical).",
+    "Julia reference profiles 5/5 match Python coherence (SWEEP-A).",
+    "Duplicate formulas resolved: compute_xsl shadowing fixed earlier (375b762); formula count dated and measured."
+  ]
+}
