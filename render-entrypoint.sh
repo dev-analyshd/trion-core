@@ -55,24 +55,19 @@ if [[ ! -f "/app/bh_ledger.db" ]]; then
     if [[ -f "${BH_LEDGER_DB}" ]]; then
         cp "${BH_LEDGER_DB}" /app/bh_ledger.db
     else
-        python3 -c "
-import sqlite3
-c = sqlite3.connect('/app/bh_ledger.db')
-c.execute('''CREATE TABLE IF NOT EXISTS bh_ledger (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, tx_hash TEXT UNIQUE,
-    entity_id TEXT, from_addr TEXT, to_addr TEXT,
-    event_type INTEGER, event_type_name TEXT,
-    magnitude_norm REAL, value_wei TEXT, selector TEXT,
-    sense_hex TEXT, antisense_hex TEXT,
-    block_num INTEGER, block_hash TEXT,
-    chain_id INTEGER, chain_label TEXT, ts REAL)''')
-c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)')
-c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)')
-c.execute('CREATE INDEX IF NOT EXISTS bh_ledger_ts ON bh_ledger(ts DESC)')
-c.commit(); c.close(); print('created bh_ledger.db')
-" 2>/dev/null || log "WARN: could not create bh_ledger.db"
+        # Use the canonical init script — the inline DDL that used to live here
+        # created a PRE-migration schema (no `valid` column, 3/5 indexes), which
+        # no streamer step ever migrated on this platform, so backfills writing
+        # `valid` crashed on exactly the bug init_bh_ledger.py documents.
+        python3 /app/scripts/init_bh_ledger.py \
+            2>/dev/null || log "WARN: could not create bh_ledger.db"
     fi
 fi
+# Always run the migration pass (idempotent): a /data ledger copied in from an
+# older deployment may still be pre-`valid`.
+BH_LEDGER_DB="${BH_LEDGER_DB:-/app/bh_ledger.db}" \
+    python3 /app/scripts/init_bh_ledger.py 2>/dev/null \
+    || log "WARN: bh_ledger migration pass failed (non-fatal)"
 
 # ── TimescaleDB connection ────────────────────────────────────────────────────
 if [[ -n "${DATABASE_URL}" ]]; then
@@ -160,6 +155,17 @@ if [[ "${TRION_ENABLE_ZG_DA:-1}" == "1" ]]; then
 fi
 
 # ── 6. Flask Oracle API (internal port 5000) ──────────────────────────────────
+# BH Streamer — same contract as the railway entrypoint: standalone process,
+# one per container (the app's in-process gate TRION_STREAMER_INPROCESS stays
+# off; render used to run NO streamer at all, so its ledger never grew).
+if [[ "${TRION_ENABLE_STREAMER:-1}" = "1" ]]; then
+    log "Starting BH Streamer (supervised)..."
+    BH_LEDGER_DB="${BH_LEDGER_DB:-/app/bh_ledger.db}" \
+        spawn "bh-streamer" python3 /app/scripts/run_bh_streamer.py
+else
+    log "BH Streamer disabled (TRION_ENABLE_STREAMER=0)"
+fi
+
 log "Flask Oracle API starting on :${FLASK_PORT} (internal)"
 (
     cd /app
