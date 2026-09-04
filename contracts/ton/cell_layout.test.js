@@ -63,6 +63,54 @@ const LAYOUTS = {
     cells: [[['custom_threshold', 64], ['check_count', 64], ['pass_count', 64],
              ['block_count', 64], ['last_phi', 64]]],
   },
+
+  // ── C-01 (Wave 2) canonical-certificate layouts ──────────────────────────
+  // The 346-byte canonical payload P (CANONICAL_CERTIFICATE.md §2) as the
+  // PINNED 4-cell tree. oldFlatBits = 2768 = the flat canonical payload —
+  // the split must preserve every field bit (field-boundary split, no
+  // field straddles a cell; cell_hash(P0) is the TVM-family signature digest).
+  'escrow.fc canonical payload P tree': {
+    oldFlatBits: 346 * 8, // 2768
+    cells: [
+      [['domain_tag', 104], ['certificate_kind', 8], ['protocol_version', 24],
+       ['validator_epoch', 32], ['certificate_nonce', 64], ['escrow_id', 256],
+       ['route_id', 256]], // 744
+      [['intent_hash', 256], ['entity_id', 256], ['source_chain', 32],
+       ['dest_chain', 32], ['destination', 256]], // 832
+      [['amount', 256], ['anchor_bh', 256], ['execution_bh', 256]], // 768
+      [['coherence', 64], ['threshold', 64], ['hhi_at_emission', 64],
+       ['total_effective_power', 64], ['validator_count', 32],
+       ['awa_enforced', 8], ['issued_at', 64], ['ttl', 64]], // 424
+    ],
+  },
+  // Epoch registry entry (value ref of epochs_dict, key = 32-bit epoch):
+  // 576 data bits + 1 ref to the validators dict.
+  'escrow.fc epoch entry': {
+    oldFlatBits: 32 + 64 * 4 + 32 + 256, // 576
+    cells: [[['epoch', 32], ['d_consensus', 64], ['hhi', 64],
+             ['total_effective_power', 64], ['validator_count', 32],
+             ['registered_at', 64], ['epoch_set_root', 256]]],
+  },
+  // Validator cell (value ref of the validators dict, key = 256-bit
+  // validator_id): 448 bits — pubkey + the three weight fields (s, d, w).
+  'escrow.fc validator cell': {
+    oldFlatBits: 256 + 64 * 3, // 448
+    cells: [[['ed25519_pubkey', 256], ['stake_weight', 64],
+             ['diversity_weight', 64], ['effective_weight', 64]]],
+  },
+  // Consumed-certificate cell (value ref of consumed_dict, key = 256-bit
+  // escrow_id): 384 bits — the §8 replay registry.
+  'escrow.fc consumed cert cell': {
+    oldFlatBits: 32 + 64 + 256, // 384
+    cells: [[['cert_epoch', 32], ['cert_nonce', 64], ['cert_phash', 256]]],
+  },
+  // Contract storage root (672 data bits + 3 dict refs; fresh-deployment
+  // layout — see the escrow.fc DEPLOYMENT NOTE).
+  'escrow.fc storage root': {
+    oldFlatBits: 267 * 2 + 64 + 1 + 64, // 672
+    cells: [[['owner_addr', 267], ['relayer_addr', 267], ['escrow_count', 64],
+             ['paused', 1], ['current_epoch', 64]]],
+  },
   'oracle.fc pack_route': {
     oldFlatBits: 256 * 3 + 64 * 3 + 1, // 969
     cells: [[['route_id', 256], ['anchor_bh', 256], ['execution_bh', 256],
@@ -87,10 +135,27 @@ const BODIES = {
     [['op', 8], ['escrow_id', 256], ['route_id', 256], ['min_coherence', 64], ['timeout_secs', 64]], // 648
     [['entity_id', 256], ['destination', 267]], // 523
   ],
-  'escrow.fc 0x02 release': [[['op', 8], ['escrow_id', 256], ['execution_bh', 256], ['coherence', 64]]], // 584
+  // 0x02 release = the canonical certificate ENVELOPE (C-01): root carries
+  // op + escrow_id for the dict lookup; ref0 = P-tree root (4 cells above,
+  // chained by single refs); ref1 = signature chain head. Signature cells
+  // (897 bits each, chained while has_next=1): has_next[1] validator_id[256]
+  // stake_weight[64] diversity_weight[64] signature[512] + conditional ref.
+  'escrow.fc 0x02 release envelope (root + P ref + sig ref)': [
+    [['op', 8], ['escrow_id', 256]], // 264
+    // (P tree cells and signature chain cells are covered by the
+    // 'escrow.fc canonical payload P tree' layout above and the 897-bit
+    // sig-cell bound asserted here:)
+    [['has_next', 1], ['validator_id', 256], ['stake_weight', 64],
+     ['diversity_weight', 64], ['signature', 512]], // 897
+  ],
   'escrow.fc 0x03 revert': [[['op', 8], ['escrow_id', 256], ['reason', 8]]], // 272
   'escrow.fc 0x04 emergency': [[['op', 8], ['escrow_id', 256]]], // 264
   'escrow.fc 0x05/0x06 addr': [[['op', 8], ['new_addr', 267]]], // 275
+  'escrow.fc 0x07 register_epoch (root + validators-dict ref)': [
+    [['op', 8], ['epoch', 32], ['d_consensus', 64], ['hhi', 64],
+     ['total_power', 64], ['validator_count', 32], ['epoch_set_root', 256]], // 520
+  ],
+  'escrow.fc 0x08 set_pause': [[['op', 8], ['paused', 1]]], // 9
   'intent.fc 0x01 register (root + ref)': [
     [['op', 32], ['hash', 256], ['entity', 256], ['action', 8], ['mag', 64],
      ['chain', 64], ['deadline', 64]], // 744

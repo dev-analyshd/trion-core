@@ -24,10 +24,26 @@
 ;; With the value as a ref, the node cell is just the key label + 1 ref.
 ;;
 ;; Op codes:
-;;   0x01  publish_btcp_route
+;;   0x01  publish_btcp_route   (owner — METADATA-ONLY route mirror for
+;;                               indexers; carries NO release authority)
 ;;   0x02  verify_execution
-;;   0x03  add_validator
 ;;   0x10  transfer_ownership
+;;   any other op: REJECTED (fail-closed — no silent no-ops)
+;;
+;; ── WAVE 2 / C-01 NOTE (audit: "oracle.fc verdicts are owner-written,
+;; add_validator is a no-op") ────────────────────────────────────────────
+;; This oracle is NOT a release authority and never was one the escrow
+;; consulted (the C-01 vuln was the escrow trusting its own message body).
+;; Release authority now lives ENTIRELY in contracts/ton/escrow.fc's
+;; canonical-certificate path: the epoch registry (validator ids, ed25519
+;; pubkeys, s_j·d_j weights) is a dict in ESCROW storage (TVM contracts
+;; cannot synchronously read another contract's storage, so a registry
+;; contract + get-method would force an async round-trip per release — the
+;; in-storage dict is the simpler honest option, documented there).
+;; The former 0x03 add_validator no-op is KILLED — a no-op that pretends to
+;; manage validators is a lie on the wire; unknown ops now throw.
+;; If this oracle is ever made a certificate-verifying oracle, it must
+;; verify the SAME canonical envelope per CANONICAL_CERTIFICATE.md §7.
 
 #include "stdlib.fc";
 
@@ -36,6 +52,7 @@ const int ERR_UNAUTHORIZED    = 100;
 const int ERR_INVALID_SCORE   = 101;
 const int ERR_ROUTE_NOT_FOUND = 102;
 const int ERR_ROUTE_INACTIVE  = 103;
+const int ERR_UNKNOWN_OP      = 104;   ;; strict parsing — no silent no-ops
 
 ;; ── Storage helpers ───────────────────────────────────────────────────────────
 
@@ -146,11 +163,9 @@ cell pack_route(int route_id, int anchor_bh, int exec_bh, int coherence, int thr
         return ();
     }
 
-    ;; ── 0x03 add_validator (no-op storage; validators managed off-chain) ──────
-    if (op == 3) {
-        assert_owner(sender_addr);
-        return ();
-    }
+    ;; 0x03 add_validator (former no-op) is KILLED — a no-op that pretends to
+    ;; manage validators is a lie on the wire; see the header note. The
+    ;; validator epoch set lives in the ESCROW's registry dict (escrow.fc).
 
     ;; ── 0x10 transfer_ownership ──────────────────────────────────────────────
     if (op == 16) {
@@ -160,6 +175,9 @@ cell pack_route(int route_id, int anchor_bh, int exec_bh, int coherence, int thr
         save_storage(new_owner, route_count, version, routes_dict);
         return ();
     }
+
+    ;; Unknown op — reject (strict parsing, fail-closed).
+    throw(ERR_UNKNOWN_OP);
 }
 
 ;; ── get_methods ───────────────────────────────────────────────────────────────

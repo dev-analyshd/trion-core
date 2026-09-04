@@ -6,19 +6,86 @@
 ;; Value model: the escrow is a VAULT — message value of lock_escrow IS the
 ;; locked amount (nanoTON), held by this contract until release/revert.
 ;;
-;; Storage layout (cell):
-;;   owner_addr    (267 bits, MsgAddressInt)
-;;   relayer_addr  (267 bits, MsgAddressInt)
-;;   escrow_count  (64 bits)
-;;   escrows_dict  (dict ref, key = 256-bit escrow_id, value = escrow cell)
+;; ═══════════════════════════════════════════════════════════════════════════
+;; WAVE 2 / C-01 (CRITICAL) — canonical certificate verification on release
+;; ═══════════════════════════════════════════════════════════════════════════
+;; Prior state (audit finding C-01): op 0x02 read coherence[64] straight out
+;; of the relayer/owner message body — NOTHING checked any verdict, quorum,
+;; freshness or binding; any authorized key could release any escrow at any
+;; coherence claim. That path is GONE. Release now requires the canonical
+;; certificate envelope of docs/protocol/CANONICAL_CERTIFICATE.md:
 ;;
-;; Escrow record layout — split across 2 cells (TVM cells hold at most 1023
-;; data bits; the old flat 1766-bit layout made end_cell() throw cell-overflow
-;; on every lock, bricking the contract):
+;;   * op 0x02 carries P — the 346-byte canonical signing payload — laid out
+;;     in the PINNED cell tree below, plus the ed25519 signature chain.
+;;   * Verification follows §6 EXACTLY, in order: structure -> epoch ->
+;;     freshness -> consensus preconditions -> signatures -> quorum ->
+;;     escrow binding -> nonce/consumed -> settlement.
+;;   * Signatures are Ed25519 (family 2), verified with TVM's native
+;;     CHKSIGNU over the 32-byte big-endian cell_hash(P-root) — the signer
+;;     signs those 32 bytes. DOCUMENTED DEVIATION from "raw P" (§3.2):
+;;     TVM's CHKSIGNS is limited to the data bits of ONE cell (≤ 1023 bits
+;;     = 127 bytes < 346), so raw-P Ed25519 is NOT verifiable on TVM. The
+;;     pinned cell tree makes cell_hash(P-root) a deterministic function of
+;;     P (any different field value or layout ⇒ different hash ⇒ failed
+;;     signature), so the binding strength is equivalent; the registrar
+;;     emits TON certificates with this digest. The canonical
+;;     certificate_hash (FIPS SHA3-256) stays an off-chain id — TVM has no
+;;     SHA3-256 opcode (§7 TON row: "document the deviation").
+;;   * Epoch registry: a dict IN THIS CONTRACT's storage (simpler honest
+;;     option — TVM contracts cannot synchronously read another contract's
+;;     storage, so a separate registry contract would force an async
+;;     message round-trip per release). Registration is owner-gated (the
+;;     registrar relayer role of §10.2 — documented trust root R-4: a
+;;     registrar compromise is bounded to one epoch by the TRION-side
+;;     epoch-set root, which is stored alongside each entry for audit).
+;;   * Quorum: L4.2 tier table over REGISTERED w_j = s_j·d_j (×1e6 fixed
+;;     point; TVM ints are 257-bit signed, so with 64-bit stored weights
+;;     the tier products stay below 2^101 — no overflow is reachable; all
+;;     parsed values are load_uint ⇒ non-negative).
+;;   * `sender == relayer` as release authorization is ELIMINATED: anyone
+;;     may SUBMIT an envelope (relayers only transport); only the
+;;     validator quorum's signatures authorize settlement.
+;;
+;; Clock choice (§9): `now()` = TVM block creation unix time. Freshness is
+;; issued_at ≤ now ≤ issued_at + ttl with a 60 s drift tolerance WIDENING
+;; THE LOWER BOUND ONLY (consensus-time skew tolerated, expiry never).
+;;
+;; Atomicity: a TVM transaction that throws aborts with NO state commit and
+;; NO action execution — failed releases leave storage and balance
+;; untouched and the submitter's unspent value bounces back (TVM native).
+;; The settlement path still writes state BEFORE the external send (CEI).
+;;
+;; Gas: the certificate path calls accept_message() up front — verification
+;; (chksig per signature) is gas-heavy and the SUBMITTER's message value
+;; pays for it. Storage growth from epoch registration is paid by the
+;; registrar's attached value; a failed registration aborts (fail-closed).
+;;
+;; Bounce handling: incoming bounced messages (flag bit set) are ignored —
+;; a bounced RELEASE PAYOUT's value returns to this vault's balance and is
+;; retained (not eaten); sweeping it back out is a documented Wave 3+
+;; hardening item. Emergency/revert payouts are sent non-bounceable so
+;; failure loops cannot form. Release payouts are bounceable.
+;;
+;; Storage layout (root cell, 672 bits + 3 refs):
+;;   owner_addr     (267 bits, MsgAddressInt)
+;;   relayer_addr   (267 bits, MsgAddressInt)
+;;   escrow_count   (64 bits)
+;;   paused         (1 bit)   — blocks release + new locks (not reverts)
+;;   current_epoch  (64 bits) — latest epoch the registrar registered
+;;   ref 0 = escrows_dict  (key = 256-bit escrow_id, value = escrow record ref)
+;;   ref 1 = epochs_dict   (key = 32-bit validator_epoch, value = epoch entry ref)
+;;   ref 2 = consumed_dict (key = 256-bit escrow_id, value = consumed cert ref)
+;;
+;; ── Escrow record layout (unchanged — split across 2 cells; TVM cells hold
+;; at most 1023 data bits; the old flat 1766-bit layout made end_cell()
+;; throw cell-overflow on every lock, bricking the contract):
 ;;   ROOT cell (976 bits) — hot fields checked by every op:
 ;;     escrow_id      [256 bits]
 ;;     route_id       [256 bits]
-;;     amount         [128 bits nanoTON]
+;;     amount         [128 bits nanoTON — retained in terminal records: the
+;;                     state field, not a zeroed amount, marks it spent; the
+;;                     retained tuple is what lets §8.2's idempotent no-op
+;;                     pass binding after settlement (EVM-tier discipline)]
 ;;     min_coherence  [64 bits]  (×1_000_000)
 ;;     lock_ts        [64 bits]  (unix seconds at lock)
 ;;     timeout_secs   [64 bits]
@@ -28,34 +95,104 @@
 ;;     reverted_at    [64 bits]
 ;;   REF 0 (790 bits) — entity metadata + both payout addresses:
 ;;     entity_id      [256 bits]
-;;     destination    [267 bits MsgAddressInt]
+;;     destination    [267 bits MsgAddressInt — basechain (wc 0, no anycast)
+;;                     addresses only; the certificate binds its 256-bit
+;;                     account hash as the canonical bytes32 destination]
 ;;     locked_by      [267 bits MsgAddressInt]
 ;;
-;; The record cell is stored as a dict VALUE REF (idict_set_ref), so each dict
-;; node cell carries only the key label + 1 ref — immune to the 1023-bit
-;; node-cell limit even in adversarial single-entry worst cases.
+;; The record cell is stored as a dict VALUE REF (idict_set_ref), so each
+;; dict node cell carries only the key label + 1 ref — immune to the
+;; 1023-bit node-cell limit even in adversarial single-entry worst cases.
+;;
+;; ── Canonical certificate P cell tree (PINNED — 2768 bits = 346 bytes) ──
+;;   P0 (744 bits, <1000 root convention): domain_tag[104] ("TRION-CERT-V1"
+;;       ASCII, compared as an integer constant) certificate_kind[8]
+;;       protocol_version[24] validator_epoch[32] certificate_nonce[64]
+;;       escrow_id[256] route_id[256]  + ref → P1
+;;   P1 (832 bits): intent_hash[256] entity_id[256] source_chain[32]
+;;       dest_chain[32] destination[256]  + ref → P2
+;;   P2 (768 bits): amount[256] anchor_bh[256] execution_bh[256] + ref → P3
+;;   P3 (424 bits): coherence[64] threshold[64] hhi[64]
+;;       total_effective_power[64] validator_count[32] awa_enforced[8]
+;;       issued_at[64] ttl[64]
+;;   The 346 bytes are exactly CANONICAL_CERTIFICATE §2 (py reference
+;;   core/consensus/certificate.py); the split is at field boundaries so no
+;;   field straddles a cell, every cell stays ≤ 1023 bits, and the split is
+;;   pinned by contracts/ton/cell_layout.test.js. Parsing uses EXPLICIT
+;;   widths only (no ambiguous loads) and each cell must parse to exactly
+;;   empty — any trailing bits or extra refs throw (fail-closed).
+;;
+;; ── Signature chain cells (family 2 — ed25519, 64-byte signatures) ──
+;;   SIG cell (897 bits): has_next[1] validator_id[256] stake_weight[64]
+;;       diversity_weight[64] signature[512]  + ref → next SIG iff has_next=1
+;;   Signatures MUST be sorted ascending by validator_id (the V3
+;;   sorted-distinct-signer discipline): vid > last_vid is enforced, which
+;;   also proves distinctness. The envelope family is IMPLICIT (family 2 is
+;;   the only family parseable here — 512-bit signatures against TVM
+;;   chksig); mixed-family envelopes fail closed by construction (§4 inv.1).
+;;   stake/diversity are CLAIMS cross-checked against the registry (§6 5c).
+;;
+;; ── Epoch registry entry cell (576 bits + 1 ref) ──
+;;   epoch[32] d_consensus[64 ×1e6] hhi[64 ×1e4] total_effective_power[64 ×1e6]
+;;   validator_count[32] registered_at[64] epoch_set_root[256]
+;;   + ref → validators dict (key = 256-bit validator_id, value = ref to
+;;   validator cell). epoch_set_root is the registrar's off-chain
+;;   SHA3-256("TRION-EPOCHSET"‖epoch‖entries) — stored for audit binding,
+;;   NOT verifiable on TVM (no SHA3-256 opcode).
+;;   Validator cell (448 bits): ed25519_pubkey[256] stake_weight[64 ×1e6]
+;;   diversity_weight[64 ×1e6] effective_weight[64 ×1e6 = s·d/1e6]. The
+;;   stored effective_weight is re-derived and cross-checked at lookup.
+;;
+;; ── Consumed-certificate cell (384 bits) ──
+;;   cert_epoch[32] cert_nonce[64] cert_phash[256 = cell_hash(P-root)]
+;;   Scope: (validator_epoch, escrow_id) — nonce must EXCEED the consumed
+;;   nonce; the exact same (epoch, nonce, phash) triple resubmitted is an
+;;   idempotent no-op (§8.2 — observability, no settlement effect).
 ;;
 ;; Op codes:
-;;   0x01 lock_escrow          (relayer/owner, carries value)
-;;   0x02 release_escrow       (relayer/owner; coherence >= min; not expired)
+;;   0x01 lock_escrow          (relayer/owner, carries value; blocked when paused)
+;;   0x02 release_escrow       (PERMISSIONLESS — carries the canonical
+;;                              certificate envelope; the quorum authorizes,
+;;                              the sender is only a transport; blocked when paused)
 ;;   0x03 revert_escrow        (relayer/owner; anyone if expired)
 ;;   0x04 emergency_revert     (ANYONE; after 7 days — Gap 8 escape hatch)
 ;;   0x05 set_relayer          (owner)
 ;;   0x06 transfer_ownership   (owner)
+;;   0x07 register_epoch       (owner — the registrar role, §10.2 / R-4)
+;;   0x08 set_pause            (owner; 1 = pause release+lock, 0 = unpause)
+;;   any other op: REJECTED (fail-closed — no silent no-ops)
 ;;
 ;; Message bodies (first cell must stay ≤ 1023 bits — chains build the root
 ;; cell plus refs; refs must be read in the same order they were stored):
 ;;   0x01 lock:  root = op[8] escrow_id[256] route_id[256] min_coherence[64]
 ;;                    timeout_secs[64]                                 (648 bits)
 ;;               ref 0 = entity_id[256] destination[267]                (523 bits)
-;;   0x02:       op[8] escrow_id[256] execution_bh[256] coherence[64]   (584 bits)
+;;   0x02 release: root = op[8] escrow_id[256]                          (264 bits)
+;;               ref 0 = P0 (canonical payload tree root, see above)
+;;               ref 1 = SIG chain head
 ;;   0x03:       op[8] escrow_id[256] reason[8]                         (272 bits)
 ;;   0x04:       op[8] escrow_id[256]                                   (264 bits)
 ;;   0x05/0x06:  op[8] new_addr[267]                                   (275 bits)
+;;   0x07:       op[8] epoch[32] d_consensus[64] hhi[64] total_power[64]
+;;               validator_count[32] epoch_set_root[256]                (520 bits)
+;;               ref 0 = validators dict (prebuilt: key 256-bit
+;;                       validator_id → value ref of validator cell)
+;;   0x08:       op[8] paused[1]                                        (9 bits)
+;;
+;; DEPLOYMENT NOTE: the storage root layout changed in Wave 2 (paused +
+;; current_epoch + two new dict refs) — this is a fresh-deployment layout;
+;; the C-01 audit line "until then, mainnet TON escrow must not hold value"
+;; is the migration path (do not upgrade in place).
+;; NOTE: chains/ton/contracts/escrow.fc is a stale deployment copy owned by
+;; the deployment stream (Wave 3) — it still carries the pre-fix layout and
+;; must be re-synced before any TON deployment holds value.
 ;;
 ;; Whitepaper: BTCP §4.3 (Six-Step Execution) + §11 (Five Final Fixes).
+;; Canonical: docs/protocol/CANONICAL_CERTIFICATE.md §2 (P), §3.2 family 2,
+;; §5.2 quorum tiers, §6 verification order, §7 TON row, §8 replay, §9
+;; freshness, §10 epochs. Audit: VALIDATOR_SECURITY_AUDIT.md C-01.
 
-#include "stdlib.fc";
+#include "stdlib.fc"
 
 ;; ── Error codes ───────────────────────────────────────────────────────────────
 const int ERR_UNAUTHORIZED        = 100;
@@ -69,6 +206,38 @@ const int ERR_ZERO_TIMEOUT        = 126;
 const int ERR_EMERGENCY_NOT_YET   = 127;
 const int ERR_INVALID_COHERENCE   = 128;
 const int ERR_SEND_FAILED         = 129;
+;; C-01 canonical-certificate errors (130+)
+const int ERR_PAUSED              = 130;
+const int ERR_CERT_TAG            = 131;  ;; §6 1 — bad domain tag
+const int ERR_CERT_KIND           = 132;  ;; §6 1 — unknown certificate_kind
+const int ERR_CERT_VERSION        = 133;  ;; §6 1 — protocol_version too new
+const int ERR_EPOCH_UNKNOWN       = 134;  ;; §6 2 — epoch not registered
+const int ERR_EPOCH_STALE         = 135;  ;; §6 2 — older than grace
+const int ERR_CERT_EXPIRED        = 136;  ;; §6 3 — now > issued_at + ttl
+const int ERR_CERT_FUTURE         = 137;  ;; §6 3 — issued far in the future
+const int ERR_CERT_TTL            = 138;  ;; §6 1 — ttl = 0 (born expired)
+const int ERR_CERT_HHI            = 139;  ;; §6 4 — hhi > 4000 (L4.8 CRITICAL)
+const int ERR_CERT_AWA            = 140;  ;; §6 4 — awa_enforced = 0
+const int ERR_CERT_UNSAFE         = 141;  ;; §6 4 — coherence < threshold
+const int ERR_CERT_COUNT          = 142;  ;; §6 4 — validator_count mismatch
+const int ERR_CERT_POWER          = 143;  ;; §6 6 — total power mismatch
+const int ERR_BIND_ESCROW         = 144;  ;; §6 7 — escrow_id mismatch
+const int ERR_BIND_ROUTE          = 145;  ;; §6 7 — route_id mismatch
+const int ERR_BIND_ENTITY         = 146;  ;; §6 7 — entity_id mismatch
+const int ERR_BIND_DEST           = 147;  ;; §6 7 — destination mismatch
+const int ERR_BIND_AMOUNT         = 148;  ;; §6 7 — amount mismatch
+const int ERR_SIG_UNREGISTERED    = 149;  ;; §6 5b — signer not in epoch set
+const int ERR_SIG_WEIGHT_CLAIM    = 150;  ;; §6 5c — claim ≠ registered weight
+const int ERR_SIG_WEIGHT_BAD      = 151;  ;; registry integrity: w ≠ s·d/1e6
+const int ERR_SIG_ORDER           = 152;  ;; §6 1 — not ascending / duplicate
+const int ERR_SIG_BAD             = 153;  ;; §6 5a — failed ed25519 check
+const int ERR_SIG_TOO_FEW         = 154;  ;; §6 1 — fewer than 3 signers
+const int ERR_QUORUM              = 155;  ;; §6 6 — L4.2 tier not met
+const int ERR_CERT_REPLAY         = 156;  ;; §6 8 — nonce regression
+const int ERR_EPOCH_MISMATCH      = 157;  ;; registry key/entry disagreement
+const int ERR_REG_MALFORMED       = 158;  ;; 0x07 registration validation
+const int ERR_CERT_TAIL           = 159;  ;; trailing bits/refs — strict parse
+const int ERR_UNKNOWN_OP          = 160;  ;; unrecognized op — fail closed
 
 ;; ── States ────────────────────────────────────────────────────────────────────
 const int STATE_HOLDING           = 0;
@@ -79,28 +248,89 @@ const int STATE_EMERGENCY_REVERTED = 3;
 ;; Gap 8: absolute maximum lockup — 7 days, after which ANYONE can revert
 const int EMERGENCY_ESCAPE_SECONDS = 604800;
 
+;; ── Canonical certificate constants (CANONICAL_CERTIFICATE.md) ────────────────
+;; "TRION-CERT-V1" as a 104-bit big-endian integer (13 ASCII bytes)
+const int TRION_CERT_V1_TAG       = 0x5452494f4e2d434552542d5631;
+const int CERT_KIND_RELEASE       = 1;      ;; §2 certificate_kind (ED-K1)
+const int CERT_VERSION_MAX        = 0x010000;  ;; packed semver 1.0.0 (uint24)
+const int HHI_MAX_ACCEPTABLE      = 4000;   ;; §5.3 — L4.8 CRITICAL tier
+const int SCALE_1E6               = 1000000;
+const int D_CONSENSUS_TIER1       = 600000; ;; §5.2 — ≥ 0.60 → 2/3 strict
+const int D_CONSENSUS_TIER2       = 400000; ;; §5.2 — ≥ 0.40 → 0.75
+const int MIN_SIGNERS             = 3;      ;; §4 — liveness floor
+const int EPOCH_GRACE             = 2;      ;; §10.2 — verifier grace (ED-G)
+const int CLOCK_DRIFT_SECS        = 60;     ;; §9.1 — lower-bound-only drift
+
 ;; ── Storage helpers ───────────────────────────────────────────────────────────
 
-(slice, slice, int, cell) load_storage() inline {
+(slice, slice, int, int, int, cell, cell, cell) load_storage() inline {
     slice ds = get_data().begin_parse();
-    slice owner_addr   = ds~load_bits(267);
-    slice relayer_addr = ds~load_bits(267);
-    int   escrow_count = ds~load_uint(64);
-    cell  escrows_dict = ds~load_ref();
-    return (owner_addr, relayer_addr, escrow_count, escrows_dict);
+    slice owner_addr    = ds~load_bits(267);
+    slice relayer_addr  = ds~load_bits(267);
+    int   escrow_count  = ds~load_uint(64);
+    int   paused        = ds~load_uint(1);
+    int   current_epoch = ds~load_uint(64);
+    cell  escrows_dict  = ds~load_ref();
+    cell  epochs_dict   = ds~load_ref();
+    cell  consumed_dict = ds~load_ref();
+    return (owner_addr, relayer_addr, escrow_count, paused, current_epoch,
+            escrows_dict, epochs_dict, consumed_dict);
 }
 
-() save_storage(slice owner_addr, slice relayer_addr, int escrow_count, cell escrows_dict) impure inline {
+() save_storage(slice owner_addr, slice relayer_addr, int escrow_count,
+                int paused, int current_epoch,
+                cell escrows_dict, cell epochs_dict, cell consumed_dict) impure inline {
     set_data(begin_cell()
         .store_slice(owner_addr)
         .store_slice(relayer_addr)
         .store_uint(escrow_count, 64)
+        .store_uint(paused, 1)
+        .store_uint(current_epoch, 64)
         .store_ref(escrows_dict)
+        .store_ref(epochs_dict)
+        .store_ref(consumed_dict)
     .end_cell());
 }
 
 int is_authorized(slice sender, slice owner_addr, slice relayer_addr) inline {
     return equal_slices(sender, owner_addr) | equal_slices(sender, relayer_addr);
+}
+
+;; True iff the canonical bytes32 `canonical` is the 256-bit account hash of
+;; the stored destination address, and that address is a plain basechain
+;; (wc 0, no anycast) address — §7 TON: the canonical 32-byte destination
+;; for TON legs is the basechain account id. Addr slice parse is local-only.
+int dest_matches_canonical(slice addr, int canonical) inline {
+    slice d = addr;                      ;; local copy — window parses locally
+    int tag      = d~load_uint(2);       ;; addr_std tag "10"
+    int anycast  = d~load_uint(1);       ;; Maybe Anycast — must be absent
+    int wc       = d~load_int(8);        ;; signed workchain id — basechain 0
+    int account  = d~load_uint(256);
+    return (tag == 2) & (anycast == 0) & (wc == 0) & (account == canonical);
+}
+
+;; True iff the address is a plain basechain (tag 10, no anycast, wc 0)
+;; address whose 256-bit account hash a certificate can bind (§6 step 7).
+int is_bindable_destination(slice addr) inline {
+    slice d = addr;
+    int tag     = d~load_uint(2);
+    int anycast = d~load_uint(1);
+    int wc      = d~load_int(8);
+    return (tag == 2) & (anycast == 0) & (wc == 0);
+}
+
+;; L4.2 tier quorum over REGISTERED weights (§5.2, integer, no floats):
+;;   D ≥ 0.60  → 2/3 STRICT:  3·signed >  2·total
+;;   D ≥ 0.40  → 0.75:        4·signed ≥  3·total
+;;   else      → 0.85:       20·signed ≥ 17·total
+int quorum_met(int signed_power, int total_power, int d_consensus) inline {
+    if (d_consensus >= D_CONSENSUS_TIER1) {
+        return 3 * signed_power > 2 * total_power;
+    }
+    if (d_consensus >= D_CONSENSUS_TIER2) {
+        return 4 * signed_power >= 3 * total_power;
+    }
+    return 20 * signed_power >= 17 * total_power;
 }
 
 ;; ── Escrow (de)serialisation ─────────────────────────────────────────────────
@@ -203,12 +433,14 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
 
     int op = in_msg_body~load_uint(8);
 
-    (slice owner_addr, slice relayer_addr, int escrow_count, cell escrows_dict) = load_storage();
+    (slice owner_addr, slice relayer_addr, int escrow_count, int paused,
+     int current_epoch, cell escrows_dict, cell epochs_dict, cell consumed_dict) = load_storage();
     int now = now();
 
     ;; ── 0x01 lock_escrow ────────────────────────────────────────────────────
     if (op == 1) {
         throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
+        throw_if(ERR_PAUSED, paused);              ;; pause blocks NEW locks (EVM parity)
         ;; lock body mirrors the record split (root 648 bits, ref 523 bits):
         int escrow_id     = in_msg_body~load_uint(256);
         int route_id      = in_msg_body~load_uint(256);
@@ -221,6 +453,9 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         throw_unless(ERR_ZERO_AMOUNT, msg_value > 0);
         throw_unless(ERR_ZERO_TIMEOUT, timeout_secs > 0);
         throw_unless(ERR_INVALID_COHERENCE, min_coherence <= 1000000);
+        ;; settlement-tuple binding requires a basechain destination whose
+        ;; 256-bit account hash the certificate can bind (§6 step 7)
+        throw_unless(ERR_BIND_DEST, is_bindable_destination(destination));
 
         ;; Reject duplicate escrow_id
         (cell existing, int found) = idict_get_ref?(escrows_dict, 256, escrow_id);
@@ -230,36 +465,220 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
                                msg_value, min_coherence, now, timeout_secs,
                                STATE_HOLDING, 0, 0, 0, sender_addr);
         escrows_dict~dict_put_escrow(escrow_id, esc);
-        save_storage(owner_addr, relayer_addr, escrow_count + 1, escrows_dict);
+        save_storage(owner_addr, relayer_addr, escrow_count + 1, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
         return ();
     }
 
     ;; All remaining ops need the escrow record; op-specific body parse below.
-    ;; ── 0x02 release_escrow ─────────────────────────────────────────────────
+    ;; ── 0x02 release_escrow — CANONICAL CERTIFICATE PATH (C-01) ─────────────
+    ;;
+    ;; PERMISSIONLESS: the message sender is only a TRANSPORT (a relayer may
+    ;; submit envelopes but NEVER authorizes) — authority is the validator
+    ;; quorum's signatures. Verification is CANONICAL_CERTIFICATE §6, in
+    ;; order, fail-closed, with NO fallback to any weaker check.
     if (op == 2) {
-        throw_unless(ERR_UNAUTHORIZED, is_authorized(sender_addr, owner_addr, relayer_addr));
-        int escrow_id    = in_msg_body~load_uint(256);
-        int execution_bh = in_msg_body~load_uint(256);
-        int coherence    = in_msg_body~load_uint(64);
-        ;; execution_bh is recorded in the release event; unused for state.
+        ;; Gas: verification (chksig per signature) is heavy — the SUBMITTER's
+        ;; message value pays; accept all remaining value as gas credit.
+        accept_message();
 
-        cell esc_cell = dict_get_escrow(escrows_dict, escrow_id);
+        throw_if(ERR_PAUSED, paused);              ;; pause blocks settlement
+
+        ;; envelope: op[8] escrow_id[256] + ref0 = P-tree root + ref1 = SIG head
+        int body_escrow = in_msg_body~load_uint(256);
+        cell p0         = in_msg_body~load_ref();
+        cell sig_head   = in_msg_body~load_ref();
+        throw_unless(ERR_CERT_TAIL, in_msg_body.slice_empty?());
+
+        ;; §6 1. STRUCTURE — parse the pinned P tree with explicit widths.
+        slice p  = p0.begin_parse();
+        int tag  = p~load_uint(104);
+        throw_unless(ERR_CERT_TAG, tag == TRION_CERT_V1_TAG);
+        int cert_kind   = p~load_uint(8);
+        throw_unless(ERR_CERT_KIND, cert_kind == CERT_KIND_RELEASE);
+        int cert_ver    = p~load_uint(24);
+        throw_unless(ERR_CERT_VERSION, cert_ver <= CERT_VERSION_MAX);
+        int cert_epoch  = p~load_uint(32);
+        int cert_nonce  = p~load_uint(64);
+        int cert_escrow = p~load_uint(256);
+        int cert_route  = p~load_uint(256);
+        slice p1 = p~load_ref().begin_parse();
+        throw_unless(ERR_CERT_TAIL, p.slice_empty?());
+        p1~load_uint(256);                 ;; intent_hash — bound by the
+                                            ;; signature over the whole P tree
+                                            ;; (no escrow storage to compare)
+        int entity_id_c = p1~load_uint(256);
+        p1~load_uint(32);                  ;; source_chain (registry-side)
+        p1~load_uint(32);                  ;; dest_chain (registry-side)
+        int cert_dest    = p1~load_uint(256);
+        slice p2 = p1~load_ref().begin_parse();
+        throw_unless(ERR_CERT_TAIL, p1.slice_empty?());
+        int cert_amount = p2~load_uint(256);
+        p2~load_uint(256);                 ;; anchor_bh (route-side)
+        p2~load_uint(256);                 ;; execution_bh (route-side)
+        slice p3 = p2~load_ref().begin_parse();
+        throw_unless(ERR_CERT_TAIL, p2.slice_empty?());
+        int coherence    = p3~load_uint(64);
+        int threshold    = p3~load_uint(64);
+        int hhi          = p3~load_uint(64);
+        int total_power  = p3~load_uint(64);
+        int val_count    = p3~load_uint(32);
+        int awa          = p3~load_uint(8);
+        int issued_at    = p3~load_uint(64);
+        int ttl          = p3~load_uint(64);
+        throw_unless(ERR_CERT_TAIL, p3.slice_empty?());
+        throw_if(ERR_CERT_TTL, ttl == 0);
+
+        ;; §6 2. EPOCH — registry lookup + grace window (fail-closed: an
+        ;; unregistered epoch can never verify, retired sets age out).
+        (cell entry_cell, int e_found) = idict_get_ref?(epochs_dict, 32, cert_epoch);
+        throw_unless(ERR_EPOCH_UNKNOWN, e_found);
+        slice es = entry_cell.begin_parse();
+        int r_epoch   = es~load_uint(32);
+        int r_d       = es~load_uint(64);
+        es~load_uint(64);                          ;; registered hhi (registrar-side, §5.3)
+        int r_total   = es~load_uint(64);
+        int r_count   = es~load_uint(32);
+        es~load_uint(64);                          ;; registered_at (audit)
+        es~load_uint(256);                         ;; epoch_set_root (audit)
+        cell validators_dict = es~load_ref();
+        throw_unless(ERR_CERT_TAIL, es.slice_empty?());
+        throw_unless(ERR_EPOCH_MISMATCH, r_epoch == cert_epoch);
+        throw_unless(ERR_EPOCH_STALE, cert_epoch <= current_epoch);
+        throw_unless(ERR_EPOCH_STALE, (current_epoch - cert_epoch) <= EPOCH_GRACE);
+
+        ;; §6 3. FRESHNESS — now() = TVM block unix time; 60 s drift widens
+        ;; the LOWER bound only (future-dated consensus skew OK, expiry never).
+        throw_unless(ERR_CERT_EXPIRED, now <= issued_at + ttl);
+        throw_unless(ERR_CERT_FUTURE, now >= issued_at - CLOCK_DRIFT_SECS);
+
+        ;; §6 4. CONSENSUS PRECONDITIONS.
+        throw_unless(ERR_CERT_HHI, hhi <= HHI_MAX_ACCEPTABLE);
+        throw_unless(ERR_CERT_AWA, awa == 1);
+        throw_unless(ERR_CERT_UNSAFE, coherence >= threshold);
+        throw_unless(ERR_CERT_COUNT, val_count == r_count);
+        throw_unless(ERR_CERT_POWER, total_power == r_total);
+
+        ;; §6 5. SIGNATURES — batch fail-closed, ascending-distinct (V3
+        ;; discipline), registry membership, claim==registered cross-check,
+        ;; TVM-native Ed25519: CHKSIGNU over BE32(cell_hash(P-root)).
+        ;; The pinned layout makes cell_hash(p0) a deterministic function of
+        ;; the 346 canonical bytes — a different payload ⇒ different hash ⇒
+        ;; failed signature (see header for the documented family-2 digest
+        ;; deviation for TVM).
+        int p_hash = cell_hash(p0);
+        int signed_power = 0;
+        int sig_count    = 0;
+        int last_vid     = 0;
+        slice sc = sig_head.begin_parse();
+        int more = 1;
+        while (more) {
+            int has_next    = sc~load_uint(1);
+            int vid         = sc~load_uint(256);
+            int stake_claim = sc~load_uint(64);
+            int div_claim   = sc~load_uint(64);
+            slice sig       = sc~load_bits(512);
+
+            ;; 5b. membership in the REGISTERED epoch set
+            (cell vcell, int v_found) = idict_get_ref?(validators_dict, 256, vid);
+            throw_unless(ERR_SIG_UNREGISTERED, v_found);
+            slice vs = vcell.begin_parse();
+            int reg_pub   = vs~load_uint(256);
+            int reg_stake = vs~load_uint(64);
+            int reg_div   = vs~load_uint(64);
+            int reg_w     = vs~load_uint(64);
+            throw_unless(ERR_CERT_TAIL, vs.slice_empty?());
+
+            ;; 5c. envelope weight CLAIMS must equal registered values
+            throw_unless(ERR_SIG_WEIGHT_CLAIM, (stake_claim == reg_stake) & (div_claim == reg_div));
+            ;; registry integrity: d_j is ×1e6 in [0,1]; w_j must be s·d/1e6
+            ;; (floor division, py reference parity)
+            throw_unless(ERR_SIG_WEIGHT_BAD, reg_div <= SCALE_1E6);
+            throw_unless(ERR_SIG_WEIGHT_BAD, reg_w == (reg_stake * reg_div) / SCALE_1E6);
+
+            ;; 1. sorted ascending — also proves distinctness (no padding)
+            throw_unless(ERR_SIG_ORDER, vid > last_vid);
+            last_vid = vid;
+
+            ;; 5a. Ed25519 verification — one bad signature fails the WHOLE
+            ;; certificate (batch fail-closed, submitRouteAttestation parity)
+            throw_unless(ERR_SIG_BAD, check_signature(p_hash, sig, reg_pub));
+
+            signed_power += reg_w;
+            sig_count += 1;
+
+            if (has_next) {
+                cell next = sc~load_ref();
+                throw_unless(ERR_CERT_TAIL, sc.slice_empty?());
+                sc = next.begin_parse();
+            } else {
+                throw_unless(ERR_CERT_TAIL, sc.slice_empty?());
+                more = 0;
+            }
+        }
+        throw_unless(ERR_SIG_TOO_FEW, sig_count >= MIN_SIGNERS);
+
+        ;; §6 6. QUORUM — recomputed from REGISTERED weights (never envelope
+        ;; claims) against the registered total, L4.2 tier from registered
+        ;; D_consensus. 257-bit TVM ints: max product ~2^101 — no overflow.
+        throw_unless(ERR_QUORUM, quorum_met(signed_power, r_total, r_d));
+
+        ;; §6 7. BINDING — the certificate authorizes exactly THIS escrow's
+        ;; settlement tuple (escrow substitution closed: ED-B1/B2).
+        cell esc_cell = dict_get_escrow(escrows_dict, body_escrow);
         var (eid, rid, entid, destination, amount, min_coherence, lock_ts,
              timeout_secs, state, rreason, settled_at, reverted_at, locked_by)
             = unpack_escrow(esc_cell.begin_parse());
-
-        throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
-        throw_unless(ERR_EXPIRED, now <= lock_ts + timeout_secs);
+        throw_unless(ERR_BIND_ESCROW, cert_escrow == body_escrow);
+        throw_unless(ERR_BIND_ESCROW, cert_escrow == eid);
+        throw_unless(ERR_BIND_ROUTE, cert_route == rid);
+        throw_unless(ERR_BIND_ENTITY, entity_id_c == entid);
+        throw_unless(ERR_BIND_DEST, dest_matches_canonical(destination, cert_dest));
+        throw_unless(ERR_BIND_AMOUNT, cert_amount == amount);
+        ;; escrow's own floor (INV-003 — the escrow may demand MORE than the
+        ;; protocol threshold, never less; §5.4)
         throw_unless(ERR_COHERENCE_INSUFF, coherence >= min_coherence);
 
-        ;; State transition BEFORE the external send (CEI pattern)
-        cell released = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+        ;; §6 8. NONCE / CONSUMED — scope (epoch, escrow_id); monotonic;
+        ;; exact resubmission is an idempotent no-op (§8.2).
+        (cell ccell, int c_found) = idict_get_ref?(consumed_dict, 256, body_escrow);
+        if (c_found) {
+            slice cc = ccell.begin_parse();
+            int c_epoch = cc~load_uint(32);
+            int c_nonce = cc~load_uint(64);
+            int c_phash = cc~load_uint(256);
+            throw_unless(ERR_CERT_TAIL, cc.slice_empty?());
+            if ((c_epoch == cert_epoch) & (c_nonce == cert_nonce) & (c_phash == p_hash)) {
+                return ();          ;; idempotent resubmission — no effect
+            }
+            throw_unless(ERR_CERT_REPLAY, c_nonce < cert_nonce);
+        }
+
+        ;; §6 9. SETTLEMENT — only now may effects occur. Escrow state
+        ;; machine is the exactly-once guard (terminal states). The record
+        ;; RETAINS the settlement tuple (amount/destination) after release —
+        ;; state, not a zeroed amount, marks it spent; keeping the tuple is
+        ;; what makes §8.2's idempotent-resubmission no-op reachable after
+        ;; binding (the EVM tier's discipline).
+        throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
+        throw_unless(ERR_EXPIRED, now <= lock_ts + timeout_secs);
+
+        ;; CEI: state + consumed written BEFORE the external send; a TVM
+        ;; throw anywhere above aborts the whole transaction atomically.
+        cell released = pack_escrow(eid, rid, entid, destination, amount, min_coherence,
                                     lock_ts, timeout_secs, STATE_RELEASED,
                                     rreason, now, reverted_at, locked_by);
-        escrows_dict~dict_put_escrow(escrow_id, released);
-        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+        escrows_dict~dict_put_escrow(body_escrow, released);
+        cell consumed_cell = begin_cell()
+            .store_uint(cert_epoch, 32)
+            .store_uint(cert_nonce, 64)
+            .store_uint(p_hash, 256)
+        .end_cell();
+        consumed_dict~idict_set_ref(256, body_escrow, consumed_cell);
+        save_storage(owner_addr, relayer_addr, escrow_count, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
 
-        send_ton(destination, amount, 0);
+        send_ton(destination, amount, 0);          ;; bounceable — failed payout returns to the vault
         return ();
     }
 
@@ -283,11 +702,12 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
             throw_if(ERR_ZERO_TIMEOUT, reason == 0); ;; non-timeout revert needs non-zero reason
         }
 
-        cell reverted = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+        cell reverted = pack_escrow(eid, rid, entid, destination, amount, min_coherence,
                                     lock_ts, timeout_secs, STATE_REVERTED,
                                     reason, settled_at, now, locked_by);
         escrows_dict~dict_put_escrow(escrow_id, reverted);
-        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+        save_storage(owner_addr, relayer_addr, escrow_count, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
 
         ;; Force Majeure: funds return to the locker on the SOURCE chain
         send_ton(locked_by, amount, 1);
@@ -295,6 +715,7 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
     }
 
     ;; ── 0x04 emergency_revert — Gap 8 escape hatch ──────────────────────────
+    ;; (deliberately NOT pausable — the escape hatch must always work)
     if (op == 4) {
         int escrow_id = in_msg_body~load_uint(256);
 
@@ -306,11 +727,12 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         throw_unless(ERR_NOT_HOLDING, state == STATE_HOLDING);
         throw_unless(ERR_EMERGENCY_NOT_YET, now >= lock_ts + EMERGENCY_ESCAPE_SECONDS);
 
-        cell emergency = pack_escrow(eid, rid, entid, destination, 0, min_coherence,
+        cell emergency = pack_escrow(eid, rid, entid, destination, amount, min_coherence,
                                      lock_ts, timeout_secs, STATE_EMERGENCY_REVERTED,
                                      6, settled_at, now, locked_by);
         escrows_dict~dict_put_escrow(escrow_id, emergency);
-        save_storage(owner_addr, relayer_addr, escrow_count, escrows_dict);
+        save_storage(owner_addr, relayer_addr, escrow_count, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
 
         send_ton(locked_by, amount, 1);
         return ();
@@ -320,7 +742,8 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
     if (op == 5) {
         throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
         slice new_relayer = in_msg_body~load_bits(267);
-        save_storage(owner_addr, new_relayer, escrow_count, escrows_dict);
+        save_storage(owner_addr, new_relayer, escrow_count, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
         return ();
     }
 
@@ -328,15 +751,70 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
     if (op == 6) {
         throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
         slice new_owner = in_msg_body~load_bits(267);
-        save_storage(new_owner, relayer_addr, escrow_count, escrows_dict);
+        save_storage(new_owner, relayer_addr, escrow_count, paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
         return ();
     }
+
+    ;; ── 0x07 register_epoch — registrar writes the epoch set (§10.2) ────────
+    ;; Owner-gated single-writer trust root (R-4): a compromised registrar is
+    ;; bounded to the epochs it registers and audited via epoch_set_root.
+    ;; body: op[8] epoch[32] d_consensus[64] hhi[64] total_power[64]
+    ;;       validator_count[32] epoch_set_root[256] + ref0 = validators dict
+    if (op == 7) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        int epoch      = in_msg_body~load_uint(32);
+        int d_cons     = in_msg_body~load_uint(64);
+        int r_hhi      = in_msg_body~load_uint(64);
+        int r_total    = in_msg_body~load_uint(64);
+        int r_count    = in_msg_body~load_uint(32);
+        int set_root   = in_msg_body~load_uint(256);
+        cell validators_dict = in_msg_body~load_ref();
+        throw_unless(ERR_CERT_TAIL, in_msg_body.slice_empty?());
+
+        ;; registration validation — fail-closed on malformed sets
+        throw_unless(ERR_REG_MALFORMED, d_cons <= SCALE_1E6);
+        throw_unless(ERR_REG_MALFORMED, r_hhi <= 10000);
+        throw_unless(ERR_REG_MALFORMED, r_total > 0);
+        throw_unless(ERR_REG_MALFORMED, r_count >= MIN_SIGNERS);
+        throw_unless(ERR_REG_MALFORMED, epoch <= current_epoch + 1);
+
+        cell entry = begin_cell()
+            .store_uint(epoch,     32)
+            .store_uint(d_cons,    64)
+            .store_uint(r_hhi,     64)
+            .store_uint(r_total,   64)
+            .store_uint(r_count,   32)
+            .store_uint(now,       64)
+            .store_uint(set_root, 256)
+            .store_ref(validators_dict)
+        .end_cell();
+        epochs_dict~idict_set_ref(32, epoch, entry);
+        ;; current_epoch tracks the LATEST registered epoch (monotone)
+        int new_current = current_epoch;
+        if (epoch > current_epoch) { new_current = epoch; }
+        save_storage(owner_addr, relayer_addr, escrow_count, paused,
+                     new_current, escrows_dict, epochs_dict, consumed_dict);
+        return ();
+    }
+
+    ;; ── 0x08 set_pause — owner circuit breaker on lock+release ──────────────
+    if (op == 8) {
+        throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
+        int new_paused = in_msg_body~load_uint(1);
+        save_storage(owner_addr, relayer_addr, escrow_count, new_paused,
+                     current_epoch, escrows_dict, epochs_dict, consumed_dict);
+        return ();
+    }
+
+    ;; unknown op — reject (strict parsing, fail-closed; no silent no-ops)
+    throw(ERR_UNKNOWN_OP);
 }
 
 ;; ── get_methods ───────────────────────────────────────────────────────────────
 
 (int, int, int, int) get_escrow_state(int escrow_id) method_id {
-    (_, _, _, cell escrows_dict) = load_storage();
+    (_, _, _, _, _, cell escrows_dict, _, _) = load_storage();
     cell esc = dict_get_escrow(escrows_dict, escrow_id);
     var (_, _, _, _, amount, min_coherence, lock_ts, timeout_secs, state, _, _, _, _)
         = unpack_escrow(esc.begin_parse());
@@ -344,12 +822,12 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
 }
 
 int get_escrow_count() method_id {
-    (_, _, int escrow_count, _) = load_storage();
+    (_, _, int escrow_count, _, _, _, _, _) = load_storage();
     return escrow_count;
 }
 
 int is_expired(int escrow_id) method_id {
-    (_, _, _, cell escrows_dict) = load_storage();
+    (_, _, _, _, _, cell escrows_dict, _, _) = load_storage();
     cell esc = dict_get_escrow(escrows_dict, escrow_id);
     var (_, _, _, _, _, _, lock_ts, timeout_secs, state, _, _, _, _)
         = unpack_escrow(esc.begin_parse());
@@ -357,19 +835,58 @@ int is_expired(int escrow_id) method_id {
 }
 
 int emergency_available(int escrow_id) method_id {
-    (_, _, _, cell escrows_dict) = load_storage();
+    (_, _, _, _, _, cell escrows_dict, _, _) = load_storage();
     cell esc = dict_get_escrow(escrows_dict, escrow_id);
     var (_, _, _, _, _, _, lock_ts, _, state, _, _, _, _)
         = unpack_escrow(esc.begin_parse());
     return (state == STATE_HOLDING) & (now() >= lock_ts + EMERGENCY_ESCAPE_SECONDS);
 }
 
+;; epoch registry observability: (d_consensus, hhi, total_power, count,
+;; registered_at, set_root) — throws if the epoch is not registered
+(int, int, int, int, int, int) get_epoch_info(int epoch) method_id {
+    (_, _, _, _, _, _, cell epochs_dict, _) = load_storage();
+    (cell entry, int found) = idict_get_ref?(epochs_dict, 32, epoch);
+    throw_unless(ERR_EPOCH_UNKNOWN, found);
+    slice es = entry.begin_parse();
+    int r_epoch = es~load_uint(32);
+    int d       = es~load_uint(64);
+    int hhi     = es~load_uint(64);
+    int total   = es~load_uint(64);
+    int count   = es~load_uint(32);
+    int reg_at  = es~load_uint(64);
+    int set_root = es~load_uint(256);
+    return (d, hhi, total, count, reg_at, set_root);
+}
+
+int get_current_epoch() method_id {
+    (_, _, _, _, int current_epoch, _, _, _) = load_storage();
+    return current_epoch;
+}
+
+;; consumed-certificate observability: (cert_epoch, cert_nonce, cert_phash)
+(int, int, int) get_consumed(int escrow_id) method_id {
+    (_, _, _, _, _, _, _, cell consumed_dict) = load_storage();
+    (cell cc, int found) = idict_get_ref?(consumed_dict, 256, escrow_id);
+    throw_unless(ERR_ESCROW_NOT_FOUND, found);
+    slice s = cc.begin_parse();
+    int c_epoch = s~load_uint(32);
+    int c_nonce = s~load_uint(64);
+    int c_phash = s~load_uint(256);
+    return (c_epoch, c_nonce, c_phash);
+}
+
+int get_paused() method_id {
+    (_, _, _, int paused, _, _, _, _) = load_storage();
+    return paused;
+}
+
 slice get_owner() method_id {
-    (slice owner_addr, _, _, _) = load_storage();
+    (slice owner_addr, _, _, _, _, _, _, _) = load_storage();
     return owner_addr;
 }
 
 slice get_relayer() method_id {
-    (_, slice relayer_addr, _, _) = load_storage();
+    (_, slice relayer_addr, _, _, _, _, _, _) = load_storage();
     return relayer_addr;
 }
