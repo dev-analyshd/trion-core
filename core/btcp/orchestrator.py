@@ -791,10 +791,26 @@ class BTCPOrchestrator:
         immediately. Store failures fall back to the session-scoped
         counter (monotonic in-process; restart caveat documented above).
         """
-        # P-PY-04 (final red-team pass): the read-modify-write must be
-        # ATOMIC — the lock is held across load → compute → save so two
-        # concurrent create_route calls for one entity can never observe
-        # the same store snapshot and mint the same nonce.
+        # P-PY-04/P-PY-06: the read-modify-write must be ATOMIC — first
+        # via the STORE's cross-process atomic counter (BEGIN IMMEDIATE
+        # around read+compute+write on the shared SQLite file, so api /
+        # streamer / gunicorn-worker PROCESSES serialize too), falling
+        # back to the in-process lock + save when the store predates the
+        # atomic method.
+        atomic = getattr(self._store, "next_entity_nonce", None)
+        if callable(atomic):
+            seed = int(time.time() * 1000) % (2 ** 32) or 1
+            try:
+                nonce = atomic(entity_key, seed=seed)
+                with _ENTITY_NONCE_LOCK:
+                    _ENTITY_NONCES[entity_key] = nonce
+                return nonce
+            except Exception as store_err:
+                print(
+                    f"[btcp.orchestrator] atomic entity-nonce failed for "
+                    f"{entity_key!r} ({store_err}) — in-process path in use",
+                    file=sys.stderr,
+                )
         with _ENTITY_NONCE_LOCK:
             try:
                 persisted = self._store.load_all(ENTITY_NONCE_KIND)
