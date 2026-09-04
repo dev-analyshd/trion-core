@@ -8,6 +8,19 @@
  *  - Multi-chain entity ID helpers
  */
 
+// Canonical chain ids — generated from config/chain_registry.json by
+// scripts/generate_chain_bindings.py (registry is the single source of truth).
+import {
+    CHAIN_ID_ARBITRUM_ONE,
+    CHAIN_ID_BNB_SMART_CHAIN,
+    CHAIN_ID_ETHEREUM,
+    CHAIN_ID_BASE,
+    CHAIN_ID_POLYGON_POS,
+    CHAIN_ID_AVALANCHE_C_CHAIN,
+    CHAIN_ID_OPTIMISM,
+    CHAIN_ID_ARBITRUM_SEPOLIA,
+} from './src/generated_chain_ids';
+
 // ---------------------------------------------------------------------------
 // Signal types
 // ---------------------------------------------------------------------------
@@ -340,17 +353,22 @@ export class TrionSDK {
 
     /**
      * Returns the supported chain IDs in the TRION multi-chain gateway.
+     *
+     * Chain ids are the canonical registry ids, imported from the generated
+     * bindings (sdk/src/generated_chain_ids.ts — regenerated from
+     * config/chain_registry.json by scripts/generate_chain_bindings.py),
+     * so this curated list can never drift from the registry.
      */
     static supportedChains(): { name: string; chainId: number }[] {
         return [
-            { name: 'Arbitrum',        chainId: 42161 },
-            { name: 'BNB Smart Chain', chainId: 56 },
-            { name: 'Ethereum',        chainId: 1 },
-            { name: 'Base',            chainId: 8453 },
-            { name: 'Polygon',         chainId: 137 },
-            { name: 'Avalanche',       chainId: 43114 },
-            { name: 'Optimism',        chainId: 10 },
-            { name: 'Arb Sepolia',     chainId: 421614 },
+            { name: 'Arbitrum',        chainId: CHAIN_ID_ARBITRUM_ONE },
+            { name: 'BNB Smart Chain', chainId: CHAIN_ID_BNB_SMART_CHAIN },
+            { name: 'Ethereum',        chainId: CHAIN_ID_ETHEREUM },
+            { name: 'Base',            chainId: CHAIN_ID_BASE },
+            { name: 'Polygon',         chainId: CHAIN_ID_POLYGON_POS },
+            { name: 'Avalanche',       chainId: CHAIN_ID_AVALANCHE_C_CHAIN },
+            { name: 'Optimism',        chainId: CHAIN_ID_OPTIMISM },
+            { name: 'Arb Sepolia',     chainId: CHAIN_ID_ARBITRUM_SEPOLIA },
         ];
     }
 

@@ -16,7 +16,29 @@ const SN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'starknet_sepol
 const EVM = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'evm-tools', 'evm_sepolia_deployments.json'), 'utf-8'));
 function snAddr(name) { return SN.contracts.find(c => c.name === name).address; }
 function evmAddr(name) { return EVM.contracts.find(c => c.name === name).address; }
-const CHAIN = { STARKNET: 1300, ETH: 11155111, ARB: 421614, OP: 11155420, BASE: 84532, NEAR: 1200, SOLANA: 900, TON: 1100 };
+// Canonical chain ids for cross-VM BTCP references — generated from
+// config/chain_registry.json. Was the legacy local namespace
+// { STARKNET: 1300, NEAR: 1200, TON: 1100 }.
+import {
+  CHAIN_ID_STARKNET_SEPOLIA,
+  CHAIN_ID_NEAR_MAINNET,
+  CHAIN_ID_SOLANA_MAINNET,
+  CHAIN_ID_TON_MAINNET,
+  CHAIN_ID_ETHEREUM_SEPOLIA,
+  CHAIN_ID_ARBITRUM_SEPOLIA,
+  CHAIN_ID_OPTIMISM_SEPOLIA,
+  CHAIN_ID_BASE_SEPOLIA,
+} from '../../shared/generated_chain_ids.js';
+const CHAIN = {
+  STARKNET: CHAIN_ID_STARKNET_SEPOLIA,
+  ETH:      CHAIN_ID_ETHEREUM_SEPOLIA,
+  ARB:      CHAIN_ID_ARBITRUM_SEPOLIA,
+  OP:       CHAIN_ID_OPTIMISM_SEPOLIA,
+  BASE:     CHAIN_ID_BASE_SEPOLIA,
+  NEAR:     CHAIN_ID_NEAR_MAINNET,
+  SOLANA:   CHAIN_ID_SOLANA_MAINNET,
+  TON:      CHAIN_ID_TON_MAINNET,
+};
 function sha3Hex(d) { return '0x' + crypto.createHash('sha3-256').update(d).digest('hex'); }
 function felt(h) { return BigInt(h.slice(0, 62)); }
 

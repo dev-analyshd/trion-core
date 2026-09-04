@@ -12,6 +12,9 @@ import { Keyring } from "@polkadot/keyring";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import fetch from "node-fetch";
 import fs from "fs";
+// Canonical Polkadot chain id — generated from config/chain_registry.json
+// (see the FIX-CLAIMS comment below for the 900 collision history).
+import { CHAIN_ID_POLKADOT as CHAIN_ID } from "../shared/generated_chain_ids.js";
 
 const FAISS_URL  = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
 const WS_RPC     = process.env.DOT_WS_RPC ?? "wss://rpc.polkadot.io";
@@ -23,7 +26,6 @@ const WS_RPC     = process.env.DOT_WS_RPC ?? "wss://rpc.polkadot.io";
 // CHAIN_ID_POLKADOT). NOTE: faiss_service's legacy PVM range is 1000-1099
 // (with 901 also PVM there) — that registry conflicts with canonical and is
 // tracked as an unresolved collision (see FIX-CLAIMS report).
-const CHAIN_ID   = 25000;
 const VM_TYPE    = "PVM";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

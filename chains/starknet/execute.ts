@@ -20,9 +20,12 @@ import "dotenv/config";
 import { Account, Contract, RpcProvider, ec, hash, CallData, num, cairo } from "starknet";
 import fs from "node:fs";
 import { getWorkingProvider } from "./src/provider.js";
+// Canonical Starknet Sepolia chain id — generated from
+// config/chain_registry.json (was the legacy local id 1300; this executor
+// targets Sepolia, so the Sepolia id is the canonical mapping).
+import { CHAIN_ID_STARKNET_SEPOLIA as CHAIN_ID } from "../shared/generated_chain_ids.js";
 
 const FAISS_URL  = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID   = 1300;
 const VM_TYPE    = "STARKVM";
 const N_TX       = parseInt(process.env.STK_TX_COUNT ?? "5");
 const RESULTS_OUT = "/tmp/starknet_execution_results.json";

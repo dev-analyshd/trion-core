@@ -517,8 +517,12 @@ const CHAINS: &[EvmChain] = &[
     },
 
     // ── 0G Newton Testnet ─────────────────────────────────────────────────────
+    // Off-registry (registry carries only 0G Mainnet 16661). Newton's own
+    // chain id is 16600 — NOT 16602, which is 0G Galileo (per zg/zg_config.py
+    // and the 0G network docs). The previous 16602 mislabeled every BH row
+    // ingested from rpc.newton.0g.ai as Galileo data.
     EvmChain {
-        label: "ZG_NEWTON", chain_id: 16602,
+        label: "ZG_NEWTON", chain_id: 16600,
         rpcs: &[
             "https://rpc.newton.0g.ai",
         ],

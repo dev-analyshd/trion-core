@@ -9,9 +9,11 @@
 
 import fetch from "node-fetch";
 import fs from "fs";
+// Canonical TON Mainnet chain id — generated from config/chain_registry.json
+// (was the legacy local id 1100; the registry id joins BH/ledger/api paths).
+import { CHAIN_ID_TON_MAINNET as CHAIN_ID } from "../shared/generated_chain_ids.js";
 
 const FAISS_URL  = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID   = 1100;
 const VM_TYPE    = "TVM";
 const TON_CENTER = "https://toncenter.com/api/v2";
 

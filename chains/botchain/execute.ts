@@ -19,8 +19,9 @@
 import { ethers } from "ethers";
 import fs from "node:fs";
 import path from "node:path";
+// Canonical BotChain id — generated from config/chain_registry.json.
+import { CHAIN_ID_BOTCHAIN as BOT_CHAIN_ID } from "../shared/generated_chain_ids.js";
 
-const BOT_CHAIN_ID    = 677;
 const BOT_CHAIN_LABEL = "BOT_CHAIN";
 const BOT_CHAIN_VM    = "EVM";
 const BOT_RPC_URL     = process.env.BOT_CHAIN_RPC_URL || "https://rpc.botchain.ai";

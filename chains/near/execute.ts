@@ -9,9 +9,11 @@
 
 import fetch from "node-fetch";
 import fs from "fs";
+// Canonical NEAR Mainnet chain id — generated from config/chain_registry.json
+// (was the legacy local id 1200; the registry id joins BH/ledger/api paths).
+import { CHAIN_ID_NEAR_MAINNET as CHAIN_ID } from "../shared/generated_chain_ids.js";
 
 const FAISS_URL    = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID     = 1200;
 const VM_TYPE      = "NEAR";
 const ACCOUNT_ID   = process.env.NEAR_ACCOUNT_ID ?? "trion.near";
 const NEAR_RPCS    = [

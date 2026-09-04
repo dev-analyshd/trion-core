@@ -14,9 +14,10 @@ import {
 import bs58 from "bs58";
 import fetch from "node-fetch";
 import fs from "fs";
+// Canonical Solana Mainnet chain id — generated from config/chain_registry.json.
+import { CHAIN_ID_SOLANA_MAINNET as CHAIN_ID } from "../shared/generated_chain_ids.js";
 
 const FAISS_URL = process.env.FAISS_URL ?? "http://127.0.0.1:8000";
-const CHAIN_ID  = 900;
 const VM_TYPE   = "SVM";
 
 const MAINNET_RPCS = [
