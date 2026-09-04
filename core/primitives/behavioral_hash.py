@@ -157,6 +157,9 @@ def canonical_magnitude_norm(raw: int, decimals: int) -> float:
         raw_f = float(raw)
     except (TypeError, ValueError):
         return 0.0
+    if raw_f != raw_f:  # NaN (P-PY-01): malformed magnitude fails closed,
+        raise ValueError(   # never silently forges the maximum magnitude
+            "canonical_magnitude_norm: NaN magnitude is malformed input")
     if raw_f <= 0:
         return 0.0
     try:
@@ -167,6 +170,18 @@ def canonical_magnitude_norm(raw: int, decimals: int) -> float:
     if human <= 0:
         return 0.0
     return min(1.0, math.log10(human + 1) / math.log10(1001.0))
+
+
+def _u32_chain(chain_id) -> int:
+    """P-PY-02: chain_id is VALIDATED, never masked — an out-of-range id is
+    malformed input (chain 2**32+1 must not alias chain 1's BH identity)."""
+    try:
+        cid = int(chain_id)
+    except (TypeError, ValueError):
+        raise ValueError(f"chain_id is not an integer: {chain_id!r}")
+    if not (0 <= cid <= 0xFFFFFFFF):
+        raise ValueError(f"chain_id out of u32 range: {cid}")
+    return cid
 
 
 def hash_dna(payload: bytes):
@@ -254,7 +269,7 @@ def compute_behavioral_hash(event: BehavioralEvent,
         + int(mag_norm * 1e9).to_bytes(8, 'big')           #  8 bytes  (nanounit precision)
         + ctx                                               #  8 bytes  (context flags)
         + event.timestamp.to_bytes(8, 'big')               #  8 bytes
-        + (event.chain_id & 0xFFFFFFFF).to_bytes(4, 'big') #  4 bytes
+        + _u32_chain(event.chain_id).to_bytes(4, 'big')  # 4 bytes
         + block_32                                          # 32 bytes
     )
     # Total: 93 bytes canonical payload (32+1+8+8+8+4+32)
