@@ -3,36 +3,50 @@
 TRION BTCP + CONTINUUM — API Blueprint
 =======================================
 
-Adds API endpoints for all Phase 0-4 modules:
+Adds API endpoints for all Phase 0-4 modules. Every path listed below is a
+real, registered route (the docstring-truth test in
+tests/btcp/test_btcp_api_surface.py keeps this list and the url_map in
+sync in both directions):
 
-  /api/v1/btcp/hash_dna           — Hash_DNA computation (POST)
-  /api/v1/btcp/coherence_7plane   — 7-plane coherence score
-  /api/v1/btcp/mf_score           — 7-type MF fingerprint score
-  /api/v1/btcp/route              — BTCP route selection
-  /api/v1/btcp/escrow/<id>        — Escrow state
-  /api/v1/btcp/bibl/snapshot      — BIBL Tier-1 snapshot
-  /api/v1/btcp/proof              — BTCP proof builder
-  /api/v1/btcp/bitp/match         — BITP complement matching
-  /api/v1/btcp/netting            — Netting pair finder
-  /api/v1/btcp/aggregate          — Intent aggregation
-  /api/v1/btcp/failure_classify   — Failure classifier
-  /api/v1/btcp/version            — Version handler
-  /api/v1/btcp/validator_fee      — Validator fee calculator
-  /api/v1/btcp/sybil              — Sybil resistance check
-  /api/v1/btcp/private_bibl       — Private BIBL protocol
-  /api/v1/btcp/integration_status — anima-service integration status
-  /api/v1/continuum/bid           — BID detection
-  /api/v1/continuum/cme           — CME complement matching
-  /api/v1/continuum/pmo           — PMO creation
-  /api/v1/continuum/bdc           — BDC credit limit
-  /api/v1/continuum/settlement    — Thermodynamic settlement trigger
-  /api/v1/continuum/ccp           — CCP distribution
-  /api/v1/continuum/engines       — All engine status overview
+  /api/v1/btcp/hash_dna             (POST) Hash_DNA computation
+  /api/v1/btcp/coherence_7plane     (POST) 7-plane coherence score
+  /api/v1/btcp/mf_score             (POST) 7-type MF fingerprint score
+  /api/v1/btcp/route                (POST) BTCP route selection
+  /api/v1/btcp/escrow/<id>          (GET)  persisted escrow state lookup
+  /api/v1/btcp/escrow_states        (GET)  escrow state machine reference
+  /api/v1/btcp/bibl/snapshot        (GET)  BIBL Tier-1 snapshot
+  /api/v1/btcp/proof                (GET)  BTCP proof builder reference
+  /api/v1/btcp/modules              (GET)  18-module overview
+  /api/v1/btcp/bitp/match           (POST) BITP complement matching (2.5)
+  /api/v1/btcp/netting              (POST) netting pair finder (2.6)
+  /api/v1/btcp/aggregate            (POST) intent aggregation pooling (2.7)
+  /api/v1/btcp/failure_classify     (POST) failure classifier (2.11)
+  /api/v1/btcp/version              (GET)  semver compatibility handler (2.16)
+  /api/v1/btcp/validator_fee        (POST) validator fee calculator (2.17)
+  /api/v1/btcp/sybil                (POST) sybil resistance layers (2.18)
+  /api/v1/btcp/orchestrate          (POST) full BTCPOrchestrator 6-step run
+  /api/v1/btcp/private_bibl         (POST) private BIBL protocol
+  /api/v1/btcp/integration_status   (GET)  anima-service integration status
+  /api/v1/btcp/pipeline_status      (GET)  full pipeline status overview
+  /api/v1/btcp/mainnet_bootstrap    (GET)  phased rollout status
+  /api/v1/btcp/streamer/status      (GET)  real-time BH streamer status
+  /api/v1/btcp/streamer/start       (POST) start the BH streamer
+  /api/v1/btcp/orchestrator/status  (GET)  indexer orchestrator + RPC health
+  /api/v1/btcp/sanctions/<address>  (GET)  sanctions screening (J1)
+  /api/v1/btcp/sanctions            (POST) sanctions oracle upsert (J1)
+  /api/v1/continuum/bid             (POST) BID detection
+  /api/v1/continuum/cme             (POST) CME complement matching
+  /api/v1/continuum/pmo             (POST) PMO creation
+  /api/v1/continuum/bdc             (POST) BDC credit limit
+  /api/v1/continuum/settlement      (POST) thermodynamic settlement trigger
+  /api/v1/continuum/ccp             (POST) CCP distribution
+  /api/v1/continuum/engines         (GET)  all engine status overview
 """
 
 from flask import Blueprint, jsonify, request
 import time
 import hashlib
+import os
 
 btcp_bp = Blueprint("btcp_continuum", __name__)
 
@@ -324,6 +338,502 @@ def btcp_modules():
         "implemented": 18,
         "whitepaper": "BTCP Master Spec Phase 2",
     })
+
+
+# ── Phase 2: Module Surfaces (Gap #3 — docstring-promised endpoints) ──────────
+#
+# The blueprint docstring used to promise eight module endpoints that were
+# never implemented. These routes wire the real core.btcp.modules classes
+# (2.5 BITPMatcher, 2.6 NettingEngine, 2.7 IntentAggregator, 2.11
+# FailureClassifier, 2.16 VersionHandler, 2.17 ValidatorFeeCalculator, 2.18
+# SybilResistance) and the persisted escrows (state_store/escrow_monitor)
+# through to the API, passing their actual outputs through unchanged.
+
+
+def _require(data, key, cast, what=None):
+    """Fetch + cast a required request field; clear ValueError on failure."""
+    raw = data.get(key)
+    if raw is None:
+        raise ValueError(f"{what or key} is required")
+    try:
+        return cast(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what or key} must be a valid {cast.__name__}")
+
+
+def _build_bitp_intent(payload, label="intent"):
+    """Build a core.btcp.modules.BITPIntent from a JSON payload.
+
+    Constructed defensively: only fields that exist on the dataclass *at
+    runtime* (dataclasses.fields) are forwarded, so the endpoint keeps
+    working both before and after BITPIntent gains optional fields
+    (action, value, max_total_gas, min_finality, min_NL_score/min_nl_score,
+    chain_pref, privacy, btcp_version, nonce — all default-valued
+    additions). Unknown extra fields in the payload are ignored, never
+    fatal.
+    """
+    import dataclasses
+    from core.btcp.modules import BITPIntent
+
+    if not isinstance(payload, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    field_names = {f.name for f in dataclasses.fields(BITPIntent)}
+
+    def _hex(name):
+        raw = payload.get(name)
+        if raw is None:
+            raise ValueError(f"{label}.{name} is required (hex string)")
+        if not isinstance(raw, str):
+            raise ValueError(f"{label}.{name} must be a hex string")
+        try:
+            return bytes.fromhex(raw.removeprefix("0x"))
+        except ValueError:
+            raise ValueError(f"{label}.{name} is not a valid hex string")
+
+    kwargs = {}
+    if "entity_id" in field_names:
+        kwargs["entity_id"] = _hex("entity_id")
+    if "asset_in" in field_names:
+        kwargs["asset_in"] = _hex("asset_in")
+    if "asset_out" in field_names:
+        kwargs["asset_out"] = _hex("asset_out")
+    if "magnitude" in field_names:
+        kwargs["magnitude"] = _require(
+            payload, "magnitude", float, f"{label}.magnitude")
+    if "chain_id" in field_names:
+        kwargs["chain_id"] = _require(
+            payload, "chain_id", int, f"{label}.chain_id")
+    if "deadline" in field_names:
+        deadline = payload.get("deadline")
+        # deadline has no default in the current dataclass — default to now+1h
+        kwargs["deadline"] = int(deadline) if deadline is not None \
+            else int(time.time()) + 3600
+
+    # Optional pass-through fields — forwarded only when the running
+    # dataclass actually declares them (forward compatibility with the
+    # concurrent BITPIntent §4.1 field additions). Values are forwarded
+    # unchanged; the spec's min_NL_score spelling is aliased to the repo's
+    # min_nl_score field name when that is the one that exists.
+    _aliases = {"min_NL_score": "min_nl_score"}
+    for name in ("action", "value", "max_total_gas", "min_finality",
+                 "min_NL_score", "min_nl_score", "chain_pref", "privacy",
+                 "btcp_version", "nonce"):
+        target = name
+        if target not in field_names and target in _aliases:
+            target = _aliases[target]
+        if target in field_names and payload.get(name) is not None:
+            kwargs[target] = payload[name]
+
+    return BITPIntent(**kwargs)
+
+
+def _bitp_intent_to_json(intent):
+    """BITPIntent → JSON-safe dict (bytes → hex, extra fields included)."""
+    import dataclasses
+    out = {}
+    for f in dataclasses.fields(intent):
+        v = getattr(intent, f.name)
+        out[f.name] = v.hex() if isinstance(v, bytes) else v
+    return out
+
+
+def _intent_list(data, key):
+    """Parse + validate a list of BITP intent objects from request JSON."""
+    raw = data.get(key, [])
+    if not isinstance(raw, list):
+        raise ValueError(f"{key} must be a list of intent objects")
+    return [
+        _build_bitp_intent(item, label=f"{key}[{i}]")
+        for i, item in enumerate(raw)
+    ]
+
+
+@btcp_bp.route("/api/v1/btcp/bitp/match", methods=["POST"])
+def btcp_bitp_match():
+    """BITP complement matching (Module 2.5).
+
+    Payload:
+      intent           — BITP intent object (entity_id/asset_in/asset_out as
+                         hex strings, magnitude, chain_id, deadline)
+      candidates       — list of the same intent objects to search across
+                         chains
+      price_tolerance  — optional, default 0.02
+
+    Optional extra intent fields are forwarded when the running BITPIntent
+    dataclass declares them; unknown fields are ignored. On a match the
+    PASTE phase result is included (zero cross-chain movement by design).
+    """
+    from core.btcp.modules import BITPMatcher
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        payload = data.get("intent") if isinstance(data.get("intent"), dict) else data
+        intent_a = _build_bitp_intent(payload)
+        candidates = _intent_list(data, "candidates")
+        price_tolerance = float(data.get("price_tolerance", 0.02))
+
+        matcher = BITPMatcher()
+        match = matcher.find_complement(intent_a, candidates, price_tolerance)
+        matched = match is not None
+        return jsonify({
+            "matched": matched,
+            "complement": _bitp_intent_to_json(match) if matched else None,
+            "paste": matcher.execute_paste(intent_a, match) if matched else None,
+            "candidates_considered": len(candidates),
+            "price_tolerance": price_tolerance,
+            "whitepaper": "Module 2.5 — BITP Matcher",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@btcp_bp.route("/api/v1/btcp/netting", methods=["POST"])
+def btcp_netting():
+    """Netting pair finder (Module 2.6) — pure NETTING routes.
+
+    Same payload shape as /bitp/match (intent, candidates) plus an optional
+    ``tolerance`` (default 0.01). Netting finds the exact opposite intent on
+    the *same* chain from a different entity; gas cost is the state-update
+    floor from NettingEngine.netting_gas_cost().
+    """
+    from core.btcp.modules import NettingEngine
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        payload = data.get("intent") if isinstance(data.get("intent"), dict) else data
+        intent_a = _build_bitp_intent(payload)
+        candidates = _intent_list(data, "candidates")
+        tolerance = float(data.get("tolerance", 0.01))
+
+        engine = NettingEngine()
+        pair = engine.find_netting_pair(intent_a, candidates, tolerance)
+        found = pair is not None
+        return jsonify({
+            "netting_found": found,
+            "netting_pair": _bitp_intent_to_json(pair) if found else None,
+            "netting_gas_cost": engine.netting_gas_cost(),
+            "tolerance": tolerance,
+            "candidates_considered": len(candidates),
+            "whitepaper": "Module 2.6 — Netting Engine",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@btcp_bp.route("/api/v1/btcp/aggregate", methods=["POST"])
+def btcp_aggregate():
+    """Intent aggregation pooling (Module 2.7).
+
+    Payload:
+      intents        — list of BITP intent objects
+      window_blocks  — optional, default 10
+      total_gas      — optional; when given, the per-user gas split is
+                       included (equal split, plus the value-weighted split
+                       when user_value + total_value are also given)
+    """
+    from core.btcp.modules import IntentAggregator
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        intents = _intent_list(data, "intents")
+        window_blocks = int(data.get("window_blocks", 10))
+
+        agg = IntentAggregator()
+        pool = agg.find_aggregation_pool(intents, window_blocks)
+        pool_found = bool(pool)
+        out = {
+            "pool_found": pool_found,
+            "pool": [_bitp_intent_to_json(i) for i in pool],
+            "pool_size": len(pool),
+            "min_intents": IntentAggregator.MIN_INTENTS,
+            "window_blocks": window_blocks,
+            "intents_considered": len(intents),
+            "whitepaper": "Module 2.7 — Intent Aggregator",
+        }
+        if pool_found and data.get("total_gas") is not None:
+            total_gas = float(data.get("total_gas"))
+            out["per_user_gas"] = agg.compute_per_user_gas(total_gas, len(pool))
+            if data.get("user_value") is not None and data.get("total_value") is not None:
+                out["per_user_gas_weighted"] = agg.compute_per_user_gas_weighted(
+                    total_gas, float(data.get("user_value")),
+                    float(data.get("total_value")))
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# Escrow rows are written through to the shared SQLite state store by
+# core/btcp/escrow_monitor.py (S7). The lookup below reads that persisted
+# state directly, so it sees escrows locked by any process (or before a
+# restart), not just the ones this API process created.
+_ESCROW_STORES = {}
+
+
+def _get_escrow_store():
+    """Lazily open (and cache by resolved path) the BTCP state store."""
+    from core.btcp.state_store import BtcpStateStore, resolve_state_db
+    path = os.path.abspath(resolve_state_db())
+    if path not in _ESCROW_STORES:
+        _ESCROW_STORES[path] = BtcpStateStore(path)
+    return _ESCROW_STORES[path]
+
+
+@btcp_bp.route("/api/v1/btcp/escrow/<escrow_id>", methods=["GET"])
+def btcp_escrow_state(escrow_id):
+    """Escrow state lookup by ID — reads the persisted BTCP state store.
+
+    Escrow state is persisted write-through by the escrow monitor as
+    ``escrow_v1`` rows. Unknown IDs get an honest 404-style JSON response
+    (with the number of escrows that ARE persisted), never a fabricated
+    default state.
+    """
+    try:
+        store = _get_escrow_store()
+        rows = store.get_escrows()
+        if escrow_id not in rows:
+            return jsonify({
+                "found": False,
+                "escrow_id": escrow_id,
+                "error": "escrow id not found in the persisted BTCP state store",
+                "persisted_escrow_count": len(rows),
+                "state_db": store.path,
+            }), 404
+        type_tag, row = rows[escrow_id]
+        return jsonify({
+            "found": True,
+            "escrow_id": escrow_id,
+            "type_tag": type_tag,
+            "escrow": row,
+            "state": row.get("state"),
+            "state_db": store.path,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@btcp_bp.route("/api/v1/btcp/failure_classify", methods=["POST"])
+def btcp_failure_classify():
+    """Failure classifier (Module 2.11) — EXTERNAL_CAUSE vs ENTITY_CAUSE.
+
+    All eight indicator fields are booleans (default false);
+    ``prior_ambiguous_count`` is an int (default 0). The classification and
+    the indicator echo are passed through from FailureClassifier.classify().
+    """
+    from core.btcp.modules import FailureClassifier
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        indicators = {}
+        for key in ("chain_outage", "nl_dropped_below_0_10",
+                    "reorg_depth_exceeded", "mf_spike", "invalid_proof",
+                    "collateral_withdrawn", "conflicting_intents",
+                    "systematic_timeout"):
+            raw = data.get(key, False)
+            if not isinstance(raw, bool):
+                raise ValueError(f"{key} must be a boolean")
+            indicators[key] = raw
+        prior = data.get("prior_ambiguous_count", 0)
+        if isinstance(prior, bool) or not isinstance(prior, int):
+            raise ValueError("prior_ambiguous_count must be an integer")
+
+        classification = FailureClassifier().classify(
+            **indicators, prior_ambiguous_count=prior)
+        return jsonify({
+            "classification": classification,
+            "indicators": indicators,
+            "prior_ambiguous_count": prior,
+            "policy": {
+                "EXTERNAL_CAUSE": "BEO impact = ZERO, entity not penalized",
+                "ENTITY_CAUSE": "graduated penalties",
+                "AMBIGUOUS": ("first two = EXTERNAL benefit of doubt; "
+                              "third within 90 days = ENTITY"),
+            },
+            "whitepaper": "Module 2.11 — Failure Classifier",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@btcp_bp.route("/api/v1/btcp/version", methods=["GET"])
+def btcp_version():
+    """Version handler (Module 2.16) — semver compatibility checks.
+
+    Query params:
+      verifier_version (default 1.0.0), min_version (default 1.0.0) →
+          compatibility verdict (verifier >= min)
+      old_version + new_version (optional, supplied together) →
+          breaking-change verdict (major bump)
+    """
+    from core.btcp.modules import VersionHandler
+    vh = VersionHandler()
+    try:
+        verifier = request.args.get("verifier_version", "1.0.0")
+        minimum = request.args.get("min_version", "1.0.0")
+        old_version = request.args.get("old_version")
+        new_version = request.args.get("new_version")
+
+        out = {
+            "verifier_version": {"raw": verifier,
+                                 "parsed": list(vh.parse_semver(verifier))},
+            "min_version": {"raw": minimum,
+                            "parsed": list(vh.parse_semver(minimum))},
+            "compatible": vh.is_compatible(verifier, minimum),
+            "adapter_version_bonus": VersionHandler.ADAPTER_VERSION_BONUS,
+            "whitepaper": "Module 2.16 — Version Handler",
+        }
+        if (old_version is None) != (new_version is None):
+            raise ValueError("old_version and new_version must be supplied together")
+        if old_version is not None:
+            out["old_version"] = {"raw": old_version,
+                                  "parsed": list(vh.parse_semver(old_version))}
+            out["new_version"] = {"raw": new_version,
+                                  "parsed": list(vh.parse_semver(new_version))}
+            out["breaking_change"] = vh.is_breaking_change(old_version, new_version)
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@btcp_bp.route("/api/v1/btcp/validator_fee", methods=["POST"])
+def btcp_validator_fee():
+    """Validator fee calculator (Module 2.17, Fix 4).
+
+    Payload:
+      chains_covered       — list of chain ids the validator covers
+      validators_per_chain — {chain_id: validators covering that chain}
+                              (must be >= 1 for every covered chain; the
+                              rarity factor is undefined otherwise)
+      total_validators     — positive int
+      volume_per_chain     — optional {chain_id: volume factor}
+      uptime_per_chain     — optional {chain_id: uptime factor}
+      total_route_reward   — optional; adds the 60/40 anchor/exec split
+    """
+    from core.btcp.modules import ValidatorFeeCalculator
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        chains = data.get("chains_covered", [])
+        if not isinstance(chains, list):
+            raise ValueError("chains_covered must be a list of chain ids")
+        chains = [int(c) for c in chains]
+        for name in ("validators_per_chain", "volume_per_chain", "uptime_per_chain"):
+            if not isinstance(data.get(name, {}), dict):
+                raise ValueError(f"{name} must be an object keyed by chain id")
+        validators_per_chain = {
+            int(k): int(v) for k, v in data.get("validators_per_chain", {}).items()}
+        total_validators = int(data.get("total_validators", 0))
+        if total_validators <= 0:
+            raise ValueError("total_validators must be a positive integer")
+        volume_per_chain = {
+            int(k): float(v) for k, v in data.get("volume_per_chain", {}).items()}
+        uptime_per_chain = {
+            int(k): float(v) for k, v in data.get("uptime_per_chain", {}).items()}
+        for c in chains:
+            if validators_per_chain.get(c, 0) < 1:
+                raise ValueError(
+                    f"validators_per_chain[{c}] must be >= 1 — the rarity "
+                    f"factor is undefined for an uncovered chain")
+
+        calc = ValidatorFeeCalculator()
+        coverage_bonus = calc.compute_coverage_bonus(
+            chains, validators_per_chain, total_validators,
+            volume_per_chain, uptime_per_chain)
+        out = {
+            "base_rate": ValidatorFeeCalculator.BASE_RATE,
+            "chains_covered": chains,
+            "rarity_factors": {
+                str(c): calc.compute_rarity_factor(
+                    validators_per_chain.get(c, 1), total_validators)
+                for c in chains
+            },
+            "coverage_bonus": coverage_bonus,
+            "total_validators": total_validators,
+            "whitepaper": "Module 2.17 — Validator Fee Calculator (Fix 4)",
+        }
+        if data.get("total_route_reward") is not None:
+            total_route_reward = float(data.get("total_route_reward"))
+            out["btcp_route_reward"] = {
+                "total": total_route_reward,
+                "anchor_share": ValidatorFeeCalculator.BTCP_ROUTE_SPLIT_ANCHOR,
+                "execution_share": ValidatorFeeCalculator.BTCP_ROUTE_SPLIT_EXEC,
+                "anchor_validators": calc.compute_btcp_route_reward(
+                    total_route_reward, True),
+                "execution_validators": calc.compute_btcp_route_reward(
+                    total_route_reward, False),
+            }
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@btcp_bp.route("/api/v1/btcp/sybil", methods=["POST"])
+def btcp_sybil():
+    """Sybil resistance layers (Module 2.18, Fix 5).
+
+    Each layer is computed when its inputs are present:
+      depth_d + depth_d_min  → layer 1 (logarithmic sponsorship cap)
+      n_sponsored            → layer 2 (scrutiny multiplier) and layer 4
+                               (quadratic temporal spacing)
+      cosine_similarity      → layer 3 (sockpuppet detection, > 0.85 alert)
+      sponsor_graph          → layer 5 (star-pattern detection), shaped
+                               {sponsor_hex: [sponsored_hex, ...]}
+    """
+    from core.btcp.modules import SybilResistance
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        sr = SybilResistance()
+        layers = {}
+
+        if data.get("depth_d") is not None or data.get("depth_d_min") is not None:
+            depth_d = _require(data, "depth_d", float, "depth_d")
+            depth_d_min = _require(data, "depth_d_min", float, "depth_d_min")
+            layers["layer1_max_sponsored"] = sr.layer1_max_sponsored(depth_d, depth_d_min)
+
+        if data.get("n_sponsored") is not None:
+            n_sponsored = _require(data, "n_sponsored", int, "n_sponsored")
+            layers["layer2_scrutiny_multiplier"] = \
+                sr.layer2_scrutiny_multiplier(n_sponsored)
+            layers["layer4_min_spacing_days"] = \
+                sr.layer4_min_spacing_days(n_sponsored)
+
+        if data.get("cosine_similarity") is not None:
+            cosine = float(data.get("cosine_similarity"))
+            layers["layer3_sockpuppet_alert"] = sr.layer3_is_sockpuppet(cosine)
+
+        graph_raw = data.get("sponsor_graph")
+        if graph_raw is not None:
+            if not isinstance(graph_raw, dict):
+                raise ValueError(
+                    "sponsor_graph must be an object {sponsor_hex: [sponsored_hex, ...]}")
+            graph = {}
+            for sponsor, sponsored in graph_raw.items():
+                try:
+                    sponsor_bytes = bytes.fromhex(str(sponsor).removeprefix("0x"))
+                except ValueError:
+                    raise ValueError(f"sponsor_graph key {sponsor!r} is not valid hex")
+                if not isinstance(sponsored, list):
+                    raise ValueError(
+                        f"sponsor_graph[{sponsor!r}] must be a list of hex entity ids")
+                try:
+                    graph[sponsor_bytes] = [
+                        bytes.fromhex(str(s).removeprefix("0x")) for s in sponsored]
+                except ValueError:
+                    raise ValueError(
+                        f"sponsor_graph[{sponsor!r}] contains a non-hex entity id")
+            layers["layer5_suspicious_sponsors"] = [
+                s.hex() for s in sr.layer5_detect_star_pattern(graph)]
+
+        if not layers:
+            raise ValueError(
+                "no layer inputs provided — supply depth_d/depth_d_min, "
+                "n_sponsored, cosine_similarity and/or sponsor_graph")
+
+        return jsonify({
+            "layers": layers,
+            "constants": {
+                "base_sponsor_cap": SybilResistance.BASE_SPONSOR_CAP,
+                "min_spacing_base_days": SybilResistance.MIN_SPACING_BASE_DAYS,
+                "similarity_threshold": SybilResistance.SIMILARITY_THRESHOLD,
+            },
+            "whitepaper": "Module 2.18 — Sybil Resistance (Fix 5)",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # ── Phase 3: Integration & Private BIBL ────────────────────────────────────────
@@ -758,6 +1268,206 @@ def orchestrator_status():
         },
         "timestamp": int(time.time()),
     })
+
+
+# ── BTCP Orchestrator Execution (Gap #4) ──────────────────────────────────────
+#
+# core/btcp/orchestrator.py BTCPOrchestrator runs the full six-step BTCP
+# sequence (address validation → intent creation → VM encoding → gas
+# estimation → ZK proof generation → route tracking) with SQLite
+# write-through persistence (S7). It is pure-Python and fast — a full route
+# measures ~12 ms in-process — so this endpoint runs it synchronously and
+# there is no async status route to poll.
+
+_ORCHESTRATOR = None
+
+
+def _get_orchestrator():
+    """Lazily construct the shared BTCPOrchestrator singleton.
+
+    Routes the orchestrator tracks are persisted to the shared SQLite
+    state store (env TRION_STATE_DB, default db/btcp_state.db), so the
+    singleton re-loads previously tracked routes on restart.
+    """
+    global _ORCHESTRATOR
+    if _ORCHESTRATOR is None:
+        from core.btcp.orchestrator import BTCPOrchestrator
+        _ORCHESTRATOR = BTCPOrchestrator()
+    return _ORCHESTRATOR
+
+
+def _privacy_level_arg(data):
+    """Parse the privacy_level request field into an orchestrator enum."""
+    from core.btcp.orchestrator import PrivacyLevel
+    raw = data.get("privacy_level", "BASIC")
+    if isinstance(raw, bool):
+        raise ValueError("privacy_level must be a level name or number")
+    if isinstance(raw, str):
+        if raw not in PrivacyLevel.__members__:
+            raise ValueError(
+                "privacy_level must be one of: " + ", ".join(PrivacyLevel.__members__))
+        return PrivacyLevel[raw]
+    if isinstance(raw, int):
+        try:
+            return PrivacyLevel(raw)
+        except ValueError:
+            raise ValueError(
+                "privacy_level number must be one of: "
+                + ", ".join(f"{p.value} ({p.name})" for p in PrivacyLevel))
+    raise ValueError("privacy_level must be a level name or number")
+
+
+@btcp_bp.route("/api/v1/btcp/orchestrate", methods=["POST"])
+def btcp_orchestrate():
+    """Run the full BTCPOrchestrator six-step route sequence (Gap #4).
+
+    Payload (the intent parameters the orchestrator accepts):
+      source_chain, dest_chain  — chain ids (ints, required)
+      source_address, dest_address — addresses on those chains (required)
+      amount                    — integer amount (required)
+      asset                     — asset id/address (required)
+      intent_type               — default "TRANSFER"
+      privacy_level             — PUBLIC|BASIC|STANDARD|COMPLIANT|FULL
+                                  (default BASIC)
+      deadline_offset           — seconds from now, default 3600
+      behavioral_data           — optional object; supplies the HashDNA
+                                  strands/block for the complementarity
+                                  proof and the behavioral-credential
+                                  thresholds
+      iap_economics             — optional object; the IAP batch economics
+                                  (total_gas, entity_gas,
+                                  total_btcp_fee_wei, entity_share_wei,
+                                  num_participants) for the IAP share proof
+
+    Response: per-step results, the full route, its proofs (plus the
+    verification verdict), and the SQLite write-through persistence status.
+    The orchestrator is pure-Python and measures ~12 ms per route, so this
+    runs synchronously — no async status endpoint is needed (the existing
+    /api/v1/btcp/orchestrator/status covers the RPC/indexer health plane).
+    """
+    from core.btcp.orchestrator import _gas_to_row
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        source_chain = _require(data, "source_chain", int)
+        dest_chain = _require(data, "dest_chain", int)
+        if source_chain < 0 or dest_chain < 0:
+            raise ValueError("chain ids must be non-negative integers")
+        source_address = data.get("source_address")
+        if not isinstance(source_address, str) or not source_address:
+            raise ValueError("source_address is required (string)")
+        dest_address = data.get("dest_address")
+        if not isinstance(dest_address, str) or not dest_address:
+            raise ValueError("dest_address is required (string)")
+        amount = _require(data, "amount", int)
+        if amount < 0:
+            raise ValueError("amount must be a non-negative integer")
+        asset = data.get("asset")
+        if not isinstance(asset, str) or not asset:
+            raise ValueError("asset is required (string)")
+        intent_type = data.get("intent_type", "TRANSFER")
+        if not isinstance(intent_type, str) or not intent_type:
+            raise ValueError("intent_type must be a non-empty string")
+        deadline_offset = int(data.get("deadline_offset", 3600))
+        if deadline_offset <= 0:
+            raise ValueError("deadline_offset must be a positive integer")
+        privacy_level = _privacy_level_arg(data)
+        for name in ("behavioral_data", "iap_economics"):
+            if data.get(name) is not None and not isinstance(data.get(name), dict):
+                raise ValueError(f"{name} must be an object")
+
+        orch = _get_orchestrator()
+        result = orch.create_route(
+            source_chain=source_chain,
+            dest_chain=dest_chain,
+            source_address=source_address,
+            dest_address=dest_address,
+            amount=amount,
+            asset=asset,
+            intent_type=intent_type,
+            privacy_level=privacy_level,
+            deadline_offset=deadline_offset,
+            behavioral_data=data.get("behavioral_data"),
+            iap_economics=data.get("iap_economics"),
+        )
+
+        route = result.route
+        route_id = route.route_id if route else None
+
+        # proof verification verdict for the freshly generated route
+        try:
+            verified, verify_errors = orch.verify_route_proofs(route_id) \
+                if route_id else (False, ["no route"])
+        except Exception as e:
+            verified, verify_errors = False, [f"verification failed: {e}"]
+
+        # persistence: confirm the SQLite write-through actually landed
+        try:
+            state_db = orch._store.path
+            persisted = route_id in orch._store.get_routes() if route_id else False
+        except Exception:
+            state_db, persisted = None, False
+
+        steps = {}
+        if route is not None:
+            steps["1_validate_addresses"] = {
+                "source_chain": source_chain,
+                "dest_chain": dest_chain,
+                "address_errors": [e for e in result.errors if "address" in e.lower()],
+            }
+            steps["2_create_intent"] = {
+                "intent_id": route.intent.intent_id if route.intent else None,
+                "intent_type": intent_type,
+                "deadline": route.intent.deadline if route.intent else None,
+            }
+            steps["3_encode_for_vms"] = {
+                "source_vm": route.source_vm.name,
+                "dest_vm": route.dest_vm.name,
+                "source_encoded": bool(route.source_encoded),
+                "dest_encoded": bool(route.dest_encoded),
+                "encoding_errors": [e for e in result.errors if "ncoding" in e],
+            }
+            steps["4_estimate_gas"] = {
+                "source_gas": _gas_to_row(route.source_gas),
+                "dest_gas": _gas_to_row(route.dest_gas),
+                "total_fee": route.total_fee,
+                "gas_errors": [e for e in result.errors if "gas" in e.lower()],
+            }
+            steps["5_generate_proofs"] = {
+                "generated": list(route.proofs.keys()) if route.proofs else [],
+                "proof_status": {
+                    name: (proof.get("status")
+                           if isinstance(proof, dict) and "status" in proof
+                           else "generated")
+                    for name, proof in (route.proofs or {}).items()
+                },
+            }
+            steps["6_track_route"] = {
+                "route_id": route_id,
+                "status": route.status.name,
+                "persisted": persisted,
+                "state_db": state_db,
+            }
+
+        return jsonify({
+            "success": result.success,
+            "route_id": route_id,
+            "steps": steps,
+            "route": route.to_dict() if route else None,
+            "proofs": (route.proofs if route else None) or {},
+            "proof_verification": {
+                "all_valid": verified,
+                "errors": verify_errors,
+            },
+            "persistence": {
+                "persisted": persisted,
+                "state_db": state_db,
+            },
+            "errors": result.errors,
+            "execution_time_ms": round(result.execution_time_ms, 2),
+            "whitepaper": "BTCP six-step orchestration — L7 BTCP Cross-Chain Protocol",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # ── Phase 6: Sanctions screening (J1) ─────────────────────────────────────────
