@@ -1,5 +1,17 @@
 -- TRION Akashic Index — Complete TimescaleDB Schema
 -- Whitepaper L2.0 → L2.7, L6.2, Three-Tier Storage, Merkle, BEO, Archetypes
+--
+-- OPERATIVE STORE NOTE (BTCP gap #7): the operative database for the
+-- in-repo Python engine is SQLite, not TimescaleDB. The six BTCP tables
+-- (btcp_intent_registry, btcp_routes, btcp_escrow_states,
+-- btcp_version_registry, btcp_cross_chain_messages, btcp_route_rewards)
+-- are mirrored there as SQLite-compatible DDL and WRITTEN by the live
+-- modules — core/btcp/state_store.py (BtcpStateStore) creates them and
+-- core/btcp/orchestrator.py (step-6 execution records, route-status
+-- updates, route rewards) + the escrow_monitor write-through populate
+-- them. This file remains the Postgres/TimescaleDB reference DDL for the
+-- external deployment (identical column names; the SQLite mirror
+-- documents its small type/constraint deviations inline).
 
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
@@ -255,16 +267,20 @@ CREATE TABLE IF NOT EXISTS genesis_bootstrap_progress (
 -- BTCP — Behavioral Transaction Continuity Protocol
 -- Schema additions per BTCP Master Implementation Spec (April 2026)
 --
--- FIX-CLAIMS honesty note (Phase-0 status): the 7 Phase-0 BTCP tables below
--- (btcp_intent_registry, btcp_routes, btcp_escrow_states, blo_orders,
--- bitp_clipboard, shadow_observations, genesis_commitments) define the
--- Phase-0 BTCP schema as correct DDL — but they are currently DEAD DDL:
--- no INSERT/SELECT against them exists in any .py/.rs in this repo.
--- Runtime writes currently flow through the anima-service SQLite layer
--- (bh_ledger, entity_records, ... in faiss_service.py), which is disjoint
--- from this schema. Wiring these tables to live writers is tracked as a
--- BTCP-integration TODO — until then, this section is a schema declaration,
--- not a running subsystem.
+-- FIX-CLAIMS honesty note (updated for gap #7): the six btcp_* tables below
+-- now have live writers — the SQLite mirror in core/btcp/state_store.py
+-- (BtcpStateStore) is created by every BTCP module that opens the state
+-- store and is populated by core/btcp/orchestrator.py (btcp_intent_registry,
+-- btcp_routes, btcp_cross_chain_messages, btcp_version_registry at step-6;
+-- btcp_route_rewards on route completion) and by the escrow_monitor
+-- write-through (btcp_escrow_states). The remaining Phase-0 BTCP tables
+-- (blo_orders, bitp_clipboard, shadow_observations, genesis_commitments)
+-- are still declaration-only DDL: their Python counterparts (BLOScheduler,
+-- BITPMatcher, ShadowObserver, GenesisCommitmentProcessor in
+-- core/btcp/modules.py) keep their state in memory and are not yet wired
+-- to a store — the same gap, smaller scope, tracked for the modules owner.
+-- This TimescaleDB variant itself is the external-deployment reference
+-- (see the operative-store note at the top of this file).
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- ── BTCP Route type enum ──────────────────────────────────────────────────────
