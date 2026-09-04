@@ -71,6 +71,69 @@ _BH_LABEL = {
     "Solana Devnet": "SOLANA_DEVNET",
 }
 
+# ── bh_ledger label → VM classification ──────────────────────────────────────
+# The ledger's chain_label column carries TWO writer conventions: the Rust
+# indexers write UPPERCASE labels (ETH_MAINNET, SOLANA_MAINNET, …) while the
+# python streamer writes its registry-style names verbatim (ethereum,
+# solana, zg_mainnet, cosmos_hub, …). Both must resolve to the same VM
+# family — previously only the uppercase convention was recognised, so a
+# streamer-fed ledger classified EVERY chain as non-EVM and the EVM/SVM/ZG
+# buckets of /api/v1/bh/vm_feed and /api/v1/bh/chains stayed empty.
+_BH_LABEL_VM_LEGACY = {
+    **{lbl.lower(): "EVM" for lbl in (
+        "ETH_MAINNET", "ARB_MAINNET", "BASE_MAINNET", "OP_MAINNET", "BNB_MAINNET",
+        "LINEA_MAINNET", "LINEA", "MANTLE_MAINNET", "MANTLE", "SCROLL_MAINNET",
+        "SCROLL", "HASHKEY_MAINNET", "HASHKEY", "ETH_SEPOLIA", "ARB_SEPOLIA",
+        "BASE_SEPOLIA", "OP_SEPOLIA", "BNB_TESTNET",
+    )},
+    # 0G chains group together (the pre-registry endpoint put ZG_GALILEO in
+    # the EVM bucket — a misclassification kept here no longer)
+    "solana_mainnet": "SVM", "solana_devnet": "SVM",
+    "zg_mainnet": "ZG", "zg_galileo": "ZG", "zg_newton": "ZG",
+    # python streamer EVM short-names not equal to registry slugs
+    "bnb": "EVM", "polygon": "EVM", "avalanche": "EVM", "blast": "EVM",
+    "fraxtal": "EVM", "kava_evm": "EVM", "etc": "EVM", "iota_evm": "EVM",
+    "bot_chain": "EVM", "hyperliquid": "EVM", "bitlayer": "EVM",
+}
+
+
+def _build_bh_label_vm_map() -> dict:
+    """lowercased label → VM family, covering both ledger writers."""
+    m = dict(_BH_LABEL_VM_LEGACY)
+    # canonical registry: display name / slug / label forms, any case
+    for c in CHAINS:
+        vm = str(c.get("vm", "")).upper()
+        name_l = str(c.get("name", "")).lower()
+        # 0G chains group separately in the bh endpoints though registry VM
+        # is EVM.
+        grp = "ZG" if (vm == "EVM" and name_l.startswith("zg")) else vm
+        for key in (name_l, name_l.replace(" ", "_"),
+                    str(c.get("id", "") or "").lower().replace("-", "_")):
+            if key:
+                m.setdefault(key, grp)
+    # the python streamer's own chain names are the live-path labels —
+    # resolve them straight from its registries so nothing is missed
+    try:
+        from core.realtime.bh_streamer import CHAIN_RPCS as _st_evm, NON_EVM_CHAINS as _st_nonevm
+        for _cfg in _st_evm.values():
+            m.setdefault(str(_cfg.get("name", "")).lower(), "EVM")
+        for _cfg in _st_nonevm.values():
+            _vm = str(_cfg.get("vm", "")).upper()
+            _nm = str(_cfg.get("name", "")).lower()
+            m.setdefault(_nm, "ZG" if _nm.startswith("zg") else _vm)
+    except Exception:  # streamer import unavailable (e.g. packaged api-only)
+        pass
+    return m
+
+
+def classify_bh_label(label) -> str:
+    """VM family for a bh_ledger chain_label (either writer convention).
+
+    Returns the registry VM family (EVM, SVM, MOVE, COSMOS, …, ZG); labels
+    unknown to both conventions classify as "UNKNOWN".
+    """
+    return BH_LABEL_VM.get(str(label or "").strip().lower(), "UNKNOWN")
+
 # Testnet-name detection for the status tier (the registry marks integration,
 # not environment tier).
 _TESTNET_TOKENS = (
@@ -140,6 +203,9 @@ CHAINS = [
 TOTAL_CHAINS = len(CHAINS)
 VM_FAMILIES = len({c["vm"] for c in CHAINS})
 INTEGRATED_CHAINS = sum(1 for c in CHAINS if c["integrated"])
+
+# Built after CHAINS (see _build_bh_label_vm_map above).
+BH_LABEL_VM = _build_bh_label_vm_map()
 
 
 # BH proof baselines per status tier
@@ -278,11 +344,17 @@ def get_enriched_chains():
                 c["name"].upper().replace(" ", "_").replace("-", "_"),
                 c["id"].upper().replace("-", "_") + "_MAINNET",
                 c["id"].upper().replace("-", "_") + "_DEVNET",
+                # python streamer writer convention (registry-style names)
+                c["name"].lower().replace(" ", "_"),
+                c["id"].lower().replace("-", "_"),
             ]
         live_records = None
+        # Case-insensitive: the streamer writes lowercase names, the rust
+        # indexers UPPERCASE — accept either for the same chain.
+        live_stats_ci = {str(k).lower(): v for k, v in live_stats.items()}
         for lbl in label_candidates:
-            if lbl in live_stats:
-                live_records = live_stats[lbl]
+            if lbl.lower() in live_stats_ci:
+                live_records = live_stats_ci[lbl.lower()]
                 break
 
         e = enrich(c, live_records)
