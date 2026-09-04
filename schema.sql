@@ -1,17 +1,33 @@
 -- TRION Akashic Index — Complete TimescaleDB Schema
 -- Whitepaper L2.0 → L2.7, L6.2, Three-Tier Storage, Merkle, BEO, Archetypes
 --
--- OPERATIVE STORE NOTE (BTCP gap #7): the operative database for the
--- in-repo Python engine is SQLite, not TimescaleDB. The six BTCP tables
+-- OPERATIVE STORE NOTE (BTCP gap #7, W3-N): the operative database for the
+-- in-repo Python engine is SQLite, not TimescaleDB. The BTCP tables
 -- (btcp_intent_registry, btcp_routes, btcp_escrow_states,
--- btcp_version_registry, btcp_cross_chain_messages, btcp_route_rewards)
--- are mirrored there as SQLite-compatible DDL and WRITTEN by the live
--- modules — core/btcp/state_store.py (BtcpStateStore) creates them and
--- core/btcp/orchestrator.py (step-6 execution records, route-status
--- updates, route rewards) + the escrow_monitor write-through populate
--- them. This file remains the Postgres/TimescaleDB reference DDL for the
--- external deployment (identical column names; the SQLite mirror
--- documents its small type/constraint deviations inline).
+-- btcp_version_registry, btcp_cross_chain_messages, btcp_route_rewards,
+-- blo_orders, bitp_clipboard, shadow_observations, genesis_commitments,
+-- btcp_consumed_certificates, btcp_certificate_conflicts) are mirrored there
+-- as SQLite-compatible DDL and WRITTEN by the live modules —
+-- core/btcp/state_store.py (BtcpStateStore) creates them; the orchestrator
+-- (step-6 execution records, route-status updates, route rewards), the
+-- escrow_monitor write-through, and the W3-N Phase-0 + certificate-guard
+-- record_* writers populate them. This file remains the
+-- Postgres/TimescaleDB reference DDL for the external deployment (identical
+-- column names; the SQLite mirror documents its small type/constraint
+-- deviations inline).
+--
+-- OPERATIVE-WRITER MARKERS (W3-N storage integrity, matrix remediation #9):
+-- every CREATE TABLE below carries an `-- operative-writer:` line stating
+-- WHO writes it in the operative tree, or `NONE` when the table is
+-- declaration-only DDL for the external deployment. The marker set is
+-- machine-checked by tests/unit/test_schema_writers.py — a table whose
+-- marker names a writer must actually find that writer in the tree, and a
+-- NONE marker must honestly have no writer. Akashic-side tables are written
+-- by the deploy-gated TimescaleDB dual-write paths
+-- (core/akashic/timescale_store.py + anima-service/faiss_service.py) —
+-- psycopg2/TIMESCALEDB_URL absent = those writes silently no-op and the
+-- SQLite anima-service store (bh_ledger & friends) remains the source of
+-- truth.
 
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
@@ -28,6 +44,7 @@ CREATE TYPE behavioral_event_type AS ENUM (
 -- Distinct from akashic_bh (the canonical L2.0 hot-tier store below): this
 -- table exists purely as a sequential-id stream for external DA sync and is
 -- populated by the same dual-write path as akashic_bh.
+-- operative-writer: INSERT in anima-service/faiss_service.py (deploy-gated TimescaleDB dual-write, _tsdb_write_bh)
 CREATE TABLE IF NOT EXISTS behavioral_events (
     id                  BIGSERIAL        PRIMARY KEY,
     entity_id           TEXT             NOT NULL,
@@ -45,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_behavioral_events_entity  ON behavioral_events (e
 
 -- ── L2.0 Core: Akashic Behavioral Hash Table (HOT tier) ──────────────────────
 -- Every BH ever generated is stored permanently. NO pruning. NO skipping.
+-- operative-writer: INSERT in core/akashic/timescale_store.py, anima-service/faiss_service.py (deploy-gated TimescaleDB dual-write)
 CREATE TABLE IF NOT EXISTS akashic_bh (
     time                TIMESTAMPTZ      NOT NULL,
     gk_hash             BYTEA            NOT NULL, -- Genomic Key GK(t)
@@ -88,6 +106,7 @@ FOR EACH ROW EXECUTE FUNCTION prevent_akashic_deletions();
 
 -- ── L0.2 BEO (Behavioral Entity Object) Registry ─────────────────────────────
 -- Clusters raw wallet addresses → stable entity_id (>95% accuracy target)
+-- operative-writer: INSERT in core/akashic/timescale_store.py, anima-service/faiss_service.py (deploy-gated TimescaleDB dual-write)
 CREATE TABLE IF NOT EXISTS beo_registry (
     entity_id           BYTEA            NOT NULL PRIMARY KEY,
     raw_addresses       TEXT[]           NOT NULL,
@@ -104,6 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_beo_last_seen ON beo_registry (last_seen DESC);
 -- Stores the raw 128-dim behavioral vectors alongside their metadata.
 -- This table is the authoritative source for rebuilding the FAISS index and
 -- SQLite entity_records on a cold boot (container reset / filesystem wipe).
+-- operative-writer: INSERT in core/akashic/timescale_store.py, anima-service/faiss_service.py (deploy-gated TimescaleDB dual-write)
 CREATE TABLE IF NOT EXISTS akashic_vectors (
     entity_id   TEXT             NOT NULL,
     ts          TIMESTAMPTZ      NOT NULL,
@@ -135,6 +155,7 @@ GROUP BY entity_id;
 
 -- ── L2.2 Archetype Library ────────────────────────────────────────────────────
 -- K-means centroids. 64 archetypes covering >90% of behavioral space.
+-- operative-writer: NONE — deploy-only DDL (read by core/akashic/timescale_store.py get_stats; operative archetypes live in the anima-service SQLite entity store)
 CREATE TABLE IF NOT EXISTS archetype_library (
     archetype_id        SERIAL           PRIMARY KEY,
     centroid            FLOAT8[]         NOT NULL,   -- 128-dimensional centroid
@@ -146,6 +167,7 @@ CREATE TABLE IF NOT EXISTS archetype_library (
 
 -- ── L2.3 Genesis Confidence ───────────────────────────────────────────────────
 -- Tracks last activity for exponential decay: conf(t) = e^(-κ × inactivity_days)
+-- operative-writer: INSERT in core/akashic/timescale_store.py (log_genesis_confidence; deploy-gated)
 CREATE TABLE IF NOT EXISTS genesis_confidence_log (
     time                TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     entity_id           BYTEA            NOT NULL,
@@ -157,6 +179,7 @@ CREATE TABLE IF NOT EXISTS genesis_confidence_log (
 SELECT create_hypertable('genesis_confidence_log', 'time', if_not_exists => TRUE);
 
 -- ── L2.7 Trajectory Anomaly Log ───────────────────────────────────────────────
+-- operative-writer: INSERT in core/akashic/timescale_store.py (log_trajectory_anomaly; deploy-gated)
 CREATE TABLE IF NOT EXISTS trajectory_anomaly_log (
     time                TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     entity_id           BYTEA            NOT NULL,
@@ -170,6 +193,7 @@ SELECT create_hypertable('trajectory_anomaly_log', 'time', if_not_exists => TRUE
 
 -- ── Three-Tier: WARM Storage (90 days – 3 years) ─────────────────────────────
 -- Merkle-compressed summaries. Verifiability preserved.
+-- operative-writer: NONE — deploy-only DDL (hot→warm→cold tier promotion has no code path yet)
 CREATE TABLE IF NOT EXISTS akashic_warm (
     date                DATE             NOT NULL,
     entity_id           BYTEA            NOT NULL,
@@ -183,6 +207,7 @@ CREATE TABLE IF NOT EXISTS akashic_warm (
 
 -- ── Three-Tier: COLD Storage (3+ years) ──────────────────────────────────────
 -- Annual summaries only. Privacy-preserving.
+-- operative-writer: NONE — deploy-only DDL (hot→warm→cold tier promotion has no code path yet)
 CREATE TABLE IF NOT EXISTS akashic_cold (
     year                SMALLINT         NOT NULL,
     entity_id           BYTEA            NOT NULL,
@@ -195,6 +220,7 @@ CREATE TABLE IF NOT EXISTS akashic_cold (
 
 -- ── Merkle Proof System ───────────────────────────────────────────────────────
 -- Daily Merkle roots for O(log N) verifiable history reconstruction.
+-- operative-writer: NONE — deploy-only DDL (operative daily merkle roots persist in the anima-service SQLite merkle_state table, _db_persist_merkle)
 CREATE TABLE IF NOT EXISTS merkle_roots (
     date                DATE             NOT NULL PRIMARY KEY,
     root_hash           BYTEA            NOT NULL,
@@ -204,6 +230,7 @@ CREATE TABLE IF NOT EXISTS merkle_roots (
 
 -- ── L6.2 Biological Rhythm Memory ────────────────────────────────────────────
 -- Correlates market behavior with Circadian / Lunar / Seasonal phases.
+-- operative-writer: NONE — deploy-only DDL (faiss_service serves in-memory /api/v1/biological_rhythm; no persistence)
 CREATE TABLE IF NOT EXISTS biological_rhythm (
     time                TIMESTAMPTZ      NOT NULL,
     circadian_phase     TEXT             NOT NULL, -- DAWN/MORNING/AFTERNOON/EVENING/NIGHT
@@ -216,6 +243,7 @@ CREATE TABLE IF NOT EXISTS biological_rhythm (
 SELECT create_hypertable('biological_rhythm', 'time', if_not_exists => TRUE);
 
 -- ── L3.4 Source Credibility ───────────────────────────────────────────────────
+-- operative-writer: NONE — deploy-only DDL (faiss_service keeps the in-memory _source_credibility_store dict)
 CREATE TABLE IF NOT EXISTS source_credibility (
     source_id           TEXT             NOT NULL PRIMARY KEY,
     accuracy_score      DOUBLE PRECISION NOT NULL DEFAULT 1.0,
@@ -226,6 +254,7 @@ CREATE TABLE IF NOT EXISTS source_credibility (
 );
 
 -- ── L4.9 Slashing Audit Trail ─────────────────────────────────────────────────
+-- operative-writer: NONE — deploy-only DDL (dispute→slash wiring remains open; no INSERT path in-tree)
 CREATE TABLE IF NOT EXISTS slashing_log (
     time                TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     validator_id        BYTEA            NOT NULL,
@@ -239,6 +268,7 @@ CREATE TABLE IF NOT EXISTS slashing_log (
 SELECT create_hypertable('slashing_log', 'time', if_not_exists => TRUE);
 
 -- ── L2.4 Resurrection Log ─────────────────────────────────────────────────────
+-- operative-writer: NONE — deploy-only DDL (core/akashic/resurrection.py classifies in memory; not persisted)
 CREATE TABLE IF NOT EXISTS resurrection_log (
     time                TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     entity_id           BYTEA            NOT NULL,
@@ -250,6 +280,7 @@ CREATE TABLE IF NOT EXISTS resurrection_log (
 SELECT create_hypertable('resurrection_log', 'time', if_not_exists => TRUE);
 
 -- ── Genesis Bootstrap Tracker (Zero Gaps mandate) ────────────────────────────
+-- operative-writer: NONE — deploy-only DDL (anima-service genesis backfill scripts track progress in memory)
 CREATE TABLE IF NOT EXISTS genesis_bootstrap_progress (
     id                  SERIAL           PRIMARY KEY,
     chain_id            SMALLINT         NOT NULL,
@@ -267,18 +298,24 @@ CREATE TABLE IF NOT EXISTS genesis_bootstrap_progress (
 -- BTCP — Behavioral Transaction Continuity Protocol
 -- Schema additions per BTCP Master Implementation Spec (April 2026)
 --
--- FIX-CLAIMS honesty note (updated for gap #7): the six btcp_* tables below
--- now have live writers — the SQLite mirror in core/btcp/state_store.py
+-- FIX-CLAIMS honesty note (updated for gap #7 + W3-N): the ten BTCP tables
+-- below now have live writers — the SQLite mirror in core/btcp/state_store.py
 -- (BtcpStateStore) is created by every BTCP module that opens the state
 -- store and is populated by core/btcp/orchestrator.py (btcp_intent_registry,
 -- btcp_routes, btcp_cross_chain_messages, btcp_version_registry at step-6;
 -- btcp_route_rewards on route completion) and by the escrow_monitor
--- write-through (btcp_escrow_states). The remaining Phase-0 BTCP tables
+-- write-through (btcp_escrow_states). The Phase-0 BTCP tables
 -- (blo_orders, bitp_clipboard, shadow_observations, genesis_commitments)
--- are still declaration-only DDL: their Python counterparts (BLOScheduler,
--- BITPMatcher, ShadowObserver, GenesisCommitmentProcessor in
--- core/btcp/modules.py) keep their state in memory and are not yet wired
--- to a store — the same gap, smaller scope, tracked for the modules owner.
+-- gained STORE-LEVEL writers in W3-N (state_store record_blo_order /
+-- record_bitp_clipboard / record_shadow_observation /
+-- record_genesis_commitment, mirroring these DDL column-for-column), but
+-- their producing modules (BLOScheduler, BITPMatcher, ShadowObserver,
+-- GenesisCommitmentProcessor in core/btcp/modules.py) still keep their
+-- state in memory — the record_* call-site wiring is the module owners'
+-- handoff (see state_store.py module docstring + worklog W3-N). The
+-- certificate-consumption guard tables at the bottom of this file close
+-- the W2-F TimescaleDB replay-guard handoff (on-chain consumed-nonce
+-- parity for the py store).
 -- This TimescaleDB variant itself is the external-deployment reference
 -- (see the operative-store note at the top of this file).
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -328,6 +365,7 @@ END $$;
 -- (unlike akashic_bh which has one). The earlier comment claiming "Append-only
 -- (thermodynamic conservation)" described an aspiration, not an enforced
 -- constraint (FIX-CLAIMS).
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py; written by core/btcp/orchestrator.py step-6 _record_execution + _record_route_status)
 CREATE TABLE IF NOT EXISTS btcp_intent_registry (
     intent_hash         BYTEA            PRIMARY KEY,
     entity_id           BYTEA            NOT NULL REFERENCES beo_registry(entity_id),
@@ -359,6 +397,7 @@ CREATE INDEX IF NOT EXISTS idx_btcp_intent_assets   ON btcp_intent_registry (ass
 
 -- ── BTCP Routes ───────────────────────────────────────────────────────────────
 -- Records every executed cross-chain route. Linked to intent.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py; written by core/btcp/orchestrator.py step-6 _record_execution + _record_route_status)
 CREATE TABLE IF NOT EXISTS btcp_routes (
     route_id                BYTEA        PRIMARY KEY,
     intent_hash             BYTEA        NOT NULL REFERENCES btcp_intent_registry(intent_hash),
@@ -393,6 +432,7 @@ CREATE INDEX IF NOT EXISTS idx_btcp_routes_status  ON btcp_routes (status);
 
 -- ── BTCP Escrow States ────────────────────────────────────────────────────────
 -- Per-chain escrow record. Two per route (anchor chain + execution chain).
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py; written by the core/btcp/escrow_monitor.py write-through projection, save_escrow)
 CREATE TABLE IF NOT EXISTS btcp_escrow_states (
     escrow_id           BYTEA            PRIMARY KEY,
     route_id            BYTEA            NOT NULL REFERENCES btcp_routes(route_id),
@@ -416,6 +456,7 @@ CREATE INDEX IF NOT EXISTS idx_escrow_state    ON btcp_escrow_states (state);
 
 -- ── BLO Orders (Behavioral Limit Orders) ─────────────────────────────────────
 -- Intent posted as standing order. Persistent until filled or expired.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_blo_order, W3-N; wiring of modules.py BLOScheduler deferred intents is the module-owner call-site handoff)
 CREATE TABLE IF NOT EXISTS blo_orders (
     commitment_hash         BYTEA        PRIMARY KEY,
     entity_id               BYTEA        NOT NULL,
@@ -444,6 +485,7 @@ CREATE INDEX IF NOT EXISTS idx_blo_expiry      ON blo_orders (expiry_block) WHER
 
 -- ── BITP Clipboard ────────────────────────────────────────────────────────────
 -- CUT phase: behavioral commitment posted awaiting MATCH.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_bitp_clipboard, W3-N; wiring of modules.py BITPMatcher CUT/MATCH results is the module-owner call-site handoff)
 CREATE TABLE IF NOT EXISTS bitp_clipboard (
     commitment_hash         BYTEA        PRIMARY KEY,
     entity_id               BYTEA        NOT NULL,
@@ -469,6 +511,7 @@ CREATE INDEX IF NOT EXISTS idx_bitp_entity     ON bitp_clipboard (entity_id);
 
 -- ── Shadow Observations ───────────────────────────────────────────────────────
 -- OOA: indirect observations of non-integrated / hostile chains.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_shadow_observation, W3-N; wiring of modules.py ShadowObserver sources is the module-owner call-site handoff)
 CREATE TABLE IF NOT EXISTS shadow_observations (
     id                      BIGSERIAL    PRIMARY KEY,
     observed_chain_id       BIGINT       NOT NULL,  -- chain being shadowed
@@ -487,6 +530,7 @@ CREATE INDEX IF NOT EXISTS idx_shadow_conf     ON shadow_observations (observed_
 
 -- ── Genesis Commitments ───────────────────────────────────────────────────────
 -- Null-state resolution: first behavior records for new entities/assets.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_genesis_commitment, W3-N; wiring of modules.py GenesisCommitmentProcessor outputs is the module-owner call-site handoff)
 CREATE TABLE IF NOT EXISTS genesis_commitments (
     commitment_id           BYTEA        PRIMARY KEY,
     genesis_type            genesis_type NOT NULL,
@@ -509,6 +553,7 @@ CREATE INDEX IF NOT EXISTS idx_genesis_sponsor ON genesis_commitments (sponsor_e
 
 -- ── BTCP Version Registry ─────────────────────────────────────────────────────
 -- Per-chain adapter version tracking for protocol upgrade routing.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_version; sighted by core/btcp/orchestrator.py step-6)
 CREATE TABLE IF NOT EXISTS btcp_version_registry (
     chain_id                BIGINT       NOT NULL,
     adapter_version         TEXT         NOT NULL,    -- semver
@@ -522,6 +567,7 @@ CREATE TABLE IF NOT EXISTS btcp_version_registry (
 
 -- ── OOA Chain Confidence ──────────────────────────────────────────────────────
 -- Observation-Only Anchoring confidence per chain over time.
+-- operative-writer: NONE — deploy-only DDL (core/btcp/modules.py OOAAnchor.compute_ooa_confidence computes in memory; not persisted)
 CREATE TABLE IF NOT EXISTS ooa_chain_confidence (
     chain_id                BIGINT       NOT NULL,
     observation_depth       BIGINT       NOT NULL DEFAULT 0,  -- blocks observed
@@ -534,6 +580,7 @@ CREATE TABLE IF NOT EXISTS ooa_chain_confidence (
 
 -- ── Intent Aggregation Pools ──────────────────────────────────────────────────
 -- IAP: pools of same-direction intents before execution.
+-- operative-writer: NONE — deploy-only DDL (core/btcp/modules.py IntentAggregator.find_aggregation_pool is a pure function; pools not persisted)
 CREATE TABLE IF NOT EXISTS intent_pools (
     pool_id                 BYTEA        PRIMARY KEY,
     asset_in                BYTEA        NOT NULL,
@@ -548,6 +595,7 @@ CREATE TABLE IF NOT EXISTS intent_pools (
     executed_at             TIMESTAMPTZ
 );
 
+-- operative-writer: NONE — deploy-only DDL (no IAP pool persistence in-tree)
 CREATE TABLE IF NOT EXISTS intent_pool_participants (
     pool_id                 BYTEA        NOT NULL REFERENCES intent_pools(pool_id),
     entity_id               BYTEA        NOT NULL,
@@ -558,6 +606,7 @@ CREATE TABLE IF NOT EXISTS intent_pool_participants (
 );
 
 -- ── Behavioral State Channels ─────────────────────────────────────────────────
+-- operative-writer: NONE — deploy-only DDL (core/btcp/modules.py BehavioralStateChannel keeps its _channels dict in memory only)
 CREATE TABLE IF NOT EXISTS behavioral_state_channels (
     channel_id              BYTEA        PRIMARY KEY,
     entity_a                BYTEA        NOT NULL,
@@ -583,6 +632,7 @@ CREATE INDEX IF NOT EXISTS idx_bsc_entities   ON behavioral_state_channels (enti
 
 -- ── TRION Token Economics (GAP 1) ─────────────────────────────────────────────
 -- Tracks token supply, utility sinks, and staking state per epoch.
+-- operative-writer: NONE — deploy-only DDL (per-epoch token-economics aggregator not implemented in-tree)
 CREATE TABLE IF NOT EXISTS trion_token_economics (
     epoch               BIGINT       NOT NULL PRIMARY KEY,
     epoch_start_ts      TIMESTAMPTZ  NOT NULL,
@@ -608,6 +658,7 @@ CREATE TABLE IF NOT EXISTS trion_token_economics (
 
 -- ── Validator Coverage Tracking (C1/C2) ───────────────────────────────────────
 -- Tracks per-validator coverage state for dynamic min_validators and emergency bonus.
+-- operative-writer: NONE — deploy-only DDL (core/btcp/modules.py ValidatorFeeCalculator computes bonuses; per-validator coverage bookkeeping not persisted)
 CREATE TABLE IF NOT EXISTS validator_coverage (
     validator_address   TEXT         NOT NULL,
     chain_id            BIGINT       NOT NULL,
@@ -624,6 +675,7 @@ CREATE INDEX IF NOT EXISTS idx_validator_coverage_rate ON validator_coverage (co
 
 -- ── Cross-Chain Message Log (GAP 7) ───────────────────────────────────────────
 -- Records all cross-chain messages for replay prevention audit trail.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_cross_chain_message; written by core/btcp/orchestrator.py step-6 IntentBroadcast)
 CREATE TABLE IF NOT EXISTS btcp_cross_chain_messages (
     message_id          BYTEA        PRIMARY KEY,   -- SHA3 replay-prevention ID
     msg_type            TEXT         NOT NULL,       -- IntentBroadcast | EscrowLockConfirm | etc.
@@ -646,6 +698,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_nonce_unique ON btcp_cross_chain_messa
 
 -- ── Manipulation Fingerprint Evidence Log (GAP 3) ─────────────────────────────
 -- Stores per-analysis MF evidence for audit, appeals, and ML training.
+-- operative-writer: NONE — deploy-only DDL (core/manipulation/btcp_mf_detector.py compute_mf_score returns results in memory; no store wiring — candidate follow-up wave)
 CREATE TABLE IF NOT EXISTS mf_evidence_log (
     id                  BIGSERIAL    PRIMARY KEY,
     entity_id           BYTEA        NOT NULL,
@@ -682,6 +735,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- operative-writer: NONE — deploy-only DDL (sanctions-list ingestion/oracle not implemented in-tree)
 CREATE TABLE IF NOT EXISTS sanctions_registry (
     address             TEXT         NOT NULL,
     list_source         sanctions_list_source NOT NULL,
@@ -710,6 +764,7 @@ FOR EACH ROW EXECUTE FUNCTION prevent_sanctions_delete();
 
 -- ── BTCP Route Rewards Log (Fix 4) ───────────────────────────────────────────
 -- Tracks validator route rewards per epoch including coverage bonus.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py record_route_reward; paid by core/btcp/orchestrator.py _record_route_status on COMPLETED)
 CREATE TABLE IF NOT EXISTS btcp_route_rewards (
     id                  BIGSERIAL    PRIMARY KEY,
     epoch               BIGINT       NOT NULL,
@@ -728,3 +783,45 @@ CREATE TABLE IF NOT EXISTS btcp_route_rewards (
 CREATE INDEX IF NOT EXISTS idx_rewards_validator ON btcp_route_rewards (validator_address, epoch DESC);
 CREATE INDEX IF NOT EXISTS idx_rewards_epoch     ON btcp_route_rewards (epoch);
 
+
+-- ── Certificate Consumption Replay Guard (W2-F handoff → W3-N) ───────────────
+-- Store-level parity with the Wave-2 on-chain consumed-nonce registries:
+-- EVM submitCertificateAttestation nonce ordering, Solana consumed-nonce
+-- PDA, TON (epoch, escrow) nonce registry, NEAR consumed-key = SHA3(P).
+-- A canonical certificate authorizes ONE release; replaying it must be an
+-- idempotent no-op and a second, different certificate claiming the same
+-- consumption key is equivocation (rejected + evidence).
+-- The consumption key is namespaced scope:chain:escrow-or-route:nonce so
+-- no two chains/entities produce ambiguous keys (W3-N ID-namespace rule).
+-- Operative mirror + guard: core/btcp/state_store.py consume_certificate
+-- (btcp_consumed_certificates / btcp_certificate_conflicts tables).
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py consume_certificate; escrow-release call-site handoff noted in the state_store docstring)
+CREATE TABLE IF NOT EXISTS btcp_consumed_certificates (
+    consumption_key        TEXT            PRIMARY KEY,  -- scope:chain:entity:nonce
+    certificate_hash       BYTEA           NOT NULL,     -- canonical SHA3-256(P) hex
+    certificate_kind       TEXT,                         -- ESCROW_RELEASE | BOOTSTRAP_MULTISIG
+    chain_id               BIGINT,
+    escrow_id              BYTEA,
+    route_id               BYTEA,
+    epoch                  BIGINT,
+    nonce                  BIGINT          NOT NULL,
+    consumed_at            TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    replay_count           INTEGER         NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_consumed_cert_escrow ON btcp_consumed_certificates (escrow_id);
+CREATE INDEX IF NOT EXISTS idx_consumed_cert_chain  ON btcp_consumed_certificates (chain_id, nonce);
+
+-- Equivocation evidence: a different certificate attempting an
+-- already-consumed key is refused AND logged (NEAR CertificateEquivocation
+-- parity — the refusal must leave auditable evidence).  Append-only.
+-- operative-writer: sqlite-mirror (core/btcp/state_store.py consume_certificate EQUIVOCATION branch)
+CREATE TABLE IF NOT EXISTS btcp_certificate_conflicts (
+    id                     BIGSERIAL       PRIMARY KEY,
+    consumption_key        TEXT            NOT NULL,
+    recorded_hash          BYTEA           NOT NULL,     -- the certificate that won the key
+    attempted_hash         BYTEA           NOT NULL,     -- the certificate that was refused
+    detected_at            TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cert_conflicts_key ON btcp_certificate_conflicts (consumption_key);
