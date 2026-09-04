@@ -264,6 +264,8 @@ def btcp_bibl_snapshot():
     bibl.update_chain_state(137, 0.90, 0.50, (0.4, 0.6), 0.92, 0.01, 0.90, 2.0, 65000000)
     bibl.update_chain_state(8453, 0.88, 0.98, (0.8, 1.2), 0.91, 0.01, 0.85, 2.0, 12000000)
     return jsonify({
+        "demo": True,
+        "demo_reason": "hand-seeded sample chain states (1/137/8453) — not the live BIBL tier state",
         "snapshot": bibl.get_bibl_snapshot(),
         "tier_1_latency_target_ms": 50,
         "tier_2_latency_target_ms": 50,
