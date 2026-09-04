@@ -26,7 +26,7 @@ use async_trait::async_trait;
 pub use entropy::{shannon_entropy, histogram_entropy, freq_entropy};
 pub use faiss::{FaissClient, BatchPayload, VectorEntry, TxBhEntry, TxBhBatch};
 pub use vector::build_vector;
-pub use hash_dna::{bh_id, block_entity_id, canonical_bh, classify_event_type, event_type_name, iso8601_to_epoch};
+pub use hash_dna::{bh_id, block_entity_id, canonical_bh, classify_event_type, event_type_name, hex_to_32bytes, iso8601_to_epoch};
 pub use state::IndexerState;
 pub use retry::with_retry;
 

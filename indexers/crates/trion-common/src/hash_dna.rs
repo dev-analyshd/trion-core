@@ -281,7 +281,7 @@ pub fn canonical_bh(
     (hex::encode(sense), hex::encode(antisense))
 }
 
-fn hex_to_32bytes(s: &str) -> [u8; 32] {
+pub fn hex_to_32bytes(s: &str) -> [u8; 32] {
     let s = s.trim_start_matches("0x");
     let mut out = [0u8; 32];
     let chars: Vec<char> = s.chars().collect();
