@@ -96,10 +96,12 @@ class BTCPIntegrationHub:
             self._initialization_errors.append(f"price_oracle: {e}")
             status["price_oracle"] = False
 
-        # 3.3: BTCP Gas Forecast
+        # 3.3: BTCP Gas Forecast — module exposes forecast_gas(chain_id) (the
+        # old import name GasForecastEngine never existed, so this leg has
+        # reported False since the hub was written)
         try:
-            from btcp_gas_forecast import GasForecastEngine  # type: ignore
-            self._gas_forecast = GasForecastEngine
+            from btcp_gas_forecast import forecast_gas as _gas_forecast_fn  # type: ignore
+            self._gas_forecast = _gas_forecast_fn
             status["gas_forecast"] = True
         except Exception as e:
             self._initialization_errors.append(f"gas_forecast: {e}")
@@ -114,19 +116,22 @@ class BTCPIntegrationHub:
             self._initialization_errors.append(f"liquidity_ocean: {e}")
             status["liquidity_ocean"] = False
 
-        # 3.5: BRT Scheduler
+        # 3.5: BRT Scheduler — module exposes predict_optimal_window(
+        # tx_timestamps, ...) (the old import name BRTScheduler never existed)
         try:
-            from brt_scheduler import BRTScheduler  # type: ignore
-            self._brt_scheduler = BRTScheduler
+            from brt_scheduler import predict_optimal_window as _predict_window_fn  # type: ignore
+            self._brt_scheduler = _predict_window_fn
             status["brt_scheduler"] = True
         except Exception as e:
             self._initialization_errors.append(f"brt_scheduler: {e}")
             status["brt_scheduler"] = False
 
-        # 3.6: ANIMA Regulatory
+        # 3.6: ANIMA Regulatory — module exposes get_registry() →
+        # JurisdictionRegistry (the old import name RegulatoryEngine never
+        # existed)
         try:
-            from anima_regulatory import RegulatoryEngine  # type: ignore
-            self._regulatory = RegulatoryEngine
+            from anima_regulatory import get_registry as _get_registry_fn  # type: ignore
+            self._regulatory = _get_registry_fn
             status["regulatory"] = True
         except Exception as e:
             self._initialization_errors.append(f"regulatory: {e}")
@@ -161,9 +166,8 @@ class BTCPIntegrationHub:
         if self._gas_forecast is None:
             return (31.0, 28.0, 34.0)  # ETH fallback
         try:
-            engine = self._gas_forecast()
-            result = engine.forecast(chain_id)
-            return (result["point"], result["ci_95_lower"], result["ci_95_upper"])
+            result = self._gas_forecast(chain_id)
+            return (result["mean_usd"], result["ci95_low"], result["ci95_high"])
         except Exception:
             return (31.0, 28.0, 34.0)
 
@@ -177,25 +181,53 @@ class BTCPIntegrationHub:
         except Exception:
             return 0.5
 
-    def get_optimal_window(self, chain_id: int) -> List[int]:
-        """3.5: OPTIMAL_WINDOW = circadian_low ∩ NL_peak ∩ MEV_valley."""
+    def get_optimal_window(self, chain_id: int, tx_timestamps: Optional[List[float]] = None) -> List[int]:
+        """3.5: OPTIMAL_WINDOW = circadian_low ∩ NL_peak ∩ MEV_valley.
+
+        Delegates to the real BRT scheduler (predict_optimal_window), which
+        needs observed transaction timestamps; without entity behavior data
+        it returns its honest CONJECTURE fallback — never a made-up window.
+        Returns quiet routing hours [UTC hour, ...]."""
         if self._brt_scheduler is None:
             return [4]  # 4am fallback
         try:
-            scheduler = self._brt_scheduler()
-            return scheduler.find_optimal_window(chain_id)
+            result = self._brt_scheduler(list(tx_timestamps or []))
+            phase = result.get("brt_phase") or {}
+            quiet = phase.get("quiet_hour")
+            if isinstance(quiet, int) and 0 <= quiet < 24:
+                return [quiet]
+            # No phase detail (CONJECTURE fallback): derive the hour from the
+            # predicted offset so callers still get a consistent answer.
+            offset = int(result.get("predicted_peak_offset_hours") or 0)
+            return [(int(time.time() // 3600) + offset) % 24]
         except Exception:
             return [4]
 
-    def get_regulatory_signal(self, entity_id: bytes) -> Dict:
-        """3.6: REGULATORY_BEHAVIORAL signal for CHAMELEON adaptation."""
+    def get_regulatory_signal(self, entity_id: bytes, chain_id: Optional[int] = None) -> Dict:
+        """3.6: REGULATORY_BEHAVIORAL signal for CHAMELEON adaptation.
+
+        The registry is jurisdiction-code-keyed with a chain→jurisdiction
+        index (resolve_chain). TRION has no entity→jurisdiction oracle yet,
+        so an entity without a chain context gets the honest answer: LOW,
+        explicitly unverified — never a fabricated restriction list."""
+        unverified = {"level": "LOW", "jurisdictions": [], "verified": False,
+                      "note": "entity→jurisdiction not sensed; pass chain_id for the chain-level registry"}
         if self._regulatory is None:
-            return {"level": "LOW", "jurisdictions": []}
+            return unverified
         try:
-            engine = self._regulatory()
-            return engine.check_entity(entity_id.hex())
+            registry = self._regulatory()
+            if chain_id is not None:
+                cfg = registry.resolve_chain(int(chain_id))
+                if cfg is not None:
+                    return {
+                        "level": "HIGH" if getattr(cfg, "r_threshold", 1.0) < 0.5 else "MEDIUM",
+                        "jurisdictions": [getattr(cfg, "code", "UNKNOWN")],
+                        "verified": True,
+                        "source": "chain-level JurisdictionRegistry.resolve_chain",
+                    }
+            return unverified
         except Exception:
-            return {"level": "LOW", "jurisdictions": []}
+            return unverified
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
