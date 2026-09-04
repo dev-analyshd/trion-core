@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -138,14 +136,16 @@ fn first_clause_to(tx: &Value) -> String {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_WEI: AtomicU64 = AtomicU64::new(1_000_000_000_000_000_000); // 1 VET ref (wei)
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^18 (VET wei); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn vechain_magnitude(wei: u128) -> f64 {
     let w = (wei as u64).min(u64::MAX / 2); // saturate safely
-    let old = MAX_WEI.load(Ordering::Relaxed);
-    if w > old { MAX_WEI.store(w, Ordering::Relaxed); }
-    let max = MAX_WEI.load(Ordering::Relaxed).max(1) as f64;
-    ((w as f64 + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = w as f64 / 1e18;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn vechain_bh_batch(txs: &[Value], block_num: u64, block_hash: &str, ts: u64) -> TxBhBatch {
@@ -240,9 +240,8 @@ async fn main() -> Result<()> {
             };
 
             let block_hash = block.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let ts = block.get("timestamp").and_then(|v| v.as_u64()).unwrap_or_else(|| {
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-            });
+            // CANONICAL_BH.md §5 — VeChain block timestamp; 0 = unknown, never wall-clock.
+            let ts = block.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
 
             let txs: Vec<Value> = block.get("transactions").and_then(|v| v.as_array()).cloned().unwrap_or_default();
             if txs.is_empty() { state.save(num).ok(); continue; }

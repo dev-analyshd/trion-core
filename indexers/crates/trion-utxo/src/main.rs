@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -95,14 +93,15 @@ fn extract_features(block_detail: &Value) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_SAT: AtomicU64 = AtomicU64::new(100_000_000); // 1 BTC in satoshi
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^8 (BTC sats); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn utxo_magnitude(sats: u64) -> f64 {
-    let old = MAX_SAT.load(Ordering::Relaxed);
-    if sats > old { MAX_SAT.store(sats, Ordering::Relaxed); }
-    let max = MAX_SAT.load(Ordering::Relaxed).max(1) as f64;
-    let v   = sats as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = sats as f64 / 1e8;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn utxo_bh_batch(block: &Value, chain: &UtxoChain, block_hash: &str, ts: u64) -> TxBhBatch {
@@ -184,8 +183,12 @@ async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut Indexer
     let eid       = block_entity_id(chain.label, target);
     let bh        = bh_id(&eid);
     let vector    = build_vector(&features, &format!("{}:{}", chain.label, target));
-    let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-    let ts_u64    = ts as u64;
+    // CANONICAL_BH.md §5 — block timestamp from the chain API payload
+    // (blockchain.com-style /blocks/{h} carries unix `timestamp`); the
+    // wall-clock value that was here before made the same tx hash differently
+    // depending on ingestion moment. 0 = unknown, never wall-clock.
+    let ts_u64    = block["timestamp"].as_u64().unwrap_or(0);
+    let ts        = ts_u64 as f64;
     let block_hash = block["hash"].as_str()
         .map(|h| h.to_string())
         .unwrap_or_else(|| bh_id(&format!("utxo_block:{}:{}", chain.label, target)));

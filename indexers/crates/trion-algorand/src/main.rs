@@ -7,8 +7,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -103,13 +101,15 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
     ]
 }
 
-static MAX_MICRO: AtomicU64 = AtomicU64::new(1_000_000_000);
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^6 (ALGO micro); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn algo_magnitude(micro: u64) -> f64 {
-    let old = MAX_MICRO.load(Ordering::Relaxed);
-    if micro > old { MAX_MICRO.store(micro, Ordering::Relaxed); }
-    let max = MAX_MICRO.load(Ordering::Relaxed).max(1) as f64;
-    ((micro as f64 + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = micro as f64 / 1e6;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn algo_bh_batch(txs: &[Value], round: u64, block_hash: &str, ts: u64) -> TxBhBatch {
@@ -171,8 +171,8 @@ async fn main() -> Result<()> {
                 .cloned().unwrap_or_default();
             let block_hash = block.pointer("/cert/proposal/ophash").and_then(|v| v.as_str())
                 .or_else(|| block.get("hash").and_then(|v| v.as_str())).unwrap_or("").to_string();
-            let ts = block.pointer("/block/ts").and_then(|v| v.as_u64())
-                .unwrap_or_else(|| SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
+            // CANONICAL_BH.md §5 — Algorand block.ts; 0 = unknown, never wall-clock.
+            let ts = block.pointer("/block/ts").and_then(|v| v.as_u64()).unwrap_or(0);
             if txs.is_empty() { state.save(round).ok(); continue; }
 
             let features = extract_features(&txs);

@@ -19,8 +19,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -188,14 +186,16 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_WEI: AtomicU64 = AtomicU64::new(1_000_000_000_000_000_000); // 1 eGLD
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^18 (eGLD wei); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn mx_magnitude(wei: u128) -> f64 {
     let w = (wei as u64).min(u64::MAX / 2);
-    let old = MAX_WEI.load(Ordering::Relaxed);
-    if w > old { MAX_WEI.store(w, Ordering::Relaxed); }
-    let max = MAX_WEI.load(Ordering::Relaxed).max(1) as f64;
-    ((w as f64 + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = w as f64 / 1e18;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn mx_bh_batch(txs: &[Value], nonce: u64, hyper_hash: &str, ts: u64) -> TxBhBatch {
@@ -306,9 +306,8 @@ async fn main() -> Result<()> {
                 Err(_) => Value::Null,
             };
             let hyper_hash = hyper.get("hash").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let ts = hyper.get("timestamp").and_then(|v| v.as_u64()).unwrap_or_else(|| {
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-            });
+            // CANONICAL_BH.md §5 — hyperblock timestamp; 0 = unknown, never wall-clock.
+            let ts = hyper.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
 
             // Gather txs from hyperblock if present (includes all shards)
             let txs: Vec<Value> = hyper.get("transactions").and_then(|v| v.as_array()).cloned().unwrap_or_default();

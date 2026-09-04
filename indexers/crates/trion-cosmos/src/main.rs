@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -149,14 +147,15 @@ fn extract_features(block: &Value, txs_resp: &Value) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_UATOM: AtomicU64 = AtomicU64::new(1_000_000_000); // 1000 ATOM in uatom
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^6 (ATOM uatom); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn cosmos_magnitude(uatom: u64) -> f64 {
-    let old = MAX_UATOM.load(Ordering::Relaxed);
-    if uatom > old { MAX_UATOM.store(uatom, Ordering::Relaxed); }
-    let max = MAX_UATOM.load(Ordering::Relaxed).max(1) as f64;
-    let v   = uatom as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = uatom as f64 / 1e6;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn classify_cosmos_msg(type_url: &str) -> u8 {
@@ -262,8 +261,12 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
         let eid       = block_entity_id(chain.label, height);
         let bh        = bh_id(&eid);
         let vector    = build_vector(&features, &format!("{}:{}", chain.label, height));
-        let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-        let ts_u64    = ts as u64;
+        // CANONICAL_BH.md §5 — block time from LCD block.header.time
+        // (RFC 3339); 0 = unknown. Never wall-clock.
+        let ts_u64    = block["block"]["header"]["time"].as_str()
+            .map(trion_common::iso8601_to_epoch)
+            .unwrap_or(0);
+        let ts        = ts_u64 as f64;
         let block_hash = block["block_id"]["hash"].as_str()
             .map(|h| h.to_string())
             .unwrap_or_else(|| bh_id(&format!("cosmos_block:{}:{}", chain.label, height)));

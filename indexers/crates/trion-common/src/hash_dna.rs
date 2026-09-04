@@ -313,6 +313,84 @@ fn normalise(raw: &str) -> String {
     s
 }
 
+// ── Block-time parsing (CANONICAL_BH.md §5) ──────────────────────────────────
+
+/// Parse an RFC 3339 / ISO-8601 timestamp ("YYYY-MM-DDTHH:MM:SS[.frac]
+/// [Z|±HH:MM]") into unix seconds. Returns 0 for unparseable input —
+/// deterministic "unknown", never a wall clock.
+///
+/// Used by the crates whose chain APIs return string timestamps (Cosmos
+/// LCD `block.header.time`, Koios `block_time`, Stellar `created_at`).
+/// Days-from-civil algorithm (H. Hinnant) — no external date crate needed.
+pub fn iso8601_to_epoch(s: &str) -> u64 {
+    let t = s.trim();
+    let b = t.as_bytes();
+    // Fixed prefix: YYYY-MM-DDTHH:MM:SS (T or space separator accepted)
+    if b.len() < 19
+        || b[4] != b'-' || b[7] != b'-'
+        || (b[10] != b'T' && b[10] != b' ')
+        || b[13] != b':' || b[16] != b':'
+    {
+        return 0;
+    }
+    let digits = |i: usize, n: usize| -> Option<i64> {
+        match t.get(i..i + n) {
+            Some(sl) if sl.bytes().all(|c| c.is_ascii_digit()) => sl.parse::<i64>().ok(),
+            _ => None,
+        }
+    };
+    let (y, mo, d, h, mi, sec) = match (
+        digits(0, 4), digits(5, 2), digits(8, 2),
+        digits(11, 2), digits(14, 2), digits(17, 2),
+    ) {
+        (Some(a), Some(b_), Some(c), Some(d_), Some(e), Some(f)) => (a, b_, c, d_, e, f),
+        _ => return 0,
+    };
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d)
+        || !(0..=23).contains(&h) || !(0..=59).contains(&mi) || !(0..=60).contains(&sec)
+    {
+        return 0;
+    }
+    // Days from civil (Howard Hinnant) — days since 1970-01-01.
+    let yy  = if mo <= 2 { y - 1 } else { y };
+    let era = (if yy >= 0 { yy } else { yy - 399 }) / 400;
+    let yoe = yy - era * 400;                                // [0, 399]
+    let mp  = (mo + 9) % 12;                                 // Mar = 0 .. Feb = 11
+    let doy = (153 * mp + 2) / 5 + d - 1;                    // [0, 365]
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;         // [0, 146096]
+    let days = era * 146097 + doe - 719468;
+    let secs = days * 86400 + h * 3600 + mi * 60 + sec;
+
+    // Timezone suffix: Z / +HH:MM / -HH:MM (fractional seconds skipped).
+    let mut off: i64 = 0;
+    if t.len() > 19 {
+        let rest = &t[19..];
+        let rest = match rest.strip_prefix('.') {
+            Some(tail) => {
+                // skip the fractional digits
+                let frac_len = tail.chars().take_while(|c| c.is_ascii_digit()).count();
+                &tail[frac_len..]
+            }
+            None => rest,
+        };
+        let rb = rest.as_bytes();
+        if rb.is_empty() || rb[0] == b'Z' || rb[0] == b'z' {
+            off = 0;
+        } else if (rb[0] == b'+' || rb[0] == b'-') && rb.len() >= 6
+            && rb[3] == b':'
+            && rb[1..3].iter().all(|c| c.is_ascii_digit())
+            && rb[4..6].iter().all(|c| c.is_ascii_digit())
+        {
+            let sign: i64 = if rb[0] == b'-' { -1 } else { 1 };
+            let hh: i64 = rest[1..3].parse().unwrap_or(0);
+            let mm: i64 = rest[4..6].parse().unwrap_or(0);
+            off = sign * (hh * 3600 + mm * 60);
+        }
+    }
+    let total = secs - off;
+    if total > 0 { total as u64 } else { 0 }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -445,5 +523,24 @@ mod tests {
             "f9769049b9d4b778ba5c676f396b98b6578831524d0744264eaff84375f6826e",
             "bh_id must match Python hashlib.sha3_256 + TS entityIdFromAddr"
         );
+    }
+
+    /// iso8601_to_epoch — CANONICAL_BH.md §5 block-time parsing.
+    /// Pinned against Python datetime.fromisoformat (same instant, 0 on junk).
+    #[test]
+    fn iso8601_to_epoch_known_instants() {
+        assert_eq!(iso8601_to_epoch("2024-01-01T00:00:00Z"), 1704067200);
+        assert_eq!(iso8601_to_epoch("2024-06-24T12:34:56.789Z"), 1719232496);
+        assert_eq!(iso8601_to_epoch("2024-06-24T12:34:56.789012345Z"), 1719232496);
+        assert_eq!(iso8601_to_epoch("2024-06-24T12:34:56"), 1719232496);
+        assert_eq!(iso8601_to_epoch("2024-06-24 12:34:56Z"), 1719232496);
+        // timezone offsets are honored (14:34:56+02:00 == 12:34:56Z)
+        assert_eq!(iso8601_to_epoch("2024-06-24T14:34:56+02:00"), 1719232496);
+        assert_eq!(iso8601_to_epoch("2024-06-24T10:34:56-02:00"), 1719232496);
+        // junk / empty / short → 0 (deterministic unknown, never wall clock)
+        assert_eq!(iso8601_to_epoch(""), 0);
+        assert_eq!(iso8601_to_epoch("not-a-timestamp"), 0);
+        assert_eq!(iso8601_to_epoch("2024-06-24"), 0);
+        assert_eq!(iso8601_to_epoch("2024-13-40T99:99:99Z"), 0);
     }
 }
