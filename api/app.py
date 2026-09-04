@@ -9737,7 +9737,7 @@ def architecture_inversion():
     except Exception:
         _moat = _bh = _faiss = _uni = {}
 
-    chains_indexed  = int(_moat.get("chains_indexed", 37))
+    chains_indexed  = int(_moat.get("chains_indexed", _registry_chain_counts()["chains_indexed"]))
     total_bhs       = int(_bh.get("total_tx_bhs", 296456))
     faiss_vectors   = int(_faiss.get("indexed_vectors", 6323))
     faiss_entities  = int(_faiss.get("entities_tracked", 3623))
