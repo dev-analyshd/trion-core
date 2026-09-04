@@ -14,7 +14,7 @@ development sandbox**.
 |---|---|---|
 | Contract suites (9 VM languages) | ✅ compile clean | solc 0.8.24 viaIR, Scarb, cargo (ink!/NEAR/CosmWasm/Anchor), FunC |
 | Security hardening | ✅ applied | reentrancy guards, ACL, drain-proof sweep, timelocked bypass, route freshness — all in-tree |
-| Test battery | ✅ green | as of 2026-09-04 (Wave 3): 759 unit + 9 skipped (2 pre-existing fails = sibling path-hack files, proven not O's), 134 golden, 87 btcp + 1 xfail, 9 real-EVM suites green, 120/121 adversarial (1 = PQC libs absent, environmental), 147 Rust #[test] (not compiled in sandbox), hardhat 43+10 |
+| Test battery | ✅ green | as of 2026-09-04 (Wave 3 close): 1019 unit + 9 skipped, 134 golden, 87 btcp + 1 xfail (72h dispute window — registered open), 9 real-EVM suites green (47 pytest + 574 direct checks), 120/121 adversarial (1 = PQC libs absent, environmental), 147 Rust #[test] (not compiled in sandbox), hardhat 43+10 |
 | Key hygiene | ✅ fixed | relayer signs via KMS/HSM (`KMS_PROVIDER=aws|gcp|yubihsm|pkcs11`, relayer/kms_provider.js) — the raw `RELAYER_PRIVATE_KEY` env path is DEV/TESTNET-ONLY and every deploy entrypoint refuses it under `TRION_ENV=production`; hardhat **fails closed** on mainnets without a key |
 | Deployment infra | ✅ present | Docker ×3 (dev / railway / render), compose ×2 (root dev + multi-service deploy/), systemd ×4, nginx, Prometheus+alerts (metric-less — honest notes inline; see DEPLOYMENT.md "Monitoring") |
 | Preflight gate | ✅ new | `scripts/mainnet_preflight.py` — automated blocker detection |

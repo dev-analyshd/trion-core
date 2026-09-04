@@ -1,3 +1,80 @@
+## [Unreleased — Canonical Reconstruction, Waves 1–4] — 2026-09-04
+
+Autonomous multi-wave reconstruction loop (per TRION master command): a frozen
+specification hierarchy was established, every normative requirement extracted
+into a matrix, and the implementation brought into conformance — with honest
+labels wherever a component is research/partial/external. Append-only record:
+`docs/audit/AUTONOMOUS_MASTER_WORKLOG.md`.
+
+### Wave 1 — Foundation (d7ca82e…298a1d6)
+- `docs/audit/CANONICAL_SPEC_MATRIX.md`: 107 requirements + 22 spec conflicts
+  (K1–K22) resolved against the authoritative set (WHITEPAPER_MD, WHITEPAPER_V2,
+  BTCP_SPEC, L0–L9 + supporting tables).
+- `docs/protocol/CANONICAL_BH.md`: canonical 93-byte BH layout; py/TS/rust
+  builder parity fixes (deterministic rust magnitude + timestamps across 21
+  indexer crates); 52 golden vectors / 134 tests.
+- `docs/protocol/CANONICAL_CERTIFICATE.md` + `core/consensus/certificate.py`:
+  346-byte cross-VM certificate with per-family domain separation; validator
+  security audit opened as the Wave 2 work order (C-01…C-06, H-01…H-08).
+- `docs/protocol/BTCP_STATE_MACHINE.md` (26 states / 33 transitions) +
+  `docs/security/CANONICAL_INVARIANTS.md` (INV-001…022; py layer 18 ENFORCED /
+  3 PARTIAL / 0 UNENFORCED; 49 attack tests).
+
+### Wave 2 — VM Security Parity (942a503…eaa5daa)
+- EVM: `CanonicalCertificate.sol` library + `TrionEpochRegistry`; V4
+  `submitCertificateAttestation` (§6 sequence, weight quorum, nonce ordering,
+  equivocation evidence); permissionless `BTCPEscrow.releaseEscrowCanonical`;
+  M-05 bind-time oracle-interface pinning.
+- Solana: oracle-key release gate replaced by certificate verification (C-03).
+- Move: `coherence_verified` relayer flag removed; permissionless release on
+  canonical certificate (C-02).
+- TON (C-01) + NEAR (C-05): full §6 sequences, native ed25519, epoch dicts,
+  forward-only registration.
+- Starknet/Cairo: escrow + execution gates closed (C-04); Vyper: dynamic quorum,
+  structurally fail-closed (M-03); PVM legacy oracle honestly labeled
+  non-production.
+- Battery: 47 contract pytest + 574 direct-script checks across 9 real-VM
+  suites; all green.
+
+### Wave 3 — Infrastructure, Math, API Truth (dcda8d5…1de698d)
+- Registry: one canonical `config/chain_registry.json` enforced everywhere
+  (129 chains / 18 VM families / 40 integrated; disposition matrix for
+  hardcoded chain-id sites).
+- Math: AWA canonical 6-condition set + fail-closed `EmissionGate` (no unfreeze
+  API); HHI 4000-CRITICAL; second-based value-tier TTL (py/rust/doc identical);
+  24 canonical signals + 7 BTCP domain names; wash-trading D_eff discount +
+  conservation audit; clipboard expiry + BEO witness binding + persisted
+  per-entity nonces. Master formula verification: 104/0/1 — "ALL FORMULAS
+  ENFORCED AS SPECIFIED".
+- API/relayer/SDK: truth boundaries (caller-supplied truth labeled, settlement
+  gate derived from persisted proofs, tolerance caps, SSRF guard, X-API-Key
+  write auth — 34-test attack battery); relayer documented as submit-only
+  single-signature custody; SDK trust model (no client-side signing/quorum
+  truth).
+- Storage: all 35 `schema.sql` tables dispositioned (12 operative sqlite-mirror,
+  6 deploy-gated, 17 honest `NONE`), atomic step-6 writes, crash-injection
+  tests, replay/equivocation store guards.
+- Deployment: custody matrix (dev-only raw keys refused under
+  `TRION_ENV=production`; KMS/HSM path), per-profile topology, runbook truth,
+  zero dead env vars.
+- API emission gate: AWA freeze wired into `/api/v1/publish` (frozen ⇒ 503
+  `silence:true`, no chain write).
+- Battery at close: 1019 unit + 9 skipped · 87 btcp + 1 xfail · 134 golden ·
+  contract suites green · master formula 104/0/1 · api truth 34/34.
+
+### Wave 4 — Red Team / Restructure / Docs Conformance (this entry)
+- P (red team) and Q (dead-code restructure) ran in parallel; this entry
+  records the docs-conformance pass (Agent R): README/ARCHITECTURE/SECURITY
+  updated to the current architecture truth (canonical certificate verification
+  on every VM tier, AWA emission freeze, two ingestion paths, storage
+  dispositions, honest labels); stale counts swept (tests, routes, chains,
+  crates, signals, HHI, TTL); K1–K22 resolution banners added to the affected
+  `spec/*.md` layer docs; cross-reference integrity pass over `docs/**`.
+
+# Changelog
+
+All notable changes to TRION Protocol are documented here.
+
 ## [2.2.0] — 2026-09-02 — Master Agent Command: Phase 0-4 Execution
 
 Autonomous protocol-architect session per TRION_MASTER_AGENT_COMMAND: spec-first
