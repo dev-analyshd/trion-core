@@ -652,7 +652,7 @@ fn build_tx_bh_batch(
         let mev_ratio = max_prio as f64 / base_fee.max(1) as f64;
         // If MEV ratio > 5× and it's a swap-adjacent call, flag as MEV_CAPTURE
         let et_byte = if mev_ratio > 5.0 && (et_byte == 1 || et_byte == 0) {
-            17u8 // MEV_CAPTURE
+            16u8 // MEV_CAPTURE (canonical byte 16; 17 is FLASH_LOAN)
         } else {
             et_byte
         };
