@@ -1311,7 +1311,14 @@ def readyz():
 
 @app.route("/api/v1/stats")
 def stats():
-    """Network stats — reads total_signals from the live oracle contract."""
+    """Network stats — reads total_signals from the live oracle contract.
+
+    Honesty labels (DD finding 7.2): market_volatility / dynamic_threshold
+    are synthetic (sin + md5 time-noise from _market_volatility), NOT
+    measured market data — they carry per-field *_source keys and an
+    is_synthetic note scoped to exactly those fields. On-chain and FAISS
+    counters in this response are live.
+    """
     vol   = _market_volatility()
     theta = round(0.55 + 0.37 * vol, 6)
 
@@ -1346,7 +1353,19 @@ def stats():
         "chain_ok":          chain_ok,
         "block_number":      block_number,
         "market_volatility": vol,
+        "market_volatility_source": (
+            "synthetic (sin + md5 time-noise — not measured market data)"
+        ),
         "dynamic_threshold": theta,
+        "dynamic_threshold_source": (
+            "synthetic (Θ = 0.55 + 0.37·V computed from synthetic market_volatility)"
+        ),
+        "is_synthetic":    True,
+        "synthetic_reason": (
+            "market_volatility and dynamic_threshold are synthetic time-noise "
+            "(sin + md5 of the wall clock), not measured market data; the "
+            "on-chain and FAISS counters in this response are live."
+        ),
         "arbiscan_oracle":   "https://sepolia.arbiscan.io/address/0x1d129D34279d1246aB08a41dfE610EaF8D794237",
         "arbiscan_vault":    "https://sepolia.arbiscan.io/address/0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d",
         "timestamp":         int(time.time()),
@@ -1397,6 +1416,9 @@ def feed():
 
 @app.route("/api/v1/batch")
 def batch():
+    """Batch summary — same honesty labels as /api/v1/stats (DD finding 7.2):
+    market_volatility / dynamic_threshold are synthetic (sin + md5
+    time-noise from _market_volatility), not measured market data."""
     vol = _market_volatility()
     relay = get_relay()
     total_onchain = 0
@@ -1407,7 +1429,19 @@ def batch():
     return jsonify({
         "total_signals_onchain": total_onchain,
         "market_volatility":     vol,
+        "market_volatility_source": (
+            "synthetic (sin + md5 time-noise — not measured market data)"
+        ),
         "dynamic_threshold":     round(0.55 + 0.37 * vol, 6),
+        "dynamic_threshold_source": (
+            "synthetic (Θ = 0.55 + 0.37·V computed from synthetic market_volatility)"
+        ),
+        "is_synthetic":          True,
+        "synthetic_reason":      (
+            "market_volatility and dynamic_threshold are synthetic time-noise "
+            "(sin + md5 of the wall clock), not measured market data; "
+            "total_signals_onchain is read from the live oracle contract."
+        ),
         "timestamp":             int(time.time()),
     })
 
@@ -1791,6 +1825,13 @@ def thermodynamics(entity_id: str):
     """
     Compute thermodynamic state (energy, entropy, free energy, phase) for an entity.
     Treats the blockchain entity as a thermodynamic system.
+
+    Honesty labels (DD finding 7.2): the thermodynamic formulas and the
+    plane inputs are real, but three inputs are synthetic placeholders —
+    market_volatility (sin + md5 time-noise), the manipulation fingerprint
+    (sha256 of the entity id — not the real L1.2 detector), and tx_count
+    (constant 200). Each is labeled in the response via *_source keys plus
+    a top-level is_synthetic note.
     """
     if not _thermo_ok:
         return jsonify({"error": "thermodynamics module unavailable"}), 503
@@ -1814,6 +1855,24 @@ def thermodynamics(entity_id: str):
         f"Free energy: {state.free_energy:.3f} (useful work potential). "
         f"Carnot efficiency: {state.carnot_efficiency:.3f}. "
         f"Thermodynamic health: {state.thermodynamic_health:.3f}."
+    )
+    # ── Synthetic-input disclosure (DD 7.2) — additive keys only ──────────
+    d["tx_count"] = 200
+    d["tx_count_source"] = "constant_placeholder (not a measured transaction count)"
+    d["market_volatility"] = vol
+    d["market_volatility_source"] = (
+        "synthetic (sin + md5 time-noise — not measured market data)"
+    )
+    d["mf_score"] = round(mf, 4)
+    d["mf_score_source"] = (
+        "synthetic (sha256 of entity id — not the real L1.2 7-pattern MF detector)"
+    )
+    d["is_synthetic"] = True
+    d["synthetic_reason"] = (
+        "thermodynamic formulas and plane values are real (FAISS), but "
+        "market_volatility (sin+md5 time-noise), mf_score (sha256 of the "
+        "entity id) and tx_count (constant 200 placeholder) are synthetic "
+        "inputs; energy/temperature-derived fields inherit them."
     )
     return jsonify(d)
 
@@ -7641,21 +7700,61 @@ def token_distribution():
     """
     L10.7 — TRION Token Genesis Distribution
 
-    Fixed supply at genesis. No inflation. Deflationary mechanism via consumption bonding.
-    5 utility classes per whitepaper Part 15.
-    Public Good Charter: 15% of all fee revenue to public good pool (contract-enforced).
-    Unknown Unknown Budget: 10% revenue reserve, 30-day timelock, >75% governance supermajority.
+    Canonical source: docs/TOKENOMICS.md (single source of truth — DD C8/5.4
+    "one supply, three stories"). Fixed 1B supply minted exactly once at
+    genesis; no mint path afterwards; burn-on-use deflation.
+
+    On-chain enforced (identical in all four token implementations — Vyper /
+    NEAR / TON / ink!): the fixed 1B supply minted once, the 15% / 85%
+    genesis split between the two custody roots, no minting afterwards, and
+    the burn paths. The bucket-level sub-allocation, all vesting schedules,
+    liquidity seeding and disbursement cadence are POLICY, executed by the
+    custody-root holders — no contract in this repository locks or streams
+    vested balances (ink! records team/backer vesting parameters on-chain as
+    immutable informational markers only).
     """
     TOTAL_SUPPLY = 1_000_000_000  # 1 billion TRION fixed at genesis
 
+    # Canonical allocation table — docs/TOKENOMICS.md §2 (labels, percentages,
+    # token counts and custody roots copied exactly). Per-bucket `enforcement`
+    # wording follows the TOKENOMICS enforcement matrix (§4): on-chain is the
+    # 15%/85% genesis custody split only; buckets themselves are policy.
     allocation = [
-        {"category": "Validator Staking Pool",     "pct": 30.0, "tokens": 300_000_000, "vesting": "4 years linear; cliff at 12 months", "notes": "Rewards honest validation"},
-        {"category": "Public Good Charter",         "pct": 15.0, "tokens": 150_000_000, "vesting": "Continuous; 15% of all fees routed here", "notes": "Contract-enforced, not policy"},
-        {"category": "Ecosystem Development",       "pct": 20.0, "tokens": 200_000_000, "vesting": "4 years; 25% at mainnet, rest linear", "notes": "SDK grants, integrations, developer tooling"},
-        {"category": "Founding Team",               "pct": 12.0, "tokens": 120_000_000, "vesting": "4 years; 12-month cliff; no pre-cliff liquid", "notes": "Aligned with 10-year protocol horizon"},
-        {"category": "Early Contributors & Research","pct":  8.0, "tokens":  80_000_000, "vesting": "2 years linear; 6-month cliff", "notes": "Phase 1–5 builders"},
-        {"category": "Unknown Unknown Reserve",     "pct": 10.0, "tokens": 100_000_000, "vesting": "30-day timelock; >75% governance supermajority", "notes": "For events not yet imagined"},
-        {"category": "Data Market Bootstrap",        "pct":  5.0, "tokens":  50_000_000, "vesting": "Released as Akashic Index reaches D-milestones", "notes": "Seeds Akashic data marketplace"},
+        {"category": "Ecosystem / Community",       "pct": 30.0, "tokens": 300_000_000,
+         "vesting": "Grants & integrations, governance-approved",
+         "custody_root": "Treasury & Vesting Allocator (85%)",
+         "enforcement": "policy — sub-allocation of the 85% allocator root, executed by the custody-root holder; not contract-enforced",
+         "notes": "SDK grants, integrations, developer tooling"},
+        {"category": "Team",                         "pct": 15.0, "tokens": 150_000_000,
+         "vesting": "4-year linear vesting, 1-year cliff (nothing liquid pre-cliff)",
+         "custody_root": "Treasury & Vesting Allocator (85%)",
+         "enforcement": "policy — no contract locks or streams vested balances (ink! records the vesting parameters on-chain as immutable informational markers)",
+         "notes": "Aligned with the 10-year protocol horizon"},
+        {"category": "Protocol Treasury",            "pct": 20.0, "tokens": 200_000_000,
+         "vesting": "Governance-controlled operating reserve",
+         "custody_root": "Treasury & Vesting Allocator (85%)",
+         "enforcement": "policy — governance-controlled disbursement by the custody-root holder; not contract-enforced",
+         "notes": "Operating reserve for the protocol"},
+        {"category": "Early Backers",                "pct": 12.0, "tokens": 120_000_000,
+         "vesting": "3-year linear vesting",
+         "custody_root": "Treasury & Vesting Allocator (85%)",
+         "enforcement": "policy — no contract locks or streams vested balances (ink! records the vesting parameters on-chain as immutable informational markers)",
+         "notes": "Early backers of the protocol"},
+        {"category": "Validators / Staking rewards", "pct":  8.0, "tokens":  80_000_000,
+         "vesting": "Released per epoch from the staking budget (rewards are fee-funded, not minted)",
+         "custody_root": "Treasury & Vesting Allocator (85%)",
+         "enforcement": "policy — release cadence executed by the custody-root holder; rewards are fee-funded, never minted",
+         "notes": "Pre-funded staking budget, not an emission tap"},
+        {"category": "Public Good Reserve",          "pct": 10.0, "tokens": 100_000_000,
+         "vesting": "Disbursed by governance vote (WP 15.3 item 5)",
+         "custody_root": "Public Good Reserve (15%)",
+         "enforcement": "custody root on-chain at genesis (15% public-good carve-out enforced in all four implementations); disbursements are policy via governance vote",
+         "notes": "15% of fee revenue routed here (WP 15.3 item 5)"},
+        {"category": "Liquidity",                    "pct":  5.0, "tokens":  50_000_000,
+         "vesting": "Seeded to AMM pools at launch",
+         "custody_root": "Public Good Reserve (15%)",
+         "enforcement": "policy — liquidity seeding from the public-good root; not contract-enforced",
+         "notes": "Launch liquidity for AMM pools"},
     ]
 
     utility_classes = [
@@ -7671,15 +7770,67 @@ def token_distribution():
     return jsonify({
         "token":          "TRION",
         "total_supply":   TOTAL_SUPPLY,
+        "decimals":       18,
         "inflation":      False,
-        "deflationary_mechanism": "Consumption bonding burns small fraction per signal use",
+        "deflationary_mechanism": (
+            "Burn-on-use (docs/TOKENOMICS.md §3): 0.05% (5 bps) consumption fee "
+            "per transfer — 15% of each fee to the public-good reserve, 85% "
+            "burned. Fee hook enforced only in the Vyper reference token; "
+            "policy on NEAR/TON/ink! (consuming contracts call burn entry "
+            "points). 50% of every validator slash is burned."
+        ),
+        "canonical_source": "docs/TOKENOMICS.md",
+        "genesis_split": {
+            "public_good_root_pct":  15.0,
+            "public_good_root_tokens":  150_000_000,
+            "allocator_root_pct":     85.0,
+            "allocator_root_tokens":  850_000_000,
+            "enforcement": (
+                "on-chain, enforced in all four implementations (Vyper/NEAR/TON/ink!): "
+                "public_good_amount = TOTAL_SUPPLY × 1500 bps / 10_000 = 15%; "
+                "allocator_amount = TOTAL_SUPPLY − public_good_amount = 85%"
+            ),
+        },
         "public_good_pct": 15.0,
-        "public_good_enforcement": "Smart contract — not policy; cannot be bypassed",
+        "public_good_enforcement": (
+            "on-chain: the 15% public-good carve-out at genesis is enforced in all "
+            "four token implementations; routing 15% of fee revenue to the pool is "
+            "enforced only in the Vyper reference token (policy on NEAR/TON/ink!); "
+            "pool disbursements are governance policy (WP 15.3 item 5) — not \"cannot be bypassed\" beyond this"
+        ),
         "unknown_unknown_pct": 10.0,
+        "unknown_unknown_basis": (
+            "revenue reserve, not a genesis supply bucket (WP §14.4: "
+            "Budget_unknown = 0.10 · Revenue(t))"
+        ),
         "unknown_unknown_timelock_days": 30,
         "unknown_unknown_quorum": ">75% governance supermajority",
+        "unknown_unknown_enforcement": (
+            "policy — multi-sig with 30-day timelock and >75% governance "
+            "supermajority (core/governance/unknown_unknown.py); no token "
+            "contract enforces it"
+        ),
         "allocation":     allocation,
         "total_allocated_pct": total_pct,
+        "enforcement_matrix": {
+            "on_chain": [
+                "Fixed 1B supply minted once (Vyper constructor / NEAR new() / TON opcode 0x07 first-call-only / ink! constructor)",
+                "15% public-good carve-out — enforced (Vyper / NEAR / TON / ink!)",
+                "85% treasury & vesting allocator — enforced (Vyper / NEAR / TON / ink!)",
+                "Mint after genesis: governance_mint() reverts (Vyper) / panics (NEAR); TON has no mint opcode; ink! has no mint message",
+                "Permissionless burn: burn/burnFrom (Vyper), burn (NEAR), opcode 0x08 (TON), burn (ink!)",
+                "Slash 50% insurance / 50% burn — enforced (all four)",
+                "0.05% fee hook (85% burn / 15% public good) — enforced in the Vyper reference token's transfer/transferFrom only",
+            ],
+            "policy": [
+                "Sub-allocation of the 85% allocator root into buckets 1–5",
+                "Team vesting (4y linear, 1y cliff) and early-backer vesting (3y linear)",
+                "Liquidity seeding (5%) from the public-good root",
+                "Validator reward release cadence (rewards are fee-funded — never minted)",
+                "Public-good pool disbursements (governance vote, WP 15.3 item 5)",
+                "Burn-on-use fee collection on NEAR/TON/ink! (consuming contracts must call the burn entry points; only the Vyper reference implementation charges the fee inside the token itself)",
+            ],
+        },
         "utility_classes": utility_classes,
         "launch_conditions": [
             "All 10 phases complete",
