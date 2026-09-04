@@ -1,20 +1,25 @@
 [Unit]
-Description=TRION Protocol Validator P2P Network
-After=network.target trion-api.service
+Description=TRION Protocol Validator (Go) — mesh + TRION-BFT self-test
+Documentation=https://github.com/dev-analyshd/trion-core/blob/main/validator/README.md
+After=network.target
 
 [Service]
-Type=simple
+# The Go validator is a ONE-SHOT self-test binary: it verifies attestation-mesh
+# primitives, dual-strand signing, and a 4-validator TRION-BFT consensus round
+# over real TCP gossip, prints PASS and exits 0. It is NOT a daemon — nothing
+# listens on :6000 (the P2P API gateway in internal/p2p/gateway.go is
+# test-only). Build it first on a machine with a Go >=1.21 toolchain:
+#
+#   cd /opt/trion/validator && \
+#       go build -o /usr/local/bin/trion-validator ./cmd/trion-validator/
+#
+# (The previous ExecStart ran `python3 -m validator.node`, a module that has
+# never existed — validator/ is pure Go.)
+Type=oneshot
 User=trion
 WorkingDirectory=/opt/trion
-Environment=PYTHONPATH=/opt/trion:/opt/trion/pylibs
-Environment=VALIDATOR_PORT=6000
-Environment=VALIDATOR_ID=trion-validator-01
-Environment=BOOTSTRAP_NODES=
-ExecStart=/usr/bin/python3 -m validator.node
-Restart=on-failure
-RestartSec=10
-KillMode=mixed
-TimeoutStopSec=30
+ExecStart=/usr/local/bin/trion-validator
+TimeoutStartSec=120
 
 # Security hardening
 NoNewPrivileges=true

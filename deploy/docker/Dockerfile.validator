@@ -1,37 +1,35 @@
 # TRION Protocol — Validator Node Dockerfile
+# NOTE: this builds the Go network layer and runs its self-test. The binary
+# (cmd/trion-validator) is a ONE-SHOT self-test — attestation-mesh
+# primitives, dual-strand signing, and a 4-validator TRION-BFT consensus
+# round over real TCP gossip — that prints PASS and exits 0. There is NO
+# long-running validator daemon yet (see validator/README.md "Honest
+# gaps"): nothing listens on :6000 and the P2P API gateway
+# (internal/p2p/gateway.go) is exercised by `go test` only.
 FROM golang:1.21-alpine AS builder
 
 LABEL org.opencontainers.image.title="TRION Validator"
-LABEL org.opencontainers.image.description="TRION Protocol P2P Validator Node"
+LABEL org.opencontainers.image.description="TRION Protocol P2P Validator Network (Go mesh + TRION-BFT self-test)"
 LABEL org.opencontainers.image.vendor="TRION Protocol"
 
 WORKDIR /app
 
-# Copy Go source
+# The Go module lives at validator/go.mod — there is no root go.mod.
 COPY validator/ ./validator/
-COPY go.mod go.sum ./
 
-# Build
-RUN cd validator && go build -o /app/trion-validator .
+# Package main lives at ./cmd/trion-validator — a bare `go build .` inside
+# validator/ fails with "no Go files".
+RUN cd validator && go build -o /app/trion-validator ./cmd/trion-validator/
 
 # Runtime stage
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates curl
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
 COPY --from=builder /app/trion-validator .
-COPY config/ ./config/
 
-RUN mkdir -p /app/data /app/logs
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:6000/health || exit 1
-
-EXPOSE 6000 6001
-
-ENV VALIDATOR_PORT=6000
-ENV VALIDATOR_ID=trion-validator-01
-
+# One-shot: the mesh + BFT self-test exits after printing PASS — hence no
+# HEALTHCHECK (no HTTP listener) and no EXPOSE (no ports).
 CMD ["./trion-validator"]

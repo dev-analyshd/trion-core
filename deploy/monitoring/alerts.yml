@@ -1,4 +1,12 @@
 # TRION Protocol — Prometheus Alert Rules
+#
+# HONEST STATE (2026-09): the trion_* metric names these rules reference
+# (trion_coherence_score, trion_faiss_last_indexed_timestamp,
+# trion_validator_count) are not exported by any service yet, and the
+# http_request_duration_seconds / http_requests_total histograms assume a
+# /metrics endpoint the Flask API does not implement. Only the up{}-based
+# availability rules can currently fire. The rules are kept so they become
+# active the moment the metrics land (see prometheus.yml notes).
 
 groups:
   - name: trion_service_alerts

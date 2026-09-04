@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# (there is no root requirements.txt — the manifest lives in anima-service/)
+COPY anima-service/requirements.txt ./anima-service/requirements.txt
+RUN pip install --no-cache-dir -r anima-service/requirements.txt
 
 # Copy application
 COPY anima-service/ ./anima-service/

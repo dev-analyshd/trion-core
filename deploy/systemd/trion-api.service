@@ -1,5 +1,5 @@
 [Unit]
-Description=TRION Protocol Oracle API Server
+Description=TRION Protocol Oracle API Server (Flask + flask-socketio)
 After=network.target trion-faiss.service
 Requires=trion-faiss.service
 
@@ -9,10 +9,15 @@ User=trion
 WorkingDirectory=/opt/trion
 Environment=PYTHONPATH=/opt/trion:/opt/trion/pylibs
 Environment=FLASK_ENV=production
-Environment=FLASK_PORT=5000
+Environment=PORT=5000
 Environment=FAISS_SERVICE_URL=http://127.0.0.1:8000
-Environment=VALIDATOR_URL=http://127.0.0.1:6000
-ExecStart=/usr/bin/gunicorn --workers 4 --bind 127.0.0.1:5000 --timeout 120 --max-requests 1000 --max-requests-jitter 100 api.app:app
+# serve.py = Flask + flask-socketio push layer: REST API on :5000 plus the
+# /socket.io/ websocket (/feed namespace) that nginx proxies and the
+# dashboard's live signal feed consumes. The REST-only alternative is
+# `gunicorn --workers 4 --bind 127.0.0.1:5000 api.app:app` — it does NOT
+# serve the websocket.
+# (The old VALIDATOR_URL env is gone: nothing in the API reads it.)
+ExecStart=/usr/bin/python3 serve.py
 Restart=on-failure
 RestartSec=10
 KillMode=mixed
