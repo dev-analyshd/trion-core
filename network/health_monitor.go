@@ -57,23 +57,23 @@ var CHAINS = []Chain{
 // ── Health check types ────────────────────────────────────────────────────────
 
 type HealthResult struct {
-	Label        string        `json:"label"`
-	Status       string        `json:"status"`
-	LatencyMs    float64       `json:"latency_ms"`
-	BlockNumber  uint64        `json:"block_number,omitempty"`
-	Error        string        `json:"error,omitempty"`
-	CheckedAt    time.Time     `json:"checked_at"`
+	Label       string    `json:"label"`
+	Status      string    `json:"status"`
+	LatencyMs   float64   `json:"latency_ms"`
+	BlockNumber uint64    `json:"block_number,omitempty"`
+	Error       string    `json:"error,omitempty"`
+	CheckedAt   time.Time `json:"checked_at"`
 }
 
 type SystemHealth struct {
-	Timestamp       time.Time       `json:"timestamp"`
-	TotalChains     int             `json:"total_chains"`
-	HealthyChains   int             `json:"healthy_chains"`
-	DegradedChains  int             `json:"degraded_chains"`
-	OfflineChains   int             `json:"offline_chains"`
-	Results         []HealthResult  `json:"results"`
-	AvgLatencyMs    float64         `json:"avg_latency_ms"`
-	UptimePct       float64         `json:"uptime_pct"`
+	Timestamp      time.Time      `json:"timestamp"`
+	TotalChains    int            `json:"total_chains"`
+	HealthyChains  int            `json:"healthy_chains"`
+	DegradedChains int            `json:"degraded_chains"`
+	OfflineChains  int            `json:"offline_chains"`
+	Results        []HealthResult `json:"results"`
+	AvgLatencyMs   float64        `json:"avg_latency_ms"`
+	UptimePct      float64        `json:"uptime_pct"`
 }
 
 // ── Health check implementation ───────────────────────────────────────────────
