@@ -682,18 +682,36 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
 # NON-EVM BLOCK FETCHERS
 # ============================================================================
 
-def fetch_solana_block(rpc_url, slot):
+def _synthetic_tx_sender(chain_name: str, tx_hash: str) -> str:
+    """
+    HONESTLY-SYNTHETIC per-transaction sender identity for non-EVM fetchers
+    whose chain APIs don't expose real senders in the shape we fetch
+    (Solana signatures-only; Cosmos/NEAR/TON/MultiversX/VeChain tx rows;
+    Aptos tx counts; Starknet/Tron/Polkadot tx hashes without a sender
+    field).
+
+    sha3-256("{chain_name}:{tx_hash}") — distinct and deterministic per
+    transaction, so each tx maps to its own BEO entity instead of the old
+    `from="unknown"` behaviour that collapsed EVERY transaction on EVERY
+    such chain into the single synthetic entity sha3("unknown").  This is
+    NOT a real on-chain sender: real sender attribution for these VM
+    families remains the job of the dedicated per-VM Rust indexers.
+    """
+    return hashlib.sha3_256(f"{chain_name}:{tx_hash}".encode()).hexdigest()
+
+
+def fetch_solana_block(rpc_url, slot, chain_name="solana"):
     """Fetch Solana block by slot via JSON-RPC."""
     try:
         result = rpc_call(rpc_url, "getBlock", [slot, {"maxSupportedTransactionVersion": 0, "transactionDetails": "signatures"}])
         if result:
             txs = result.get("signatures", [])
-            return {"transactions": [{"hash": sig, "from": "unknown", "to": "unknown", "value": "0"} for sig in txs[:50]], "hash": result.get("blockhash", "0x0"), "number": slot}
+            return {"transactions": [{"hash": sig, "from": _synthetic_tx_sender(chain_name, sig), "to": "unknown", "value": "0"} for sig in txs[:50]], "hash": result.get("blockhash", "0x0"), "number": slot}
     except:
         pass
     return None
 
-def fetch_cosmos_block(rpc_url, height):
+def fetch_cosmos_block(rpc_url, height, chain_name="cosmos"):
     """Fetch Cosmos block via REST."""
     try:
         req = urllib.request.Request(f"{rpc_url}/block?height={height}", headers={"User-Agent": "TRION/1.0"})
@@ -701,11 +719,12 @@ def fetch_cosmos_block(rpc_url, height):
             data = json.loads(resp.read())
             block = data.get("result", {}).get("block", {})
             txs = block.get("data", {}).get("txs", [])
-            return {"transactions": [{"hash": f"cosmos_tx_{height}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(len(txs), 50))], "hash": block.get("header", {}).get("last_block_id", {}).get("hash", "0x0"), "number": height}
+            tx_ids = [f"cosmos_tx_{height}_{i}" for i in range(min(len(txs), 50))]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": block.get("header", {}).get("last_block_id", {}).get("hash", "0x0"), "number": height}
     except:
         return None
 
-def fetch_aptos_block(rpc_url, height):
+def fetch_aptos_block(rpc_url, height, chain_name="aptos"):
     """Fetch Aptos block via REST (also serves Movement — same API shape)."""
     try:
         req = urllib.request.Request(f"{rpc_url}/v1/blocks/by_height/{height}", headers={"User-Agent": "TRION/1.0", "Accept": "application/json"})
@@ -716,62 +735,77 @@ def fetch_aptos_block(rpc_url, height):
                 tx_count = int(data.get("block_height", 0))
             except (TypeError, ValueError):
                 tx_count = 0
-            return {"transactions": [{"hash": f"aptos_tx_{height}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(tx_count, 50))], "hash": data.get("previous_block_hash", "0x0"), "number": height}
+            tx_ids = [f"aptos_tx_{height}_{i}" for i in range(min(tx_count, 50))]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("previous_block_hash", "0x0"), "number": height}
     except:
         return None
 
-def fetch_sui_checkpoint(rpc_url, seq):
+def fetch_sui_checkpoint(rpc_url, seq, chain_name="sui"):
     """Fetch Sui checkpoint via REST."""
     try:
         req = urllib.request.Request(f"{rpc_url}/api/v1/checkpoints/{seq}", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             txs = data.get("transactions", [])
-            return {"transactions": [{"hash": t.get("transaction", {}).get("digest", f"sui_tx_{seq}_{i}"), "from": "unknown", "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": data.get("digest", "0x0"), "number": seq}
+            out = []
+            for i, t in enumerate(txs[:50]):
+                digest = t.get("transaction", {}).get("digest", f"sui_tx_{seq}_{i}")
+                out.append({"hash": digest, "from": _synthetic_tx_sender(chain_name, digest), "to": "unknown", "value": "0"})
+            return {"transactions": out, "hash": data.get("digest", "0x0"), "number": seq}
     except:
         return None
 
-def fetch_near_block(rpc_url, height):
+def fetch_near_block(rpc_url, height, chain_name="near"):
     """Fetch NEAR block via JSON-RPC."""
     try:
         result = rpc_call(rpc_url, "block", {"block_id": height})
         if result:
             txs = result.get("chunks", [])
             total_txs = sum(len(c.get("transactions", [])) for c in txs)
-            return {"transactions": [{"hash": f"near_tx_{height}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(total_txs, 50))], "hash": result.get("header", {}).get("hash", "0x0"), "number": height}
+            tx_ids = [f"near_tx_{height}_{i}" for i in range(min(total_txs, 50))]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": result.get("header", {}).get("hash", "0x0"), "number": height}
     except:
         pass
     return None
 
-def fetch_ton_block(rpc_url, seq):
+def fetch_ton_block(rpc_url, seq, chain_name="ton"):
     """Fetch TON masterchain block via HTTP API."""
     try:
         req = urllib.request.Request(f"{rpc_url}/getMasterchainInfo", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-            return {"transactions": [{"hash": f"ton_tx_{seq}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(10)], "hash": "0x0", "number": seq}
+            tx_ids = [f"ton_tx_{seq}_{i}" for i in range(10)]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": "0x0", "number": seq}
     except:
         return None
 
-def fetch_starknet_block(rpc_url, block_num):
+def fetch_starknet_block(rpc_url, block_num, chain_name="starknet"):
     """Fetch Starknet block via JSON-RPC."""
     try:
         result = rpc_call(rpc_url, "starknet_getBlockWithTxs", {"block_number": block_num})
         if result:
             txs = result.get("transactions", [])
-            return {"transactions": [{"hash": t.get("transaction_hash", f"starknet_tx_{block_num}_{i}"), "from": "unknown", "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": result.get("block_hash", "0x0"), "number": block_num}
+            out = []
+            for i, t in enumerate(txs[:50]):
+                tx_hash = t.get("transaction_hash", f"starknet_tx_{block_num}_{i}")
+                out.append({"hash": tx_hash, "from": _synthetic_tx_sender(chain_name, tx_hash), "to": "unknown", "value": "0"})
+            return {"transactions": out, "hash": result.get("block_hash", "0x0"), "number": block_num}
     except:
         pass
     return None
 
-def fetch_tron_block(rpc_url, block_num):
+def fetch_tron_block(rpc_url, block_num, chain_name="tron"):
     """Fetch Tron block via REST API."""
     try:
         req = urllib.request.Request(f"{rpc_url}/v1/blocks/{block_num}/transactions?limit=50", headers={"User-Agent": "TRION/1.0", "TRON-PRO-API-KEY": ""})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             txs = data.get("data", [])
-            return {"transactions": [{"hash": t.get("txID", f"tron_tx_{block_num}_{i}"), "from": "unknown", "to": "unknown", "value": str(t.get("raw_data", {}).get("contract", [{}])[0].get("parameter", {}).get("value", {}).get("amount", 0))} for i, t in enumerate(txs[:50])], "hash": "0x0", "number": block_num}
+            out = []
+            for i, t in enumerate(txs[:50]):
+                txid = t.get("txID", f"tron_tx_{block_num}_{i}")
+                out.append({"hash": txid, "from": _synthetic_tx_sender(chain_name, txid), "to": "unknown", "value": str(t.get("raw_data", {}).get("contract", [{}])[0].get("parameter", {}).get("value", {}).get("amount", 0))})
+            return {"transactions": out, "hash": "0x0", "number": block_num}
     except:
         return None
 
@@ -801,13 +835,14 @@ def fetch_stellar_block(rpc_url, cursor):
     except:
         return None
 
-def fetch_multiversx_block(rpc_url, nonce):
+def fetch_multiversx_block(rpc_url, nonce, chain_name="multiversx"):
     """Fetch MultiversX block via API."""
     try:
         req = urllib.request.Request(f"{rpc_url}/blocks/{nonce}", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-            return {"transactions": [{"hash": f"egld_tx_{nonce}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(data.get("nonce", 0) % 50, 50))], "hash": data.get("hash", "0x0"), "number": nonce}
+            tx_ids = [f"egld_tx_{nonce}_{i}" for i in range(min(data.get("nonce", 0) % 50, 50))]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("hash", "0x0"), "number": nonce}
     except:
         return None
 
@@ -842,14 +877,15 @@ def fetch_waves_block(rpc_url, height):
     except:
         return None
 
-def fetch_vechain_block(rpc_url, block_num):
+def fetch_vechain_block(rpc_url, block_num, chain_name="vechain"):
     """Fetch Vechain block via REST API."""
     try:
         req = urllib.request.Request(f"{rpc_url}/blocks/{block_num}", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             txs = data.get("transactions", [])
-            return {"transactions": [{"hash": f"vet_tx_{block_num}_{i}", "from": "unknown", "to": "unknown", "value": "0"} for i in range(min(len(txs), 50))], "hash": "0x0", "number": block_num}
+            tx_ids = [f"vet_tx_{block_num}_{i}" for i in range(min(len(txs), 50))]
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": "0x0", "number": block_num}
     except:
         return None
 
@@ -914,7 +950,7 @@ def fetch_cardano_block(rpc_url, block_height):
         return None
 
 
-def fetch_polkadot_block(rpc_url, block_num):
+def fetch_polkadot_block(rpc_url, block_num, chain_name="polkadot"):
     """Fetch Polkadot/Substrate block via JSON-RPC (VM family: PVM).
 
     Two-step: chain_getBlockHash(num) → chain_getBlock(hash). Extrinsics are
@@ -935,31 +971,35 @@ def fetch_polkadot_block(rpc_url, block_num):
         for i, ext in enumerate(extrinsics[:50]):
             ext_bytes = bytes.fromhex(ext[2:]) if ext.startswith("0x") else ext.encode()
             tx_hash = "0x" + hashlib.sha3_256(ext_bytes).hexdigest()
-            out.append({"hash": tx_hash, "from": "unknown", "to": "unknown", "value": "0"})
+            out.append({"hash": tx_hash, "from": _synthetic_tx_sender(chain_name, tx_hash), "to": "unknown", "value": "0"})
         return {"transactions": out, "hash": block_hash, "number": block_num}
     except Exception:
         return None
 
 
-# VM-specific fetcher dispatch
+# VM-specific fetcher dispatch.  All fetchers receive (rpc, block, chain_name)
+# so per-tx synthetic senders can be namespaced by the ACTUAL chain (e.g.
+# "osmosis" vs "juno" — both COSMOS — share the fabricated tx-id pattern
+# `cosmos_tx_{height}_{i}`, so the chain name is what keeps their synthetic
+# BEO entities distinct).
 VM_FETCHERS = {
-    "SVM": lambda rpc, num: fetch_solana_block(rpc, num),
-    "COSMOS": lambda rpc, num: fetch_cosmos_block(rpc, num),
-    "MOVE": lambda rpc, num: fetch_aptos_block(rpc, num) if ("aptos" in rpc or "movement" in rpc) else fetch_sui_checkpoint(rpc, num),
-    "NEAR": lambda rpc, num: fetch_near_block(rpc, num),
-    "TON": lambda rpc, num: fetch_ton_block(rpc, num),
-    "STARKNET": lambda rpc, num: fetch_starknet_block(rpc, num),
-    "TRON": lambda rpc, num: fetch_tron_block(rpc, num),
-    "UTXO": lambda rpc, num: fetch_utxo_block(rpc, num),
-    "STELLAR": lambda rpc, num: fetch_stellar_block(rpc, num),
-    "MULTIVERSX": lambda rpc, num: fetch_multiversx_block(rpc, num),
-    "XRPL": lambda rpc, num: fetch_xrpl_ledger(rpc, num),
-    "WAVES": lambda rpc, num: fetch_waves_block(rpc, num),
-    "VECHAIN": lambda rpc, num: fetch_vechain_block(rpc, num),
-    "HEDERA": lambda rpc, num: get_block_with_txs(rpc, num),  # Hedera is EVM-compatible
-    "PVM": lambda rpc, num: fetch_polkadot_block(rpc, num),      # was a None stub — never produced BHs
-    "ALGORAND": lambda rpc, num: fetch_algorand_block(rpc, num),
-    "CARDANO": lambda rpc, num: fetch_cardano_block(rpc, num),
+    "SVM": lambda rpc, num, name: fetch_solana_block(rpc, num, name),
+    "COSMOS": lambda rpc, num, name: fetch_cosmos_block(rpc, num, name),
+    "MOVE": lambda rpc, num, name: fetch_aptos_block(rpc, num, name) if ("aptos" in rpc or "movement" in rpc) else fetch_sui_checkpoint(rpc, num, name),
+    "NEAR": lambda rpc, num, name: fetch_near_block(rpc, num, name),
+    "TON": lambda rpc, num, name: fetch_ton_block(rpc, num, name),
+    "STARKNET": lambda rpc, num, name: fetch_starknet_block(rpc, num, name),
+    "TRON": lambda rpc, num, name: fetch_tron_block(rpc, num, name),
+    "UTXO": lambda rpc, num, name: fetch_utxo_block(rpc, num),
+    "STELLAR": lambda rpc, num, name: fetch_stellar_block(rpc, num),
+    "MULTIVERSX": lambda rpc, num, name: fetch_multiversx_block(rpc, num, name),
+    "XRPL": lambda rpc, num, name: fetch_xrpl_ledger(rpc, num),
+    "WAVES": lambda rpc, num, name: fetch_waves_block(rpc, num),
+    "VECHAIN": lambda rpc, num, name: fetch_vechain_block(rpc, num, name),
+    "HEDERA": lambda rpc, num, name: get_block_with_txs(rpc, num),  # Hedera is EVM-compatible
+    "PVM": lambda rpc, num, name: fetch_polkadot_block(rpc, num, name),      # was a None stub — never produced BHs
+    "ALGORAND": lambda rpc, num, name: fetch_algorand_block(rpc, num),
+    "CARDANO": lambda rpc, num, name: fetch_cardano_block(rpc, num),
 }
 
 # VM-specific latest block getters
@@ -1115,7 +1155,7 @@ def _non_evm_chain_worker(self, chain_id, chain_config):
 
             fetcher = VM_FETCHERS.get(vm)
             if fetcher:
-                block = fetcher(rpc_url, target if isinstance(target, int) else int(target) if str(target).isdigit() else 0)
+                block = fetcher(rpc_url, target if isinstance(target, int) else int(target) if str(target).isdigit() else 0, chain_name)
             else:
                 block = None
 
