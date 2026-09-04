@@ -279,6 +279,109 @@ class AkashicConservationLedger:
         return len(self.violations) > 0
 
 
+# ─── Lunar-cycle conservation audit (R-EC-06, Wave 3 D) ───────────────────────
+#
+# MD L0.4/L9.2 + V2 L9.2: I_TRION conservation with dI/dt >= 0; the spec's
+# lunar cadence (L6.2 lunar period 2,551,442 s — the "lunar-cycle" audit
+# window) requires an automated audit that emits SYSTEMIC_RISK when the
+# information ledger's net change deviates beyond the audit tolerance
+# (|ΔI_ledger − ΔI_expected| > τ_audit — a leak, loss, or accounting bug:
+# the information-leak tripwire).
+
+LUNAR_CYCLE_SECONDS = 2_551_442       # L6.2 lunar period (29.5 days)
+TAU_AUDIT_DEFAULT = 1e-6              # conservation tolerance (per V2 L9.2 exactness)
+
+
+def run_conservation_audit(
+    ledger: "AkashicConservationLedger",
+    window_seconds: float = LUNAR_CYCLE_SECONDS,
+    tau_audit: float = TAU_AUDIT_DEFAULT,
+    now: Optional[float] = None,
+) -> dict:
+    """Automated conservation audit (lunar-cycle cadence, R-EC-06).
+
+    Compares the ledger's realized ΔI over the trailing audit window
+    against the expected ΔI = Σ(BH_generated + A_absorbed − S_emitted −
+    E_lost). A deviation beyond ``tau_audit`` is an information leak /
+    destruction event — the audit returns a SYSTEMIC_RISK emission
+    directive (signal_type SYSTEMIC_RISK per the MD §11 catalog) instead
+    of silently passing.
+
+    Returns:
+        dict {window_seconds, states_audited, i_start, i_end,
+        delta_expected, delta_realized, deviation, conserved, tau_audit,
+        systemic_risk: bool, risk_factors, emission_directive}
+    """
+    import time as _time
+
+    now = now if now is not None else _time.time()
+    cutoff = now - window_seconds
+    states = [s for s in ledger.states if s.timestamp >= cutoff] or ledger.states
+    if len(states) < 2:
+        return {
+            "window_seconds": window_seconds,
+            "states_audited": len(states),
+            "conserved": True,
+            "systemic_risk": False,
+            "risk_factors": ["insufficient_history"],
+            "emission_directive": None,
+            "note": "fewer than two states in the audit window — nothing to audit",
+        }
+
+    first, last = states[0], states[-1]
+    # Expected ΔI over the window = Σ flows of every state in the window
+    # (each state records that period's BH/A/S/E flows).
+    delta_expected = sum(
+        (s.bh_generated + s.a_absorbed - s.s_emitted - s.e_lost) for s in states
+    )
+    # Realized ΔI = end balance − (balance before the first window state's
+    # flows were applied).
+    delta_realized = last.i_total - (
+        states[0].i_total - (
+            states[0].bh_generated + states[0].a_absorbed
+            - states[0].s_emitted - states[0].e_lost
+        )
+    )
+    deviation = abs(delta_realized - delta_expected)
+    conserved = deviation <= tau_audit and delta_realized >= 0.0  # dI/dt >= 0
+
+    risk_factors = []
+    if not conserved:
+        if deviation > tau_audit:
+            risk_factors.append(
+                f"conservation_deviation={deviation:.6g} > tau_audit={tau_audit:g} "
+                "(information leak or accounting error)"
+            )
+        if delta_realized < 0:
+            risk_factors.append(
+                f"dI/dt = {delta_realized:.6g} < 0 (information destroyed — "
+                "violates MD L0.4/L9.2 append-only law)"
+            )
+
+    return {
+        "window_seconds": window_seconds,
+        "states_audited": len(states),
+        "i_start": states[0].i_total,
+        "i_end": last.i_total,
+        "delta_expected": delta_expected,
+        "delta_realized": delta_realized,
+        "deviation": deviation,
+        "conserved": conserved,
+        "tau_audit": tau_audit,
+        "systemic_risk": not conserved,
+        "risk_factors": risk_factors,
+        "emission_directive": (
+            {
+                "signal_type": "SYSTEMIC_RISK",
+                "reason": "information_conservation_audit_failure",
+                "risk_factors": risk_factors,
+                "window_seconds": window_seconds,
+            }
+            if not conserved else None
+        ),
+    }
+
+
 if __name__ == "__main__":
     import time
 
