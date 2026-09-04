@@ -55,8 +55,18 @@ CERT_FIELDS = [
 class EvmHarness:
     """One eth_tester chain + a compile cache for the real contract files."""
 
+    # The canonical dest-chain binding (P-EVM-01 fix) compares the
+    # certificate's dest_chain against block.chainid. eth_tester's default
+    # artificial id (131277322940537) exceeds the u32 registry space, so the
+    # harness pins the EVM-level chain id to 1 — a realistic registry id.
+    TEST_CHAIN_ID = 1
+
     def __init__(self):
         self.t = EthereumTester()
+        # Patch the closure-local chain class (MainnetTesterPosChain) so the
+        # CHAINID opcode reports TEST_CHAIN_ID to contracts.
+        _backend = self.t.backend
+        type(_backend.chain).chain_id = self.TEST_CHAIN_ID
         self.w3 = Web3(EthereumTesterProvider(self.t))
         self.acct = self.w3.eth.accounts[0]      # owner / relayer / registrar
         self.other = self.w3.eth.accounts[1]     # attacker / non-owner
