@@ -250,6 +250,7 @@ ERR_CERT_TTL = 138
 ERR_CERT_HHI = 139
 ERR_CERT_AWA = 140
 ERR_CERT_UNSAFE = 141
+ERR_CERT_THRESHOLD = 161          # H-03: cert threshold != registered Θ(t)
 ERR_CERT_COUNT = 142
 ERR_CERT_POWER = 143
 ERR_BIND_ESCROW = 144
@@ -326,10 +327,11 @@ class EscrowRecord:
 
 
 class EpochEntry:
-    def __init__(self, epoch, d_consensus, hhi, total_power, count,
+    def __init__(self, epoch, d_consensus, threshold, hhi, total_power, count,
                  validators, set_root=0, registered_at=0):
         self.epoch = epoch
         self.d_consensus = d_consensus
+        self.threshold = threshold        # registered Θ(t) (H-03)
         self.hhi = hhi
         self.total_power = total_power
         self.count = count
@@ -406,6 +408,8 @@ class TVMEscrowMirror:
             if sender != self.owner:
                 raise TVMError(100)
             if entry.d_consensus > SCALE_1E6:
+                raise TVMError(ERR_REG_MALFORMED)
+            if entry.threshold > SCALE_1E6:
                 raise TVMError(ERR_REG_MALFORMED)
             if entry.hhi > 10_000:
                 raise TVMError(ERR_REG_MALFORMED)
@@ -511,6 +515,8 @@ class TVMEscrowMirror:
                 raise TVMError(ERR_CERT_AWA)
             if coherence < threshold:
                 raise TVMError(ERR_CERT_UNSAFE)
+            if threshold != entry.threshold:
+                raise TVMError(ERR_CERT_THRESHOLD)   # H-03 provenance
             if val_count != entry.count:
                 raise TVMError(ERR_CERT_COUNT)
             if total_power != entry.total_power:
@@ -674,7 +680,7 @@ def register_world(m: TVMEscrowMirror, entries, eset, cert, escrow_id, route_id,
     validators = {int.from_bytes(e.validator_id, "big"): (
         e.ed25519_pubkey, e.stake_weight, e.diversity_weight,
         (e.stake_weight * e.diversity_weight) // 1_000_000) for e in entries}
-    entry = EpochEntry(cert.validator_epoch, d_val, 1_200,
+    entry = EpochEntry(cert.validator_epoch, d_val, cert.threshold, 1_200,
                        eset.total_effective_power(), len(entries), validators)
     m.register_epoch("owner", entry)
     m.lock("relayer", amount, int.from_bytes(escrow_id, "big"),
@@ -1002,6 +1008,12 @@ def test_freshness_and_preconditions():
           attempt(mut(cert, awa_enforced=False)) == ERR_CERT_AWA)
     check("coherence<threshold rejected (ERR_CERT_UNSAFE)",
           attempt(mut(cert, threshold=830_000)) == ERR_CERT_UNSAFE)
+    # H-03 threshold provenance: a quorum SIGNED a lowered bar (540_000 <
+    # the registered Θ(t) 550_000) — signatures pass, isSafe passes, the
+    # REGISTRY equality still rejects: the bar is canonical state, never
+    # the signed claim alone.
+    check("signed-but-lowered threshold ≠ registered Θ(t) rejected (ERR_CERT_THRESHOLD, H-03)",
+          attempt(mut(cert, threshold=540_000)) == ERR_CERT_THRESHOLD)
     check("validator_count lie rejected (ERR_CERT_COUNT)",
           attempt(mut(cert, validator_count=4)) == ERR_CERT_COUNT)
     check("total_effective_power lie rejected (ERR_CERT_POWER)",
@@ -1054,7 +1066,7 @@ def test_epoch_and_replay_attacks():
     entries2 = fx2[2]
     def reg(mm, ep):
         mm.register_epoch("owner", EpochEntry(
-            ep, 700_000, 1200, fx2[3].total_effective_power(), 5,
+            ep, 700_000, fx2[4].threshold, 1200, fx2[3].total_effective_power(), 5,
             {int.from_bytes(e.validator_id, "big"): (
                 e.ed25519_pubkey, e.stake_weight, e.diversity_weight,
                 (e.stake_weight * e.diversity_weight) // 1_000_000)
@@ -1069,7 +1081,7 @@ def test_epoch_and_replay_attacks():
     m3, fx3 = fresh_world(epoch=0)
     def reg3(mm, ep):
         mm.register_epoch("owner", EpochEntry(
-            ep, 700_000, 1200, fx3[3].total_effective_power(), 5,
+            ep, 700_000, fx3[4].threshold, 1200, fx3[3].total_effective_power(), 5,
             {int.from_bytes(e.validator_id, "big"): (
                 e.ed25519_pubkey, e.stake_weight, e.diversity_weight,
                 (e.stake_weight * e.diversity_weight) // 1_000_000)
@@ -1139,18 +1151,21 @@ def test_pause_and_admin():
     check("unpause restores release", m.release("x", body) is None)
 
     # registration validation
-    bad = EpochEntry(11, 700_000, 1200, 1, 5, {})
+    bad = EpochEntry(11, 700_000, 550_000, 1200, 1, 5, {})
     check("registration with total_power=0 rejected (ERR_REG_MALFORMED)",
           m.register_epoch("owner", bad) == ERR_REG_MALFORMED)
-    bad = EpochEntry(11, 700_000, 1200, 100, 2, {})
+    bad = EpochEntry(11, 700_000, 550_000, 1200, 100, 2, {})
     check("registration with <3 validators rejected (ERR_REG_MALFORMED)",
+          m.register_epoch("owner", bad) == ERR_REG_MALFORMED)
+    bad = EpochEntry(11, 700_000, 1_000_001, 1200, 100, 5, {})
+    check("registration with Θ(t)>1e6 rejected (ERR_REG_MALFORMED, H-03 range)",
           m.register_epoch("owner", bad) == ERR_REG_MALFORMED)
     # epoch skipping: current=0, jumping straight to 99 is a registrar grief
     # guard (stale-ing all live certs in one tx)
-    bad = EpochEntry(99, 700_000, 1200, 100, 5, {})
+    bad = EpochEntry(99, 700_000, 550_000, 1200, 100, 5, {})
     check("registration skipping epochs rejected (ERR_REG_MALFORMED)",
           m.register_epoch("owner", bad) == ERR_REG_MALFORMED)
-    bad = EpochEntry(1, 700_000, 1200, 100, 5, {})
+    bad = EpochEntry(1, 700_000, 550_000, 1200, 100, 5, {})
     check("non-owner cannot register epochs (100)",
           m.register_epoch("relayer", bad) == 100)
 
@@ -1218,6 +1233,7 @@ def test_static_source_assertions():
              "ERR_EPOCH_UNKNOWN", "ERR_EPOCH_STALE",
              "ERR_CERT_EXPIRED", "ERR_CERT_FUTURE",
              "ERR_CERT_HHI", "ERR_CERT_AWA", "ERR_CERT_UNSAFE",
+             "ERR_CERT_THRESHOLD",
              "ERR_CERT_COUNT", "ERR_CERT_POWER",
              "ERR_SIG_UNREGISTERED", "ERR_SIG_WEIGHT_CLAIM", "ERR_SIG_ORDER",
              "ERR_SIG_BAD", "ERR_SIG_TOO_FEW",
@@ -1246,6 +1262,15 @@ def test_static_source_assertions():
           "return 3 * signed_power > 2 * total_power;" in escrow)
     check("tier2 uses 4·signed ≥ 3·total", "return 4 * signed_power >= 3 * total_power;" in escrow)
     check("tier3 uses 20·signed ≥ 17·total", "return 20 * signed_power >= 17 * total_power;" in escrow)
+
+    # H-03: threshold provenance — the epoch entry stores the registered
+    # Θ(t) and the release path cross-checks the signed claim against it
+    check("epoch entry stores the registered Θ(t) (H-03)",
+          ".store_uint(theta,     64)" in escrow)
+    check("release cross-checks cert threshold == registered Θ(t) (H-03)",
+          "throw_unless(ERR_CERT_THRESHOLD, threshold == r_threshold);" in blk)
+    check("registration validates Θ(t) range (≤ 1e6)",
+          "throw_unless(ERR_REG_MALFORMED, theta <= SCALE_1E6);" in escrow)
 
     # strict parsing + storage layout
     check("strict tail checks (slice_empty? on P cells)", "p3.slice_empty?()" in blk)

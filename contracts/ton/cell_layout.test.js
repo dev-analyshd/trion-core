@@ -84,10 +84,11 @@ const LAYOUTS = {
     ],
   },
   // Epoch registry entry (value ref of epochs_dict, key = 32-bit epoch):
-  // 576 data bits + 1 ref to the validators dict.
+  // 640 data bits + 1 ref to the validators dict. threshold = the
+  // REGISTERED Θ(t) (H-03 — the cert's threshold must equal it).
   'escrow.fc epoch entry': {
-    oldFlatBits: 32 + 64 * 4 + 32 + 256, // 576
-    cells: [[['epoch', 32], ['d_consensus', 64], ['hhi', 64],
+    oldFlatBits: 32 + 64 * 5 + 32 + 256, // 640
+    cells: [[['epoch', 32], ['d_consensus', 64], ['threshold', 64], ['hhi', 64],
              ['total_effective_power', 64], ['validator_count', 32],
              ['registered_at', 64], ['epoch_set_root', 256]]],
   },
@@ -99,15 +100,15 @@ const LAYOUTS = {
              ['diversity_weight', 64], ['effective_weight', 64]]],
   },
   // Consumed-certificate cell (value ref of consumed_dict, key = 256-bit
-  // escrow_id): 384 bits — the §8 replay registry.
+  // escrow_id): 352 bits — the §8 replay registry.
   'escrow.fc consumed cert cell': {
-    oldFlatBits: 32 + 64 + 256, // 384
+    oldFlatBits: 32 + 64 + 256, // 352
     cells: [[['cert_epoch', 32], ['cert_nonce', 64], ['cert_phash', 256]]],
   },
-  // Contract storage root (672 data bits + 3 dict refs; fresh-deployment
+  // Contract storage root (663 data bits + 3 dict refs; fresh-deployment
   // layout — see the escrow.fc DEPLOYMENT NOTE).
   'escrow.fc storage root': {
-    oldFlatBits: 267 * 2 + 64 + 1 + 64, // 672
+    oldFlatBits: 267 * 2 + 64 + 1 + 64, // 663
     cells: [[['owner_addr', 267], ['relayer_addr', 267], ['escrow_count', 64],
              ['paused', 1], ['current_epoch', 64]]],
   },
@@ -152,8 +153,8 @@ const BODIES = {
   'escrow.fc 0x04 emergency': [[['op', 8], ['escrow_id', 256]]], // 264
   'escrow.fc 0x05/0x06 addr': [[['op', 8], ['new_addr', 267]]], // 275
   'escrow.fc 0x07 register_epoch (root + validators-dict ref)': [
-    [['op', 8], ['epoch', 32], ['d_consensus', 64], ['hhi', 64],
-     ['total_power', 64], ['validator_count', 32], ['epoch_set_root', 256]], // 520
+    [['op', 8], ['epoch', 32], ['d_consensus', 64], ['threshold', 64], ['hhi', 64],
+     ['total_power', 64], ['validator_count', 32], ['epoch_set_root', 256]], // 584
   ],
   'escrow.fc 0x08 set_pause': [[['op', 8], ['paused', 1]]], // 9
   'intent.fc 0x01 register (root + ref)': [
