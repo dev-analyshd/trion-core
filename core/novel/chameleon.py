@@ -133,6 +133,22 @@ class ChameleonProtocol:
             self._awa.no_single_entity_controls_signal_weights = False
             self._frozen = True
             self._expression_mode = ExpressionMode.FROZEN
+            # MD §17 wiring (Wave 3 D): a WEAPONIZATION_ATTEMPT must freeze
+            # TRUTH emission globally (T(t) silence) — not only this
+            # protocol's own emission_allowed flag. The governance emission
+            # gate can be released ONLY by a subsequent passing AWA
+            # evaluate() — no single-entity override.
+            try:
+                from core.governance.awa import trigger_weaponization_freeze
+                trigger_weaponization_freeze(
+                    "chameleon WEAPONIZATION_ATTEMPT (regulatory_signals "
+                    "weaponization_detected)"
+                )
+            except Exception:
+                # Keep the Chameleon self-contained if the governance layer
+                # is unavailable (e.g. minimal runtimes); local freeze above
+                # still applies.
+                pass
         elif threat_level == ThreatLevel.CRITICAL:
             self._expression_mode = ExpressionMode.DISAGGREGATED
             self._frozen = False
