@@ -792,6 +792,13 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         throw_unless(ERR_REG_MALFORMED, r_total > 0);
         throw_unless(ERR_REG_MALFORMED, r_count >= MIN_SIGNERS);
         throw_unless(ERR_REG_MALFORMED, epoch <= current_epoch + 1);
+        ;; forward-only rotation (§10.2: set changes take effect ONLY at
+        ;; epoch boundaries): an already-registered epoch is IMMUTABLE —
+        ;; overwriting a live in-grace set would let a compromised
+        ;; registrar swap membership mid-epoch (the EVM registry's
+        ;; epoch == latest+1 discipline)
+        (cell existing_entry, int already) = idict_get_ref?(epochs_dict, 32, epoch);
+        throw_if(ERR_REG_MALFORMED, already);
 
         cell entry = begin_cell()
             .store_uint(epoch,     32)

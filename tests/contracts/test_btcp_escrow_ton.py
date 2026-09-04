@@ -419,6 +419,10 @@ class TVMEscrowMirror:
                 raise TVMError(ERR_REG_MALFORMED)
             if entry.epoch > self.current_epoch + 1:
                 raise TVMError(ERR_REG_MALFORMED)
+            # forward-only rotation: an already-registered epoch is immutable
+            # (mid-epoch membership swap via overwrite is closed)
+            if entry.epoch in self.epochs:
+                raise TVMError(ERR_REG_MALFORMED)
             entry.registered_at = self._now
             self.epochs[entry.epoch] = entry
             if entry.epoch > self.current_epoch:
@@ -1169,6 +1173,24 @@ def test_pause_and_admin():
     check("non-owner cannot register epochs (100)",
           m.register_epoch("relayer", bad) == 100)
 
+    # forward-only rotation: overwriting the LIVE epoch's set is rejected
+    # — a compromised registrar cannot swap in-grace membership mid-epoch
+    m5, fx5 = fresh_world()
+    live_epoch = m5.current_epoch         # the epoch the fixture registered
+    rogue_keys = [Ed25519PrivateKey.generate() for _ in range(3)]
+    rogue = EpochEntry(live_epoch, 700_000, 550_000, 1200, 3, 3,
+                       {int.from_bytes(_sha3(f"rogue-{i}"), "big"): (
+                           rogue_keys[i].public_key().public_bytes_raw(),
+                           1_000_000, 700_000, 700_000) for i in range(3)})
+    check("re-registration of a live epoch rejected (ERR_REG_MALFORMED)",
+          m5.register_epoch("owner", rogue) == ERR_REG_MALFORMED)
+    check("the live epoch's set is UNTOUCHED by the failed overwrite",
+          live_epoch in m5.epochs and len(m5.epochs[live_epoch].validators) == 5
+          and m5.current_epoch == live_epoch)
+    body5, _, _ = make_envelope(fx5[4], fx5[0], fx5[1], fx5[2])
+    check("certificates of the untouched live epoch still verify",
+          m5.release("x", body5) is None)
+
 
 def test_atomicity_and_bounce_safety():
     print("\n9) atomicity + bounced-message fund safety")
@@ -1277,6 +1299,8 @@ def test_static_source_assertions():
     check("unknown op throws (fail-closed)", "throw(ERR_UNKNOWN_OP);" in escrow)
     check("epoch registry dict in storage (key_len 32)",
           "epochs_dict~idict_set_ref(32, epoch, entry);" in escrow)
+    check("epoch registration is forward-only (no overwrite of live sets)",
+          "throw_if(ERR_REG_MALFORMED, already);" in escrow)
     check("consumed registry records (epoch, nonce, phash)",
           ".store_uint(cert_epoch, 32)" in blk and ".store_uint(p_hash, 256)" in blk)
     check("destination binding = basechain account hash (§7 TON)",
