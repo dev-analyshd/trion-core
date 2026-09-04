@@ -74,3 +74,47 @@ py-layer enforcement: 18 ENFORCED/3 PARTIAL/0 UNENFORCED; 49 attack tests).
 Battery: 759 unit + 9 skipped, 134 golden, 87 btcp + 1 xfail (72h dispute window —
 registered open), 33 bitp. Zero regressions.
 Wave 2 dispatch: G/H/I/J/K/L against VALIDATOR_SECURITY_AUDIT.md + CANONICAL_CERTIFICATE.md.
+
+### WAVE 2 CLOSE — VM SECURITY PARITY (lead integration, HEAD eaa5daa)
+
+Agents: G/G2+lead, H/H2, I/I2, J/J2, K/K2, L. Context-deadline kills on report
+delivery were absorbed by completion agents + lead; all work landed verified.
+- G (EVM template tier): 942a503 CanonicalCertificate.sol library (py
+  golden-vector parity) + f48c357 TrionEpochRegistry; lead-completed
+  8817e72 (V4 submitCertificateAttestation: full §6 sequence, envelope
+  [s_j,d_j] claims cross-checked vs registry, weight quorum, threshold
+  provenance, nonce ordering + equivocation evidence) + eaa5daa (escrow
+  releaseEscrowCanonical permissionless path; M-05 bind-time oracle-interface
+  pinning; H-07 HashDNA input discipline; stack-safe split accessors after a
+  via-ir StackTooDeep on the 16-field struct getter; mock upgraded to dynamic
+  quorum). Real-EVM suites: certificate 38, epoch-registry 42, oracle 40,
+  escrow 10 — all green.
+- H (Solana/SVM): 6ba429c + cdb0111 — C-03 closed: oracle-key release gate
+  replaced by certificate verification (ed25519, epoch registry PDA, weight
+  quorum, settlement tuple, Clock freshness, consumed-nonce PDA, oracle key =
+  pause only). 156 checks green.
+- I (Move): 42f1e93 codec+registry modules + 64a9850 — C-02 closed:
+  coherence_verified relayer flag REMOVED (dev-flag rejected as
+  mainnet-reachable); permissionless release on canonical certificate
+  (native AptosStdlib ed25519, §6 order, BCS-bound tuple, idempotent-hash
+  replay). 130 checks green.
+- J (TON + NEAR): 90a1104 C-01 closed (4-cell P tree, CHKSIGU, epoch dict,
+  L4.2 quorum); J2 verified + 2995c5d (H-03 threshold cross-check) + 6e1bec7
+  (forward-only epoch registration) + 52c4691 C-05 NEAR closed
+  (publish_btcp_route full §6, env::ed25519_verify, u128 tier quorum; owner
+  can administer registry but cannot forge consensus). TON 113 + NEAR 97
+  checks green.
+- K (Starknet/Cairo): d516c28 family-3 modules + 8be39b8 C-04 starknet
+  escrow closed + 758be3b cairo execution-gate quorum-gated + 9eb15fc attack
+  matrix. 18 pytest tests green (py-mirror + static).
+- L (Vyper + PVM): 4c694e2 M-03 closed (dynamic quorum consult via
+  minRouteAttestations, Vyper no-try/catch = structurally fail-closed; 2-
+  attestation attack regression proven on real EVM, 35 tests) + b579b64/81059f9
+  PVM legacy oracle honestly labeled non-production (43 tests). Incident:
+  L's b579b64 accidentally staged G's in-flight files (shared-index race);
+  untracked in 81059f9, G re-committed cleanly — resolved, protocol now uses
+  pathspec-limited commits.
+Battery at close: 759 unit + 9 skipped · 87 btcp + 1 xfail · 134 golden ·
+47 contracts (pytest) + 574 direct-script checks across 9 suites · 120/121
+adversarial (1 = known PQC-lib env gap).
+Wave 3 dispatch: C/D/M/N/O per A's spec matrix remediation list.
