@@ -2,6 +2,7 @@
 TRION 0G Network Configuration
 Single source of truth for all 0G endpoints and contract addresses.
 """
+import json
 import os
 
 
@@ -47,6 +48,23 @@ except ImportError:
     pass
 
 
+def _registry_chain_id(name: str) -> int:
+    """Canonical chain id for `name` from config/chain_registry.json.
+
+    The registry is the single source of truth for chain ids (P3-CONSOLIDATE
+    matrix #17) — reading it directly (instead of importing
+    core.generated_chain_bindings) keeps this module importable without
+    sys.path bootstrap in any CWD. Raises loudly rather than serving a
+    hand-maintained duplicate that can drift.
+    """
+    path = os.path.join(REPO_ROOT, "config", "chain_registry.json")
+    with open(path, "r", encoding="utf-8") as f:
+        for c in json.load(f)["chains"]:
+            if c["name"] == name:
+                return int(c["chainId"])
+    raise LookupError(f"chain {name!r} not found in {path}")
+
+
 class ZGConfig:
     # ── Network mode: "mainnet" | "testnet" ──────────────────────
     NETWORK  = os.getenv("ZG_NETWORK", "mainnet")
@@ -55,10 +73,11 @@ class ZGConfig:
     # audit fix (ZG-2): comment previously said "Aristotle Mainnet (chain 16601)"
     # — 16601 matches no chain anywhere in the codebase; the canonical 0G
     # mainnet chain id is 16661 (Newton testnet 16600, Galileo testnet 16602).
+    # The id is DERIVED from the canonical registry, not restated here.
     MAINNET_RPC      = os.getenv("ZG_MAINNET_RPC",     "https://evmrpc.0g.ai")
     MAINNET_INDEXER  = os.getenv("ZG_MAINNET_INDEXER", "https://indexer-storage.0g.ai")
     MAINNET_DA_RPC   = os.getenv("ZG_MAINNET_DA_RPC",  "https://da-rpc.0g.ai")
-    MAINNET_CHAIN_ID = 16661
+    MAINNET_CHAIN_ID = _registry_chain_id("0G Mainnet")
     MAINNET_EXPLORER = "https://chainscan.0g.ai"
 
     # ── Galileo Testnet (chain 16602) — fallback ──────────────────

@@ -37,7 +37,7 @@ const PRIV_KEY       = process.env.RELAYER_PRIVATE_KEY;
 const GATE_ADDR      = process.env.ZG_EXECUTION_GATE_ADDR || "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C";
 const ZG_RPC         = process.env.ZERO_G_RPC     || "https://evmrpc-testnet.0g.ai";
 const ZG_CHAIN_ID    = parseInt(process.env.ZG_CHAIN_ID || "16602", 10);
-const ZG_EXPLORER    = ZG_CHAIN_ID === 16601 ? "https://chainscan.0g.ai" : "https://chainscan-galileo.0g.ai";
+const ZG_EXPLORER    = ZG_CHAIN_ID === 16661 ? "https://chainscan.0g.ai" : "https://chainscan-galileo.0g.ai";
 const STORAGE_EP     = process.env.ZG_STORAGE_ENDPOINT || "https://indexer-storage-testnet-standard.0g.ai";
 // The FAISS index is saved to the workspace root by faiss_service.py,
 // not inside the akashic/ subdirectory. Try workspace root first, then
@@ -125,7 +125,7 @@ async function main() {
   console.log("================================================");
   console.log(" TRION × 0G  Storage Sync");
   console.log("================================================");
-  console.log(` Chain      : ${ZG_CHAIN_ID === 16601 ? "0G Aristotle Mainnet" : "0G Galileo Testnet"}  (${ZG_CHAIN_ID})`);
+  console.log(` Chain      : ${ZG_CHAIN_ID === 16661 ? "0G Mainnet" : "0G Galileo Testnet"}  (${ZG_CHAIN_ID})`);
   console.log(` Gate       : ${GATE_ADDR}`);
   console.log(` FAISS path : ${FAISS_PATH}`);
   console.log(` Storage EP : ${STORAGE_EP}`);
@@ -157,7 +157,7 @@ async function main() {
 
   // ── Try 0G Storage upload ───────────────────────────────────────────────────
   const { ok: uploaded, root: finalRoot } = await tryUploadToZGStorage(faissData, merkleRoot);
-  const storageRoot = `0g-storage:${ZG_CHAIN_ID === 16601 ? "mainnet" : "galileo"}:${finalRoot.slice(0, 32)}`;
+  const storageRoot = `0g-storage:${ZG_CHAIN_ID === 16661 ? "mainnet" : "galileo"}:${finalRoot.slice(0, 32)}`;
   console.log(`\n Final storage root : ${storageRoot}`);
   console.log(` Uploaded to 0G   : ${uploaded ? "YES" : "NO (local hash used)"}`);
 
@@ -194,7 +194,7 @@ async function main() {
   const syncBlock   = await gate.lastStorageSyncBlock();
   console.log(`\n On-chain root  : ${onChainRoot}`);
   console.log(` Sync block     : ${syncBlock}`);
-  console.log(` ✓ 0G Storage sync confirmed on ${ZG_CHAIN_ID === 16601 ? "mainnet" : "0G Galileo testnet"}`);
+  console.log(` ✓ 0G Storage sync confirmed on ${ZG_CHAIN_ID === 16661 ? "mainnet" : "0G Galileo testnet"}`);
 
   // ── Save record ──────────────────────────────────────────────────────────────
   const record = {

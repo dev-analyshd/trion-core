@@ -16,7 +16,14 @@ const SN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'starknet_sepol
 const EVM = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'evm-tools', 'evm_sepolia_deployments.json'), 'utf-8'));
 function snAddr(name) { return SN.contracts.find(c => c.name === name).address; }
 function evmAddr(name) { return EVM.contracts.find(c => c.name === name).address; }
-const CHAIN = { STARKNET: 1300, BASE_SEPOLIA: 84532 };
+// Canonical chain ids — generated from config/chain_registry.json
+// (Starknet Sepolia 24001, Base Sepolia 84532). STARKNET was the legacy
+// local id 1300.
+import {
+  CHAIN_ID_STARKNET_SEPOLIA,
+  CHAIN_ID_BASE_SEPOLIA,
+} from '../../shared/generated_chain_ids.js';
+const CHAIN = { STARKNET: CHAIN_ID_STARKNET_SEPOLIA, BASE_SEPOLIA: CHAIN_ID_BASE_SEPOLIA };
 function sha3Hex(d) { return '0x' + crypto.createHash('sha3-256').update(d).digest('hex'); }
 function felt(h) { return BigInt(h.slice(0, 62)); }
 

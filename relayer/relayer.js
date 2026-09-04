@@ -199,6 +199,73 @@ const CHAINS = [
   { key: "0g-galileo",   name: "0G Galileo Testnet",  chainId: 16602,  rpcEnv: "ZG_GALILEO_RPC",       rpcDefault: "https://evmrpc-testnet.0g.ai",          addrEnv: "ZG_GALILEO_ORACLE_ADDR",   addrDefault: "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C" },
 ];
 
+// ── Canonical-registry validation (config/chain_registry.json) ───────────────
+// The CHAINS table above is operator deployment config (env names, oracle
+// addresses, RPC defaults) whose chainId values MUST equal the canonical
+// registry ids — config/chain_registry.json is the single source of truth
+// (P3-CONSOLIDATE matrix #17). Instead of trusting the literals, every entry
+// is cross-checked against the registry at boot and the process refuses to
+// start on drift (wrong id, unknown id, or an id belonging to a DIFFERENT
+// chain than the entry's name claims).
+const _OFF_REGISTRY_CHAINS = new Map([
+  // Documented off-registry decisions (see tests/unit/test_backfill_chain_ids.py):
+  ["hyperliquid", 999],   // HyperEVM's own native chain id (Task 21-c)
+  ["0g-galileo",  16602], // 0G Galileo testnet (registry carries only 0G Mainnet)
+]);
+// Display-name aliases for entries whose relayer label shares no token with
+// the registry display name of the same chain.
+const _NAME_ALIASES = {
+  "okt-chain": "OKB Chain (OKTC)",
+  "bot-chain": "BotChain",
+};
+function _registryTokens(s) {
+  const GENERIC = new Set(["mainnet", "testnet", "chain", "network", "evm", "l2", "one"]);
+  return new Set(
+    s.toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length >= 2 && !GENERIC.has(t))
+  );
+}
+(function validateChainsAgainstRegistry() {
+  const regPath = new URL("../config/chain_registry.json", import.meta.url);
+  let registry;
+  try {
+    registry = JSON.parse(fs.readFileSync(regPath, "utf-8"));
+  } catch (e) {
+    throw new Error(`relayer: canonical registry unreadable (${regPath}): ${e.message}`);
+  }
+  const idToName = new Map(registry.chains.map(c => [c.chainId, c.name]));
+  for (const c of CHAINS) {
+    const documented = _OFF_REGISTRY_CHAINS.get(c.key);
+    if (documented !== undefined) {
+      if (c.chainId !== documented) {
+        throw new Error(
+          `relayer: off-registry chain "${c.key}" changed id ${c.chainId} ` +
+          `≠ documented ${documented} — update the decision + tests together`
+        );
+      }
+      continue;
+    }
+    const regName = idToName.get(c.chainId);
+    if (regName === undefined) {
+      throw new Error(
+        `relayer: chain "${c.key}" (chainId ${c.chainId}) is not in the canonical ` +
+        `registry and not a documented off-registry chain — add it to the ` +
+        `registry or record the off-registry decision`
+      );
+    }
+    const entryName = _NAME_ALIASES[c.key] ?? c.name;
+    const shared = _registryTokens(entryName).size > 0
+      ? [..._registryTokens(entryName)].some(t => _registryTokens(regName).has(t))
+      : false;
+    if (!shared && entryName.toLowerCase().replace(/[^a-z0-9]/g, "") !== regName.toLowerCase().replace(/[^a-z0-9]/g, "")) {
+      throw new Error(
+        `relayer: chain "${c.key}" (chainId ${c.chainId}) claims name ` +
+        `"${c.name}" but the registry says that id is "${regName}" — ` +
+        `cross-chain id swap? Fix the entry or the alias map.`
+      );
+    }
+  }
+})();
+
 const ABI = [
   "function publishSignal(bytes32 txId, uint256 packedData, bytes[] calldata signatures) external",
   "function quorumRequired() external view returns (uint256)",

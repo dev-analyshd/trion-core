@@ -15,16 +15,39 @@ Prerequisites:
 """
 import os, sys, json, subprocess, argparse
 
+# Canonical chain ids — derived from config/chain_registry.json (single source
+# of truth, P3-CONSOLIDATE matrix #17). Read directly via a path relative to
+# this file so the script stays runnable from any CWD without sys.path
+# bootstrap; a missing/misnamed registry entry fails loudly instead of
+# silently deploying under a drifted hand-maintained id.
+_REGISTRY_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "config", "chain_registry.json",
+)
+with open(_REGISTRY_PATH, "r", encoding="utf-8") as _f:
+    _REG_IDS = {c["name"]: c["chainId"] for c in json.load(_f)["chains"]}
+
+
+def _cid(registry_name: str) -> int:
+    try:
+        return _REG_IDS[registry_name]
+    except KeyError:
+        raise SystemExit(
+            f"deploy_mainnet: chain {registry_name!r} missing from "
+            f"{_REGISTRY_PATH} — update MAINNET_CHAINS or the registry"
+        )
+
+
 MAINNET_CHAINS = {
-    "ethereum": {"chain_id": 1, "rpc": "https://ethereum-rpc.publicnode.com", "explorer": "https://etherscan.io"},
-    "arbitrum": {"chain_id": 42161, "rpc": "https://arb1.arbitrum.io/rpc", "explorer": "https://arbiscan.io"},
-    "optimism": {"chain_id": 10, "rpc": "https://mainnet.optimism.io", "explorer": "https://optimistic.etherscan.io"},
-    "base": {"chain_id": 8453, "rpc": "https://mainnet.base.org", "explorer": "https://basescan.org"},
-    "polygon": {"chain_id": 137, "rpc": "https://polygon-rpc.com", "explorer": "https://polygonscan.com"},
-    "bnb": {"chain_id": 56, "rpc": "https://bsc-dataseed.binance.org", "explplorer": "https://bscscan.com"},
-    "avalanche": {"chain_id": 43114, "rpc": "https://api.avax.network/ext/bc/C/rpc", "explorer": "https://snowtrace.io"},
-    "solana": {"chain_id": 0, "rpc": "https://api.mainnet-beta.solana.com", "explorer": "https://solscan.io"},
-    "0g": {"chain_id": 16661, "rpc": "https://evmrpc.0g.ai", "explorer": "https://0g.codes"},
+    "ethereum": {"chain_id": _cid("Ethereum"), "rpc": "https://ethereum-rpc.publicnode.com", "explorer": "https://etherscan.io"},
+    "arbitrum": {"chain_id": _cid("Arbitrum One"), "rpc": "https://arb1.arbitrum.io/rpc", "explorer": "https://arbiscan.io"},
+    "optimism": {"chain_id": _cid("Optimism"), "rpc": "https://mainnet.optimism.io", "explorer": "https://optimistic.etherscan.io"},
+    "base": {"chain_id": _cid("Base"), "rpc": "https://mainnet.base.org", "explorer": "https://basescan.org"},
+    "polygon": {"chain_id": _cid("Polygon PoS"), "rpc": "https://polygon-rpc.com", "explorer": "https://polygonscan.com"},
+    "bnb": {"chain_id": _cid("BNB Smart Chain"), "rpc": "https://bsc-dataseed.binance.org", "explplorer": "https://bscscan.com"},
+    "avalanche": {"chain_id": _cid("Avalanche C-Chain"), "rpc": "https://api.avax.network/ext/bc/C/rpc", "explorer": "https://snowtrace.io"},
+    "solana": {"chain_id": _cid("Solana Mainnet"), "rpc": "https://api.mainnet-beta.solana.com", "explorer": "https://solscan.io"},
+    "0g": {"chain_id": _cid("0G Mainnet"), "rpc": "https://evmrpc.0g.ai", "explorer": "https://0g.codes"},
 }
 
 CONTRACTS_TO_DEPLOY = [

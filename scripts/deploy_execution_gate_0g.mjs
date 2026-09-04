@@ -3,7 +3,8 @@
  * TRION × 0G — TRIONExecutionGate Deployment Script
  * ===================================================
  * Compiles TRIONExecutionGate.sol with solc and deploys to 0G Galileo testnet
- * (chainId 16602) or 0G Aristotle mainnet (chainId 16601).
+ * (chainId 16602) or 0G mainnet (chainId 16661 — canonical registry id; the
+ * old "Aristotle 16601" label matched no chain anywhere).
  *
  * Usage:
  *   DEPLOYER_PRIVATE_KEY=0x... node scripts/deploy_execution_gate_0g.mjs

@@ -2,7 +2,7 @@
 TRION Protocol — Chains Registry (API/frontend view)
 
 DERIVED AT IMPORT from config/chain_registry.json — the canonical chain
-registry (129 chains across 18 VM families; 41 integrated). This module is a
+registry (129 chains across 18 VM families; 40 integrated). This module is a
 presentation layer over the registry: it adds display fields (status tier,
 per-VM color, default indexer crate) and per-chain BH stats. The chain/VM
 counts reported by /api/v1/chains and /api/v1/explorer/chains are therefore
