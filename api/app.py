@@ -275,12 +275,16 @@ try:
     _log.info("BTCP + CONTINUUM routes registered")
 
     # ── Auto-start the real-time BH streamer ──────────────────────────────────
-    # GATED: in production the entrypoint owns exactly ONE streamer process
-    # (scripts/run_bh_streamer.py). Without this gate, every gunicorn worker
-    # spawns its own 78-thread streamer → N_workers × 78 threads flooding a
-    # single-threaded FAISS process (caused total overload in live testing).
+    # GATED (TRION_STREAMER_INPROCESS, default 0): in production the entrypoint
+    # owns exactly ONE standalone streamer process (scripts/run_bh_streamer.py,
+    # gated by TRION_ENABLE_STREAMER at the entrypoint level). The old single
+    # name TRION_ENABLE_STREAMER is now RESERVED for that entrypoint decision —
+    # reading it here too meant every gunicorn worker ALSO spawned its own
+    # 96-thread streamer alongside the standalone one (3 streamers on the
+    # default 2-worker railway/compose setup: triple RPC polling, triple
+    # SQLite write contention, triple FAISS vectors).
     _streamer_enabled = (
-        os.environ.get("TRION_ENABLE_STREAMER", "0") == "1"
+        os.environ.get("TRION_STREAMER_INPROCESS", "0") == "1"
         and os.environ.get("PYTEST_CURRENT_TEST") is None
     )
     if _streamer_enabled:
@@ -291,8 +295,8 @@ try:
         except Exception as _streamer_err:
             _log.warning("BH streamer auto-start failed: %s", _streamer_err)
     else:
-        _log.info("In-process streamer disabled (TRION_ENABLE_STREAMER=0) — "
-                  "entrypoint owns the dedicated streamer process")
+        _log.info("In-process streamer disabled (TRION_STREAMER_INPROCESS=0) — "
+                  "the entrypoint owns the dedicated streamer process")
 
 except Exception as _btcp_err:
     _btcp_continuum_available = False

@@ -75,8 +75,11 @@ EXPOSE 5000 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=5 \
     CMD curl -fs http://localhost:${PORT:-5000}/readyz || exit 1
 
-# Start FAISS ANIMA + Oracle API in ONE container. The compose dev profile has
-# no separate faiss service, so this image owns both processes (same contract
-# as the railway entrypoint): FAISS on :8000, then serve.py (Flask+socketio) as
-# the foreground process on :5000.
-CMD ["sh", "-c", "cd anima-service && OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port ${FAISS_PORT:-8000} --workers 1 & cd /app && exec python3 serve.py"]
+# Start FAISS ANIMA + BH streamer + Oracle API in ONE container. The compose dev
+# profile has no separate faiss/streamer services, so this image owns all three
+# processes (same contract as the railway entrypoint): FAISS on :8000, the
+# standalone streamer (TRION_ENABLE_STREAMER, default on), then serve.py
+# (Flask+socketio) as the foreground process on :5000. The in-process app gate
+# (TRION_STREAMER_INPROCESS) stays off — exactly one streamer, never one per
+# gunicorn/serve worker.
+CMD ["sh", "-c", "cd anima-service && OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port ${FAISS_PORT:-8000} --workers 1 & if [ \"${TRION_ENABLE_STREAMER:-1}\" = \"1\" ]; then cd /app && python3 scripts/run_bh_streamer.py & fi; cd /app && exec python3 serve.py"]
