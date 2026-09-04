@@ -252,7 +252,14 @@ class DisputeResolver:
             return False
         case.votes[annotator_id] = DisputeVoteRecord(
             annotator_id, vote, hashlib.sha3_256(rationale.encode()).hexdigest(), time.time())
-        if len(case.votes) >= ANNOTATORS_PER_DISPUTE:
+        # Resolution triggers: (a) full 5-vote panel, (b) 3-of-5 majority,
+        # or (c) panel EXHAUSTION — when fewer than 5 annotators were
+        # selectable, the case must resolve once every panel member voted;
+        # a short panel splitting 2-2 resolves DISMISSED instead of hanging
+        # OPEN forever (previously DISMISSED was unreachable and short
+        # panels deadlocked — INV-015, docs/security/CANONICAL_INVARIANTS.md).
+        if (len(case.votes) >= ANNOTATORS_PER_DISPUTE
+                or len(case.votes) >= len(case.selected_annotators)):
             self._resolve(case)
         elif case.guilty_votes >= MAJORITY_REQUIRED or case.not_guilty_votes >= MAJORITY_REQUIRED:
             self._resolve(case)
