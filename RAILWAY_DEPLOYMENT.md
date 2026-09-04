@@ -26,7 +26,9 @@ Railway deploys TRION as a single container that hosts four cooperating processe
 │   └────────────┘    └─────────────┘                             │
 │                                                                  │
 │   Optional (off by default):                                     │
-│   • Go validator (port 6000)        — TRION_ENABLE_VALIDATOR=1  │
+│   • Go validator self-test         — TRION_ENABLE_VALIDATOR=1  │
+│     (one-shot mesh + TRION-BFT verification; no daemon,         │
+│      nothing listens on :6000)                                  │
 │   • C++ signal processing           — TRION_ENABLE_SIGNAL_PROCESSING=1 │
 │   • Prometheus/Grafana              — TRION_ENABLE_MONITORING=1 │
 └──────────────────────────────────────────────────────────────────┘
@@ -39,6 +41,13 @@ Railway deploys TRION as a single container that hosts four cooperating processe
 | FAISS ANIMA Engine | 8000  | /healthz, /health | /readyz | Returns 503 until index loaded |
 | BH Streamer        | —     | logs            | —          | Background process             |
 | BH→FAISS backfill  | —     | logs            | —          | Delayed 60s, runs once        |
+
+Note: Flask also runs a flask-socketio push layer (`serve.py` →
+`api/socket_push.py`, `/feed` namespace) that the dashboard consumes when
+reachable. Railway's Next.js entry cannot proxy WebSocket upgrades, so on
+this single-container deployment the dashboard runs its live feed in REST
+polling mode (by design); the nginx/docker-compose stack
+(`deploy/nginx/trion.conf`) proxies `/socket.io/` and gets true push.
 
 ## 2. Health vs Readiness (why both)
 
@@ -171,7 +180,9 @@ to Railway production. If it works locally, it will work on Railway.
 - `TRION_ENABLE_STREAMER=1` — start BH streamer (96 mainnet chains)
 - `TRION_MAX_CHAINS=12` — cap concurrent chain indexers (12 for 512MB, 0 for 8GB+)
 - `TRION_ENABLE_FAISS=1` — start FAISS ANIMA engine
-- `TRION_ENABLE_VALIDATOR=0` — Go P2P validator (off; needs key)
+- `TRION_ENABLE_VALIDATOR=0` — Go validator mesh/BFT self-test (one-shot
+  verification run, not a daemon — nothing listens on :6000; see
+  DEPLOYMENT.md "Go services")
 - `TRION_ENABLE_SIGNAL_PROCESSING=0` — C++ FFT engine (off; needs cmake)
 - `TRION_ENABLE_MONITORING=0` — Prometheus/Grafana configs (off)
 
@@ -241,7 +252,7 @@ The entrypoint also emits a STATUS line every 5 minutes:
 |------|-------------------|------------------|-------|
 | 512MB Hobby | 12 | 2 | Default; ~12 chains active |
 | 8GB Pro | 0 (all 96) | 4 | Full mainnet coverage |
-| 16GB+ | 0 | 8 | Add TRION_ENABLE_VALIDATOR=1 |
+| 16GB+ | 0 | 8 | Add TRION_ENABLE_VALIDATOR=1 (Go mesh/BFT self-test) |
 
 ### 7.5 Adding Postgres persistence
 
@@ -322,8 +333,9 @@ cd frontend && npm install --legacy-peer-deps && cd ..
 # Terminal 1: FAISS
 cd anima-service && uvicorn faiss_service:app --port 8000 --reload
 
-# Terminal 2: Flask
-gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --reload "api.app:app"
+# Terminal 2: Flask + WebSocket push layer (what the Railway entrypoint runs)
+python serve.py
+#   (REST-only alternative, no /socket.io/: gunicorn --bind 0.0.0.0:5000 --workers 2 "api.app:app")
 
 # Terminal 3: BH Streamer
 python scripts/run_bh_streamer.py
