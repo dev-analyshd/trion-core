@@ -18,6 +18,8 @@ Every behavioral observation is reduced to a fixed **93-byte canonical payload**
 via a dual-strand SHA3 construction.
 
 ### Payload Layout (93 bytes)
+> **SUPERSEDED:** see WHITEPAPER_V2.txt L0.1 (MD silent on byte layout) — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K2). The canonical 93-byte BH is the V2 *preimage* layout `entity_id(32)‖event_type(1)‖magnitude(8)‖context(8)‖timestamp(8)‖chain_id(4)‖block_hash(32)` — implemented byte-identically in Rust/Python/TS and pinned by tri-language golden vectors (`docs/protocol/CANONICAL_BH.md`). The output-shaped layout below (CRC + 9-byte beo) is an obsolete draft; per **K22** the canonical BEO/entity id is 32 bytes (V2 L0.2 / BTCP §4.1 bytes32), not the 9-byte beo shown below.
+
 
 ```
 [0..31]   strand_A : SHA3-256(quantitative_data)        -- 32 bytes
@@ -63,6 +65,8 @@ Where:
 - `w_CF + w_ST + w_SC + w_BP = 1` (weights are asset-type-specific)
 
 ### Thresholds
+> **SUPERSEDED:** see WHITEPAPER_V2.txt L0.2 / MD L0.2 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K10). Production BEO resolution = **5 factors at >0.75** (the recorded audit resolution; `anima-service/faiss_service.py` + `core/primitives/entity_resolution.py` GX path). MD's 4-factor formula is the reference model — both live side-by-side in code. The 0.85/0.50 body thresholds below are non-canonical.
+
 
 ```
 BEO_confidence >= 0.85  ->  resolved (single canonical entity)
@@ -93,6 +97,8 @@ BEO_confidence < 0.50  ->  new entity
 Communication between two BEOs `X` and `Y` is modeled as resonance rather than message passing.
 
 ### Resonance Coefficient
+> **SUPERSEDED:** see WHITEPAPER_MD.txt L0.3 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K20). MD's `Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0` is the canonical communication semantics; the R(X,Y) coefficient below is an implemented *supplementary* metric (`core/primitives/resonance.py`), spec-silent engineering extension.
+
 
 ```
 R(X, Y) = (1 / (1 + dist(BH_X, BH_Y))) * cos( phase(X) - phase(Y) )

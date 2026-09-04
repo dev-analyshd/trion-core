@@ -4,6 +4,8 @@
 > This document enumerates all 20 canonical communication channels across 10 layers.
 
 ## Scope
+> **SUPERSEDED:** see WHITEPAPER_MD.txt §15 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K14). MD §15's 20-channel registry is canonical (`core/master/channel_architecture.py`, layer names match MD incl. “LAYER 4 — CRYPTOGRAPHIC LIVING CHANNELS”). The taxonomy below is an engineering transport map — keep as a supplementary transport spec, NOT the channel registry.
+
 
 TRION signals (see `signal_types.md`) are transported over 20 channels organized
 into 10 logical layers. Each channel has a transport, a trust model, and a
