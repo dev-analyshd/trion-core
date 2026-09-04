@@ -6,6 +6,11 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Next 16 refuses cross-origin dev resources (the /_next/hmr handshake) for
+  // hosts it doesn't recognize. Opening the dev server via 127.0.0.1 instead
+  // of localhost gets the HMR connect blocked, which stalls hydration — the
+  // page then renders server HTML with zeroed counters and a frozen clock.
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   // Cache control headers to prevent stale frontend
   async headers() {
     return [
