@@ -1684,8 +1684,18 @@ def _maybe_merge_beo(new_address: str, new_vec: np.ndarray, funding_source: Opti
             beo_funding_map[addr] = funding_source
         return address_to_canonical[addr]
 
-    # Base SHA3 ID for this address
-    base_id = hashlib.sha3_256(addr.encode()).hexdigest()
+    # Canonical 64-hex entity ids (BH §6 — streamer / Rust indexer form) are
+    # ALREADY the SHA3-256 of the underlying address. Re-hashing them here
+    # stored every vector under sha3(sha3(addr)) while every read path
+    # (resolve_beo, /similarity, enrichment) resolves 64-hex inputs as-is —
+    # write key ≠ read key, so history lookups always fell back to the L3.1
+    # NEUTRAL_PRIOR and the ledger→FAISS→signal loop never closed.
+    # Mirror resolve_beo's guard: the id passes through unchanged.
+    if len(addr) == 64 and all(c in "0123456789abcdef" for c in addr):
+        base_id = addr
+    else:
+        # Base SHA3 ID for this raw address
+        base_id = hashlib.sha3_256(addr.encode()).hexdigest()
 
     if funding_source:
         beo_funding_map[addr] = funding_source
