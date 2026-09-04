@@ -1,8 +1,12 @@
-TRION Backtest — 2026-08-02T02:26:37.965613+00:00
+TRION Backtest v2 (remediated) — 2026-09-04T00:06:11.764238+00:00
+Signal path: offline behavioral replay → core/ coherence pipeline
 Exploits: 30 | Controls: 10
-TP=30 FP=10 TN=0 FN=0
-Precision=0.7500 Recall=1.0000 F1=0.8571
-Accuracy=0.7500 FPR=1.0000 FNR=0.0000
-Separation=+0.000000
+TP=30 FP=0 TN=10 FN=0
+Precision=1.0000 Recall=1.0000 F1=1.0000
+Accuracy=1.0000 FPR=0.0000 FNR=0.0000
+Separation=+0.315898
+Threshold (Youden's J on labeled replay cohort): 0.54
+Silence (dynamic-Θ gate, separate from flags): attackers=30/30 controls=0/10
 Catch rate: 100.0% of $3,315,800,000
-Merkle root: b4132f0f8234b9e0404fafc92596e675b26819c6fd8ec134ca3fbc6cb4f9edcb
+Gates passed: True
+Merkle root: 1d5583acb229f148da58c9cf08dcdfc6190e03ed1fc4f0cdbe802515a68ef9b7

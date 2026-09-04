@@ -1,0 +1,587 @@
+{
+  "metadata": {
+    "generated_at": "2026-09-04T00:03:50.645254+00:00",
+    "methodology": "held_out_split",
+    "train_fraction": 0.67,
+    "random_seed": 42,
+    "signal_path": "Offline behavioral replay (backtest/replay_engine.py) scored through the core/ coherence pipeline. The v0 script required a live Oracle API and had never been executed.",
+    "total_exploits": 30,
+    "train_count": 20,
+    "test_count": 10,
+    "controls_count": 10,
+    "audit_finding": "#26 \u2014 original backtest methodologically circular",
+    "threshold_calibration": {
+      "method": "youdens_j",
+      "description": "\u03b8 selected by maximizing Youden's J on TRAIN attacker coherences + control cohort ONLY, then frozen before TEST evaluation. Ties resolve to the lowest maximizing grid value.",
+      "grid": [
+        0.3,
+        0.85,
+        0.01
+      ],
+      "theta_frozen": 0.54,
+      "youdens_j": 1.0,
+      "calibration_curve": [
+        {
+          "theta": 0.3,
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.31,
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.32,
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.33,
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.34,
+          "tpr": 0.0,
+          "fpr": 0.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.35,
+          "tpr": 0.05,
+          "fpr": 0.0,
+          "youdens_j": 0.05
+        },
+        {
+          "theta": 0.36,
+          "tpr": 0.1,
+          "fpr": 0.0,
+          "youdens_j": 0.1
+        },
+        {
+          "theta": 0.37,
+          "tpr": 0.15,
+          "fpr": 0.0,
+          "youdens_j": 0.15
+        },
+        {
+          "theta": 0.38,
+          "tpr": 0.15,
+          "fpr": 0.0,
+          "youdens_j": 0.15
+        },
+        {
+          "theta": 0.39,
+          "tpr": 0.25,
+          "fpr": 0.0,
+          "youdens_j": 0.25
+        },
+        {
+          "theta": 0.4,
+          "tpr": 0.25,
+          "fpr": 0.0,
+          "youdens_j": 0.25
+        },
+        {
+          "theta": 0.41,
+          "tpr": 0.3,
+          "fpr": 0.0,
+          "youdens_j": 0.3
+        },
+        {
+          "theta": 0.42,
+          "tpr": 0.3,
+          "fpr": 0.0,
+          "youdens_j": 0.3
+        },
+        {
+          "theta": 0.43,
+          "tpr": 0.35,
+          "fpr": 0.0,
+          "youdens_j": 0.35
+        },
+        {
+          "theta": 0.44,
+          "tpr": 0.45,
+          "fpr": 0.0,
+          "youdens_j": 0.45
+        },
+        {
+          "theta": 0.45,
+          "tpr": 0.5,
+          "fpr": 0.0,
+          "youdens_j": 0.5
+        },
+        {
+          "theta": 0.46,
+          "tpr": 0.55,
+          "fpr": 0.0,
+          "youdens_j": 0.55
+        },
+        {
+          "theta": 0.47,
+          "tpr": 0.6,
+          "fpr": 0.0,
+          "youdens_j": 0.6
+        },
+        {
+          "theta": 0.48,
+          "tpr": 0.75,
+          "fpr": 0.0,
+          "youdens_j": 0.75
+        },
+        {
+          "theta": 0.49,
+          "tpr": 0.8,
+          "fpr": 0.0,
+          "youdens_j": 0.8
+        },
+        {
+          "theta": 0.5,
+          "tpr": 0.8,
+          "fpr": 0.0,
+          "youdens_j": 0.8
+        },
+        {
+          "theta": 0.51,
+          "tpr": 0.85,
+          "fpr": 0.0,
+          "youdens_j": 0.85
+        },
+        {
+          "theta": 0.52,
+          "tpr": 0.85,
+          "fpr": 0.0,
+          "youdens_j": 0.85
+        },
+        {
+          "theta": 0.53,
+          "tpr": 0.95,
+          "fpr": 0.0,
+          "youdens_j": 0.95
+        },
+        {
+          "theta": 0.54,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.55,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.56,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.57,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.58,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.59,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.6,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.61,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.62,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.63,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.64,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.65,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.66,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.67,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.68,
+          "tpr": 1.0,
+          "fpr": 0.0,
+          "youdens_j": 1.0
+        },
+        {
+          "theta": 0.69,
+          "tpr": 1.0,
+          "fpr": 0.1,
+          "youdens_j": 0.9
+        },
+        {
+          "theta": 0.7,
+          "tpr": 1.0,
+          "fpr": 0.1,
+          "youdens_j": 0.9
+        },
+        {
+          "theta": 0.71,
+          "tpr": 1.0,
+          "fpr": 0.1,
+          "youdens_j": 0.9
+        },
+        {
+          "theta": 0.72,
+          "tpr": 1.0,
+          "fpr": 0.1,
+          "youdens_j": 0.9
+        },
+        {
+          "theta": 0.73,
+          "tpr": 1.0,
+          "fpr": 0.1,
+          "youdens_j": 0.9
+        },
+        {
+          "theta": 0.74,
+          "tpr": 1.0,
+          "fpr": 0.2,
+          "youdens_j": 0.8
+        },
+        {
+          "theta": 0.75,
+          "tpr": 1.0,
+          "fpr": 0.2,
+          "youdens_j": 0.8
+        },
+        {
+          "theta": 0.76,
+          "tpr": 1.0,
+          "fpr": 0.2,
+          "youdens_j": 0.8
+        },
+        {
+          "theta": 0.77,
+          "tpr": 1.0,
+          "fpr": 0.8,
+          "youdens_j": 0.2
+        },
+        {
+          "theta": 0.78,
+          "tpr": 1.0,
+          "fpr": 0.9,
+          "youdens_j": 0.1
+        },
+        {
+          "theta": 0.79,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.8,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.81,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.82,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.83,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.84,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        },
+        {
+          "theta": 0.85,
+          "tpr": 1.0,
+          "fpr": 1.0,
+          "youdens_j": 0.0
+        }
+      ]
+    }
+  },
+  "train_metrics": {
+    "exploits_evaluated": 20,
+    "true_positives": 20,
+    "false_negatives": 0,
+    "recall": 1.0,
+    "recall_ci_95": [
+      0.8389,
+      1.0
+    ],
+    "mean_coherence": 0.4452,
+    "confusion": {
+      "TP": 20,
+      "FP": 0,
+      "TN": 10,
+      "FN": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    "cohen_d_vs_control": 6.3088,
+    "cohen_d_sign": "positive = control cohort higher than attackers",
+    "separation_delta": 0.3136,
+    "separation_ci_95": [
+      0.2837,
+      0.3407
+    ],
+    "disclosure": "TRAIN metrics are NOT a valid measure of generalization. These exploits informed threshold calibration."
+  },
+  "test_metrics": {
+    "exploits_evaluated": 10,
+    "true_positives": 10,
+    "false_negatives": 0,
+    "recall": 1.0,
+    "recall_ci_95": [
+      0.7225,
+      1.0
+    ],
+    "mean_coherence": 0.4384,
+    "confusion": {
+      "TP": 10,
+      "FP": 0,
+      "TN": 10,
+      "FN": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    "cohen_d_vs_control": 7.7839,
+    "cohen_d_sign": "positive = control cohort higher than attackers",
+    "separation_delta": 0.3204,
+    "separation_ci_95": [
+      0.289,
+      0.3547
+    ],
+    "theta_used": 0.54,
+    "disclosure": "TEST metrics are the only valid measure of generalization. These exploits were HELD OUT: \u03b8 was frozen before they were scored. Silence (dynamic-\u0398 gate) is reported separately and does not feed the flag."
+  },
+  "control_metrics": {
+    "count": 10,
+    "mean_coherence": 0.7588,
+    "min_coherence": 0.6862,
+    "max_coherence": 0.7871,
+    "in_silence": 0,
+    "note": "Controls are a fixed reference cohort (scored identically in TRAIN and TEST phases; no control informed attacker labels)."
+  },
+  "train_exploits": [
+    "EX020",
+    "EX015",
+    "EX011",
+    "EX027",
+    "EX023",
+    "EX007",
+    "EX006",
+    "EX013",
+    "EX012",
+    "EX016",
+    "EX010",
+    "EX026",
+    "EX030",
+    "EX022",
+    "EX017",
+    "EX028",
+    "EX002",
+    "EX014",
+    "EX019",
+    "EX003"
+  ],
+  "test_exploits": [
+    "EX018",
+    "EX029",
+    "EX005",
+    "EX025",
+    "EX008",
+    "EX009",
+    "EX024",
+    "EX001",
+    "EX004",
+    "EX021"
+  ],
+  "test_results": [
+    {
+      "exploit_id": "EX018",
+      "name": "Deus Finance",
+      "amount_usd": 13400000,
+      "coherence": 0.389099,
+      "mf_score": 1.0,
+      "mf_primary": "ORACLE_ATTACK_ATTEMPT",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX029",
+      "name": "Compound Finance (COMP Bug)",
+      "amount_usd": 90000000,
+      "coherence": 0.42309,
+      "mf_score": 0.437357,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX005",
+      "name": "Euler Finance",
+      "amount_usd": 197000000,
+      "coherence": 0.42501,
+      "mf_score": 1.0,
+      "mf_primary": "ORACLE_ATTACK_ATTEMPT",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX025",
+      "name": "DODO Exchange",
+      "amount_usd": 3800000,
+      "coherence": 0.449914,
+      "mf_score": 1.0,
+      "mf_primary": "ORACLE_ATTACK_ATTEMPT",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX008",
+      "name": "Cream Finance",
+      "amount_usd": 130000000,
+      "coherence": 0.47193,
+      "mf_score": 0.447402,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX009",
+      "name": "BadgerDAO",
+      "amount_usd": 120000000,
+      "coherence": 0.372492,
+      "mf_score": 0.640234,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX024",
+      "name": "Platypus Finance",
+      "amount_usd": 8500000,
+      "coherence": 0.463368,
+      "mf_score": 0.481838,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX001",
+      "name": "Ronin Bridge (Axie Infinity)",
+      "amount_usd": 625000000,
+      "coherence": 0.506309,
+      "mf_score": 0.523714,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX004",
+      "name": "Nomad Bridge",
+      "amount_usd": 190000000,
+      "coherence": 0.510179,
+      "mf_score": 0.593609,
+      "mf_primary": "FAKE_VOLUME_PROTOCOL",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    },
+    {
+      "exploit_id": "EX021",
+      "name": "Jimbos Protocol",
+      "amount_usd": 7500000,
+      "coherence": 0.372539,
+      "mf_score": 1.0,
+      "mf_primary": "ORACLE_ATTACK_ATTEMPT",
+      "threshold_dyn": 0.661,
+      "silence": true,
+      "flagged": true,
+      "is_attacker": true
+    }
+  ],
+  "interpretation": "Held-out recall: 100.0% (95% CI: 72.2%\u2013100.0%) at frozen \u03b8=0.54 (Youden's J on TRAIN only). Cohen's d vs control cohort: 7.78. Separation delta (control \u2212 attacker): +0.320 (bootstrap 95% CI: [0.289, 0.355]). Note: small TEST sample size (10) produces wide CIs. Expand the held-out set in future runs for tighter bounds. Flag rule is C(t) < \u03b8 (calibrated); silence is reported separately."
+}
