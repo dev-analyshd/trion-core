@@ -159,14 +159,35 @@ def _rate_limit():
 # is disabled so read-only public deployments need no config change.
 # All GET/HEAD/OPTIONS requests are always public — oracle data is intentionally
 # world-readable.  POST/PUT/PATCH/DELETE require a valid X-API-Key header.
+# P-API-02 (Wave 4 red team): some WRITE routes historically answered GET
+# (side effects: on-chain publication, DA/storage submission). The method
+# model alone could not see those — the write-path set below is
+# METHOD-AGNOSTIC: any request to these paths requires the key, GET included.
 _TRION_API_KEY = os.environ.get("TRION_API_KEY", "").strip()
+
+_WRITE_PATHS = frozenset({
+    "/api/v1/publish/",          # on-chain publication + feed push
+    "/api/v1/zg/da/submit",      # external DA submission
+    "/api/v1/zg/storage/store",  # storage-store write
+})
+
+def _is_write_path(path: str) -> bool:
+    for p in _WRITE_PATHS:
+        if p.endswith("/"):
+            if path.startswith(p):
+                return True
+        elif path == p:
+            return True
+    return False
 
 @app.before_request
 def _require_api_key():
     if not _TRION_API_KEY:
         return None  # auth disabled — set TRION_API_KEY secret to enable
 
-    if request.method in ("GET", "HEAD", "OPTIONS"):
+    if _is_write_path(request.path):
+        pass  # write path: authenticated on EVERY method (P-API-02)
+    elif request.method in ("GET", "HEAD", "OPTIONS"):
         return None  # read-only traffic is always public
 
     # Exempt the health probe even on non-GET (monitoring tools use POST health checks)
