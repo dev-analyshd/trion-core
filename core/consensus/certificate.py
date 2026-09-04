@@ -28,8 +28,12 @@ What this module deliberately does NOT do
 - It does not verify ECDSA/Ed25519/STARK signatures — that is the job of the
   VM verifiers (Wave 2) and the Go fleet. The Python reference exists to pin
   the BYTE LAYOUT and the QUORUM ARITHMETIC, not to be a trust root.
-- It does not sign. Emission-side signing lives in the validator fleet
-  (validator/) using the family digests defined here.
+- It does not sign. Emission-side signing is the validator fleet's job —
+  but as of this sweep the Go validator/ tree contains NO certificate code
+  yet (see docs/audit/canonical-sweep/SWEEP-A.md D1): certificate producers
+  today are the Python test batteries and deployment tooling. On-chain
+  verification is real on every tier; fleet emission signing remains an
+  open external dependency, honestly labelled.
 
 Spec provenance: MD L0.1/§17, V2 Part 5/L4.1-4.2/L4.8/L4.9, BTCP_SPEC §4.1,
 §4.2 Step 3/Step 6, §12.2, §12.4; L4_spiritual_security.md; conflicts
