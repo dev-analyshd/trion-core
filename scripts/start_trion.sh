@@ -5,7 +5,9 @@
 # Starts all TRION services in the correct order:
 #   1. FAISS Akashic Intelligence Engine (port 8000)
 #   2. TRION Oracle API (port 5000)
-#   3. Validator P2P Network (port 6000)
+#   3. Validator self-test (one-shot `go run ./cmd/trion-validator` —
+#      mesh + TRION-BFT check that prints PASS and exits; NOT a
+#      long-lived network listener, see DEPLOYMENT.md "Go services")
 #   4. Frontend Next.js (port 3000)
 #
 # Usage:
