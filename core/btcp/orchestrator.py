@@ -53,6 +53,13 @@ try:
 except ImportError:  # pragma: no cover - direct script execution
     from state_store import BtcpStateStore
 
+# Validator fee split (Module 2.17 / spec Fix 4) — the 60/40 anchor/execution
+# route-reward split used when a completed route pays its validator pools.
+try:
+    from .modules import ValidatorFeeCalculator
+except ImportError:  # pragma: no cover - direct script execution
+    from modules import ValidatorFeeCalculator
+
 
 # ── Enumerations ────────────────────────────────────────────────────────────
 
@@ -224,7 +231,86 @@ def _route_from_row(row: Dict[str, Any]) -> BTCPRoute:
     )
 
 
-# ── Privacy Router ──────────────────────────────────────────────────────────
+# ── Akashic execution records (BTCP gap #7) ─────────────────────────────────
+# schema.sql's six btcp_* tables are no longer dead DDL: every orchestrated
+# route writes its execution records into them (SQLite mirrors of the
+# TimescaleDB DDL live in core/btcp/state_store.py).  All writes are
+# idempotent so replaying a route event never duplicates rows.
+
+# Route-reward fee rate — mirrors the Rust constant BTCP_ROUTE_FEE_RATE
+# (rust/src/validator_fee_calculator.rs); spec Fix 4: route value × 0.1%.
+_ROUTE_REWARD_FEE_RATE = 0.001
+
+# Terminal route statuses that finalize the intent registry row.
+_TERMINAL_ROUTE_STATUSES = (
+    RouteStatus.COMPLETED,
+    RouteStatus.FAILED,
+    RouteStatus.TIMEOUT,
+)
+
+_FEE_CALCULATOR = ValidatorFeeCalculator()
+
+
+def _privacy_mode_name(level: PrivacyLevel) -> str:
+    """PrivacyLevel → schema.sql btcp_privacy_mode.
+
+    Same bridge as the Rust SpecPrivacy::to_legacy() mapping
+    (Public→PUBLIC, Basic/Standard/Compliant→ZK_CREDENTIAL, Full→INVISIBLE).
+    """
+    if level == PrivacyLevel.PUBLIC:
+        return "PUBLIC"
+    if level == PrivacyLevel.FULL:
+        return "INVISIBLE"
+    return "ZK_CREDENTIAL"
+
+
+def _intent_registry_status(route_status: RouteStatus) -> str:
+    """RouteStatus → schema.sql btcp_intent_status enum."""
+    if route_status == RouteStatus.COMPLETED:
+        return "COMPLETED"
+    if route_status == RouteStatus.FAILED:
+        return "FAILED"
+    if route_status == RouteStatus.TIMEOUT:
+        return "EXPIRED"
+    if route_status in (RouteStatus.SOURCE_EXECUTED, RouteStatus.DEST_EXECUTED):
+        return "EXECUTING"
+    return "ROUTING"
+
+
+def _proof_commitment(route: BTCPRoute, circuit: str) -> Optional[str]:
+    """Hex commitment of a route's real proof for a circuit, else None.
+
+    Deferred proofs carry ``status: "zk_pending"`` (the PrivacyRouter
+    honesty contract) — they deliberately return None so the akashic record
+    never claims a proof hash that was never generated.
+    """
+    entry = route.proofs.get(circuit)
+    if not isinstance(entry, dict):
+        return None
+    if entry.get("status") == "zk_pending":
+        return None
+    commitment = entry.get("commitment")
+    return str(commitment) if commitment else None
+
+
+def _anchor_bh(route: BTCPRoute) -> str:
+    """Anchor BH for the btcp_routes row.
+
+    The real intent-commitment Pedersen commitment when the route carries
+    one; otherwise the deterministic SHA3-256 commitment of the intent id
+    (the anchor strand this engine can always honestly derive).
+    """
+    commitment = _proof_commitment(route, "intent_commitment")
+    if commitment:
+        return commitment
+    intent_id = route.intent.intent_id if route.intent else route.route_id
+    return hashlib.sha3_256(str(intent_id).encode()).hexdigest()
+
+
+def _route_reward_epoch(ts: float) -> int:
+    """UTC day index — the epoch bucket for btcp_route_rewards rows."""
+    return int(ts // 86400)
+
 
 class PrivacyRouter:
     """
@@ -585,6 +671,141 @@ class BTCPOrchestrator:
         """Write one route through to SQLite (upsert)."""
         self._store.save_route(route.route_id, _route_to_row(route), ROUTE_ROW_TYPE)
 
+    # ── Akashic execution records (BTCP gap #7) ────────────────────────
+
+    def _record_execution(self, route: BTCPRoute) -> None:
+        """Project a newly-created route into the schema.sql btcp_* tables.
+
+        Writes the intent-registry row, the routes row, the IntentBroadcast
+        cross-chain message, and the per-chain adapter-version sightings.
+        Every write is an idempotent upsert (see state_store), so a replayed
+        create/step-6 event neither duplicates rows nor crashes.
+        """
+        intent = route.intent
+        if intent is None:
+            return
+        now = time.time()
+        entity_id = str(intent.source_address)
+        message_id = hashlib.sha3_256(
+            f"{intent.intent_id}:{intent.source_chain}:"
+            f"{intent.dest_chain}:{intent.nonce}".encode()
+        ).hexdigest()
+        payload_hash = hashlib.sha3_256(
+            f"{route.source_encoded or intent.intent_id}".encode()
+        ).hexdigest()
+
+        self._store.record_intent(
+            intent.intent_id,
+            entity_id=entity_id,
+            action=str(intent.intent_type),
+            asset_in=str(intent.asset) if intent.asset else None,
+            magnitude=float(intent.amount),
+            source_chain_id=int(intent.source_chain),
+            deadline_ts=float(intent.deadline),
+            privacy_mode=_privacy_mode_name(route.privacy_level),
+            nonce=int(intent.nonce),
+            route_selected=route.route_type,
+            status=_intent_registry_status(route.status),
+            btcp_score=route.btcp_score,
+            created_at=route.created_at,
+            routed_at=now,
+        )
+        self._store.record_route(
+            route.route_id,
+            intent_hash=intent.intent_id,
+            route_type=route.route_type,
+            anchor_bh=_anchor_bh(route),
+            anchor_chain=int(intent.source_chain),
+            execution_chain=int(intent.dest_chain),
+            entity_id=entity_id,
+            btcp_score=float(route.btcp_score),
+            gas_total_usd=float(route.total_fee),
+            travel_rule_proof=_proof_commitment(route, "travel_rule"),
+            status=route.status.name,
+            created_at=route.created_at,
+        )
+        self._store.record_cross_chain_message(
+            message_id,
+            msg_type="IntentBroadcast",
+            sender_entity_id=entity_id,
+            sender_chain=int(intent.source_chain),
+            target_chain=int(intent.dest_chain),
+            nonce=int(intent.nonce),
+            expiry_ts=float(intent.deadline),
+            payload_hash=payload_hash,
+            status="ACCEPTED",
+            created_at=route.created_at,
+        )
+        # Per-chain adapter version sightings (§2.16 upgrade routing):
+        # first route registers the (chain, version) pair, later routes
+        # refresh last_seen_at.
+        self._store.record_version(int(intent.source_chain))
+        self._store.record_version(int(intent.dest_chain))
+
+    def _record_route_status(self, route: BTCPRoute) -> None:
+        """Write a route-status change through to the btcp_* projections.
+
+        Terminal statuses finalize the intent row (completed_at) and the
+        routes row (finalized_at); COMPLETED additionally pays the route's
+        validator pools (spec Fix 4: route value × 0.1%, split 60/40
+        anchor/execution).  Individual validator attribution happens in the
+        Rust validator mesh — the Python engine records the two pool legs,
+        idempotent per (epoch, pool, route).
+        """
+        intent = route.intent
+        now = time.time()
+        terminal = route.status in _TERMINAL_ROUTE_STATUSES
+        if intent is not None:
+            self._store.record_intent(
+                intent.intent_id,
+                entity_id=str(intent.source_address),
+                action=str(intent.intent_type),
+                magnitude=float(intent.amount),
+                source_chain_id=int(intent.source_chain),
+                deadline_ts=float(intent.deadline),
+                privacy_mode=_privacy_mode_name(route.privacy_level),
+                nonce=int(intent.nonce),
+                route_selected=route.route_type,
+                status=_intent_registry_status(route.status),
+                btcp_score=route.btcp_score,
+                routed_at=now,
+                completed_at=now if terminal else None,
+            )
+        self._store.record_route(
+            route.route_id,
+            intent_hash=intent.intent_id if intent else route.route_id,
+            route_type=route.route_type,
+            anchor_bh=_anchor_bh(route),
+            anchor_chain=int(intent.source_chain) if intent else 0,
+            execution_chain=int(intent.dest_chain) if intent else 0,
+            entity_id=str(intent.source_address) if intent else "",
+            btcp_score=float(route.btcp_score),
+            gas_total_usd=float(route.total_fee),
+            travel_rule_proof=_proof_commitment(route, "travel_rule"),
+            status=route.status.name,
+            failure_cause=(
+                "ENTITY" if route.status == RouteStatus.FAILED else None
+            ),
+            created_at=route.created_at,
+            finalized_at=now if terminal else None,
+        )
+
+        if route.status == RouteStatus.COMPLETED and intent is not None:
+            total_reward = float(intent.amount) * _ROUTE_REWARD_FEE_RATE
+            epoch = _route_reward_epoch(now)
+            anchor_leg = _FEE_CALCULATOR.compute_btcp_route_reward(
+                total_reward, is_anchor=True)
+            exec_leg = _FEE_CALCULATOR.compute_btcp_route_reward(
+                total_reward, is_anchor=False)
+            self._store.record_route_reward(
+                epoch, f"anchor_pool:{intent.source_chain}",
+                route.route_id, anchor_leg,
+            )
+            self._store.record_route_reward(
+                epoch, f"execution_pool:{intent.dest_chain}",
+                route.route_id, exec_leg,
+            )
+
     def reload(self) -> None:
         """Re-read persisted routes from SQLite, replacing memory."""
         self._routes = {}
@@ -725,7 +946,11 @@ class BTCPOrchestrator:
         
         self._routes[route.route_id] = route
         self._persist_route(route)
-        
+        # BTCP gap #7: step 6 is the execution/recording phase — the route's
+        # akashic execution records land in the schema.sql btcp_* tables
+        # (intent registry, routes, cross-chain message, version sightings).
+        self._record_execution(route)
+
         execution_time = (time.perf_counter() - start_time) * 1000
         
         success = len(errors) == 0
@@ -750,6 +975,9 @@ class BTCPOrchestrator:
         route.status = status
         route.updated_at = time.time()
         self._persist_route(route)
+        # Gap #7 write-through: status changes reach the btcp_* projections
+        # too (terminal statuses finalize rows; COMPLETED pays the pools).
+        self._record_route_status(route)
         return True
     
     def list_routes(self) -> List[Dict[str, Any]]:
@@ -1078,7 +1306,35 @@ def self_test() -> Dict[str, Any]:
     assert (orchestrator2.get_route(cross_route.route_id).status
             == RouteStatus.COMPLETED)
     print("  Route persistence: second instance + reload() see tracked routes")
-    
+
+    # Akashic execution records (gap #7): the schema.sql btcp_* projections
+    # hold one row per route/intent/message, the completed route paid its
+    # validator pools, and a replayed status event is a no-op.
+    store = orchestrator._store
+    intents = store.read_btcp_table("btcp_intent_registry")
+    routes_rows = store.read_btcp_table("btcp_routes")
+    messages = store.read_btcp_table("btcp_cross_chain_messages")
+    rewards = store.read_btcp_table("btcp_route_rewards")
+    versions = store.read_btcp_table("btcp_version_registry")
+    assert len(intents) == len(routes_rows) == len(messages) == 5
+    assert all(r["intent_hash"].startswith("btcp_") for r in routes_rows)
+    cross_row = next(r for r in routes_rows if r["route_id"] == cross_route.route_id)
+    assert cross_row["status"] == "COMPLETED"
+    assert cross_row["finalized_at"] is not None
+    assert cross_row["anchor_chain"] == 1 and cross_row["execution_chain"] == 900
+    cross_intent_row = next(
+        i for i in intents if i["intent_hash"] == cross_route.intent.intent_id)
+    assert cross_intent_row["status"] == "COMPLETED"
+    assert cross_intent_row["completed_at"] is not None
+    assert len(rewards) == 2  # 60/40 anchor + execution pool legs
+    assert abs(sum(r["final_reward"] for r in rewards)
+               - cross_route.intent.amount * 0.001) < 1e-9
+    version_chains = {v["chain_id"] for v in versions}
+    assert version_chains == {1, 42161, 900}
+    orchestrator.update_route_status(cross_route.route_id, RouteStatus.COMPLETED)
+    assert len(store.read_btcp_table("btcp_route_rewards")) == 2  # replay: no double pay
+    print("  Akashic records: btcp_* rows landed, pools paid, replay is a no-op")
+
     # Test 4: ProofAggregator
     print("\n🧪 Test 4: ProofAggregator")
     aggregator = ProofAggregator()

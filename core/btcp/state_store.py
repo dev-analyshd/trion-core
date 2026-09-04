@@ -18,6 +18,15 @@ Design:
     modules own their to_row/from_row serialization (see e.g.
     ``core/btcp/escrow_monitor.py``) so this store never imports BTCP
     classes (no import cycles).
+  * The six ``btcp_*`` tables declared by the repo's ``schema.sql``
+    (btcp_intent_registry, btcp_routes, btcp_escrow_states,
+    btcp_version_registry, btcp_cross_chain_messages,
+    btcp_route_rewards) are created here as SQLite-compatible mirrors of
+    the Postgres/TimescaleDB DDL and written by the ``record_*`` methods —
+    schema.sql's tables are no longer dead DDL (BTCP gap #7).  Writers:
+    orchestrator step-6 execution records
+    (``core/btcp/orchestrator.py:_record_execution``), route-status
+    updates, and the ``save_escrow`` projection for escrow states.
   * All writes run inside a transaction; every read/write is guarded by the
     per-store lock.
 
@@ -66,6 +75,8 @@ __all__ = [
     "SCHEMA_VERSION",
     "DEFAULT_DB_PATH",
     "STATE_DB_ENV_VAR",
+    "BTCP_ADAPTER_VERSION",
+    "BTCP_PROJECTION_TABLES",
 ]
 
 SCHEMA_VERSION = 1
@@ -80,6 +91,170 @@ KIND_CASE      = "case"
 KIND_ANNOTATOR = "annotator"
 
 BALANCE_ROW_TYPE = "balance_v1"
+
+
+# ── schema.sql BTCP projection tables (gap #7) ──────────────────────────────
+# schema.sql declares six btcp_* tables as Postgres/TimescaleDB DDL; this
+# SQLite store is the operative BTCP database, so the DDL below mirrors the
+# schema.sql column names 1:1 with SQLite-compatible types
+# (BYTEA→TEXT hex, NUMERIC→REAL, TIMESTAMPTZ→REAL unix epoch, enums→TEXT,
+# BOOLEAN→INTEGER 0/1).  Deviations, all documented inline:
+#   * REFERENCES/FK constraints omitted (SQLite does not enforce them by
+#     default; the generic btcp_state store has always been FK-free).
+#   * btcp_escrow_states.chain_id / destination and
+#     btcp_cross_chain_messages.expiry_block are nullable here: the python
+#     EscrowMonitor is chain-agnostic and the orchestrator has no block
+#     height context — those columns are Rust-indexer domain.
+#   * btcp_route_rewards carries a UNIQUE(epoch, validator_address, route_id)
+#     index so replayed completion events cannot double-pay (schema.sql's
+#     BIGSERIAL id has no such guard).
+#   * btcp_escrow_states.state stores the python superset of the
+#     schema.sql enum (PENDING_AKASHIC, EMERGENCY_REVERTED included).
+# Writers: core/btcp/orchestrator.py (step-6 execution records + status
+# updates + route rewards) and this module's save_escrow projection.
+
+BTCP_ADAPTER_VERSION = "1.0.0"  # spec §4.1 default; VersionHandler min_verifier_version
+
+BTCP_PROJECTION_TABLES = (
+    "btcp_intent_registry",
+    "btcp_routes",
+    "btcp_escrow_states",
+    "btcp_version_registry",
+    "btcp_cross_chain_messages",
+    "btcp_route_rewards",
+)
+
+_BTCP_TABLE_DDL = (
+    """
+    CREATE TABLE IF NOT EXISTS btcp_intent_registry (
+        intent_hash         TEXT    PRIMARY KEY,
+        entity_id           TEXT    NOT NULL,
+        action              TEXT    NOT NULL,
+        asset_in            TEXT,
+        asset_out           TEXT,
+        magnitude           REAL    NOT NULL,
+        source_chain_id     INTEGER NOT NULL,
+        deadline_block      INTEGER,
+        deadline_ts         REAL,
+        max_gas_usd         REAL,
+        min_finality        INTEGER DEFAULT 1,
+        min_nl_score        REAL    DEFAULT 0.30,
+        chain_pref          TEXT    DEFAULT 'OPTIMAL',
+        privacy_mode        TEXT    DEFAULT 'PUBLIC',
+        btcp_version        TEXT    NOT NULL DEFAULT '1.0.0',
+        nonce               INTEGER NOT NULL DEFAULT 0,
+        route_selected      TEXT,
+        status              TEXT    DEFAULT 'PENDING',
+        btcp_score          REAL,
+        created_at          REAL    NOT NULL,
+        routed_at           REAL,
+        completed_at        REAL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS btcp_routes (
+        route_id                TEXT    PRIMARY KEY,
+        intent_hash             TEXT    NOT NULL,
+        route_type              TEXT    NOT NULL,
+        anchor_bh               TEXT    NOT NULL,
+        execution_bh            TEXT,
+        anchor_chain            INTEGER NOT NULL,
+        execution_chain         INTEGER NOT NULL,
+        entity_id               TEXT    NOT NULL,
+        counterparty_entity_id  TEXT,
+        btcp_score              REAL    NOT NULL,
+        nl_score                REAL,
+        gas_saved_vs_bridge     REAL,
+        gas_saved_vs_single     REAL,
+        gas_total_usd           REAL,
+        beo_continuity_score    REAL,
+        cc_coherence            REAL,
+        mf_score                REAL,
+        consensus_hhi           REAL,
+        coherence_at_emission   REAL,
+        travel_rule_proof       TEXT,
+        btcp_version            TEXT    NOT NULL DEFAULT '1.0.0',
+        status                  TEXT    NOT NULL DEFAULT 'PENDING',
+        failure_cause           TEXT,
+        created_at              REAL    NOT NULL,
+        finalized_at            REAL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS btcp_escrow_states (
+        escrow_id           TEXT    PRIMARY KEY,
+        route_id            TEXT    NOT NULL,
+        entity_id           TEXT    NOT NULL,
+        chain_id            INTEGER,           -- schema.sql: NOT NULL (Rust layer knows the chain)
+        contract_address    TEXT,
+        amount              REAL    NOT NULL,
+        token_address       TEXT,
+        lock_block          INTEGER NOT NULL,
+        timeout_blocks      INTEGER NOT NULL DEFAULT 300,
+        state               TEXT    NOT NULL DEFAULT 'HOLDING',
+        destination         TEXT,              -- schema.sql: NOT NULL (Rust layer knows it)
+        tx_hash_lock        TEXT,
+        tx_hash_release     TEXT,
+        created_at          REAL    NOT NULL,
+        resolved_at         REAL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS btcp_version_registry (
+        chain_id                INTEGER NOT NULL,
+        adapter_version         TEXT    NOT NULL,
+        min_verifier_version    TEXT    NOT NULL DEFAULT '1.0.0',
+        feature_flags           TEXT    NOT NULL DEFAULT '{}',
+        registered_at           REAL    NOT NULL,
+        last_seen_at            REAL    NOT NULL,
+        is_deprecated           INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (chain_id, adapter_version)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS btcp_cross_chain_messages (
+        message_id          TEXT    PRIMARY KEY,   -- SHA3 replay-prevention ID
+        msg_type            TEXT    NOT NULL,
+        sender_entity_id    TEXT    NOT NULL,
+        sender_chain        INTEGER NOT NULL,
+        target_chain        INTEGER NOT NULL,
+        nonce               INTEGER NOT NULL,
+        expiry_block        INTEGER,               -- schema.sql: NOT NULL (block heights are indexer domain)
+        expiry_ts           REAL    NOT NULL,
+        payload_hash        TEXT    NOT NULL,
+        btcp_version        TEXT    NOT NULL DEFAULT '1.0.0',
+        status              TEXT    NOT NULL DEFAULT 'ACCEPTED',
+        reject_reason       TEXT,
+        created_at          REAL    NOT NULL
+    )
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_nonce_unique
+        ON btcp_cross_chain_messages (sender_entity_id, sender_chain, target_chain, nonce)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS btcp_route_rewards (
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        epoch                   INTEGER NOT NULL,
+        validator_address       TEXT    NOT NULL,
+        route_id                TEXT,
+        base_reward             REAL    NOT NULL DEFAULT 0,
+        coverage_bonus_factor   REAL    NOT NULL DEFAULT 1.0,
+        emergency_multiplier    REAL    NOT NULL DEFAULT 1.0,
+        final_reward            REAL    NOT NULL DEFAULT 0,
+        diversity_weight        REAL    NOT NULL DEFAULT 1.0,
+        coverage_rate           REAL    NOT NULL DEFAULT 1.0,
+        uptime_7d               REAL    NOT NULL DEFAULT 1.0,
+        rewarded_at             REAL    NOT NULL
+    )
+    """,
+    # Idempotency guard (deviation from schema.sql, see block comment above):
+    # a replayed route-completion event must not double-pay the pools.
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rewards_replay_guard
+        ON btcp_route_rewards (epoch, validator_address, route_id)
+    """,
+)
 
 
 # ── Test-context detection ──────────────────────────────────────────────────
@@ -202,6 +377,12 @@ class BtcpStateStore:
                         PRIMARY KEY (kind, key)
                     )
                 """)
+                # BTCP gap #7: the schema.sql btcp_* tables exist (and get
+                # written) in the operative SQLite store too. CREATE TABLE IF
+                # NOT EXISTS makes this a no-op on already-initialized stores,
+                # so pre-gap-#7 databases are migrated in place, idempotently.
+                for ddl in _BTCP_TABLE_DDL:
+                    self._conn.execute(ddl)
                 row = self._conn.execute(
                     "SELECT value FROM btcp_meta WHERE key = 'schema_version'"
                 ).fetchone()
@@ -297,6 +478,38 @@ class BtcpStateStore:
     # Escrows (escrow_monitor)
     def save_escrow(self, escrow_id: str, payload: Any, type_tag: str) -> None:
         self.save(KIND_ESCROW, escrow_id, payload, type_tag)
+        # BTCP gap #7: escrow_monitor's write-through also lands in the
+        # schema.sql btcp_escrow_states projection (same payload, same key).
+        # Only rows that actually look like escrow_monitor's escrow_v1 rows
+        # are projected — a generic/partial payload is skipped, and a
+        # projection failure must never break the module's own write path.
+        if type_tag == "escrow_v1" and isinstance(payload, dict):
+            try:
+                self._project_escrow_row(escrow_id, payload)
+            except Exception:
+                pass
+
+    def _project_escrow_row(self, escrow_id: str, payload: Dict[str, Any]) -> None:
+        """escrow_monitor's escrow_v1 row → btcp_escrow_states projection."""
+        required = ("route_id", "entity_id", "amount", "lock_block")
+        if any(payload.get(k) is None for k in required):
+            return  # not a full escrow row (e.g. self-test partial payload)
+        resolved_at = payload.get("settled_at")
+        if resolved_at is None:
+            resolved_at = payload.get("reverted_at")
+        self.record_escrow(
+            escrow_id,
+            route_id=str(payload["route_id"]),
+            entity_id=str(payload["entity_id"]),
+            amount=float(payload["amount"]),
+            lock_block=int(payload["lock_block"]),
+            timeout_blocks=int(payload.get("timeout_blocks", 300)),
+            state=str(payload.get("state", "HOLDING")),
+            created_at=payload.get("lock_timestamp"),
+            resolved_at=resolved_at,
+            # chain_id / destination / contract_address / tx hashes are
+            # Rust-escrow-layer fields — NULL here (see DDL comment).
+        )
 
     def get_escrows(self) -> Dict[str, Tuple[str, Any]]:
         return self.load_all(KIND_ESCROW)
@@ -317,6 +530,136 @@ class BtcpStateStore:
 
     def get_annotators(self) -> Dict[str, Tuple[str, Any]]:
         return self.load_all(KIND_ANNOTATOR)
+
+    # ── schema.sql btcp_* projection writers (gap #7) ────────────────────
+    # These mirror the schema.sql tables column-for-column.  All writers are
+    # idempotent (upserts keyed on the table PK / replay guards) so a re-run
+    # of the orchestrator sequence neither duplicates rows nor crashes.
+
+    def _btcp_upsert(self, table: str, row: Dict[str, Any],
+                     ignore: bool = False) -> None:
+        """INSERT (OR REPLACE | OR IGNORE) into a btcp_* projection table.
+
+        Unknown column names are dropped (typo protection); values use the
+        row dict's own types (SQLite stores them per-column affinity).
+        """
+        if table not in BTCP_PROJECTION_TABLES:
+            raise ValueError(f"not a btcp_* projection table: {table!r}")
+        cols = [c for c in row if self._is_btcp_column(table, c)]
+        if not cols:
+            return
+        verb = "INSERT OR IGNORE" if ignore else "INSERT OR REPLACE"
+        sql = (
+            f"{verb} INTO {table} ({', '.join(cols)}) "
+            f"VALUES ({', '.join('?' * len(cols))})"
+        )
+        with self._lock:
+            with self._conn:
+                self._conn.execute(sql, tuple(row[c] for c in cols))
+
+    def _is_btcp_column(self, table: str, column: str) -> bool:
+        """True when ``column`` exists in ``table`` (cached per connection)."""
+        cache = getattr(self, "_btcp_columns", None)
+        if cache is None:
+            cache = self._btcp_columns = {}
+        if table not in cache:
+            rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+            cache[table] = {r[1] for r in rows}
+        return column in cache[table]
+
+    def record_intent(self, intent_hash: str, **columns: Any) -> None:
+        """Upsert one btcp_intent_registry row (schema.sql §Intent Registry)."""
+        row = {"intent_hash": intent_hash, **columns}
+        if "created_at" not in row or row["created_at"] is None:
+            row["created_at"] = time.time()
+        self._btcp_upsert("btcp_intent_registry", row)
+
+    def record_route(self, route_id: str, **columns: Any) -> None:
+        """Upsert one btcp_routes row (schema.sql §BTCP Routes)."""
+        row = {"route_id": route_id, **columns}
+        if "created_at" not in row or row["created_at"] is None:
+            row["created_at"] = time.time()
+        self._btcp_upsert("btcp_routes", row)
+
+    def record_escrow(self, escrow_id: str, **columns: Any) -> None:
+        """Upsert one btcp_escrow_states row (schema.sql §Escrow States)."""
+        row = {"escrow_id": escrow_id, **columns}
+        if "created_at" not in row or row["created_at"] is None:
+            row["created_at"] = time.time()
+        self._btcp_upsert("btcp_escrow_states", row)
+
+    def record_cross_chain_message(self, message_id: str, **columns: Any) -> None:
+        """Insert one btcp_cross_chain_messages row (replay-prevention log).
+
+        INSERT OR IGNORE: the message_id PK (and the unique
+        (sender, source, target, nonce) index) make re-broadcasting the same
+        message a no-op instead of a duplicate audit-trail row.
+        """
+        row = {"message_id": message_id, **columns}
+        if "created_at" not in row or row["created_at"] is None:
+            row["created_at"] = time.time()
+        self._btcp_upsert("btcp_cross_chain_messages", row, ignore=True)
+
+    def record_route_reward(self, epoch: int, validator_address: str,
+                            route_id: Optional[str], base_reward: float,
+                            final_reward: Optional[float] = None,
+                            **columns: Any) -> None:
+        """Insert one btcp_route_rewards row (schema.sql §Route Rewards, Fix 4).
+
+        Idempotent via the (epoch, validator_address, route_id) replay guard:
+        a route-completion event replayed by a supervisor does not double-pay.
+        """
+        row = {
+            "epoch": int(epoch),
+            "validator_address": validator_address,
+            "route_id": route_id,
+            "base_reward": float(base_reward),
+            "final_reward": float(
+                final_reward if final_reward is not None else base_reward
+            ),
+            "rewarded_at": time.time(),
+            **columns,
+        }
+        self._btcp_upsert("btcp_route_rewards", row, ignore=True)
+
+    def record_version(self, chain_id: int,
+                       adapter_version: str = BTCP_ADAPTER_VERSION,
+                       min_verifier_version: str = "1.0.0",
+                       feature_flags: Optional[Dict[str, Any]] = None) -> None:
+        """Upsert one btcp_version_registry row for a chain the engine touched.
+
+        Registers the (chain_id, adapter_version) pair on first sight and
+        refreshes last_seen_at on every subsequent route — per-chain adapter
+        version tracking for protocol upgrade routing (§2.16).
+        """
+        now = time.time()
+        flags = json.dumps(feature_flags or {}, sort_keys=True)
+        with self._lock:
+            with self._conn:
+                self._conn.execute(
+                    """
+                    INSERT INTO btcp_version_registry
+                        (chain_id, adapter_version, min_verifier_version,
+                         feature_flags, registered_at, last_seen_at, is_deprecated)
+                    VALUES (?, ?, ?, ?, ?, ?, 0)
+                    ON CONFLICT (chain_id, adapter_version)
+                    DO UPDATE SET last_seen_at = excluded.last_seen_at
+                    """,
+                    (int(chain_id), adapter_version, min_verifier_version,
+                     flags, now, now),
+                )
+
+    def read_btcp_table(self, table: str) -> list:
+        """Read every row of a btcp_* projection table as dicts (whitelisted)."""
+        if table not in BTCP_PROJECTION_TABLES:
+            raise ValueError(f"not a btcp_* projection table: {table!r}")
+        with self._lock:
+            self._conn.row_factory = sqlite3.Row
+            try:
+                rows = self._conn.execute(f"SELECT * FROM {table}").fetchall()
+            finally:
+                self._conn.row_factory = None
+        return [dict(r) for r in rows]
 
     # ── Lifecycle ───────────────────────────────────────────────────────
 
@@ -381,6 +724,55 @@ if __name__ == "__main__":
     ).fetchone()[0]
     assert int(version) == SCHEMA_VERSION
     print(f"✓ schema_version = {SCHEMA_VERSION}")
+
+    # Test 7: the six schema.sql btcp_* projection tables exist and round-trip
+    for table in BTCP_PROJECTION_TABLES:
+        n = store._conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()[0]
+        assert n == 1, f"missing projection table {table}"
+    store.record_intent(
+        "ih1", entity_id="0xabc", action="TRANSFER", magnitude=1000.0,
+        source_chain_id=1, nonce=7, status="ROUTING",
+    )
+    store.record_intent(
+        "ih1", entity_id="0xabc", action="TRANSFER", magnitude=1000.0,
+        source_chain_id=1, nonce=7, status="COMPLETED", completed_at=1.5,
+    )  # upsert — one row, latest status
+    intents = store.read_btcp_table("btcp_intent_registry")
+    assert len(intents) == 1 and intents[0]["status"] == "COMPLETED"
+    store.record_cross_chain_message("m1", msg_type="IntentBroadcast",
+                                     sender_entity_id="0xabc", sender_chain=1,
+                                     target_chain=137, nonce=7, expiry_ts=99.0,
+                                     payload_hash="0x" + "00" * 32)
+    store.record_cross_chain_message("m1", msg_type="IntentBroadcast",
+                                     sender_entity_id="0xabc", sender_chain=1,
+                                     target_chain=137, nonce=7, expiry_ts=99.0,
+                                     payload_hash="0x" + "00" * 32)  # replay
+    assert len(store.read_btcp_table("btcp_cross_chain_messages")) == 1
+    store.record_route_reward(0, "anchor_pool:1", "route_1", 60.0)
+    store.record_route_reward(0, "anchor_pool:1", "route_1", 60.0)  # replay
+    assert len(store.read_btcp_table("btcp_route_rewards")) == 1
+    store.record_version(1)
+    store.record_version(1)  # upsert — last_seen_at refreshes, one row
+    versions = store.read_btcp_table("btcp_version_registry")
+    assert len(versions) == 1 and versions[0]["adapter_version"] == "1.0.0"
+    print("✓ six btcp_* projection tables round-trip + idempotent")
+
+    # Test 8: escrow_v1 write-through projects into btcp_escrow_states
+    store.save_escrow("esc9", {
+        "escrow_id": "esc9", "route_id": "route_1", "entity_id": "01" * 16,
+        "amount": 5.0, "lock_block": 10, "lock_timestamp": 1000.0,
+        "timeout_blocks": 300, "state": "HOLDING", "revert_reason": "TIMEOUT",
+        "settled_at": None, "reverted_at": None, "parent_escrow_id": None,
+        "settlement_verified": False,
+    }, "escrow_v1")
+    escrows = store.read_btcp_table("btcp_escrow_states")
+    assert len(escrows) == 1 and escrows[0]["route_id"] == "route_1"
+    assert escrows[0]["state"] == "HOLDING"
+    assert store2.get_escrows()["esc9"][1]["amount"] == 5.0  # original path intact
+    print("✓ escrow write-through projects into btcp_escrow_states")
 
     store.close()
     store2.close()
