@@ -2536,6 +2536,18 @@ def zg_sync_trigger():
     Runs zg_storage_sync.mjs in the background (non-blocking).
     Returns immediately with job status.
     """
+    # RED-4-F1: an external-storage sync publishes current truth state —
+    # while the AWA EmissionGate is frozen, it fails closed (silence is
+    # information, MD §17) exactly like /api/v1/zg/da/submit.
+    from core.governance.awa import assert_emission_allowed, EmissionFrozenError
+    try:
+        assert_emission_allowed("VALUATION")
+    except EmissionFrozenError as exc:
+        return jsonify({
+            "error": "awa_emission_frozen",
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
+        }), 503
     import subprocess, os as _os
     root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
     sync_script = _os.path.join(root, "scripts", "zg_storage_sync.mjs")
@@ -2634,6 +2646,18 @@ def zg_storage_store():
     POST body: { entity_id, coherence_score, ... } or uses live signal if GET.
     Returns Merkle root + 0G storage receipt.
     """
+    # RED-4-F1: external truth publication surface — while the AWA
+    # EmissionGate is frozen, storage publication fails closed (silence is
+    # information, MD §17) exactly like /api/v1/zg/da/submit.
+    from core.governance.awa import assert_emission_allowed, EmissionFrozenError
+    try:
+        assert_emission_allowed("VALUATION")
+    except EmissionFrozenError as exc:
+        return jsonify({
+            "error": "awa_emission_frozen",
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
+        }), 503
     if request.method == "POST":
         try:
             signal = request.get_json(force=True) or {}
@@ -2712,6 +2736,18 @@ def zg_compute_infer():
     GET:  ?id=<entity_id>&prompt=<text>
     Falls back to local FAISS when 0G Compute unavailable.
     """
+    # RED-4-F1: routing analysis through an external compute network while
+    # emission is frozen publishes entity behavioral truth off-box — fail
+    # closed (silence is information, MD §17) exactly like /api/v1/zg/da/submit.
+    from core.governance.awa import assert_emission_allowed, EmissionFrozenError
+    try:
+        assert_emission_allowed("VALUATION")
+    except EmissionFrozenError as exc:
+        return jsonify({
+            "error": "awa_emission_frozen",
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
+        }), 503
     if request.method == "POST":
         body      = request.get_json(force=True) or {}
         entity_id = body.get("entity_id", "trion-protocol")
