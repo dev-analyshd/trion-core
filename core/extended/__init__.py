@@ -54,7 +54,12 @@ from .sovereign_behavioral import (
 from .xsl_engine import (
     CrossChainBehavior,
     compute_tv, compute_fs, compute_rr, compute_tp,
-    compute_xsl, compute_xsl_full,
+    # xsl_engine's scalar XSL formula (L9.1 cross-chain behavioural XSL).
+    # The canonical `compute_xsl` export of this package is the L9
+    # cross-species (GBIF/IUCN) compute_xsl from .cross_species above;
+    # xsl_engine's homonymous function is aliased here so it stays importable
+    # without shadowing it.
+    compute_xsl as compute_xsl_engine, compute_xsl_full,
     XSL_KEYSTONE, XSL_BRIDGE,
 )
 
@@ -91,9 +96,11 @@ __all__ = [
     'compute_governance_quality', 'compute_crypto_behavior', 'compute_sba',
     'apply_economic_snapshot', 'fetch_and_apply_economic_snapshot',
     'W_E', 'W_I', 'W_S', 'W_G', 'W_C',
-    # XSL Engine
+    # XSL Engine (L9.1 — cross-chain behavioural XSL; its scalar
+    # compute_xsl is exported as compute_xsl_engine to avoid shadowing
+    # the canonical cross-species compute_xsl above)
     'CrossChainBehavior',
     'compute_tv', 'compute_fs', 'compute_rr', 'compute_tp',
-    'compute_xsl', 'compute_xsl_full',
+    'compute_xsl_engine', 'compute_xsl_full',
     'XSL_KEYSTONE', 'XSL_BRIDGE',
 ]
