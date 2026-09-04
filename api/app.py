@@ -6524,9 +6524,9 @@ def phase_transition():
     Beyond Ψ_c: centralized manipulation structurally impossible.
     """
     # Estimate current Ψ(t) from known oracle market data
-    # TRION covers 37 chains, indexes ~300k+ BH records
+    # TRION's registry covers 129 chains (41 with a live indexer + oracle)
     # Total oracle market ~$8B AUM, endogenous oracles ~$150M
-    trion_chains      = 37
+    trion_chains      = _registry_chain_counts()["chains_indexed"]
     total_chains_est  = 100
     defi_tvl_billion  = 85.0
     trion_coverage_pct= trion_chains / total_chains_est
