@@ -83,8 +83,10 @@ services:
       # ── SVM: Solana Indexer ────────────────────────────────────────────────
       - key: SOLANA_RPC_URL
         value: "https://api.devnet.solana.com"
+      # canonical registry id for Solana Devnet (config/chain_registry.json);
+      # the old value 103 matched no registry entry (mainnet is 900)
       - key: SOLANA_CHAIN_ID
-        value: "103"
+        value: "901"
       - key: SOLANA_LABEL
         value: "SOLANA_DEVNET"
       - key: POLL_SLEEP_MS
