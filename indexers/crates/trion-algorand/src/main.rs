@@ -11,6 +11,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
+    hex_to_32bytes,
     freq_entropy, histogram_entropy,
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
@@ -180,9 +181,15 @@ async fn main() -> Result<()> {
             let eid = block_entity_id(CHAIN_LBL, round);
             let bh = bh_id(&eid);
             let vector = build_vector(&features, &format!("{}:{}", CHAIN_LBL, round));
+            // CANONICAL_BH.md §9 — lenient hex decode of the chain's real block hash
+            // (byte-identical to the Python/TS pipelines). The old SHA3
+            // substitution (bh_id(block_hash)) was unreproducible
+            // cross-language. Missing hash -> canonical "0x0".
             let block_hash_hex = if block_hash.is_empty() {
-                bh_id(&format!("algorand_round:{}:{}", CHAIN_LBL, round))
-            } else { bh_id(&block_hash) };
+                "0x0".to_string()
+            } else {
+                hex::encode(hex_to_32bytes(block_hash.trim_start_matches("0x")))
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {
