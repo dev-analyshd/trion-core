@@ -214,6 +214,8 @@ BTCP flows like water through the multi-chain ecosystem — adapting to any medi
 
 Three phases: **CUT** (post commitment to Akashic clipboard, assets untouched) → **MATCH** (scan for complementary intent) → **PASTE** (dual-chain native release). Exchange rate from TRION behavioral price oracle. Manipulation-resistant because it's backed by accumulated behavioral history.
 
+> **Spec confidence (BTCP spec probability table): 70%.** BITP is the spec's highest-confidence mechanism but remains unproven at production scale.
+
 #### 2. Water Through Rock — Observation-Only Anchoring (OOA)
 **Problem**: Non-integrated chains cannot produce native BTCP signals.
 **Solution**: TRION's Channel 6 reads ANY chain without permission. Blockchains are public by definition.
@@ -238,7 +240,9 @@ Partial fills accepted (water flows through available cracks even if not all at 
 
 #### 6. Water Underground — ZK Intent Commitment (MEV Privacy)
 **Problem**: BTCP broadcasts intent direction. MEV bots front-run.
-**Solution**: Four-phase ZK protocol: **Commit** (hash only, MEV sees nothing) → **Match** (ZK proof of complementarity, no content revealed) → **Atomic Reveal** (both in same block) → **Execution** (already committed before bots see it). Front-running window: zero.
+**Solution**: Four-phase ZK protocol: **Commit** (hash only, MEV sees nothing) → **Match** (ZK proof of complementarity, no content revealed) → **Atomic Reveal** (both in same block) → **Execution** (already committed before bots see it). Front-running window: zero *by design intent*.
+
+> **Spec confidence: 60%** — the ZK layer is a Groth16-style simulation in software; the Circom circuits ship without zkeys or proofs (see ZK Limitations below).
 
 #### 7. Water as Vapor — Behavioral State Channels (BSC)
 **Problem**: Protocol needing 50+ cross-chain interactions/hour pays full anchor cost each time.
@@ -290,28 +294,39 @@ Each new chain at step N instantly establishes BTCP capability with **all N-1 pr
 
 ## Reported Results — Backtest & Verification Status
 
-### Historical Backtest
+### Historical Backtest (v2 — recalibrated)
 
-> **Honest disclosure (per DD report §6.1):** The original backtest reported F1=85.71%
-> but had a false-positive rate of 1.0 (all 10 legitimate controls were incorrectly
-> flagged as attackers). The threshold was set too low. A held-out 67/33 split with
-> proper Wilson 95% CI was added (audit finding #26) but the original circular backtest
-> is retained for reference. The backtest requires recalibration with a higher threshold
-> to produce valid precision/recall metrics.
+> **Honest disclosure (per DD report §6.1):** the original backtest (v1, retained at
+> `backtest/results/backtest_report_degenerate_v1.json`) was a degenerate flag-everything
+> run: FPR = 1.0, TN = 0, both cohorts at coherence 0.0, zero separation, and every
+> five-plane payload empty. It was recalibrated in September 2026: a replay engine now
+> feeds the measured event features of 30 real exploits and 10 controls through the
+> production pipeline (entropy → manipulation fingerprints → five-plane coherence), and
+> the flag threshold is picked by Youden's J on a disclosed grid. Full artifact lineage
+> is in `backtest/results/PROVENANCE.md`.
 
-| Metric | Result | Notes |
-|--------|--------|-------|
-| Exploits tested | 30 real-world incidents | Ronin, Poly Network, Wormhole, Euler, etc. |
-| Cumulative value at risk | $3.315 billion | |
-| True positives (attackers caught) | 30 / 30 | 100% recall — degenerate flag-everything run (see FPR=1.0 below) |
-| False positives (legitimates flagged) | 10 / 10 | **FPR=1.0 — threshold too low** |
-| True negatives | 0 / 10 | No legitimate entity passed — needs recalibration |
-| F1 Score | 85.71% | Inflated by FPR=1.0 — not a valid generalization metric |
-| Held-out split (67/33) | Wilson 95% CI | Added per audit finding #26 |
+| Metric | v1 (degenerate) | v2 (current) |
+|--------|-----------------|--------------|
+| Exploits tested | 30 real-world incidents | 30 real-world incidents (Ronin, Poly, Wormhole, Euler, …) |
+| Cumulative value at risk | $3.315 billion | $3.315 billion |
+| True positives | 30/30 — by flagging everything | **30/30** |
+| False positives | **10/10 (FPR = 1.0)** | **0/10 (FPR = 0.00)** |
+| True negatives | 0/10 | **10/10** |
+| Precision | 0.75 | **1.00** |
+| F1 | 85.71% (inflated) | **1.00** (on well-separated synthetic cohorts — see caveat) |
+| Avg attacker coherence | 0.0 | 0.443 (range 0.347–0.534) |
+| Avg control coherence | 0.0 | 0.759 (range 0.686–0.787) |
+| Separation delta | 0.0 | **0.316** |
+| Per-event plane payloads | empty `{}` | all 40 populated (Φ/M/Σ/K/A + raw features) |
+| Threshold | 0.55 default | 0.54 (Youden's J, grid 0.30–0.85, disclosed) |
+| Held-out split (67/33) | never run | **test recall 1.00, Wilson 95% CI [0.72, 1.00]**; threshold frozen on train only; Cohen's d 7.78 |
 
-**Known issue:** The backtest threshold needs recalibration so legitimate entities
-pass the coherence check. The current threshold flags everything, producing 100%
-recall but 0% specificity. This is documented honestly rather than hidden.
+**Caveats, stated plainly:** these are replay results on reconstructed event streams,
+not live-detection proof — the perfect confusion matrix reflects well-separated synthetic
+cohorts, and the held-out Wilson CI [0.72, 1.00] is the honest generalization bound. The
+original on-chain proof (`backtest/results/onchain_proof.json`) anchors the **v1** numbers
+and is marked `superseded` — it remains as a historical record of what was published,
+including its flaws.
 
 ### BTCP Zero-Bridge — Cross-VM Validation
 Successfully demonstrated across fundamentally different virtual machine families. **In all tests, no asset ever left its native chain.**
@@ -329,16 +344,17 @@ Successfully demonstrated across fundamentally different virtual machine familie
 | Test Domain | Result | Key Finding |
 |-------------|--------|-------------|
 | **Living Security (GK)** | 14/14 PASS | Stolen key invalidation, XOR invariant, immune system, mitochondrial integrity |
-| **Consensus Security** | 6/6 PASS | 50 sybils with 75.8% nominal stake → 0.00% effective power |
-| **Love Protocol** | 5/5 PASS | Love=0 → F=0 in all cases. No override mechanism found in source audit. |
-| **Resonance Properties** | 95/95 PASS | Symmetry, non-transitivity, VM-agnosticism, monotonicity |
+| **Consensus Security** | 6/6 PASS (measured, `test_consensus_bft.py`) | 50 sybils holding 75.76% nominal stake (copied behavioral vectors, 50-of-66) → **0.00% effective power**; honest validators retain 100%. **Caveat, measured:** at cartel pairwise correlation 0.5 the sybils still retain 49.2% of effective power — the 2/3 safety bound is broken at intermediate coordination; the collapse-to-zero case requires near-perfect copying |
+| **Love Protocol** | 5/5 PASS (7 tests exist) | Love=0 → F=0 in all cases. No override mechanism found in source audit. |
+| **Resonance Properties** | 95/95 PASS | Requires live services (oracle :5000 + FAISS :8000) via `scripts/deep_resonance_test.py` — not runnable in CI; treat as service-integration results, not unit-tested properties |
 | **BEO Cross-VM Identity** | 5/5 PASS | 6 different VMs → byte-for-byte identical beo_id |
 | **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
-| **Master Formula Suite** | 104/105 (bare env) | PQC check requires optional crypto libs — 105/105 only with them (audit finding); every other whitepaper formula verified against its implementation (L0–L9) |
+| **Master Formula Suite** | 105/105 (with PQC libs); PQC checks now SKIP with reason on a bare env instead of failing | Every other whitepaper formula verified against its implementation (L0–L9) |
 | **Rust BTCP Crate** | 146 `#[test]` fns — not compiled here (as of 2026-09-03) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
 | **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
-| **Python Unit + Adversarial** | 603 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
+| **Python Unit + Adversarial** | 609 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
+| **Go BFT Consensus** | 15 tests PASS (`go test ./internal/consensus/...`) | Tendermint-style engine: round-0 commits, byzantine equivocator slashed + tombstoned while chain commits, view-change liveness, deterministic replay, strict >2/3 commit boundary |
 
 ---
 
@@ -616,8 +632,8 @@ The institutional terminal frontend — every element wired to live Oracle data
 (no mock data, no placeholders). 9 hash-routed views: Command Center (T(t)
 master equation, coherence radar, moat decomposition, live BH stream), Signal
 Feed, BTCP Zero-Bridge (interactive K1 route simulator with fail-closed
-presets, escrow FSM, streamer control), Chain Coverage (160 unique chains ·
-22 VM families), Five-Plane Coherence (11 weight profiles), Security &
+presets, escrow FSM, streamer control), Chain Coverage (129 chains · 18 VM
+families, from config/chain_registry.json), Five-Plane Coherence (11 weight profiles), Security &
 Consensus (DW-BFT, HHI monitor, manipulation firewall), Governance & AWA
 (Love CLV, falsifiability registry), HashDNA Primitives (interactive hasher),
 Entity Explorer. Same-origin proxy architecture — the browser never issues
@@ -910,7 +926,7 @@ TRION is infrastructure for the next era of the internet. It is for:
 - **Entrepreneurs** building the witnessed economy where opportunity follows demonstrated ability
 - **Anyone** who believes that identity should be earned through action, not granted through permission
 
-The mathematics is proven. The code is working. The BTCP Zero-Bridge operates across six VM families. The moat is compounding.
+The mathematics is implemented and tested. The code is working. The BTCP Zero-Bridge's cross-VM coverage is demonstrated on testnet with simulated BTC legs (spec confidence for full bridge elimination at scale: 30%). The moat is compounding.
 
 **What will you build on the verification layer of the future?**
 
@@ -931,10 +947,11 @@ The BTCP Zero-Bridge was reportedly deployed and tested across **5 blockchain ne
 | **EVM ETH Sepolia** | 1 (BTCPEscrow) | Self-reported — evm_sepolia.json (conflicting addresses in proof-ledger/) |
 | **NEAR testnet** | 1 (BTCPContract on trion.testnet) | Self-reported — near_testnet.json (deploy-script target only) |
 | **Solana devnet** | 1 (Native BTCP Escrow program) | ❌ Not deployed — fabricated record purged (solana_devnet.json) |
+| **0G Mainnet (chainId 16661)** | 1 (TRIONExecutionGate) | Self-reported — deploy_zerog_mainnet.json. **The only mainnet-record deployment in the corpus**; single transaction, deployment-gate function only, not independently verified. Everything else above is testnet. |
 
 ### Key Results
 
-- **BEO Cross-VM Identity:** 8 VMs (Starknet, EVM×4, NEAR, Solana, TON) all produce the **identical BEO ID** for the same entity — substrate independence demonstrated in the recorded test reports (self-reported; the cross-VM evidence scripts in this repo cannot be re-run end-to-end — see docs/deep-read/FINDINGS.md).
+- **BEO Cross-VM Identity:** 8 VMs (Starknet, EVM×4, NEAR, Solana, TON) all produce the **identical BEO ID** for the same entity — self-reported; this is determinism of the same hash over the same normalized identifier, which is necessary but **not sufficient** as evidence of cross-VM behavioral equivalence (see docs/deep-read/FINDINGS.md).
 - **BTCP Score:** `0.8274` (≥ 0.50 threshold → ROUTE APPROVED)
 - **Bidirectional Zero-Bridge Test:** 9/9 phases passed (Starknet ↔ EVM ↔ NEAR ↔ Solana ↔ TON)
 - **Zero-Bridge Invariant:** `assets_bridged = false` — **no assets ever left their native chains**
@@ -979,5 +996,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 14 VM families — test counts as of 2026-09-03: pytest 603 unit + 121 adversarial + 186 integration; 146 Rust `#[test]` (not compiled here); hardhat 43*  
+*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 18 VM families — test counts as of 2026-09-03: pytest 609 unit + 121 adversarial + 186 integration; 146 Rust `#[test]` (not compiled here); hardhat 43; go 15*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
