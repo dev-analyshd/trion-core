@@ -162,7 +162,7 @@ pub fn classify_event_type(selector: &str) -> u8 {
         //   DEPLOY (11)       — has no method selector at all (empty `to`/`input`
         //                       on contract creation); classified by the caller
         //                       via input-length/`to==None` check, not here.
-        //   MEV_CAPTURE (17)  — not a single-call pattern (sandwich/backrun
+        //   MEV_CAPTURE (16)  — not a single-call pattern (sandwich/backrun
         //                       arbitrage spans multiple txs in a block); no
         //                       4-byte selector can identify it. Left to the
         //                       existing multi-tx behavioral heuristic in
