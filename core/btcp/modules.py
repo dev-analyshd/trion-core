@@ -550,10 +550,27 @@ class IntentAggregator:
         return []
 
     def compute_per_user_gas(self, total_gas: float, num_users: int) -> float:
-        """Per-user gas after aggregation."""
+        """Per-user gas after aggregation — equal split.
+
+        This is the uniform-value special case of the spec formula (all
+        participants hold equal value); use compute_per_user_gas_weighted
+        for the general case."""
         if num_users <= 0:
             return total_gas
         return total_gas / num_users
+
+    def compute_per_user_gas_weighted(self, total_gas: float, user_value: float, total_value: float) -> float:
+        """Per-user gas, VALUE-WEIGHTED per BTCP spec §5.3:
+
+            user_gas = G_total × (value_user / total_value)
+
+        Mirrors rust/src/intent_aggregator.rs compute_per_user_gas_weighted.
+        When every participant's value is equal this reduces to the equal
+        split above (which is why the 100×-savings claim holds for uniform
+        pools)."""
+        if total_value <= 0:
+            return total_gas
+        return total_gas * user_value / total_value
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1071,6 +1088,8 @@ if __name__ == "__main__":
     pool = ia.find_aggregation_pool(intents)
     assert len(pool) >= 3
     assert ia.compute_per_user_gas(0.80, 100) == 0.008
+    assert abs(ia.compute_per_user_gas_weighted(0.80, 1.0, 100.0) - 0.008) < 1e-12
+    assert abs(ia.compute_per_user_gas_weighted(0.80, 30.0, 100.0) - 0.24) < 1e-9
     print(f"✓ Module 2.7: IntentAggregator")
 
     # Module 2.8: OOA Anchor
