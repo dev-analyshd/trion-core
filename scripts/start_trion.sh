@@ -37,6 +37,34 @@ FLASK_URL=${FLASK_URL:-"http://127.0.0.1:$API_PORT"}
 LOG_DIR="$WORKSPACE/logs"
 mkdir -p "$LOG_DIR"
 
+# ── Signing-custody guard (master command §17) ────────────────
+# TRION_ENV=production REFUSES to start when a raw env private key is set:
+# plaintext env keys are DEV/TESTNET-ONLY. The production signing path is
+# KMS/HSM-backed (KMS_PROVIDER=aws|gcp|yubihsm|pkcs11 — relayer/kms_provider.js)
+# or documented custody. The only escape hatch is TRION_ALLOW_RAW_ENV_KEYS=1,
+# which the operator sets to explicitly acknowledge env-secret custody
+# (secret-manager-injected vars only — never a committed value). See
+# DEPLOYMENT.md "Signing and key custody".
+if [ "${TRION_ENV:-development}" = "production" ] \
+   && [ "${TRION_ALLOW_RAW_ENV_KEYS:-0}" != "1" ]; then
+    for _key_var in RELAYER_PRIVATE_KEY PRIVATE_KEY ZG_PRIVATE_KEY \
+                    DEPLOY_0G_PRIVATE DEPLOYER_PRIVATE_KEY \
+                    SOLANA_RELAYER_PRIVATE_KEY SVM_PRIVATE_KEY_B58 \
+                    NEAR_RELAYER_PRIVATE_KEY NEAR_PRIVATE_KEY \
+                    TON_RELAYER_PRIVATE_KEY TON_PRIVATE_KEY_HEX \
+                    PVM_RELAYER_MNEMONIC DOT_MNEMONIC \
+                    STARKNET_RELAYER_PRIVATE_KEY STARKNET_PRIVATE_KEY \
+                    BOT_CHAIN_PRIVATE_KEY BOT_CHAIN_RELAYER_PRIVATE_KEY; do
+        if [ -n "$(eval "printf '%s' \"\${${_key_var}:-}\"")" ]; then
+            echo "FATAL: TRION_ENV=production but raw env private key ${_key_var} is set." >&2
+            echo "       Env keys are DEV/TESTNET-ONLY. Use KMS_PROVIDER=aws|gcp|yubihsm|pkcs11" >&2
+            echo "       (relayer/kms_provider.js) or set TRION_ALLOW_RAW_ENV_KEYS=1 to" >&2
+            echo "       acknowledge documented env-secret custody." >&2
+            exit 1
+        fi
+    done
+fi
+
 # ── Parse arguments ───────────────────────────────────────────
 BACKGROUND=false
 START_FRONTEND=true
@@ -103,6 +131,12 @@ start_faiss() {
 start_api() {
     log "Starting TRION Oracle API..."
     export FLASK_URL="$FLASK_URL"
+    # Local dev profile: serve.py is a SINGLE process, so the in-process BH
+    # streamer gate (TRION_STREAMER_INPROCESS, default 0 in app.py) is the
+    # correct mode here — exactly one streamer, owned by the API process.
+    # Set TRION_STREAMER_INPROCESS=0 if you run scripts/run_bh_streamer.py
+    # yourself instead (the docker entrypoints do that).
+    export TRION_STREAMER_INPROCESS="${TRION_STREAMER_INPROCESS:-1}"
     if [ "$BACKGROUND" = true ]; then
         cd "$WORKSPACE" && nohup python3 serve.py \
             > "$LOG_DIR/api.log" 2>&1 &

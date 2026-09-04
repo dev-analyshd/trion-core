@@ -27,6 +27,32 @@ export RUST_BIN_DIR="${RUST_BIN_DIR:-/app/bin}"
 export FLASK_URL="http://127.0.0.1:${FLASK_PORT}"
 
 log() { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
+die() { echo "[entrypoint $(date +%H:%M:%S)] FATAL: $*" >&2; exit 1; }
+
+# ── Signing-custody guard (master command §17) ─────────────────────────────────
+# This entrypoint starts the relayer (relayer.js + relayer_non_evm.js via
+# supervisors/trion_and_zg_relayer.sh) and the 0G daemons (zg_config.py keys).
+# Under TRION_ENV=production, raw env private keys are refused: the EVM path
+# must be KMS/HSM-backed (KMS_PROVIDER=aws|gcp|yubihsm|pkcs11,
+# relayer/kms_provider.js); the non-EVM/0G paths have no KMS support yet —
+# leave their keys unset (read-only / block-proof mode) or explicitly
+# acknowledge env-secret custody with TRION_ALLOW_RAW_ENV_KEYS=1
+# (see DEPLOYMENT.md "Signing and key custody").
+if [ "${TRION_ENV:-development}" = "production" ] \
+   && [ "${TRION_ALLOW_RAW_ENV_KEYS:-0}" != "1" ]; then
+    for _key_var in RELAYER_PRIVATE_KEY PRIVATE_KEY ZG_PRIVATE_KEY \
+                    DEPLOY_0G_PRIVATE DEPLOYER_PRIVATE_KEY \
+                    SOLANA_RELAYER_PRIVATE_KEY SVM_PRIVATE_KEY_B58 \
+                    NEAR_RELAYER_PRIVATE_KEY NEAR_PRIVATE_KEY \
+                    TON_RELAYER_PRIVATE_KEY TON_PRIVATE_KEY_HEX \
+                    PVM_RELAYER_MNEMONIC DOT_MNEMONIC \
+                    STARKNET_RELAYER_PRIVATE_KEY STARKNET_PRIVATE_KEY \
+                    BOT_CHAIN_PRIVATE_KEY BOT_CHAIN_RELAYER_PRIVATE_KEY; do
+        if [ -n "$(eval "printf '%s' \"\${${_key_var}:-}\"")" ]; then
+            die "TRION_ENV=production but raw env private key ${_key_var} is set — env keys are DEV/TESTNET-ONLY (see DEPLOYMENT.md 'Signing and key custody'; KMS_PROVIDER for EVM, TRION_ALLOW_RAW_ENV_KEYS=1 to acknowledge env custody)"
+        fi
+    done
+fi
 
 # ── Persistent data directory ─────────────────────────────────────────────────
 DATA_DIR="${DATA_DIR:-/data}"
@@ -133,6 +159,9 @@ if [[ "${TRION_ENABLE_NATIVE:-1}" == "1" ]]; then
 fi
 
 # ── 4. Unified Relayer (EVM + Non-EVM) ────────────────────────────────────────
+# TRION_ENABLE_ZG_SYNC/ZG_DA are forced to 0 for the supervisor: this
+# entrypoint supervises the 0G daemons itself (section 5) — without this the
+# supervisor's own defaults would start a SECOND pair of daemons.
 if [[ "${TRION_ENABLE_RELAYER:-1}" == "1" ]]; then
     spawn "relayer" env \
         ORACLE_API_URL="${ORACLE_API_URL}" \
@@ -143,6 +172,8 @@ if [[ "${TRION_ENABLE_RELAYER:-1}" == "1" ]]; then
         ZG_EXECUTION_GATE_ADDR="${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}" \
         ZG_CHAIN_ID="${ZG_CHAIN_ID:-16661}" \
         ZERO_G_RPC="${ZERO_G_RPC:-https://evmrpc.0g.ai}" \
+        TRION_ENABLE_ZG_SYNC="0" \
+        TRION_ENABLE_ZG_DA="0" \
         bash /app/supervisors/trion_and_zg_relayer.sh
 fi
 
