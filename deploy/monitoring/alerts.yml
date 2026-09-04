@@ -4,9 +4,20 @@
 # (trion_coherence_score, trion_faiss_last_indexed_timestamp,
 # trion_validator_count) are not exported by any service yet, and the
 # http_request_duration_seconds / http_requests_total histograms assume a
-# /metrics endpoint the Flask API does not implement. Only the up{}-based
-# availability rules can currently fire. The rules are kept so they become
-# active the moment the metrics land (see prometheus.yml notes).
+# /metrics endpoint the Flask API does not implement (checked 2026-09-04:
+# no /metrics route in api/app.py or anima-service/faiss_service.py — the
+# moment one lands, add a trion-api/trion-faiss scrape job with
+# metrics_path: /metrics and these rules go live).
+#
+# Which rules can ACTUALLY fire today: only TRIONAPIDown / FAISSDown (up{}
+# against the two scrape jobs in prometheus.yml). Removed: ValidatorDown —
+# its up{job="trion-validator"} job was never defined in prometheus.yml
+# (the Go validator is a one-shot self-test, nothing to scrape).
+# HighMemoryUsage / HighCPUUsage need cAdvisor (container_* metrics) and
+# LowDiskSpace needs node-exporter (node_* metrics) — NEITHER exporter is
+# part of deploy/docker/docker-compose.yml, so those three rules sit inert
+# until the exporters are added back (they were removed from prometheus.yml
+# in the 21-d truth pass as dead targets).
 
 groups:
   - name: trion_service_alerts
@@ -34,15 +45,8 @@ groups:
           description: "FAISS Akashic Intelligence Engine has been unreachable for more than 1 minute."
           runbook: "Check trion-faiss container, verify index file exists."
 
-      - alert: ValidatorDown
-        expr: up{job="trion-validator"} == 0
-        for: 2m
-        labels:
-          severity: warning
-          service: trion-validator
-        annotations:
-          summary: "Validator node is down"
-          description: "Validator P2P node has been unreachable for more than 2 minutes."
+      # (ValidatorDown removed: up{job="trion-validator"} never existed —
+      # the Go validator is a one-shot self-test with no HTTP listener.)
 
       # ── Performance ─────────────────────────────────────────
       - alert: HighAPILatency
