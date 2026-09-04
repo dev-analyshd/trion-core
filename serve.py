@@ -36,7 +36,8 @@ elif not os.path.exists(_abs_tgt) and not os.path.exists(_link):
             magnitude_norm REAL, value_wei TEXT, selector TEXT,
             sense_hex TEXT, antisense_hex TEXT,
             block_num INTEGER, block_hash TEXT,
-            chain_id INTEGER, chain_label TEXT, ts REAL
+            chain_id INTEGER, chain_label TEXT, ts REAL,
+            valid INTEGER DEFAULT 1
         )""")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_entity ON bh_ledger(entity_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS bh_ledger_chain ON bh_ledger(chain_id)")
