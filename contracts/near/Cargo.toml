@@ -13,6 +13,13 @@ near-sdk = { version = "=5.1.0", features = ["legacy"] }
 serde = { version = "1.0", features = ["derive"] }
 borsh = "1"
 serde_json = "1.0"
+# C-05 (Wave 2 / Agent J2): FIPS-202 SHA3-256 for the canonical certificate
+# hash — the NEAR §7 consumed-key (identical to core/consensus/
+# certificate.py certificate_hash()). RustCrypto sha3, wasm-compatible.
+# NOTE: no cargo/rust toolchain exists in this sandbox — `cargo build` is the
+# documented unverified compile boundary; the lockfile will re-resolve on the
+# first real build (no --offline/--locked) because this dep is new.
+sha3 = "0.10"
 
 [profile.release]
 codegen-units = 1
