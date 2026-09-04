@@ -167,6 +167,12 @@ const CHAINS = [
   //    Neon EVM · IOTA EVM ─────────────────────────────────────────────────
   { key: "monad-mainnet",  name: "Monad Mainnet",        chainId: 10143,     rpcEnv: "MONAD_RPC_URL",        rpcDefault: "https://rpc.monad.xyz",                      addrEnv: "MONAD_ORACLE_ADDR",        addrDefault: null },
   { key: "filecoin",       name: "Filecoin FEVM",         chainId: 314,       rpcEnv: "FIL_RPC_URL",          rpcDefault: "https://api.node.glif.io/rpc/v1",            addrEnv: "FIL_ORACLE_ADDR",          addrDefault: null },
+  // hyperliquid: OFF-REGISTRY (documented decision, Task 21-c) — 999 is
+  // HyperEVM's own native chain id and collides with no canonical registry
+  // chain; ingested here and by the bh_streamer worker (testnet RPC), with
+  // no Rust indexer. Adding a 130th registry chain would ripple every
+  // count/bindings/api surface for that coverage level — kept off-registry,
+  // pinned by tests/unit/test_backfill_chain_ids.py.
   { key: "hyperliquid",    name: "HyperLiquid EVM",       chainId: 999,       rpcEnv: "HYPERLIQ_RPC_URL",     rpcDefault: "https://rpc.hyperliquid.xyz/evm",    addrEnv: "HYPERLIQ_ORACLE_ADDR",     addrDefault: null },
   { key: "abstract",       name: "Abstract Mainnet",      chainId: 2741,      rpcEnv: "ABSTRACT_RPC_URL",     rpcDefault: "https://api.mainnet.abs.xyz",                addrEnv: "ABSTRACT_ORACLE_ADDR",     addrDefault: null },
   { key: "zora",           name: "Zora Network",          chainId: 7777777,   rpcEnv: "ZORA_RPC_URL",         rpcDefault: "https://rpc.zora.energy",                    addrEnv: "ZORA_ORACLE_ADDR",         addrDefault: null },

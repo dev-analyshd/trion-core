@@ -379,3 +379,8 @@ def test_hyperliquid_999_is_off_registry_and_collision_free():
     # the streamer worker keeps its native id (no re-key invented)
     src = open(STREAMER_PY).read()
     assert re.search(r"999:\s*\{\s*\"name\":\s*\"hyperliquid\"", src)
+    # and the relayer entry documents the off-registry decision in place
+    relayer_src = open(os.path.join(ROOT, "relayer", "relayer.js")).read()
+    assert re.search(
+        r'//\s*hyperliquid:\s*OFF-REGISTRY', relayer_src)
+    assert re.search(r'chainId:\s*999,\s*rpcEnv:\s*"HYPERLIQ_RPC_URL"', relayer_src)
