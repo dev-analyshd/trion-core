@@ -34,7 +34,7 @@ from typing import Dict, List, Optional, Callable, Any
 # ── Chain RPC Configuration ───────────────────────────────────────────────────
 
 CHAIN_RPCS: Dict[int, Dict] = {
-    # ── VM Family 1: EVM (55 chains per spec) ──────────────────────────────
+    # ── VM Family 1: EVM (60 chains in CHAIN_RPCS) ──────────────────────────────
     1: {"name": "ethereum", "label": "Ethereum", "rpc": "https://ethereum-rpc.publicnode.com", "block_time": 12, "native_symbol": "ETH", "decimals": 18},
     42161: {"name": "arbitrum", "label": "Arbitrum", "rpc": "https://arbitrum-one-rpc.publicnode.com", "block_time": 0.25, "native_symbol": "ETH", "decimals": 18},
     8453: {"name": "base", "label": "Base", "rpc": "https://base-rpc.publicnode.com", "block_time": 2, "native_symbol": "ETH", "decimals": 18},

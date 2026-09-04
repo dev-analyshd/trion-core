@@ -5660,7 +5660,7 @@ def behavioral_hash_extended_compute():
 # ═══════════════════════════════════════════════════════════════════════════════
 # WHITEPAPER COMPLETENESS BLOCK — All remaining L0–L9 formula endpoints
 # Added: L5.3 T(t), 19 signal types, L4.1/4.2 Σ(t), L4.3 GK, L4.7 bootstrap
-#        weight, source credibility, 57-formula coverage, SDK spec, token utility
+#        weight, source credibility, 84-formula coverage (28 live + 56 synthetic-demo), SDK spec, token utility
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -8901,7 +8901,7 @@ def demo_stats():
         data = json.loads(resp.read())
         faiss_count = data.get("total_vectors", 0)
     except Exception:
-        faiss_count = 1067
+        faiss_count = 0  # FAISS down — never present a stale figure as live
 
     attacks_total_all  = sum(a["loss_usd"] for a in _ATTACK_DB.values())
     attacks_total_excl_terra = sum(

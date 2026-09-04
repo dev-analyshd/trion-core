@@ -261,7 +261,7 @@ def select_optimal_route(
     """
     Tier-2: Score all candidate routes and select the optimal one.
 
-    Generates N_chains × 6 route types = max 600 candidates.
+    Generates N_chains × 7 route types (RouteType has 7 members) candidates.
     Returns the route with the highest BTCP_score that passes validity check.
     """
     validator_counts = validator_counts or {}

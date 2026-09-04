@@ -69,7 +69,7 @@ After the v2 restructuring (src/ → core/), canonical paths are:
 - `anima-service/` — FastAPI ANIMA service (FAISS endpoints, fetcher pool)
 - `rust/src/` — BTCP zero-bridge core (Rust)
 - `validator/` — Go P2P validator mesh
-- `indexers/crates/` — Rust L0 indexers (14 crates)
+- `indexers/crates/` — Rust L0 indexers (21 per-VM crates + trion-common)
 
 ### Out of Scope
 

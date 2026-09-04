@@ -470,7 +470,7 @@ def behavioral_true_value(base: str, quote: str = "USD"):
 
     Returns the full derivation trace:
       1. CEX reference price (the corrupted baseline)
-      2. Behavioral signals from 37-chain BH ledger
+      2. Behavioral signals from the 96-chain BH streamer ledger
       3. Manipulation discount applied
       4. Final BTV with 95% CI
       5. manipulation_discount_pct = how much of CEX price is unjustified

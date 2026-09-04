@@ -164,7 +164,7 @@ PVM_CHAIN_ID_MIN = 1000
 PVM_CHAIN_ID_MAX = 1099
 
 def _resolve_vm_type(chain_id: Optional[int], chain_label: Optional[str] = None) -> str:
-    """Resolve VM type from chain_id or chain_label — all 11 VM families."""
+    """Resolve VM type from chain_id or chain_label — all 12 _resolve_vm_type labels."""
     # Explicit EVM chains (includes HashKey testnet 133, 0G mainnet 16661,
     # 0G Galileo 16602). Audit fix (ZG-2): 16601 was a typo — no such chain
     # exists; canonical 0G mainnet id is 16661.
@@ -2629,7 +2629,7 @@ def health():
 
 @app.get("/vm-status")
 def vm_status():
-    """Return live status for all 5 VM families — EVM, SVM, PVM, TVM, NEAR."""
+    """Return live status for every VM family seen by the ledger/indexers (EVM, SVM, PVM, TVM, NEAR, …)."""
     vm_counts: Dict[str, int] = {}
     for vm_type in entity_vm_types.values():
         vm_counts[vm_type] = vm_counts.get(vm_type, 0) + 1
