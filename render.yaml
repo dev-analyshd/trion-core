@@ -11,6 +11,14 @@ services:
     healthCheckPath: /api/v1/health
     autoDeploy: true
 
+    # WHAT THIS DEPLOYS: the FULL stack per render-entrypoint.sh — FAISS,
+    # Rust L0 indexers, extended+native VM indexers, the relayer (EVM +
+    # non-EVM), 0G sync + DA, the BH streamer, Flask API (gunicorn) and the
+    # Next.js frontend. This is the ONE platform profile that runs the
+    # relayer, i.e. the one that signs on-chain — hence TRION_ENV=production
+    # and the KMS/HSM provider variables below (master command §17: raw env
+    # private keys are refused in production; see DEPLOYMENT.md
+    # "Signing and key custody").
     disk:
       name: trion-data
       mountPath: /data
@@ -42,7 +50,16 @@ services:
       - key: BH_LEDGER_DB
         value: "/data/bh_ledger.db"
 
-      # ── Service enable toggles (set to "0" to disable a subsystem) ─────────
+      # ── Deployment profile & signing custody (master command §17) ───────
+      - key: TRION_ENV
+        value: "production"
+      # Escape hatch for the env-only key paths (non-EVM relayers, 0G
+      # daemons) that have no KMS support yet — ONLY for operators who
+      # explicitly accept env-secret custody. Leave unset otherwise.
+      - key: TRION_ALLOW_RAW_ENV_KEYS
+        sync: false
+
+      # ── Service enable toggles (gates in render-entrypoint.sh) ───────────
       - key: TRION_ENABLE_FAISS
         value: "1"
       - key: TRION_ENABLE_RUST
@@ -51,18 +68,14 @@ services:
         value: "1"
       - key: TRION_ENABLE_NATIVE
         value: "1"
-      - key: TRION_ENABLE_EXTENDED
-        value: "1"
       - key: TRION_ENABLE_RELAYER
-        value: "1"
-      - key: TRION_ENABLE_NATIVE_RELAYER
-        value: "1"
-      - key: TRION_ENABLE_EXT_RELAYER
         value: "1"
       - key: TRION_ENABLE_ZG_SYNC
         value: "1"
       - key: TRION_ENABLE_ZG_DA
         value: "1"
+      # (TRION_ENABLE_EXTENDED / _NATIVE_RELAYER / _EXT_RELAYER were here —
+      # read by nothing anywhere in the repo; removed.)
 
       # ── Database (auto-populated by Render when trion-db is attached) ───────
       - key: DATABASE_URL
@@ -74,13 +87,13 @@ services:
           name: trion-db
           property: connectionString
 
-      # ── EVM: Arbitrum L0 Indexer ───────────────────────────────────────────
+      # ── Standalone Python indexers (NOT in the entrypoint boot path — feed
+      #    chains/svm/svm_indexer.py and anima-service/genesis_backfill*.py
+      #    when run manually in the container shell) ───────────────────────
       - key: ARBITRUM_RPC_URL
         value: "https://arb1.arbitrum.io/rpc"
       - key: CHAIN_ID
         value: "42161"
-
-      # ── SVM: Solana Indexer ────────────────────────────────────────────────
       - key: SOLANA_RPC_URL
         value: "https://api.devnet.solana.com"
       # canonical registry id for Solana Devnet (config/chain_registry.json);
@@ -103,15 +116,48 @@ services:
       # or via the Render CLI: render env set KEY=value
       # ═════════════════════════════════════════════════════════════════════
 
-      # ── EVM relayer key (signs txs on 7 EVM chains) ───────────────────────
+      # ── KMS/HSM signing — the PRODUCTION path for the EVM relayer
+      #    (relayer/kms_provider.js). Set KMS_PROVIDER to ONE of
+      #    aws|gcp|yubihsm|pkcs11 plus that provider's variables below;
+      #    the private key then never leaves the KMS/HSM boundary.
+      - key: KMS_PROVIDER
+        sync: false
+      - key: AWS_KMS_KEY_ID
+        sync: false
+      - key: AWS_REGION
+        value: "us-east-1"
+      - key: GCP_KMS_KEY_NAME
+        sync: false
+      - key: YUBIHSM_KEY_ID
+        sync: false
+      - key: YUBIHSM_AUTH_KEY
+        sync: false
+      - key: YUBIHSM_PASSWORD
+        sync: false
+      - key: YUBIHSM_CONNECTOR_URL
+        value: "http://localhost:12345"
+      - key: PKCS11_MODULE_PATH
+        sync: false
+      - key: PKCS11_KEY_ID
+        sync: false
+      - key: PKCS11_PIN
+        sync: false
+      - key: PKCS11_SLOT
+        value: "0"
+
+      # ── DEV/TESTNET-ONLY fallback key (KMS_PROVIDER=env) — refused by the
+      #    entrypoint under TRION_ENV=production unless
+      #    TRION_ALLOW_RAW_ENV_KEYS=1. Note relayer.js IGNORES it whenever a
+      #    non-env KMS_PROVIDER is configured (KMS takes precedence), but
+      #    zg/zg_config.py's fallback chain would still pick it up — so leave
+      #    it unset in production either way.
       - key: RELAYER_PRIVATE_KEY
         sync: false
 
-      # ── SVM: Solana signing key ────────────────────────────────────────────
+      # ── Non-EVM relayer keys (env-only custody — no KMS path yet; every VM
+      #    runs in block-proof / read-only mode while its key is unset) ─────
       - key: SVM_PRIVATE_KEY_B58
         sync: false
-
-      # ── Native VM signing keys ─────────────────────────────────────────────
       - key: NEAR_PRIVATE_KEY
         sync: false
       - key: TON_PRIVATE_KEY_HEX
@@ -121,14 +167,17 @@ services:
       - key: STARKNET_PRIVATE_KEY
         sync: false
 
-      # ── UTXO signing keys ──────────────────────────────────────────────────
+      # ── 0G daemons (zg/zg_config.py: DEPLOY_0G_PRIVATE → ZG_PRIVATE_KEY →
+      #    DEPLOYER_PRIVATE_KEY → RELAYER_PRIVATE_KEY fallback chain; env-only
+      #    custody, no KMS path yet) ────────────────────────────────────────
+      - key: DEPLOY_0G_PRIVATE
+        sync: false
+      - key: ZG_PRIVATE_KEY
+        sync: false
+
+      # ── Extended-chain keys — read by the /api/v1/vision key-status
+      #    display (api/app.py) and, for SUI, chains/sui/execute.ts ─────────
       - key: BTC_TAPROOT_WIF
-        sync: false
-      - key: BTC_SEGWIT_NATIVE_WIF
-        sync: false
-      - key: BTC_SEGWIT_NESTED_WIF
-        sync: false
-      - key: BTC_LEGACY_WIF
         sync: false
       - key: LITECOIN_PRIVATE_KEY
         sync: false
@@ -136,8 +185,6 @@ services:
         sync: false
       - key: DASH_PRIVATE_KEY
         sync: false
-
-      # ── Cosmos SDK signing keys ────────────────────────────────────────────
       - key: COSMOS_PRIVATE_KEY
         sync: false
       - key: KAVA_PRIVATE_KEY
@@ -150,24 +197,14 @@ services:
         sync: false
       - key: INITIA_PRIVATE_KEY
         sync: false
-
-      # ── MOVE VM signing keys ───────────────────────────────────────────────
       - key: APTOS_PRIVATE_KEY
         sync: false
       - key: MOVEMENT_PRIVATE_KEY
         sync: false
-
-      # ── SUI signing key ────────────────────────────────────────────────────
       - key: SUI_PRIVATE_KEY
         sync: false
-
-      # ── TRON signing key + optional API key ───────────────────────────────
       - key: TRON_PRIVATE_KEY
         sync: false
-      - key: TRON_API_KEY
-        sync: false
-
-      # ── Pi Network signing key (Stellar S... secret key) ──────────────────
       - key: PI_SECRET_KEY
         sync: false
 

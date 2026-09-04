@@ -151,6 +151,13 @@ RUN chmod +x ./railway-entrypoint.sh
 RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data
 
 # ── Environment ───────────────────────────────────────────────────────────────
+# NOTE: only toggles the railway entrypoint actually gates on are set here
+# (TRION_ENABLE_STREAMER / _VALIDATOR / _SIGNAL_PROCESSING + TRION_MAX_CHAINS).
+# TRION_ENABLE_FAISS/RUST/RELAYER/ZG_SYNC/ZG_DA/EXTRAS/NATIVE were removed —
+# railway-entrypoint.sh has no sections for them in this OBSERVATION image
+# (no relayer: it never reads RELAYER_PRIVATE_KEY / KMS_* here). The
+# TRION_ENABLE_MONITORING and TRION_ENABLE_INDEXERS toggles were read by
+# nothing anywhere and are gone.
 ENV HOSTNAME=0.0.0.0 \
     PYTHONPATH=/app \
     FAISS_PORT=8000 \
@@ -162,19 +169,10 @@ ENV HOSTNAME=0.0.0.0 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
-    TRION_ENABLE_FAISS=1 \
     TRION_ENABLE_STREAMER=1 \
     TRION_MAX_CHAINS=12 \
-    TRION_ENABLE_RUST=0 \
-    TRION_ENABLE_RELAYER=0 \
-    TRION_ENABLE_ZG_SYNC=0 \
-    TRION_ENABLE_ZG_DA=0 \
-    TRION_ENABLE_EXTRAS=0 \
-    TRION_ENABLE_NATIVE=0 \
     TRION_ENABLE_VALIDATOR=0 \
-    TRION_ENABLE_INDEXERS=0 \
     TRION_ENABLE_SIGNAL_PROCESSING=0 \
-    TRION_ENABLE_MONITORING=0 \
     DATABASE_URL="" \
     TIMESCALEDB_URL="" \
     BH_LEDGER_DB="/app/bh_ledger.db" \
