@@ -304,6 +304,39 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
 
+
+def _registry_chain_counts():
+    """Derive chain/VM counts from config/chain_registry.json (single source of truth)."""
+    try:
+        import json as _json
+        import os as _os
+        _p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "config", "chain_registry.json")
+        with open(_p) as _f:
+            _reg = _json.load(_f)
+        _chains = _reg.get("chains", [])
+        return {
+            "chains_indexed": len(_chains),
+            "vm_families": len(_registry_vm_list()),
+        }
+    except Exception:
+        return {"chains_indexed": 0, "vm_families": 0}
+
+
+def _registry_vm_list():
+    """Distinct VM family codes from the chain registry, sorted."""
+    try:
+        import json as _json
+        import os as _os
+        _p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "config", "chain_registry.json")
+        with open(_p) as _f:
+            _reg = _json.load(_f)
+        return sorted({ch.get("vm") for ch in _reg.get("chains", []) if ch.get("vm")})
+    except Exception:
+        return []
+
+
+_REGISTRY_VM_LIST = _registry_vm_list()
+
 @app.route("/")
 def index():
     # Unified frontend — single dashboard at /app/
@@ -447,7 +480,7 @@ def faiss_stats():
 
 @app.route("/api/v1/chains")
 def chain_status():
-    """Live status of all 100+ indexed chains across 14 VM families."""
+    """Live status of indexed chains across VM families (from chain_registry.json)."""
     from api.chains_registry import get_all_chains
     chains = get_all_chains()
     live_count = sum(1 for c in chains if c["status"] == "live")
@@ -457,7 +490,7 @@ def chain_status():
 
 @app.route("/api/v1/explorer/chains")
 def explorer_chains():
-    """BH Explorer — 100+ chains enriched with BH FAISS stats per chain."""
+    """BH Explorer — registry chains enriched with BH FAISS stats per chain."""
     from api.chains_registry import get_enriched_chains
     chains = get_enriched_chains()
     live = sum(1 for c in chains if c["status"] == "live")
@@ -2304,7 +2337,7 @@ def zg_proof():
         "faiss_hash": faiss_hash,
         "timestamp": proof_ts,
         "vm_families": ["EVM", "SVM", "MoveVM", "CosmosSDK", "STARKVM", "TVM", "PVM", "UTXO", "SUI", "MVM"],
-        "chains_indexed": 37,
+        "chains_indexed": _registry_chain_counts()["chains_indexed"],
         "behavioral_planes": 9,
     }, separators=(",", ":"))
     da_hash = "0x" + _hl.sha256(proof_payload.encode()).hexdigest()
@@ -2362,8 +2395,8 @@ def zg_proof():
             "onchain_storage_root": onchain_root,
         },
         "behavioral_coverage": {
-            "vm_families": 10,
-            "chains": 35,
+            "vm_families": _registry_chain_counts()["vm_families"],
+            "chains": _registry_chain_counts()["chains_indexed"],
             "behavioral_planes": 9,
             "faiss_dimensions": 128,
         },
@@ -2559,7 +2592,7 @@ def zg_compute_infer():
 
 @app.route("/api/v1/zg/vm-families")
 def vm_families():
-    """Return all 10 VM families indexed by TRION with their 0G integration status."""
+    """Return the VM families indexed by TRION with their 0G integration status."""
     return jsonify({
         "vm_families": [
             {"id": "EVM",       "name": "Ethereum Virtual Machine",   "chains": ["0G Mainnet","Arb Sepolia","Base Sepolia","OP Sepolia","HashKey","Eth Sepolia","0G Galileo","BNB Testnet"], "indexer": "trion-evm-extras", "status": "live",  "zg_integrated": True},
@@ -2573,7 +2606,7 @@ def vm_families():
             {"id": "UTXO",      "name": "UTXO (Native Bitcoin)",      "chains": ["Bitcoin","Litecoin","Dogecoin","Dash"],                                                       "indexer": "native-vm",         "status": "proof", "zg_integrated": True},
             {"id": "MVM",       "name": "Pi Network MVM",             "chains": ["Pi Network"],                                                                                 "indexer": "trion-pi",          "status": "proof", "zg_integrated": True},
         ],
-        "total_vm_families": 10,
+        "total_vm_families": len(_REGISTRY_VM_LIST) if _REGISTRY_VM_LIST else 0,
         "total_chains": 24,
         "zg_execution_gate_mainnet": "0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b",
         "zg_storage_gate_galileo": "0xDB5910Dc6CfD219D00F64be1F23DA0289901356d",
@@ -4541,7 +4574,7 @@ def moat():
         "synthetic_reason": (
             "moat components are time-modulated deterministic demo values (sin/cos of wall-clock); not measured moat data."
         ),
-        "chains_indexed": 37,
+        "chains_indexed": _registry_chain_counts()["chains_indexed"],
         "total_chains_whitepaper": 55,
         "formula":        "M_moat = D·Q·R·X·F·N  (whitepaper L0.5 — multiplicative product)",
         "whitepaper":     "L0.5",
@@ -5456,7 +5489,7 @@ def chains_page():
     return jsonify({
         "message": "Legacy chains.html template removed. Use /api/v1/chains or /api/v1/explorer/chains.",
         "redirect": "/api/v1/chains",
-        "whitepaper": "TRION Protocol — 100+ chain coverage",
+        "whitepaper": "TRION Protocol — registry chain coverage",
     }), 200
 
 
@@ -6664,7 +6697,7 @@ def whitepaper_coverage():
         "whitepaper_layers": ["L0","L1","L2","L3","L4","L5","L6","L7","L8","L9"],
         "signal_types":      19,
         "falsifiability_conditions": 15,
-        "chains_indexed": 37,
+        "chains_indexed": _registry_chain_counts()["chains_indexed"],
         "formulas":          formulas,
         "live_count":        live_count,
         "synthetic_demo_count": synth_count,
@@ -6751,7 +6784,7 @@ def sdk_spec():
             "bootstrap_weight":f"{base}/api/v1/bootstrap/weight/<entity_id>",
         },
         "whitepaper_coverage": f"{base}/api/v1/whitepaper/coverage",
-        "chains_indexed": 37,
+        "chains_indexed": _registry_chain_counts()["chains_indexed"],
         "signal_types":   19,
         "formulas":       57,
         "falsifiability_conditions": 15,
@@ -8859,9 +8892,9 @@ def demo_stats():
 
     return jsonify({
         "faiss_vectors": faiss_count,
-        "chains_indexed": 37,
-        "vm_families": 13,
-        "api_routes": 139,
+        "chains_indexed": _registry_chain_counts()["chains_indexed"],
+        "vm_families": _registry_chain_counts()["vm_families"],
+        "api_routes": 180,
         "test_coverage": "328 passed / 24 skipped",
         "bh_avg_ms": 0.023,
         "bh_target_ms": 10,
@@ -9299,7 +9332,7 @@ def zg_full_stack():
             "(api_routes, tests_passing, providers, contracts_deployed) are hardcoded demo "
             "presentation values, not verified runtime measurements."
         ),
-        "api_routes":       139,
+        "api_routes":       180,
         "tests_passing":    328,
         "rust_crates":      13,
         "languages":        7,
@@ -9807,7 +9840,7 @@ def architecture_inversion():
                         "signal_types":       ["VALUATION", "SILENCE", "GENESIS", "MANIP_ALERT"],
                         "emission_condition": "C(t) ≥ Θ(t) → emit VALUATION. C(t) < Θ(t) → emit SILENCE.",
                         "genomic_signed":     True,
-                        "api_routes":         131,
+                        "api_routes":         180,
                         "mf_score_uniswap":   mf_uni,
                     },
                 },

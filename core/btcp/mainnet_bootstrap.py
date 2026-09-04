@@ -15,7 +15,7 @@ Sequence:
   Phase 6 (Months 60+):   Reach 100 chains — 4,950 pairs eliminated
 
 This module generates the complete bootstrap configuration for all 106
-chains across 14 VM families, with deployment scripts and verification.
+chains across 20 VM families (see VmFamily), with deployment scripts and verification.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0

@@ -10,7 +10,7 @@
 
 ## What We Built
 
-TRION is a **multi-chain behavioral truth oracle** that reads transactions across 37 blockchain networks, distills them through a 128-dimensional FAISS behavioral engine, and publishes cryptographically-verified execution verdicts on 0G Mainnet via `TRIONExecutionGate.checkExecution()`.
+TRION is a **multi-chain behavioral truth oracle** that reads transactions across 129 registered blockchain networks, distills them through a 128-dimensional FAISS behavioral engine, and publishes cryptographically-verified execution verdicts on 0G Mainnet via `TRIONExecutionGate.checkExecution()`.
 
 Any DeFi protocol integrates TRION protection in under 5 minutes:
 
@@ -38,7 +38,7 @@ TRION uses every architectural layer of the 0G stack. Most hackathon projects us
 ### End-to-End Data Flow
 
 ```
-37 Chains (live BH stream)
+129 registry chains (41 integrated with live BH stream)
   → 9 Shannon entropy features per block
     → 128-dim FAISS behavioral vector
       → 0G Compute TEE (sealed archetype match → 0G Agent ID)
@@ -101,7 +101,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 
 | Metric | Value |
 |---|---|
-| Chains indexed | **37** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
+| Chains indexed | **129 registered / 41 integrated** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
 | VM families | **13** |
 | API routes | **194** live |
 | Whitepaper formulas | **84/84** (L0–L10) — 100% coverage |
@@ -153,7 +153,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 
 1. **Pre-execution hook** — verdicts run BEFORE the swap/borrow/bridge, not after
 2. **168h advance detection** — behavioral patterns emerge days before exploits
-3. **Cross-chain** — same attacker fingerprinted across 37 chains simultaneously
+3. **Cross-chain** — same attacker fingerprinted across every integrated chain simultaneously
 4. **0G-settled** — verdicts on 0G Mainnet, not a centralized database
 5. **Gas-efficient** — KV layer serves <10ms cached verdicts (~85% cheaper)
 6. **Agent ID** — every entity carries a verifiable behavioral identity

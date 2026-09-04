@@ -7,7 +7,7 @@
  *   - native_relayer.js (SVM/NEAR/TON/PVM/StarkNet — spawns chains/<vm>/execute.ts)
  *
  * This is the SINGLE non-EVM relayer. Together with relayer.js (EVM), it covers
- * all 100+ chains across 13 VM families.
+ * all registry chains (config/chain_registry.json) across their VM families.
  *
  * Two modes per chain:
  *   1. Native signing (if private key set) — sends real signed transactions

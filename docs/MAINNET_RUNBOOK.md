@@ -62,7 +62,7 @@ until INIT_valid. This phase builds D(t) honestly.
 1. Deploy **publication-only** contracts (OracleV3, ExecutionGate) from the
    fresh key on the bootstrap chain set (Arbitrum, Base, Optimism, Polygon,
    Ethereum). These hold no funds — exposure is minimal while depth accrues.
-2. Start the indexer fleet (87 chains, public RPCs, failover rotation):
+2. Start the indexer fleet (registry chains, public RPCs, failover rotation):
    `node scripts/trion_master_indexer.mjs` + Rust indexers.
 3. Keep services running: `docker-compose up -d` (healthchecks + restart
    policies already configured).
