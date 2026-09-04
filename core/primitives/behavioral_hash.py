@@ -2,16 +2,28 @@
 TRION Protocol — L0.1: Behavioral Hash (BH)
 Dual-strand hash with thermodynamic proof.
 
-Whitepaper canonical payload (L0.1 §3.1):
-  BH(entity, t) = Hash_DNA(
-    entity_id || event_type || magnitude_normalized || context || timestamp || chain_id || block_hash
-  )
+Canonical reference: docs/protocol/CANONICAL_BH.md (Wave 1). Machine-readable
+twin: config/bh_schema_v1.json. Golden vectors: tests/golden/vectors.json.
+
+Canonical payload (93 bytes, all big-endian):
+  entity_id(32) || event_type(1) || magnitude_nano(8) ||
+  context(8)    || timestamp(8)  || chain_id(4) || block_hash(32)
+
 sense     = SHA3-256(payload || 0x00)
 antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
 
-magnitude_normalized (L0.1 §3.2, log10 formula):
-  M_norm = log10(USD_value + 1) / log10(max_observed_90d + 1)
-  Falls back to linear ratio when USD conversion unavailable.
+Canonical magnitude (deterministic fixed scale, CANONICAL_BH.md §4):
+  amount_human   = raw_native_amount / 10^decimals
+  M_norm         = min(1, log10(amount_human + 1) / log10(1001))
+  magnitude_nano = trunc(M_norm × 10^9)
+(The WHITEPAPER_V2 log10(USD)/log10(max_90d) form is a display/analysis
+path — returned as `magnitude_normalized_usd` when usd_value is supplied —
+and never enters the canonical payload: a rolling 90-day max would make the
+BH of a fixed tx change over time, violating Akashic immutability.)
+
+Canonical field normalization (§9): entity_id and block_hash are leniently
+decoded to exactly 32 bytes (left-aligned, truncated, zero-padded, invalid
+nibbles = 0) so the payload is always 93 bytes regardless of input shape.
 
 EventType (whitepaper L0.1 §2 — 20 canonical types):
   0  TRANSFER         8  REPAY           16 MEV_CAPTURE
@@ -100,6 +112,63 @@ def complement_transform(data: bytes) -> bytes:
     return bytes(b ^ 0xFF for b in data)
 
 
+# ── Canonical byte-level helpers (docs/protocol/CANONICAL_BH.md §9) ──────────
+
+def hex_to_32bytes(s: str) -> bytes:
+    """
+    Lenient hex → exactly 32 bytes, byte-identical to Rust
+    ``trion-common::hash_dna::hex_to_32bytes`` and the TS/Python ports:
+    strip optional 0x/0X, LEFT-aligned, at most 32 bytes, zero-padded on the
+    right, invalid nibbles decode as 0. Never raises, never substitutes.
+    """
+    s = str(s)
+    s = s[2:] if s[:2].lower() == "0x" else s
+    out = bytearray(32)
+    n = min(len(s) // 2, 32)
+    for i in range(n):
+        hi = s[i * 2]
+        lo = s[i * 2 + 1]
+        hi_v = int(hi, 16) if hi in "0123456789abcdefABCDEF" else 0
+        lo_v = int(lo, 16) if lo in "0123456789abcdefABCDEF" else 0
+        out[i] = (hi_v << 4) | lo_v
+    return bytes(out)
+
+
+def bytes_to_32(b: bytes) -> bytes:
+    """Lenient bytes → exactly 32 bytes: left-aligned, truncated at 32,
+    zero-padded on the right (the byte-level form of §9)."""
+    b = bytes(b or b"\x00")
+    return (b[:32] + b"\x00" * 32)[:32]
+
+
+def canonical_magnitude_norm(raw: int, decimals: int) -> float:
+    """
+    CANONICAL_BH.md §4 — deterministic magnitude normalization:
+
+        amount_human   = raw / 10^decimals
+        magnitude_norm = min(1, log10(amount_human + 1) / log10(1001))
+
+    Fixed reference scale (R = 1000 human units) — a pure function of the
+    transaction, identical across chains/languages/observation windows.
+    """
+    if raw is None:
+        return 0.0
+    try:
+        raw_f = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if raw_f <= 0:
+        return 0.0
+    try:
+        dec = int(decimals)
+    except (TypeError, ValueError):
+        dec = 18
+    human = raw_f / (10 ** dec) if dec > 0 else raw_f
+    if human <= 0:
+        return 0.0
+    return min(1.0, math.log10(human + 1) / math.log10(1001.0))
+
+
 def hash_dna(payload: bytes):
     """
     Dual-strand hash construction.
@@ -148,30 +217,48 @@ def compute_behavioral_hash(event: BehavioralEvent,
                             usd_value: Optional[float] = None,
                             usd_max_90d: Optional[float] = None) -> dict:
     """
-    Compute BH(entity, t) per whitepaper L0.1.
+    Compute BH(entity, t) per whitepaper L0.1 — CANONICAL 93-byte v1 payload
+    (docs/protocol/CANONICAL_BH.md):
 
-    Payload (canonical order per §3.1):
-      entity_id(32) || event_type(1) || magnitude_normalized(8) ||
+      entity_id(32) || event_type(1) || magnitude_nano(8) ||
       context(8)    || timestamp(8)  || chain_id(4) || block_hash(32)
+
+    Canonical rules applied (Wave 1 alignment):
+      - entity_id / block_hash are leniently normalized to exactly 32 bytes
+        (§9) — short or over-long inputs no longer change the payload length;
+      - payload magnitude uses the deterministic fixed-scale rule (§4)
+        `min(1, log10(human+1)/log10(1001))` — identical to the Rust indexers
+        and the Python streamer for the same logical event;
+      - `magnitude_normalized` in the result is the value actually encoded in
+        the payload. The WHITEPAPER_V2 USD / 90d-window forms remain available
+        as an explicit non-canonical display path (`usd_value` given) and are
+        returned separately as `magnitude_normalized_usd` — they never enter
+        the canonical payload.
     """
-    mag_norm = normalize_magnitude(
+    mag_norm = canonical_magnitude_norm(event.magnitude_raw, event.magnitude_decimals)
+    usd_norm = (normalize_magnitude(
         event.magnitude_raw, event.magnitude_decimals, event.magnitude_max_90d,
         usd_value, usd_max_90d
-    )
+    ) if (usd_value is not None) else None)
+
+    # Canonical 32-byte fields (§9 lenient decode)
+    entity_32 = bytes_to_32(event.entity_id)
+    block_32 = bytes_to_32(event.block_hash)
 
     # Ensure context is exactly 8 bytes
     ctx = (event.context or b'\x00' * 8)[:8].ljust(8, b'\x00')
 
     payload = (
-        event.entity_id                                    # 32 bytes
+        entity_32                                           # 32 bytes
         + event.event_type.to_bytes(1, 'big')              #  1 byte
         + int(mag_norm * 1e9).to_bytes(8, 'big')           #  8 bytes  (nanounit precision)
-        + ctx                                              #  8 bytes  (context flags)
+        + ctx                                               #  8 bytes  (context flags)
         + event.timestamp.to_bytes(8, 'big')               #  8 bytes
-        + event.chain_id.to_bytes(4, 'big')                #  4 bytes
-        + event.block_hash                                 # 32 bytes
+        + (event.chain_id & 0xFFFFFFFF).to_bytes(4, 'big') #  4 bytes
+        + block_32                                          # 32 bytes
     )
     # Total: 93 bytes canonical payload (32+1+8+8+8+4+32)
+    assert len(payload) == 93, f"canonical BH payload must be 93 bytes, got {len(payload)}"
 
     sense, antisense = hash_dna(payload)
 
@@ -186,6 +273,7 @@ def compute_behavioral_hash(event: BehavioralEvent,
         "antisense_hex":         antisense.hex(),
         "valid":                 valid,
         "magnitude_normalized":  mag_norm,
+        "magnitude_normalized_usd": usd_norm,
         "event_type":            event.event_type.name,
         "event_type_id":         int(event.event_type),
         "context_hex":           ctx.hex(),
@@ -298,14 +386,14 @@ def bh_from_dict(d: dict) -> dict:
     ctx_hex    = d.get("context_hex", "00" * 8)
 
     event = BehavioralEvent(
-        entity_id=bytes.fromhex(entity_hex.replace("0x", "")),
+        entity_id=hex_to_32bytes(entity_hex),
         event_type=et,
         magnitude_raw=int(d.get("magnitude_raw", 0)),
         magnitude_decimals=int(d.get("magnitude_decimals", 18)),
         magnitude_max_90d=int(d.get("magnitude_max_90d", int(1e18))),
         timestamp=int(d.get("timestamp", 0)),
         block_number=int(d.get("block_number", 0)),
-        block_hash=bytes.fromhex(bh_hex.replace("0x", "")),
+        block_hash=hex_to_32bytes(bh_hex),
         chain_id=int(d.get("chain_id", 1)),
         context=bytes.fromhex(ctx_hex.replace("0x", "")) if ctx_hex else b'\x00' * 8,
     )
