@@ -18,7 +18,7 @@
 #   docker compose --profile full up --build
 #
 # Endpoints (dev):
-#   http://localhost:5000/                            Next.js UI
+#   http://localhost:5000/                            Oracle API (Flask; / redirects to FRONTEND_URL)
 #   http://localhost:5000/api/v1/health                Oracle health
 #   http://localhost:5000/readyz                       Readiness (503 → 200)
 #   http://localhost:8000/healthz                       FAISS ANIMA alive
