@@ -13,26 +13,53 @@ use std::collections::HashSet;
 /// Deterministic SHA3-based pseudo-random fixture generation —
 /// TEST-ONLY (see `generate_mock_signatures_for_tests` in `mod tests`)
 
-/// Certification window constants by value tier
-pub const CERT_WINDOWS: [(u64, u64); 4] = [
-    (0, 50000),        // < $10k: 50k blocks
-    (10_000, 100000),  // $10k-$100k: 100k blocks
-    (100_000, 200000), // $100k-$1M: 200k blocks
-    (1_000_000, 500000), // > $1M: 500k blocks
+/// Canonical certification TTL constants by value tier — SECONDS
+/// (CANONICAL_CERTIFICATE.md §9.2, A3 resolution / audit H-06, Wave 3 D).
+///
+/// H-06: the previous block-denominated tables in py
+/// (`core/btcp/modules.py`: <1k→10k, <100k→50k, <10M→200k, else 500k
+/// blocks) and here (0→50k, 10k→100k, 100k→200k, 1M→500k blocks)
+/// DISAGREED, and blocks are not VM-portable. Both block tables are
+/// retired in favor of this shared second-based table, which mirrors the
+/// canonical envelope source `core/consensus/certificate.py::
+/// TTL_TIERS_USD` (the certificate envelope carries `ttl` in seconds):
+///
+///   <  $1,000        →  3,600 s (1 h)
+///   <  $100,000      → 86,400 s (24 h)
+///   <  $10,000,000   → 259,200 s (3 d)
+///   >= $10,000,000   → 604,800 s (7 d)
+///
+/// Parity note (py/rust): `core/btcp/modules.py::BTCPProofBuilder::
+/// CERT_TTL_SECONDS` carries the identical four tiers. When cargo is
+/// available, `test_cert_ttl_seconds` below pins these values on the rust
+/// side to match the py-side battery (tests/btcp + tests/unit/
+/// btcp_continuum) that pins them in Python.
+pub const CERT_TTL_SECONDS: [(u64, u64); 4] = [
+    (0, 3_600),            // <  $1k     → 1 h
+    (10_000, 86_400),      // <  $100k   → 24 h
+    (100_000, 259_200),    // <  $10M    → 3 d
+    (10_000_000, 604_800), // >= $10M    → 7 d (clamp: one week max)
 ];
 
 /// Maximum number of blocks after the certification (anchor) block within
-/// which a BTCP proof remains valid (reorg / expiry guard).
+/// which a BTCP proof remains structurally acceptable (reorg / expiry
+/// guard).
+///
+/// H-06 NOTE (Wave 3 D): this is the ANCHOR-SIDE REORG-DEPTH guard, NOT
+/// the value-tier TTL. The value-tier certification window is
+/// second-based (`CERT_TTL_SECONDS` above / CANONICAL_CERTIFICATE §9.2:
+/// "The anchor-side depth requirement (≥ tier blocks on the ANCHOR chain
+/// before emission) remains an emission-side, off-chain check"). Blocks
+/// remain meaningful for the anchor chain's reorg depth; validity across
+/// VMs is carried in seconds.
 ///
 /// `verify_proof` rejects a proof when
 /// `current_block > anchor_block + MAX_PROOF_VALIDITY_BLOCKS` (the anchor
 /// block is the certification block stored in the proof's diversity
-/// certificate). Past this window the certification is expired and the
-/// anchor may have been reorged out — the advertised reorg protection of
-/// this module depends on this check. Mirrors the Python reference
+/// certificate). Mirrors the Python reference
 /// (`core/btcp/modules.py`: `current_block > proof.certification_expiry →
-/// invalid`). Defaults to the most conservative certification window tier
-/// (`CERT_WINDOWS[0].1` = 50,000 blocks — the sub-$10k tier).
+/// invalid`, where `certification_expiry = certification_base + ttl` with
+/// the §9.2 second-based ttl).
 pub const MAX_PROOF_VALIDITY_BLOCKS: u64 = 50_000;
 
 /// Outcome of `BTCPProofBuilder::verify_proof`.
@@ -154,14 +181,16 @@ impl BTCPProofBuilder {
         }
     }
 
-    /// Compute certification expiry block based on route value
+    /// Compute the canonical certification TTL in SECONDS for a value tier
+    /// (CANONICAL_CERTIFICATE.md §9.2 / audit H-06 — the block table was
+    /// retired; py parity: `compute_cert_ttl`).
     pub fn compute_cert_expiry(&self, value_usd: f64) -> u64 {
-        for (threshold, window) in CERT_WINDOWS.iter().rev() {
+        for (threshold, ttl) in CERT_TTL_SECONDS.iter().rev() {
             if value_usd >= *threshold as f64 {
-                return *window;
+                return *ttl;
             }
         }
-        CERT_WINDOWS[0].1
+        CERT_TTL_SECONDS[0].1
     }
 
     /// Verify a BTCP proof (structural checks only — see below).
@@ -197,7 +226,12 @@ impl BTCPProofBuilder {
         }
 
         // Check HHI indicates reasonable distribution (not too concentrated)
-        if proof.consensus_proof.diversity_cert.hhi > 0.5 {
+        // M-07 (Wave 3 D, canonical): reject hhi > 4000 on the ×1e4 scale
+        // = 0.40 on this crate's 0-1 scale (CANONICAL_CERTIFICATE §6 step 4;
+        // py parity: core/btcp/modules.py HHI_CRITICAL_NORMALIZED). The
+        // previous 0.5 bound accepted 4000–5000 on the ×1e4 scale — NOT the
+        // spec's 4000 CRITICAL threshold.
+        if proof.consensus_proof.diversity_cert.hhi > 0.40 {
             return ProofVerificationStatus::TooConcentrated;
         }
 
@@ -301,11 +335,14 @@ mod tests {
 
     #[test]
     fn test_cert_expiry() {
+        // H-06 (Wave 3 D): canonical §9.2 SECOND-based tiers — mirrors
+        // core/btcp/modules.py::CERT_TTL_SECONDS and
+        // core/consensus/certificate.py::TTL_TIERS_USD.
         let builder = BTCPProofBuilder::new();
-        assert_eq!(builder.compute_cert_expiry(500.0), 50000);
-        assert_eq!(builder.compute_cert_expiry(50_000.0), 100000);
-        assert_eq!(builder.compute_cert_expiry(500_000.0), 200000);
-        assert_eq!(builder.compute_cert_expiry(5_000_000.0), 500000);
+        assert_eq!(builder.compute_cert_expiry(500.0), 3_600);        // <  $1k
+        assert_eq!(builder.compute_cert_expiry(50_000.0), 86_400);   // <  $100k
+        assert_eq!(builder.compute_cert_expiry(500_000.0), 259_200); // <  $10M
+        assert_eq!(builder.compute_cert_expiry(50_000_000.0), 604_800); // >= $10M
     }
 
     #[test]

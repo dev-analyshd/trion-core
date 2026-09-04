@@ -249,10 +249,17 @@ def test_inv005_fresh_certificate_accepted():
 
 
 def test_inv005_expired_certificate_rejected():
-    """ATTACK: replay an expired consensus verdict (A3 window)."""
-    proof = _three_sig_proof()  # $5K route → 50_000-block window
+    """ATTACK: replay an expired consensus verdict (A3/§9.2 TTL window).
+
+    H-06 (Wave 3 D): the certification window is the CANONICAL §9.2
+    second-based TTL table (CANONICAL_CERTIFICATE.md §9.2; py block table
+    retired — it disagreed with rust and blocks are not VM-portable). A
+    $5K route is in the $1k–$100k tier → 86,400 s (24 h). Verifying one
+    second past the deadline must reject.
+    """
+    proof = _three_sig_proof()  # $5K route → 86,400-second TTL (§9.2)
     assert not BTCPProofBuilder().verify_proof(
-        proof, current_block=18_000_000 + 50_001)
+        proof, current_block=18_000_000 + 86_401)
 
 
 # ── INV-006: payout exactly once ────────────────────────────────────────────
