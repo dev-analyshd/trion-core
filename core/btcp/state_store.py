@@ -734,6 +734,46 @@ class BtcpStateStore:
                 (kind, key),
             )
 
+    def next_entity_nonce(self, entity_key: str, seed: Optional[int] = None) -> int:
+        """P-PY-06 (red-team pass 3): ATOMIC cross-process per-entity nonce.
+
+        The read-modify-write happens INSIDE one ``BEGIN IMMEDIATE``
+        transaction on the shared SQLite connection — the write lock is
+        taken BEFORE the read, so two PROCESSES (api singleton, streamer,
+        gunicorn workers) sharing the store serialize here and can never
+        observe the same snapshot. In-process callers additionally hold
+        the store lock, but the transaction is what makes the guarantee
+        process-global.
+
+        First sight of an entity seeds from ``seed`` (the caller's
+        wall-clock-ms discipline) or 1. Returns the minted nonce.
+        """
+        with self._lock:
+            with self.transaction():
+                row = self._conn.execute(
+                    "SELECT payload, type_tag FROM btcp_state "
+                    "WHERE kind = ? AND key = ?",
+                    ("entity_nonce", entity_key),
+                ).fetchone()
+                last = None
+                if row is not None:
+                    try:
+                        last = int(row[0])
+                    except (TypeError, ValueError):
+                        last = None
+                if last is None:
+                    nonce = int(seed) if seed is not None and int(seed) > 0 else 1
+                else:
+                    nonce = last + 1
+                    if nonce >= 2 ** 32:
+                        nonce = 1
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO btcp_state "
+                    "(kind, key, type_tag, payload, updated_at) VALUES (?, ?, ?, ?, ?)",
+                    ("entity_nonce", entity_key, "uint32", int(nonce), time.time()),
+                )
+                return nonce
+
     def load_all(self, kind: str) -> Dict[str, Tuple[str, Any]]:
         """Read every row of a kind: {key: (type_tag, payload)}.
 
