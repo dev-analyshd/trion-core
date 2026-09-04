@@ -76,6 +76,79 @@ def depth_to_confidence(D: float, lambda_conf: float = 0.001) -> float:
     return 1.0 - float(np.exp(-lambda_conf * D))
 
 
+# ─── Wash Trading Defense (MD L1.1/L1.2, Wave 3 D — R-EC-03) ──────────────────
+#
+# MD "Wash Trading Defense" (verbatim):
+#     D_effective = D × (1 - HHI(counterparty_distribution))
+#
+# Washed volume inflates apparent depth; the HHI of the counterparty
+# distribution measures how concentrated the "activity" is (a wash ring
+# cycling through the same few counterparties ⇒ HHI → 1 ⇒ D_effective → 0).
+# The discount is multiplicative and monotone: more concentrated ⇒ less
+# effective depth, exactly as specified.
+
+def compute_counterparty_hhi(counterparty_distribution) -> float:
+    """HHI over a {counterparty_id: volume/weight} distribution, ∈ [0, 1].
+
+    Normalized HHI = Σ (share_i)² over total — the same construction as
+    core/spiritual/sigma_engine.compute_hhi, expressed on the 0-1 scale
+    (1.0 = a single counterparty took all volume; ~0 = perfectly spread).
+    An empty distribution returns 0.0 (no observed counterparties — no
+    concentration evidence, depth passes through undiscounted; honest
+    data-pending, never a fabricated penalty).
+    """
+    if not counterparty_distribution:
+        return 0.0
+    vals = [float(v) for v in counterparty_distribution.values()
+            if v is not None and v > 0]
+    total = sum(vals)
+    if total <= 0:
+        return 0.0
+    return sum((v / total) ** 2 for v in vals)
+
+
+def wash_trading_depth_discount(
+    D: float,
+    counterparty_distribution,
+) -> float:
+    """MD L1.1 Wash Trading Defense: D_effective = D·(1 − HHI(cp_dist)).
+
+    Args:
+        D: raw Akashic depth accumulated for the entity/asset.
+        counterparty_distribution: {counterparty_id: volume-or-weight}
+            mapping of the entity's observed counterparties. ``None``/empty
+            → HHI 0 → no discount (unmeasured, not penalized).
+
+    Returns:
+        D_effective ∈ [0, D] — the wash-adjusted depth.
+    """
+    if D <= 0:
+        return 0.0
+    hhi = compute_counterparty_hhi(counterparty_distribution)
+    return max(0.0, D * (1.0 - min(1.0, hhi)))
+
+
+def effective_depth(
+    D: float,
+    counterparty_distribution=None,
+) -> dict:
+    """Depth-engine entry: raw depth + wash-trading discount (R-EC-03).
+
+    Returns {D, D_effective, counterparty_hhi, discount_applied} — the
+    single place the depth engine applies the MD wash-trading defense so
+    consumers (D(t) feeds, moat D factor, routing) read D_effective.
+    """
+    hhi = compute_counterparty_hhi(counterparty_distribution)
+    d_eff = wash_trading_depth_discount(D, counterparty_distribution)
+    return {
+        "D":                 float(D),
+        "D_effective":       d_eff,
+        "counterparty_hhi":  round(hhi, 6),
+        "discount_applied":  bool(counterparty_distribution) and hhi > 0.0,
+        "formula":           "D_effective = D × (1 − HHI(counterparty_distribution)) [MD L1.1]",
+    }
+
+
 if __name__ == "__main__":
     samples = [
         {'A': 0.3, 'M': 0.6, 'C': 0.5 + 0.1 * np.sin(i / 100)}
@@ -96,4 +169,15 @@ if __name__ == "__main__":
     assert D > 0
     assert 0 <= w <= 1
     assert 0 <= sec <= 1
+
+    # Wash Trading Defense (MD L1.1, R-EC-03): D_eff = D × (1 − HHI(cp))
+    cp_wash_ring = {"ring_a": 90.0, "ring_b": 10.0}     # HHI = 0.82
+    cp_healthy   = {f"cp_{i}": 1.0 for i in range(10)}  # HHI = 0.10
+    eff = effective_depth(D, cp_wash_ring)
+    hhi = compute_counterparty_hhi(cp_wash_ring)
+    assert abs(eff["D_effective"] - D * (1 - hhi)) < 1e-9
+    assert eff["D_effective"] < effective_depth(D, cp_healthy)["D_effective"]
+    assert effective_depth(D, None)["D_effective"] == D   # unmeasured → no penalty
+    print(f"Wash defense: D={D:.1f} → D_eff={eff['D_effective']:.1f} "
+          f"(ring HHI={hhi:.2f})")
     print("PHASE 9 PASS — Akashic Depth D(t) integral form implemented")
