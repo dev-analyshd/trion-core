@@ -3,6 +3,17 @@
 {-
   TRION Token contract for TON blockchain.
 
+  Canonical tokenomics: docs/TOKENOMICS.md (resolves DD finding 5.4
+  "one supply, three stories").  Supply / decimals / genesis distribution are
+  identical across the Vyper / NEAR / TON / ink! implementations:
+    - fixed supply 1,000,000,000 whole TRION units, minted exactly ONCE via
+      the genesis_distribution message (op 0x07) — NO minting afterwards;
+    - decimals = 18 on every chain (here: display metadata — see the
+      TRUTHFUL-NOTE below);
+    - genesis split: 15% (PUBLIC_GOOD_BPS = 1500) to the public-good reserve
+      address, 85% to the treasury & vesting allocator address;
+    - burn path: op 0x08 burn + 50% of every slash burned.
+
   Storage layout (c4 persistent register):
     bits 0..266   : owner_addr (MsgAddressInt)
     bits 267..330 : total_supply (u64) — 1_000_000_000, i.e. 1B WHOLE TRION
@@ -12,11 +23,15 @@
                     `decimals` below is display metadata.  Per-address balances
                     use TVM coins (varUInteger 16, values up to 2^128−1), which
                     CAN hold raw 18-decimal amounts (10^27 < 2^128).  As long
-                    as slash amounts are denominated in the same whole-unit
-                    ledger unit as total_supply, the u64 fields stay in range
-                    (total_supply only ever decreases; burn_part ≤ balance).
+                    as slash/burn/fee amounts are denominated in the same
+                    whole-unit ledger unit as total_supply, the u64 fields stay
+                    in range (total_supply only ever decreases after genesis;
+                    burn_part ≤ balance).
     bits 331..338 : decimals (u8) — display-only metadata (18)
     bits 339..402 : insurance_fund (u64, same whole-unit ledger denomination)
+    bits 403..410 : genesis_done (u8) — 0 until the one-time genesis
+                    distribution (op 0x07) has minted the allocation;
+                    1 forever after (first-call-only guard).
     ref 0         : balances dict (HashmapE 267-bit addr -> coins)
     ref 1         : escrow dict (HashmapE 256-bit escrow_id (slice key) ->
                     ref to escrow record cell, ≤ 791 bits, fits one cell)
@@ -39,12 +54,26 @@
     0x04  lock_escrow    (escrow_id, entity_id, amount, timeout_sec)
     0x05  release_escrow (escrow_id)            — relayer + coherence proof
     0x06  revert_escrow  (escrow_id, reason)    — timeout escape hatch
+    0x07  genesis_distribution (public_good_addr, treasury_addr)
+                       Owner-guarded, FIRST-CALL-ONLY (genesis_done flag):
+                       mints the full 1B allocation exactly once —
+                       150,000,000 whole units (15%, PUBLIC_GOOD_BPS) to
+                       public_good_addr, 850,000,000 (85%) to treasury_addr.
+                       Deploy tooling MUST send this message immediately
+                       after contract deployment (see docs/TOKENOMICS.md).
+    0x08  burn           (amount)
+                       Permissionless burn-on-use (WP 15.3 "consumption
+                       bonding burns small fraction on each use"): destroys
+                       the sender's own balance and reduces total_supply.
+                       Body: 32 + ≤132 bits ≤ 1023.  0x07 body:
+                       32 + 267 + 267 = 566 bits ≤ 1023.
 -}
 
-#include "stdlib.fc";
+#include "stdlib.fc"
 
-const int TOTAL_SUPPLY = 1000000000; ;; 1B TRION (whole units)
-const int DECIMALS     = 18;
+const int TOTAL_SUPPLY   = 1000000000; ;; 1B TRION (whole units)
+const int DECIMALS       = 18;          ;; display metadata — unified with Vyper/NEAR/ink!
+const int PUBLIC_GOOD_BPS = 1500;       ;; 15.00% — matches PUBLIC_GOOD_BPS in every other chain impl
 
 ;; ── Error codes ─────────────────────────────────────────────────────────────
 const int ERR_NOT_AUTHORIZED         = 100;
@@ -56,6 +85,8 @@ const int ERR_ESCROW_NOT_FOUND       = 105;
 const int ERR_ESCROW_NOT_HOLDING     = 106;
 const int ERR_ESCROW_EXPIRED         = 107;
 const int ERR_INVALID_REASON         = 108;
+const int ERR_GENESIS_DONE           = 109;
+const int ERR_GENESIS_SAME_ADDR      = 110;
 
 ;; ── Slashing reasons (7 types) ──────────────────────────────────────────────
 const int SLASH_DOUBLE_SIGN          = 1;
@@ -70,26 +101,29 @@ const int SLASH_COHERENCE_FAILURE    = 7;
 ;; Persistent state stored in the c4 register as a single cell.
 
 () save_data(slice owner_addr, int total_supply, int decimals,
-             int insurance_fund, cell balances_dict, cell escrow_dict) impure inline {
+             int insurance_fund, int genesis_done,
+             cell balances_dict, cell escrow_dict) impure inline {
   set_data(begin_cell()
     .store_slice(owner_addr)
     .store_uint(total_supply, 64)
     .store_uint(decimals, 8)
     .store_uint(insurance_fund, 64)
+    .store_uint(genesis_done, 8)
     .store_ref(balances_dict)
     .store_ref(escrow_dict)
   .end_cell());
 }
 
-(slice, int, int, int, cell, cell) load_all() impure inline {
+(slice, int, int, int, int, cell, cell) load_all() impure inline {
   slice ds = get_data().begin_parse();
   slice owner_addr    = ds~load_bits(267);
   int   total_supply  = ds~load_uint(64);
   int   decimals      = ds~load_uint(8);
   int   insurance     = ds~load_uint(64);
+  int   genesis_done  = ds~load_uint(8);
   cell  balances      = ds~load_ref();
   cell  escrows       = ds~load_ref();
-  return (owner_addr, total_supply, decimals, insurance, balances, escrows);
+  return (owner_addr, total_supply, decimals, insurance, genesis_done, balances, escrows);
 }
 
 ;; ── Balance helpers ─────────────────────────────────────────────────────────
@@ -125,7 +159,7 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
   ;; ── 0x01 transfer ───────────────────────────────────────────────────────
   if (op == 0x01) {
     (slice owner_addr, int total_supply, int decimals, int insurance,
-     cell balances_dict, cell escrow_dict) = load_all();
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
 
     slice to_addr = in_msg_body~load_msg_addr();
     int amount    = in_msg_body~load_coins();
@@ -140,7 +174,8 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     int recip_bal = get_balance_internal(balances_dict, to_addr);
     set_balance_internal(balances_dict, to_addr, recip_bal + amount);
 
-    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    save_data(owner_addr, total_supply, decimals, insurance, genesis_done,
+              balances_dict, escrow_dict);
     return ();
   }
 
@@ -150,7 +185,7 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
   ;; total_supply — deflationary slash burn).
   if (op == 0x03) {
     (slice owner_addr, int total_supply, int decimals, int insurance,
-     cell balances_dict, cell escrow_dict) = load_all();
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
 
     ;; Only the contract owner can slash (governance / DW-BFT decision)
     throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
@@ -172,7 +207,7 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     int burn_part      = actual_slash - insurance_part;
 
     save_data(owner_addr, total_supply - burn_part, decimals,
-              insurance + insurance_part, balances_dict, escrow_dict);
+              insurance + insurance_part, genesis_done, balances_dict, escrow_dict);
     return ();
   }
 
@@ -182,7 +217,7 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
   ;; be released by relayer + coherence proof, or reverted after timeout.
   if (op == 0x04) {
     (slice owner_addr, int total_supply, int decimals, int insurance,
-     cell balances_dict, cell escrow_dict) = load_all();
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
 
     int escrow_id  = in_msg_body~load_uint(256);
     int entity_id  = in_msg_body~load_uint(256);
@@ -214,14 +249,15 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     ;; dict value = one ref to the record cell (matches load_ref reads)
     escrow_dict~dict_set(256, ekey, begin_cell().store_ref(esc_cell).end_cell().begin_parse());
 
-    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    save_data(owner_addr, total_supply, decimals, insurance, genesis_done,
+              balances_dict, escrow_dict);
     return ();
   }
 
   ;; ── 0x05 release_escrow — settle to destination on TON ───────────────────
   if (op == 0x05) {
     (slice owner_addr, int total_supply, int decimals, int insurance,
-     cell balances_dict, cell escrow_dict) = load_all();
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
 
     ;; Only owner (= relayer role in single-signer setup) can release
     throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
@@ -256,14 +292,15 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     escrow_dict~dict_set(256, ekey,
       begin_cell().store_ref(released_cell).end_cell().begin_parse());
 
-    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    save_data(owner_addr, total_supply, decimals, insurance, genesis_done,
+              balances_dict, escrow_dict);
     return ();
   }
 
   ;; ── 0x06 revert_escrow — refund to locker (timeout escape hatch) ──────────
   if (op == 0x06) {
     (slice owner_addr, int total_supply, int decimals, int insurance,
-     cell balances_dict, cell escrow_dict) = load_all();
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
 
     int escrow_id = in_msg_body~load_uint(256);
     slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
@@ -300,7 +337,60 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
     escrow_dict~dict_set(256, ekey,
       begin_cell().store_ref(reverted_cell).end_cell().begin_parse());
 
-    save_data(owner_addr, total_supply, decimals, insurance, balances_dict, escrow_dict);
+    save_data(owner_addr, total_supply, decimals, insurance, genesis_done,
+              balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x07 genesis_distribution — one-time mint of the fixed allocation ────
+  ;; Owner-guarded, FIRST-CALL-ONLY (genesis_done flag in c4).  Mints exactly
+  ;; the fixed 1B whole-unit allocation once (docs/TOKENOMICS.md):
+  ;;   15% (PUBLIC_GOOD_BPS = 1500) -> public_good_addr = 150,000,000 units
+  ;;   85% (remainder)              -> treasury_addr    = 850,000,000 units
+  ;; total_supply stays 1B (minting the allocation, not extra supply); after
+  ;; this message no path ever increases any balance except transfers.
+  ;; Body: op[32] + public_good_addr[267] + treasury_addr[267] = 566 bits.
+  if (op == 0x07) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
+
+    ;; Only the deployer/owner may mint the genesis allocation
+    throw_unless(ERR_NOT_AUTHORIZED, equal_slices(sender_addr, owner_addr));
+    ;; Exactly once — the flag latches forever
+    throw_if(ERR_GENESIS_DONE, genesis_done != 0);
+
+    slice public_good_addr = in_msg_body~load_msg_addr();
+    slice treasury_addr    = in_msg_body~load_msg_addr();
+    throw_if(ERR_GENESIS_SAME_ADDR, equal_slices(public_good_addr, treasury_addr));
+
+    int public_good_amount = TOTAL_SUPPLY * PUBLIC_GOOD_BPS / 10000;  ;; 150,000,000
+    int allocator_amount   = TOTAL_SUPPLY - public_good_amount;       ;; 850,000,000
+
+    set_balance_internal(balances_dict, public_good_addr, public_good_amount);
+    set_balance_internal(balances_dict, treasury_addr, allocator_amount);
+
+    save_data(owner_addr, total_supply, decimals, insurance, 1,
+              balances_dict, escrow_dict);
+    return ();
+  }
+
+  ;; ── 0x08 burn — permissionless burn-on-use (WP 15.3) ─────────────────────
+  ;; Destroys the sender's own balance and reduces total_supply (deflationary
+  ;; path).  Body: op[32] + amount[coins ≤ 132] = ≤ 164 bits.
+  if (op == 0x08) {
+    (slice owner_addr, int total_supply, int decimals, int insurance,
+     int genesis_done, cell balances_dict, cell escrow_dict) = load_all();
+
+    int amount = in_msg_body~load_coins();
+    throw_if(ERR_ZERO_AMOUNT, amount <= 0);
+
+    int sender_bal = get_balance_internal(balances_dict, sender_addr);
+    throw_unless(ERR_INSUFFICIENT_BALANCE, sender_bal >= amount);
+
+    set_balance_internal(balances_dict, sender_addr, sender_bal - amount);
+
+    save_data(owner_addr, total_supply - amount, decimals, insurance,
+              genesis_done, balances_dict, escrow_dict);
     return ();
   }
 
@@ -311,18 +401,28 @@ int get_balance_internal(cell balances_dict, slice owner_addr) inline {
 ;; ── Get-methods (callable off-chain via lite-server / HTTP API) ──────────────
 
 (int, int) get_balance(slice owner_addr) method_id {
-  ;; returns (balance, decimals) — balance in smallest unit
-  (_, _, _, _, cell balances_dict, _) = load_all();
+  ;; returns (balance, decimals) — balance in whole units, decimals metadata
+  (_, _, _, _, _, cell balances_dict, _) = load_all();
   return (get_balance_internal(balances_dict, owner_addr), DECIMALS);
 }
 
 (int, int, int) get_token_info() method_id {
-  (_, int total_supply, int decimals, int insurance, _, _) = load_all();
+  ;; returns (total_supply, decimals, insurance_fund) — whole units
+  (_, int total_supply, int decimals, int insurance, _, _, _) = load_all();
   return (total_supply, decimals, insurance);
 }
 
+;; Genesis-distribution info (docs/TOKENOMICS.md) — lets off-chain tooling
+;; verify the fixed allocation without replaying messages:
+;;   (genesis_done, public_good_amount, treasury_allocator_amount)
+(int, int, int) get_genesis_info() method_id {
+  (_, int total_supply, _, _, int genesis_done, _, _) = load_all();
+  int public_good_amount = TOTAL_SUPPLY * PUBLIC_GOOD_BPS / 10000;
+  return (genesis_done, public_good_amount, total_supply - public_good_amount);
+}
+
 (int, int) get_escrow_state(int escrow_id) method_id {
-  (_, _, _, _, _, cell escrow_dict) = load_all();
+  (_, _, _, _, _, _, cell escrow_dict) = load_all();
   slice ekey = begin_cell().store_uint(escrow_id, 256).end_cell().begin_parse();
   (slice esc_val, int found) = escrow_dict.dict_get?(256, ekey);
   throw_unless(ERR_ESCROW_NOT_FOUND, found);
