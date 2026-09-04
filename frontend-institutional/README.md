@@ -43,7 +43,7 @@ Browser ──same-origin /api/trion/*──> Next.js route handlers (proxy)
 | Command Center | `#/overview` | health, moat, bh/stats, bh/recent_feed, feed, love/global, validator/hhi |
 | Signal Feed | `#/signals` | bh/recent_feed, feed |
 | BTCP Zero-Bridge | `#/btcp` | POST btcp/route (K1 simulator), btcp/streamer/status |
-| Chain Coverage | `#/chains` | chains (160 unique · 22 VMs), bh/vm_feed |
+| Chain Coverage | `#/chains` | chains (129 registered · 18 VMs), bh/vm_feed |
 | Five-Plane Coherence | `#/coherence` | coherence/profiles (11 named + asset types), feed, health |
 | Security & Consensus | `#/security` | dw_bft, validator/hhi, feed |
 | Governance & AWA | `#/governance` | governance/awa, love/global, falsifiability |
