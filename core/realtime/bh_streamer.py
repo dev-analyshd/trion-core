@@ -134,28 +134,115 @@ def classify_event(selector: str, value: int, has_input: bool) -> int:
     return 0
 
 
-def compute_bh(entity_id, event_type_id, magnitude_raw, chain_id, block_number, block_hash, timestamp, chain_label):
-    mag_human = magnitude_raw / (10 ** 18) if magnitude_raw > 0 else 0
+def _nibble(c):
+    """Hex nibble → int, invalid chars read as 0 (Rust to_digit(16).unwrap_or(0))."""
+    try:
+        return int(c, 16)
+    except ValueError:
+        return 0
+
+
+def _hex_to_32bytes(s):
+    """Lenient hex→32 bytes, byte-identical to Rust trion-common hash_dna.rs:
+    strip 0x, at most 32 bytes, left-aligned, invalid nibbles = 0."""
+    s = str(s)
+    s = s[2:] if s[:2].lower() == "0x" else s
+    out = bytearray(32)
+    n = min(len(s) // 2, 32)
+    for i in range(n):
+        out[i] = (_nibble(s[i * 2]) << 4) | _nibble(s[i * 2 + 1])
+    return bytes(out)
+
+
+def _normalise_addr(raw):
+    """Port of Rust hash_dna.rs normalise(): trim + lowercase, canonicalise
+    bare 40-hex addresses to 0x form. Everything else passes through — the
+    SHA3-256 the caller applies then matches Rust bh_id() byte-for-byte."""
+    s = str(raw).strip().lower()
+    if s.startswith("0x") and len(s) >= 42:
+        return s
+    if len(s) == 40 and all(c in "0123456789abcdef" for c in s):
+        return "0x" + s
+    return s
+
+
+def _iso_to_epoch(iso):
+    """RFC3339/ISO-8601 timestamp → unix seconds (0 on failure)."""
+    try:
+        from datetime import datetime, timezone
+        ts = str(iso).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return int(dt.timestamp())
+    except Exception:
+        return 0
+
+
+def compute_bh(entity_id, event_type_id, magnitude_raw, chain_id, block_number, block_hash, timestamp, chain_label, decimals=18):
+    """Canonical L0.1 Behavioral Hash — FIELD-ALIGNED with the Rust indexers.
+
+    93-byte payload (all big-endian):
+        entity_id(32) || event_type(1) || magnitude_nano(8) ||
+        context(8) || timestamp(8) || chain_id(4) || block_hash(32)
+
+    Field semantics now match trion-common::hash_dna::canonical_bh:
+      - entity   = SHA3-256(normalised address) (Rust bh_id), hex→32B — the
+                   canonical BEO key, so the same address hashes identically
+                   on both ingestion paths.
+      - context  = 0 — every Rust indexer crate passes 0 (venue/layer flags
+                   are a reserved field; the old chain<<32|event encoding
+                   could never match the Rust pipeline).
+      - magnitude = raw native units / 10^decimals → deterministic log scale
+                   (the Rust crates use a session-relative ratio — known,
+                   documented divergence on their side).
+      - timestamp = real chain block time; fetchers supply it per family.
+      - block_hash = lenient hex→32B (invalid nibbles → 0, like Rust — no
+                   silent SHA3 substitution that Rust would not reproduce).
+    """
+    # ── magnitude: native raw units → human via per-chain decimals ──────────
+    raw = magnitude_raw
+    if isinstance(raw, str):
+        raw = float(raw) if ("." in raw or "e" in raw.lower()) else int(raw)
+    if isinstance(raw, float):
+        # Already-human decimal amounts (XRPL issued currencies) — no scaling.
+        mag_human = raw if raw > 0 else 0.0
+    else:
+        try:
+            dec = int(decimals)
+        except (TypeError, ValueError):
+            dec = 18
+        # dec == 0 → value is already human (Cardano block tx_count).
+        mag_human = (raw / (10 ** dec)) if (raw > 0 and dec > 0) else (float(raw) if raw > 0 else 0.0)
     mag_max = 1000.0
-    mag_norm = min(1.0, math.log10(max(mag_human, 0) + 1) / math.log10(mag_max + 1)) if mag_human > 0 else 0.0
-    mag_nano = int(mag_norm * 1e9)
+    mag_norm = min(1.0, math.log10(mag_human + 1) / math.log10(mag_max + 1)) if mag_human > 0 else 0.0
+    # clamp + truncate to match Rust's `(x.clamp(0,1) * 1e9) as u64`
+    mag_nano = int(max(0.0, min(1.0, mag_norm)) * 1_000_000_000.0)
 
-    # Entity → 32 bytes: hex addresses (EVM) pass through; non-hex
-    # (base58 Solana/Waves, base32 Stellar, bech32 Cosmos) are BEO-resolved
-    # via SHA3-256 — substrate-independent by construction (whitepaper L0.2).
-    _eid = entity_id.lower().replace("0x", "")
-    try:
-        eid_bytes = bytes.fromhex(_eid.ljust(64, "0")[:64])
-    except ValueError:
-        eid_bytes = hashlib.sha3_256(entity_id.lower().strip().encode()).digest()
-    context = chain_id.to_bytes(4, "big") + event_type_id.to_bytes(4, "big")
-    _bh = block_hash.lower().replace("0x", "")
-    try:
-        bh_bytes = bytes.fromhex(_bh.ljust(64, "0")[:64])
-    except ValueError:
-        bh_bytes = hashlib.sha3_256(str(block_hash).encode()).digest()
+    # ── entity: canonical BEO key = SHA3-256(normalised addr) ───────────────
+    eid_hex = hashlib.sha3_256(_normalise_addr(entity_id).encode()).hexdigest()
+    eid_bytes = _hex_to_32bytes(eid_hex)
 
-    payload = eid_bytes + event_type_id.to_bytes(1, "big") + mag_nano.to_bytes(8, "big") + context + timestamp.to_bytes(8, "big") + chain_id.to_bytes(4, "big") + bh_bytes
+    # ── context: 8 zero bytes — all 21 Rust crates pass 0 ───────────────────
+    context = (0).to_bytes(8, "big")
+
+    bh_bytes = _hex_to_32bytes(block_hash)
+
+    try:
+        ts = int(timestamp or 0)
+    except (TypeError, ValueError):
+        ts = 0
+
+    payload = (
+        eid_bytes
+        + bytes([int(event_type_id) & 0xFF])
+        + mag_nano.to_bytes(8, "big")
+        + context
+        + ts.to_bytes(8, "big")
+        + (int(chain_id) & 0xFFFFFFFF).to_bytes(4, "big")
+        + bh_bytes
+    )
+    assert len(payload) == 93, "canonical BH payload must be 93 bytes"
 
     sense = hashlib.sha3_256(payload + b"\x00").digest()
     sha3ff = hashlib.sha3_256(payload + b"\xFF").digest()
@@ -166,11 +253,12 @@ def compute_bh(entity_id, event_type_id, magnitude_raw, chain_id, block_number, 
     valid = (bytes(a ^ b for a, b in zip(antisense, comp_sense)) == sha3ff_check)
 
     return {
-        "entity_id": entity_id, "event_type": EVENT_TYPES.get(event_type_id, "UNKNOWN"),
+        "entity_id": eid_hex, "entity_id_raw": str(entity_id),
+        "event_type": EVENT_TYPES.get(event_type_id, "UNKNOWN"),
         "event_type_id": event_type_id, "magnitude_norm": mag_norm,
         "chain_id": chain_id, "chain_label": chain_label,
         "block_number": block_number, "block_hash": block_hash,
-        "timestamp": timestamp, "sense_hex": sense.hex(),
+        "timestamp": ts, "sense_hex": sense.hex(),
         "antisense_hex": antisense.hex(), "valid": valid, "tx_hash": "",
     }
 
@@ -194,6 +282,20 @@ def get_block_with_txs(rpc_url, block_num):
         return rpc_call(rpc_url, "eth_getBlockByNumber", [hex(block_num), True], timeout=15)
     except Exception:
         return None
+
+
+def _value_wei_str(v):
+    """Normalise a tx value (hex EVM / decimal native / float issued-token)
+    to a decimal integer string for the value_wei column."""
+    try:
+        if isinstance(v, str) and v[:2].lower() == "0x":
+            return str(int(v, 16))
+        try:
+            return str(int(v))
+        except (TypeError, ValueError):
+            return str(int(float(v)))
+    except (TypeError, ValueError):
+        return "0"
 
 
 class BHStreamer:
@@ -275,7 +377,7 @@ class BHStreamer:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                 tx.get("hash", ""), bh["entity_id"], tx.get("from", ""), tx.get("to", ""),
                 bh["event_type_id"], bh["event_type"], bh["magnitude_norm"],
-                str(int(tx.get("value", "0x0"), 16) if isinstance(tx.get("value", "0x0"), str) else int(tx.get("value", 0) or 0)), tx.get("input", "")[:10],
+                _value_wei_str(tx.get("value", "0x0")), tx.get("input", "")[:10],
                 bh["sense_hex"], bh["antisense_hex"], bh["block_number"], bh["block_hash"],
                 bh["chain_id"], bh["chain_label"], bh["timestamp"], 1 if bh["valid"] else 0))
             conn.commit()
@@ -303,6 +405,10 @@ class BHStreamer:
         _raw_ts = block.get("timestamp", "0x0")
         timestamp = int(_raw_ts, 16) if isinstance(_raw_ts, str) else int(_raw_ts or 0)
         chain_label = chain_config["name"]
+        # Per-chain magnitude scaling: fetchers report values in raw native
+        # units; "value_decimals" overrides the display decimals where the
+        # fetcher's value semantic differs (e.g. Cardano = block tx_count).
+        _dec = chain_config.get("value_decimals", chain_config.get("decimals", 18))
 
         for tx in txs:
             if not isinstance(tx, dict):
@@ -314,7 +420,7 @@ class BHStreamer:
             selector = input_data[:10] if input_data and input_data != "0x" else ""
             event_type_id = classify_event(selector, value, input_data != "0x")
 
-            bh = compute_bh(from_addr, event_type_id, value, chain_id, block_num, block_hash, timestamp, chain_label)
+            bh = compute_bh(from_addr, event_type_id, value, chain_id, block_num, block_hash, timestamp, chain_label, decimals=_dec)
             bh["tx_hash"] = tx.get("hash", "")
 
             self._write_bh(bh, tx, chain_config)
@@ -664,7 +770,9 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
     8200:   {"name": "algorand", "label": "Algorand", "vm": "ALGORAND", "rpc": "https://mainnet-api.algonode.cloud", "block_time": 3, "native_symbol": "ALGO", "decimals": 6},
 
     # ── VM Family 18: Cardano (eUTXO) ─────────────────────────────────────
-    9400:   {"name": "cardano", "label": "Cardano", "vm": "CARDANO", "rpc": "https://api.koios.rest", "block_time": 20, "native_symbol": "ADA", "decimals": 6},
+    # value_decimals=0: the Cardano fetcher's per-block value is the block's
+    # tx_count (pool-behavior magnitude), NOT ada — no decimal scaling.
+    9400:   {"name": "cardano", "label": "Cardano", "vm": "CARDANO", "rpc": "https://api.koios.rest", "block_time": 20, "native_symbol": "ADA", "decimals": 6, "value_decimals": 0},
 
     # ── Additional Cosmos-family chains (public Tendermint RPCs) ──────────
     10014:  {"name": "kava", "label": "Kava", "vm": "COSMOS", "rpc": "https://rpc.kava.io", "block_time": 6, "native_symbol": "KAVA", "decimals": 6},
@@ -711,7 +819,7 @@ def fetch_solana_block(rpc_url, slot, chain_name="solana"):
         result = rpc_call(rpc_url, "getBlock", [slot, {"maxSupportedTransactionVersion": 0, "transactionDetails": "signatures"}])
         if result:
             txs = result.get("signatures", [])
-            return {"transactions": [{"hash": sig, "from": _synthetic_tx_sender(chain_name, sig), "to": "unknown", "value": "0"} for sig in txs[:50]], "hash": result.get("blockhash", "0x0"), "number": slot}
+            return {"transactions": [{"hash": sig, "from": _synthetic_tx_sender(chain_name, sig), "to": "unknown", "value": "0"} for sig in txs[:50]], "hash": result.get("blockhash", "0x0"), "number": slot, "timestamp": int(result.get("blockTime") or 0)}
     except:
         pass
     return None
@@ -725,7 +833,7 @@ def fetch_cosmos_block(rpc_url, height, chain_name="cosmos"):
             block = data.get("result", {}).get("block", {})
             txs = block.get("data", {}).get("txs", [])
             tx_ids = [f"cosmos_tx_{height}_{i}" for i in range(min(len(txs), 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": block.get("header", {}).get("last_block_id", {}).get("hash", "0x0"), "number": height}
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": block.get("header", {}).get("last_block_id", {}).get("hash", "0x0"), "number": height, "timestamp": _iso_to_epoch(block.get("header", {}).get("time", ""))}
     except:
         return None
 
@@ -741,7 +849,8 @@ def fetch_aptos_block(rpc_url, height, chain_name="aptos"):
             except (TypeError, ValueError):
                 tx_count = 0
             tx_ids = [f"aptos_tx_{height}_{i}" for i in range(min(tx_count, 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("previous_block_hash", "0x0"), "number": height}
+            _apt_ts = int(data.get("block_timestamp") or 0)  # microseconds
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("previous_block_hash", "0x0"), "number": height, "timestamp": _apt_ts // 1_000_000}
     except:
         return None
 
@@ -756,7 +865,7 @@ def fetch_sui_checkpoint(rpc_url, seq, chain_name="sui"):
             for i, t in enumerate(txs[:50]):
                 digest = t.get("transaction", {}).get("digest", f"sui_tx_{seq}_{i}")
                 out.append({"hash": digest, "from": _synthetic_tx_sender(chain_name, digest), "to": "unknown", "value": "0"})
-            return {"transactions": out, "hash": data.get("digest", "0x0"), "number": seq}
+            return {"transactions": out, "hash": data.get("digest", "0x0"), "number": seq, "timestamp": (int(data.get("timestamp_ms") or 0) // 1000)}
     except:
         return None
 
@@ -768,7 +877,8 @@ def fetch_near_block(rpc_url, height, chain_name="near"):
             txs = result.get("chunks", [])
             total_txs = sum(len(c.get("transactions", [])) for c in txs)
             tx_ids = [f"near_tx_{height}_{i}" for i in range(min(total_txs, 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": result.get("header", {}).get("hash", "0x0"), "number": height}
+            _near_ts = int(result.get("header", {}).get("timestamp") or 0)  # nanoseconds
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": result.get("header", {}).get("hash", "0x0"), "number": height, "timestamp": _near_ts // 1_000_000_000}
     except:
         pass
     return None
@@ -779,8 +889,14 @@ def fetch_ton_block(rpc_url, seq, chain_name="ton"):
         req = urllib.request.Request(f"{rpc_url}/getMasterchainInfo", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-            tx_ids = [f"ton_tx_{seq}_{i}" for i in range(10)]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": "0x0", "number": seq}
+        # Anchor to the REAL masterchain tip the API reports (root_hash) — the
+        # per-tx rows below are still synthetic counts (toncenter v2 exposes
+        # no per-block tx list); the Rust trion-ton crate is the real path.
+        _info = (data.get("result") or {}).get("masterchain_info", {})
+        _last = _info.get("last", {}) if isinstance(_info, dict) else {}
+        _root = str(_last.get("root_hash") or "0x0")
+        tx_ids = [f"ton_tx_{seq}_{i}" for i in range(10)]
+        return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": _root, "number": seq}
     except:
         return None
 
@@ -794,7 +910,7 @@ def fetch_starknet_block(rpc_url, block_num, chain_name="starknet"):
             for i, t in enumerate(txs[:50]):
                 tx_hash = t.get("transaction_hash", f"starknet_tx_{block_num}_{i}")
                 out.append({"hash": tx_hash, "from": _synthetic_tx_sender(chain_name, tx_hash), "to": "unknown", "value": "0"})
-            return {"transactions": out, "hash": result.get("block_hash", "0x0"), "number": block_num}
+            return {"transactions": out, "hash": result.get("block_hash", "0x0"), "number": block_num, "timestamp": int(result.get("timestamp") or 0)}
     except:
         pass
     return None
@@ -810,7 +926,10 @@ def fetch_tron_block(rpc_url, block_num, chain_name="tron"):
             for i, t in enumerate(txs[:50]):
                 txid = t.get("txID", f"tron_tx_{block_num}_{i}")
                 out.append({"hash": txid, "from": _synthetic_tx_sender(chain_name, txid), "to": "unknown", "value": str(t.get("raw_data", {}).get("contract", [{}])[0].get("parameter", {}).get("value", {}).get("amount", 0))})
-            return {"transactions": out, "hash": "0x0", "number": block_num}
+            _first = txs[0] if txs else {}
+            _tron_ts = int(_first.get("block_timestamp") or 0) // 1000  # ms → s
+            _tron_bh = str(_first.get("blockID") or "0x0")
+            return {"transactions": out, "hash": _tron_bh, "number": block_num, "timestamp": _tron_ts}
     except:
         return None
 
@@ -825,7 +944,16 @@ def fetch_utxo_block(rpc_url, height):
                 req2 = urllib.request.Request(f"{rpc_url}/v1/block/{block_hash}/txs", headers={"User-Agent": "TRION/1.0"})
                 with urllib.request.urlopen(req2, timeout=15) as resp2:
                     txs = json.loads(resp2.read())
-                    return {"transactions": [{"hash": t.get("txid", f"utxo_tx_{height}_{i}"), "from": t.get("vin", [{}])[0].get("prevout", {}).get("scriptpubkey_address", "unknown") if t.get("vin") else "unknown", "to": t.get("vout", [{}])[0].get("scriptpubkey_address", "unknown") if t.get("vout") else "unknown", "value": str(t.get("vout", [{}])[0].get("value", 0))} for t in txs[:50]], "hash": block_hash, "number": height}
+                # Real block time from the block header (one extra tolerant call;
+                # UTXO poll interval is 60-600s so the overhead is negligible).
+                block_ts = 0
+                try:
+                    req3 = urllib.request.Request(f"{rpc_url}/v1/block/{block_hash}", headers={"User-Agent": "TRION/1.0"})
+                    with urllib.request.urlopen(req3, timeout=10) as resp3:
+                        block_ts = int(json.loads(resp3.read()).get("timestamp") or 0)
+                except Exception:
+                    pass
+                return {"transactions": [{"hash": t.get("txid", f"utxo_tx_{height}_{i}"), "from": t.get("vin", [{}])[0].get("prevout", {}).get("scriptpubkey_address", "unknown") if t.get("vin") else "unknown", "to": t.get("vout", [{}])[0].get("scriptpubkey_address", "unknown") if t.get("vout") else "unknown", "value": str(t.get("vout", [{}])[0].get("value", 0))} for t in txs[:50]], "hash": block_hash, "number": height, "timestamp": block_ts}
     except:
         return None
 
@@ -836,7 +964,8 @@ def fetch_stellar_block(rpc_url, cursor):
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             txs = data.get("_embedded", {}).get("records", [])
-            return {"transactions": [{"hash": t.get("hash", f"stellar_tx_{i}"), "from": t.get("source_account", "unknown"), "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": "0x0", "number": cursor}
+            _st_ts = _iso_to_epoch(txs[0].get("created_at")) if txs else 0
+            return {"transactions": [{"hash": t.get("hash", f"stellar_tx_{i}"), "from": t.get("source_account", "unknown"), "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": "0x0", "number": cursor, "timestamp": _st_ts}
     except:
         return None
 
@@ -847,7 +976,7 @@ def fetch_multiversx_block(rpc_url, nonce, chain_name="multiversx"):
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             tx_ids = [f"egld_tx_{nonce}_{i}" for i in range(min(data.get("nonce", 0) % 50, 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("hash", "0x0"), "number": nonce}
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("hash", "0x0"), "number": nonce, "timestamp": int(data.get("timestamp") or 0)}
     except:
         return None
 
@@ -866,7 +995,7 @@ def fetch_xrpl_ledger(rpc_url, ledger_index):
                     except (TypeError, ValueError):
                         return "0"
                 return str(amt)
-            return {"transactions": [{"hash": t.get("hash", f"xrpl_tx_{ledger_index}_{i}"), "from": t.get("Account", "unknown"), "to": t.get("Destination", "unknown"), "value": _xrpl_amount(t)} for i, t in enumerate(txs[:50])], "hash": result.get("ledger", {}).get("hash", "0x0"), "number": ledger_index}
+            return {"transactions": [{"hash": t.get("hash", f"xrpl_tx_{ledger_index}_{i}"), "from": t.get("Account", "unknown"), "to": t.get("Destination", "unknown"), "value": _xrpl_amount(t)} for i, t in enumerate(txs[:50])], "hash": result.get("ledger", {}).get("hash", "0x0"), "number": ledger_index, "timestamp": int(result.get("ledger", {}).get("close_time") or 0) + 946684800}
     except:
         pass
     return None
@@ -878,7 +1007,7 @@ def fetch_waves_block(rpc_url, height):
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
             txs = data.get("transactions", [])
-            return {"transactions": [{"hash": t.get("id", f"waves_tx_{height}_{i}"), "from": t.get("sender", "unknown"), "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": data.get("signature", "0x0"), "number": height}
+            return {"transactions": [{"hash": t.get("id", f"waves_tx_{height}_{i}"), "from": t.get("sender", "unknown"), "to": "unknown", "value": "0"} for i, t in enumerate(txs[:50])], "hash": data.get("signature", "0x0"), "number": height, "timestamp": (int(data.get("timestamp") or 0) // 1000)}
     except:
         return None
 
@@ -890,7 +1019,7 @@ def fetch_vechain_block(rpc_url, block_num, chain_name="vechain"):
             data = json.loads(resp.read())
             txs = data.get("transactions", [])
             tx_ids = [f"vet_tx_{block_num}_{i}" for i in range(min(len(txs), 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": "0x0", "number": block_num}
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": str(data.get("id") or data.get("hash") or "0x0"), "number": block_num, "timestamp": int(data.get("timestamp") or 0)}
     except:
         return None
 
@@ -915,7 +1044,7 @@ def fetch_algorand_block(rpc_url, round_num):
                 "to":    str(txn.get("rcv", txn.get("arcv", "unknown"))),
                 "value": str(txn.get("amt", txn.get("aamt", 0)) or 0),
             })
-        return {"transactions": out, "hash": str(data.get("hash", "0x0")), "number": round_num}
+        return {"transactions": out, "hash": str(data.get("hash", "0x0")), "number": round_num, "timestamp": int((data.get("block") or {}).get("ts") or 0)}
     except Exception:
         return None
 
@@ -950,6 +1079,7 @@ def fetch_cardano_block(rpc_url, block_height):
             }],
             "hash": blk["hash"],
             "number": block_height,
+            "timestamp": _iso_to_epoch(blk.get("block_time")),
         }
     except Exception:
         return None
