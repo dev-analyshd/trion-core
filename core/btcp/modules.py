@@ -19,7 +19,7 @@ import math
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -447,14 +447,109 @@ class BTCPProofBuilder:
 # Module 2.5: BITP Matcher
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# BTCP Master Spec §4.1 — Intent object enumerations (BITPIntent values)
+INTENT_ACTIONS      = frozenset({"SWAP", "TRANSFER", "LIQUIDITY", "STAKE", "BORROW"})
+MIN_FINALITY_LEVELS = frozenset({"FAST", "STANDARD", "SECURE"})
+PRIVACY_LEVELS      = frozenset({"PUBLIC", "ZK_CREDENTIAL", "INVISIBLE"})
+CHAIN_PREF_MODES    = frozenset({"OPTIMAL", "SINGLE_CHAIN"})
+
+
+def _canonical_intent_field(value: Any) -> str:
+    """Deterministic string encoding of one BITPIntent field for hashing.
+
+    bytes → hex, str → as-is, list/tuple → comma-joined recursively,
+    None → "none", floats via repr() (stable across runs/processes).
+    Mirrors the append-only hash policy of ``rust/src/types.rs``
+    ``Intent::hash()`` (the Python and Rust intents carry different
+    legacy field sets, so the byte streams differ by construction; the
+    encoding policy — canonical per-field text, colon-joined — is
+    identical).
+    """
+    if value is None:
+        return "none"
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).hex()
+    if isinstance(value, (list, tuple)):
+        return "[" + ",".join(_canonical_intent_field(v) for v in value) + "]"
+    if isinstance(value, float):
+        return repr(value)
+    return str(value)
+
+
 @dataclass
 class BITPIntent:
+    """Behavioral intent object — BTCP Master Spec §4.1.
+
+    The legacy BITP fields keep their positional order (entity_id,
+    asset_in, asset_out, magnitude, chain_id, deadline) so every existing
+    6-argument construction keeps working. The §4.1 field set is appended
+    with the spec defaults:
+
+    ==============  =================================================
+    action           SWAP | TRANSFER | LIQUIDITY | STAKE | BORROW
+    value            uint256 behavioral magnitude units
+    max_total_gas    uint128 USD equivalent across all chains (None =
+                     unbounded)
+    min_finality     FAST | STANDARD | SECURE
+    min_nl_score     uint16 ×1000 liquidity-health floor (spec name
+                     min_NL_score; 300 = 0.30 — naming follows the repo's
+                     ``nl_score`` convention, see core/akashic/bibl.py)
+    chain_pref       OPTIMAL | [chain_list] | SINGLE_CHAIN
+    privacy          PUBLIC | ZK_CREDENTIAL | INVISIBLE
+    btcp_version     semver string (spec encodes as bytes12)
+    nonce            per-entity monotonic counter (uint64)
+    ==============  =================================================
+
+    ``value`` stays ``None`` when unset (the legacy ``magnitude`` float
+    carries the same information for BITP matching).
+    """
+    # legacy BITP fields — positional order frozen (backwards compatible)
     entity_id:    bytes
     asset_in:     bytes
     asset_out:    bytes
     magnitude:    float
     chain_id:     int
     deadline:     int
+    # BTCP Master Spec §4.1 fields (defaults per spec)
+    action:        str = "SWAP"
+    value:         Optional[int] = None
+    max_total_gas: Optional[int] = None
+    min_finality:  str = "STANDARD"
+    min_nl_score:  int = 300            # ×1000 → default 0.30 NL floor
+    chain_pref:    Union[str, List[int]] = "OPTIMAL"
+    privacy:       str = "PUBLIC"
+    btcp_version:  str = "1.0.0"        # semver (spec encodes as bytes12)
+    nonce:         int = 0              # per-entity monotonic counter
+
+    def hash(self) -> bytes:
+        """SHA3-256 over the §4.1 field set (legacy fields first).
+
+        Legacy BITP fields in their original order with the §4.1 fields
+        appended after them, colon-joined, SHA3-256 — the same
+        append-only extension policy as ``rust/src/types.rs``
+        ``Intent::hash()``. No pinned vectors existed for this object
+        before (BITPIntent had no hash), so the format is defined here
+        once and stays stable going forward.
+        """
+        parts = [
+            _canonical_intent_field(self.entity_id),
+            _canonical_intent_field(self.asset_in),
+            _canonical_intent_field(self.asset_out),
+            _canonical_intent_field(self.magnitude),
+            _canonical_intent_field(self.chain_id),
+            _canonical_intent_field(self.deadline),
+            # BTCP Master Spec §4.1 fields
+            _canonical_intent_field(self.action),
+            _canonical_intent_field(self.value),
+            _canonical_intent_field(self.max_total_gas),
+            _canonical_intent_field(self.min_finality),
+            _canonical_intent_field(self.min_nl_score),
+            _canonical_intent_field(self.chain_pref),
+            _canonical_intent_field(self.privacy),
+            _canonical_intent_field(self.btcp_version),
+            _canonical_intent_field(self.nonce),
+        ]
+        return hashlib.sha3_256(":".join(parts).encode()).digest()
 
 
 class BITPMatcher:
