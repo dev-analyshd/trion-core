@@ -9322,8 +9322,8 @@ def zg_full_stack():
             "try_bh_ledger": "/api/v1/bh/stats",
         },
         "faiss_vectors":    faiss_vectors,
-        "chains_indexed":   37,
-        "vm_families":      13,
+        "chains_indexed":   _registry_chain_counts()["chains_indexed"],
+        "vm_families":      _registry_chain_counts()["vm_families"],
         "bh_records":       _live_bh_count_str(),
         **_synthetic_note(
             "self-reported integration summary: chain block, faiss_vectors and bh_records are "
