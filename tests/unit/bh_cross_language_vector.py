@@ -5,8 +5,17 @@ Verifies that Python produces the exact digest specified in bh_schema_v1.json.
 Run after any change to the 93-byte payload layout or event-type enumeration to
 confirm the canonical test vector is still correct.
 
+Role in the verification lattice (W4-Q note): the CANONICAL cross-language
+suite is tests/golden/test_golden_vectors.py (52 vectors incl. this schema
+vector — see vectors.json id "schema-vector"). What THIS script uniquely
+gates is the bh_schema_v1.json file itself (the schema's frozen single test
+vector + event_type enum membership), and it is the file executed by
+.github/workflows/security-audit.yml. Not pytest-collected (script-style
+main()). Keep both; do not add new digest cases here — extend the golden
+suite instead.
+
 Usage:
-    uv run python tests/bh_cross_language_vector.py
+    python3 tests/unit/bh_cross_language_vector.py
 """
 import hashlib
 import json

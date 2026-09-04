@@ -16,7 +16,7 @@ import hashlib
 import json
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONTRACTS = os.path.join(REPO, 'contracts')
+CONTRACTS = os.path.join(REPO, 'contracts', 'solidity')  # restructure moved .sol here (was contracts/)
 
 
 def read(path):

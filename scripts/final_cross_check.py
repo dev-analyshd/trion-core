@@ -121,10 +121,13 @@ def phase_3():
     ui = read('frontend/src/components/ui.tsx')
     page = read('frontend/src/app/page.tsx')
 
-    # 3.1 WebSocket hook
-    check("useWebSocket hook", 'export function useWebSocket' in hooks)
-    check("Exponential backoff in useWebSocket", 'Math.pow(2' in hooks or '1000 *' in hooks)
-    check("Polling fallback in useWebSocket", 'fallbackInterval' in hooks)
+    # 3.1 Real-time streaming (W4-Q: the native-WebSocket hook useWebSocket was
+    # dead code — the live path is Flask-SocketIO via lib/socketio.ts +
+    # useSocketFeed, with useStream polling as fallback)
+    check("useSocketFeed hook (socket.io live push)", 'export function useSocketFeed' in hooks)
+    check("SocketIOClient with reconnect in lib/socketio.ts",
+          'reconnect' in read('frontend/src/lib/socketio.ts'))
+    check("Polling fallback (useStream)", 'export function useStream' in hooks)
 
     # 3.2 Loading & Error states
     check("Skeleton component", 'export function Skeleton' in ui)
@@ -202,11 +205,12 @@ def phase_5():
     check("useContracts.ts created", exists('frontend/src/hooks/useContracts.ts'))
     check("useTRIONExecutionGate hook", 'useTRIONExecutionGate' in uc)
     check("usePublishBehavioralTruth hook", 'usePublishBehavioralTruth' in uc)
-    check("useLockFunds hook", 'useLockFunds' in uc)
+    check("useLockEscrow hook (renamed from useLockFunds)", 'useLockEscrow' in uc)
     check("useRegisterIntent hook", 'useRegisterIntent' in uc)
     check("useEmergencyRevert hook", 'useEmergencyRevert' in uc)
     check("useUserBEO hook", 'useUserBEO' in uc)
-    check("useMaxLockDuration hook", 'useMaxLockDuration' in uc)
+    check("useEmergencyEscapeAvailable hook (supersedes useMaxLockDuration)",
+          'useEmergencyEscapeAvailable' in uc)
 
     check("SettingsModal.tsx created", exists('frontend/src/components/SettingsModal.tsx'))
     api_ts = read('frontend/src/lib/api.ts')
@@ -242,7 +246,7 @@ def phase_7():
     print("PHASE 7: CONTRACT VERIFICATION")
     print("=" * 72)
 
-    escrow = read('contracts/BTCPEscrow.sol')
+    escrow = read('contracts/solidity/BTCPEscrow.sol')
     check("EMERGENCY_ESCAPE_SECONDS = 7 days", 'EMERGENCY_ESCAPE_SECONDS = 7 days' in escrow)
     check("revertEmergency is external", 'function revertEmergency' in escrow and 'external' in escrow)
     check("EmergencyRevert event", 'emit EmergencyRevert' in escrow)
@@ -251,7 +255,7 @@ def phase_7():
     check("Bit layout documented", 'Bit layout' in relayer)
     check("packGateSignal function", 'function packGateSignal' in relayer)
 
-    oracle = read('contracts/TRIONOracleV3.sol')
+    oracle = read('contracts/solidity/TRIONOracleV3.sol')
     check("publishSignal in TRIONOracleV3", 'function publishSignal' in oracle)
 
 
@@ -269,8 +273,8 @@ def phase_8():
     check("render.yaml exists", exists('render.yaml'))
 
     ui = read('frontend/src/components/ui.tsx')
-    check("Arch diagram: 16 crates", '16 crates' in ui)
-    check("Arch diagram: 100+ chains", '100+ chains' in ui)
+    check("Arch diagram: 21 crates", '21 crates' in ui)
+    check("Arch diagram: registry-derived chain count", '{CHAIN_COUNT} chains' in ui)
     check("StreamView 'API latency' label", 'API {ms(speedMs)}' in ui)
 
     sb = read('frontend/src/components/Sidebar.tsx')
