@@ -25,16 +25,20 @@ WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "50"))
 
 COSMOS_CHAINS = {
-    "cosmos-hub": {"rpc": "https://cosmos-rpc.publicnode.com",   "chain_id": 20001},
-    "kava":       {"rpc": "https://kava-rpc.publicnode.com",     "chain_id": 20002},
-    "injective":  {"rpc": "https://injective-rpc.publicnode.com","chain_id": 20003},
-    "sei":        {"rpc": "https://sei-rpc.polkachu.com",        "chain_id": 20004},
-    "dydx":       {"rpc": "https://dydx-rpc.publicnode.com",     "chain_id": 20005},
-    "initia":     {"rpc": "https://rpc.initia.xyz",               "chain_id": 20006},
-    "osmosis":    {"rpc": "https://osmosis-rpc.publicnode.com",  "chain_id": 20007},
-    "neutron":    {"rpc": "https://neutron-rpc.publicnode.com",  "chain_id": 20008},
-    "celestia":   {"rpc": "https://celestia-rpc.publicnode.com", "chain_id": 20009},
-    "terra":      {"rpc": "https://terra-rpc.publicnode.com",    "chain_id": 20010},
+    # chain_ids are the canonical registry ids (config/chain_registry.json);
+    # the legacy 200xx streamer ids were re-keyed (was 20001-20010).
+    "cosmos-hub": {"rpc": "https://cosmos-rpc.publicnode.com",   "chain_id": 10000},
+    "kava":       {"rpc": "https://kava-rpc.publicnode.com",     "chain_id": 10014},
+    "injective":  {"rpc": "https://injective-rpc.publicnode.com","chain_id": 10004},
+    "sei":        {"rpc": "https://sei-rpc.polkachu.com",        "chain_id": 10005},
+    "dydx":       {"rpc": "https://dydx-rpc.publicnode.com",     "chain_id": 10006},
+    "initia":     {"rpc": "https://rpc.initia.xyz",               "chain_id": 10015},
+    "osmosis":    {"rpc": "https://osmosis-rpc.publicnode.com",  "chain_id": 10001},
+    "neutron":    {"rpc": "https://neutron-rpc.publicnode.com",  "chain_id": 10018},
+    "celestia":   {"rpc": "https://celestia-rpc.publicnode.com", "chain_id": 10003},
+    "terra":      {"rpc": "https://terra-rpc.publicnode.com",    "chain_id": 10009},
+    # provenance is NOT in the canonical 129-chain registry — walked under
+    # its legacy local id (no canonical id to re-key to; no collision either).
     "provenance": {"rpc": "https://rpc.provenance.io:443",       "chain_id": 20011},
 }
 

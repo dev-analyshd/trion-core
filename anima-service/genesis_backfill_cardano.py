@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("KOIOS_API_URL", "https://api.koios.rest/api/v1")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "2"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "20"))
-CHAIN_ID   = 140001
+CHAIN_ID   = 9400   # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_height() -> int:

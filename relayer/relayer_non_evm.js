@@ -191,65 +191,77 @@ async function nativeRelayerLoop() {
 // Block-proof mode for chains without native signing SDKs.
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// ⚠️ CHAIN-ID SCHEME COLLISION (PURGE-2, documented — IDs deliberately NOT changed):
-// The chainId values below are the FOURTH ad-hoc chain-ID namespace in this repo:
-//   1. canonical:    config/chain_registry.json (validated by core/generated_chain_bindings.py + tests)
-//   2. bh_streamer:  core/realtime/bh_streamer.py  (solana 200101, cosmos 200201, …)
-//   3. bootstrap:    scripts/mainnet_bootstrap.py  (Solana 5773521, synthetic Cosmos sha3 ids, …)
-//   4. this file:    btc=2000, ltc=2010, doge=2020, dash=2030, cosmos-hub=4001 …, sui=6001, …
-// They disagree with the canonical registry on nearly every chain — e.g. canonical
-// Bitcoin 21000 (here 2000), Litecoin 21004 (here 2010), Cosmos Hub 10000 (here 4001),
-// Aptos 20000 (here 5001), Sui 20100 (here 6001), Stellar 27000 (here 8800).
-// Meanwhile the NATIVE-VM half of this relayer (NATIVE_VMS → chains/<vm>/execute.ts) uses the
-// canonical IDs (Solana 900/901/902, Sui 20100, Polkadot 25000, …), so the same logical chain
-// can be ingested under two different IDs depending on the code path, and FAISS entity
-// namespaces keyed by chainId will not match across them.
-// Changing these IDs in place would break the relayer's running assumptions (dedup state,
-// memo parsing, stored chainId labels). MARKED FOR CANONICAL MIGRATION: re-point this list at
-// config/chain_registry.json ids in a coordinated change together with a FAISS re-ingest and
-// dedup reset (same migration required for bh_streamer.py and mainnet_bootstrap.py).
+// CHAIN-ID NAMESPACE (canonical migration, PURGE-2 follow-up): every chain
+// that exists in the canonical registry (config/chain_registry.json — single
+// source of truth per P3-CONSOLIDATE, validated by
+// core/generated_chain_bindings.py + tests) now uses its canonical chainId
+// here: btc 21000 (was 2000), ltc 21004 (2010), doge 21003 (2020),
+// dash 21005 (2030), cosmos-hub 10000 (4001), kava 10014 (4002),
+// injective 10004 (4003), sei 10005 (4004), dydx 10006 (4005),
+// initia 10015 (4006), osmosis 10001 (4007), neutron 10018 (4008),
+// celestia 10003 (4009), terra 10009 (4010), aptos 20000 (5001),
+// movement 20200 (5002), sui 20100 (6001), tron 26000 (7001),
+// xrpl 31000 (8100), hedera 28000 (8300), vechain 29000 (8400),
+// stellar 27000 (8800), multiversx 32000 (9000), waves 30000 (9200).
+// algo 8200 and cardano 9400 already matched canonical. The NATIVE-VM half
+// (NATIVE_VMS → chains/<vm>/execute.ts) always used canonical ids, so both
+// code paths now agree and FAISS chain_id keys join the registry/rust
+// indexers. Off-registry chains keep their local ids, documented below.
+//
+// Migration safety (reviewed before re-keying): this relayer persists no
+// state keyed by chainId — the only state file (/tmp/trion_non_evm_relayer_
+// latest.json) records per-chain results by chain KEY (name), the memo and
+// signal hashes do not include the chainId, and previously pushed FAISS
+// block-proof vectors are SYNTHETIC liveness attestations that naturally
+// re-ingest under canonical ids on the next cycle (no dedup ledger to
+// reset).
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
 const EXTENDED_CHAINS = [
-  // UTXO chains (5)
-  { key: "btc",       name: "Bitcoin",      chainId: 2000, family: "UTXO",  rpc: "https://blockstream.info/api" },
-  { key: "ltc",       name: "Litecoin",     chainId: 2010, family: "UTXO",  rpc: "https://litecoinblockexplorer.net/api" },
-  { key: "doge",      name: "Dogecoin",     chainId: 2020, family: "UTXO",  rpc: "https://dogeblocks.com/api" },
-  { key: "dash",      name: "Dash",          chainId: 2030, family: "UTXO",  rpc: "https://insight.dash.org/api" },
-  // Cosmos chains (11)
-  { key: "cosmos-hub",name: "Cosmos Hub",   chainId: 4001, family: "COSMOS",rpc: "https://lcd.cosmos.network" },
-  { key: "kava",      name: "Kava",         chainId: 4002, family: "COSMOS",rpc: "https://lcd.kava.io" },
-  { key: "injective", name: "Injective",    chainId: 4003, family: "COSMOS",rpc: "https://lcd.injective.network" },
-  { key: "sei",       name: "Sei Network",  chainId: 4004, family: "COSMOS",rpc: "https://lcd.sei-apis.com" },
-  { key: "dydx",      name: "dYdX Chain",   chainId: 4005, family: "COSMOS",rpc: "https://lcd.dydx.exchange" },
-  { key: "initia",    name: "Initia",       chainId: 4006, family: "COSMOS",rpc: "https://lcd.initia.xyz" },
-  { key: "osmosis",   name: "Osmosis",      chainId: 4007, family: "COSMOS",rpc: "https://lcd.osmosis.zone" },
-  { key: "neutron",   name: "Neutron",      chainId: 4008, family: "COSMOS",rpc: "https://lcd.neutron.org" },
-  { key: "celestia",  name: "Celestia",     chainId: 4009, family: "COSMOS",rpc: "https://lcd.celestia.org" },
-  { key: "terra",     name: "Terra Classic",chainId: 4010, family: "COSMOS",rpc: "https://lcd.terra.dev" },
-  { key: "provenance",name: "Provenance",   chainId: 4011, family: "COSMOS",rpc: "https://lcd.provenance.io" },
-  // Move VM (2)
-  { key: "aptos",     name: "Aptos",        chainId: 5001, family: "MOVE",  rpc: "https://fullnode.mainnet.aptoslabs.com" },
-  { key: "movement",  name: "Movement",     chainId: 5002, family: "MOVE",  rpc: "https://mainnet.movementnetwork.xyz" },
+  // UTXO chains (5) — canonical ids: 21000/21004/21003/21005
+  { key: "btc",       name: "Bitcoin",      chainId: 21000, family: "UTXO",  rpc: "https://blockstream.info/api" },
+  { key: "ltc",       name: "Litecoin",     chainId: 21004, family: "UTXO",  rpc: "https://litecoinblockexplorer.net/api" },
+  { key: "doge",      name: "Dogecoin",     chainId: 21003, family: "UTXO",  rpc: "https://dogeblocks.com/api" },
+  { key: "dash",      name: "Dash",         chainId: 21005, family: "UTXO",  rpc: "https://insight.dash.org/api" },
+  // Cosmos chains (11) — canonical 10000-series ids
+  { key: "cosmos-hub",name: "Cosmos Hub",   chainId: 10000, family: "COSMOS",rpc: "https://lcd.cosmos.network" },
+  { key: "kava",      name: "Kava",         chainId: 10014, family: "COSMOS",rpc: "https://lcd.kava.io" },
+  { key: "injective", name: "Injective",    chainId: 10004, family: "COSMOS",rpc: "https://lcd.injective.network" },
+  { key: "sei",       name: "Sei Network",  chainId: 10005, family: "COSMOS",rpc: "https://lcd.sei-apis.com" },
+  { key: "dydx",      name: "dYdX Chain",   chainId: 10006, family: "COSMOS",rpc: "https://lcd.dydx.exchange" },
+  { key: "initia",    name: "Initia",       chainId: 10015, family: "COSMOS",rpc: "https://lcd.initia.xyz" },
+  { key: "osmosis",   name: "Osmosis",      chainId: 10001, family: "COSMOS",rpc: "https://lcd.osmosis.zone" },
+  { key: "neutron",   name: "Neutron",      chainId: 10018, family: "COSMOS",rpc: "https://lcd.neutron.org" },
+  { key: "celestia",  name: "Celestia",     chainId: 10003, family: "COSMOS",rpc: "https://lcd.celestia.org" },
+  { key: "terra",     name: "Terra Classic",chainId: 10009, family: "COSMOS",rpc: "https://lcd.terra.dev" },
+  // provenance: NOT in the canonical 129-chain registry — legacy local id kept
+  { key: "provenance",name: "Provenance",   chainId: 4011,  family: "COSMOS",rpc: "https://lcd.provenance.io" },
+  // Move VM (2) — canonical 20000/20200
+  { key: "aptos",     name: "Aptos",        chainId: 20000, family: "MOVE",  rpc: "https://fullnode.mainnet.aptoslabs.com" },
+  { key: "movement",  name: "Movement",     chainId: 20200, family: "MOVE",  rpc: "https://mainnet.movementnetwork.xyz" },
   // Other L1s
-  { key: "sui",       name: "Sui",          chainId: 6001, family: "SUI",   rpc: "https://fullnode.mainnet.sui.io" },
-  { key: "tron",      name: "TRON",         chainId: 7001, family: "TVM",   rpc: "https://api.trongrid.io" },
-  { key: "pi",        name: "Pi Network",   chainId: 8001, family: "MVM",   rpc: "https://horizon.stellar.org" },
-  { key: "xrpl",      name: "XRP Ledger",   chainId: 8100, family: "XRPL",  rpc: "https://xrplcluster.com" },
-  { key: "algo",      name: "Algorand",     chainId: 8200, family: "AVM",   rpc: "https://mainnet-api.algonode.cloud" },
-  { key: "hedera",    name: "Hedera",       chainId: 8300, family: "HBAR",  rpc: "https://mainnet-public.mirrornode.hedera.com" },
-  { key: "vechain",   name: "VeChain",      chainId: 8400, family: "VET",   rpc: "https://mainnet.vechain.org" },
-  { key: "kadena",    name: "Kadena",       chainId: 8500, family: "CHAINWEB",rpc: "https://api.chainweb.com" },
+  { key: "sui",       name: "Sui",          chainId: 20100, family: "SUI",   rpc: "https://fullnode.mainnet.sui.io" },
+  { key: "tron",      name: "TRON",         chainId: 26000, family: "TVM",   rpc: "https://api.trongrid.io" },
+  // pi: not in the canonical registry (trion-pi crate indexes Stellar as 27000) — local id kept
+  { key: "pi",        name: "Pi Network",   chainId: 8001,  family: "MVM",   rpc: "https://horizon.stellar.org" },
+  { key: "xrpl",      name: "XRP Ledger",   chainId: 31000, family: "XRPL",  rpc: "https://xrplcluster.com" },
+  // algo 8200 / cardano 9400 already are the canonical registry ids
+  { key: "algo",      name: "Algorand",     chainId: 8200,  family: "AVM",   rpc: "https://mainnet-api.algonode.cloud" },
+  { key: "hedera",    name: "Hedera",       chainId: 28000, family: "HBAR",  rpc: "https://mainnet-public.mirrornode.hedera.com" },
+  { key: "vechain",   name: "VeChain",      chainId: 29000, family: "VET",   rpc: "https://mainnet.vechain.org" },
+  // kadena/icp/bittensor/flow/zilliqa/layerzero: not in the canonical 129-chain
+  // registry (no genesis-walkable free API or not standalone L1s) — local ids kept
+  { key: "kadena",    name: "Kadena",       chainId: 8500,  family: "CHAINWEB",rpc: "https://api.chainweb.com" },
   { key: "icp",       name: "Internet Computer",chainId: 8600, family: "WASM", rpc: "https://ic0.app" },
-  { key: "bittensor", name: "Bittensor",    chainId: 8700, family: "WASM",  rpc: "https://taostats.io/api" },
-  { key: "stellar",   name: "Stellar",      chainId: 8800, family: "STELLAR",rpc: "https://horizon.stellar.org" },
-  { key: "flow",      name: "Flow",         chainId: 8900, family: "CADENCE",rpc: "https://rest-mainnet.onflow.org" },
-  { key: "multiversx",name: "MultiversX",   chainId: 9000, family: "WASM",  rpc: "https://api.multiversx.com" },
-  { key: "zilliqa",   name: "Zilliqa",      chainId: 9100, family: "LLVM",  rpc: "https://api.zilliqa.com" },
-  { key: "waves",     name: "Waves",        chainId: 9200, family: "WAVES", rpc: "https://nodes.wavesnodes.com" },
-  { key: "layerzero", name: "LayerZero",    chainId: 9300, family: "OMNI",  rpc: "https://api.layerzero.network" },
-  { key: "cardano",   name: "Cardano",      chainId: 9400, family: "EUTXO", rpc: "https://api.koios.rest" },
+  { key: "bittensor", name: "Bittensor",    chainId: 8700,  family: "WASM",  rpc: "https://taostats.io/api" },
+  { key: "stellar",   name: "Stellar",      chainId: 27000, family: "STELLAR",rpc: "https://horizon.stellar.org" },
+  { key: "flow",      name: "Flow",         chainId: 8900,  family: "CADENCE",rpc: "https://rest-mainnet.onflow.org" },
+  { key: "multiversx",name: "MultiversX",   chainId: 32000, family: "WASM",  rpc: "https://api.multiversx.com" },
+  { key: "zilliqa",   name: "Zilliqa",      chainId: 9100,  family: "LLVM",  rpc: "https://api.zilliqa.com" },
+  { key: "waves",     name: "Waves",        chainId: 30000, family: "WAVES", rpc: "https://nodes.wavesnodes.com" },
+  { key: "layerzero", name: "LayerZero",    chainId: 9300,  family: "OMNI",  rpc: "https://api.layerzero.network" },
+  { key: "cardano",   name: "Cardano",      chainId: 9400,  family: "EUTXO", rpc: "https://api.koios.rest" },
 ];
 
 function buildSignalHash(entity, signal) {

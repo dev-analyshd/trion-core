@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("VECHAIN_API_URL", "https://mainnet.vechain.org")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "40"))
-CHAIN_ID   = 110001
+CHAIN_ID   = 29000  # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_number() -> int:

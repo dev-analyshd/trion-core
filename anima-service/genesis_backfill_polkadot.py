@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 RPC        = os.environ.get("POLKADOT_RPC_URL", "https://polkadot-rpc.publicnode.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "50"))
-CHAIN_ID   = 900
+CHAIN_ID   = 25000  # canonical registry id (config/chain_registry.json); was 900 — collided with canonical Solana
 
 
 def rpc_call(method, params):

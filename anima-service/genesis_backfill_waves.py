@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("WAVES_API_URL", "https://nodes.wavesnodes.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "40"))
-CHAIN_ID   = 120001
+CHAIN_ID   = 30000  # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_height() -> int:

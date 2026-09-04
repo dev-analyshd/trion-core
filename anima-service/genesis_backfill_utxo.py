@@ -14,11 +14,13 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 
 # Each chain gets its own conservative worker/batch/delay settings to respect
 # free public API rate limits (blockcypher especially: ~3 req/sec unauth).
+# chain_ids are the canonical registry ids (config/chain_registry.json);
+# the legacy 40xxx ids were re-keyed.
 UTXO_CHAINS = {
-    "btc":  {"chain_id": 40001, "workers": 4, "batch": 40, "delay": 0.0},
-    "ltc":  {"chain_id": 40002, "workers": 2, "batch": 20, "delay": 0.4},
-    "doge": {"chain_id": 40003, "workers": 2, "batch": 20, "delay": 0.4},
-    "dash": {"chain_id": 40004, "workers": 3, "batch": 30, "delay": 0.1},
+    "btc":  {"chain_id": 21000, "workers": 4, "batch": 40, "delay": 0.0},
+    "ltc":  {"chain_id": 21004, "workers": 2, "batch": 20, "delay": 0.4},
+    "doge": {"chain_id": 21003, "workers": 2, "batch": 20, "delay": 0.4},
+    "dash": {"chain_id": 21005, "workers": 3, "batch": 30, "delay": 0.1},
 }
 
 

@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("ALGO_API_URL", "https://mainnet-api.algonode.cloud")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "40"))
-CHAIN_ID   = 80001
+CHAIN_ID   = 8200   # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_round() -> int:
