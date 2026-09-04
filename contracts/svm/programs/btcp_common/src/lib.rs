@@ -12,6 +12,55 @@ pub const SEED_ESCROW: &[u8] = b"escrow";
 pub const SEED_INTENT: &[u8] = b"intent";
 pub const SEED_ROUTE: &[u8] = b"route";
 pub const SEED_VAULT: &[u8] = b"vault";
+/// TRION epoch-registry PDA namespace: ["trion", "validators", epoch_be]
+/// (master command §10; the SVM equivalent of the EIP-712 domain salt —
+/// CANONICAL_CERTIFICATE.md §7 Solana row).
+pub const SEED_TRION: &[u8] = b"trion";
+pub const SEED_VALIDATORS: &[u8] = b"validators";
+/// Consumed-certificate PDA namespace: ["trion", "consumed", escrow_id]
+/// (replay/equivocation tracking, CANONICAL_CERTIFICATE.md §8).
+pub const SEED_CONSUMED: &[u8] = b"consumed";
+
+// ── Canonical Certificate Constants (CANONICAL_CERTIFICATE.md) ────────────────
+// Mirrors core/consensus/certificate.py — the py reference encoder is the
+// normative twin; every value here is pinned by
+// tests/contracts/test_btcp_escrow_svm.py static parity checks.
+
+/// Domain tag — offset 0, 13 bytes (§2).
+pub const CERT_DOMAIN_TAG: &[u8] = b"TRION-CERT-V1";
+/// Total signed payload width (§2) — the single most important constant.
+pub const CERT_PAYLOAD_WIDTH: usize = 346;
+/// certificate_kind 1 = ESCROW_RELEASE (§2; unknown kinds fail closed, §6.1).
+pub const CERT_KIND_ESCROW_RELEASE: u8 = 1;
+/// Signature family 2 = Ed25519 (§3.2) — the SVM family. Raw P is signed.
+pub const CERT_FAMILY_ED25519: u8 = 2;
+/// Ed25519 signature width (§4).
+pub const CERT_ED25519_SIG_LEN: usize = 64;
+/// Highest protocol_version (uint24 semver) this build verifies: 1.0.0.
+pub const CERT_SUPPORTED_VERSION: u32 = 1u32 << 16;
+/// Minimum distinct signers — liveness floor (§4 invariant 4).
+pub const CERT_MIN_SIGNERS: usize = 3;
+/// Verifier epoch grace window in epochs (§10.2, ED-G).
+pub const CERT_EPOCH_GRACE: u32 = 2;
+/// L4.8 CRITICAL HHI bound on the ×1e4 scale (§5.3) — above it the
+/// certificate is INVALID.
+pub const CERT_HHI_MAX: u64 = 4_000;
+/// Canonical maximum TTL in seconds (§9.2 — no certificate outlives a full
+/// epoch-rotation cycle).
+pub const CERT_TTL_MAX: u64 = 604_800;
+/// Clock drift tolerance in seconds (§9.1) — widens the freshness LOWER
+/// bound only; expiry is never widened.
+pub const CERT_DRIFT_TOLERANCE_SECS: u64 = 60;
+/// L4.2 tier boundaries on D_consensus (×1e6): ≥ 600_000 → tier 1 (2/3
+/// STRICT); ≥ 400_000 → tier 2 (0.75); below → tier 3 (0.85).
+pub const D_CONSENSUS_TIER1: u64 = 600_000;
+pub const D_CONSENSUS_TIER2: u64 = 400_000;
+/// Registry size bound (account size + compute bound; the spec target is
+/// 100 validators — V2 §9.2).
+pub const MAX_VALIDATORS: usize = 256;
+/// E6 emergency-revert escape hatch (BTCP_STATE_MACHINE.md M2): anyone may
+/// revert a HOLDING escrow after 7 days even if TRION is silent or paused.
+pub const EMERGENCY_REVERT_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 // ── Scaling Constants ────────────────────────────────────────────────────────
 /// Coherence scores are stored ×1e6 (0 to 1,000,000)
@@ -104,6 +153,9 @@ pub enum RevertReason {
     CoherenceFailure = 1,
     RouteInvalid = 2,
     Manual = 3,
+    /// E6 emergency escape: permissionless revert after 7 days
+    /// (BTCP_STATE_MACHINE.md M2 E6).
+    Emergency = 4,
 }
 
 impl Default for RevertReason {
@@ -119,6 +171,9 @@ pub enum EscrowState {
     Holding = 0,
     Released = 1,
     Reverted = 2,
+    /// Terminal E6 state — permissionless 7-day escape (M2 E6). No
+    /// outgoing transitions.
+    EmergencyReverted = 3,
 }
 
 impl Default for EscrowState {
@@ -346,4 +401,170 @@ pub enum BTCPError {
 
     #[msg("Invalid argument")]
     InvalidArgument,
+
+    // ── Canonical certificate verification (C-03 closure) ──────────────────
+    #[msg("Certificate payload malformed — wrong width or domain tag")]
+    MalformedCertificate,
+
+    #[msg("Unknown certificate kind — only ESCROW_RELEASE (1) is accepted")]
+    UnknownCertificateKind,
+
+    #[msg("Certificate protocol version is newer than this build supports")]
+    VersionIncompatible,
+
+    #[msg("Envelope family is not ed25519 (family 2) — SVM verifies family 2 only")]
+    WrongSignatureFamily,
+
+    #[msg("Fewer than 3 distinct validator signatures")]
+    InsufficientSigners,
+
+    #[msg("Signature malformed (not 64 bytes)")]
+    MalformedSignature,
+
+    #[msg("ed25519 signature verification failed (the whole certificate fails)")]
+    SignatureVerificationFailed,
+
+    #[msg("Duplicate validator signer in the envelope")]
+    DuplicateSigner,
+
+    #[msg("Certificate epoch argument does not match the payload epoch")]
+    EpochArgumentMismatch,
+
+    #[msg("No validator epoch registered — certificates cannot be verified (fail-closed)")]
+    NoEpochRegistered,
+
+    #[msg("Certificate epoch is newer than the latest registered epoch")]
+    EpochFuture,
+
+    #[msg("Certificate epoch is older than the verifier grace window (2 epochs)")]
+    EpochStale,
+
+    #[msg("Registry account epoch does not match the certificate epoch")]
+    RegistryEpochMismatch,
+
+    #[msg("Certificate TTL is zero or above the 7-day canonical maximum")]
+    InvalidTtl,
+
+    #[msg("Certificate expired (now > issued_at + ttl)")]
+    CertificateExpired,
+
+    #[msg("Certificate dated too far in the future (> 60s drift tolerance)")]
+    CertificateFutureDated,
+
+    #[msg("HHI at emission above the L4.8 CRITICAL bound (4000)")]
+    HhiCritical,
+
+    #[msg("AWA was not enforced at emission — emission was frozen (MD §17)")]
+    AwaNotEnforced,
+
+    #[msg("Certificate coherence is below the emission threshold")]
+    CoherenceBelowThreshold,
+
+    #[msg("Certificate validator_count does not match the registered epoch set")]
+    ValidatorCountMismatch,
+
+    #[msg("Registered validator count is below the deployment launch threshold")]
+    TooFewValidators,
+
+    #[msg("Validator is not registered in this epoch's set")]
+    UnregisteredValidator,
+
+    #[msg("Envelope weight claim does not match the registered epoch-set weight")]
+    WeightClaimMismatch,
+
+    #[msg("Certificate total_effective_power does not match the registered set")]
+    PowerMismatch,
+
+    #[msg("Registry total_effective_power claim does not match its own entries")]
+    RegistryPowerMismatch,
+
+    #[msg("Certificate threshold does not match the registered epoch threshold")]
+    ThresholdMismatch,
+
+    #[msg("Signed effective power is below the L4.2 tier quorum")]
+    InsufficientQuorum,
+
+    #[msg("Certificate escrow_id does not match this escrow")]
+    EscrowMismatch,
+
+    #[msg("Certificate route_id does not match the escrow route")]
+    RouteMismatch,
+
+    #[msg("Certificate intent_hash does not match the escrow intent")]
+    IntentMismatch,
+
+    #[msg("Certificate entity_id does not match the escrow entity")]
+    EntityMismatch,
+
+    #[msg("Certificate destination does not match the escrow destination")]
+    DestinationMismatch,
+
+    #[msg("Certificate amount does not match the escrow amount")]
+    AmountMismatch,
+
+    #[msg("Certificate amount does not fit Solana native u64 (lamports)")]
+    AmountTooLarge,
+
+    #[msg("Certificate source/dest chain does not match the escrow route legs")]
+    ChainMismatch,
+
+    #[msg("Certificate dest_chain is not this deployment's chain id")]
+    WrongChain,
+
+    #[msg("Certificate anchor_bh does not match the escrow anchor BH")]
+    AnchorMismatch,
+
+    #[msg("Certificate execution_bh does not match the escrow execution BH")]
+    ExecutionMismatch,
+
+    #[msg("Certificate conflicts with an already-consumed certificate (equivocation evidence)")]
+    CertificateConflict,
+
+    #[msg("Replayed certificate is inconsistent with the escrow state")]
+    InconsistentReplayState,
+
+    #[msg("Program is paused — new locks are blocked (release/revert continue)")]
+    Paused,
+
+    #[msg("Invalid epoch — epochs start at 1 and must strictly increase")]
+    InvalidEpoch,
+
+    #[msg("Epoch already registered — epoch sets are immutable, rotation at boundary only")]
+    EpochAlreadyRegistered,
+
+    #[msg("Invalid validator set — empty or above MAX_VALIDATORS")]
+    InvalidValidatorSet,
+
+    #[msg("Duplicate validator id in the registered set")]
+    DuplicateValidator,
+
+    #[msg("Duplicate validator ed25519 pubkey in the registered set")]
+    DuplicateValidatorKey,
+
+    #[msg("Invalid weight — stake must be in (0, 1e6], diversity in [0, 1e6], ×1e6")]
+    InvalidWeight,
+
+    #[msg("Epoch set effective power must be > 0")]
+    ZeroPower,
+
+    #[msg("Epoch threshold must be in [1, 1e6] on the ×1e6 scale")]
+    InvalidThreshold,
+
+    #[msg("Not the validator-registry admin")]
+    NotRegistryAdmin,
+
+    #[msg("Zero intent hash not allowed")]
+    ZeroIntentHash,
+
+    #[msg("Zero chain id not allowed")]
+    ZeroChain,
+
+    #[msg("Registry data corrupt — count does not match entries")]
+    RegistryCorrupt,
+
+    #[msg("Invalid clock — negative unix timestamp")]
+    InvalidClock,
+
+    #[msg("Cannot read the instructions sysvar (the signature-introspection source)")]
+    InvalidInstructionSysvar,
 }
