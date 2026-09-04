@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "./interfaces/ITrionEpochRegistry.sol";
+import "./libraries/CanonicalCertificate.sol";
+
 /// @title BTCPEscrow — Two-State Atomic Escrow for BTCP Cross-Chain Settlement
 /// @notice Holds value in HOLDING state until TRION consensus verifies both
 ///         parties' behavioral coherence, then releases or reverts atomically.
@@ -142,7 +145,7 @@ contract BTCPEscrow {
     uint256 public constant EMERGENCY_ESCAPE_SECONDS = 7 days;   // Gap 8: 7-day absolute max
     uint256 public constant AKASHIC_RECOVERY_SECONDS = 24 hours; // E1: 24h PENDING_AKASHIC window
 
-    mapping(bytes32 => Escrow) public escrows;
+    mapping(bytes32 => Escrow) private _escrows;
     bytes32[] public escrowList;
     uint256 public escrowCount;
 
@@ -198,9 +201,17 @@ contract BTCPEscrow {
     /// Production deploy flows (evm-tools/deploy-evm.mjs & friends) call this
     /// by default; leaving it unset is the documented dev-only
     /// trusted-relayer opt-out.
+    /// @dev M-05 (audit): the minimum oracle interface is PINNED AT BIND TIME —
+    ///      the bound oracle must expose the dynamic route-quorum view
+    ///      minRouteAttestations() (and return ≥ 2). A weak/mock oracle
+    ///      without the view can never be bound: the binding call itself
+    ///      reverts, so the runtime gate never needs a fallback and the
+    ///      DD "silent quorum degradation" class is closed fail-closed.
     function setTRIONOracle(address oracle) external onlyOwner {
         require(oracle != address(0), "ZERO_ORACLE");
         require(trionOracle == address(0), "ORACLE_ALREADY_BOUND");
+        uint256 bindTimeQuorum = ITRIONOracleEscrowView(oracle).minRouteAttestations();
+        require(bindTimeQuorum >= 2, "ORACLE_QUORUM_VIEW_WEAK");
         trionOracle = oracle;
         emit TRIONOracleBound(oracle, uint64(block.timestamp));
     }
@@ -240,31 +251,325 @@ contract BTCPEscrow {
         // the escrow at an unrelated fresh quorum-safe route) fails here.
         require(anchorBH == escrowId, "ORACLE_ROUTE_NOT_BOUND_TO_ESCROW");
         require(isSafe, "ORACLE_CONSENSUS_UNSAFE");
-        // S3/C2 STRENGTHENING: the verdict must be FINALIZED BY SIGNATURE
-        // QUORUM. The oracle's attestationCount only grows via ECDSA-
-        // verified attestations from DISTINCT registered validators; the
-        // required quorum is the oracle's dynamic max(2, ⌈2/3 · validatorCount⌉)
-        // — never below the hard floor of 2, so one relayer key (or two keys
-        // controlled by it without validator signatures) cannot release.
-        uint256 requiredQuorum = 2; // hard floor — see require below
-        try ITRIONOracleEscrowView(trionOracle).minRouteAttestations() returns (
-            uint256 dynamicQuorum
-        ) {
-            if (dynamicQuorum > requiredQuorum) {
-                requiredQuorum = dynamicQuorum;
-            }
-        } catch {
-            // Legacy/mock oracles without the dynamic route-quorum view:
-            // fall back to the hard floor of 2. The bound oracle is already
-            // the fully trusted verdict source (one-way, owner-gated
-            // binding), so this fallback introduces no additional trust
-            // assumption — only TRIONOracleV3 with its live validator set
-            // enforces the ⌈2/3⌉ supermajority.
-        }
+        // S3/C2 STRENGTHENING + M-05: the verdict must be FINALIZED BY
+        // SIGNATURE QUORUM of at least the oracle's dynamic
+        // max(2, ⌈2/3 · validatorCount⌉) distinct ECDSA-verified validators.
+        // setTRIONOracle() pins the minRouteAttestations() view at BIND time
+        // (a mock/weak oracle cannot be bound at all), so the call below is
+        // REQUIRED, never fallen back from: an oracle that lacks the view
+        // fails the release closed.
+        uint256 requiredQuorum = ITRIONOracleEscrowView(trionOracle).minRouteAttestations();
+        require(requiredQuorum >= 2, "ORACLE_QUORUM_VIEW_WEAK");
         require(attestationCount >= requiredQuorum, "ORACLE_QUORUM_UNMET");
         require(block.timestamp - ts <= 300, "ORACLE_VERDICT_STALE");
         require(oracleCoherence >= minCoherence, "ORACLE_COHERENCE_INSUFFICIENT");
         require(oracleCoherence >= oracleThreshold, "ORACLE_BELOW_THRESHOLD");
+    }
+
+    // ══ CANONICAL CERTIFICATE RELEASE (Wave 2 — H-01/H-03/H-04/H-05/M-04) ═══
+    // The V4 consumption path of docs/protocol/CANONICAL_CERTIFICATE.md §6-§8:
+    // the escrow verifies the FULL canonical certificate at the point of
+    // value movement, directly against the per-epoch TrionEpochRegistry —
+    // NEVER against the TRIONOracleV3 verdict store (the oracle's
+    // submitCertificateAttestation is the observability/index surface only;
+    // re-verifying here is what structurally closes the weak-oracle-fallback
+    // class, M-05). Fail-closed everywhere; no weaker fallback exists.
+    //
+    // Authority = the validator signature quorum (sorted, distinct, batch
+    // fail-closed) over keccak256(P) EIP-191-wrapped, with weights recomputed
+    // from REGISTERED epoch state (H-04), epoch activity + grace (H-01),
+    // registry Θ(t) provenance (H-03) and the settlement tuple (destination,
+    // amount) checked against THIS escrow's own state (H-05 — ED-B2).
+    ITrionEpochRegistry public epochRegistry;
+    event EpochRegistryBound(address indexed registry);
+
+    /// @notice Bind the epoch registry for canonical-certificate releases.
+    ///         One-way: once set it cannot be changed or cleared — the escrow
+    ///         fails toward verification, never back toward trust. The
+    ///         registry itself rotates validator sets per epoch internally
+    ///         (one registrar tx per epoch boundary), so rebinding is never
+    ///         needed for set rotation.
+    function setEpochRegistry(address registry) external onlyOwner {
+        require(registry != address(0), "ZERO_REGISTRY");
+        require(address(epochRegistry) == address(0), "REGISTRY_ALREADY_BOUND");
+        // Fail closed at bind time on a registry without the active-epoch
+        // view (a mismatched interface can never gate value).
+        require(ITrionEpochRegistry(registry).epochGrace() <= 10, "REGISTRY_INTERFACE_MISMATCH");
+        epochRegistry = ITrionEpochRegistry(registry);
+        emit EpochRegistryBound(registry);
+    }
+
+    /// @notice Consumed-nonce tracking (§8.1/§8.2, M-04) —
+    ///         (validator_epoch, escrow_id) → highest consumed nonce.
+    mapping(uint32 => mapping(bytes32 => uint64)) public canonicalHighestNonce;
+    mapping(uint32 => mapping(bytes32 => bytes32)) private _canonicalDigestAtNonce;
+    mapping(uint32 => mapping(bytes32 => bytes32)) private _canonicalConflictDigest;
+    mapping(uint32 => mapping(bytes32 => bool)) public canonicalConflictRecorded;
+
+    /// @notice Same (epoch, escrow, nonce) with a DIFFERENT payload digest —
+    ///         on-chain equivocation evidence (§8.2) feeding L4.9 S1
+    ///         slashing. The conflicting certificate does NOT settle; the
+    ///         call returns false so the evidence (event + state) persists.
+    event CanonicalCertificateConflict(
+        bytes32 indexed escrowId,
+        uint32  indexed validatorEpoch,
+        uint64  certificateNonce,
+        bytes32 digestA,
+        bytes32 digestB
+    );
+
+    /// @notice A canonical-certificate release settled the escrow (the V4
+    ///         counterpart of EscrowReleased — carries the certificate's
+    ///         identity for the Akashic Index; signedPower/totalPower/coherence
+    ///         are re-derivable from the certificate by indexers, and the
+    ///         CertificateAttested event on the oracle carries the quorum
+    ///         figures).
+    event EscrowReleasedCanonical(
+        bytes32 indexed escrowId,
+        bytes32 indexed routeId,
+        uint32  indexed validatorEpoch,
+        uint64  certificateNonce,
+        bytes32 payloadDigest,
+        uint256 settledAt
+    );
+
+    /// @notice Release an escrow against a CANONICAL certificate (§6-§8) —
+    ///         PERMISSIONLESS: the release authority is the validator
+    ///         signature quorum, not msg.sender (the relayer is a mere
+    ///         submitter; front-running it changes nothing — the settlement
+    ///         tuple is fixed by the certificate and escrow state).
+    ///         Covers both HOLDING (within timeout) and PENDING_AKASHIC
+    ///         (within the 24h recovery window).
+    /// @param payload         The canonical 346-byte certificate payload P.
+    /// @param envelopeWeights The CANONICAL ENVELOPE (§4) weight CLAIMS,
+    ///                        interleaved ×1e6: [s_0, d_0, s_1, d_1, ...]
+    ///                        index-aligned with the signature batch (must
+    ///                        equal the registered epoch values exactly).
+    /// @param signatures      Concatenated 65-byte (r,s,v) EIP-191
+    ///                        signatures over keccak256(P), sorted ascending
+    ///                        by recovered signer, distinct within the batch
+    ///                        (length must be an exact multiple of 65).
+    /// @return true iff the escrow was settled. false = a nonce CONFLICT was
+    ///         recorded instead (equivocation evidence, no settlement).
+    /// @dev Reverts (fail-closed) on every §6 violation; also requires the
+    ///      G1 two-phase settlement check like the legacy path.
+    function releaseEscrowCanonical(
+        bytes calldata payload,
+        uint256[] calldata envelopeWeights,
+        bytes calldata signatures
+    ) external nonReentrant returns (bool) {
+        // §6 step 7 prelude — the escrow lookup is keyed by the certificate's
+        // escrow_id (the binding key): a certificate for another escrow can
+        // never even address this escrow's state.
+        Escrow storage esc = _escrows[CanonicalCertificate.escrowIdOf(payload)];
+        require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
+        require(
+            esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC,
+            "NOT_RELEASABLE"
+        );
+        if (esc.state == State.HOLDING) {
+            require(block.number <= esc.lockBlock + esc.timeoutBlocks, "EXPIRED");
+        } else {
+            require(
+                block.timestamp <= esc.lockTimestamp + AKASHIC_RECOVERY_SECONDS,
+                "AKASHIC_WINDOW_EXPIRED"
+            );
+        }
+        // G1: Two-Phase Confirmation — same discipline as releaseEscrow().
+        require(esc.settlementCheckHash != bytes32(0), "SETTLEMENT_NOT_VERIFIED");
+
+        // §6 steps 1-6 — structure, epoch, registry conformance, freshness,
+        // signatures + weight claims, weight quorum (fail-closed, no
+        // fallbacks; registry must be bound).
+        _verifyCanonicalCertificate(payload, envelopeWeights, signatures);
+
+        // §6 step 7 — BINDING against the escrow's own state (incl. the H-05
+        // settlement tuple and the escrow-local min_coherence tightening).
+        _checkCanonicalBinding(esc, payload);
+
+        // §6 step 8 — nonce ordering / conflict evidence / consumption.
+        // (No early return: the branch-return shape tips the via-ir stack
+        // layout over budget on solc 0.8.24 — same class as the oracle fix.)
+        bool consumed = _recordCanonicalConsumption(payload);
+        if (consumed) {
+            _settleCanonical(esc, payload);
+        }
+        return consumed; // false = conflict recorded, nothing settled
+    }
+
+    /// @dev Settlement effects (CEI: state BEFORE external call) + the
+    ///      canonical release event. Split from the verifier body to keep the
+    ///      via-ir stack layout within budget (same discipline as the oracle).
+    function _settleCanonical(Escrow storage esc, bytes calldata payload) private {
+        uint256 amountToTransfer = esc.amount;
+        address payable destinationToPay = esc.destination;
+        esc.state = State.RELEASED;
+        esc.settledAt = block.timestamp;
+        esc.amount = 0;
+        _lockedBalance -= amountToTransfer;
+
+        (bool ok, ) = destinationToPay.call{value: amountToTransfer}("");
+        require(ok, "TRANSFER_FAILED");
+
+        emit EscrowReleasedCanonical(
+            esc.escrowId,
+            CanonicalCertificate.routeIdOf(payload),
+            CanonicalCertificate.epochOf(payload),
+            CanonicalCertificate.nonceOf(payload),
+            CanonicalCertificate.payloadDigestOf(payload),
+            esc.settledAt
+        );
+    }
+
+    /// @dev §6 steps 1-6 on the raw payload, mirroring the oracle's
+    ///      discipline: structure/consensus preconditions (library), epoch
+    ///      activity + registry conformance (H-01/H-03), freshness, batch
+    ///      signature verification with envelope weight-claim cross-checks,
+    ///      L4.2 weight quorum (H-04). Registry binding is a hard
+    ///      precondition — the canonical path does not exist in
+    ///      trusted-relayer mode.
+    function _verifyCanonicalCertificate(
+        bytes calldata payload,
+        uint256[] calldata envelopeWeights,
+        bytes calldata signatures
+    ) internal view {
+        require(address(epochRegistry) != address(0), "EPOCH_REGISTRY_UNBOUND");
+        require(signatures.length % 65 == 0, "SIGNATURE_WIDTH");
+        uint256 batch = signatures.length / 65;
+        require(batch >= CanonicalCertificate.MIN_SIGNERS, "BELOW_MIN_SIGNERS");
+        require(envelopeWeights.length == 2 * batch, "ENVELOPE_SHAPE_MISMATCH");
+        CanonicalCertificate.checkPayload(payload, block.timestamp);
+
+        uint32 epoch = CanonicalCertificate.epochOf(payload);
+        require(epochRegistry.epochActive(epoch), "VALIDATOR_EPOCH_INACTIVE");
+        require(
+            CanonicalCertificate.validatorCountOf(payload) == epochRegistry.epochValidatorCount(epoch),
+            "VALIDATOR_COUNT_MISMATCH"
+        );
+        require(
+            CanonicalCertificate.totalPowerOf(payload) == epochRegistry.epochTotalPower(epoch),
+            "TOTAL_POWER_MISMATCH"
+        );
+        require(
+            CanonicalCertificate.thresholdOf(payload) == epochRegistry.epochThreshold(epoch),
+            "THRESHOLD_NOT_FROM_REGISTRY"
+        );
+
+        bytes32 ethDigest = CanonicalCertificate.ethSignedDigestOf(payload);
+        uint256 signedPower = _verifyCanonicalSignatures(
+            ethDigest, epoch, signatures, envelopeWeights
+        );
+        require(
+            CanonicalCertificate.quorumMet(
+                signedPower, epochRegistry.epochTotalPower(epoch), epochRegistry.epochDConsensus(epoch)
+            ),
+            "WEIGHT_QUORUM_UNMET"
+        );
+    }
+
+    /// @dev §6 step 7 — the certificate must match THIS escrow's state:
+    ///      escrow_id (binding key), route_id, entity_id, the SETTLEMENT TUPLE
+    ///      (destination == escrow.destination left-padded, amount ==
+    ///      escrow.amount — H-05/ED-B2, closes escrow-substitution) and
+    ///      coherence ≥ the escrow's min_coherence (the §5.4 escrow-local
+    ///      tightening; the isSafe verdict itself was checked in
+    ///      checkPayload). intent_hash/anchor_bh/execution_bh are not stored
+    ///      by the EVM escrow — §6 step 7 checks them "where the VM escrow
+    ///      stores it".
+    function _checkCanonicalBinding(Escrow storage esc, bytes calldata payload) internal view {
+        require(esc.escrowId == CanonicalCertificate.escrowIdOf(payload), "CERT_NOT_BOUND_TO_ESCROW");
+        require(esc.routeId == CanonicalCertificate.routeIdOf(payload), "CERT_ROUTE_MISMATCH");
+        require(esc.entityId == CanonicalCertificate.entityIdOf(payload), "CERT_ENTITY_MISMATCH");
+        bytes32 dest32 = CanonicalCertificate.destinationOf(payload);
+        require(
+            bytes12(dest32) == bytes12(0) &&
+            esc.destination == address(uint160(uint256(dest32))),
+            "CERT_DESTINATION_MISMATCH"
+        );
+        require(esc.amount == CanonicalCertificate.amountOf(payload), "CERT_AMOUNT_MISMATCH");
+        require(esc.minCoherence <= CanonicalCertificate.coherenceOf(payload), "CERT_COHERENCE_INSUFFICIENT");
+    }
+
+    /// @dev §6 step 5 — recover + order the signers, then membership, weight
+    ///      claims and registered-power accumulation (pass split keeps the
+    ///      via-ir stack shallow; same shape as the oracle's verifier).
+    function _verifyCanonicalSignatures(
+        bytes32 ethDigest,
+        uint32 epoch,
+        bytes calldata signatures,
+        uint256[] calldata envelopeWeights
+    ) internal view returns (uint256 signedPower) {
+        address[] memory signers = _recoverCanonicalSigners(ethDigest, signatures);
+        for (uint256 i = 0; i < signers.length; i++) {
+            signedPower += _checkCanonicalSignerWeight(
+                epoch, signers[i], envelopeWeights[2 * i], envelopeWeights[2 * i + 1]
+            );
+        }
+    }
+
+    function _recoverCanonicalSigners(bytes32 ethDigest, bytes calldata signatures)
+        internal
+        pure
+        returns (address[] memory signers)
+    {
+        uint256 batch = signatures.length / 65;
+        signers = new address[](batch);
+        address lastSigner = address(0);
+        for (uint256 i = 0; i < batch; i++) {
+            address signer = CanonicalCertificate.recoverSigner(
+                ethDigest, signatures[65 * i:65 * (i + 1)]
+            );
+            require(signer != address(0), "BAD_CERTIFICATE_SIGNATURE");
+            require(signer > lastSigner, "SIGNER_ORDERING_REQUIRED");
+            lastSigner = signer;
+            signers[i] = signer;
+        }
+    }
+
+    function _checkCanonicalSignerWeight(
+        uint32 epoch,
+        address signer,
+        uint256 stakeClaim,
+        uint256 diversityClaim
+    ) internal view returns (uint256 weight) {
+        weight = epochRegistry.validatorWeight(epoch, signer);
+        require(weight > 0, "SIGNER_NOT_IN_EPOCH_SET");
+        require(
+            stakeClaim == epochRegistry.validatorStake(epoch, signer) &&
+            diversityClaim == epochRegistry.validatorDiversity(epoch, signer),
+            "ENVELOPE_WEIGHT_CLAIM_MISMATCH"
+        );
+    }
+
+    /// @dev §6 step 8 — certificate_nonce strictly increasing per (epoch,
+    ///      escrow_id); consumption records the nonce + digest. Same-nonce +
+    ///      same-digest → no settlement (idempotent observability; the state
+    ///      machine is the exactly-once guard). Same-nonce + different digest
+    ///      → conflict evidence (event + state, emitted WITHOUT reverting so
+    ///      it persists) and NO settlement.
+    function _recordCanonicalConsumption(bytes calldata payload) internal returns (bool) {
+        bytes32 digest = CanonicalCertificate.payloadDigestOf(payload);
+        uint32 epoch = CanonicalCertificate.epochOf(payload);
+        bytes32 escrowId = CanonicalCertificate.escrowIdOf(payload);
+        uint64 nonce = CanonicalCertificate.nonceOf(payload);
+        uint64 highest = canonicalHighestNonce[epoch][escrowId];
+        if (nonce == highest) {
+            if (digest != _canonicalDigestAtNonce[epoch][escrowId]) {
+                if (!canonicalConflictRecorded[epoch][escrowId]) {
+                    canonicalConflictRecorded[epoch][escrowId] = true;
+                    _canonicalConflictDigest[epoch][escrowId] = digest;
+                    emit CanonicalCertificateConflict(
+                        escrowId, epoch, nonce,
+                        _canonicalDigestAtNonce[epoch][escrowId], digest
+                    );
+                }
+            }
+            return false; // idempotent resubmission or conflict — no settlement
+        }
+        require(nonce > highest, "STALE_CERTIFICATE_NONCE");
+        canonicalHighestNonce[epoch][escrowId] = nonce;
+        _canonicalDigestAtNonce[epoch][escrowId] = digest;
+        return true;
     }
 
     /// @notice Lock native tokens in escrow. Caller must send value with tx.
@@ -281,13 +586,13 @@ contract BTCPEscrow {
     ) external payable onlyRelayer whenNotPaused nonReentrant returns (bool) {
         // PHASE-1-SECURITY: zero-address & sanity checks
         require(msg.sender != address(0), "ZERO_SENDER");
-        require(escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
+        require(_escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
         require(minCoherence <= 1_000_000, "INVALID_COHERENCE");
         require(timeoutBlocks > 0, "ZERO_TIMEOUT");
 
-        escrows[escrowId] = Escrow({
+        _escrows[escrowId] = Escrow({
             escrowId:       escrowId,
             routeId:        routeId,
             entityId:       entityId,
@@ -335,13 +640,13 @@ contract BTCPEscrow {
         bytes32 parentEscrowId
     ) internal returns (bool) {
         require(msg.sender != address(0), "ZERO_SENDER");
-        require(escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
+        require(_escrows[escrowId].escrowId == bytes32(0), "ESCROW_EXISTS");
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
         require(minCoherence <= 1_000_000, "INVALID_COHERENCE");
         require(timeoutBlocks > 0, "ZERO_TIMEOUT");
 
-        escrows[escrowId] = Escrow({
+        _escrows[escrowId] = Escrow({
             escrowId:       escrowId,
             routeId:        routeId,
             entityId:       entityId,
@@ -374,7 +679,7 @@ contract BTCPEscrow {
         bytes32 escrowId,
         bytes32 settlementCheckHash
     ) external onlyRelayer whenNotPaused returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
         require(esc.settlementCheckHash == bytes32(0), "ALREADY_VERIFIED");
@@ -426,7 +731,7 @@ contract BTCPEscrow {
         bytes32 executionBH,
         uint256 coherence
     ) external onlyRelayer nonReentrant returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
         require(block.number <= esc.lockBlock + esc.timeoutBlocks, "EXPIRED");
@@ -462,7 +767,7 @@ contract BTCPEscrow {
     /// @notice Enter PENDING_AKASHIC state when Akashic Index is unavailable
     ///         at execution time (E1 Resolution). 24h recovery window.
     function enterPendingAkashic(bytes32 escrowId) external onlyRelayer whenNotPaused {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
 
@@ -477,7 +782,7 @@ contract BTCPEscrow {
         bytes32 executionBH,
         uint256 coherence
     ) external onlyRelayer nonReentrant returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.PENDING_AKASHIC, "NOT_PENDING");
         require(block.timestamp <= esc.lockTimestamp + AKASHIC_RECOVERY_SECONDS, "AKASHIC_WINDOW_EXPIRED");
@@ -506,7 +811,7 @@ contract BTCPEscrow {
     /// @dev Auto-reverts on timeout; relayer can trigger on coherence failure or route invalidity.
     ///      Also handles PENDING_AKASHIC → REVERTED after 24h (E1 Resolution).
     function revertEscrow(bytes32 escrowId, RevertReason reason) external nonReentrant returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC, "NOT_REVERTABLE");
 
@@ -548,7 +853,7 @@ contract BTCPEscrow {
     ///         After 7 days, ANY caller can trigger revert — no TRION signal needed.
     ///         This is the absolute maximum lockup period.
     function revertEmergency(bytes32 escrowId) external nonReentrant returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC, "NOT_HOLDING");
         require(
@@ -581,7 +886,7 @@ contract BTCPEscrow {
     /// @notice Internal cascade revert for multi-hop nested escrows (Gap 9).
     ///         Called when a child escrow reverts — triggers revert on parent.
     function _cascadeRevert(bytes32 parentEscrowId, bytes32 childEscrowId) internal {
-        Escrow storage parent = escrows[parentEscrowId];
+        Escrow storage parent = _escrows[parentEscrowId];
         if (parent.escrowId == bytes32(0)) return;
         if (parent.state != State.HOLDING && parent.state != State.PENDING_AKASHIC) return;
 
@@ -607,26 +912,64 @@ contract BTCPEscrow {
     }
 
     /// @notice Get escrow state.
-    function getEscrow(bytes32 escrowId) external view returns (Escrow memory) {
-        return escrows[escrowId];
+    /// @dev Split accessors: the 16-field struct return trips the solc
+    ///      via-ir stack budget (value0..value15 + headStart), so the public
+    ///      mapping auto-getter was removed (private _escrows) and the view
+    ///      is served in two halves.
+    function getEscrowCore(bytes32 escrowId)
+        external
+        view
+        returns (
+            bytes32 id,
+            bytes32 route,
+            bytes32 entity,
+            address payable dest,
+            uint256 amount,
+            uint256 minCoherence,
+            State state,
+            bytes32 settlementCheckHash
+        )
+    {
+        Escrow storage e = _escrows[escrowId];
+        return (e.escrowId, e.routeId, e.entityId, e.destination, e.amount,
+                e.minCoherence, e.state, e.settlementCheckHash);
+    }
+
+    function getEscrowMeta(bytes32 escrowId)
+        external
+        view
+        returns (
+            uint256 lockBlock,
+            uint256 lockTimestamp,
+            uint256 timeoutBlocks,
+            RevertReason revertReason,
+            uint256 settledAt,
+            uint256 revertedAt,
+            address lockedBy,
+            bytes32 parentEscrowId
+        )
+    {
+        Escrow storage e = _escrows[escrowId];
+        return (e.lockBlock, e.lockTimestamp, e.timeoutBlocks, e.revertReason,
+                e.settledAt, e.revertedAt, e.lockedBy, e.parentEscrowId);
     }
 
     /// @notice Check if escrow is expired (can be auto-reverted).
     function isExpired(bytes32 escrowId) external view returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         return esc.state == State.HOLDING && block.number > esc.lockBlock + esc.timeoutBlocks;
     }
 
     /// @notice Check if emergency escape is available (Gap 8).
     function emergencyEscapeAvailable(bytes32 escrowId) external view returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         return (esc.state == State.HOLDING || esc.state == State.PENDING_AKASHIC) &&
                block.timestamp >= esc.lockTimestamp + EMERGENCY_ESCAPE_SECONDS;
     }
 
     /// @notice Check if Akashic recovery window has expired (E1).
     function akashicWindowExpired(bytes32 escrowId) external view returns (bool) {
-        Escrow storage esc = escrows[escrowId];
+        Escrow storage esc = _escrows[escrowId];
         return esc.state == State.PENDING_AKASHIC &&
                block.timestamp > esc.lockTimestamp + AKASHIC_RECOVERY_SECONDS;
     }
