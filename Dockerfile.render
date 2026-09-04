@@ -49,12 +49,15 @@ RUN cd relayer && npm install --omit=dev --legacy-peer-deps --silent
 COPY trion-0g/package.json trion-0g/package-lock.json ./trion-0g/
 RUN cd trion-0g && npm install --omit=dev --legacy-peer-deps --silent
 
-COPY chains/near/package.json      chains/near/package-lock.json      ./chains/near/
-COPY chains/pvm/package.json       chains/pvm/package-lock.json       ./chains/pvm/
-COPY chains/starknet/package.json  chains/starknet/package-lock.json  ./chains/starknet/
-COPY chains/sui/package.json       chains/sui/package-lock.json       ./chains/sui/
-COPY chains/svm/package.json       chains/svm/package-lock.json       ./chains/svm/
-COPY chains/ton/package.json       chains/ton/package-lock.json       ./chains/ton/
+# (package-lock.json* — glob: only chains/<vm>/package.json exists in the
+# repo, none of the chains dirs carries a lockfile; the bare
+# `package-lock.json` source previously made this stage FAIL at COPY)
+COPY chains/near/package.json      chains/near/package-lock.json*      ./chains/near/
+COPY chains/pvm/package.json       chains/pvm/package-lock.json*       ./chains/pvm/
+COPY chains/starknet/package.json  chains/starknet/package-lock.json*  ./chains/starknet/
+COPY chains/sui/package.json       chains/sui/package-lock.json*       ./chains/sui/
+COPY chains/svm/package.json       chains/svm/package-lock.json*       ./chains/svm/
+COPY chains/ton/package.json       chains/ton/package-lock.json*       ./chains/ton/
 COPY chains/botchain/package.json                                    ./chains/botchain/
 RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains/ton chains/botchain; do \
         cd /build/$d && npm install --omit=dev --legacy-peer-deps --silent && cd /build; \
