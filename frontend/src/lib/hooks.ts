@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchAPIOrNull } from './api';
+import { SocketIOClient, SocketIOStatus } from './socketio';
 
 /**
  * useAPI — fetch an endpoint on mount and every `interval` ms (default: no polling).
@@ -141,6 +142,56 @@ export function useStream<T = any>(path: string | null, intervalMs = 2000): {
   const clear = useCallback(() => setItems([]), []);
 
   return { items, push, clear, speedMs };
+}
+
+/**
+ * useSocketFeed — live push from the backend's Flask-SocketIO layer
+ * (serve.py wraps the Flask app with flask-socketio; api/socket_push.py
+ * emits `signal` = new /api/v1/feed entries and `health` = stats packets
+ * on the /feed namespace every few seconds).
+ *
+ * The client is the dependency-free Engine.IO v4 implementation in
+ * lib/socketio.ts: reconnects with exponential backoff, answers engine.io
+ * pings, and force-reconnects when the server stops pinging. When the
+ * socket is down (or the deployment has no WebSocket path — e.g. Railway's
+ * Next.js entry cannot proxy WS) views keep working via their normal
+ * useStream polling, so this hook is a strict enhancement, never a
+ * dependency. Dedupes by entity_id+timestamp against entries the poller
+ * already fetched.
+ */
+export function useSocketFeed(namespace = '/feed'): {
+  connected: boolean;
+  status: SocketIOStatus;
+  signals: any[];
+  health: any | null;
+  lastEventAt: number | null;
+} {
+  const [status, setStatus] = useState<SocketIOStatus>('disconnected');
+  const [signals, setSignals] = useState<any[]>([]);
+  const [health, setHealth] = useState<any | null>(null);
+  const [lastEventAt, setLastEventAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    const client = new SocketIOClient({ namespace });
+    const keyOf = (s: any) => `${s?.entity_id ?? ''}:${s?.timestamp ?? ''}`;
+    client.on('status', (s: SocketIOStatus) => setStatus(s));
+    client.on('health', (h: any) => {
+      setHealth(h);
+      setLastEventAt(Date.now());
+    });
+    client.on('signal', (e: any) => {
+      setLastEventAt(Date.now());
+      setSignals(prev => {
+        const k = keyOf(e);
+        if (prev.some(p => keyOf(p) === k)) return prev;
+        return [e, ...prev].slice(0, 100);
+      });
+    });
+    client.connect();
+    return () => client.close();
+  }, [namespace]);
+
+  return { connected: status === 'connected', status, signals, health, lastEventAt };
 }
 
 /**
