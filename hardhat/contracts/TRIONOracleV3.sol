@@ -49,6 +49,8 @@ abstract contract Ownable {
 }
 
 import "./interfaces/ITRIONOracleV3.sol";
+import "./interfaces/ITrionEpochRegistry.sol";
+import "./libraries/CanonicalCertificate.sol";
 
 contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     using ECDSA for bytes32;
@@ -73,6 +75,28 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     /// @notice Emitted when the owner registers a new validator (set is
     ///         owner-administered — every change is on-chain auditable).
     event ValidatorRegistered(address indexed validator, uint256 validatorCount);
+
+    // ── VALIDATOR EPOCH REGISTRY (Wave 2, audit H-01) ────────────────────────
+    // The per-epoch canonical validator state (docs/protocol/
+    // CANONICAL_CERTIFICATE.md §10.2): at each epoch boundary the TRION
+    // registrar publishes the validator set (addresses, s_j, d_j weights,
+    // totals, D_consensus, Θ(t)) to TrionEpochRegistry, and THIS oracle
+    // consults it for every canonical-certificate verification: epoch
+    // activity (grace-bounded), signer membership, weight quorum, threshold
+    // provenance (H-03) and set-total cross-checks. Unbound (address 0) =
+    // legacy-only mode — the canonical entrypoint fails closed until the
+    // registry is bound.
+    ITrionEpochRegistry public epochRegistry;
+
+    event EpochRegistryBound(address indexed registry);
+
+    /// @notice Bind/rotate the epoch registry (owner-gated, auditable).
+    ///         Unbinding is impossible (zero address rejected).
+    function setEpochRegistry(address registry) external onlyOwner {
+        require(registry != address(0), "TRION: zero registry");
+        epochRegistry = ITrionEpochRegistry(registry);
+        emit EpochRegistryBound(registry);
+    }
 
     // BTCPRoute struct inherited from ITRIONOracleV3
 
@@ -369,6 +393,337 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         );
     }
 
+    // ══ CANONICAL CERTIFICATE ATTESTATION (Wave 2, H-01/H-03/H-04/M-04) ═════
+    // The V4 entrypoint of docs/protocol/CANONICAL_CERTIFICATE.md §11: the
+    // validator batch discipline of submitRouteAttestation() (sorted distinct
+    // signers, one bad signature fails the batch) applied to the full
+    // canonical 346-byte payload P — same P on every VM, EVM-family digest
+    // EIP-191(keccak256(P)) (§3.2 family 1). Authority lives in the
+    // signatures; msg.sender (the relayer) carries none.
+    //
+    // CANONICAL-PATTERN DECISION (template for the other VM custodians): this
+    // entrypoint is the OBSERVABILITY/INDEX surface — it runs the full §6
+    // verification (structure → epoch → freshness → consensus preconditions →
+    // signatures+claims → weight quorum → nonce ordering) and records the
+    // verdict, but consumers (BTCPEscrow.releaseEscrowCanonical) re-verify
+    // the certificate THEMSELVES against the epoch registry at the point of
+    // value movement. The oracle store is never a trust dependency — that is
+    // what structurally closes the weak-oracle-fallback class (M-05).
+
+    /// @notice The latest canonical certificate accepted per escrow id.
+    struct CanonicalVerdict {
+        bytes32 routeId;
+        bytes32 destination;     // canonical (left-padded address on EVM)
+        uint256 amount;
+        uint256 coherence;       // ×1e6
+        uint256 threshold;       // ×1e6 — == registry Θ(t) (H-03)
+        uint32  validatorEpoch;
+        uint64  certificateNonce;
+        uint256 timestamp;       // block.timestamp at acceptance
+        bytes32 payloadDigest;   // keccak256(P) — the EVM consumed-key (§7)
+        uint256 signedPower;     // Σ registered w_j over verified signers
+        uint256 totalPower;      // registry Σ w_j of the epoch set
+        bool    recorded;
+    }
+
+    mapping(bytes32 => CanonicalVerdict) public canonicalAttestations;          // escrowId → latest
+    mapping(uint32 => mapping(bytes32 => uint64)) public canonicalHighestNonce; // (epoch, escrow) → highest accepted nonce
+    mapping(uint32 => mapping(bytes32 => bytes32)) private _canonicalDigestAtNonce; // idempotency key
+    mapping(uint32 => mapping(bytes32 => bytes32)) private _canonicalConflictDigest; // second conflicting digest (evidence)
+
+    /// @notice A canonical certificate was accepted and recorded (observability).
+    event CertificateAttested(
+        bytes32 indexed escrowId,
+        bytes32 indexed routeId,
+        uint32  indexed validatorEpoch,
+        uint64  certificateNonce,
+        uint256 signedPower,
+        uint256 totalPower,
+        uint256 timestamp
+    );
+
+    /// @notice Same (epoch, escrow, nonce) with a DIFFERENT payload digest —
+    ///         on-chain equivocation evidence (§8.2) feeding L4.9 S1 slashing
+    ///         (both conflicting certificate digests are self-authenticating
+    ///         off-chain via their quorums of signatures). The conflicting
+    ///         certificate itself is REJECTED (not recorded); the evidence
+    ///         persists in state + events.
+    event CertificateEquivocation(
+        bytes32 indexed escrowId,
+        uint32  indexed validatorEpoch,
+        uint64  certificateNonce,
+        bytes32 digestA,
+        bytes32 digestB
+    );
+
+    /// @notice True once an equivocation conflict was recorded for
+    ///         (epoch, escrow) — the slashing-evidence flag.
+    mapping(uint32 => mapping(bytes32 => bool)) public certificateConflictRecorded;
+
+    /// @notice Submit a canonical-certificate attestation batch (permissionless
+    ///         — authority is in the validator signatures).
+    /// @param payload          The canonical 346-byte certificate payload P
+    ///                         (§2 — the cross-VM wire format). Strictly
+    ///                         decoded field-by-field straight from calldata:
+    ///                         exact width, exact domain tag, fixed field
+    ///                         order (a mismatched layout fails closed at
+    ///                         §6 step 1). escrowId is the BINDING key;
+    ///                         anchorBh/executionBh are canonical BH values
+    ///                         (FIPS SHA3-256, computed OFF-chain per
+    ///                         CANONICAL_BH.md — H-07: opaque inputs, never
+    ///                         recomputed with keccak).
+    /// @param envelopeWeights The CANONICAL ENVELOPE (§4) weight CLAIMS,
+    ///                        interleaved ×1e6: [s_0, d_0, s_1, d_1, ...]
+    ///                        index-aligned with the signature batch — must
+    ///                        equal the registered epoch values exactly
+    ///                        (§6 step 5c; self-reported weights are never
+    ///                        authority — the Go-mesh C-06 class).
+    /// @param signatures      Concatenated 65-byte (r,s,v) EIP-191 signatures
+    ///                        over keccak256(P), SORTED ascending by recovered
+    ///                        signer address, distinct within the batch
+    ///                        (length must be an exact multiple of 65).
+    /// @dev Runs the §6 sequence fail-closed. Registry must be bound. Idempotent
+    ///      resubmission of the same certificate (same nonce AND same digest)
+    ///      is a silent no-op (§8.2 observability). A CONFLICT (same nonce,
+    ///      different digest) is rejected — the verdict is NOT updated — but
+    ///      the equivocation evidence is recorded and the call returns
+    ///      normally so the evidence (event + state) persists.
+    function submitCertificateAttestation(
+        bytes calldata payload,
+        uint256[] calldata envelopeWeights,
+        bytes calldata signatures
+    ) external {
+        // §6 step 1 — STRUCTURE (fail-closed; registry bound is a hard
+        // precondition). certificate_nonce starts at 1: the consumed-nonce
+        // pointer initializes to 0, so nonce 0 could otherwise masquerade as
+        // an "idempotent resubmission" of the never-submitted nonce slot.
+        // Envelope shape: exactly 2 weight claims per 65-byte signature.
+        require(address(epochRegistry) != address(0), "TRION: epoch registry unbound");
+        require(signatures.length % 65 == 0, "TRION: signature width");
+        uint256 batch = signatures.length / 65;
+        require(batch >= CanonicalCertificate.MIN_SIGNERS, "TRION: below min signers");
+        require(envelopeWeights.length == 2 * batch, "TRION: envelope shape mismatch");
+        CanonicalCertificate.checkPayload(payload, block.timestamp);
+
+        // §6 steps 2, 4, 6-pre — EPOCH + registry conformance (H-01/H-03)
+        uint32 epoch = CanonicalCertificate.epochOf(payload);
+        _checkEpochAndRegistry(epoch, payload);
+
+        // §6 steps 5-6 — SIGNATURES + weight quorum (H-04)
+        bytes32 ethDigest = CanonicalCertificate.ethSignedDigestOf(payload);
+        uint256 signedPower = _verifyCertificateSignatures(
+            ethDigest, epoch, signatures, envelopeWeights
+        );
+        uint256 totalPower = _requireCanonicalQuorum(epoch, signedPower);
+
+        // §6 step 8 — nonce ordering, conflict evidence, record (M-04)
+        _recordCanonicalVerdict(payload, signedPower, totalPower);
+    }
+
+    /// @dev §6 steps 2, 4 and 6-pre: epoch activity (registered + within
+    ///      verifier grace; unknown, future and retired epochs all fail
+    ///      closed — H-01), registry conformance (the certificate may not
+    ///      lie about the set: validator_count and total_effective_power must
+    ///      equal the registered values) and H-03 threshold provenance (Θ(t)
+    ///      is registry state, never a certificate claim).
+    function _checkEpochAndRegistry(uint32 epoch, bytes calldata payload)
+        internal
+        view
+    {
+        require(epochRegistry.epochActive(epoch), "TRION: validator epoch inactive");
+        require(
+            CanonicalCertificate.validatorCountOf(payload) == epochRegistry.epochValidatorCount(epoch),
+            "TRION: validator count mismatch"
+        );
+        require(
+            CanonicalCertificate.totalPowerOf(payload) == epochRegistry.epochTotalPower(epoch),
+            "TRION: total power mismatch"
+        );
+        require(
+            CanonicalCertificate.thresholdOf(payload) == epochRegistry.epochThreshold(epoch),
+            "TRION: threshold not from registry"
+        );
+    }
+
+    /// @dev §6 step 6 — QUORUM: the L4.2 tier check over REGISTERED weights
+    ///      (H-04). Returns the epoch total power (the §6 step 6 cross-check
+    ///      value: the certificate's total_effective_power was already
+    ///      required to equal it in _checkEpochAndRegistry).
+    function _requireCanonicalQuorum(uint32 epoch, uint256 signedPower)
+        internal
+        view
+        returns (uint256 totalPower)
+    {
+        totalPower = epochRegistry.epochTotalPower(epoch);
+        require(
+            CanonicalCertificate.quorumMet(signedPower, totalPower, epochRegistry.epochDConsensus(epoch)),
+            "TRION: weight quorum unmet"
+        );
+    }
+
+    /// @dev §6 step 5 — batch fail-closed signature verification: recover each
+    ///      signer (one bad signature rejects the whole certificate), enforce
+    ///      the sorted-distinct batch discipline, epoch-set membership (step
+    ///      5b) and the envelope weight-claim cross-check (step 5c — the
+    ///      self-reported-weights hole of audit C-06). Returns the signed
+    ///      power recomputed from REGISTERED weights (§5.1), never from the
+    ///      envelope.
+    function _verifyCertificateSignatures(
+        bytes32 ethDigest,
+        uint32 epoch,
+        bytes calldata signatures,
+        uint256[] calldata envelopeWeights
+    ) internal view returns (uint256 signedPower) {
+        // Pass 1 — recover and order every signer.
+        address[] memory signers = _recoverCertificateSigners(ethDigest, signatures);
+        // Pass 2 — membership + envelope weight claims + registered power
+        // (claims are interleaved [s_j, d_j] — one entry pair per signature).
+        for (uint256 i = 0; i < signers.length; i++) {
+            signedPower += _checkSignerAndWeight(
+                epoch, signers[i], envelopeWeights[2 * i], envelopeWeights[2 * i + 1]
+            );
+        }
+    }
+
+    /// @dev §6 step 5a — recover and order the signers; reverts on any bad
+    ///      signature, unsorted or duplicate signer. Returns the recovered
+    ///      addresses (index-aligned with the 65-byte signature stride).
+    function _recoverCertificateSigners(bytes32 ethDigest, bytes calldata signatures)
+        internal
+        pure
+        returns (address[] memory signers)
+    {
+        uint256 batch = signatures.length / 65;
+        signers = new address[](batch);
+        address lastSigner = address(0);
+        for (uint256 i = 0; i < batch; i++) {
+            address signer = CanonicalCertificate.recoverSigner(
+                ethDigest, signatures[65 * i:65 * (i + 1)]
+            );
+            require(signer != address(0), "TRION: bad certificate signature");
+            require(signer > lastSigner, "TRION: signer ordering required");
+            lastSigner = signer;
+            signers[i] = signer;
+        }
+    }
+
+    /// @dev §6 step 5b/5c per signer: epoch-set membership (weight > 0) and
+    ///      the exact envelope weight-claim cross-check. Returns the
+    ///      REGISTERED w_j (the only power that is ever summed — §5.1).
+    function _checkSignerAndWeight(
+        uint32 epoch,
+        address signer,
+        uint256 stakeClaim,
+        uint256 diversityClaim
+    ) internal view returns (uint256 weight) {
+        weight = epochRegistry.validatorWeight(epoch, signer);
+        require(weight > 0, "TRION: signer not in epoch set");
+        require(
+            stakeClaim == epochRegistry.validatorStake(epoch, signer) &&
+            diversityClaim == epochRegistry.validatorDiversity(epoch, signer),
+            "TRION: envelope weight claim mismatch"
+        );
+    }
+
+    /// @dev §6 step 8 — nonce ordering, conflict evidence (M-04) and verdict
+    ///      recording. Fields are read one-by-one from calldata (no Cert
+    ///      struct is materialized on the verification path).
+    ///      CANONICAL-PATTERN NOTE: a conflicting certificate (same epoch +
+    ///      escrow + nonce, different payload) is REJECTED — nothing of it is
+    ///      recorded — but the CONFLICT itself is recorded and the evidence
+    ///      event is emitted WITHOUT reverting, because EVM revert semantics
+    ///      discard logs: evidence must persist. A conflict report requires a
+    ///      fresh validator signature quorum over a different payload for the
+    ///      same (epoch, escrow, nonce) — i.e. real equivocation, which is
+    ///      itself the L4.9 S1 slashing evidence against those validators.
+    function _recordCanonicalVerdict(
+        bytes calldata payload,
+        uint256 signedPower,
+        uint256 totalPower
+    ) internal {
+        bytes32 digest = CanonicalCertificate.payloadDigestOf(payload);
+        uint32 epoch = CanonicalCertificate.epochOf(payload);
+        bytes32 escrowId = CanonicalCertificate.escrowIdOf(payload);
+        uint64 nonce = CanonicalCertificate.nonceOf(payload);
+        uint64 highest = canonicalHighestNonce[epoch][escrowId];
+        if (nonce == highest) {
+            if (digest == _canonicalDigestAtNonce[epoch][escrowId]) {
+                return; // idempotent resubmission — observability only (§8.2)
+            }
+            if (!certificateConflictRecorded[epoch][escrowId]) {
+                certificateConflictRecorded[epoch][escrowId] = true;
+                _canonicalConflictDigest[epoch][escrowId] = digest;
+                emit CertificateEquivocation(
+                    escrowId, epoch, nonce,
+                    _canonicalDigestAtNonce[epoch][escrowId], digest
+                );
+            }
+            return; // the conflicting certificate is rejected (not recorded)
+        }
+        require(nonce > highest, "TRION: stale certificate nonce");
+
+        // Record (overwrite the escrow's latest accepted verdict).
+        CanonicalVerdict storage v = canonicalAttestations[escrowId];
+        v.routeId          = CanonicalCertificate.routeIdOf(payload);
+        v.destination      = CanonicalCertificate.destinationOf(payload);
+        v.amount           = CanonicalCertificate.amountOf(payload);
+        v.coherence        = CanonicalCertificate.coherenceOf(payload);
+        v.threshold        = CanonicalCertificate.thresholdOf(payload);
+        v.validatorEpoch   = epoch;
+        v.certificateNonce = nonce;
+        v.timestamp        = block.timestamp;
+        v.payloadDigest    = digest;
+        v.signedPower      = signedPower;
+        v.totalPower       = totalPower;
+        v.recorded         = true;
+        canonicalHighestNonce[epoch][escrowId] = nonce;
+        _canonicalDigestAtNonce[epoch][escrowId] = digest;
+        emit CertificateAttested(
+            escrowId, v.routeId, epoch, nonce, signedPower, totalPower, block.timestamp
+        );
+    }
+
+    /// @notice Flat view of the escrow's latest accepted canonical verdict
+    ///         (observability/index surface — consumers re-verify against the
+    ///         registry; this view is never verification authority).
+    function canonicalBinding(bytes32 escrowId)
+        external
+        view
+        returns (
+            bool    recorded,
+            bytes32 routeId,
+            bytes32 destination,
+            uint256 amount,
+            uint256 coherence,
+            uint256 threshold,
+            uint32  validatorEpoch,
+            uint64  certificateNonce,
+            uint256 timestamp,
+            bytes32 payloadDigest
+        )
+    {
+        CanonicalVerdict storage v = canonicalAttestations[escrowId];
+        return (
+            v.recorded, v.routeId, v.destination, v.amount, v.coherence,
+            v.threshold, v.validatorEpoch, v.certificateNonce, v.timestamp,
+            v.payloadDigest
+        );
+    }
+
+    /// @notice Slashing-evidence accessor: the two conflicting digests for an
+    ///         (epoch, escrow) equivocation, if any (§8.2 / L4.9 S1).
+    function certificateConflict(uint32 epoch, bytes32 escrowId)
+        external
+        view
+        returns (bool recorded, bytes32 digestA, bytes32 digestB)
+    {
+        return (
+            certificateConflictRecorded[epoch][escrowId],
+            _canonicalDigestAtNonce[epoch][escrowId],
+            _canonicalConflictDigest[epoch][escrowId]
+        );
+    }
+
     // ── Publish rich behavioral signal (V3 enhancement) ─────────────────────
     /// @notice Publish a full behavioral signal with entity context and plane data.
     /// @dev Only callable by owner or authorized validator.
@@ -474,7 +829,15 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     // ── Legacy publishSignal ─────────────────────────────────────────────────
     function publishSignal(bytes32 txId, uint256 packedData, bytes[] calldata signatures) external {
         require(!signals[txId].initialized, "TRION: Signal already etched");
-        require(signatures.length >= quorumRequired, "TRION: Insufficient quorum");
+        // M-01 (audit): the legacy thermodynamic quorum is DERIVED from the
+        // live validator set — max(static quorumRequired, max(2, ⌈2/3·validatorCount⌉))
+        // — so the DD "owner lowers quorum to 2" class can no longer drop the
+        // bar below the live-set supermajority. setQuorum() may only TIGHTEN.
+        uint256 required = minRouteAttestations();
+        if (quorumRequired > required) {
+            required = quorumRequired;
+        }
+        require(signatures.length >= required, "TRION: Insufficient quorum");
 
         bytes32 messageHash = MessageHashUtils.toEthSignedMessageHash(keccak256(abi.encodePacked(block.chainid, address(this), txId, packedData)));
         
@@ -584,5 +947,9 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
         // release via one signature; 2 keeps the consensus bar meaningful.
         require(_q >= 2, "TRION: quorum < 2");
         quorumRequired = _q;
+        // M-01 (audit): the static setting is a TIGHTEN-ONLY ceiling now —
+        // publishSignal() floors its requirement at minRouteAttestations()
+        // (max(2, ⌈2/3·validatorCount⌉)), so a low static quorum can never
+        // drop the effective bar below the live-set supermajority.
     }
 }
