@@ -221,7 +221,15 @@ escrow_pda, escrow_bump = Pubkey.find_program_address(
 | `destination` | ❌ | ❌ | Recipient address on release |
 | `system_program` | ❌ | ❌ | System Program |
 
-**Args:** `escrow_id: [u8; 32], route_id: [u8; 32], entity_id: BEOIdentity, amount: u64, min_coherence: u64, timeout_slots: u64`
+**Args:** `escrow_id: [u8; 32], route_id: [u8; 32], intent_hash: [u8; 32],
+entity_id: BEOIdentity, amount: u64, min_coherence: u64, source_chain: u32,
+dest_chain: u32, anchor_bh: [u8; 32], execution_bh: [u8; 32], timeout_slots: u64`
+
+The full CANONICAL_CERTIFICATE.md §4.2-Step-3 binding set (intent hash,
+route legs, anchor/execution behavioral hashes) is recorded at lock time
+so every release certificate is checked against the escrow's OWN state
+(step 7). `dest_chain` must equal the deployment's `self_chain`; pause
+blocks new locks only.
 
 **Lamports:** Only `amount` lamports (the Solidity `msg.value` analog) are
 transferred from `vault_funder` to the vault PDA — the funder's remaining
@@ -230,19 +238,73 @@ balance stays untouched. The `relayer` pays the escrow account rent
 
 ---
 
-### btcp_escrow — `release_escrow`
+### btcp_escrow — `release_escrow` (C-03 closure — certificate-gated)
 
 **Accounts:**
 | Name | Writable | Signer | Description |
 |---|---|---|---|
-| `config` | ✅ | ❌ | PDA: `["config"]` |
-| `relayer` | ❌ | ✅ | Owner or relayer |
+| `config` | ❌ | ❌ | PDA: `["config"]` |
+| `submitter` | ✅ | ✅ | **Permissionless** — no release authority; pays consumed-PDA rent |
+| `registry` | ❌ | ❌ | PDA: `["trion", "validators", epoch_be]` — must exist for the cert epoch |
 | `escrow` | ✅ | ❌ | PDA: `["escrow", escrow_id]` |
 | `vault` | ✅ | ❌ | PDA: `["vault", escrow_id]` |
-| `destination` | ✅ | ❌ | Must match `escrow.destination` |
+| `destination` | ✅ | ❌ | Must match `escrow.destination` AND the certificate settlement tuple |
+| `consumed` | ✅ | ❌ | PDA: `["trion", "consumed", escrow_id]` (init_if_needed) |
+| `instructions` | ❌ | ❌ | `SYSVAR_INSTRUCTIONS_PUBKEY` — the signature-introspection source |
 | `system_program` | ❌ | ❌ | System Program |
 
-**Args:** `execution_bh: [u8; 32], coherence: u64`
+**Args:** `payload: Vec<u8>` (the 346-byte canonical signing payload P),
+`cert_epoch: u32` (must equal the payload's epoch — drives the registry
+PDA seeds), `envelope: { family: u8, signatures: Vec<{ validator_id,
+stake_weight, diversity_weight, signature: Vec<u8> }> }`
+
+The instruction runs the CANONICAL_CERTIFICATE.md §6 sequence fail-closed:
+structure → epoch + grace → freshness (Clock sysvar, 60 s drift lower-bound
+only) → HHI/AWA/coherence/threshold preconditions → **runtime-verified
+ed25519 signatures over the RAW P** (the transaction carries native
+`Ed25519SigVerify` instructions before the release instruction; the program
+introspects them through the instructions sysvar and requires the runtime
+to have verified exactly (registered validator pubkey, envelope signature,
+this payload) — one missing or divergent verification fails the whole
+certificate) → weight-quorum recomputed from the registry (L4.2 tiers:
+3·signed > 2·total strict / 4·signed ≥ 3·total / 20·signed ≥ 17·total) →
+full binding against the escrow state (escrow/route/intent/entity ids,
+settlement tuple, chains, anchor/execution BH, min_coherence floor) →
+consumed-certificate replay/equivocation gate → state/timeout guard →
+lamports transfer. Resubmitting the exact same certificate is an
+idempotent no-op; a different certificate for a consumed escrow is a
+CONFLICT and emits equivocation evidence.
+
+**Transaction layout (client side):**
+
+```ts
+// 1. one ComputeBudget request (introspection + precompile CU)
+// 2. Ed25519SigVerify instruction(s) covering every envelope signature:
+//    either self-contained entries (publicKey+signature+message) via
+//    web3.js Ed25519Program.createInstructionWithPublicKey(...), or a
+//    hand-built instruction with 14-byte offsets entries whose signature /
+//    message fields cross-reference the release instruction's data
+//    (index = release instruction index, NOT u16::MAX) to save ~410 bytes
+//    per signature — only the 32-byte pubkeys must be embedded.
+// 3. escrow.releaseEscrow(payload, certEpoch, envelope) with the accounts
+//    table above (do not forget instructions: SYSVAR_INSTRUCTIONS_PUBKEY).
+```
+
+The Ed25519SigVerify instruction must be placed **before** the release
+instruction (the program only introspects already-executed instructions).
+The program parses the precompile's offsets header with the runtime's own
+index semantics and requires an exact three-way byte match — the
+"wrong-offset" bypass class (Relay, Sept 2025) is closed.
+
+**Compute budget & size ceiling:** the precompile charges CU per verified
+signature — request a compute budget sized for the quorum. Solana
+transactions are capped at ~1232 bytes: a release fits roughly 2
+self-contained signatures, or ~4 signatures using cross-instruction
+references (payload+signature live once in the release instruction).
+Larger quorums (the 100-validator launch target) need aggregate
+signatures (CANONICAL_CERTIFICATE.md §14.3, family 4 BLS — deferred) or a
+future staged-certificate design; until then deploy with devnet-scale
+validator sets.
 
 ---
 
@@ -344,9 +406,15 @@ The existing `trion-svm` Rust indexer crate needs to be extended with a
 
 6. Relayer triggers atomic releases:
    → On Solana: btcp_escrow.release_escrow(
-       escrow_id, execution_bh, coherence=865500
+        payload = P (346 bytes), cert_epoch, envelope = {family: 2, signatures})
+      with the epoch-registry PDA ["trion", "validators", epoch_be], the
+      consumed PDA ["trion", "consumed", escrow_id], the instructions
+      sysvar, and — placed BEFORE the release instruction — the
+      Ed25519SigVerify instructions covering every envelope signature
+      (see the release_escrow reference above)
      )
-     [vault PDA sends 0.5 SOL to Entity B's Solana address via CPI]
+     [vault PDA sends 0.5 SOL to Entity B's Solana address — the exact
+      (destination, amount) settlement tuple the certificate signed]
 
    → On BOT Chain: BTCPEscrow.releaseEscrow(...) already done in EVM
 
@@ -411,20 +479,46 @@ Once the relayer integration is complete, the existing Python test framework
    authority is the btcp_escrow program itself. SOL can only leave the vault
    via `releaseEscrow` or `revertEscrow` instructions with proper authorization.
 
-2. **Relayer authority**: The relayer can trigger releases and non-timeout
-   reverts. The owner can change the relayer. In production, the relayer
-   should be the TRION relayer service's dedicated keypair, not the deployer.
+2. **Release authority = canonical certificates (C-03 closure)**: the old
+   single-oracle-key release gate is REMOVED. `release_escrow` verifies the
+   TRION canonical certificate (346-byte payload, ed25519 family signatures
+   verified by the Ed25519SigVerify precompile via instruction introspection,
+   epoch registry PDA `["trion","validators",epoch_be]`, L4.2 weight quorum,
+   freshness, settlement-tuple binding, consumed-certificate replay gate).
+   The bound TRION key is a **pause authority only** — it can never release.
+   There is NO trusted-relayer/dev fallback release path; before the first
+   `register_epoch` every certificate fails closed.
 
-3. **Escrow state machine**: HOLDING → RELEASED or HOLDING → REVERTED.
-   No other transitions possible. Released/reverted escrows are terminal.
+3. **Relayer authority**: The relayer can lock escrows and trigger
+   non-timeout reverts. The owner can change the relayer and the registry
+   admin (role separation: owner / relayer / pause authority / registry
+   admin, master command §10). In production, the relayer should be the
+   TRION relayer service's dedicated keypair, not the deployer.
 
-4. **Timeout safety**: Anyone can trigger `revertEscrow` with reason=Timeout
-   after `lock_slot + timeout_slots` has passed. This prevents permanent
-   fund lockup if the relayer goes down.
+4. **Escrow state machine**: HOLDING → RELEASED | REVERTED |
+   EMERGENCY_REVERTED. No other transitions; all three terminal states
+   have no outgoing transitions. Second release refused (state ≠ HOLDING
+   + consumed-certificate PDA).
 
-5. **Coherence enforcement**: `releaseEscrow` requires the provided coherence
-   score to meet or exceed the escrow's `min_coherence`. This is the
-   behavioral gate that enforces TRION's truth requirement.
+5. **Timeout safety + E6 escape**: Anyone can trigger `revertEscrow` with
+   reason=Timeout after `lock_slot + timeout_slots`, and anyone can trigger
+   reason=Emergency (EMERGENCY_REVERTED) after 7 days — even if TRION is
+   silent or the program is paused. This prevents permanent fund lockup.
+
+6. **Coherence enforcement**: the certificate's coherence must meet the
+   emission threshold (which must equal the registered epoch Θ(t)) AND the
+   escrow's own `min_coherence` floor etched at lock time (INV-003:
+   deployment-local tightening, never loosening).
+
+7. **Pause semantics**: `pause()` (pause authority or owner) blocks NEW
+   `lock_escrow` only — settling escrows with valid certificates and
+   reverting/timeout escapes are never pausable (M2).
+
+8. **Epoch rotation**: `register_epoch` (registry admin, strictly
+   increasing epochs, immutable sets) is the one per-epoch write; release
+   rejects epochs older than `latest_epoch − 2` (grace) and unregistered
+   epochs. Weights and D_consensus are recomputed from the registered
+   entries — envelope weight claims are cross-checked, never trusted.
 
 ---
 

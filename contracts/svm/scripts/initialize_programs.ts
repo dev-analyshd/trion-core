@@ -47,9 +47,13 @@ const PROGRAM_IDS = {
 
 const SEED_CONFIG = Buffer.from("config");
 
-// ── Minimal IDL for initialize instruction ──────────────────────────────────
+// ── Minimal IDLs for initialize instruction ──────────────────────────────────
 // We don't need the full IDL — just enough to call `initialize`.
-const MINIMAL_IDL = {
+// NOTE (Wave 2 / C-03): btcp_escrow.initialize now takes the deployment's
+// canonical chain id (config/chain_registry.json — Solana = 900) and the
+// certificate launch-threshold policy; the intent/route programs keep the
+// argument-less form.
+const BASE_IDL = {
   version: "0.1.0",
   name: "btcp_program",
   instructions: [
@@ -73,6 +77,29 @@ const MINIMAL_IDL = {
   ],
 };
 
+const ESCROW_MINIMAL_IDL = {
+  ...BASE_IDL,
+  instructions: [
+    {
+      ...BASE_IDL.instructions[0],
+      args: [
+        { name: "selfChain", type: "u32" },
+        { name: "minValidatorCount", type: "u32" },
+      ],
+    },
+    BASE_IDL.instructions[1],
+  ],
+};
+
+// btcp_escrow deploy-time policy (C-03 hardening):
+//  - SELF_CHAIN: canonical TRION registry chain id of this deployment
+//    (default 900 = Solana mainnet; devnet also 900 — the registry
+//    distinguishes clusters, ids do not).
+//  - MIN_VALIDATOR_COUNT: certificate launch threshold (V2 §9.2 — 100 on
+//    mainnet; 3 = the hard liveness floor for devnet).
+const SELF_CHAIN = Number(process.env.BTCP_SELF_CHAIN || 900);
+const MIN_VALIDATOR_COUNT = Number(process.env.BTCP_MIN_VALIDATORS || 3);
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function loadKeypair(p: string): Keypair {
   const data = JSON.parse(fs.readFileSync(p, "utf-8"));
@@ -82,9 +109,11 @@ function loadKeypair(p: string): Keypair {
 async function initializeProgram(
   provider: anchor.AnchorProvider,
   programId: PublicKey,
-  label: string
+  label: string,
+  idl: any = BASE_IDL,
+  args: any[] = []
 ): Promise<PublicKey> {
-  const program = new anchor.Program(MINIMAL_IDL as any, programId, provider);
+  const program = new anchor.Program(idl, programId, provider);
 
   const [configPda, bump] = PublicKey.findProgramAddressSync(
     [SEED_CONFIG],
@@ -96,8 +125,8 @@ async function initializeProgram(
   console.log(`   Config PDA: ${configPda.toBase58()} (bump: ${bump})`);
 
   try {
-    const txSig = await program.methods
-      .initialize()
+    const txSig = await (program.methods as any)
+      .initialize(...args)
       .accounts({
         config: configPda,
         payer: provider.wallet.publicKey,
@@ -155,7 +184,13 @@ async function main() {
   const results: Record<string, string> = {};
 
   results.btcp_escrow = (
-    await initializeProgram(provider, PROGRAM_IDS.escrow, "btcp_escrow")
+    await initializeProgram(
+      provider,
+      PROGRAM_IDS.escrow,
+      "btcp_escrow",
+      ESCROW_MINIMAL_IDL,
+      [SELF_CHAIN, MIN_VALIDATOR_COUNT]
+    )
   ).toBase58();
 
   results.btcp_intent = (
@@ -174,8 +209,13 @@ async function main() {
   for (const [prog, pda] of Object.entries(results)) {
     console.log(`  ${prog}: ${pda}`);
   }
-  console.log("\nOwner + Initial Relayer:", wallet.publicKey.toBase58());
-  console.log("\n💡 Next: update relayer to your TRION relayer keypair using setRelayer()");
+  console.log("\nOwner + Initial Relayer + Initial Registry Admin:", wallet.publicKey.toBase58());
+  console.log("\n💡 Next steps:");
+  console.log("   1. setRelayer() → your TRION relayer keypair");
+  console.log("   2. setRegistryAdmin() → the TRION registrar (epoch registrations)");
+  console.log("   3. bindPauseAuthority() → the TRION pause key (pause-only, never release)");
+  console.log("   4. registerEpoch(1, entries, threshold) → first validator epoch");
+  console.log("      (until epoch 1 is registered, NO certificate can release — fail-closed)");
 }
 
 main().catch((err) => {
