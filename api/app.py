@@ -5300,14 +5300,7 @@ def bh_vm_feed():
     db_path = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
 
-    EVM_CHAINS = {
-        "ETH_MAINNET","ARB_MAINNET","BASE_MAINNET","OP_MAINNET","BNB_MAINNET",
-        "LINEA_MAINNET","LINEA","MANTLE_MAINNET","MANTLE","SCROLL_MAINNET",
-        "SCROLL","HASHKEY_MAINNET","HASHKEY","ETH_SEPOLIA","ARB_SEPOLIA",
-        "BASE_SEPOLIA","OP_SEPOLIA","BNB_TESTNET","ZG_GALILEO",
-    }
-    SVM_CHAINS   = {"SOLANA_MAINNET","SOLANA_DEVNET"}
-    ZG_CHAINS    = {"ZG_MAINNET"}
+    from api.chains_registry import classify_bh_label as _classify_bh_label
 
     VERDICT_MAP = {
         "MEV_CAPTURE":"INTERCEPT","FLASH_LOAN":"HOSTILE","GOVERNANCE":"WATCH",
@@ -5318,11 +5311,6 @@ def bh_vm_feed():
 
     def _make_in_clause(chains):
         return "(" + ",".join("?" * len(chains)) + ")"
-
-    EVM_LIST    = sorted(EVM_CHAINS)
-    SVM_LIST    = sorted(SVM_CHAINS)
-    ZG_LIST     = sorted(ZG_CHAINS)
-    NONEVM_LIST = []  # filled dynamically from DB
 
     def _fetch_vm(conn, chains_list, lim):
         if not chains_list:
@@ -5340,15 +5328,31 @@ def bh_vm_feed():
         conn.execute("PRAGMA query_only=1")
         total = conn.execute("SELECT COUNT(*) FROM bh_ledger").fetchone()[0]
         per_chain_rows = conn.execute(
-            "SELECT chain_label, COUNT(*) FROM bh_ledger GROUP BY chain_label"
+            "SELECT chain_label, COUNT(*), MAX(ts) FROM bh_ledger GROUP BY chain_label"
         ).fetchall()
+        # Classify the ACTUAL ledger labels — both writer conventions resolve
+        # to their VM family (classify_bh_label). Unknown labels fall to the
+        # NON_EVM bucket so nothing is silently dropped.
+        group_labels = {"EVM": [], "SVM": [], "ZG": []}
+        group_totals = {"EVM": 0, "SVM": 0, "ZG": 0}
+        by_family = {}
+        nonevm_chains = []
+        for lbl, cnt, last_ts in per_chain_rows:
+            fam = _classify_bh_label(lbl)
+            if fam in group_labels:
+                group_labels[fam].append(lbl)
+                group_totals[fam] += cnt
+            else:
+                nonevm_chains.append(lbl)
+            fs = by_family.setdefault(fam, {"name": fam, "chain_count": 0, "bh_count": 0, "last_activity": None})
+            fs["chain_count"] += 1
+            fs["bh_count"] += cnt
+            if last_ts and (fs["last_activity"] is None or last_ts > fs["last_activity"]):
+                fs["last_activity"] = last_ts
         # Per-VM targeted queries — avoids Solana dominating the top-N slice
-        evm_rows    = _fetch_vm(conn, EVM_LIST, limit_per_vm)
-        svm_rows    = _fetch_vm(conn, SVM_LIST, limit_per_vm)
-        zg_rows     = _fetch_vm(conn, ZG_LIST,  limit_per_vm)
-        # Non-EVM: whatever chains exist in DB that aren't EVM/SVM/ZG
-        all_known   = set(EVM_CHAINS) | set(SVM_CHAINS) | set(ZG_CHAINS)
-        nonevm_chains = [r[0] for r in per_chain_rows if r[0] not in all_known]
+        evm_rows    = _fetch_vm(conn, group_labels["EVM"], limit_per_vm)
+        svm_rows    = _fetch_vm(conn, group_labels["SVM"], limit_per_vm)
+        zg_rows     = _fetch_vm(conn, group_labels["ZG"],  limit_per_vm)
         nonevm_rows = _fetch_vm(conn, nonevm_chains, limit_per_vm) if nonevm_chains else []
         conn.close()
     except Exception as exc:
@@ -5374,13 +5378,21 @@ def bh_vm_feed():
     zg_records     = _to_records(zg_rows)
     nonevm_records = _to_records(nonevm_rows)
 
-    evm_total = sum(v for k, v in per_chain.items() if k in EVM_CHAINS)
-    svm_total = sum(v for k, v in per_chain.items() if k in SVM_CHAINS)
-    zg_total  = sum(v for k, v in per_chain.items() if k in ZG_CHAINS)
+    evm_total = group_totals["EVM"]
+    svm_total = group_totals["SVM"]
+    zg_total  = group_totals["ZG"]
     nonevm_total = total - evm_total - svm_total - zg_total
+
+    vm_families_list = sorted(
+        by_family.values(), key=lambda fs: fs["bh_count"], reverse=True
+    )
 
     return jsonify({
         "total_bh_records": total,
+        "total_chains": len(per_chain_rows),
+        "total_vm_families": len(by_family),
+        "vm_families": vm_families_list,
+        "by_family": by_family,
         "vm_groups": {
             "EVM": {
                 "label": "EVM",
@@ -5418,14 +5430,7 @@ def bh_chains():
     import sqlite3 as _sq, time as _time
     db_path = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "bh_ledger.db"))
-    EVM_CHAINS = {
-        "ETH_MAINNET","ARB_MAINNET","BASE_MAINNET","OP_MAINNET","BNB_MAINNET",
-        "LINEA_MAINNET","LINEA","MANTLE_MAINNET","MANTLE","SCROLL_MAINNET",
-        "SCROLL","HASHKEY_MAINNET","HASHKEY","ETH_SEPOLIA","ARB_SEPOLIA",
-        "BASE_SEPOLIA","OP_SEPOLIA","BNB_TESTNET","ZG_GALILEO",
-    }
-    SVM_CHAINS = {"SOLANA_MAINNET","SOLANA_DEVNET"}
-    ZG_CHAINS  = {"ZG_MAINNET"}
+    from api.chains_registry import classify_bh_label as _classify_bh_label
     try:
         conn = _sq.connect(db_path, timeout=4.0)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -5456,10 +5461,11 @@ def bh_chains():
         label, cid, cnt = r[0], r[1], r[2]
         mev,liq,flash,swap,xfer,bridge,gov,oracle,borrow = r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10],r[11]
         last_ts, first_ts = r[12], r[13]
-        if label in ZG_CHAINS:    vm = "0G"
-        elif label in SVM_CHAINS: vm = "SVM"
-        elif label in EVM_CHAINS: vm = "EVM"
-        else:                     vm = "NON-EVM"
+        if label in ("", None):
+            vm = "NON-EVM"
+        else:
+            fam = _classify_bh_label(label)
+            vm = "0G" if fam == "ZG" else (fam if fam != "UNKNOWN" else "NON-EVM")
         age_s = int(now - (last_ts or 0))
         chains.append({
             "chain": label, "chain_id": cid, "vm": vm,
