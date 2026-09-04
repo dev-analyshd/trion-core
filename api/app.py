@@ -6710,7 +6710,7 @@ def whitepaper_coverage():
             f"{live_count} are backed by real measured data; {synth_count} run on "
             "deterministic demo inputs and are labeled SYNTHETIC-DEMO — see the "
             "is_synthetic flags on those endpoints. This endpoint is a self-report, "
-            "not an independent audit. 37 chains indexed. 13 Rust L0 crates."
+            "not an independent audit. 129 chains in the registry, 21 Rust indexer crates."
         ),
         "whitepaper":        "TRION Protocol Complete — all L0–L10 + v0.4 gaps",
         "timestamp":         int(time.time()),
@@ -7670,7 +7670,7 @@ def universal_asset_identifier(chain: str, address: str):
 
     Resolves any (chain, address) tuple to a canonical cross-chain entity ID.
     The UAI allows the same protocol or asset to be tracked identically
-    across all 37 indexed chains — enabling true cross-chain behavioral coherence.
+    across all indexed chains — enabling true cross-chain behavioral coherence.
 
     UAI = SHA3-256(chain_id_bytes || address_bytes || entity_type_byte || genesis_block_bytes)
 
@@ -9297,7 +9297,7 @@ def zg_full_stack():
             },
         },
         "architecture": (
-            "37 chains → 9 Shannon entropy features → 128-dim FAISS "
+            "129 registered chains → 9 Shannon entropy features → 128-dim FAISS "
             "→ 0G Compute TEE (Sealed Inference, anti-front-run) → 0G Agent ID "
             "→ 0G KV (<10ms verdict cache) → 0G DA (RS 2× anomaly proof) "
             "→ 0G Storage (Merkle-256 state) → 0G Chain (TRIONExecutionGate.checkExecution())"
@@ -9605,7 +9605,7 @@ def trion_trade(entity_id: str):
             "cross_chain_signal":   cross_chain_signal,
             "manipulation_warning": manipulation_warning,
             "love_premium_active":  love_premium,
-            "description":          "Signals derived from 37 chains × 9 Shannon entropy dimensions — invisible to price-only analytics",
+            "description":          "Signals derived from 129 registered chains × 9 Shannon entropy dimensions — invisible to price-only analytics",
         },
         "revenue_model": {
             "tier":             "INSTITUTIONAL",
@@ -9804,14 +9804,14 @@ def architecture_inversion():
                 {
                     "position":    1,
                     "name":        "Blockchain Behavioral Reality",
-                    "role":        "Source of truth — every transaction on 37 chains",
+                    "role":        "Source of truth — every transaction on the indexed chains",
                     "strength":    "Immutable, transparent, cryptographically signed by the network itself",
                     "live_stats": {
                         "chains_indexed":   chains_indexed,
                         "total_bh_records": total_bhs,
                         "bh_formula":       "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
                         "tamper_possible":  False,
-                        "p_manipulation":   "Requires 51% of all 37 chains simultaneously = economically impossible",
+                        "p_manipulation":   "Requires 51% of all indexed chains simultaneously = economically impossible",
                     },
                 },
                 {
@@ -9864,7 +9864,7 @@ def architecture_inversion():
             {
                 "property":  "Signal Source",
                 "broken":    "CEX order books — private, opaque, controlled by 6 companies",
-                "trion":     "37 blockchains — public, immutable, cryptographically verified",
+                "trion":     f"{chains_indexed} blockchains — public, immutable, cryptographically verified",
             },
             {
                 "property":  "Flow Direction",
@@ -9874,7 +9874,7 @@ def architecture_inversion():
             {
                 "property":  "Manipulation Cost",
                 "broken":    "$2–15M for 30-second oracle manipulation (Mango: $116M profit)",
-                "trion":     "Must forge behavioral history of 37 chains — economically impossible",
+                "trion":     "Must forge behavioral history across the indexed chains — economically impossible",
             },
             {
                 "property":  "Transparency",
@@ -10066,11 +10066,11 @@ def inverted_price_feed(asset: str = "ETH"):
     coherence    = float(btv_data.get("coherence_score", 0.38))
     nl_score     = float(btv_data.get("nl_score", 0.80))
     total_bhs    = int(bh_stats.get("total_tx_bhs", 296_000))
-    chains_count = int(moat_data.get("chains_indexed", 37))
+    chains_count = int(moat_data.get("chains_indexed", _registry_chain_counts()["chains_indexed"]))
 
     # ── 2. Compute behavioral depth D(t) ─────────────────────────────────────
     # D(t) = log10(total_BH_records + 1) · chain_coverage_factor
-    # Calibrated so that ~300k BHs across 37 chains → D ≈ 19.8
+    # Calibrated so that ~300k BHs across the indexed chains → D ≈ 19.8
     chain_coverage = math.tanh(chains_count / 10.0)
     depth          = math.log10(max(total_bhs, 1) + 1) * chain_coverage * 3.65
 
@@ -10221,7 +10221,7 @@ def trion_vision():
             "thesis":      "TRION's immune system protects from what is bad. Love Protocol reveals what is good.",
             "self_destruct":"If ever used against people instead of for them, it kills itself",
             "formula":     "LV(t) = L(t) · e^(–MF(t)) · TrustChain(t) · Longevity(t)",
-            "unfakeable":  "You cannot simulate years of patient, altruistic, consistent behavior across 37 chains",
+            "unfakeable":  "You cannot simulate years of patient, altruistic, consistent behavior across the indexed chains",
             "endpoint":    "/api/v1/love/{entity}",
         },
 

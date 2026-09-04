@@ -133,8 +133,8 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         layer=ChannelLayer.DIRECT_CHAIN,
         name="Direct Chain Event Indexing",
         whitepaper="L0.1 / Section 15, Ch.6",
-        description="Block-level reading below contract layer. 13 Rust crates produce "
-                    "canonical 93-byte BH per tx across 37 chains.",
+        description="Block-level reading below contract layer. The Rust indexer crates produce "
+                    "canonical 93-byte BH per tx across the registered chains.",
         status=ChannelStatus.ACTIVE,
         impl_paths=["indexers/crates/trion-evm/",
                     "indexers/crates/trion-svm/",

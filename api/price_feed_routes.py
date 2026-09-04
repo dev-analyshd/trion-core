@@ -177,7 +177,7 @@ def _build_aggregator_response(pair: dict, is_inverse: bool) -> dict:
 def _bootstrap_seed():
     """
     Seed the registry with computed baseline prices derived from behavioral
-    entropy across the 37 indexed chains. In production these are overwritten
+    entropy across the indexed chains. In production these are overwritten
     by real relayer data within minutes of startup.
     """
     baselines = [
@@ -339,7 +339,7 @@ def seed_price():
     """
     Relayer endpoint: push a new behavioral price observation.
     The TRION relayer calls this after computing the behavioral consensus
-    price from across the 37 indexed chains.
+    price from across the indexed chains.
 
     Body (JSON):
     {
@@ -524,7 +524,7 @@ def inverted_truth_hierarchy():
                 "aggregate this and deliver it on-chain faster. They are not a solution — "
                 "they are an efficient delivery mechanism for corrupted data. "
                 "TRION provides Layer 0: behavioral ground truth derived from what actually "
-                "happened across 37 chains, not what a CEX claims happened."
+                "happened across the indexed chains, not what a CEX claims happened."
             ),
             **data,
         })
