@@ -299,6 +299,14 @@ export class TrionSDK {
     /**
      * Converts a TRIONSignal into the packed format ready for on-chain submission.
      *
+     * TRUST MODEL (W3-M): this is pure serialization of caller-held numbers —
+     * the SDK does NOT sign the packed value and does NOT verify it. Getting
+     * it on-chain requires a quorum of registered-validator signatures over
+     * the canonical message (built by the relayer/validator layer, never
+     * here). A hand-constructed TRIONSignal packs just as happily as a
+     * fetched one; the on-chain quorum gate is the only thing that
+     * distinguishes them. See sdk/README.md for the full trust model.
+     *
      * @param signal   Full signal from fetchSignal()
      * @param blockNum Current block number
      */
@@ -702,6 +710,13 @@ export async function loadWasmProcessor(wasmUrl?: string): Promise<WebAssembly.I
  * Verify a coherence score client-side using the WASM processor.
  * Returns true if the locally computed value matches the provided score
  * within tolerance (catches trivial data tampering).
+ *
+ * TRUST MODEL (W3-M): this verifies a FORMULA EVALUATION over inputs the
+ * CALLER supplies — it does not verify an oracle attestation, a signature,
+ * or consensus. A mismatch means the numbers are inconsistent; a match
+ * means the arithmetic is coherent, NOT that the inputs are truthful
+ * (whoever produced the inputs can recompute the same formula). See
+ * sdk/README.md.
  */
 export async function verifyCoherenceWasm(
     phi: number,
