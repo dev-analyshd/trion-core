@@ -1,12 +1,24 @@
 # TRION Protocol — API Reference
 
+> **Scope note:** this file documents the primary endpoints, not the full
+> surface — the live route set is **282 rules** (26 BTCP + 7 Continuum in the
+> `btcp_continuum` blueprint plus app, cex, dashboard, price-feed, protocol,
+> self-verification and zg blueprints). The route source of truth is the Flask
+> `url_map` in `api/app.py`.
+
 ## Base URL
 ```
-https://trion-protocol.replit.app
+http://127.0.0.1:5000   # local dev (see DEPLOYMENT.md for deployment profiles)
 ```
 
 ## Authentication
-All public endpoints are unauthenticated. Private validator endpoints require `X-TRION-Validator` header.
+Reads are public. When `TRION_API_KEY` is set, every write
+(POST/PUT/PATCH/DELETE) requires a valid `X-API-Key` header — 401 when absent,
+403 on mismatch (pinned by `tests/unit/test_api_truth_boundaries.py`). The
+`/api/v1/btcp/sanctions` route additionally fails closed (503) when neither
+`TRION_ADMIN_TOKEN` nor `TRION_API_KEY` is configured. Responses label
+caller-supplied data (`witness_source`, `data_provenance`) — the API submits
+evidence, never manufactures truth.
 
 ---
 

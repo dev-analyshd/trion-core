@@ -1,6 +1,21 @@
 # TRION Protocol — Complete Codebase Audit
 ## Whitepaper vs. Implementation, Component by Component
 
+> **STATUS: HISTORICAL SNAPSHOT (2026-07-08/09), partially superseded.** This audit
+> predates the 2026-09 canonical reconstruction (Waves 1–4). Several of its open
+> findings were subsequently closed and several of its numbers describe a tree that
+> no longer exists. For the CURRENT conformance picture read, in order:
+> `docs/audit/CANONICAL_SPEC_MATRIX.md` (107 requirements + K1–K22 conflict
+> resolutions), `docs/protocol/CANONICAL_BH.md`, `docs/protocol/CANONICAL_CERTIFICATE.md`,
+> `docs/protocol/BTCP_STATE_MACHINE.md`, `docs/security/CANONICAL_INVARIANTS.md`, and
+> `docs/audit/AUTONOMOUS_MASTER_WORKLOG.md` (append-only wave log). Notably closed
+> since this report: the two BH implementations were unified on the canonical 93-byte
+> layout with tri-language golden vectors; the TimescaleDB schema landed in-tree with
+> per-table writer dispositions; VM-tier settlement now verifies canonical certificates
+> (weight quorum, fail-closed); AWA emission freeze + API truth boundaries are test-pinned.
+> This document is retained unmodified as the audit record of its date — numbers and
+> verdicts below are NOT the current state.
+
 **Auditor:** Replit Agent  
 **Date:** July 8, 2026 (corrected July 9, 2026 after code review flagged four inaccuracies in the initial pass)  
 **Sources:** Three whitepapers (TRION_Protocol_Whitepaper.md, TRION_PROTOCOL_Complete.html, TRION_Communication_Architecture.md) audited line-by-line against the full codebase.

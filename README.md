@@ -63,13 +63,26 @@ The canonical **93-byte Behavioral Hash (BH)** anchors every transaction to its 
 entity_id(32) ‖ event_type(1) ‖ magnitude_norm(8) ‖ context(8) ‖
 timestamp(8)  ‖ chain_id(4)   ‖ block_hash(32)
 ```
-20 canonical event types cover all economic activity. The **HashDNA dual-strand** construction provides tamper evidence without requiring a separate verification key.
+20 canonical event types cover all economic activity. The **HashDNA dual-strand**
+construction provides tamper evidence without requiring a separate verification key.
+The byte layout, event-type table, magnitude normalization, and block-time semantics
+are pinned by the canonical doc `docs/protocol/CANONICAL_BH.md` (52 golden vectors,
+tri-language Rust/Python/TS parity).
+
+**Two ingestion paths feed L0** (they coexist by design, one live path per deployment
+profile — see `DEPLOYMENT.md`):
+1. **`bh_streamer`** (`core/realtime/bh_streamer.py`) — the Python hot path: 96 chain
+   workers (60 EVM + 36 non-EVM), constructing canonical BHs into the shared SQLite
+   BH ledger with FAISS accumulation.
+2. **Rust L0 indexers** (`indexers/crates/` — 21 per-VM crates + shared `trion-common`)
+   — the cold/production path for the 40 integrated chains: canonical BHs plus the
+   9-feature entropy vectors, keyed by the canonical chain registry.
 
 ### L1 — Physical Plane Φ(t)
 Nine Shannon entropy features computed from raw transaction flow, detecting patterns of manipulation, concentration, and anomalous timing. Adjusted by the Manipulation Fingerprint (MF) engine which uses FFT spectral analysis to detect wash trading and circular activity.
 
 ### L2 — Akashic Index & BEO Resolution
-The persistent behavioral memory layer. FAISS 128-dimensional vector indexing provides fast archetype matching. TimescaleDB hypertables maintain hot storage of behavioral records.
+The persistent behavioral memory layer. FAISS 128-dimensional vector indexing provides fast archetype matching. TimescaleDB hypertables maintain hot storage of behavioral records (deploy-gated: every `schema.sql` table carries an honest `operative-writer` disposition; in-tree the operative store is the SQLite mirror + BH ledger).
 
 The **Behavioral Entity Object (BEO)** resolves disparate addresses across chains and VMs into a single persistent identity via `SHA3-256(normalize(identifier))` — **substrate-independent by construction.** This single formula enables the BTCP Zero-Bridge: the same entity is recognized across EVM, SVM, Cosmos, Move, CosmWasm, and OOA environments, allowing trustless cross-chain exchange without assets ever leaving their native chains.
 
@@ -348,13 +361,18 @@ Successfully demonstrated across fundamentally different virtual machine familie
 | **Love Protocol** | 5/5 PASS (7 tests exist) | Love=0 → F=0 in all cases. No override mechanism found in source audit. |
 | **Resonance Properties** | 95/95 PASS | Requires live services (oracle :5000 + FAISS :8000) via `scripts/deep_resonance_test.py` — not runnable in CI; treat as service-integration results, not unit-tested properties |
 | **BEO Cross-VM Identity** | 5/5 PASS | 6 different VMs → byte-for-byte identical beo_id |
-| **BTCP / SBA / BIBL** | 33/33 PASS | Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
+| **BTCP / SBA / BIBL** | 87 passed + 1 xfail (tests/btcp, Wave 3 close) | BTCP state machine (26 states / 33 transitions), BITP, netting, escrow invariants; 1 xfail = 72h dispute window (registered open item). Institutional deception detection: rising policy + collapsing enforcement → I=0.0015 |
+| **BTCP invariants register** | INV-001…022, 49 attack tests (Wave 1) | Python layer: 18 ENFORCED / 3 PARTIAL / 0 UNENFORCED — `docs/security/CANONICAL_INVARIANTS.md` |
+| **Canonical certificate** | 134 golden-vector / domain-separation tests (Wave 1) | 346-byte cross-VM certificate, per-family digests, weight quorum, replay + TTL rules — `docs/protocol/CANONICAL_CERTIFICATE.md` |
+| **VM contract suites (Wave 2)** | 47 pytest + 574 direct-script checks across 9 real-VM suites | Validator-security audit C-01…C-06 CLOSED: every tier verifies canonical certificates (EVM 130 checks, Solana 156, Move 130, TON 113, NEAR 97, Cairo 18, Vyper 35 tests) |
+| **API truth boundaries (Wave 3)** | 34/34 attack battery | Caller-supplied truth labeled, settlement gate DERIVED from persisted proofs, tolerance caps, SSRF guard, X-API-Key write auth (`tests/unit/test_api_truth_boundaries.py`) |
+| **AWA emission freeze (Wave 3)** | 24 tests | Frozen ⇒ `/api/v1/publish` returns 503 `silence:true`, no chain write; no unfreeze API exists (test-enforced) |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
-| **Master Formula Suite** | 105/105 (with PQC libs); PQC checks now SKIP with reason on a bare env instead of failing | Every other whitepaper formula verified against its implementation (L0–L9) |
-| **Rust BTCP Crate** | 146 `#[test]` fns — not compiled here (as of 2026-09-03) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
+| **Master Formula Suite** | 104 passed / 0 failed / 1 skipped (PQC lib absent on a bare env) | Every whitepaper formula verified against its implementation (L0–L9); suite verdict: "ALL FORMULAS ENFORCED AS SPECIFIED" (105 registered formulas) |
+| **Rust BTCP Crate** | 147 `#[test]` fns in `rust/src` (grep count 2026-09-04) — not compiled here (no cargo in this sandbox) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
 | **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
-| **Python Unit + Adversarial** | 609 unit + 121 adversarial (pytest, as of 2026-09-03) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; integration suite separately 186 passing |
-| **Go BFT Consensus** | 15 tests PASS (`go test ./internal/consensus/...`) | Tendermint-style engine: round-0 commits, byzantine equivocator slashed + tombstoned while chain commits, view-change liveness, deterministic replay, strict >2/3 commit boundary |
+| **Python Unit + Adversarial** | 1019 unit + 9 skipped, 120/121 adversarial (pytest, Wave 3 close 2026-09-04) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; the 1 adversarial failure = PQC libs absent, environmental (proven pre-existing). Integration suite separately 186 passing (as of 2026-09-03) |
+| **Go BFT Consensus** | 15 tests PASS (`go test ./internal/consensus/...`; Go toolchain is external — not runnable in this sandbox) | Tendermint-style engine: round-0 commits, byzantine equivocator slashed + tombstoned while chain commits, view-change liveness, deterministic replay, strict >2/3 commit boundary |
 
 ---
 
@@ -488,7 +506,7 @@ POST /api/v1/btcp/orchestrate            # Full 6-step orchestrator run + proofs
 GET  /api/v1/btcp/bibl/snapshot           # BIBL engine multi-chain snapshot
 POST /api/v1/btcp/private_bibl            # Private-chain BIBL protocol (gap 9)
 GET  /api/v1/btcp/escrow_states           # Escrow monitoring
-GET  /api/v1/btcp/escrow/<id>             # Persisted escrow state by id
+GET  /api/v1/btcp/escrow/<escrow_id>     # Persisted escrow state by id
 GET  /api/v1/btcp/proof                   # Build BTCP consensus proof
 GET  /api/v1/btcp/modules                 # BTCP module status
 GET  /api/v1/btcp/integration_status      # Chain integration status
@@ -517,7 +535,7 @@ POST /api/v1/continuum/settlement          # Continuum settlement
 POST /api/v1/continuum/ccp                 # Continuity coherence profile
 
 # Planes & Coherence
-GET /api/v1/planes/all                   # Raw five-plane breakdown
+GET /api/v1/planes/<entity_id>/all      # Raw five-plane breakdown
 GET /api/v1/sigma/<entity_id>            # Spiritual plane validator detail
 GET /api/v1/coherence/profiles           # All 11 weight profiles
 
@@ -532,7 +550,12 @@ GET /api/v1/whitepaper/coverage           # Formula coverage verification
 
 ### Signal Schema
 
-Every TRION signal carries a standardized set of fields enabling institutional consumption:
+Every TRION signal carries a standardized set of fields enabling institutional consumption.
+Signal types are a closed registry: **24 canonical types** (MD §11's 19 + 5 V2
+extended, ids 0–23 dense — `core/master/signal_factory.py`, `spec/signal_types.md`);
+the 10 BTCP §14.2 domain names are all classifiable (3 already canonical + 7 as typed
+sub-payloads on canonical carriers). New types require a protocol fork (fail-closed
+KeyError on unknown names).
 
 - `coherence`, `threshold`, `silence` — primary gating decision
 - `planes` — individual scores for Φ, M, Σ, K, A
@@ -563,7 +586,11 @@ Deploy these contracts on your chain to participate in the Zero-Bridge network:
 
 ### VM Adapter System
 
-Six VM families supported, each implementing a common interface:
+Six VM adapter families are implemented in `adapters/` (each exposing a common
+interface), while the canonical chain registry tracks **18 VM families** across
+129 chains — the remaining 12 families are indexed (L0) but not yet adapter-routed.
+This is the honest split between *coverage* (indexing/OOA) and *execution*
+(adapter-routed BTCP):
 
 | VM Type | Chains | Native Execution |
 |---------|--------|-----------------|
@@ -602,14 +629,16 @@ Five circuit types implemented for privacy-preserving BTCP operations:
 
 | Component | Interface | Responsibility |
 |-----------|-----------|----------------|
-| **Oracle API** | Port 5000, REST | Request routing, signal computation, API gateway |
+| **Oracle API** | Port 5000, REST (282 routes incl. blueprints) | Request routing, signal computation, API gateway; write ops require `X-API-Key` when `TRION_API_KEY` is set; publication gated by the AWA EmissionGate |
 | **FAISS ANIMA Engine** | Port 8000, FastAPI | Vector indexing, archetype matching, behavioral memory |
-| **BTCP Orchestrator** | Internal | Cross-VM route orchestration, ZK proof routing |
+| **BH Streamer** | `core/realtime/bh_streamer.py` | Python hot path: 96 chain workers (60 EVM + 36 non-EVM) → canonical BHs into the shared SQLite ledger |
+| **Rust L0 Indexers** | `indexers/crates/` (21 crates + `trion-common`) | Canonical BH construction + 9-feature entropy vectors across the 40 integrated chains |
+| **BTCP Orchestrator** | Internal | Cross-VM route orchestration, step-6 atomic persistence (state store), ZK proof routing |
 | **BIBL Engine** | Internal | Inter-block multi-chain analysis |
 | **Escrow Monitor** | Internal | Dual-chain escrow state tracking |
-| **L0 Indexers** | Rust binaries | Canonical BH construction across chains |
-| **Relayer** | Node.js service | On-chain signal publication (DRY_RUN capable) |
-| **TimescaleDB** | PostgreSQL 18.4 | Hot behavioral storage, hypertables, BTCP route records |
+| **Relayer** | Node.js service | On-chain signal publication — **submits, never authorizes**: fail-closed signal validation, single-signature custody honestly labeled (production custody = KMS/HSM via `relayer/kms_provider.js`) |
+| **Validator fleet** | `validator/` (Go) | DW-BFT engine + certificate emission — **external toolchain** (no Go in this sandbox: static-audited + CI); the live fleet itself is an operational gate (see MAINNET_RUNBOOK) |
+| **TimescaleDB** | PostgreSQL 18.4 (deploy-gated) | Hot behavioral storage, hypertables, BTCP tables — `schema.sql` carries 35 tables with honest per-table writer dispositions (12 operative, 6 deploy-gated, 17 `NONE`) |
 | **Institutional Dashboard** | Port 3000, Next.js 16 | Terminal-grade monitoring: 9 views, live data only (see `frontend-institutional/`) |
 
 ### Quick Start
@@ -682,6 +711,50 @@ The system does not rely on a single security barrier. It is a **living defense-
 
 > **Audit note on the immune layer (per docs/deep-read/FINDINGS.md):** CRISPR defense matches known ASCII attack-signature strings by substring search against transaction bytes — a byte-pattern anomaly memory, not behavioral-vector distance matching; it does not "excise" anything, and the shipped library includes simulated future-dated entries.
 
+### Consensus Security — Canonical Certificate Verification (Waves 1–3)
+
+Every consuming VM tier — **EVM (Solidity + Vyper), Solana, Move, TON, NEAR, Starknet/Cairo**
+— verifies the same **346-byte canonical certificate** against a **per-epoch validator
+registry** with **weight quorum**, fail-closed (canonical contract:
+`docs/protocol/CANONICAL_CERTIFICATE.md`):
+
+- **Weight quorum, never caller-supplied:** effective power `w_j = s_j · d_j` (stake ×
+  diversity) is recomputed by each verifier from the registered epoch set — envelope
+  weights are claims, not authority. Required quorum follows the L4.2 tier table
+  (D_consensus ≥ 0.60 → strict 2/3; 0.40–0.60 → 3/4; < 0.40 → 17/20).
+- **Fail-closed everywhere:** the verification algorithm prohibits partial acceptance
+  and the "oracle fallback" class (any failure rejects the certificate). The Vyper
+  tier is structurally fail-closed (no try/catch); the Solana oracle-key release gate
+  was replaced by certificate verification (C-03); Move's relayer `coherence_verified`
+  flag was removed in favor of permissionless certificate release (C-02); TON/NEAR
+  escrows verify §6 sequences with native ed25519 (C-01/C-05); Cairo execution gates
+  are quorum-gated (C-04).
+- **Replay protection:** per-scope strictly-increasing nonces + consumed-certificate
+  tracking on-chain (e.g. `BTCPEscrow.sol` `canonicalHighestNonce`/
+  `_canonicalConflictDigest`) and in the store (`btcp_consumed_certificates`,
+  `btcp_certificate_conflicts` — sqlite-mirror operative). Cross-family duplicates and
+  equivocation evidence feed slashing.
+- **Epoch/init-takeover guards:** registrations are **forward-only** (one per epoch,
+  `onlyRegistrar` — EVM `TrionEpochRegistry`, TON `0x07 register_epoch`, NEAR
+  `register_epoch`); retired validator sets are rejected via epoch + grace windows.
+- **Freshness:** value-tier TTL in **seconds** (1h / 24h / 3d / 7d by value at emission),
+  identical in py/rust/certificate doc; `hhi_at_emission > 4000` → certificate INVALID
+  (HHI CRITICAL tier). Escrow deployments may tighten, never loosen.
+- **Emission freeze (AWA — Anti-Weaponization Architecture, MD §17):** the canonical
+  six-condition set gates emission; the `EmissionGate` singleton in
+  `core/governance/awa.py` is fail-closed with **no unfreeze API** (passing `evaluate()`
+  is the only release); a Chameleon WEAPONIZATION attempt trips a permanent freeze. At
+  the route boundary, frozen ⇒ `/api/v1/publish` returns **503 with `silence:true` and
+  no chain write** (MD §17 "silence is information"). On-chain,
+  `TRIONExecutionGate.sol::publishSignal` requires `awaEnforced()`.
+
+**Honest boundaries:** the live validator fleet is an operational gate (external —
+see `docs/MAINNET_RUNBOOK.md`); PQC verification depends on optional external crypto
+libs (kyber-py / dilithium-py / pyspx — 1 test skip when absent); Go services are
+statically audited only in this sandbox (external toolchain); the PVM `legacy_oracle`
+contract is labeled research/reference, **not** an oracle of record; TimescaleDB
+tables are deploy-gated with per-table writer dispositions in `schema.sql`.
+
 ---
 
 ## Governance & Philosophy
@@ -733,7 +806,9 @@ trion-core/
 │   ├── primitives/                # BH, HashDNA, signal packing
 │   ├── pipeline/                  # Signal publication pipeline
 │   ├── akashic/                   # TimescaleDB, BEO, BIBL
-│   ├── governance/                # Love Protocol, Gratitude, AWA
+│   ├── consensus/                # Canonical certificate reference encoder (Wave 1)
+│   ├── governance/                # Love Protocol, Gratitude, AWA (Anti-Weaponization
+│   │                              # Architecture) + EmissionGate emission freeze
 │   ├── realtime/                  # BH streaming, FAISS accumulation
 │   └── manipulation/              # Fingerprint detection
 ├── anima-service/                 # FAISS ANIMA Engine
@@ -779,7 +854,7 @@ trion-core/
 │   ├── near/                      # NEAR Rust contracts (5)
 │   ├── svm/                       # Solana Anchor programs (4: escrow, intent, route, common)
 │   ├── ton/                       # TON FunC contracts (9: escrow, intent, route, oracle, etc.)
-│   ├── pvm/                       # Polkadot ink! contracts (8)
+│   ├── pvm/                       # Polkadot ink! contracts (8; legacy_oracle = research/reference only, not an oracle of record)
 │   ├── move/                      # Move contracts for Aptos/Sui (5)
 │   ├── soroban/                   # Stellar Soroban contract (1)
 │   ├── cosmwasm/                  # CosmWasm contract (1)
@@ -789,7 +864,10 @@ trion-core/
 │   └── foundry.toml               # Foundry configuration
 ├── indexers/                      # Rust L0 indexers (21 crates + shared trion-common)
 ├── schema.sql                     # TimescaleDB schema + thermodynamic triggers
-│                                # + BTCP tables: routes, intents, escrows, clipboard, BLOs
+│                                  # 35 tables with per-table writer dispositions
+│                                  # (12 operative sqlite-mirror, 6 deploy-gated, 17 NONE)
+│                                  # + BTCP tables: routes, intents, escrows, clipboard, BLOs,
+│                                  # consumed certificates, certificate conflicts
 ├── Dockerfile.railway             # Multi-stage production build
 ├── railway-entrypoint.sh          # Service orchestration
 ├── railway.json                   # Deployment configuration
@@ -833,7 +911,7 @@ Per the **BTCP Master Implementation Spec**, the BTCP core is implemented in **R
 ```bash
 cd rust
 cargo build --release
-cargo test --release    # 117 #[test] functions in rust/src (grep count as of 2026-09-03; not compiled in this environment — run to verify)
+cargo test --release    # 147 #[test] functions in rust/src (grep count 2026-09-04; not compiled in this environment — run to verify)
 ```
 
 **Run Binaries:**
@@ -880,7 +958,7 @@ are atomic, tested, and preserve working behavior:
   canonical BH input, so this corrupted cross-VM identity). All 21 Rust indexer
   crates use the canonical numbering from `config/chain_registry.json`
 - **Single source of truth (P3-CONSOLIDATE)**: `config/chain_registry.json`
-  (129 chains, 18 VM families) — unified from the former
+  (129 chains, 18 VM families) — unified from two since-removed sources:
   `shared/chain_registry_complete.json` (124-chain canonical base) and
   `anima-service/chains_registry_evm.json` (52-chain EVM backfill subset;
   its 5 chains missing from the base were merged in). Generated Python
@@ -916,12 +994,13 @@ are atomic, tested, and preserve working behavior:
 ### Verification Status
 | Suite | Result |
 |-------|--------|
-| Master formula verification (105 formulas) | 104/105 in a bare environment (PQC check needs optional crypto libs; audit finding) |
-| Rust BTCP crate | 146 `#[test]` fns — not compiled here (as of 2026-09-03) |
+| Master formula verification (105 formulas) | 104 passed / 0 failed / 1 skipped in a bare environment (PQC check needs optional crypto libs — environmental, documented); suite verdict "ALL FORMULAS ENFORCED AS SPECIFIED" (Wave 3) |
+| Rust BTCP crate | 147 `#[test]` fns in rust/src — not compiled here (no cargo in this sandbox; 2026-09-04 grep count) |
 | ZK circuit self-tests | 6/6 PASS |
-| Python unit + adversarial | 603 unit passed (5 skipped) + 121 adversarial passed (pytest, as of 2026-09-03) |
+| Python unit + adversarial | 1019 unit + 9 skipped, 120/121 adversarial (pytest, Wave 3 close 2026-09-04; 1 adversarial failure = PQC libs absent, environmental) |
+| BTCP + golden + contracts | tests/btcp 87 + 1 xfail · tests/golden 134 · VM contract suites 47 pytest + 574 direct-script checks across 9 suites (Wave 2) · API truth battery 34/34 (Wave 3) |
 | Python integration | 186 passing in the Stage-2 battery; a fresh-sandbox re-run on 2026-09-03 gave 185 passed, 21 skipped, 1 network-timing failure, 1 service-dependent error (208 collected) |
-| Hardhat (TRIONExecutionGate) | 43 tests (hardhat/test) |
+| Hardhat (TRIONExecutionGate) | 43 tests (hardhat/test; reentrancy-guard + AWA-freeze paths pinned) |
 | Golden test (BEO/BH pipeline) | PASS (30/30) |
 | Indexer workspace compile | 21/21 crates clean |
 | Solidity compile (solc 0.8.24, viaIR) | all hardened contracts clean |
@@ -1008,5 +1087,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 84 formulas registered (28 live + 56 synthetic-demo), 18 VM families — test counts as of 2026-09-04: pytest 691 unit + 9 skipped (live-server/env skips by design); 147 Rust `#[test]` (not compiled here); hardhat 53; go 15*  
+*TRION Protocol — Whitepaper v2.0 — canonical reconstruction Waves 1–4 (spec matrix + canonical BH/certificate/invariants + VM security parity + storage/API truth) — chain registry 129 chains / 18 VM families / 40 integrated · 24 canonical signal types · 282 API routes — test counts as of 2026-09-04 (Wave 3 close): pytest 1019 unit + 9 skipped (live-server/env skips by design) · 134 golden · 87 btcp + 1 xfail · 120/121 adversarial (1 = PQC libs absent, environmental) · 147 Rust `#[test]` in rust/src (not compiled here) · hardhat 53; go 15 — coverage registry: 84 formulas registered (28 live + 56 synthetic-demo) via `GET /api/v1/whitepaper/coverage`; master verification suite: 105 formulas, 104/0/1*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  

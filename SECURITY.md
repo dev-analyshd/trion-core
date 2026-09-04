@@ -49,32 +49,34 @@ After the v2 restructuring (src/ → core/), canonical paths are:
 
 - `core/master/coherence.py` — C(t) master equation
 - `core/master/btcp_score.py` — BTCP score composition (incl. MF penalty)
+- `core/consensus/certificate.py` — canonical 346-byte certificate reference encoder (Wave 1)
+- `core/governance/awa.py` — AWA (Anti-Weaponization Architecture, MD §17) enforcer + EmissionGate freeze
+- `core/governance/falsifiability_registry.py` — F1–F15 falsifiability conditions
 - `core/physical/manipulation_detector.py` — MF detection logic
 - `core/extended/natural_liquidity.py` — Natural Liquidity (NL) computation
 - `core/extended/biological_capital.py` — BC engine (IUCN integration)
 - `core/extended/cross_species.py` — XSL engine (GBIF integration)
 - `core/extended/sovereign_behavioral.py` — SBA engine (IMF/World Bank)
-- `core/governance/awa.py` — Archetypal Weighted Average (AWA) enforcer
-- `core/governance/falsifiability_registry.py` — F1–F15 falsifiability conditions
 - `core/spiritual/sigma_engine.py` — Diversity-Weighted BFT (entity-DW-BFT)
-- `core/spiritual/hhi_monitor.py` — HHI geographic / infrastructure caps
+- `core/spiritual/hhi_monitor.py` — HHI geographic / infrastructure caps (HHI CRITICAL = 4000 on the ×10 000 scale)
 - `core/spiritual/living_security/` — Genomic Key, CRISPR, PQC layer
 - `core/btcp/router.py` — BTCP route selection (Gap 12 determinism)
 - `core/btcp/escrow_monitor.py` — BTCP escrow cascade revert (Gap 9)
-- `core/akashic/timescale_store.py` — Akashic persistence layer (Gap 15)
-- `core/akashic/depth.py` — D(t) Akashic depth computation
+- `core/btcp/state_store.py` — operative store: step-6 atomic writes, consumed-certificate/conflict guards
+- `core/akashic/timescale_store.py` — Akashic persistence layer (deploy-gated TimescaleDB dual-write)
+- `core/akashic/depth.py` — D(t) Akashic depth computation (append-only, canonical)
 - `core/primitives/hash_dna.py` — HashDNA dual-strand fingerprint
 - `core/primitives/entity_resolution.py` — L0.2 BEO confidence scoring
-- `contracts/` — all Solidity (`.sol`) and Vyper (`.vy`) contracts
+- `contracts/` — all Solidity (`.sol`) and Vyper (`.vy`) contracts (incl. `CanonicalCertificate.sol`, `TrionEpochRegistry.sol`, V4 `submitCertificateAttestation` in `TRIONOracleV3.sol`, permissionless `releaseEscrowCanonical` in `BTCPEscrow.sol`)
 - `anima-service/` — FastAPI ANIMA service (FAISS endpoints, fetcher pool)
 - `rust/src/` — BTCP zero-bridge core (Rust)
-- `validator/` — Go P2P validator mesh
+- `validator/` — Go P2P validator mesh (external toolchain — static-audited here)
 - `indexers/crates/` — Rust L0 indexers (21 per-VM crates + trion-common)
 
 ### Out of Scope
 
 - Testnet keys / wallets (use testnet funds only, no real value).
-- Known bootstrap limitations (Σ=0.25, K=0.10, A=0.10 are by design — see WP2 §4.7).
+- Known bootstrap limitations (Σ=0.25, K=0.10, A=0.28 per `config/deployment.env` are by design — honest, flagged in signal output).
 - Denial-of-service against public testnet endpoints.
 - Social engineering against TRION contributors.
 - Vulnerabilities in third-party dependencies already disclosed publicly
@@ -101,16 +103,32 @@ backoff (1 min → 10 min → 1 hour → 24 hour IP ban).
 To enable rate-limiting in production, set `RATE_LIMIT_ENABLED=true`
 in `.env`. Defaults to `false` for local development.
 
+### API Authentication & Truth Boundaries (Wave 3)
+
+- **Write authentication:** when `TRION_API_KEY` is set, every
+  POST/PUT/PATCH/DELETE requires a valid `X-API-Key` header (401 without,
+  403 on mismatch; reads stay public). Pinned by
+  `tests/unit/test_api_truth_boundaries.py`.
+- **Sanctions upsert fails closed:** `/api/v1/btcp/sanctions` refuses
+  unauthenticated delisting (503 when neither `TRION_ADMIN_TOKEN` nor
+  `TRION_API_KEY` is configured).
+- **Truth boundaries:** caller-supplied coherence/threshold/execution
+  claims are never authoritative — responses carry `witness_source` /
+  `data_provenance` labels; the settlement gate is DERIVED from persisted
+  route proofs; price tolerances are capped server-side; webhook
+  registration is SSRF-guarded (private/loopback/metadata hosts rejected).
+
 ### Smart-Contract Layer
 
 On-chain write paths enforce additional DoS protection:
 
 | Contract | Function | Protection |
 |----------|----------|------------|
-| `AkashicProof.sol` | `submitMerkleRoot` | 2/3 validator quorum + nonce-bound sigs (replay-proof) |
+| `AkashicProof.sol` | `submitMerkleRoot` | 2/3 validator quorum + nonce-bound EIP-191 sigs (replay-proof) |
 | `AkashicProof.sol` | `addValidator` / `removeValidator` | `onlyDeployer` (bootstrap; rotate to governance post-launch) |
-| `TRIONExecutionGate.sol` | `publishSignal` | AWA-enforced + 2/3 quorum signatures |
-| `TRIONExecutionGate.sol` | `checkExecution` | `nonReentrant` + `whenNotPaused` + fail-closed |
+| `TRIONExecutionGate.sol` | `publishSignal` | AWA-enforced (quorumRequired ≥ ⌈2/3·validatorCount⌉ via the AWA gate) + quorum signatures |
+| `TRIONExecutionGate.sol` | `checkExecution` | `nonReentrant` + `whenNotPaused` + fail-closed (reentrancy-guard path pinned by hardhat test) |
+| `BTCPEscrow.sol` | `releaseEscrowCanonical` | Permissionless canonical-certificate path (Wave 2): weight-quorum verification vs `TrionEpochRegistry`, settlement-tuple binding, strictly-increasing nonces + conflict evidence, M-05 oracle-interface pinned at bind time |
 | `TRIONToken.vy` | `slash_validator` | `staking_contract`-only + 50% insurance / 50% burn |
 | `TRIONToken.vy` | `burn` | Permissionless (deflationary mechanism — Gap 1) |
 | `TRIONStaking.vy` | `register_validator` | Coverage-tier-scaled minimum stake (Gap 1) |
@@ -138,14 +156,37 @@ External credentials (IUCN/GBIF/IMF/World Bank tokens) are read from
 TRION implements Living Security — cryptographic keys derived from behavioral entropy:
 
 - **Genomic Keys**: Base key ⊕ SHA3(behavioral_vector ‖ block_hash ‖ time_window)
-- **CRISPR Library**: 7 known attack fingerprints with evolution vectors
-- **Chameleon Protocol**: Pre-signed emergency governance transitions
-- **AWA (Archetypal Weighted Average)**: Signal emission frozen when any
-  of the 6 governance conditions (WP2 §17) is violated. Enforced on-chain
-  in `TRIONExecutionGate.sol::publishSignal` (AUDIT-3 Gap G3 fix) and
-  in `TRIONStaking.vy::is_signal_emission_allowed`.
+- **CRISPR Library**: 126 known attack signatures (`CRISPRDefense.library_size()`) with evolution vectors; byte-pattern matching, not vector distance (see the audit note in README)
+- **Chameleon Protocol**: Adaptive noise injection; a WEAPONIZATION_ATTEMPT now trips the AWA emission freeze (fail-closed, no unfreeze API)
+- **AWA (Anti-Weaponization Architecture — MD §17, canonical name)**: Signal emission
+  frozen unless all six anti-weaponization conditions hold (the operative engine
+  keeps a fail-closed superset adding quorum + HHI). Enforced at THREE layers:
+  (1) core — `core/governance/awa.py::EmissionGate` singleton, every `evaluate()`
+  updates it, passing evaluate is the only release, **no unfreeze API exists**
+  (test-enforced); (2) API — `/api/v1/publish` returns 503 `silence:true` and
+  performs no chain write while frozen (Wave 3, adversarially tested); (3) on-chain
+  — `TRIONExecutionGate.sol::publishSignal` `require(awaEnforced())`, and
+  `TRIONToken.vy::set_awa_enforced` freezes minting (already a no-op — fixed
+  supply). Note: some legacy contract comments still expand the acronym
+  differently (pre-K15 wording); `MD §17` is normative.
 - **Falsifiability Registry**: 15 outcome-based F-conditions (WP2 §20),
   each with a specific test metric, threshold, and window.
+
+## Consensus Security — Canonical Certificates (Waves 1–3)
+
+Every consuming VM tier — EVM (Solidity + Vyper), Solana, Move, TON, NEAR,
+Starknet/Cairo — verifies the 346-byte canonical certificate against a
+per-epoch validator registry with **weight quorum** (`w_j = s_j · d_j` recomputed
+from the registered epoch set — envelope weights are claims, not authority;
+L4.2 tier table: 2/3 strict / 3/4 / 17/20). Fail-closed by construction (no
+oracle fallback, no partial acceptance); replay-protected via strictly-increasing
+per-scope nonces + on-chain and store-side consumed-certificate/conflict guards;
+forward-only epoch registration (init-takeover guard); freshness via second-based
+value-tier TTL (1h/24h/3d/7d) and `hhi_at_emission > 4000 ⇒ INVALID`.
+Full contract: `docs/protocol/CANONICAL_CERTIFICATE.md`; invariant register:
+`docs/security/CANONICAL_INVARIANTS.md` (INV-001…022). The Vyper tier is
+structurally fail-closed (no try/catch — the M-03 two-attestation attack is
+regression-tested on a real EVM).
 
 These are defense mechanisms, not vulnerabilities. Do not attempt to
 exploit them. Reports that simply restate the disclosed bootstrap
@@ -153,10 +194,11 @@ limitations as "vulnerabilities" will be closed as out-of-scope.
 
 ## Known Bootstrap Limitations (Not Vulnerabilities)
 
-During testnet, three planes operate at bootstrap values per whitepaper §4.7:
+During testnet, three planes operate at bootstrap values (per
+`config/deployment.env`, disclosed honestly in signal output):
 - Σ (Spiritual) = 0.25 — awaiting validator network
-- K (Conscious) = 0.10 — awaiting annotation network
-- A (ANIMA) = 0.10 — awaiting D(t) ≥ D_minimum
+- K (Conscious) = 0.10 — awaiting annotation network (labeled proxy in use)
+- A (ANIMA) = 0.28 — awaiting D(t) ≥ D_minimum
 
 These are disclosed honestly at `/api/v1/system/bootstrap`. They are not
 security vulnerabilities.

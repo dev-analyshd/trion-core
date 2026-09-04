@@ -4,8 +4,8 @@
 
 Counts in this manifest are recomputed from `config/chain_registry.json` —
 the repo's single source of truth for chain/VM coverage (129 chains across
-18 VM families: 41 integrated with a live indexer + oracle, 23 testnets,
-65 registered and awaiting indexer). Every integrated chain is indexed by a
+18 VM families: 40 integrated with a live indexer + oracle, 23 testnets,
+66 registered and awaiting indexer). Every integrated chain is indexed by a
 dedicated Rust indexer crate (or the multi-chain `trion-evm` crate for EVM)
 using **public keyless RPC endpoints** with fallback.
 All indexers produce the canonical 93-byte dual-strand Behavioral Hash and
