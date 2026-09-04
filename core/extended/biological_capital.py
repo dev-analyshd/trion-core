@@ -173,7 +173,7 @@ def fetch_ecosystem_data(
             "country":   country,
             "year":      occ.get("year"),
             "latitude":  occ.get("decimalLatitude"),
-            "longitude": occ.get("decimalLatitude"),
+            "longitude": occ.get("decimalLongitude"),
             "iucn":      iucn,
             "taxon_key": occ.get("taxonKey"),
         })
