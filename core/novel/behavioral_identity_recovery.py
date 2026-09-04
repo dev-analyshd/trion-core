@@ -224,6 +224,11 @@ class BehavioralCommitment:
     enrolled_at:     float
     feature_version: str
     public_hint:     str     # H(entity_id || enrolled_at) — public enrollment anchor
+    # L16 BIRP anchor (whitepaper p.24): Hash_DNA(BEO_baseline ||
+    # Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed),
+    # dual-strand, hex-encoded. Intended for permanent storage in the
+    # Akashic Index. None only for legacy commitments constructed directly.
+    birp_anchor:     Optional[Dict[str, str]] = None
 
 
 def enroll_behavioral_identity(
@@ -258,6 +263,31 @@ def enroll_behavioral_identity(
     anchor_input  = fingerprint.entity_id.encode() + str(int(now)).encode()
     public_hint   = hashlib.sha3_256(anchor_input).hexdigest()[:32]
 
+    # L16 BIRP: Compute BIRP_anchor using dual-strand Hash_DNA
+    # BIRP_anchor = Hash_DNA(BEO_baseline || Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed)
+    if dna_code:
+        dna_code_hash = hashlib.sha3_256(dna_code.encode()).digest()
+    else:
+        dna_code_hash = b'\x00' * 32
+
+    if not enrollment_timestamp:
+        enrollment_timestamp = now
+
+    baseline = beo_baseline if beo_baseline else fingerprint.entity_id
+    baseline_bytes = baseline.encode() if isinstance(baseline, str) else baseline
+    # Precedence fix: the ternary used to bind as
+    #   (baseline.encode() if isinstance(...) else (baseline + dna + ts + seed))
+    # so the default str branch dropped dna_code_hash, the enrollment
+    # timestamp and the entropy seed entirely. Encode the baseline FIRST,
+    # then concatenate ALL four inputs in both branches.
+    birp_anchor_input = (
+        baseline_bytes +
+        dna_code_hash +
+        str(int(enrollment_timestamp)).encode() +
+        os.urandom(32)  # behavioral_entropy_seed
+    )
+    birp_anchor = hash_dna_dual_strand(birp_anchor_input)
+
     commitment = BehavioralCommitment(
         entity_id       = fingerprint.entity_id,
         commitment      = commitment_hex,
@@ -266,25 +296,10 @@ def enroll_behavioral_identity(
         enrolled_at     = now,
         feature_version = fingerprint.feature_version,
         public_hint     = public_hint,
+        # Hex-encode the dual-strand BIRP anchor so it can be stored
+        # (Akashic Index) and compared without bytes/str ambiguity.
+        birp_anchor     = {k: v.hex() for k, v in birp_anchor.items()},
     )
-    # L16 BIRP: Compute BIRP_anchor using dual-strand Hash_DNA
-    # BIRP_anchor = Hash_DNA(BEO_baseline || Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed)
-    if dna_code:
-        dna_code_hash = hashlib.sha3_256(dna_code.encode()).digest()
-    else:
-        dna_code_hash = b'\x00' * 32
-    
-    if not enrollment_timestamp:
-        enrollment_timestamp = now
-    
-    baseline = beo_baseline if beo_baseline else fingerprint.entity_id
-    anchor_input = (
-        baseline.encode() if isinstance(baseline, str) else baseline +
-        dna_code_hash +
-        str(int(enrollment_timestamp)).encode() +
-        os.urandom(32)  # behavioral_entropy_seed
-    )
-    birp_anchor = hash_dna_dual_strand(anchor_input)
 
     return commitment, salt
 
