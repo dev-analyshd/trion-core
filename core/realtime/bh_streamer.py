@@ -582,7 +582,7 @@ class FAISSAccumulator:
                     "event_type": et,
                     "sense_hex": item.get("sense_hex", ""),
                     "block_num": item.get("block_num", 0),
-                    "vm_type": "EVM",
+                    "vm_type": item.get("vm", "EVM"),
                 })
 
             payload = json.dumps({
@@ -643,6 +643,9 @@ class FAISSAccumulator:
         # Ensure entity_id is present (use from_addr as fallback)
         if "entity_id" not in item and "from_addr" in item:
             item["entity_id"] = item["from_addr"]
+        # Real VM family from the chain config — FAISS vm-status must not
+        # count every streamed vector as EVM (bug: hardcoded "EVM" before).
+        item["vm"] = chain_config.get("vm", "EVM")
         should_flush = False
         with self._lock:
             self.vector_count += 1
@@ -1318,7 +1321,7 @@ def _non_evm_chain_worker(self, chain_id, chain_config):
 
             if block:
                 # Create a synthetic chain_config for processing
-                evm_config = {"name": chain_name, "label": chain_config["label"], "block_time": poll_interval, "native_symbol": chain_config.get("native_symbol", ""), "decimals": chain_config.get("decimals", 18)}
+                evm_config = {"name": chain_name, "label": chain_config["label"], "vm": vm, "block_time": poll_interval, "native_symbol": chain_config.get("native_symbol", ""), "decimals": chain_config.get("decimals", 18), "value_decimals": chain_config.get("value_decimals", chain_config.get("decimals", 18))}
                 self._process_block(chain_id, block, evm_config)
                 self._last_block[chain_id] = target
                 with self._stats_lock:
