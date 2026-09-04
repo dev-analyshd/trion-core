@@ -14,6 +14,33 @@
 #     No owner functions exist in this contract at all.
 #   - The oracle itself enforces the quorum + freshness discipline on the
 #     route verdict (see TRIONOracleV3.publishBTCPRoute quorum attestations).
+#   - M-03 fix (Wave 2): the release quorum is NOT a static floor anymore —
+#     release() consults the oracle's minRouteAttestations() view (the LIVE
+#     validator-set-derived quorum max(2, ⌈2/3·validatorCount⌉)) and requires
+#     attestations ≥ that value. Vyper has no try/catch: if the bound oracle
+#     lacks the view, returns malformed data, or reverts, the whole release
+#     reverts — the interface-mismatch case FAILS CLOSED (strictly stronger
+#     than the Solidity _consensusGate floor-2 fallback, which the audit
+#     flags as M-05). No silent degradation to a weaker quorum is possible.
+#
+# Replay/settlement discipline in this tier (audit H-05 / M-04 note):
+#   - Settlement tuple: release() pays only the escrow's OWN stored
+#     destination/amount (fixed at lock()); no release-time argument can
+#     substitute them. The verdict is bound to THIS escrow via
+#     anchorBH == escrow_id, and escrow_id is derived from
+#     (intent_hash ‖ entity_id ‖ block) — so a verdict can only ever settle
+#     the exact escrow (and its exact tuple) the quorum attested for.
+#   - Replay: escrow states are terminal (RELEASED/REVERTED have no outgoing
+#     transitions) — release-exactly-once is the escrow state machine's job;
+#     per-(route, signer) attestation idempotency is the oracle's job.
+#     Certificate-nonce tracking belongs to the canonical-certificate path
+#     (CANONICAL_CERTIFICATE.md §8) that Agent G is landing as the V4 oracle
+#     entrypoint; this tier upgrades to it once that interface exists.
+#   - Pause: deliberately ABSENT — whitepaper §14.3 invariant "No multi-sig.
+#     No governance. No owner. No pause. TRION consensus is the only
+#     oracle". Emission-side freezes (AWA, HHI CRITICAL tier) are enforced
+#     by the oracle, and the 300 s freshness window bounds any stale/frozen
+#     verdict here.
 #
 # Differences from the whitepaper pseudocode (§14.3), disclosed:
 #   1. Refunds are sent to the address that called lock() (the funder),
@@ -43,6 +70,11 @@ REVERTED: constant(uint8) = 3
 interface ITRIONOracleV3:
     def verifyExecution(txId: bytes32) -> (bool, uint32, uint32): view
     def routeBinding(routeId: bytes32) -> (bytes32, uint256, bool, uint256, uint256, uint256): view
+    # M-03: the dynamic, live-set-derived route verdict quorum —
+    # max(2, ⌈2/3 · validatorCount⌉) distinct signature-verified validators.
+    # A bound oracle WITHOUT this view is an interface mismatch: calls to it
+    # revert and release() fails closed (no fallback to any static floor).
+    def minRouteAttestations() -> uint256: view
 
 # ── Storage ──────────────────────────────────────────────────────────────────
 struct EscrowRecord:
@@ -146,9 +178,22 @@ def release(escrow_id: bytes32, btcp_route_signal: bytes32):
 
         require anchor_bh == escrow_id      <- binding (route-spoof fix)
         require is_safe
-        require attestations >= 2            <- quorum floor
+        required = max(2,                    <- M-03: quorum from the ORACLE's
+            trion_oracle.minRouteAttestations())   live validator-set state,
+                                                NEVER a hardcoded floor
+        require attestations >= required
         require block.timestamp - ts <= 300  <- freshness
         require coherence >= threshold
+
+    The oracle's attestation counter only grows through ECDSA-verified
+    attestations from DISTINCT registered validators
+    (TRIONOracleV3.submitRouteAttestation), so `attestations` is a
+    signature-quorum count and `required` is derived from the live
+    validator set — two attestations can no longer release any amount when
+    the registered set requires a larger supermajority (M-03 regression
+    class). A bound oracle that lacks minRouteAttestations() (or returns
+    malformed data) makes this whole call revert: interface mismatches
+    fail CLOSED, never degrade to a floor.
     """
     record: EscrowRecord = self.escrows[escrow_id]
     assert record.state == HOLDING, "BTCP: not in HOLDING state"
@@ -168,7 +213,24 @@ def release(escrow_id: bytes32, btcp_route_signal: bytes32):
     )
     assert anchor_bh == escrow_id, "BTCP: verdict not bound to this escrow"
     assert is_safe, "BTCP: TRION consensus proof invalid"
-    assert attestations >= 2, "BTCP: quorum unmet"
+
+    # M-03 fix (Wave 2): quorum is DERIVED FROM THE ORACLE'S LIVE CANONICAL
+    # STATE, not a hardcoded floor. minRouteAttestations() is the V3 view
+    # max(2, ⌈2/3 · validatorCount⌉) — it grows with the registered validator
+    # set, so a 7-validator set (required 5) can never be released on 2
+    # attestations. Because Vyper has no try/catch, an oracle that is
+    # missing this view (or returns garbage) reverts the entire release:
+    # interface mismatch FAILS CLOSED — the audit's M-05 fallback class is
+    # structurally impossible here. The local floor of 2 is kept only as a
+    # defensive clamp (max(2, view)) so a misbehaving oracle that reports a
+    # sub-floor quorum can never weaken the gate below the hard floor —
+    # the exact discipline of the Solidity _consensusGate.
+    oracle_quorum: uint256 = self.trion_oracle.minRouteAttestations()
+    required: uint256 = 2
+    if oracle_quorum > required:
+        required = oracle_quorum
+    assert attestations >= required, "BTCP: quorum unmet"
+
     assert block.timestamp - ts <= 300, "BTCP: verdict stale"
     assert coherence >= threshold, "BTCP: coherence below threshold"
 

@@ -67,7 +67,8 @@ destination) or REVERTED/EMERGENCY_REVERTED (funds → funder) — never
 both, never twice, never partially.  Terminal states have no outgoing
 transitions.
 
-**Authority.** BTCP_ESCROW.vy:29-30, 212-219 (invariants block);
+**Authority.** BTCP_ESCROW.vy:29-30→56-57, 212-219→274-281 (invariants
+block; line numbers re-based by the W2-L M-03 fix);
 spec §14.3 pseudocode; BTCP_SPEC build list line 148 ("Two-state atomic
 escrow (HOLDING → RELEASED | REVERTED)").
 
@@ -75,8 +76,8 @@ escrow (HOLDING → RELEASED | REVERTED)").
 258, 279, 309 — every mutator checks the source state) · rs ENFORCED
 (btcp_escrow_monitor.rs:109-135 state guards) · Sol ENFORCED (state
 requires + check-effects-interactions, BTCPEscrow.sol `_consensusGate`
-callers) · Vy ENFORCED (assert state == HOLDING, BTCP_ESCROW.vy:154, 194
-+ state-before-transfer ordering, :176, :198) · SVM ENFORCED (state
+callers) · Vy ENFORCED (assert state == HOLDING, BTCP_ESCROW.vy:199, 256
++ state-before-transfer ordering, :238, :260) · SVM ENFORCED (state
 require in release/revert) · Move ENFORCED (assert state, btcp_escrow.move:128,
 157) · TON ENFORCED (op handlers check state) · Cai ENFORCED
 (btcp_escrow.cairo state assert).
@@ -112,7 +113,7 @@ verdict gate lives in the oracle/escrow contract) · Sol PARTIAL
 no floor — BTCPEscrow.sol:294 `require(minCoherence <= 1_000_000)`;
 oracle-side threshold check exists in `_consensusGate`:260-261) · Vy
 ENFORCED (threshold comes from the oracle verdict, not the caller:
-BTCP_ESCROW.vy:173) · SVM PARTIAL (min_n with MAX bound only, release
+BTCP_ESCROW.vy:173→235) · SVM PARTIAL (min_n with MAX bound only, release
 authority key) · Move PARTIAL (relayer-set `coherence_verified` flag,
 btcp_escrow.move:117-125 — no on-chain quorum binding) · TON PARTIAL
 (relayer/owner-gated release, escrow.fc:40) · Cai PARTIAL (threshold
@@ -140,7 +141,7 @@ state machine docstring lines 15-18.
 timeout check inside release; revert permissionless) · rs ENFORCED
 (`is_timed_out`, btcp_escrow_monitor.rs:147-155) · Sol ENFORCED (timeout
 guard in release path + permissionless revert) · Vy ENFORCED
-(BTCP_ESCROW.vy:195) · SVM ENFORCED · Move ENFORCED (timeout escape
+(BTCP_ESCROW.vy:195→257) · SVM ENFORCED · Move ENFORCED (timeout escape
 hatch, btcp_escrow.move:139-152) · TON ENFORCED · Cai ENFORCED.
 
 **Test.** `test_invariants.py::test_inv004_release_after_timeout_rejected`.
@@ -154,7 +155,7 @@ freshness window (≤ 300 s at the escrow gate on-chain; certification
 windows by value tier for proofs — A3).  A stale verdict can never move
 funds, and only NEW distinct attestations refresh a verdict's timestamp.
 
-**Authority.** BTCP_ESCROW.vy:172 (300s); TRIONOracleV3.sol
+**Authority.** BTCP_ESCROW.vy:172→234 (300s); TRIONOracleV3.sol
 submitRouteAttestation (M2 freshness comment); modules.py:92-104
 CERT_WINDOWS (A3 value-tiered proof expiry); BTCP_SPEC Fix 3.
 
@@ -328,8 +329,10 @@ test-enforced).
 (static parity verified this wave; runtime verification needs cargo —
 external-toolchain policy) · Sol ENFORCED (submitRouteAttestation:
 recovered distinct signers, sorted, quorum — TRIONOracleV3.sol:250+) ·
-Vy ENFORCED (attestations ≥ 2 hard floor at consumption,
-BTCP_ESCROW.vy:171) · SVM PARTIAL (authority key in bootstrap) · Move
+Vy ENFORCED (quorum now DERIVED from the oracle's live validator set
+via the minRouteAttestations() view — W2-L M-03 fix,
+BTCP_ESCROW.vy:171→217-232; interface mismatch fails closed, no floor
+fallback) · SVM PARTIAL (authority key in bootstrap) · Move
 UNENFORCED (flag only) · TON PARTIAL · Cai PARTIAL.
 
 **Test.** `test_invariants.py::test_inv011_structural_contract`
@@ -399,7 +402,7 @@ PROOFS_GENERATED → COMPLETED jump keeps working).
 (monotonic sequence + per-entity counters), so no caller can clobber or
 pre-guess another route's identity.
 
-**Authority.** spec §4.1 nonce; BTCP_ESCROW.vy:98-112 (derived escrow_id
+**Authority.** spec §4.1 nonce; BTCP_ESCROW.vy:98-112→120-144 (derived escrow_id
 "not caller-supplied, unlike the Solidity tier" — the Vyper comment is
 itself the authority that this is a known risk).
 
