@@ -80,7 +80,19 @@ function hexTo32Bytes(hex: string): Buffer {
  * Matches Rust `bh_id(raw)` = SHA3-256(normalise(address)).
  */
 export function entityIdFromAddr(addr: string): string {
-  const normalised = addr.trim().toLowerCase();
+  // CANONICAL_BH.md §6 — byte-identical to Rust hash_dna.rs::normalise():
+  //   s = trim().toLowerCase()
+  //   0x-prefixed (len >= 42) passes through; bare 40-hex gets the 0x prefix;
+  //   everything else (non-EVM ids) passes through unchanged.
+  // The old version skipped the bare-40-hex rule, so an unprefixed EVM
+  // address hashed differently from every other language.
+  const s = addr.trim().toLowerCase();
+  const normalised =
+    s.startsWith("0x") && s.length >= 42
+      ? s
+      : s.length === 40 && /^[0-9a-f]{40}$/.test(s)
+        ? "0x" + s
+        : s;
   return createHash("sha3-256").update(normalised).digest("hex");
 }
 
