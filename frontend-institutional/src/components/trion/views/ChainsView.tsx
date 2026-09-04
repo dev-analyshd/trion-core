@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTrionPoll } from "@/lib/trion/hooks";
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from "@/lib/trion/client";
 import { StatCounter } from "@/components/trion/viz/primitives";
 import { Input } from "@/components/ui/input";
 import {
@@ -466,7 +467,7 @@ export function ChainsView() {
         </div>
 
         <div className="trion-mono border-t border-[#1c232d] px-5 py-2.5 text-[10px] text-[#4b5563]">
-          click a row for the full registry record · 174 chains · 22 VM families · zero-bridge candidate set
+          click a row for the full registry record · {CHAIN_COUNT} chains · {VM_FAMILY_COUNT} VM families · zero-bridge candidate set
         </div>
       </section>
 

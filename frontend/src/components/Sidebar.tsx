@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from '../lib/config';
 
 export type NavItem = { id: string; label: string; icon: any; badge?: string };
 export type NavGroup = { label: string; items: NavItem[] };
@@ -405,10 +406,10 @@ export function Sidebar({
           <div className="flex items-center gap-1.5">
             <span className="live-dot" style={{ width: 6, height: 6 }}></span>
             <span className="font-medium text-foreground">TRION v2.0.0</span>
-            <span className="ml-auto tabular-nums">128 chains</span>
+            <span className="ml-auto tabular-nums">{CHAIN_COUNT} chains</span>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span>18 VM families</span>
+            <span>{VM_FAMILY_COUNT} VM families</span>
             <span className="ml-auto">CC0 - Analys</span>
           </div>
         </div>

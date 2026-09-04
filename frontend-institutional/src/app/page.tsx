@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Sidebar, TRION_VIEWS } from "@/components/trion/shell/Sidebar";
 import { TopBar } from "@/components/trion/shell/TopBar";
 import { useTrionPoll } from "@/lib/trion/hooks";
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from "@/lib/trion/client";
 import type { TrionHealth } from "@/lib/trion/client";
 
 import { OverviewView } from "@/components/trion/views/OverviewView";
@@ -97,7 +98,7 @@ export default function Home() {
                 `CHAIN_ID ${health?.chain_id ?? "—"}`,
                 `VAULT ${health?.vault ?? "—"}`,
                 `BTCP ZERO-BRIDGE · BIBL 3-TIER · <200MS`,
-                `174 CHAINS · 22 VM FAMILIES`,
+                `${CHAIN_COUNT} CHAINS · ${VM_FAMILY_COUNT} VM FAMILIES`,
                 `C(t)=α·Φ+β·M+γ·Σ+δ·K+ε·A`,
                 `T(t)=[C≥Θ]·C·e^M`,
                 `MOAT=D·Q·R·X·F·N`,
@@ -113,7 +114,7 @@ export default function Home() {
                 `CHAIN_ID ${health?.chain_id ?? "—"}`,
                 `VAULT ${health?.vault ?? "—"}`,
                 `BTCP ZERO-BRIDGE · BIBL 3-TIER · <200MS`,
-                `174 CHAINS · 22 VM FAMILIES`,
+                `${CHAIN_COUNT} CHAINS · ${VM_FAMILY_COUNT} VM FAMILIES`,
                 `C(t)=α·Φ+β·M+γ·Σ+δ·K+ε·A`,
                 `T(t)=[C≥Θ]·C·e^M`,
                 `MOAT=D·Q·R·X·F·N`,

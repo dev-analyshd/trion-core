@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTrionPoll } from "@/lib/trion/hooks";
-import { trionGet } from "@/lib/trion/client";
+import { trionGet, CHAIN_COUNT, VM_FAMILY_COUNT } from "@/lib/trion/client";
 import { StatCounter } from "@/components/trion/viz/primitives";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -207,7 +207,7 @@ export function ExplorerView() {
           icon={<Layers size={14} />}
           label="Chains With Data"
           value={<StatCounter value={stats?.chains_with_data ?? 0} />}
-          sub={`of 174 registered · ${feed?.chains_active ?? 0} active in window`}
+          sub={`of ${CHAIN_COUNT} registered · ${feed?.chains_active ?? 0} active in window`}
         />
         <MetricCard
           icon={<Radar size={14} />}
@@ -501,7 +501,7 @@ export function ExplorerView() {
             )}
           </div>
           <div className="trion-mono mt-3 border-t border-[#1c232d] pt-2.5 text-[10px] text-[#4b5563]">
-            multi-VM live feed · 22 VM families registered
+            multi-VM live feed · {VM_FAMILY_COUNT} VM families registered
           </div>
         </div>
       </section>

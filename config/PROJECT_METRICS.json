@@ -14,12 +14,12 @@
       "total": 59
     },
     "rust_modules": 17,
-    "python_modules": 291,
+    "python_modules": 297,
     "indexer_crates": 21,
     "github_workflows": 10,
-    "chains_supported": 113,
-    "vm_families": 14,
-    "chains_indexed_live": 48,
+    "chains_supported": 129,
+    "vm_families": 18,
+    "chains_indexed_live": 41,
     "test_files": 42,
     "falsifiability_conditions": 15,
     "whitepaper_formulas": 57,
@@ -37,6 +37,6 @@
     "starknet_verification_checks": 32,
     "github_workflows_passing": 10
   },
-  "note": "This is the single source of truth for all numerical claims. All docs should reference this file.",
-  "last_updated": "2026-09-03"
+  "note": "This is the single source of truth for all numerical claims. All docs should reference this file. Chain/VM counts (chains_supported, vm_families, chains_indexed_live) are derived from config/chain_registry.json — the canonical chain registry — and must be recomputed from it, never hand-edited: 129 chains, 18 VM families, 41 integrated (live indexer + oracle).",
+  "last_updated": "2026-09-04"
 }

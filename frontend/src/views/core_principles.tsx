@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import * as Icons from 'lucide-react';
 import { Card, StatCard, ProgressBar, Badge, KVList, StreamView, EntityInput } from '../components/ui';
 import { useAPI, useStream, useCounter } from '../lib/hooks';
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from '../lib/config';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // HOME — BEO depth, coherence, witness feed
@@ -62,7 +63,7 @@ export function HomePage() {
             <StatCard label="M_moat" value={(moat?.M_moat ?? 0).toFixed(4)}
                       sub="compounding defensibility" color="purple" />
             <StatCard label="Chains Indexed" value={health?.chains_indexed ?? '—'}
-                      sub="across 18 VM families" color="blue" />
+                      sub={`across ${VM_FAMILY_COUNT} VM families`} color="blue" />
           </div>
         </div>
       </div>
@@ -173,9 +174,10 @@ export function ZeroBridgePage() {
             bridge-hack exposure. N(N-1)/2 bridges eliminated.
           </p>
           <div className="flex gap-4 flex-wrap">
-            <Badge status={(bootstrap?.total_chains ?? 126) + ' chains live'} />
-            <Badge status="18 VM families" />
-            <Badge status="4,950 bridge pairs eliminated" />
+            {/* Counts derived from config/chain_registry.json via lib/config */}
+            <Badge status={(bootstrap?.total_chains ?? CHAIN_COUNT) + ' chains live'} />
+            <Badge status={`${VM_FAMILY_COUNT} VM families`} />
+            <Badge status={`${(CHAIN_COUNT * (CHAIN_COUNT - 1) / 2).toLocaleString()} bridge pairs eliminated`} />
           </div>
         </div>
       </div>

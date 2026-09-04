@@ -16,3 +16,12 @@ export const config = {
 } as const;
 
 export type TRIONConfig = typeof config;
+
+// ── Chain registry coverage ────────────────────────────────────────────────
+// Source: config/chain_registry.json (canonical chain registry). 129 chains
+// across 18 VM families, 41 integrated (live indexer + oracle). All chain/VM
+// counts in the UI must come from here — re-read the registry when it changes
+// instead of hand-editing literals at call sites.
+export const CHAIN_COUNT = 129;
+export const VM_FAMILY_COUNT = 18;
+export const INTEGRATED_CHAIN_COUNT = 41;

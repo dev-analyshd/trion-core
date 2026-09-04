@@ -5,6 +5,16 @@
  * which forwards them to the TRION Sensing Oracle (Flask, port 5000).
  */
 
+/* ── Chain registry coverage ──────────────────────────────────────────────
+ * Source: config/chain_registry.json (canonical chain registry). 129 chains
+ * across 18 VM families; 41 integrated (live indexer + oracle). All chain/VM
+ * counts in the dashboard must come from these constants — re-read the
+ * registry when it changes instead of hand-editing literals at call sites.
+ * ──────────────────────────────────────────────────────────────────────── */
+export const CHAIN_COUNT = 129;
+export const VM_FAMILY_COUNT = 18;
+export const INTEGRATED_CHAIN_COUNT = 41;
+
 export interface TrionHealth {
   oracle: string;
   status: string;

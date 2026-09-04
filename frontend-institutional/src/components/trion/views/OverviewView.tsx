@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { useTrionPoll } from "@/lib/trion/hooks";
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from "@/lib/trion/client";
 import { trionPost } from "@/lib/trion/client";
 import type { TrionHealth } from "@/lib/trion/client";
 import {
@@ -89,7 +90,7 @@ const PIPELINE_STAGES = [
   { id: "L1-L3", name: "Coherence Engine", detail: "5-plane C(t) vs Θ(t)" },
   { id: "L4", name: "DW-BFT Consensus", detail: "Diversity-weighted mesh" },
   { id: "L5", name: "Signal Publication", detail: "Packed uint256 on-chain" },
-  { id: "L6-L9", name: "BTCP Zero-Bridge", detail: "174 chains · 22 VMs" },
+  { id: "L6-L9", name: "BTCP Zero-Bridge", detail: `${CHAIN_COUNT} chains · ${VM_FAMILY_COUNT} VMs` },
 ];
 
 export function OverviewView() {
@@ -204,7 +205,7 @@ export function OverviewView() {
           icon={<Layers size={14} />}
           label="Chains Indexed"
           value={<StatCounter value={bhFeed?.chains_active ?? 0} />}
-          sub={`of 174 registered · 22 VM families`}
+          sub={`of ${CHAIN_COUNT} registered · ${VM_FAMILY_COUNT} VM families`}
         />
         <MetricCard
           icon={<RadarIcon size={14} />}
