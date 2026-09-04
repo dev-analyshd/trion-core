@@ -66,7 +66,7 @@
 ;; hardening item. Emergency/revert payouts are sent non-bounceable so
 ;; failure loops cannot form. Release payouts are bounceable.
 ;;
-;; Storage layout (root cell, 672 bits + 3 refs):
+;; Storage layout (root cell, 663 bits + 3 refs):
 ;;   owner_addr     (267 bits, MsgAddressInt)
 ;;   relayer_addr   (267 bits, MsgAddressInt)
 ;;   escrow_count   (64 bits)
@@ -132,18 +132,22 @@
 ;;   chksig); mixed-family envelopes fail closed by construction (§4 inv.1).
 ;;   stake/diversity are CLAIMS cross-checked against the registry (§6 5c).
 ;;
-;; ── Epoch registry entry cell (576 bits + 1 ref) ──
-;;   epoch[32] d_consensus[64 ×1e6] hhi[64 ×1e4] total_effective_power[64 ×1e6]
-;;   validator_count[32] registered_at[64] epoch_set_root[256]
+;; ── Epoch registry entry cell (640 bits + 1 ref) ──
+;;   epoch[32] d_consensus[64 ×1e6] threshold[64 ×1e6] hhi[64 ×1e4]
+;;   total_effective_power[64 ×1e6] validator_count[32] registered_at[64]
+;;   epoch_set_root[256]
 ;;   + ref → validators dict (key = 256-bit validator_id, value = ref to
 ;;   validator cell). epoch_set_root is the registrar's off-chain
 ;;   SHA3-256("TRION-EPOCHSET"‖epoch‖entries) — stored for audit binding,
 ;;   NOT verifiable on TVM (no SHA3-256 opcode).
+;;   threshold is the REGISTERED Θ(t) for the epoch (H-03: the certificate's
+;;   threshold field must EQUAL it — the pass bar is canonical state, never
+;;   provenance from the signed claim alone).
 ;;   Validator cell (448 bits): ed25519_pubkey[256] stake_weight[64 ×1e6]
 ;;   diversity_weight[64 ×1e6] effective_weight[64 ×1e6 = s·d/1e6]. The
 ;;   stored effective_weight is re-derived and cross-checked at lookup.
 ;;
-;; ── Consumed-certificate cell (384 bits) ──
+;; ── Consumed-certificate cell (352 bits) ──
 ;;   cert_epoch[32] cert_nonce[64] cert_phash[256 = cell_hash(P-root)]
 ;;   Scope: (validator_epoch, escrow_id) — nonce must EXCEED the consumed
 ;;   nonce; the exact same (epoch, nonce, phash) triple resubmitted is an
@@ -173,8 +177,9 @@
 ;;   0x03:       op[8] escrow_id[256] reason[8]                         (272 bits)
 ;;   0x04:       op[8] escrow_id[256]                                   (264 bits)
 ;;   0x05/0x06:  op[8] new_addr[267]                                   (275 bits)
-;;   0x07:       op[8] epoch[32] d_consensus[64] hhi[64] total_power[64]
-;;               validator_count[32] epoch_set_root[256]                (520 bits)
+;;   0x07:       op[8] epoch[32] d_consensus[64] threshold[64] hhi[64]
+;;               total_power[64] validator_count[32] epoch_set_root[256]
+;;               (584 bits)
 ;;               ref 0 = validators dict (prebuilt: key 256-bit
 ;;                       validator_id → value ref of validator cell)
 ;;   0x08:       op[8] paused[1]                                        (9 bits)
@@ -219,6 +224,7 @@ const int ERR_CERT_TTL            = 138;  ;; §6 1 — ttl = 0 (born expired)
 const int ERR_CERT_HHI            = 139;  ;; §6 4 — hhi > 4000 (L4.8 CRITICAL)
 const int ERR_CERT_AWA            = 140;  ;; §6 4 — awa_enforced = 0
 const int ERR_CERT_UNSAFE         = 141;  ;; §6 4 — coherence < threshold
+const int ERR_CERT_THRESHOLD     = 161;  ;; §6 4 — cert threshold ≠ registered Θ(t) (H-03)
 const int ERR_CERT_COUNT          = 142;  ;; §6 4 — validator_count mismatch
 const int ERR_CERT_POWER          = 143;  ;; §6 6 — total power mismatch
 const int ERR_BIND_ESCROW         = 144;  ;; §6 7 — escrow_id mismatch
@@ -534,8 +540,9 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         (cell entry_cell, int e_found) = idict_get_ref?(epochs_dict, 32, cert_epoch);
         throw_unless(ERR_EPOCH_UNKNOWN, e_found);
         slice es = entry_cell.begin_parse();
-        int r_epoch   = es~load_uint(32);
-        int r_d       = es~load_uint(64);
+        int r_epoch     = es~load_uint(32);
+        int r_d         = es~load_uint(64);
+        int r_threshold = es~load_uint(64);             ;; registered Θ(t) (H-03)
         es~load_uint(64);                          ;; registered hhi (registrar-side, §5.3)
         int r_total   = es~load_uint(64);
         int r_count   = es~load_uint(32);
@@ -556,6 +563,10 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         throw_unless(ERR_CERT_HHI, hhi <= HHI_MAX_ACCEPTABLE);
         throw_unless(ERR_CERT_AWA, awa == 1);
         throw_unless(ERR_CERT_UNSAFE, coherence >= threshold);
+        ;; H-03 threshold provenance: the pass bar is REGISTERED Θ(t),
+        ;; never the certificate's signed claim alone (the EVM registry
+        ;; discipline — a quorum may not lower the bar it is judged by).
+        throw_unless(ERR_CERT_THRESHOLD, threshold == r_threshold);
         throw_unless(ERR_CERT_COUNT, val_count == r_count);
         throw_unless(ERR_CERT_POWER, total_power == r_total);
 
@@ -759,12 +770,14 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
     ;; ── 0x07 register_epoch — registrar writes the epoch set (§10.2) ────────
     ;; Owner-gated single-writer trust root (R-4): a compromised registrar is
     ;; bounded to the epochs it registers and audited via epoch_set_root.
-    ;; body: op[8] epoch[32] d_consensus[64] hhi[64] total_power[64]
-    ;;       validator_count[32] epoch_set_root[256] + ref0 = validators dict
+    ;; body: op[8] epoch[32] d_consensus[64] threshold[64] hhi[64]
+    ;;       total_power[64] validator_count[32] epoch_set_root[256]
+    ;;       + ref0 = validators dict
     if (op == 7) {
         throw_unless(ERR_UNAUTHORIZED, equal_slices(sender_addr, owner_addr));
         int epoch      = in_msg_body~load_uint(32);
         int d_cons     = in_msg_body~load_uint(64);
+        int theta      = in_msg_body~load_uint(64);
         int r_hhi      = in_msg_body~load_uint(64);
         int r_total    = in_msg_body~load_uint(64);
         int r_count    = in_msg_body~load_uint(32);
@@ -774,6 +787,7 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
 
         ;; registration validation — fail-closed on malformed sets
         throw_unless(ERR_REG_MALFORMED, d_cons <= SCALE_1E6);
+        throw_unless(ERR_REG_MALFORMED, theta <= SCALE_1E6);
         throw_unless(ERR_REG_MALFORMED, r_hhi <= 10000);
         throw_unless(ERR_REG_MALFORMED, r_total > 0);
         throw_unless(ERR_REG_MALFORMED, r_count >= MIN_SIGNERS);
@@ -782,6 +796,7 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         cell entry = begin_cell()
             .store_uint(epoch,     32)
             .store_uint(d_cons,    64)
+            .store_uint(theta,     64)
             .store_uint(r_hhi,     64)
             .store_uint(r_total,   64)
             .store_uint(r_count,   32)
@@ -842,21 +857,22 @@ int emergency_available(int escrow_id) method_id {
     return (state == STATE_HOLDING) & (now() >= lock_ts + EMERGENCY_ESCAPE_SECONDS);
 }
 
-;; epoch registry observability: (d_consensus, hhi, total_power, count,
-;; registered_at, set_root) — throws if the epoch is not registered
-(int, int, int, int, int, int) get_epoch_info(int epoch) method_id {
+;; epoch registry observability: (d_consensus, threshold, hhi, total_power,
+;; count, registered_at, set_root) — throws if the epoch is not registered
+(int, int, int, int, int, int, int) get_epoch_info(int epoch) method_id {
     (_, _, _, _, _, _, cell epochs_dict, _) = load_storage();
     (cell entry, int found) = idict_get_ref?(epochs_dict, 32, epoch);
     throw_unless(ERR_EPOCH_UNKNOWN, found);
     slice es = entry.begin_parse();
     int r_epoch = es~load_uint(32);
     int d       = es~load_uint(64);
+    int theta   = es~load_uint(64);
     int hhi     = es~load_uint(64);
     int total   = es~load_uint(64);
     int count   = es~load_uint(32);
     int reg_at  = es~load_uint(64);
     int set_root = es~load_uint(256);
-    return (d, hhi, total, count, reg_at, set_root);
+    return (d, theta, hhi, total, count, reg_at, set_root);
 }
 
 int get_current_epoch() method_id {
