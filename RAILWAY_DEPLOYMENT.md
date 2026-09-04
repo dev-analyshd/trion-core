@@ -30,9 +30,16 @@ Railway deploys TRION as a single container that hosts four cooperating processe
 │     (one-shot mesh + TRION-BFT verification; no daemon,         │
 │      nothing listens on :6000)                                  │
 │   • C++ signal processing           — TRION_ENABLE_SIGNAL_PROCESSING=1 │
-│   • Prometheus/Grafana              — TRION_ENABLE_MONITORING=1 │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+**No relayer runs here.** This is an observation stack: nothing signs
+on-chain, so no relayer/KMS variables are needed (they would sit unread —
+the entrypoint has no relayer section). On-chain signal publication runs
+on the render/full profile (Dockerfile.render + render-entrypoint.sh) or
+standalone via `supervisors/trion_and_zg_relayer.sh` — see DEPLOYMENT.md
+"Signing and key custody" for the KMS/HSM matrix and the production
+raw-env-key guard (`TRION_ENV`/`TRION_ALLOW_RAW_ENV_KEYS`).
 
 | Service            | Port  | Health path    | Ready path | Notes                          |
 |--------------------|-------|----------------|------------|--------------------------------|
@@ -176,15 +183,17 @@ to Railway production. If it works locally, it will work on Railway.
 ### Required
 - `PORT` *(auto by Railway)* — public port
 
-### Service toggles (all default to sensible values)
+### Service toggles (read by the entrypoint)
 - `TRION_ENABLE_STREAMER=1` — start BH streamer (96 mainnet chains)
 - `TRION_MAX_CHAINS=12` — cap concurrent chain indexers (12 for 512MB, 0 for 8GB+)
-- `TRION_ENABLE_FAISS=1` — start FAISS ANIMA engine
 - `TRION_ENABLE_VALIDATOR=0` — Go validator mesh/BFT self-test (one-shot
   verification run, not a daemon — nothing listens on :6000; see
   DEPLOYMENT.md "Go services")
 - `TRION_ENABLE_SIGNAL_PROCESSING=0` — C++ FFT engine (off; needs cmake)
-- `TRION_ENABLE_MONITORING=0` — Prometheus/Grafana configs (off)
+- (FAISS, the Flask API and the frontend start unconditionally — the
+  TRION_ENABLE_FAISS/RUST/RELAYER/ZG_SYNC/ZG_DA/EXTRAS/NATIVE toggles that
+  older configs listed are read by nothing in this entrypoint and were
+  removed; monitoring is the deploy/docker compose stack, no toggle)
 
 ### Tunable
 - `GUNICORN_WORKERS=2` — Flask worker count
