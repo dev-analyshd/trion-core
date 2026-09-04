@@ -10356,7 +10356,7 @@ def phase_signal(entity_id: str = None):
         "trend":                 trend,
         "phase_duration_blocks": phase_duration_blocks,
         "signal_type":           "PHASE_SIGNAL",
-        "akashic_coverage":      "37 chains",
+        "akashic_coverage":      f"{_registry_chain_counts()['chains_indexed']} chains",
         "action_required":       phase in ("TRANSITION", "PHASE_BREAK", "DISTRIBUTION"),
         "whitepaper":            "§10.6 Signal Taxonomy — Phase Signals",
         "description": (
@@ -10401,7 +10401,7 @@ def order_parameter():
 
     # Adoption trajectory — how many BH records, chains, protocols consuming
     bh_records        = 243_000   # live count from BH ledger
-    chains_indexed    = 37
+    chains_indexed    = _registry_chain_counts()["chains_indexed"]
     protocols_consuming = 0       # honest — no live protocol consumers yet
 
     # Historical Ψ trajectory (weekly samples, last 8 weeks)
