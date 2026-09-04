@@ -208,6 +208,46 @@ INTEGRATED_CHAINS = sum(1 for c in CHAINS if c["integrated"])
 BH_LABEL_VM = _build_bh_label_vm_map()
 
 
+def _build_label_chain_map() -> dict:
+    """lowercased bh_ledger label → registry chain_id.
+
+    Resolves a ledger row's chain_label to the exact registry chain: the
+    registry's own name/slug/uppercase variants, the explicit bh_label
+    aliases, and the python streamer's chain names (whose configs carry the
+    canonical registry ids). Both ledger writer conventions credit the same
+    chain.
+    """
+    m = {}
+    for c in CHAINS:
+        cid = c.get("chain_id")
+        if cid is None:
+            continue
+        name_l = str(c.get("name", "")).lower()
+        for key in (name_l, name_l.replace(" ", "_"),
+                    str(c.get("id", "") or "").lower().replace("-", "_"),
+                    str(c.get("name", "")).upper().replace(" ", "_").replace("-", "_")):
+            if key:
+                m.setdefault(key, cid)
+        if c.get("bh_label"):
+            m.setdefault(str(c["bh_label"]).lower(), cid)
+    try:
+        from core.realtime.bh_streamer import CHAIN_RPCS as _st_evm, NON_EVM_CHAINS as _st_nonevm
+        # ID_TO_NAME: canonical id → name (CHAIN_IDS is name → id)
+        from core.generated_chain_bindings import ID_TO_NAME as _reg_ids
+        for _cid, _cfg in _st_evm.items():
+            if _cid in _reg_ids:
+                m.setdefault(str(_cfg.get("name", "")).lower(), _cid)
+        for _cid, _cfg in _st_nonevm.items():
+            if _cid in _reg_ids:
+                m.setdefault(str(_cfg.get("name", "")).lower(), _cid)
+    except Exception:  # streamer/bindings unavailable in api-only packaging
+        pass
+    return m
+
+
+_LABEL_CHAIN = _build_label_chain_map()
+
+
 # BH proof baselines per status tier
 _PROOF_BASE = {"live": 2_400_000, "testnet": 180_000, "indexed": 45_000}
 # Block height baselines per VM family (registry family codes)
@@ -332,35 +372,16 @@ def get_enriched_chains():
     as indexed state).
     """
     live_stats = get_live_chain_stats()
+    # Credit each ledger row to its exact registry chain via the shared
+    # label→chain map (both writer conventions resolve; counts sum).
+    live_by_chain = {}
+    for lbl, cnt in live_stats.items():
+        _cid = _LABEL_CHAIN.get(str(lbl).strip().lower())
+        if _cid is not None:
+            live_by_chain[_cid] = live_by_chain.get(_cid, 0) + cnt
     enriched = []
     for c in CHAINS:
-        # Resolve the bh_ledger chain_label for this catalog entry
-        explicit = c.get("bh_label")
-        if explicit:
-            label_candidates = [explicit]
-        else:
-            label_candidates = [
-                c["id"].upper().replace("-", "_"),
-                c["name"].upper().replace(" ", "_").replace("-", "_"),
-                c["id"].upper().replace("-", "_") + "_MAINNET",
-                c["id"].upper().replace("-", "_") + "_DEVNET",
-                # python streamer writer convention (registry-style names)
-                c["name"].lower().replace(" ", "_"),
-                c["id"].lower().replace("-", "_"),
-            ]
-        live_records = None
-        # Case-insensitive: the streamer writes lowercase names, the rust
-        # indexers UPPERCASE — accept either for the same chain, and SUM every
-        # distinct matching label (a ledger normally has one writer, but both
-        # conventions writing the same chain must not lose rows).
-        live_stats_ci = {str(k).lower(): v for k, v in live_stats.items()}
-        matched_labels = {}
-        for lbl in label_candidates:
-            key = str(lbl).lower()
-            if key in live_stats_ci:
-                matched_labels[key] = live_stats_ci[key]
-        if matched_labels:
-            live_records = sum(matched_labels.values())
+        live_records = live_by_chain.get(c["chain_id"])
 
         e = enrich(c, live_records)
         if live_records is not None:
