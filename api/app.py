@@ -8104,7 +8104,7 @@ def phases_roadmap():
         "avg_completion_pct": avg_completion,
         "total_capital_usd": total_capital,
         "total_capital_note": "~$54M total (within whitepaper $50–80M estimate)",
-        "chains_indexed":   37,
+        "chains_indexed":   _registry_chain_counts()["chains_indexed"],
         "formulas_live":    65,
         "signal_types":     19,
         "falsifiability_conditions": 15,
