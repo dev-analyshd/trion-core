@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -106,14 +104,15 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_NANO: AtomicU64 = AtomicU64::new(1_000_000_000); // 1 TON in nanoTON
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^9 (TON nano); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn ton_magnitude(nano: u64) -> f64 {
-    let old = MAX_NANO.load(Ordering::Relaxed);
-    if nano > old { MAX_NANO.store(nano, Ordering::Relaxed); }
-    let max = MAX_NANO.load(Ordering::Relaxed).max(1) as f64;
-    let v   = nano as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = nano as f64 / 1e9;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 /// Classify TON event from op_code and message properties.
@@ -225,8 +224,10 @@ async fn main() -> Result<()> {
             let eid       = block_entity_id(label, seqno);
             let bh        = bh_id(&eid);
             let vector    = build_vector(&features, &format!("{}:{}", label, seqno));
-            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-            let ts_u64    = ts as u64;
+            // CANONICAL_BH.md §5 — block time from the first tx's utime
+            // (toncenter); 0 = unknown. Never wall-clock.
+            let ts_u64    = txs.first().and_then(|t| t["utime"].as_u64()).unwrap_or(0);
+            let ts        = ts_u64 as f64;
             let block_hash = bh_id(&format!("ton_block:{}:{}", label, seqno));
 
             let payload = BatchPayload {

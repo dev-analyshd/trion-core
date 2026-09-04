@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -113,14 +111,15 @@ fn extract_features(cp: &Value) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_MIST: AtomicU64 = AtomicU64::new(1_000_000_000); // 1 SUI in MIST
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^9 (SUI MIST; input is per-tx gas proxy — see CANONICAL_BH.md §4 proxy note); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn sui_magnitude(mist: u64) -> f64 {
-    let old = MAX_MIST.load(Ordering::Relaxed);
-    if mist > old { MAX_MIST.store(mist, Ordering::Relaxed); }
-    let max = MAX_MIST.load(Ordering::Relaxed).max(1) as f64;
-    let v   = mist as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = mist as f64 / 1e9;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 /// For Sui checkpoints we only have tx digests — classify based on gas cost proxy:
@@ -208,8 +207,10 @@ async fn main() -> Result<()> {
             let entity_id = block_entity_id(CHAIN_LBL, seq);
             let bh        = bh_id(&entity_id);
             let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, seq));
-            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-            let ts_u64    = ts as u64;
+            // CANONICAL_BH.md §5 — Sui checkpoint timestamp_ms (ms → s);
+            // 0 = unknown. Never wall-clock.
+            let ts_u64    = cp["timestamp_ms"].as_u64().unwrap_or(0) / 1000;
+            let ts        = ts_u64 as f64;
             let cp_hash   = cp["digest"].as_str()
                 .map(|h| h.to_string())
                 .unwrap_or_else(|| bh_id(&format!("sui_cp:{}:{}", CHAIN_LBL, seq)));

@@ -584,23 +584,16 @@ fn extract_features(block: &Value) -> [f64; 9] {
 
 // ── Per-transaction BH generation (whitepaper L0.1 §3.1) ─────────────────────
 
-/// Global 90-day max value tracker for magnitude normalisation.
-/// Thread-local per-process (not persisted — resets on restart, which is fine).
-static MAX_90D_WEI: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^18 (ETH); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling "90-day max" tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had seen (session state) — a
+/// canonical violation. The same tx must always produce the same BH, on both
+/// ingestion paths (this matches core/realtime/bh_streamer.py::compute_bh).
 fn magnitude_norm(value_wei: u64) -> f64 {
-    // L0.1: magnitude_norm = log10(ETH_value + 1) / log10(max_90d + 1)
-    // ETH_value = value_wei / 1e18 (avoid f64 precision loss by working in gwei)
     let eth = value_wei as f64 / 1e18;
-    // Update running max (approximate 90-day max with session max)
-    let current_max_raw = MAX_90D_WEI.load(std::sync::atomic::Ordering::Relaxed);
-    if value_wei > current_max_raw {
-        MAX_90D_WEI.store(value_wei, std::sync::atomic::Ordering::Relaxed);
-    }
-    let max_eth = MAX_90D_WEI.load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e18;
-    let denom = (max_eth + 1.0).log10();
-    if denom < 1e-10 { return 0.0; }
-    ((eth + 1.0).log10() / denom).clamp(0.0, 1.0)
+    if eth <= 0.0 { return 0.0; }
+    ((eth + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 /// Build per-transaction BH entries for every transaction in a block.

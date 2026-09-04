@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -193,14 +191,15 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_DROPS: AtomicU64 = AtomicU64::new(100_000_000_000); // 100k XRP reference max
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^6 (XRP drops); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn xrpl_magnitude(drops: u64) -> f64 {
-    let old = MAX_DROPS.load(Ordering::Relaxed);
-    if drops > old { MAX_DROPS.store(drops, Ordering::Relaxed); }
-    let max = MAX_DROPS.load(Ordering::Relaxed).max(1) as f64;
-    let v = drops as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = drops as f64 / 1e6;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn xrpl_bh_batch(txs: &[Value], ledger: u64, ledger_hash: &str, ts: u64) -> TxBhBatch {
@@ -284,11 +283,9 @@ async fn main() -> Result<()> {
 
             let ledger_hash = ledger.get("ledger_hash").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let close_time  = ledger.get("close_time").and_then(|v| v.as_u64()).unwrap_or(0);
-            let ts = if close_time > 0 {
-                close_time + 946684800 // XRPL epoch → unix
-            } else {
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-            };
+            // CANONICAL_BH.md §5 — XRPL ledger close_time (+946684800 epoch shift);
+            // 0 = unknown, never wall-clock.
+            let ts = if close_time > 0 { close_time + 946684800 } else { 0 };
 
             let txs: Vec<Value> = ledger.get("transactions")
                 .and_then(|v| v.as_array())

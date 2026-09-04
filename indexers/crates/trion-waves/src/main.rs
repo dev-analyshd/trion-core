@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -182,14 +180,15 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_WAVY: AtomicU64 = AtomicU64::new(10_000_000_000); // 100 WAVES reference max
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^8 (WAVES wavy); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn waves_magnitude(wavy: u64) -> f64 {
-    let old = MAX_WAVY.load(Ordering::Relaxed);
-    if wavy > old { MAX_WAVY.store(wavy, Ordering::Relaxed); }
-    let max = MAX_WAVY.load(Ordering::Relaxed).max(1) as f64;
-    let v = wavy as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = wavy as f64 / 1e8;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn waves_bh_batch(txs: &[Value], height: u64, block_hash: &str, ts: u64) -> TxBhBatch {
@@ -269,9 +268,8 @@ async fn main() -> Result<()> {
 
             let txs: Vec<Value> = block.get("transactions").and_then(|v| v.as_array()).cloned().unwrap_or_default();
             let signature = block.get("signature").and_then(|v| v.as_str()).unwrap_or("");
-            let ts = block.get("timestamp").and_then(|v| v.as_u64()).map(|t| t / 1000).unwrap_or_else(|| {
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-            });
+            // CANONICAL_BH.md §5 — Waves block timestamp (ms → s); 0 = unknown, never wall-clock.
+            let ts = block.get("timestamp").and_then(|v| v.as_u64()).map(|t| t / 1000).unwrap_or(0);
 
             if txs.is_empty() { state.save(height).ok(); continue; }
 

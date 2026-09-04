@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -127,14 +125,15 @@ fn extract_features(block: &Value) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_SUN: AtomicU64 = AtomicU64::new(1_000_000); // 1 TRX in sun
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^6 (TRX sun); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn tron_magnitude(sun: u64) -> f64 {
-    let old = MAX_SUN.load(Ordering::Relaxed);
-    if sun > old { MAX_SUN.store(sun, Ordering::Relaxed); }
-    let max = MAX_SUN.load(Ordering::Relaxed).max(1) as f64;
-    let v   = sun as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = sun as f64 / 1e6;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn classify_tron_contract(ctype: &str, param: &Value) -> u8 {
@@ -231,8 +230,10 @@ async fn main() -> Result<()> {
             let eid       = block_entity_id(CHAIN_LBL, block_num);
             let bh        = bh_id(&eid);
             let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, block_num));
-            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-            let ts_u64    = ts as u64;
+            // CANONICAL_BH.md §5 — Tron block_header.raw_data.timestamp
+            // (ms → s); 0 = unknown. Never wall-clock.
+            let ts_u64    = block["block_header"]["raw_data"]["timestamp"].as_u64().unwrap_or(0) / 1000;
+            let ts        = ts_u64 as f64;
             // Derive block hash from blockID field
             let block_hash = block["blockID"].as_str()
                 .map(|h| h.to_string())

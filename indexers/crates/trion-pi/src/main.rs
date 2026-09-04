@@ -18,8 +18,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -107,14 +105,15 @@ fn extract_features(txs: &[Value], ops_per_tx: &[Vec<Value>]) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_STROOPS: AtomicU64 = AtomicU64::new(10_000_000); // 1 XLM in stroops
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^7 (XLM stroops); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn pi_magnitude(stroops: u64) -> f64 {
-    let old = MAX_STROOPS.load(Ordering::Relaxed);
-    if stroops > old { MAX_STROOPS.store(stroops, Ordering::Relaxed); }
-    let max = MAX_STROOPS.load(Ordering::Relaxed).max(1) as f64;
-    let v   = stroops as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = stroops as f64 / 1e7;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn classify_stellar_op(ops: &[Value]) -> u8 {
@@ -223,8 +222,14 @@ async fn main() -> Result<()> {
             let eid       = block_entity_id(CHAIN_LBL, ledger_num);
             let bh        = bh_id(&eid);
             let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, ledger_num));
-            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-            let ts_u64    = ts as u64;
+            // CANONICAL_BH.md §5 — Stellar ledger time via the first tx's
+            // created_at (ISO 8601); 0 = unknown. Never wall-clock.
+            let ts_u64    = txs.first()
+                .and_then(|t| t.get("created_at"))
+                .and_then(|v| v.as_str())
+                .map(trion_common::iso8601_to_epoch)
+                .unwrap_or(0);
+            let ts        = ts_u64 as f64;
             let block_hash = bh_id(&format!("pi_ledger:{}:{}", CHAIN_LBL, ledger_num));
 
             let payload = BatchPayload {

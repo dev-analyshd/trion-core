@@ -20,8 +20,6 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -169,14 +167,15 @@ fn extract_features_rpc(block: &Value, block_num: u64) -> [f64; 9] {
 
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
-static MAX_PLANCK: AtomicU64 = AtomicU64::new(10_000_000_000); // 1 DOT in planck
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^10 (DOT planck); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn dot_magnitude(planck: u64) -> f64 {
-    let old = MAX_PLANCK.load(Ordering::Relaxed);
-    if planck > old { MAX_PLANCK.store(planck, Ordering::Relaxed); }
-    let max = MAX_PLANCK.load(Ordering::Relaxed).max(1) as f64;
-    let v   = planck as f64;
-    ((v + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = planck as f64 / 1e10;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn classify_dot_extrinsic(pallet: &str, method: &str) -> u8 {
@@ -355,8 +354,12 @@ async fn main() -> Result<()> {
             let eid       = block_entity_id(CHAIN_LBL, block_num);
             let bh        = bh_id(&eid);
             let vector    = build_vector(&features, &format!("{}:{}", CHAIN_LBL, block_num));
-            let ts        = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64();
-            let ts_u64    = ts as u64;
+            // CANONICAL_BH.md §5 — substrate chain_getBlock / sidecar payloads
+            // carry no timestamp in what we fetch; the canonical value is 0
+            // (deterministic unknown), never wall-clock. Matches the Python
+            // streamer's polkadot fetcher (no timestamp key → 0).
+            let ts_u64    = 0u64;
+            let ts        = ts_u64 as f64;
             let block_hash = bh_id(&format!("pvm_block:{}:{}", CHAIN_LBL, block_num));
 
             let payload = BatchPayload {
@@ -378,7 +381,9 @@ async fn main() -> Result<()> {
                         // RPC mode: emit one block-level BH per block using the block hash as entity
                         let rpc_exts = block_data["block"]["extrinsics"].as_array();
                         let ext_count = rpc_exts.map(|a| a.len()).unwrap_or(1).max(1);
-                        let mag = ((ext_count as f64 + 1.0).log10() / (200.0_f64).log10()).clamp(0.0, 1.0);
+                        // Canonical §4 magnitude (decimals=0 for a raw count):
+                        // min(1, log10(count+1)/log10(1001)) — fixed scale.
+                        let mag = ((ext_count as f64 + 1.0).log10() / (1001.0_f64).log10()).clamp(0.0, 1.0);
                         let eid = bh_id(&format!("{}:{}", CHAIN_LBL, block_num));
                         let (sense_hex, antisense_hex) = canonical_bh(&eid, 0u8, mag, 0, ts_u64, CHAIN_ID, &block_hash);
                         let entry = TxBhEntry {

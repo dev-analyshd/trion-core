@@ -6,8 +6,6 @@
 
 use anyhow::Result;
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
@@ -106,13 +104,15 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
     ]
 }
 
-static MAX_LOVELACE: AtomicU64 = AtomicU64::new(1_000_000_000_000);
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^6 (ADA lovelace); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling session-max tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had observed (canonical
+/// violation — the same tx must always produce the same BH).
 fn ada_magnitude(lovelace: u64) -> f64 {
-    let old = MAX_LOVELACE.load(Ordering::Relaxed);
-    if lovelace > old { MAX_LOVELACE.store(lovelace, Ordering::Relaxed); }
-    let max = MAX_LOVELACE.load(Ordering::Relaxed).max(1) as f64;
-    ((lovelace as f64 + 1.0).log10() / (max + 1.0).log10()).clamp(0.0, 1.0)
+    let human = lovelace as f64 / 1e6;
+    if human <= 0.0 { return 0.0; }
+    ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 fn cardano_bh_batch(txs: &[Value], height: u64, block_hash: &str, ts: u64) -> TxBhBatch {
@@ -171,7 +171,13 @@ async fn main() -> Result<()> {
                 Ok(v) => v.as_array().cloned().unwrap_or_default(),
                 Err(e) => { warn!("[{}] block {} error: {}", CHAIN_LBL, height, e); continue; }
             };
-            let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+            // CANONICAL_BH.md §5 — Koios block_time (ISO 8601) of the
+            // block's first tx; 0 = unknown. Never wall-clock.
+            let ts = txs.first()
+                .and_then(|t| t.get("block_time"))
+                .and_then(|v| v.as_str())
+                .map(trion_common::iso8601_to_epoch)
+                .unwrap_or(0);
             let block_hash = txs.first().and_then(|t| t.get("block_hash").and_then(|h| h.as_str())).unwrap_or("");
             if txs.is_empty() { state.save(height).ok(); continue; }
 

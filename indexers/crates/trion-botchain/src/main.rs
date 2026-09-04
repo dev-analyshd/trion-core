@@ -128,21 +128,15 @@ fn extract_features(block: &Value) -> [f64; 9] {
 
 // ── Per-transaction BH generation (whitepaper L0.1 §3.1) ─────────────────────
 
-/// Global 90-day max value tracker for magnitude normalisation.
-static MAX_90D_WEI: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-
+/// CANONICAL_BH.md §4 — deterministic magnitude normalization:
+///   human = raw / 10^18 (BOT, same as ETH); M = min(1, log10(human + 1) / log10(1001))
+/// The rolling "90-day max" tracker was removed: it made the BH of a fixed
+/// transaction depend on what else the process had seen (session state) — a
+/// canonical violation. The same tx must always produce the same BH.
 fn magnitude_norm(value_wei: u64) -> f64 {
-    // L0.1: magnitude_norm = log10(BOT_value + 1) / log10(max_90d + 1)
-    // BOT has 18 decimals (same as ETH), so value_wei / 1e18 = BOT value
     let bot = value_wei as f64 / 1e18;
-    let current_max_raw = MAX_90D_WEI.load(std::sync::atomic::Ordering::Relaxed);
-    if value_wei > current_max_raw {
-        MAX_90D_WEI.store(value_wei, std::sync::atomic::Ordering::Relaxed);
-    }
-    let max_bot = MAX_90D_WEI.load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e18;
-    let denom = (max_bot + 1.0).log10();
-    if denom < 1e-10 { return 0.0; }
-    ((bot + 1.0).log10() / denom).clamp(0.0, 1.0)
+    if bot <= 0.0 { return 0.0; }
+    ((bot + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
 
 /// Build per-transaction BH entries for every transaction in a block.
