@@ -1,103 +1,47 @@
-# TRION Sensing Oracle
+# TRION Protocol — Architecture (top-level map)
 
-## Project Overview
+> Historical note: this file previously documented the pre-rebrand application
+> ("TRION Sensing Oracle" — a ChainGPT-era coherence-gated vault for Arbitrum
+> Sepolia, referencing files that no longer exist in this repository). That
+> content was removed 2026-09-03; the current architecture lives in
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). What follows is the honest
+> short version.
 
-Behavioral truth oracle that gates access to the CoherenceVault via on-chain coherence checks.
-**v2.0.0 — fully live on-chain, zero mock data.**
+## What this repository is
 
-## Architecture
+A behavioral-truth oracle protocol: it ingests on-chain and off-chain behavioral
+data, computes a five-plane coherence score C(t) per entity, publishes the
+verdict on-chain, and (the BTCP layer) routes cross-chain settlement on top of
+those verdicts instead of moving assets through bridges.
 
-```
-Entity → commitment hash → TRION computes C(t) → publishBehavioralTruth() [REAL TX]
-                                                          ↓
-                                               isCoherent(entityId) == true
-                                                          ↓
-                                         coherenceWrap(amount, entityId)
-                                                          ↓
-                                            Vault token (locked)
-```
+## The layer map (see docs/ARCHITECTURE.md for the full diagram)
 
-## Running the App
+| Layer | Where | What it does |
+|---|---|---|
+| Ingestion | `indexers/` (Rust), `anima-service/` (FAISS + TimescaleDB + crawlers) | Chain crawling, 93-byte Behavioral Hash events, entropy features |
+| Planes & master equation | `core/` (Python, ~300 modules) | Φ/M/Σ/K/A coherence, C(t) vs Θ(t), manipulation fingerprints, governance engines |
+| Consensus | `validator/` (Go) | DW-BFT engine: block production, rounds, view changes, slashing evidence; diversity-weighted proposers |
+| Contracts | `contracts/` (Solidity, Vyper, Cairo, Move, FunC, ink!, CosmWasm, Soroban…) | Escrow with signature-quorum release gate, intents, routes, staking, token |
+| Data availability | `trion-0g/` | 0G DA publishing |
+| Services | `api/` (Flask), `relayer/` (Node), `frontend/`, `frontend-institutional/` (Next.js) | Oracle API, cross-chain relayer, dashboards |
+| Formal & adversarial | `formal/` (Haskell), `hardhat/` (adversarial EVM tests), `zk-circuits/` (Circom, unbuilt) | Type-level theorems, red-team suites, ZK sketches |
 
-```bash
-python3 serve.py   # Flask on port 5000 (frontend + all /api/v1/* endpoints)
-```
+## Entry points
 
-## Key Files
+- `api/app.py` — Flask oracle API (port 5000)
+- `validator/cmd/trion-validator` — Go BFT validator node
+- `relayer/relayer.js` — cross-chain relayer (KMS-backed signing)
+- `Makefile` — build/test/deploy orchestration
+- `scripts/deploy_preflight.py` — environment validation before any service starts
 
-| File | Purpose |
-|---|---|
-| `api/app.py` | Flask API — signal compute, live chain reads/writes |
-| `api/blockchain.py` | web3.py relay — publishBehavioralTruth + event fetching |
-| `api/requirements.txt` | flask, gunicorn, web3==7.15.0 |
-| `contracts/TRIONSensingOracle.sol` | On-chain oracle (deployed Arb Sepolia) |
-| `contracts/ConfidentialCoherenceVault.sol` | ERC-20 vault gated by behavioral coherence |
-| `contracts/ITRIONSensingOracle.sol` | DeFi integration interface |
-| `frontend/index.html` | Live dashboard (Arbiscan tx links, chain stats, coherence gate) |
-| `serve.py` | Entry point — runs Flask on port 5000 |
-| `feedback.md` | Builder feedback |
-| `Dockerfile.render` | Production Docker image for Render |
-| `render.yaml` | Render service config (trion-core repo, env vars) |
-| `deployments.json` | Deployed contract addresses |
+## Registry (single source of truth)
 
-## Deployed Contracts (Arbitrum Sepolia, chainId 421614)
+`config/chain_registry.json` — 129 chains, 18 VM families, 41 integrated. Every
+chain/VM count in the API, frontends, and docs derives from this file.
 
-- **TRIONSensingOracle**: `0x1d129D34279d1246aB08a41dfE610EaF8D794237`
-- **ConfidentialCoherenceVault**: `0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d`
-- **MockTRIONToken**: `0x8F21dB06b3e08D8724Ea34465fCe2fAC8cCfEA8D`
+## Deployment posture
 
-## Live API Endpoints
-
-```
-GET  /                            — Frontend UI
-GET  /api/v1/signal/{entity_id}   — Compute five-plane coherence score
-POST /api/v1/publish/{entity_id}  — On-chain write → returns real tx_hash + Arbiscan URL
-GET  /api/v1/onchain/{entity_id}  — Read latest on-chain signal for entity
-GET  /api/v1/stats                — Live chain stats (totalSignals, blockNumber)
-GET  /api/v1/health               — Health check (chain_connected, total_signals_onchain)
-GET  /api/v1/feed                 — Live event feed (BehavioralTruth + SilenceSignal events)
-GET  /api/v1/leaderboard          — Top entities by coherence score
-POST /api/chat                    — ChainGPT AI advisor
-GET  /deployments.json            — Contract addresses
-```
-
-## Environment Variables
-
-```
-PRIVATE_KEY       — Authorized relayer key (set in Replit secrets)
-ORACLE_ADDRESS    — 0x1d129D34279d1246aB08a41dfE610EaF8D794237
-VAULT_ADDRESS     — 0x7cB424b88E0b3fEd0DD5d626f4E413c6D0aAe73d
-TOKEN_ADDRESS     — 0x8F21dB06b3e08D8724Ea34465fCe2fAC8cCfEA8D
-ARB_SEPOLIA_RPC   — https://sepolia-rollup.arbitrum.io/rpc
-CHAIN_ID          — 421614
-```
-
-## Blockchain Events
-
-The oracle contract emits two events:
-- **`BehavioralTruth`** — when entity IS coherent (score ≥ threshold)
-- **`SilenceSignal`** — when entity is NOT coherent (score < threshold)
-
-Both are fetched by `blockchain.py::get_recent_events()` and shown in the live feed.
-
-## Deployment Config
-
-- **GitHub repo**: `dev-analyshd/trion-core` (main branch)
-- **Production**: https://trionprotocol.onrender.com
-- **Docker**: `Dockerfile.render` (includes gcc for web3 build deps)
-- **Run command**: `gunicorn -w 2 -b 0.0.0.0:10000 api.app:app --timeout 60`
-
-## Dependencies
-
-- Python: flask, gunicorn, web3==7.15.0 (api/requirements.txt)
-- Node: hardhat, ethers (package.json)
-
-## Deployment Checklist
-
-- [x] Contracts deployed on Arbitrum Sepolia (3 contracts)
-- [x] Zero mock data — every signal published on-chain with real tx hash
-- [x] Live feed reads BehavioralTruth + SilenceSignal events from chain
-- [x] Frontend shows real Arbiscan tx links
-- [x] CoherenceVault integrated
-- [x] Oracle API on Render (trionprotocol.onrender.com)
-- [x] GitHub repo: dev-analyshd/trion-core
+Testnet-only except one self-reported 0G mainnet deployment-gate transaction
+(see README "On-Chain Proofs" section — all records self-reported). The
+validator network runs observation-only; see `docs/MAINNET_RUNBOOK.md` for the
+gating conditions (professional audit required, not yet obtained).
