@@ -249,10 +249,15 @@ class BTCPProofBuilder:
             Akashic record for audit.
         """
         attestation = self.build_consensus_attestation(validators, delta=delta)
-        threshold = (
-            coherence_threshold
-            if coherence_threshold is not None
-            else self.DEFAULT_COHERENCE_THRESHOLD
+        # INV-010: the coherence threshold is protocol-owned. A caller
+        # may TIGHTEN it (raise above the default floor) but never lower
+        # it — previously coherence_threshold=0.0 produced a proof whose
+        # threshold_margin was trivially non-negative and thus always
+        # passed verify_proof.
+        threshold = max(
+            self.DEFAULT_COHERENCE_THRESHOLD,
+            coherence_threshold if coherence_threshold is not None
+            else self.DEFAULT_COHERENCE_THRESHOLD,
         )
         proof = self.build_proof(
             anchor_bh=anchor_bh,
@@ -428,6 +433,23 @@ class BTCPProofBuilder:
                 return False
             if not threshold_met:
                 return False
+            # INV-012: the quorum is RECOMPUTED here with the protocol
+            # floor (DEFAULT_QUORUM_FRACTION = 2/3) — the proof dict's own
+            # threshold_met / quorum_fraction fields are claims, not
+            # authority. A forged {threshold_met: true, total_validators: 1}
+            # alongside one real signature previously verified; now it
+            # cannot. A builder that legitimately used a HIGHER quorum is
+            # still honored (max of claimed and floor).
+            claimed_quorum = consensus_proof.get(
+                "quorum_fraction", self.DEFAULT_QUORUM_FRACTION,
+            )
+            effective_quorum = max(
+                float(claimed_quorum), self.DEFAULT_QUORUM_FRACTION,
+            )
+            if total_validators <= 0:
+                return False
+            if signer_count / total_validators < effective_quorum:
+                return False
 
             # Reconstruct (messages, public_keys) in the SAME order the prover
             # used:  msg_i = intent_hash || pub_i
@@ -571,9 +593,36 @@ class BITPMatcher:
         intent_a: BITPIntent,
         candidate_intents: List[BITPIntent],
         price_tolerance: float = 0.02,
+        current_time: Optional[float] = None,
     ) -> Optional[BITPIntent]:
-        """Find a complement intent (opposite direction, same assets)."""
+        """Find a complement intent (opposite direction, same assets).
+
+        Spec §5.1 MATCH-phase conditions (INV-007,
+        docs/security/CANONICAL_INVARIANTS.md):
+
+        * ``candidate.entity_id != intent_a.entity_id`` — a match must be
+          between two DISTINCT entities (anti-wash: the same entity
+          filling both sides of its own commitment would fabricate a
+          behavioral price discovery). Unconditional — mirrors the rust
+          reference (rust/src/bitp_matcher.rs find_complement).
+        * expiry: when ``current_time`` is supplied, both the seeking
+          intent and every candidate must be unexpired
+          (``deadline > current_time``); an expired seeking intent
+          returns None outright. Mirrors rust, where ``now`` is a
+          required argument; here it stays optional so legacy
+          pure-function callers (tests with fixed past deadlines) keep
+          working — the Akashic clipboard tier enforces expiry
+          unconditionally before serving candidates.
+        """
+        if current_time is not None and current_time >= intent_a.deadline:
+            return None  # expired seeking intent cannot be matched
         for candidate in candidate_intents:
+            # Spec §5.1: entity == counterparty (self-match) is rejected
+            if candidate.entity_id == intent_a.entity_id:
+                continue
+            # Expired commitments never match
+            if current_time is not None and current_time >= candidate.deadline:
+                continue
             # Complement: B wants what A has, and has what A wants
             if (candidate.asset_in == intent_a.asset_out and
                 candidate.asset_out == intent_a.asset_in and
@@ -1154,10 +1203,18 @@ if __name__ == "__main__":
 
     # Module 2.4: Proof Builder
     pb = BTCPProofBuilder()
+    # 3 distinct signers with well-formed 65-byte signatures — verify_proof
+    # enforces the rust-parity structural contract (≥3 signers, distinct,
+    # 65B shape); the old single-signer fixture predated that check and
+    # failed the self-test.
     proof = pb.build_proof(
         anchor_bh=b"\x01" * 32, intent_hash=b"\x02" * 32,
         route_type=1, certification_block=18000000, value_usd=5000.0,
-        validator_signatures=[ValidatorSignature(b"\x03" * 32, b"\x04" * 65, 0.8)],
+        validator_signatures=[
+            ValidatorSignature(b"\x03" * 32, b"\x04" * 65, 0.8),
+            ValidatorSignature(b"\x13" * 32, b"\x14" * 65, 0.7),
+            ValidatorSignature(b"\x23" * 32, b"\x24" * 65, 0.6),
+        ],
         diversity_weights=[0.8, 0.7, 0.6], hhi=1500.0,
         coherence=0.85, threshold=0.55,
     )
