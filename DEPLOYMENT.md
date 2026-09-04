@@ -46,7 +46,10 @@ A separate multi-service production stack (faiss / api / validator /
 frontend / nginx / prometheus / grafana, each in its own container) lives in
 `deploy/docker/docker-compose.yml`; nginx there also proxies the
 `/socket.io/` websocket (see "WebSocket push" below and "Monitoring" for
-its honest state).
+its honest state). That stack runs the streamer IN-PROCESS
+(`TRION_STREAMER_INPROCESS=1` — its api service is a single serve.py
+process) and shares the live BH ledger between api and faiss via the
+`ledger_data` volume (`/app/data/bh_ledger.db`, `BH_LEDGER_DB`).
 
 ## Manual Deployment
 ```bash
@@ -113,7 +116,7 @@ go run .            # or: go build -o health_monitor . && ./health_monitor
   `HEALTH_MONITOR_PORT`).
 - Concurrently probes 19 hardcoded endpoints: 14 EVM RPCs
   (`eth_blockNumber`), Solana/NEAR/TON HTTP endpoints, plus the internal
-  FAISS (`127.0.0.1:8000/health`) and Flask (`127.0.0.1:5000/health`)
+  FAISS (`127.0.0.1:8000/health`) and Flask (`127.0.0.1:5000/healthz`)
   services; returns HEALTHY/DEGRADED/OFFLINE per target with latency.
 - Relation to the Python stack: Flask `/readyz` already gates on FAISS
   reachability and `/api/v1/health` reports deep state — the Go monitor
@@ -121,12 +124,10 @@ go run .            # or: go build -o health_monitor . && ./health_monitor
   separate process and language (whitepaper Part 11 network layer). Keep
   it as an independent cross-check plane; it is NOT started by any deploy
   entrypoint (compose/systemd/Railway all leave it to the operator).
-- Known code drift (filed for the Go owners — not fixed in this pass): the
-  non-EVM entries carry placeholder `chain_id: 0` (canonical registry ids:
-  Solana 900, NEAR 23000, TON 22000) and the ORACLE probe path should be
-  `/healthz` — the Flask app exposes `/healthz`, `/readyz` and
-  `/api/v1/health`, so a bare `/health` 404s and the monitor would report
-  the oracle DEGRADED while it is healthy.
+- Code drift status: FIXED by the 21-e pass — chain ids are the canonical
+  registry values (SOLANA 900 / NEAR 23000 / TON 22000, commits 75bdccf +
+  622ff46) and the ORACLE probe is `/healthz` (a healthy oracle no longer
+  reports DEGRADED). No known drift remains in this file.
 
 ### Validator network — `validator/` (module `github.com/trion-protocol/validator`)
 ```bash
@@ -150,13 +151,30 @@ go run ./cmd/trion-validator/                    # mesh + TRION-BFT self-test
 
 ## Monitoring
 - Prometheus at `:9090` and Grafana at `:3001` (deploy/docker compose
-  `prometheus` + `grafana` services; env toggles in Railway configs).
+  `prometheus` + `grafana` services).
 - HONEST STATE: neither the Flask API nor the FAISS service exposes a
   `/metrics` endpoint yet, so the TRION scrape jobs 404 and only `up`
   exists; the `trion_*` alert-rule metrics are not exported anywhere yet
   (documented inline in `deploy/monitoring/prometheus.yml` + `alerts.yml`).
+- There is no `TRION_ENABLE_MONITORING` toggle anywhere — the monitoring
+  stack is the deploy/docker compose services, period (the toggle that
+  used to appear in railway configs was read by nothing and was removed).
 - Log output via `docker logs trion` (root dev compose) or
   `docker logs trion-frontend` (deploy/docker stack)
+
+## systemd (bare metal)
+Units in `deploy/systemd/`: trion-faiss (FAISS :8000), trion-api
+(serve.py :5000, single process → in-process streamer via
+`TRION_STREAMER_INPROCESS=1`, websocket push included), trion-frontend
+(Next.js standalone :3000), trion-validator (one-shot Go self-test).
+One-time host setup for the shared BH ledger (the api unit writes
+`/opt/trion/bh_ledger.db` under `ProtectSystem=strict`):
+```bash
+install -o trion -g trion -m 0644 /dev/null /opt/trion/bh_ledger.db
+```
+`trion-faiss.service` points `BH_LEDGER_DB` at the same file; nginx fronting
+uses `deploy/nginx/trion.conf` (certs expected at the Certbot layout
+`/etc/letsencrypt/live/<domain>/`).
 
 ## Troubleshooting
 - **BH count = 0**: BH streamer needs 30-60s to produce first hashes. Check `bh_ledger.db`.

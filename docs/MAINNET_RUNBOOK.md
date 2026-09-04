@@ -14,9 +14,9 @@ development sandbox**.
 |---|---|---|
 | Contract suites (9 VM languages) | ✅ compile clean | solc 0.8.24 viaIR, Scarb, cargo (ink!/NEAR/CosmWasm/Anchor), FunC |
 | Security hardening | ✅ applied | reentrancy guards, ACL, drain-proof sweep, timelocked bypass, route freshness — all in-tree |
-| Test battery | ✅ green | as of 2026-09-03: 104/105 formulas (PQC check needs optional libs), 117 Rust `#[test]` (not compiled in sandbox), 6/6 ZK, 571 unit + 121 adversarial + 186 integration pytest, hardhat 43, 30/30 Golden Test |
-| Key hygiene | ✅ fixed | relayer env-only; hardhat **fails closed** on mainnets without a key |
-| Deployment infra | ✅ present | Docker ×3, compose, systemd ×4, nginx, Prometheus+alerts, webhook alerter |
+| Test battery | ✅ green | as of 2026-09-04 (Wave 3): 759 unit + 9 skipped (2 pre-existing fails = sibling path-hack files, proven not O's), 134 golden, 87 btcp + 1 xfail, 9 real-EVM suites green, 120/121 adversarial (1 = PQC libs absent, environmental), 147 Rust #[test] (not compiled in sandbox), hardhat 43+10 |
+| Key hygiene | ✅ fixed | relayer signs via KMS/HSM (`KMS_PROVIDER=aws|gcp|yubihsm|pkcs11`, relayer/kms_provider.js) — the raw `RELAYER_PRIVATE_KEY` env path is DEV/TESTNET-ONLY and every deploy entrypoint refuses it under `TRION_ENV=production`; hardhat **fails closed** on mainnets without a key |
+| Deployment infra | ✅ present | Docker ×3 (dev / railway / render), compose ×2 (root dev + multi-service deploy/), systemd ×4, nginx, Prometheus+alerts (metric-less — honest notes inline; see DEPLOYMENT.md "Monitoring") |
 | Preflight gate | ✅ new | `scripts/mainnet_preflight.py` — automated blocker detection |
 | Professional audit | ❌ **REQUIRED** | No third-party audit exists. Non-negotiable before escrow holds funds. |
 | Akashic depth D(t) | ❌ 18.3% | 8,439 / 46,051. Whitepaper: ~6 months of honest operation. **Cannot be shortcut.** |
@@ -27,12 +27,20 @@ development sandbox**.
 
 ## Phase 1 — Pre-Flight (week 0)
 
-### 1.1 Fresh key generation
+### 1.1 Fresh key generation + KMS/HSM binding
 ```bash
 # Generate DEDICATED deployment keys (never reuse, never commit):
-#  - RELAYER_PRIVATE_KEY     → signal publication
-#  - DEPLOY_0G_PRIVATE       → 0G mainnet deploys
-# Store in a vault (AWS Secrets Manager / HashiCorp), never in files.
+#  - RELAYER key      → signal publication. PRODUCTION: do NOT keep raw key
+#                       material in env vars — bind it to a KMS/HSM provider
+#                       (KMS_PROVIDER=aws|gcp|yubihsm|pkcs11 + provider vars,
+#                       relayer/kms_provider.js — §17: HSM non-negotiable).
+#  - DEPLOY_0G_PRIVATE → 0G mainnet deploys (one-shot tooling key; keep in a
+#                       vault — AWS Secrets Manager / HashiCorp — and inject
+#                       only into the deploy command, never into the running
+#                       stack).
+# The deploy entrypoints enforce this: TRION_ENV=production refuses any raw
+# env private key unless TRION_ALLOW_RAW_ENV_KEYS=1 explicitly acknowledges
+# env-secret custody (see DEPLOYMENT.md "Signing and key custody").
 ```
 
 ### 1.2 Professional security audit
@@ -98,7 +106,10 @@ curl -s localhost:5000/api/v1/bootstrap/status   # transition_complete: true
 ```
 1. When D(t) ≥ 46,051 and validators qualify: execute the public INIT
    ceremony (witnessed, anchored in the Akashic Index — §14.1).
-2. Enable the relayer with the funded RELAYER key (publication only).
+2. Enable the relayer with the funded validator signing identity —
+   KMS/HSM-backed (`KMS_PROVIDER=aws|gcp|yubihsm|pkcs11`), publication
+   only. Non-EVM relayers stay keyless (block-proof mode) until per-VM
+   KMS support lands.
 3. Begin emitting signals; consumers integrate via the typed SDK
    (`sdk/`), SILENCE ≠ VALUATION enforced at their compile time.
 
