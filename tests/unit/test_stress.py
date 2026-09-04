@@ -35,6 +35,26 @@ from core.primitives.behavioral_hash import BehavioralEvent, EventType, compute_
 
 RESULTS = {}
 
+
+def _require_pqc_libs():
+    """Skip unless the optional PQC libraries are importable (DD finding C9).
+
+    kyber-py / dilithium-py / pyspx are declared dependencies but optional at
+    runtime: core.spiritual.living_security.pqc_layer guards each import with
+    try/except, and LivingSecuritySystem's PQCScore therefore reports 0.0 when
+    a library is missing — `sec["PQC"] == 1.0` below would hard-fail in a
+    bare environment. Import targets mirror pqc_layer.py's guarded imports
+    exactly (kyber_py.ml_kem / dilithium_py.ml_dsa / pyspx.shake_128s +
+    pyspx.shake_256s). When the libs ARE installed the guarded test runs
+    unchanged and must still assert PQC == 1.0 (no weakening).
+    """
+    import pytest
+    pytest.importorskip("kyber_py.ml_kem")       # kyber-py     (ML-KEM)
+    pytest.importorskip("dilithium_py.ml_dsa")   # dilithium-py (ML-DSA)
+    pytest.importorskip("pyspx.shake_128s")      # pyspx        (SLH-DSA)
+    pytest.importorskip("pyspx.shake_256s")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # T1: BH Generation — correctness + performance
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -106,6 +126,7 @@ def test_bh_performance():
 
 def test_lss_full_sec_multiple_entities():
     """Compute SEC(t) for 100 entities, verify invariants."""
+    _require_pqc_libs()  # skip (not fail) when optional PQC libs absent
     lss = LivingSecuritySystem()
     for i in range(100):
         entity_id = f"stress_entity_{i:03d}"

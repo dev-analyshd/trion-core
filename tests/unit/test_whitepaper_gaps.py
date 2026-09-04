@@ -92,6 +92,26 @@ from core.spiritual.living_security.pqc_layer import (
 )
 
 
+def _require_pqc_libs():
+    """Skip unless the optional PQC libraries are importable (DD finding C9).
+
+    kyber-py / dilithium-py / pyspx are declared dependencies but optional at
+    runtime: core.spiritual.living_security.pqc_layer guards each import with
+    try/except and degrades to PQC score 0.0 when a library is missing.
+    Tests that assert the FULL-crypto PQC score must therefore SKIP (not
+    fail) in a bare environment. The import targets below mirror
+    pqc_layer.py's guarded imports exactly:
+        kyber_py.ml_kem / dilithium_py.ml_dsa /
+        pyspx.shake_128s + pyspx.shake_256s
+    When the libs ARE installed the guarded tests run unchanged and must
+    still assert the full PQC scores (no weakening).
+    """
+    pytest.importorskip("kyber_py.ml_kem")       # kyber-py     (ML-KEM)
+    pytest.importorskip("dilithium_py.ml_dsa")   # dilithium-py (ML-DSA)
+    pytest.importorskip("pyspx.shake_128s")      # pyspx        (SLH-DSA)
+    pytest.importorskip("pyspx.shake_256s")
+
+
 class TestCombinedSecurityScore:
     """L4.6: SEC(t) = LSS(t) · PQC(t) · CC(t)"""
 
@@ -114,12 +134,14 @@ class TestCombinedSecurityScore:
 
     def test_pqc_all_schemes_active(self):
         """With all 3 PQC schemes active at NIST L3: PQC = 0.90."""
+        _require_pqc_libs()  # skip (not fail) when optional PQC libs absent
         pqc = compute_pqc_score(kyber_enabled=True, dilithium_enabled=True,
                                  sphincs_enabled=True, nist_level=3)
         assert abs(pqc.pqc_score - 0.90) < 0.001
 
     def test_pqc_nist_levels(self):
         """NIST L5 > L3 > L1 for identical scheme set."""
+        _require_pqc_libs()  # skip (not fail) when optional PQC libs absent
         p1 = compute_pqc_score(True, True, True, nist_level=1)
         p3 = compute_pqc_score(True, True, True, nist_level=3)
         p5 = compute_pqc_score(True, True, True, nist_level=5)
