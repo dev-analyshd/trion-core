@@ -124,8 +124,13 @@ def classify_event(selector: str, value: int, has_input: bool) -> int:
     et = SELECTOR_MAP.get(sel)
     if et is not None:
         return et
-    if len(selector) > 300:
-        return 1
+    # Unknown selector: EVENT_TYPES (whitepaper 0–19, fixed by the 93-byte
+    # cross-language BH spec) has no UNKNOWN/GENERIC code, so — honestly —
+    # unmapped selectors fall back to TRANSFER (0), the same default the
+    # Rust indexer uses. SELECTOR_MAP needs a fuller selector table before
+    # non-transfer calldata can be typed correctly. (The old
+    # `len(selector) > 300 → SWAP` heuristic was dead code: callers pass
+    # `input[:10]`, so it could never fire.)
     return 0
 
 
