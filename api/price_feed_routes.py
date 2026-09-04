@@ -77,6 +77,14 @@ def _empty_pair(base: str, quote: str) -> dict:
         "manipulated":   False,
         "source_count":  0,
         "chains":        [],
+        # W3-M provenance: who/what produced this pair's numbers.
+        #   "bootstrap_demo"       — hardcoded startup baselines (not measured)
+        #   "relayer_submitted"    — pushed via POST /api/v1/price/seed
+        #   "synthesized_cross"    — derived from two other pairs
+        # The behavioral coherence/mf/confidence fields are only as trustworthy
+        # as their provenance — they are relayer-attested, not TRION-verified.
+        "data_provenance": "bootstrap_demo",
+        "is_synthetic":    True,
     }
 
 def _get_pair(base: str, quote: str) -> dict | None:
@@ -169,16 +177,34 @@ def _build_aggregator_response(pair: dict, is_inverse: bool) -> dict:
             "source_count":     pair["source_count"],
             "chains_indexed":   pair["chains"],
             "last_updated_ago": int(time.time() - pair["updated_at"]) if pair["updated_at"] else None,
+            # W3-M provenance: coherence/mf/confidence are only as trustworthy
+            # as where they came from (bootstrap demo constants vs a relayer
+            # push vs a synthesized cross) — never present them as verified.
+            "data_provenance":  pair.get("data_provenance", "unknown"),
+            "is_synthetic":     bool(pair.get("is_synthetic", True)),
         },
+        "is_synthetic":     bool(pair.get("is_synthetic", True)),
+        "synthetic_reason": (
+            "behavioral metadata provenance: " + str(pair.get("data_provenance", "unknown")) +
+            " — TRION price-truth requires relayer-submitted observations, "
+            "and even those are relayer-attested until bound to verified "
+            "behavioral consensus"),
     }
 
 # ─── Bootstrap: seed common pairs from behavioral hash data ───────────────────
 
 def _bootstrap_seed():
     """
-    Seed the registry with computed baseline prices derived from behavioral
-    entropy across the indexed chains. In production these are overwritten
-    by real relayer data within minutes of startup.
+    Seed the registry with STATIC DEMO baseline prices.
+
+    W3-M honesty fix: these numbers are hardcoded constants — the old
+    docstring claimed they were "computed baseline prices derived from
+    behavioral entropy across the indexed chains", which was fabricated.
+    They exist so the Chainlink-compatible surface answers on a cold start;
+    every seeded pair carries data_provenance="bootstrap_demo" and
+    is_synthetic=True so consumers can filter demo numbers out. Real
+    observations arrive via POST /api/v1/price/seed (relayer) and carry
+    data_provenance="relayer_submitted".
     """
     baselines = [
         # (base, quote, price, coherence, confidence, chains)
@@ -250,6 +276,8 @@ def list_pairs():
                 "round_id":          pair["round_id"],
                 "updated_at":        int(pair["updated_at"]),
                 "chains_indexed":    pair["chains"],
+                "data_provenance":   pair.get("data_provenance", "unknown"),
+                "is_synthetic":      bool(pair.get("is_synthetic", True)),
             })
 
     return jsonify({
@@ -355,6 +383,15 @@ def seed_price():
         "source_count": 12,
         "chains":       ["ETH_MAINNET", "ARB_MAINNET", "BASE_MAINNET"]
     }
+
+    W3-M witness discipline: the behavioral metadata (coherence, mf_score,
+    confidence) and the price itself are SUBMITTED BY THE CALLER — this
+    endpoint records the observation as-is and labels every downstream
+    response with data_provenance="relayer_submitted" so price consumers
+    can never mistake a pushed observation for TRION-verified behavioral
+    consensus. Guard the route with TRION_API_KEY (write methods require
+    X-API-Key when set) in any deployment where untrusted parties can
+    reach it.
     """
     body = request.get_json(force=True, silent=True) or {}
     base  = body.get("base",  "").upper()
@@ -386,6 +423,8 @@ def seed_price():
         "manipulated":   bool(body.get("manipulated", False)),
         "source_count":  int(body.get("source_count", 0)),
         "chains":        body.get("chains", []),
+        "data_provenance": "relayer_submitted",
+        "is_synthetic":    False,
     }
     _upsert_pair(base, quote, pair)
 
@@ -401,6 +440,10 @@ def seed_price():
         "inverse_price":    _from_8dec(inv_8),
         "inverse_8dec":     inv_8,
         "manipulated":      pair["manipulated"],
+        "data_provenance":  "relayer_submitted",
+        "witness_note":     ("price/coherence/mf/confidence recorded as "
+                             "submitted — relayer-attested observation, not "
+                             "TRION-verified behavioral consensus"),
         "updated_at":       int(now),
     })
 
@@ -450,6 +493,8 @@ def _synthesize_cross(base: str, quote: str) -> dict | None:
         "manipulated":   manip,
         "source_count":  min(leg_b["source_count"], leg_q["source_count"]),
         "chains":        chains,
+        "data_provenance": "synthesized_cross",
+        "is_synthetic":    True,
     }
 
 

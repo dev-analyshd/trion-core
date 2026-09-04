@@ -596,7 +596,16 @@ def cex_ingest():
         "phi_enrichment":   f"+{phi_delta} estimated Φ(t) delta",
         "alerts_raised":    alerts_raised,
         "pii_check":        "PASSED",
-        "faiss_forwarded":  True,
+        "faiss_forwarded":  "async_best_effort",
+        "source_provenance": {
+            "cex_name":  "caller_declared_unauthenticated",
+            "records":   "caller_submitted",
+            "note": ("the ingest records are SUBMITTED EVIDENCE — the cex_name "
+                      "identity is unverified and the BHs are built from "
+                      "caller-supplied records; downstream coherence weight "
+                      "must treat unauthenticated feeds accordingly (guard "
+                      "this route with TRION_API_KEY in untrusted networks)"),
+        },
         "whitepaper":       "§7.3 CEX → TRION — L0.1 canonical BH pipeline",
         "timestamp":        ts,
     })
@@ -862,6 +871,29 @@ def webhook_register():
     if not url.startswith("http"):
         return jsonify({"registered": False,
                         "reason": "url must be a valid http/https endpoint"}), 400
+
+    # W3-M SSRF guard (basic): the alert pusher POSTs to this URL from the
+    # server — an internal/loopback target lets a caller probe and interact
+    # with internal services through TRION. Reject obvious private/loopback
+    # literals; full DNS-rebinding protection belongs at the egress proxy.
+    import re as _re
+    from urllib.parse import urlparse as _urlparse
+    _host = (_urlparse(url).hostname or "").lower()
+    _private = (
+        _host in ("localhost", "0.0.0.0", "::1", "metadata.google.internal")
+        or _re.match(r"^127\.", _host) is not None
+        or _re.match(r"^10\.", _host) is not None
+        or _re.match(r"^192\.168\.", _host) is not None
+        or _re.match(r"^169\.254\.", _host) is not None
+        or _re.match(r"^172\.(1[6-9]|2[0-9]|3[01])\.", _host) is not None
+    )
+    if _private:
+        return jsonify({
+            "registered": False,
+            "reason": ("webhook host resolves to a private/loopback range — "
+                       "server-side alert delivery to internal targets is "
+                       "not allowed (SSRF guard)"),
+        }), 400
 
     events_str = ",".join(str(e).upper() for e in events) if events else "ALL"
 
