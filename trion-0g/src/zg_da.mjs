@@ -15,6 +15,7 @@
  */
 
 import crypto from "node:crypto";
+import { getRegistryCounts } from "./registry_counts.mjs";
 
 export const DA_DISPERSER  = "https://da-disperser-testnet.0g.ai";
 export const DA_RETRIEVER  = "https://da-retriever-testnet.0g.ai";
@@ -113,6 +114,11 @@ export async function submitToDA(signalData) {
  */
 export function getDAStatus() {
   const ts = Math.floor(Date.now() / 1000);
+  // Counted live from config/chain_registry.json (canonical registry):
+  // every registered chain's behavioral signals are eligible for DA blob
+  // submission. null = registry unreadable — reported as unknown, never a
+  // stale hard-coded figure.
+  const registry = getRegistryCounts();
   return {
     integrated:          true,
     protocol:            "0G DA (Zero Gravity Data Availability)",
@@ -126,7 +132,7 @@ export function getDAStatus() {
     use_case:            "Every TRION behavioral signal and anomaly proof submitted as DA blob",
     commitment_algo:     "SHA256(namespace || blob_sha256 || erasure_sha256)",
     sdk_note:            "Native gRPC DA client (port 51001) + HTTP-compatible REST bridge",
-    chains_covered:      35,
+    chains_covered:      registry ? registry.total_chains : null,
     timestamp:           ts,
   };
 }

@@ -19,6 +19,7 @@ import { getChainStatus, checkExecution } from "./zg_chain.mjs";
 import { storeSignal, readStorageRoot, computeLocalMerkleRoot } from "./zg_storage.mjs";
 import { submitToDA, getDAStatus, computeDACommitment } from "./zg_da.mjs";
 import { getComputeStatus, inferViaBroker, KNOWN_PROVIDERS } from "./zg_compute.mjs";
+import { getRegistryCounts } from "./registry_counts.mjs";
 
 const PRIV_KEY = process.env.RELAYER_PRIVATE_KEY || null;
 const [, , cmd, ...args] = process.argv;
@@ -73,6 +74,10 @@ async function run() {
         Promise.resolve(getDAStatus()),
         getComputeStatus(PRIV_KEY),
       ]);
+      // Counted live from config/chain_registry.json (canonical registry):
+      // integrated chains = live indexer + oracle; vm_families = distinct VMs.
+      // null = registry unreadable — reported as unknown, never faked.
+      const registry = getRegistryCounts();
       result = {
         integration_name: "TRION × 0G — Full Stack Integration",
         modules: {
@@ -83,8 +88,9 @@ async function run() {
         },
         summary: {
           contracts_deployed: 5,
-          chains_indexed:     31,
-          vm_families:        12,
+          chains_indexed:     registry ? registry.integrated : null,
+          vm_families:        registry ? registry.vm_families : null,
+          registry_total_chains: registry ? registry.total_chains : null,
           sdk_versions:       { storage: "0g-ts-sdk@0.3.3", compute: "0g-serving-broker@0.7.8" },
           all_modules_active: true,
         },

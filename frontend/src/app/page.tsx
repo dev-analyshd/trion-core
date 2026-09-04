@@ -22,6 +22,7 @@ import { ShortcutHelpDialog } from '../components/ShortcutHelpDialog';
 import { WalletButton } from '../components/wallet/WalletButton';
 import { useAPI, useTheme, useStream, useCounter } from '../lib/hooks';
 import { fmt, pct, tfmt, hex, compact } from '../lib/api';
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from '../lib/config';
 
 // New visualization components
 import { CoherenceEngine } from '../components/visualizations/CoherenceEngine';
@@ -688,7 +689,8 @@ function RedesignedDashboard() {
 
       {/* Footer */}
       <div className="text-center text-xs text-muted-foreground py-6 border-t border-border">
-        TRION Protocol · Behavioral Truth Infrastructure · 128 chains · 18 VM families
+        {/* Chain/VM counts: source config/chain_registry.json via lib/config */}
+        TRION Protocol · Behavioral Truth Infrastructure · {CHAIN_COUNT} chains · {VM_FAMILY_COUNT} VM families
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Waves,
 } from "lucide-react";
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from "@/lib/trion/client";
 
 export interface TrionViewMeta {
   id: string;
@@ -26,7 +27,7 @@ export const TRION_VIEWS: TrionViewMeta[] = [
   { id: "overview", label: "Command Center", icon: Gauge, group: "PROTOCOL", blurb: "T(t) master equation, live pipeline state, signal publication" },
   { id: "signals", label: "Signal Feed", icon: Activity, group: "PROTOCOL", blurb: "Live behavioral signals and truth stream" },
   { id: "btcp", label: "BTCP Zero-Bridge", icon: Waves, group: "CROSS-CHAIN", blurb: "Route selection, BIBL engine, escrow state channels" },
-  { id: "chains", label: "Chain Coverage", icon: Globe2, group: "CROSS-CHAIN", blurb: "174 networks · 22 VM families · indexer status" },
+  { id: "chains", label: "Chain Coverage", icon: Globe2, group: "CROSS-CHAIN", blurb: `${CHAIN_COUNT} networks · ${VM_FAMILY_COUNT} VM families · indexer status` },
   { id: "coherence", label: "Five-Plane Coherence", icon: BrainCircuit, group: "TRUTH ENGINE", blurb: "C(t)=α·Φ+β·M+γ·Σ+δ·K+ε·A with 11 asset profiles" },
   { id: "security", label: "Security & Consensus", icon: ShieldCheck, group: "TRUTH ENGINE", blurb: "DW-BFT, HHI monitor, manipulation firewall, sybil resistance" },
   { id: "governance", label: "Governance & AWA", icon: HeartHandshake, group: "CIVILIZATION", blurb: "AWA enforcement, Love Protocol, Akashic memory" },
@@ -128,7 +129,7 @@ export function Sidebar({
           <div className="flex items-center gap-2">
             <Boxes size={12} className="text-[#4b5563]" />
             <span className="trion-mono text-[10px] text-[#4b5563]">
-              174 CHAINS · 22 VMs
+              {`${CHAIN_COUNT} CHAINS · ${VM_FAMILY_COUNT} VMs`}
             </span>
           </div>
           <div className="flex items-center gap-2">

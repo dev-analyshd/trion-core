@@ -1,9 +1,13 @@
 # TRION Protocol — Chain Manifest & VM Family Index
 
-**126 chains · 18 VM families · live indexers with public RPC failover**
+**129 chains · 18 VM families · source: `config/chain_registry.json` (canonical)**
 
-Every chain is indexed by a dedicated Rust indexer crate (or the multi-chain
-`trion-evm` crate for EVM) using **public keyless RPC endpoints** with fallback.
+Counts in this manifest are recomputed from `config/chain_registry.json` —
+the repo's single source of truth for chain/VM coverage (129 chains across
+18 VM families: 41 integrated with a live indexer + oracle, 23 testnets,
+65 registered and awaiting indexer). Every integrated chain is indexed by a
+dedicated Rust indexer crate (or the multi-chain `trion-evm` crate for EVM)
+using **public keyless RPC endpoints** with fallback.
 All indexers produce the canonical 93-byte dual-strand Behavioral Hash and
 128-dimensional entropy-feature vectors per the whitepaper L0.1/L1.1.
 
@@ -13,43 +17,55 @@ All indexers produce the canonical 93-byte dual-strand Behavioral Hash and
 
 | VM Family | Chains | Indexer Crate | Primary RPC (public) | Fallbacks |
 |---|---|---|---|---|
-| **EVM** | 58 chains | `trion-evm` (55) + `trion-botchain` | per-chain (publicnode.com etc.) | 2–5 per chain |
-| **SVM** | Solana | `trion-svm` | api.mainnet-beta.solana.com | — |
-| **COSMOS** | 20 chains | `trion-cosmos` (6 live) | polkachu/kjnodes/publicnode LCD | rotation |
-| **MOVE** | Aptos, Sui, Movement | `trion-aptos`, `trion-sui`, `trion-movement` | fullnode.mainnet.aptoslabs.com, fullnode.mainnet.sui.io | 3 each |
-| **NEAR** | NEAR mainnet | `trion-near` | rpc.mainnet.near.org | fastnear, lava |
-| **TON** | TON mainnet/testnet | `trion-ton` | toncenter.com/api/v2 | — |
-| **STARKNET** | Starknet (Cairo) | `trion-starknet` | Alchemy demo/Cartridge/Juno | 4 total |
-| **TRON** | TRON mainnet | `trion-tron` | api.trongrid.io | — |
-| **UTXO** | BTC, LTC, DOGE, DASH | `trion-utxo` | BlockCypher | — |
-| **STELLAR (MVM)** | Stellar / Pi | `trion-pi` | horizon.stellar.org | lobstr |
-| **PVM** | Polkadot, Kusama | `trion-pvm` | Sidecar REST | JSON-RPC |
-| **XRPL** | XRP Ledger | `trion-xrpl` | s1.ripple.com:51234 | s2, xrplcluster |
-| **WAVES** | Waves | `trion-waves` | nodes.wavesnodes.com | wavesnode.com |
-| **VECHAIN** | VeChainThor | `trion-vechain` | mainnet.vechain.org | 2 more |
-| **MULTIVERSX** | MultiversX | `trion-multiversx` | api.multiversx.com | gateway, .eu |
-| **HEDERA** | Hedera | `trion-hedera` | mainnet.hashio.io/api | subquery, thirdweb |
-| **ALGORAND** | Algorand | `trion-algorand` | mainnet-api.algonode.cloud | purestake, algoexplorer |
-| **CARDANO** | Cardano | `trion-cardano` | api.koios.rest/api/v1 | guild.koios |
+| **EVM** | 71 chains | `trion-evm` (55 inline) + `trion-botchain` | per-chain (publicnode.com etc.) | 2–5 per chain |
+| **SVM** | 3 chains (Solana mainnet/devnet/testnet) | `trion-svm` | api.mainnet-beta.solana.com | — |
+| **COSMOS** | 20 chains | `trion-cosmos` (5 integrated) | polkachu/kjnodes/publicnode LCD | rotation |
+| **MOVE** | 6 chains (Aptos, Sui, Movement × mainnet/testnet) | `trion-aptos`, `trion-sui`, `trion-movement` | fullnode.mainnet.aptoslabs.com, fullnode.mainnet.sui.io | 3 each |
+| **NEAR** | 2 chains (mainnet/testnet) | `trion-near` | rpc.mainnet.near.org | fastnear, lava |
+| **TON** | 2 chains (mainnet/testnet) | `trion-ton` | toncenter.com/api/v2 | — |
+| **STARKNET** | 2 chains (mainnet/sepolia) | `trion-starknet` | Alchemy demo/Cartridge/Juno | 4 total |
+| **TRON** | 2 chains (mainnet/shasta) | `trion-tron` | api.trongrid.io | — |
+| **UTXO** | 6 chains (BTC, BTC Testnet4, BCH, DOGE, LTC, DASH) | `trion-utxo` | BlockCypher | — |
+| **STELLAR** | 2 chains (mainnet/testnet) | `trion-pi` | horizon.stellar.org | lobstr |
+| **PVM** | 3 chains (Polkadot, Westend, Kusama) | `trion-pvm` | Sidecar REST | JSON-RPC |
+| **XRPL** | 1 chain | `trion-xrpl` | s1.ripple.com:51234 | s2, xrplcluster |
+| **WAVES** | 1 chain | `trion-waves` | nodes.wavesnodes.com | wavesnode.com |
+| **VECHAIN** | 1 chain | `trion-vechain` | mainnet.vechain.org | 2 more |
+| **MULTIVERSX** | 1 chain | `trion-multiversx` | api.multiversx.com | gateway, .eu |
+| **HEDERA** | 2 chains (mainnet/testnet) | `trion-hedera` | mainnet.hashio.io/api | subquery, thirdweb |
+| **ALGORAND** | 2 chains (mainnet/testnet) | `trion-algorand` | mainnet-api.algonode.cloud | purestake, algoexplorer |
+| **CARDANO** | 2 chains (mainnet/preprod) | `trion-cardano` | api.koios.rest/api/v1 | guild.koios |
 
 **22 indexer crates total** — `cargo check --workspace` passes with 0 errors, 0 warnings.
 
 ---
 
-## EVM Chains (58, via `trion-evm`)
+## EVM Chains (71, via `trion-evm`)
 
-Ethereum (1), Arbitrum (42161), Base (8453), Optimism (10), Polygon (137),
-BNB (56), Mantle (5000), Linea (59144), Scroll (534352), HashKey (177),
-0G Mainnet (16661), Avalanche (43114), Fantom (250), Sonic (146), zkSync (324),
-Berachain (80094), X Layer (196), XDC (50), Story (1514), Blast (81457),
-Manta (169), Mode (34443), Taiko (167000), Fraxtal (252), Metis (1088),
-Celo (42220), Gnosis (100), Moonbeam (1284), Kaia (8217), Core (1116),
-Bitlayer (200901), BOB (60808), Rootstock (30), Cronos (25),
-Aurora (1313161554), Harmony (1666600000), IoTeX (4689), Conflux (1030),
-Monad (10143), Filecoin (314), Hyperliquid (999), Abstract (2741),
-Zora (7777777), WEMIX (1111), OKT (66), Oasis Sapphire (23294), Telos (40),
-Kroma (255), Cyber (7560), Sei EVM (1329), Canto (7700), Neon (245022934),
-IOTA EVM (8822), BOT Chain (677), 0G Newton (16602), + testnets.
+Sorted by TRION canonical chain id (source: `config/chain_registry.json`):
+
+Ethereum (1), Optimism (10), Flare (14), Cronos (25), Rootstock (30),
+Telos EVM (40), XDC Network (50), BNB Smart Chain (56), Ethereum Classic (61),
+OKB Chain (OKTC) (66), BNB Testnet (97), Gnosis (100), Polygon PoS (137),
+Sonic (146), Manta Pacific (169), HashKey Mainnet (177), X Layer (196),
+Fantom (250), Fraxtal (252), Kroma (255), Boba Network (288), Optopia (300),
+Filecoin EVM (314), zkSync Era (324), Astar EVM (592), BotChain (677),
+Conflux (1030), Metis (1088), Polygon zkEVM (1101), WEMIX (1111), Core (1116),
+Moonbeam (1284), Moonriver (1285), Sei EVM (1329), Story Protocol (1514),
+Kava EVM (2222), Abstract (2741), IoTeX (4689), Mantle (5000), Cyber (7560),
+Canto (7700), Kaia (Klaytn) (8217), Base (8453), Iota EVM (8822), Monad (10143),
+Chiado (Gnosis) (10200), 0G Mainnet (16661), Ethereum Holesky (17000),
+Oasis Sapphire (23294), Mode (34443), Arbitrum One (42161), Celo (42220),
+Avalanche Fuji (43113), Avalanche C-Chain (43114), Linea (59144), BOB (60808),
+Polygon Amoy (80002), Berachain (80094), Blast (81457), Base Sepolia (84532),
+Taiko (167000), Bitlayer (200901), Botanix (201022), Arbitrum Sepolia (421614),
+Scroll (534352), Zora (7777777), Ethereum Sepolia (11155111),
+Optimism Sepolia (11155420), Neon EVM (245022934), Aurora (1313161554),
+Harmony (1666600000).
+
+55 of the 71 are inlined in `trion-evm` (the 16 remaining are
+registry-listed gap-fill/testnet entries indexed on demand); `trion-botchain`
+serves the BotChain entry.
 
 ---
 
@@ -62,7 +78,7 @@ BRIDGE_PAIRS_ELIMINATED(N) = N × (N−1) / 2
  20 chains →   190 pairs
  50 chains → 1,225 pairs
 100 chains → 4,950 pairs
-126 chains → 7,875 pairs  ← current registry
+129 chains → 8,256 pairs  ← current registry (config/chain_registry.json)
 ```
 
 ---

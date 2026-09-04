@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms } from '../lib/api';
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from '../lib/config';
 
 // ════════════════════════════════════════════════════════════════════════════
 // PRIMITIVES
@@ -619,7 +620,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       </defs>
 
       {/* Chain sources */}
-      <text x="60" y="30" className="fill-muted-foreground text-[10px] font-semibold">CHAIN SOURCES (100+)</text>
+      <text x="60" y="30" className="fill-muted-foreground text-[10px] font-semibold">CHAIN SOURCES ({CHAIN_COUNT})</text>
       {['EVM', 'SVM', 'Cosmos', 'Move', 'Substrate', 'UTXO'].map((vm, i) => (
         <g key={vm}>
           <rect x="20" y={50 + i * 30} width="100" height="22" rx="4" fill="url(#grad1)" stroke="#3b82f6" strokeOpacity="0.4" />
@@ -631,9 +632,9 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <g>
         <rect x="160" y="100" width="120" height="100" rx="8" fill="url(#grad1)" stroke="#3b82f6" strokeOpacity="0.6" filter="url(#glow)" />
         <text x="220" y="125" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">RUST INDEXERS</text>
-        <text x="220" y="145" textAnchor="middle" className="fill-muted-foreground text-[9px]">16 crates</text>
-        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">128 chains</text>
-        <text x="220" y="175" textAnchor="middle" className="fill-muted-foreground text-[9px]">18 VM families</text>
+        <text x="220" y="145" textAnchor="middle" className="fill-muted-foreground text-[9px]">21 crates</text>
+        <text x="220" y="160" textAnchor="middle" className="fill-muted-foreground text-[9px]">{CHAIN_COUNT} chains</text>
+        <text x="220" y="175" textAnchor="middle" className="fill-muted-foreground text-[9px]">{VM_FAMILY_COUNT} VM families</text>
         <text x="220" y="190" textAnchor="middle" className="fill-green-500 text-[9px] font-mono">LIVE</text>
       </g>
 
@@ -709,7 +710,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       {/* On-chain */}
       <g>
         <rect x="650" y="260" width="240" height="60" rx="8" fill="#10b981" fillOpacity="0.2" stroke="#10b981" strokeOpacity="0.6" filter="url(#glow)" />
-        <text x="770" y="285" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">ON-CHAIN (0G + 100+ CHAINS)</text>
+        <text x="770" y="285" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">ON-CHAIN (0G + {CHAIN_COUNT} CHAINS)</text>
         <text x="770" y="305" textAnchor="middle" className="fill-muted-foreground text-[9px]">TRIONExecutionGate - TRIONOracleV3 - BTCPRoute</text>
       </g>
 

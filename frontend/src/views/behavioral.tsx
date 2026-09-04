@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, CodeBlock, EmptyState, Tag, StreamView, EntityInput } from '../components/ui';
 import { useAPI, useStream, useCounter } from '../lib/hooks';
 import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms, cleanText } from '../lib/api';
+import { CHAIN_COUNT, VM_FAMILY_COUNT } from '../lib/config';
 // fetchAPI returns APIResult<T>; r.ok tells us success.
 import * as Icons from 'lucide-react';
 
@@ -29,8 +30,8 @@ export function BHExplorerPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Stream Speed" value={ms(speedMs)} sub="per BH" color="green" />
         <StatCard label="Records Buffered" value={fmt(items.length)} color="blue" />
-        <StatCard label="VM Families" value={fmt(vmFeed?.total_vm_families || 14)} />
-        <StatCard label="Total Chains" value={fmt(vmFeed?.total_chains || 57)} />
+        <StatCard label="VM Families" value={fmt(vmFeed?.total_vm_families || VM_FAMILY_COUNT)} />
+        <StatCard label="Total Chains" value={fmt(vmFeed?.total_chains || CHAIN_COUNT)} />
       </div>
 
       {bh && (

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, EmptyState, Tag } from '../components/ui';
 import { useAPI, useStream } from '../lib/hooks';
 import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms, cleanText } from '../lib/api';
+import { VM_FAMILY_COUNT } from '../lib/config';
 import * as Icons from 'lucide-react';
 
 const DEFAULT_ENTITY = '0x2e49c1ff182bea5e33246a5f88f78cab6108cdde7b14f73bf8f7a06d6940c6ec';
@@ -285,7 +286,7 @@ export function ZeroGProofPage() {
 export function ZeroGVMFamiliesPage() {
   const { data: vm } = useAPI('/api/v1/zg/vm-families', 30000);
   return (
-    <Card title="VM Families - 14 Total" live>
+    <Card title={`VM Families - ${VM_FAMILY_COUNT} Total`} live>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Chains" value={fmt(vm?.total_chains)} color="blue" />
         <StatCard label="VM Families" value={fmt(vm?.total_vm_families)} color="purple" />
@@ -315,7 +316,7 @@ export function ChainsPage() {
         <StatCard label="Total Chains" value={fmt(chains?.total)} color="blue" />
         <StatCard label="Indexed" value={fmt(chains?.indexed)} color="green" />
         <StatCard label="Live" value={fmt(chains?.live)} color="green" />
-        <StatCard label="VM Families" value="14" color="purple" />
+        <StatCard label="VM Families" value={fmt(chains?.vm_families ?? VM_FAMILY_COUNT)} color="purple" />
       </div>
 
       <Card title="Chain Coverage" live>
