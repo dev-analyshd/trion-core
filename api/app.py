@@ -1173,6 +1173,21 @@ def publish_signal(entity_id: str):
 
     data = _compute_signal(entity_id)
 
+    # AWA emission gate (MD §17 — "silence is information"): while the
+    # Anti-Weaponization Architecture has frozen emission, truth publication
+    # fails closed. SILENCE signals remain publishable by design.
+    from core.governance.awa import assert_emission_allowed, EmissionFrozenError
+    try:
+        assert_emission_allowed("VALUATION")
+    except EmissionFrozenError as exc:
+        return jsonify({
+            **data,
+            "coherent": False,
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
+            "chain": {"published": False, "error": "awa_emission_frozen"},
+        }), 503
+
     relay = get_relay()
     if relay is None or not relay.ready:
         return jsonify({

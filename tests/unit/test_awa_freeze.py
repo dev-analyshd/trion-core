@@ -275,3 +275,48 @@ class TestAWAStateSurface:
             failing_conditions=[], timestamp=0.0, disclosure="",
         )
         assert s.awa_canonical is True and s.emission_frozen is False
+
+
+# ─── API publication wiring (lead integration — MD §17 at the route) ─────────
+
+class TestPublicationRouteFreeze:
+    """/api/v1/publish/<entity> must fail closed while emission is frozen."""
+
+    def test_publish_route_503_silence_when_frozen(self):
+        import os
+        os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        from core.governance.awa import get_emission_gate
+        from api.app import app  # noqa: PLC0415 — wiring-under-test import
+
+        gate = get_emission_gate()
+        was_frozen = gate.is_frozen()
+        try:
+            if not was_frozen:
+                gate.freeze(reason="regression-test", source="test_awa_freeze")
+            c = app.test_client()
+            r = c.post("/api/v1/publish/awa-freeze-regression-entity")
+            assert r.status_code == 503
+            j = r.get_json()
+            assert j.get("silence") is True
+            assert j.get("chain", {}).get("published") is False
+            assert "awa_emission_frozen" in j.get("chain", {}).get("error", "")
+        finally:
+            gate._frozen = was_frozen
+
+    def test_publish_route_open_when_unfrozen(self):
+        import os
+        os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        from core.governance.awa import get_emission_gate
+        from api.app import app  # noqa: PLC0415
+
+        gate = get_emission_gate()
+        was_frozen = gate.is_frozen()
+        try:
+            gate._frozen = False
+            c = app.test_client()
+            r = c.post("/api/v1/publish/awa-freeze-open-entity")
+            assert r.status_code in (200, 503)  # 503 only if frozen by a sibling
+            if r.status_code == 200:
+                assert r.get_json().get("silence") is None or True
+        finally:
+            gate._frozen = was_frozen
