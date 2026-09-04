@@ -43,9 +43,17 @@ except ImportError:
 dashboard_bp = Blueprint("dashboard_bp", __name__, url_prefix="/app")
 
 def _redirect_to_react():
-    """Redirect to React frontend."""
+    """Redirect to the React frontend origin.
+
+    The frontend is its own process (scripts/start_trion.sh runs it on port
+    3000), so an absolute URL is needed — pointing back at "/" here bounced
+    to the app root, which redirects to /app/, which redirected back to "/":
+    a closed loop every browser rejects as too many redirects. FRONTEND_URL
+    overrides the origin for non-default deployments.
+    """
     from flask import redirect
-    return redirect("/")
+    frontend = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    return redirect(frontend + "/")
 
 FAISS_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 ORACLE_URL = os.environ.get("ORACLE_INTERNAL_URL", "http://127.0.0.1:5000")
