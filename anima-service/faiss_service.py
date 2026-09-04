@@ -3745,7 +3745,9 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
                 e.entity_id,
                 EVENT_NAMES[e.event_type] if 0 <= e.event_type < len(EVENT_NAMES) else "TRANSFER",
                 e.magnitude_norm,
-                str(e.chain_id),
+                "0",  # context: every Rust indexer crate passes 0 — passing
+                      # str(chain_id) here folded a non-zero u64 in and the
+                      # verified counter could never match a real batch
                 float(e.timestamp),
                 e.chain_id,
                 e.block_hash,
