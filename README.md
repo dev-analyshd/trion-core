@@ -479,30 +479,42 @@ GET /api/v1/gk/<entity_id>              # Genomic Key living security report
 GET /api/v1/love/<entity_id>             # Love Protocol score & components
 GET /api/v1/bh/stats                     # Behavioral hash ledger statistics
 
-# BTCP Zero-Bridge (22 endpoints)
-GET  /api/v1/btcp/hash_dna               # HashDNA dual-strand computation
-GET  /api/v1/btcp/coherence_7plane       # 7-plane coherence for BTCP
-GET  /api/v1/btcp/mf_score               # Manipulation fingerprint score
+# BTCP Zero-Bridge (26 endpoints)
+POST /api/v1/btcp/hash_dna               # HashDNA dual-strand computation
+POST /api/v1/btcp/coherence_7plane       # 7-plane coherence for BTCP
+POST /api/v1/btcp/mf_score               # Manipulation fingerprint score
 POST /api/v1/btcp/route                   # Create and orchestrate BTCP route
+POST /api/v1/btcp/orchestrate            # Full 6-step orchestrator run + proofs
 GET  /api/v1/btcp/bibl/snapshot           # BIBL engine multi-chain snapshot
+POST /api/v1/btcp/private_bibl            # Private-chain BIBL protocol (gap 9)
 GET  /api/v1/btcp/escrow_states           # Escrow monitoring
-POST /api/v1/btcp/proof                   # Build BTCP consensus proof
+GET  /api/v1/btcp/escrow/<id>             # Persisted escrow state by id
+GET  /api/v1/btcp/proof                   # Build BTCP consensus proof
 GET  /api/v1/btcp/modules                 # BTCP module status
 GET  /api/v1/btcp/integration_status      # Chain integration status
 GET  /api/v1/btcp/pipeline_status         # Full pipeline health
-GET  /api/v1/btcp/orchestrator/status     # Orchestrator status
-POST /api/v1/btcp/mainnet_bootstrap       # Bootstrap new chain integration
+GET  /api/v1/btcp/orchestrator/status     # Orchestrator RPC/indexer plane
+GET  /api/v1/btcp/mainnet_bootstrap       # Bootstrap new chain integration
 POST /api/v1/btcp/streamer/start          # Start BTCP streamer
 GET  /api/v1/btcp/streamer/status         # Streamer status
+POST /api/v1/btcp/bitp/match              # BITP complement match + PASTE
+POST /api/v1/btcp/netting                 # Netting pair search
+POST /api/v1/btcp/aggregate               # Intent aggregation pool
+POST /api/v1/btcp/failure_classify        # Failure classification (8 flags)
+GET  /api/v1/btcp/version                 # Semver compatibility verdicts
+POST /api/v1/btcp/validator_fee           # Validator fee + 60/40 reward split
+POST /api/v1/btcp/sybil                   # Sybil resistance layers 1-5
+POST /api/v1/btcp/sanctions               # Sanctions oracle upsert/delist
+GET  /api/v1/btcp/sanctions/<address>     # Address sanctions status
 
-# Continuum (Digital Continuity endpoints)
-GET /api/v1/continuum/engines             # Continuum engine status
-GET /api/v1/continuum/bid                  # Behavioral identity digest
-GET /api/v1/continuum/cme                  # Continuity maintenance engine
-GET /api/v1/continuum/pmo                  # Pattern maintenance operations
-GET /api/v1/continuum/bdc                  # Behavioral depth computation
+# Continuum (Digital Continuity endpoints — 7)
+GET  /api/v1/continuum/engines             # Continuum engine status
+POST /api/v1/continuum/bid                 # Behavioral identity digest
+POST /api/v1/continuum/cme                 # Continuity maintenance engine
+POST /api/v1/continuum/pmo                 # Pattern maintenance operations
+POST /api/v1/continuum/bdc                 # Behavioral depth computation
 POST /api/v1/continuum/settlement          # Continuum settlement
-GET /api/v1/continuum/ccp                  # Continuity coherence profile
+POST /api/v1/continuum/ccp                 # Continuity coherence profile
 
 # Planes & Coherence
 GET /api/v1/planes/all                   # Raw five-plane breakdown
@@ -688,9 +700,9 @@ Protect the heart. The rest will take care of itself.
 
 ```
 trion-core/
-├── api/                          # Oracle API — Flask, 180+ routes (268 incl. blueprints)
+├── api/                          # Oracle API — Flask, 282 routes (incl. blueprints)
 │   ├── app.py                    # Main application entry point
-│   ├── btcp_continuum_routes.py  # 22 BTCP + Continuum endpoints
+│   ├── btcp_continuum_routes.py  # 33 BTCP + Continuum endpoints (26 BTCP + 7 Continuum)
 │   ├── blockchain.py             # On-chain publishing relay
 │   ├── dashboard_routes.py       # Institutional monitoring
 │   ├── cex_integration.py        # CEX bidirectional data flow
@@ -775,7 +787,7 @@ trion-core/
 │   ├── script/                    # Foundry deployment scripts
 │   ├── test/                      # Foundry tests
 │   └── foundry.toml               # Foundry configuration
-├── indexers/                      # Rust L0 indexers (13 crates)
+├── indexers/                      # Rust L0 indexers (21 crates + shared trion-common)
 ├── schema.sql                     # TimescaleDB schema + thermodynamic triggers
 │                                # + BTCP tables: routes, intents, escrows, clipboard, BLOs
 ├── Dockerfile.railway             # Multi-stage production build
@@ -996,5 +1008,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 84 formulas registered (28 live + 56 synthetic-demo), 18 VM families — test counts as of 2026-09-04: pytest 606 unit + 9 skipped (live-server/env skips by design); 146 Rust `#[test]` (not compiled here); hardhat 43; go 15*  
+*TRION Protocol — Whitepaper v2.0 — 84 formulas registered (28 live + 56 synthetic-demo), 18 VM families — test counts as of 2026-09-04: pytest 691 unit + 9 skipped (live-server/env skips by design); 147 Rust `#[test]` (not compiled here); hardhat 53; go 15*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
