@@ -14,7 +14,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 RPC        = os.environ.get("XRPL_RPC_URL", "https://xrplcluster.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "30"))
-CHAIN_ID   = 70001
+CHAIN_ID   = 31000  # canonical registry id (config/chain_registry.json)
 GENESIS_LEDGER = 32570  # earliest ledger available network-wide (pre-history lost in 2013 restart)
 
 

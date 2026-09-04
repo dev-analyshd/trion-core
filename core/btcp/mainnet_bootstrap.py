@@ -163,17 +163,24 @@ def build_chain_registry() -> List[ChainConfig]:
                                   None, None, None, sym, dec, bt, fin, sym, True, time.time()))
 
     # ── Phase 3: Cross-VM (Solana SVM) ───────────────────────────────────────
-    # FIX-CLAIMS (chain-ID collision, documented not fixed): this registry uses
-    # LOCAL ids that conflict with the canonical config/chain_registry.json /
-    # core/generated_chain_bindings.py: Solana here is 5773521 (canonical: 900),
-    # Aptos 20000 vs canonical 5001, TON 22000 vs canonical 1100, and Cosmos
-    # chains without ids get sha3-derived synthetic ids via _stable_chain_id()
-    # (canonical: 10000+ series). Changing them risks breaking
-    # tests/chain_coverage_audit.py / golden-test consumers and the API display
-    # of this bootstrap plan — orchestrator decision required to reconcile this
-    # registry with the canonical one. Polkadot 25000 here DOES match canonical.
+    # Chain ids here are aligned with the canonical config/chain_registry.json
+    # / core/generated_chain_bindings.py where the chain exists: Solana is the
+    # canonical 900 (was a local 5773521 — a fourth ad-hoc namespace), and the
+    # phase-4 ids below (Sui 20100, Aptos 20000, Polkadot 25000, TON 22000,
+    # NEAR 23000, StarkNet synthetic) already match canonical.
+    # REMAINING divergence, documented (RESTRUCTURE item — this registry is a
+    # 152-chain display artifact, not the live one): Cosmos chains without ids
+    # get sha3-derived synthetic ids via _stable_chain_id() (canonical:
+    # 10000+ series — verified collision-free), and the _gap_native tail
+    # carries legacy ids for chains that ALSO appear with canonical ids in
+    # earlier phases (Aptos Mainnet 5001 vs Aptos 20000, Sui Mainnet 6001 vs
+    # Sui 20100, TON Mainnet 1100 vs TON 22000, NEAR Mainnet 1200 vs NEAR
+    # Protocol 23000, Tron 7001/7002, MultiversX 9000, Dash 2031). None of
+    # those legacy ids collide with any canonical registry id; merging the
+    # duplicate entries is a display-layer reconciliation, not an ingestion
+    # correctness fix.
     chains.extend([
-        ChainConfig(5773521, "Solana", VmFamily.SVM, "https://api.mainnet-beta.solana.com",
+        ChainConfig(900, "Solana", VmFamily.SVM, "https://api.mainnet-beta.solana.com",
                     "https://solscan.io", BootstrapPhase.PHASE_3_CROSS_VM,
                     None, None, None, "SOL", 9, 0.4, 32, "SOL", True, time.time()),
     ])

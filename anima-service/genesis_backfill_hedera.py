@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("HEDERA_API_URL", "https://mainnet-public.mirrornode.hedera.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "40"))
-CHAIN_ID   = 90001
+CHAIN_ID   = 28000  # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_number() -> int:

@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("TRON_API_URL", "https://api.trongrid.io")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "30"))
-CHAIN_ID   = 60001
+CHAIN_ID   = 26000  # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_number() -> int:

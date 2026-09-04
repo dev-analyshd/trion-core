@@ -14,7 +14,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("MULTIVERSX_API_URL", "https://api.multiversx.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "50"))
-CHAIN_ID   = 130001
+CHAIN_ID   = 32000  # canonical registry id (config/chain_registry.json)
 
 
 def get_latest_count() -> int:

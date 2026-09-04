@@ -13,7 +13,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 API        = os.environ.get("TON_API_URL", "https://toncenter.com/api/v2")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "2"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "20"))
-CHAIN_ID   = 1100
+CHAIN_ID   = 22000  # canonical registry id (config/chain_registry.json)
 WORKCHAIN  = -1
 SHARD      = "-9223372036854775808"
 

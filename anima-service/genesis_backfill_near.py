@@ -12,7 +12,7 @@ FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 RPC        = os.environ.get("NEAR_RPC_URL", "https://rpc.mainnet.near.org")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "50"))
-CHAIN_ID   = 1200
+CHAIN_ID   = 23000  # canonical registry id (config/chain_registry.json)
 
 
 def rpc_call(method, params):

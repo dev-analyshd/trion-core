@@ -25,8 +25,11 @@ BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "100"))
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 
 MOVE_CHAINS = {
-    "aptos":    {"api": "https://fullnode.mainnet.aptoslabs.com/v1", "chain_id": 30001},
-    "movement": {"api": "https://mainnet.movementnetwork.xyz/v1",   "chain_id": 30002},
+    # chain_ids are the canonical registry ids (config/chain_registry.json);
+    # the legacy 30xxx ids were re-keyed (movement also fixed in the rust
+    # trion-movement crate: 5002 → 20200).
+    "aptos":    {"api": "https://fullnode.mainnet.aptoslabs.com/v1", "chain_id": 20000},
+    "movement": {"api": "https://mainnet.movementnetwork.xyz/v1",   "chain_id": 20200},
 }
 
 
