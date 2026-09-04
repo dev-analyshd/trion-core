@@ -96,10 +96,14 @@ func (g *APIGateway) handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *APIGateway) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Only check internal services for /health (fast path)
+	// Only check internal services for /health (fast path).
+	// The Oracle (api/app.py) serves /healthz, /readyz and /api/v1/health —
+	// it has no bare /health route, so probing /health would 404 and
+	// report a healthy oracle as DEGRADED. FAISS (anima-service/
+	// faiss_service.py) does serve /health.
 	internal := []Chain{
 		{"FAISS_ANIMA", 0, "http://127.0.0.1:8000/health", "INTERNAL"},
-		{"ORACLE_API", 0, "http://127.0.0.1:5000/health", "INTERNAL"},
+		{"ORACLE_API", 0, "http://127.0.0.1:5000/healthz", "INTERNAL"},
 	}
 	health := RunHealthCheck(internal, 3*time.Second)
 	w.Header().Set("Content-Type", "application/json")
@@ -113,10 +117,13 @@ func (g *APIGateway) handleHealthChains(w http.ResponseWriter, r *http.Request) 
 }
 
 func (g *APIGateway) handleHealthServices(w http.ResponseWriter, r *http.Request) {
+	// FAISS and the Oracle are the only internal HTTP services in the
+	// stack. A third entry (ATTACK_WEBHOOK at 127.0.0.1:6000/health) was
+	// removed: no such service exists anywhere in the repo — nothing
+	// listens on :6000 — so it reported a permanently-DEGRADED phantom.
 	services := []Chain{
 		{"FAISS_ANIMA", 0, "http://127.0.0.1:8000/health", "INTERNAL"},
-		{"ORACLE_API", 0, "http://127.0.0.1:5000/health", "INTERNAL"},
-		{"ATTACK_WEBHOOK", 0, "http://127.0.0.1:6000/health", "INTERNAL"},
+		{"ORACLE_API", 0, "http://127.0.0.1:5000/healthz", "INTERNAL"},
 	}
 	health := RunHealthCheck(services, 3*time.Second)
 	w.Header().Set("Content-Type", "application/json")
