@@ -134,8 +134,15 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    // Self-contained: only the two import-free contracts needed for the test suite.
-    // hardhat/contracts/ holds copies of TRIONExecutionGate.sol and ReentrantAttacker.sol.
+    // Self-contained harness. hardhat/contracts/ holds byte-identical twins of
+    // the canonical contracts under contracts/solidity/ (BTCPEscrow,
+    // TRIONExecutionGate, TRIONOracleV3, TrionEpochRegistry, ReentrantAttacker
+    // + their libraries/ and interfaces/ imports) so this suite compiles and
+    // runs without pointing Hardhat at the full contracts/solidity tree (25+
+    // contracts that have never been validated under this toolchain).
+    // Twin policy: byte-identity, enforced by
+    // tests/contracts/test_solidity_source_sync.py — when a canonical contract
+    // changes, copy it over here (do NOT hand-edit the twins).
     sources:   "./contracts",
     tests:     "./test",
     artifacts: "./hardhat-artifacts",

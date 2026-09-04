@@ -2,9 +2,19 @@
 //
 // Targets now include TRIONOracleV3 (the consensus oracle the escrow binds —
 // S3/C2 fix): deploy scripts need its ABI+bytecode to deploy AND bind it in
-// one flow. TRIONOracleV3 imports ./interfaces/ITRIONOracleV3.sol, which is
-// remapped into the flat standard-JSON source map below (keyed by its
-// import-relative path so solc can resolve it).
+// one flow.
+//
+// Imports are resolved transitively into the flat standard-JSON source map
+// (keyed by import-relative path so solc can resolve them — the solcjs
+// standard-JSON path has no file-system import callback). The stale-artifact
+// incident this fixes: Wave-2 added `import "./libraries/CanonicalCertificate.sol"`
+// and `import "./interfaces/ITrionEpochRegistry.sol"` to BTCPEscrow.sol /
+// TRIONOracleV3.sol while this map still listed only ITRIONOracleV3, so a
+// re-run compiled 0/5 and the committed artifacts silently stayed one
+// revision behind the audited source. The walker below makes that class of
+// drift impossible: any new relative import is picked up automatically, and
+// tests/contracts/test_solidity_source_sync.py pins the committed artifacts
+// against a fresh ABI compile of the source.
 //
 // Artifacts carry the provenance fields the deploy scripts and auditors rely
 // on (compiler + optimizer + updatedAt) and are mirrored to
@@ -29,13 +39,20 @@ const targets = [
   'TRIONOracleV3.sol',
 ];
 const sources = {};
-for (const f of targets) {
-  sources[f] = { content: fs.readFileSync(path.join(SOL_DIR, f), 'utf-8') };
+// Transitive relative-import walker: adds `rel` and everything it imports.
+function addWithImports(rel) {
+  if (sources[rel]) return;
+  const content = fs.readFileSync(path.join(SOL_DIR, rel), 'utf-8');
+  sources[rel] = { content };
+  for (const m of content.matchAll(/import\s+["']([^"']+)["']/g)) {
+    const imp = m[1];
+    if (!imp.startsWith('./')) {
+      throw new Error(`compile.mjs: non-relative import "${imp}" in ${rel} is not supported by the flat source map — remap it here`);
+    }
+    addWithImports(path.posix.normalize(path.posix.join(path.posix.dirname(rel), imp)));
+  }
 }
-// Import-relative source for TRIONOracleV3's `import "./interfaces/ITRIONOracleV3.sol"`.
-sources['interfaces/ITRIONOracleV3.sol'] = {
-  content: fs.readFileSync(path.join(SOL_DIR, 'interfaces', 'ITRIONOracleV3.sol'), 'utf-8'),
-};
+for (const f of targets) addWithImports(f);
 const input = {
   language: 'Solidity',
   sources,
