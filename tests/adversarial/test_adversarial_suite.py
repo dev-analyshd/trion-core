@@ -648,30 +648,42 @@ class TestBoundaries:
         """AWA with validator_hhi > 4000 → status=EMERGENCY, enforced=False."""
         from core.governance.awa import AWAEnforcer, AWA_HHI_MAX
         assert AWA_HHI_MAX == 4000, "AWA_HHI_MAX must be 4000 per whitepaper"
-        aw = AWAEnforcer()
-        state = aw.evaluate(
-            consensus_quorum=1.0,           # all other conditions satisfied
-            validator_hhi=4001,             # ← CRITICAL threshold breached
-            public_good_pct=0.20,
-            akashic_depth=1000,
-        )
-        assert state.validator_hhi > AWA_HHI_MAX, "test setup: HHI must be > 4000"
-        assert state.status == "EMERGENCY", \
-            f"HHI>4000 must trigger EMERGENCY, got {state.status}"
-        assert state.enforced is False, "AWA must NOT enforce when HHI > 4000"
+        import core.governance.awa as _awa
+        _orig = _awa._emission_gate
+        _awa._emission_gate = _awa.EmissionGate()  # isolate the global gate
+        try:
+            aw = AWAEnforcer()
+            state = aw.evaluate(
+                consensus_quorum=1.0,           # all other conditions satisfied
+                validator_hhi=4001,             # ← CRITICAL threshold breached
+                public_good_pct=0.20,
+                akashic_depth=1000,
+            )
+            assert state.validator_hhi > AWA_HHI_MAX, "test setup: HHI must be > 4000"
+            assert state.status == "EMERGENCY", \
+                f"HHI>4000 must trigger EMERGENCY, got {state.status}"
+            assert state.enforced is False, "AWA must NOT enforce when HHI > 4000"
+        finally:
+            _awa._emission_gate = _orig
 
     def test_awa_quorum_below_two_thirds_not_enforced(self):
         """AWA with consensus_quorum < 2/3 → status=SUSPENDED, enforced=False."""
         from core.governance.awa import AWAEnforcer, AWA_QUORUM
         assert abs(AWA_QUORUM - 2.0/3.0) < 1e-9, "AWA_QUORUM must be 2/3"
-        aw = AWAEnforcer()
-        state = aw.evaluate(
-            consensus_quorum=0.5,           # ← below 2/3
-            validator_hhi=1000,             # HHI OK
-            public_good_pct=0.20,
-            akashic_depth=1000,
-        )
-        assert state.consensus_quorum < AWA_QUORUM, "test setup: quorum < 2/3"
-        assert state.enforced is False, "AWA must NOT enforce when quorum < 2/3"
-        assert state.status == "SUSPENDED", \
-            f"quorum<2/3 must trigger SUSPENDED, got {state.status}"
+        import core.governance.awa as _awa
+        _orig = _awa._emission_gate
+        _awa._emission_gate = _awa.EmissionGate()  # isolate the global gate
+        try:
+            aw = AWAEnforcer()
+            state = aw.evaluate(
+                consensus_quorum=0.5,           # ← below 2/3
+                validator_hhi=1000,             # HHI OK
+                public_good_pct=0.20,
+                akashic_depth=1000,
+            )
+            assert state.consensus_quorum < AWA_QUORUM, "test setup: quorum < 2/3"
+            assert state.enforced is False, "AWA must NOT enforce when quorum < 2/3"
+            assert state.status == "SUSPENDED", \
+                f"quorum<2/3 must trigger SUSPENDED, got {state.status}"
+        finally:
+            _awa._emission_gate = _orig

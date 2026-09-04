@@ -238,13 +238,10 @@ def test_fully_proven_route_derives_gate_and_labels_caller_economics(client):
 # ════════════════════════════════════════════════════════════════════════════
 
 def test_get_registered_write_routes_bypass_api_key(full_app_client, monkeypatch):
-    """P-API-02 CONFIRMED: with TRION_API_KEY enforced, an UNAUTHENTICATED
-    GET still enters the full write path of /api/v1/publish/<id> (chain
-    publication + feed push) and /api/v1/zg/da/submit (external DA
-    submission) — the middleware's method model assumes GET is
-    side-effect-free. POST control → 401.
-    TODO(Wave-5): drop GET from the write routes (or make the middleware
-    path-aware for the known write paths on every method)."""
+    """P-API-02 FIXED (Wave 5): the middleware is now PATH-AWARE — the
+    write-path set (publish, zg/da/submit, zg/storage/store) requires the
+    X-API-Key on EVERY method, GET included. Unauthenticated GET gets 401;
+    an authenticated GET still works (the write path runs with the key)."""
     import api.app as api_app
     monkeypatch.setattr(api_app, "_TRION_API_KEY", "w4p-redteam-key")
 
@@ -252,23 +249,23 @@ def test_get_registered_write_routes_bypass_api_key(full_app_client, monkeypatch
     r = full_app_client.post("/api/v1/publish/some-entity-id")
     assert r.status_code == 401
 
-    # ATTACK: GET without a key enters the publication path (not 401/403).
-    # In this test env the relay is unconfigured, so the response honestly
-    # reports 'chain relay not configured' — in production the relay IS
-    # configured and this is an unauthenticated on-chain publication.
+    # FIXED: GET without a key on the publication write path → 401
     r = full_app_client.get("/api/v1/publish/some-entity-id")
-    assert r.status_code == 200
-    body = r.get_json()
-    assert "chain" in body            # the publication path ran
+    assert r.status_code == 401
 
-    # ATTACK: GET on a 0G write route — the module actually executes
-    # (the response is the module's own result, not an auth rejection).
+    # FIXED: GET without a key on a 0G write route → 401
     r = full_app_client.get("/api/v1/zg/da/submit?id=trion-protocol")
-    assert r.status_code == 200
+    assert r.status_code == 401
 
-    # ATTACK: GET on the storage-store write route
+    # FIXED: GET without a key on the storage-store write route → 401
     r = full_app_client.get("/api/v1/zg/storage/store?id=trion-protocol")
+    assert r.status_code == 401
+
+    # authenticated GET still reaches the write path (the key gates it)
+    r = full_app_client.get("/api/v1/publish/some-entity-id",
+                            headers={"X-API-Key": "w4p-redteam-key"})
     assert r.status_code == 200
+    assert "chain" in r.get_json()
 
 
 def test_write_method_auth_matrix(full_app_client, monkeypatch):

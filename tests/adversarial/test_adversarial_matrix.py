@@ -133,10 +133,20 @@ class TestSecurityAdversarial:
 
     def test_chameleon_freeze(self):
         from core.novel.chameleon import ChameleonProtocol, ThreatLevel
-        cp = ChameleonProtocol()
-        assert cp.emission_allowed
-        cp.adapt(ThreatLevel.WEAPONIZATION_ATTEMPT)
-        assert not cp.emission_allowed
+        import core.governance.awa as awa
+        # adapt(WEAPONIZATION) freezes the PROCESS-GLOBAL emission gate (the
+        # canonical wiring) — swap in a throwaway singleton so this test
+        # cannot leak the frozen state into later tests (ordering flake).
+        original = awa._emission_gate
+        awa._emission_gate = awa.EmissionGate()
+        try:
+            cp = ChameleonProtocol()
+            assert cp.emission_allowed
+            cp.adapt(ThreatLevel.WEAPONIZATION_ATTEMPT)
+            assert not cp.emission_allowed
+            assert awa._emission_gate.is_frozen()  # the global wiring itself
+        finally:
+            awa._emission_gate = original
 
 
 class TestMasterAdversarial:

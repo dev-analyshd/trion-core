@@ -268,10 +268,9 @@ def _release_args(h, vals, epoch, power, theta, escrow_id, route_id,
 class TestCrossChainCertificateConfusion:
 
     def test_cert_for_foreign_dest_chain_settles_here(self, evm):
-        """P-EVM-01 CONFIRMED: a certificate whose dest_chain points at a
-        DIFFERENT chain than this EVM deployment still releases the escrow.
-        TODO(Wave-5): bind self-chain/escrow dest_chain in
-        BTCPEscrow._checkCanonicalBinding per CANONICAL_CERTIFICATE.md §8."""
+        """P-EVM-01 FIXED (Wave 5): a certificate whose dest_chain points at a
+        DIFFERENT chain than this EVM deployment is REJECTED —
+        CERT_DEST_CHAIN_NOT_THIS_CHAIN fires and no funds move."""
         h, escrow = evm.h, evm.escrowA
         epoch = _fresh_epoch(evm)
         escrow_id = h.w3.keccak(text="p-evm-01-wrong-chain")
@@ -287,12 +286,11 @@ class TestCrossChainCertificateConfusion:
             entity_id, h.dest, amount, dest_chain=999)
 
         dest_before = h.balance(h.dest)
-        rcpt = h.tx(escrow.functions.releaseEscrowCanonical(payload, env, sigs),
-                    gas=5_000_000)
-        assert rcpt["status"] == 1
-        # CURRENT (broken) behavior: the release SUCCEEDS despite
-        # dest_chain=999 != the deployment's chain id.
-        assert h.balance(h.dest) - dest_before == amount
+        # FIXED: the release is REJECTED despite a full valid quorum
+        assert h.must_revert(
+            escrow.functions.releaseEscrowCanonical(payload, env, sigs),
+            gas=5_000_000)
+        assert h.balance(h.dest) - dest_before == 0  # nothing moved
         assert evm.chain_id != 999  # sanity: it really is a foreign chain
 
     def test_same_cert_double_pay_across_two_deployments(self, evm):
@@ -667,11 +665,9 @@ class TestEscrowStateMachineBypass:
             gas=3_000_000)  # SETTLEMENT_NOT_VERIFIED
 
     def test_expired_escrow_akashic_flip_extends_release_window(self, evm):
-        """P-EVM-02 CONFIRMED: enterPendingAkashic has no expiry check —
-        a block-expired escrow becomes canonically releasable for the full
-        24 h wall-clock Akashic window (measured from LOCK time).
-        TODO(Wave-5): reject enterPendingAkashic on expired escrows (or
-        measure the window from state entry)."""
+        """P-EVM-02 FIXED (Wave 5): enterPendingAkashic REJECTS block-expired
+        escrows — the expiry path (revert/refund) is the only road for an
+        expired escrow; the Akashic window can no longer extend its life."""
         h, escrow = evm.h, evm.escrowA
         # timeout_blocks=1: expires after the very next block
         escrow_id, payload, env, sigs = self._armed_escrow(
@@ -682,14 +678,15 @@ class TestEscrowStateMachineBypass:
         assert h.must_revert(
             escrow.functions.releaseEscrow(escrow_id, b"\x00" * 32, 900_000),
             gas=3_000_000)
-        # ATTACK: relayer flips the expired escrow to PENDING_AKASHIC …
-        h.tx(escrow.functions.enterPendingAkashic(escrow_id))
+        # FIXED: the flip itself is REJECTED on an expired escrow
+        assert h.must_revert(
+            escrow.functions.enterPendingAkashic(escrow_id), gas=3_000_000)
         dest_before = h.balance(h.dest)
-        # … and the canonical release SUCCEEDS (current behavior)
-        rcpt = h.tx(escrow.functions.releaseEscrowCanonical(payload, env, sigs),
-                    gas=5_000_000)
-        assert rcpt["status"] == 1
-        assert h.balance(h.dest) - dest_before == h.w3.to_wei(1, "ether")
+        # … so the canonical release has no PENDING_AKASHIC window to use
+        assert h.must_revert(
+            escrow.functions.releaseEscrowCanonical(payload, env, sigs),
+            gas=5_000_000)
+        assert h.balance(h.dest) - dest_before == 0  # nothing moved
 
     def test_akashic_window_expiry_blocks_canonical_release(self, evm):
         """PINNED DEFENSE: PENDING_AKASHIC beyond the 24 h window is NOT
@@ -937,21 +934,20 @@ class TestPyCanonicalMath:
 class TestBhPipelineEdges:
 
     def test_nan_magnitude_forges_max_magnitude(self):
-        """P-PY-01 CONFIRMED: canonical_magnitude_norm(NaN) == 1.0 — a NaN
-        raw value forges the MAXIMUM magnitude (NaN <= 0 is False; Python's
-        min(1.0, nan) returns 1.0). TODO(Wave-5): clamp or reject NaN in
-        canonical_magnitude_norm (and check the rust twin for parity)."""
+        """P-PY-01 FIXED (Wave 5): canonical_magnitude_norm(NaN) RAISES —
+        malformed magnitude fails closed, never forges the maximum."""
         from core.primitives.behavioral_hash import canonical_magnitude_norm
-        assert canonical_magnitude_norm(float("nan"), 18) == 1.0
+        with pytest.raises(ValueError):
+            canonical_magnitude_norm(float("nan"), 18)
         # controls: negative → 0, huge → 1, zero → 0
         assert canonical_magnitude_norm(-5, 18) == 0.0
         assert canonical_magnitude_norm(10**30, 18) == 1.0
         assert canonical_magnitude_norm(0, 18) == 0.0
 
     def test_chain_id_masking_aliases_2p32_offset(self):
-        """P-PY-02 CONFIRMED (low): BH payload chain_id is MASKED
-        (& 0xFFFFFFFF), not validated — chain 2**32+1 produces the SAME
-        dual-strand BH as chain 1. TODO(Wave-5): validate, don't mask."""
+        """P-PY-02 FIXED (Wave 5): chain_id is VALIDATED (u32 range), not
+        masked — chain 2**32+1 is malformed input and raises; it can never
+        alias chain 1's dual-strand BH identity."""
         from core.primitives.behavioral_hash import (
             BehavioralEvent, EventType, compute_behavioral_hash)
 
@@ -963,9 +959,8 @@ class TestBhPipelineEdges:
                 block_number=1, block_hash=b"\x05" * 32, chain_id=chain_id))
 
         a = bh_for(1)
-        b = bh_for(2**32 + 1)
-        assert a["sense_hex"] == b["sense_hex"]
-        assert a["antisense_hex"] == b["antisense_hex"]  # aliased identity
+        with pytest.raises(ValueError):
+            bh_for(2**32 + 1)  # out-of-range ids no longer alias u32 ids
 
     def test_rust_hex_payload_width_strict(self):
         from core.primitives.behavioral_hash import bh_from_rust_hex
