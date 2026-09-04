@@ -1,0 +1,1348 @@
+{
+  "schema_version": "1.0.0",
+  "canonical_doc": "docs/protocol/CANONICAL_BH.md",
+  "machine_readable_twin": "config/bh_schema_v1.json",
+  "description": "Cross-language golden vectors for the canonical 93-byte TRION Behavioral Hash. Every implementation (Python core/streamer/FAISS, Rust trion-common + 21 indexer crates, TypeScript chains/shared/canonical_bh.ts) must reproduce payload_hex \u2192 sense/antisense byte-for-byte. Verified by tests/golden/test_golden_vectors.py: (a) Python doc-exact rebuild + repo builders, (b) static Rust source-order verification, (c) live TypeScript execution.",
+  "payload_layout": [
+    {
+      "field": "entity_id",
+      "offset": 0,
+      "width": 32,
+      "type": "bytes"
+    },
+    {
+      "field": "event_type",
+      "offset": 32,
+      "width": 1,
+      "type": "uint8"
+    },
+    {
+      "field": "magnitude_nano",
+      "offset": 33,
+      "width": 8,
+      "type": "uint64_be_truncated"
+    },
+    {
+      "field": "context",
+      "offset": 41,
+      "width": 8,
+      "type": "uint64_be"
+    },
+    {
+      "field": "timestamp_secs",
+      "offset": 49,
+      "width": 8,
+      "type": "uint64_be"
+    },
+    {
+      "field": "chain_id",
+      "offset": 57,
+      "width": 4,
+      "type": "uint32_be"
+    },
+    {
+      "field": "block_hash",
+      "offset": 61,
+      "width": 32,
+      "type": "bytes_lenient_hex32"
+    }
+  ],
+  "magnitude_rule": "min(1, log10(raw/10^decimals + 1) / log10(1001)); nano = trunc(M * 10^9)",
+  "timestamp_rule": "block time in unix seconds; 0 when unknown; never wall-clock",
+  "vectors": [
+    {
+      "id": "ref_schema_v1_vector",
+      "description": "config/bh_schema_v1.json::test_vector \u2014 the frozen single-vector check (tests/unit/bh_cross_language_vector.py pins the same digests)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 7,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 421614,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab07000000001dcd65000000000000000000000000006553f10000066eeecccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "7060238abdea90bae178e94f0672d8c10742718456eb0b34315d7466010d0bba",
+        "antisense": "e739204873a080f002bc7cbe2858d02513d373b60aa0941a79cd4403f4405b68"
+      },
+      "tags": [
+        "reference"
+      ]
+    },
+    {
+      "id": "ref_cross_lang_rust_vector",
+      "description": "Rust hash_dna.rs::cross_language_canonical_bh_vector + scripts/cross_lang_bh_check.py parity vector (SWAP, chain 1)",
+      "input": {
+        "entity_id_hex": "deadbeef000000000000000000000000deadbeef000000000000000000000000",
+        "event_type": 1,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "abababababababababababababababababababababababababababababababab"
+      },
+      "expected": {
+        "payload_hex": "deadbeef000000000000000000000000deadbeef00000000000000000000000001000000001dcd65000000000000000000000000006553f10000000001abababababababababababababababababababababababababababababababab",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "a6639d2a18029b1f6fb1f00a4ed028db1ad800f8d19870f944eb8edbe6db2164",
+        "antisense": "63f44f42ce862414c3a15b4f8fe64f6151d93f50157c27cc4c57d35e7d2fb4a9"
+      },
+      "tags": [
+        "reference"
+      ]
+    },
+    {
+      "id": "plain_transfer_eth",
+      "description": "Plain 1.5 ETH ERC20/native transfer on Ethereum (18 dp)",
+      "input": {
+        "entity_id_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "magnitude_raw": 1500000000000000000,
+        "decimals": 18,
+        "sender_address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+      },
+      "expected": {
+        "payload_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38000000000007e7bc170000000000000000000000006553f100000000011111111111111111111111111111111111111111111111111111111111111111",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "60bf0cd3d5d910008bfab38c579256a34ff476f4a94f16162a73fbc3e136cb41",
+        "antisense": "2699f13492b1892f96468a443b3bdcfc486fd9838e17e5685ebf0acff97941ea"
+      },
+      "tags": [
+        "transfer",
+        "eth",
+        "18dp"
+      ]
+    },
+    {
+      "id": "swap_polygon",
+      "description": "DEX swap of 250 POL-units on Polygon (18 dp, registry id 137)",
+      "input": {
+        "entity_id_hex": "5e7efb478e49bc3338b28e88154847ff5985e3e486a04d3a5ead1b744baa1176",
+        "event_type": 1,
+        "magnitude_norm": 0.7997755189799127,
+        "context": 0,
+        "timestamp": 1700000123,
+        "chain_id": 137,
+        "block_hash_hex": "abababababababababababababababababababababababababababababababab",
+        "magnitude_raw": 250000000000000000000,
+        "decimals": 18,
+        "sender_address": "0xa85B49C73B5710d9ddB1CB5a94c52D0F33c4199b"
+      },
+      "expected": {
+        "payload_hex": "5e7efb478e49bc3338b28e88154847ff5985e3e486a04d3a5ead1b744baa117601000000002fab9b1e0000000000000000000000006553f17b00000089abababababababababababababababababababababababababababababababab",
+        "payload_len": 93,
+        "magnitude_nano": 799775518,
+        "sense": "ab6ca01057a51fc9b5b122864ecdb6e6af5110c905c6e505eacd9321acde069e",
+        "antisense": "7a50390d9712f296a892d2dc9b0a288025affcd225e6797317b03b7dd026be88"
+      },
+      "tags": [
+        "swap",
+        "18dp"
+      ]
+    },
+    {
+      "id": "mev_capture_base",
+      "description": "MEV sandwich capture on Base (byte 16; registry id 8453)",
+      "input": {
+        "entity_id_hex": "5cd1a6990464e10edfdca67fa99cc0a20ab7d1f47cd2527a1a5ccf1951828778",
+        "event_type": 16,
+        "magnitude_norm": 0.20771970798355138,
+        "context": 0,
+        "timestamp": 1700000456,
+        "chain_id": 8453,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 3200000000000000000,
+        "decimals": 18,
+        "sender_address": "0x0471B2BE25c2eBbAe7FAc17383F1692979F0A87C"
+      },
+      "expected": {
+        "payload_hex": "5cd1a6990464e10edfdca67fa99cc0a20ab7d1f47cd2527a1a5ccf195182877810000000000c618d1b0000000000000000000000006553f2c800002105cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 207719707,
+        "sense": "0e6078d0d3265e470803f523a85e58d49f503d14646d9faa087d91a424a5e3ac",
+        "antisense": "9f60b7d3d577ff433408845d091f5abd257fe6e910c6667217dc6e239907c536"
+      },
+      "tags": [
+        "mev",
+        "18dp"
+      ]
+    },
+    {
+      "id": "flash_loan_eth",
+      "description": "AAVE-style flash loan of 1000 ETH on Ethereum \u2014 clamps magnitude to 1.0",
+      "input": {
+        "entity_id_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38",
+        "event_type": 17,
+        "magnitude_norm": 1.0,
+        "context": 0,
+        "timestamp": 1700000789,
+        "chain_id": 1,
+        "block_hash_hex": "abababababababababababababababababababababababababababababababab",
+        "magnitude_raw": 1000000000000000000000,
+        "decimals": 18,
+        "sender_address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+      },
+      "expected": {
+        "payload_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f3811000000003b9aca000000000000000000000000006553f41500000001abababababababababababababababababababababababababababababababab",
+        "payload_len": 93,
+        "magnitude_nano": 1000000000,
+        "sense": "6524b1773432e9f9d1a9b4764e4dca4e3781bde108ce3d385c236681a26285ae",
+        "antisense": "f529d6af4a140b818b6d5eee7951f14fa197115dad6e88b071789e245d792b94"
+      },
+      "tags": [
+        "flash-loan",
+        "clamp"
+      ]
+    },
+    {
+      "id": "magnitude_max_u128_raw",
+      "description": "Max u128-able raw amount (2^128-1 wei, 18 dp) \u2014 clamps to 1.0",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 1.0,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 340282366920938463463374607431768211455,
+        "decimals": 18
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000003b9aca000000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 1000000000,
+        "sense": "cb2557eace5b6b70eddd586323e075aca28a8c88cea778b063dd67f80d6150f2",
+        "antisense": "d0e27bfa2d9ae00bc6d3e5e06bc22c00c2679d7e254159614b9cda2d8124e76a"
+      },
+      "tags": [
+        "max",
+        "clamp"
+      ]
+    },
+    {
+      "id": "magnitude_max_u64_raw",
+      "description": "Max u64 raw amount (2^64-1 wei, 18 dp) \u2014 clamps to 1.0",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.4295534797569433,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 18446744073709551615,
+        "decimals": 18
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab0000000000199a77470000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 429553479,
+        "sense": "5c1a8d2ab9892e5db2615af38cd861d3f7133bd20fdabcceb3f225ff7ff799f9",
+        "antisense": "8ececdb662cb14deb3075c8485b07420b89d1522f2c1e752df276eb22ef2075a"
+      },
+      "tags": [
+        "max",
+        "clamp"
+      ]
+    },
+    {
+      "id": "zero_value_transfer",
+      "description": "Zero-value tx \u2014 magnitude_nano 0, still a valid canonical event",
+      "input": {
+        "entity_id_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38",
+        "event_type": 0,
+        "magnitude_norm": 0.0,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 0,
+        "decimals": 18,
+        "sender_address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+      },
+      "expected": {
+        "payload_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f380000000000000000000000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 0,
+        "sense": "4cb8b0f56e6b1616a61684e3bbdb666fa7f69058fbdadaf8f21ed6960519a81e",
+        "antisense": "4671c9b53f42303e4c2f7a3daa92071317152f9b23212b3925827b38b57e9695"
+      },
+      "tags": [
+        "zero"
+      ]
+    },
+    {
+      "id": "minimal_all_zero",
+      "description": "Minimal payload: every field zero (entity 0x00*32, TRANSFER, ts 0, chain 0, block hash 0x00*32)",
+      "input": {
+        "entity_id_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "event_type": 0,
+        "magnitude_norm": 0.0,
+        "context": 0,
+        "timestamp": 0,
+        "chain_id": 0,
+        "block_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "magnitude_raw": 0,
+        "decimals": 18
+      },
+      "expected": {
+        "payload_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "payload_len": 93,
+        "magnitude_nano": 0,
+        "sense": "7884d94d01a8e21274e563201d7a88480ba02645c42e7ad13675b15ea40b15b0",
+        "antisense": "f2b5ae721aa927304f7f6b6b54a2ec6263375855d9cfdf04e89320c3653a7873"
+      },
+      "tags": [
+        "minimal",
+        "zero"
+      ]
+    },
+    {
+      "id": "magnitude_truncation_edge",
+      "description": "Truncation edge: 0.1234567895 \u00d7 1e9 = 123456789.5 \u2014 MUST truncate to 123456789 (a rounding implementation produces 123456790 and fails here)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.1234567895,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab0000000000075bcd150000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 123456789,
+        "sense": "fc739a0d3d7a921c7f25a31cfdd7adb645f5f12c6cd02e70256282a48c9f0dce",
+        "antisense": "bdf2f271662e6f758866f74672133bfaae491ce683011482c4576c516de28b40"
+      },
+      "tags": [
+        "truncation",
+        "edge"
+      ]
+    },
+    {
+      "id": "decimals_18dp_usdc_ethlike",
+      "description": "1.5 units at 18 dp (raw 15\u00d710^17) \u2014 the ETH-family normalization",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000000000000000,
+        "decimals": 18
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "1c3439973ff562f214e7c59d0e0946e322c441657699645f712d7b53dec795a6",
+        "antisense": "0e1a332de309fb7b88f58381c46c7881edc1d4f3f6004cb84d5d673a0b844c00"
+      },
+      "tags": [
+        "decimals",
+        "18dp"
+      ]
+    },
+    {
+      "id": "decimals_6dp_usdc",
+      "description": "1.5 units at 6 dp (raw 1_500_000, USDC-style) \u2014 same human amount, same magnitude_nano as the 18dp vector",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "1c3439973ff562f214e7c59d0e0946e322c441657699645f712d7b53dec795a6",
+        "antisense": "0e1a332de309fb7b88f58381c46c7881edc1d4f3f6004cb84d5d673a0b844c00"
+      },
+      "tags": [
+        "decimals",
+        "6dp"
+      ]
+    },
+    {
+      "id": "decimals_9dp_sol",
+      "description": "3 SOL at 9 dp (raw 3\u00d710^9 lamports, registry id 900)",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.20065763012322413,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 900,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 3000000000,
+        "decimals": 9
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010100000000000bf5cade0000000000000000000000006553f10000000384cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 200657630,
+        "sense": "9606f4d5c7a82d24e7db68e0d5da7b74ae48517b40cad16ae62399a01b60ef74",
+        "antisense": "49b0a9bba84d93ae0f4a39cf6f35883bb65248188f55f7f904b9cbbcc65b61cd"
+      },
+      "tags": [
+        "decimals",
+        "9dp",
+        "solana"
+      ]
+    },
+    {
+      "id": "decimals_6dp_cosmos",
+      "description": "12.34 ATOM at 6 dp (raw 12_340_000 uatom, registry id 10000)",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.3749976838437256,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 10000,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 12340000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010000000000165a02b30000000000000000000000006553f10000002710cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 374997683,
+        "sense": "e3a35d1d922ec34e862b690f1c0e72b27092c96679cb8bccfeeb83312c87a0b3",
+        "antisense": "f19081b54c8606e318334eb3ee8e0dd5bfd5056d17686d892bd3ce7e8eee59da"
+      },
+      "tags": [
+        "decimals",
+        "6dp",
+        "cosmos"
+      ]
+    },
+    {
+      "id": "decimals_7dp_stellar",
+      "description": "5 XLM at 7 dp (raw 50_000_000 stroops, registry id 27000)",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.2593462246760551,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 27000,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 50000000,
+        "decimals": 7
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010100000000000f754f300000000000000000000000006553f10000006978cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 259346224,
+        "sense": "0ed0a472e68d773684a2f7f450252d2adb4553dc663bfbe5ddf6079a897cd765",
+        "antisense": "ae192acf76c4027a1f3bc3ef4853e186bca0d7b88d8aa785844bb6a749cd3764"
+      },
+      "tags": [
+        "decimals",
+        "7dp",
+        "stellar"
+      ]
+    },
+    {
+      "id": "chain_id_1",
+      "description": "Identical event on chain_id 1 (registry semantics; u32 max case) \u2014 digests must differ across chain ids",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "1c3439973ff562f214e7c59d0e0946e322c441657699645f712d7b53dec795a6",
+        "antisense": "0e1a332de309fb7b88f58381c46c7881edc1d4f3f6004cb84d5d673a0b844c00"
+      },
+      "tags": [
+        "chain-id"
+      ]
+    },
+    {
+      "id": "chain_id_900",
+      "description": "Identical event on chain_id 900 (registry semantics; u32 max case) \u2014 digests must differ across chain ids",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 900,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000000384cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "07346fc09f58bf1cffe2b715edc521b403af1e8de82b3542b9b0675a4af9e255",
+        "antisense": "ad059fc8d4074f1b5b02e53dd89b9f0a82451764a3fa1a2fbc52fe0c34b3c08c"
+      },
+      "tags": [
+        "chain-id"
+      ]
+    },
+    {
+      "id": "chain_id_421614",
+      "description": "Identical event on chain_id 421614 (registry semantics; u32 max case) \u2014 digests must differ across chain ids",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 421614,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000066eeecccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "ecf08e6db29a68eeeb4f707233048e82d30d20596a75fa69d68b149113b96fb0",
+        "antisense": "d7f8e5943fce3e2f37e6d1ffc11e0fc4c880bccea1f08f08af974217ddad9b41"
+      },
+      "tags": [
+        "chain-id"
+      ]
+    },
+    {
+      "id": "chain_id_10000",
+      "description": "Identical event on chain_id 10000 (registry semantics; u32 max case) \u2014 digests must differ across chain ids",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 10000,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f10000002710cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "338ab50f74b7f26085ab3620be7030fd6c80d877abde1d8a622e641599bda80c",
+        "antisense": "584872b3ca0c365bde795cb90ac7a399c2980bc022379979d942bdbcf5485481"
+      },
+      "tags": [
+        "chain-id"
+      ]
+    },
+    {
+      "id": "chain_id_4294967295",
+      "description": "Identical event on chain_id 4294967295 (registry semantics; u32 max case) \u2014 digests must differ across chain ids",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 4294967295,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6
+      },
+      "expected": {
+        "payload_hex": "0101010101010101010101010101010101010101010101010101010101010101000000000007e7bc170000000000000000000000006553f100ffffffffcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "07f182ef8b1545ac05d18dc7e7fd7e6d53eccbeadcb627e813b8e71abe49074d",
+        "antisense": "e8c16797a8ec1355d5afc43df9fbe3ce6578d1c05256d270bf8022bd62eb5017"
+      },
+      "tags": [
+        "chain-id"
+      ]
+    },
+    {
+      "id": "block_hash_short_0x0",
+      "description": "Block hash '0x0' (families without a hash in the payload) \u2192 32 zero bytes",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "0x0"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd65000000000000000000000000006553f100000000010000000000000000000000000000000000000000000000000000000000000000",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "80de66dac4f1757b22c91cbd22d19d4927423d200cecaed531abcd5af1521c80",
+        "antisense": "cb9c1d406647093d052f1a66563b53ea429ac388373d0b183cd9ae2ffe674b70"
+      },
+      "tags": [
+        "block-hash",
+        "lenient"
+      ]
+    },
+    {
+      "id": "block_hash_odd_length",
+      "description": "Odd-length hex (19 chars) \u2014 9 bytes left-aligned, 19th nibble dropped, zero-padded right",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "abcdef123456789abcd"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd65000000000000000000000000006553f10000000001abcdef123456789abc0000000000000000000000000000000000000000000000",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "907cce15309120b22d4b9483977d5e9ad9cbbd77e86ab72b84ee86b1125e95ad",
+        "antisense": "b007973b616ed725202951ad476964d5d1363c9881e6953ceaa437bcdfa332dc"
+      },
+      "tags": [
+        "block-hash",
+        "lenient"
+      ]
+    },
+    {
+      "id": "block_hash_invalid_nibbles",
+      "description": "Invalid hex chars decode as 0 ('zz' + '11'\u00d731 \u2192 first byte 0x00, rest 0x11)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "zz11111111111111111111111111111111111111111111111111111111111111"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd65000000000000000000000000006553f100000000010011111111111111111111111111111111111111111111111111111111111111",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "252770b2f9954afa589f776e9e3ca56bdfceefed5c47d427c9c31232c61fdbd3",
+        "antisense": "e936d5f7b9bc9563c42d371d63a3c0708c01d19e612e26b96c31b4c407a75ad1"
+      },
+      "tags": [
+        "block-hash",
+        "lenient"
+      ]
+    },
+    {
+      "id": "block_hash_uppercase",
+      "description": "Uppercase hex decodes identically to lowercase ('AB'\u00d732)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd65000000000000000000000000006553f10000000001abababababababababababababababababababababababababababababababab",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "ed72f9f222951aa0d1ca9676df84911c3f5973a667026a5aa4a6f3034d0dd7b8",
+        "antisense": "4e57227d43e23f3e7fcde50bf8f0cb575095a3b69fe6dfe28f69f809303f8db6"
+      },
+      "tags": [
+        "block-hash",
+        "case"
+      ]
+    },
+    {
+      "id": "entity_bh_id_pinned",
+      "description": "entity_id = SHA3-256(normalise(addr)) \u2014 the pinned bh_id vector (Rust cross_language_bh_id_vector / TS entityIdFromAddr)",
+      "input": {
+        "entity_id_hex": "f9769049b9d4b778ba5c676f396b98b6578831524d0744264eaff84375f6826e",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sender_address": "0xDEADBEEF000000000000000000000000DEADBEEF"
+      },
+      "expected": {
+        "payload_hex": "f9769049b9d4b778ba5c676f396b98b6578831524d0744264eaff84375f6826e00000000001dcd65000000000000000000000000006553f10000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "9f3a385549cb6dd745eb57561a5a18b0c6d7d7a65e3560501c499c7f32e7c979",
+        "antisense": "eba967e33da79f0ce953bcee08895af37edf74cd8d623cd2ef9f5e87c92853eb"
+      },
+      "tags": [
+        "entity",
+        "bh_id"
+      ]
+    },
+    {
+      "id": "entity_case_insensitive",
+      "description": "Same address in upper vs lower case must produce the identical entity and identical digests (this vector uses the UPPERCASE form)",
+      "input": {
+        "entity_id_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 1,
+        "block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "magnitude_raw": 1500000000000000000,
+        "decimals": 18,
+        "sender_address": "0x742D35CC6634C0532925A3B844BC454E4438F44E"
+      },
+      "expected": {
+        "payload_hex": "7345a4013067902f6ea4f8472f143ef0e752097ea98d46486ba576d39af89f38000000000007e7bc170000000000000000000000006553f100000000011111111111111111111111111111111111111111111111111111111111111111",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "60bf0cd3d5d910008bfab38c579256a34ff476f4a94f16162a73fbc3e136cb41",
+        "antisense": "2699f13492b1892f96468a443b3bdcfc486fd9838e17e5685ebf0acff97941ea"
+      },
+      "tags": [
+        "entity",
+        "case"
+      ]
+    },
+    {
+      "id": "entity_non_evm_passthrough",
+      "description": "Non-EVM address forms pass through normalise unchanged (cosmos1\u2026 bech32 \u2192 sha3 of the raw string)",
+      "input": {
+        "entity_id_hex": "c6ecc950465fb55789195bf5c332d6f81d8f8dad5cd5faa70f8741099bae094f",
+        "event_type": 0,
+        "magnitude_norm": 0.13262747935670335,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 10000,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 1500000,
+        "decimals": 6,
+        "sender_address": "cosmos1x2z9stu7e8f7q3wjt8h8m0e6y5x4w3v2u1t0s9"
+      },
+      "expected": {
+        "payload_hex": "c6ecc950465fb55789195bf5c332d6f81d8f8dad5cd5faa70f8741099bae094f000000000007e7bc170000000000000000000000006553f10000002710cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 132627479,
+        "sense": "9757f1d4063ebf06d7f4ad09522d13916d54963cbc28009df03224426658812d",
+        "antisense": "5e46f52ba72126d68e4e77a789d7a637b0aac2215f2a403008c2c02700f9af6e"
+      },
+      "tags": [
+        "entity",
+        "non-evm"
+      ]
+    },
+    {
+      "id": "entity_synthetic_tx_sender",
+      "description": "Non-EVM chains without an address use the deterministic per-tx sender SHA3-256('<chain>:<tx_hash>')",
+      "input": {
+        "entity_id_hex": "d8396cbbe8631a39b2d0c1d55a0e7932ee2ac0441543a90165ed3cd9ab2af95f",
+        "event_type": 0,
+        "magnitude_norm": 0.20065763012322413,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 900,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "magnitude_raw": 3000000000,
+        "decimals": 9,
+        "sender_address": "solana:5AbC\u2026txhashDEADBEEF0000000000000000"
+      },
+      "expected": {
+        "payload_hex": "d8396cbbe8631a39b2d0c1d55a0e7932ee2ac0441543a90165ed3cd9ab2af95f00000000000bf5cade0000000000000000000000006553f10000000384cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 200657630,
+        "sense": "0971532180406870e51e3b25433a6c941bf5d2b09d02ac474d046af377ed5749",
+        "antisense": "9a4922e68f07edabf97fae8293141c68dc43507b500f16dbb8513ed31560210b"
+      },
+      "tags": [
+        "entity",
+        "synthetic"
+      ]
+    },
+    {
+      "id": "context_nonzero_venue",
+      "description": "Non-zero context u64: venue=DEX (bit 0) + settlement=L2 (bits 2-3 \u2192 4)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 1,
+        "magnitude_norm": 0.5,
+        "context": 5,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab01000000001dcd65000000000000000005000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "8501389b77fb8377ea6bfae52e3ac1cf10b0749e6149abcc4da0744367b26ae1",
+        "antisense": "9be3e67bfb081cfdace081a891e9d7fcbac4e5aee24b189bda6837990d9d293a"
+      },
+      "tags": [
+        "context"
+      ]
+    },
+    {
+      "id": "timestamp_zero_unknown",
+      "description": "timestamp 0 \u2014 deterministic 'unknown block time' (families whose payload carries no block time)",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 0,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd65000000000000000000000000000000000000000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "d78a77df9507b52f6fb03ee10170ad5ee54f166e76a6e70fdc115819904211dd",
+        "antisense": "a5dc012a1c770914a33c10ce4570a9552b94dbf1ed7f98e6ec7cc239380111f6"
+      },
+      "tags": [
+        "timestamp",
+        "zero"
+      ]
+    },
+    {
+      "id": "timestamp_max_year9999",
+      "description": "Large timestamp (year 9999) \u2014 full u64 field width",
+      "input": {
+        "entity_id_hex": "abababababababababababababababababababababababababababababababab",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 253402300799,
+        "chain_id": 1,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "abababababababababababababababababababababababababababababababab00000000001dcd650000000000000000000000003afff4417f00000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "53ea62b830c0ac0101d9ea77de98620f264a0130ae0581ed61a6b4792099dc7b",
+        "antisense": "0d496a98c30fb4f0c2e84d5885bfa1479e46e0a864a94a3b140b2a03a5be4b37"
+      },
+      "tags": [
+        "timestamp",
+        "max"
+      ]
+    },
+    {
+      "id": "event_type_00_transfer",
+      "description": "Event-type byte 0 (TRANSFER) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 0,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010100000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "47d8c4b4001982f74a1e70017ba0492f710962e34041dc7dea1daed3a8ab6441",
+        "antisense": "43c6d0613d22154bab3c3374b11610a758880e0c7837a7a317de151eab7a9429"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_01_swap",
+      "description": "Event-type byte 1 (SWAP) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 1,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010101000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "650d52df9b96a26c6138f09e920e0ccaf2c067b1e8e66fcbfef5aa411beb1c71",
+        "antisense": "a6c5876ecfff83d784a7becbef96c04d42b11c4b3ffd6957dc9839ba77ebb624"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_02_liquidity",
+      "description": "Event-type byte 2 (LIQUIDITY) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 2,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010102000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "c37d6cde63b374fc01af36adcb139d72d50e128dd3c2a655cedc358028ec2ef3",
+        "antisense": "73a7284d93a6fefad74c2249a106eb751c28fc6924e0ba8a009c0662041770ce"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_03_stake",
+      "description": "Event-type byte 3 (STAKE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 3,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010103000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "4bf78cf75794fd54eb6cc06cfaeb53b710bbe100f2f5740a7b6879aa45f9c35c",
+        "antisense": "d1b9d7e971b9e1a3e0d42b3f9e7c01c65559ca03bb7506a0a8dc67dcfa771d9b"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_04_unstake",
+      "description": "Event-type byte 4 (UNSTAKE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 4,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010104000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "141491305a4f2db6c3b15f8b6e48e894eeec1905ba1df7fca9c89f266eff0575",
+        "antisense": "23e82d4f59d254ea21b4422b36255e826ab4fd4489915a56856af129e30678aa"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_05_governance",
+      "description": "Event-type byte 5 (GOVERNANCE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 5,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010105000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "7b926e3f3db51c6458d4b2b56146a9c0af9278dfea465424c24b8fceef9139ca",
+        "antisense": "c88a78bc46b872a62561ebe1e2f48acbfeba365ccdf77fcb94489d6f90795b61"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_06_proposal",
+      "description": "Event-type byte 6 (PROPOSAL) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 6,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010106000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "44813f875b3b9f7f3abd4b103dcaa0654beca695aa6bb83963d1aefa2e77700b",
+        "antisense": "db793b64879a0fa57aca8c584ad3de28b4e30bbb82bc8bd34c4cc21efd425c99"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_07_borrow",
+      "description": "Event-type byte 7 (BORROW) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 7,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010107000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "aa770ad5325141040817c800b7a076f4de44b960cc6959ba2eed450749f9ce06",
+        "antisense": "a4e65c215e83e0bfb96412d75afc5d5e4b468de5863cbb4dd26bf991e991fea7"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_08_repay",
+      "description": "Event-type byte 8 (REPAY) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 8,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010108000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "c2392b25c058a5e2e432a7ae077daac0850543de41478e0bff8d9ef71f7498f4",
+        "antisense": "bb69686d620746cc38b93ebae5c903ac856672ba78012a5acfe08446fb3dae73"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_09_liquidate",
+      "description": "Event-type byte 9 (LIQUIDATE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 9,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010109000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "a0563bf8c2f2378a05d5b37fb8de34ef6b4ba5d43bdbf3f3fdcded01b821f94e",
+        "antisense": "f37ce98ba215e0fc79dd847dfbb2c9742b0096511bfc23578cfbcde83f5c26ca"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_10_bridge",
+      "description": "Event-type byte 10 (BRIDGE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 10,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010a000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "3cd88f23d468b48e266ce7e36784a32150e37a2ba88b4cca19b0958f36601f0f",
+        "antisense": "19196b52dc7d6f428b2043dc629c4b859adf6475693f1a5e6dfaa2764c62cd2d"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_11_deploy",
+      "description": "Event-type byte 11 (DEPLOY) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 11,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010b000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "964fbe45bec3f5fb4a61d5c424208f9d40e0b6db9d9a6c5b8aa0ea3a088dd11a",
+        "antisense": "55f8f82f65e3a010a328f85f62b6865a3f29a4673c161bdb3bab060d697b01db"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_12_upgrade",
+      "description": "Event-type byte 12 (UPGRADE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 12,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010c000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "f4076dbcbb9902fdd779d50a14c90652f9905937ef7179265405c3fd8bf0acb8",
+        "antisense": "d1171cea5e80b883e73f2f267611d1bc941952aa299f592b67c14f331b310022"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_13_mint",
+      "description": "Event-type byte 13 (MINT) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 13,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010d000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "91e53f724b911063048aef1358efc062074352c034fa79306365e77757ad00ea",
+        "antisense": "ce5539fd693e76051d529317554401d66ae85129286a3d93c0143b67c1824f77"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_14_burn",
+      "description": "Event-type byte 14 (BURN) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 14,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010e000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "2438601a282d13934bfd97a1779ea0d6e71347ecdf9a2886af094d816c7399a6",
+        "antisense": "cfa524605a90d483c48f53fea1b10e7ef662a20a989cdd1c6eaa63944da94903"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_15_oracle_update",
+      "description": "Event-type byte 15 (ORACLE_UPDATE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 15,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "01010101010101010101010101010101010101010101010101010101010101010f000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "3027bc5ddca80f17befbae454778919c3a07fe41a58792bd5a8370df930e53dd",
+        "antisense": "148cefc31956ae232dac94964fa6ac137bb5a0103214d6439cdce9b6c8493968"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_16_mev_capture",
+      "description": "Event-type byte 16 (MEV_CAPTURE) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 16,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010110000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "25ce23444f0d3b7d68abd7481871722fd7b8a98af30aed92663ac786f091ca60",
+        "antisense": "fd8d46b4f679e84c07962c01fac5326a6d72416e8db52abdb80c99383173121b"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_17_flash_loan",
+      "description": "Event-type byte 17 (FLASH_LOAN) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 17,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010111000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "bb010949d710466b265e7437f72094a0e9f8442550ce50059d92fc7dd518ad09",
+        "antisense": "ce5fe51d60d867457bd6a078136b128ed37c792f64a8a98eb3bd353893ebdd21"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_18_airdrop",
+      "description": "Event-type byte 18 (AIRDROP) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 18,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010112000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "712fabe0a4f7742a40edebc56ab8d88a8b5b1fe128c9dff31dd84b814b2f71bd",
+        "antisense": "c6ad1b758604cefce3be16fa7fe6c9a2f2d4a09f0f1a0417db0a45edd5df1406"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    },
+    {
+      "id": "event_type_19_claim",
+      "description": "Event-type byte 19 (CLAIM) \u2014 canonical enumeration sweep",
+      "input": {
+        "entity_id_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+        "event_type": 19,
+        "magnitude_norm": 0.5,
+        "context": 0,
+        "timestamp": 1700000000,
+        "chain_id": 137,
+        "block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "payload_hex": "010101010101010101010101010101010101010101010101010101010101010113000000001dcd65000000000000000000000000006553f10000000089cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "payload_len": 93,
+        "magnitude_nano": 500000000,
+        "sense": "fde04a0363bb0f7a54ecdf0b975507b9a100759ff4dff38d6187360a196d187d",
+        "antisense": "deb26bba90f814183011502e04eb796db159b3f23a530d15fe64487ae2d86b7c"
+      },
+      "tags": [
+        "event-type",
+        "sweep"
+      ]
+    }
+  ]
+}
