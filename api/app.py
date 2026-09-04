@@ -2068,6 +2068,12 @@ def reputation_observe():
     """
     Record an external behavioral observation for an entity.
     Body: { entity_id, coherence, manipulation_score, chain_ids, governance_voted, tx_count }
+
+    W3-M witness discipline: coherence/manipulation_score here are
+    CALLER-ATTESTED observations, not TRION-verified values. The engine
+    stores them as one observation among many; the response labels the
+    provenance so downstream consumers cannot mistake a self-attested
+    observation for oracle-verified truth.
     """
     if not _reputation_ok:
         return jsonify({"error": "reputation module unavailable"}), 503
@@ -2076,14 +2082,26 @@ def reputation_observe():
     if not entity_id:
         return jsonify({"error": "entity_id required"}), 400
     engine = get_reputation_engine()
+    try:
+        coherence = float(body.get("coherence", 0.5))
+        manipulation_score = float(body.get("manipulation_score", 0.0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "coherence and manipulation_score must be numbers"}), 400
     result = engine.record_observation(
         entity_id,
-        coherence=float(body.get("coherence", 0.5)),
-        manipulation_score=float(body.get("manipulation_score", 0.0)),
+        coherence=coherence,
+        manipulation_score=manipulation_score,
         chain_ids=body.get("chain_ids", [1]),
         governance_voted=bool(body.get("governance_voted", False)),
         tx_count=int(body.get("tx_count", 0)),
     )
+    if isinstance(result, dict) and "error" not in result:
+        result = dict(result)
+        result["witness_source"] = "caller_self_attested"
+        result["witness_note"] = (
+            "coherence/manipulation_score were supplied by the request caller "
+            "— an external observation submitted as evidence, not a "
+            "TRION-verified measurement")
     return jsonify(result)
 
 
@@ -2125,23 +2143,53 @@ def reputation_leaderboard():
 
 @app.route("/api/v1/reputation/<entity_id>/endorse", methods=["POST"])
 def reputation_endorse(entity_id: str):
-    """Validator endorsement for an entity."""
+    """Validator endorsement for an entity.
+
+    W3-M honesty note: ``endorser_id`` is an UNAUTHENTICATED caller string —
+    this route cannot prove the endorser is a validator, so the response
+    labels the endorsement ``endorser_provenance: unauthenticated_caller``.
+    Validator-verified endorsements require the attestation path
+    (signed certificates), not this convenience route.
+    """
     if not _reputation_ok:
         return jsonify({"error": "reputation module unavailable"}), 503
     engine = get_reputation_engine()
     body = request.get_json(silent=True) or {}
-    return jsonify(engine.endorse(entity_id, body.get("endorser_id", "anonymous")))
+    endorser_id = body.get("endorser_id")
+    if not endorser_id or not isinstance(endorser_id, str):
+        return jsonify({"error": "endorser_id required"}), 400
+    result = engine.endorse(entity_id, endorser_id)
+    if isinstance(result, dict) and "error" not in result:
+        result = dict(result)
+        result["endorser_provenance"] = "unauthenticated_caller"
+        result["endorser_note"] = (
+            "endorser_id was supplied by the request caller without "
+            "authentication or a validator signature — treat as an "
+            "unverified claim")
+    return jsonify(result)
 
 
 @app.route("/api/v1/reputation/<entity_id>/dispute", methods=["POST"])
 def reputation_dispute(entity_id: str):
-    """File a behavioral dispute against an entity."""
+    """File a behavioral dispute against an entity.
+
+    W3-M honesty note: ``disputer_id`` is an unauthenticated caller string;
+    the dispute is filed as EVIDENCE for the dispute process (fail-closed
+    resolution), and the response labels the filer's provenance.
+    """
     if not _reputation_ok:
         return jsonify({"error": "reputation module unavailable"}), 503
     engine = get_reputation_engine()
     body = request.get_json(silent=True) or {}
-    return jsonify(engine.dispute(entity_id, body.get("disputer_id", "anonymous"),
-                                  body.get("evidence", "")))
+    disputer_id = body.get("disputer_id")
+    if not disputer_id or not isinstance(disputer_id, str):
+        return jsonify({"error": "disputer_id required"}), 400
+    result = engine.dispute(entity_id, disputer_id,
+                            body.get("evidence", ""))
+    if isinstance(result, dict) and "error" not in result:
+        result = dict(result)
+        result["disputer_provenance"] = "unauthenticated_caller"
+    return jsonify(result)
 
 
 # ── Investment Signal Engine ──────────────────────────────────────────────────
@@ -2734,7 +2782,11 @@ except Exception as _e:
     _pqc_ok = False
 
 try:
-    from core.governance.intelligence_maintenance import (
+    # W3-M liveness fix: the slashing engine lives in
+    # core.governance.slashing (NOT intelligence_maintenance) — the old
+    # import silently failed, leaving every /api/v1/governance/slashing/*
+    # route a permanent 503 "module unavailable" shell.
+    from core.governance.slashing import (
         SlashingEngine as _SlashingEngine,
         SlashingCondition as _SlashCond,
         get_slashing_engine,
@@ -2804,7 +2856,16 @@ def governance_gratitude():
 
 @app.route("/api/v1/governance/gratitude", methods=["POST"])
 def governance_gratitude_record():
-    """Record a new Gratitude Protocol voluntary disclosure."""
+    """Record a new Gratitude Protocol voluntary disclosure.
+
+    W3-M truth boundary: a disclosure submitted through this public route is
+    a SELF-REPORT — the API has no verification process wired in, so it must
+    record ``verified=False`` (the previous implementation hardcoded
+    ``verified=True``, manufacturing verification that never happened and
+    minting gratitude credit for unverified claims). Credit accrues only
+    after a governance verifier marks the disclosure verified — that path
+    is intentionally NOT exposed to unauthenticated callers.
+    """
     if not _awa_ok:
         return jsonify({"error": "AWA module unavailable"}), 503
     body = request.get_json(silent=True) or {}
@@ -2814,6 +2875,12 @@ def governance_gratitude_record():
     description      = body.get("description", "")
     if not entity_id or not vulnerability_id:
         return jsonify({"error": "entity_id and vulnerability_id required"}), 400
+    if not isinstance(severity, str) or severity.upper() not in (
+            "CRITICAL", "HIGH", "MEDIUM", "LOW"):
+        return jsonify({
+            "error": "severity must be one of CRITICAL, HIGH, MEDIUM, LOW",
+        }), 400
+    severity = severity.upper()
 
     enforcer = get_awa_enforcer()
     event = enforcer.gratitude.record_disclosure(
@@ -2821,7 +2888,7 @@ def governance_gratitude_record():
         vulnerability_id = vulnerability_id,
         severity         = severity,
         description      = description,
-        verified         = True,
+        verified         = False,   # self-reported — never manufacture verification
     )
     new_score = enforcer.gratitude.compute_network_gratitude()
     return jsonify({
@@ -2830,6 +2897,11 @@ def governance_gratitude_record():
         "vulnerability_id": vulnerability_id,
         "credit":          event.credit,
         "severity":        severity,
+        "verified":        event.verified,
+        "verification_note": (
+            "self-reported disclosure recorded UNVERIFIED with zero credit — "
+            "credit is minted only after governance verification (not "
+            "exposed on this public route)"),
         "network_gratitude_score": new_score,
         "timestamp": int(time.time()),
     })
@@ -3236,14 +3308,35 @@ def slashing_file():
     """
     L4.9: File a slashing accusation (Step 1 of 7-step dispute resolution).
     POST body: { accused_id, accuser_id, condition, total_eligible_stake }
+
+    W3-M evidence discipline: an accusation is EVIDENCE that enters a
+    fail-closed 7-step process (evidence window, ≥2/3 stake quorum, HHI
+    gate) — filing alone slashes nothing. However the quorum base
+    (``total_eligible_stake``) and ``accuser_id`` are CALLER-SUPPLIED here:
+    the API has no authenticated validator-registry wiring, so the response
+    labels both as unverified caller declarations. Production must derive
+    the quorum base from the staked validator registry, not this field.
     """
     if not _slashing_ok:
         return jsonify({"error": "Slashing module unavailable"}), 503
     data = request.get_json(force=True) or {}
-    accused   = data.get("accused_id", "validator_unknown")
-    accuser   = data.get("accuser_id", "protocol_monitor")
+    accused   = data.get("accused_id")
+    accuser   = data.get("accuser_id")
     cond_str  = data.get("condition", "S3_FALSE_SIGNAL_SUBMISSION")
-    stake     = float(data.get("total_eligible_stake", 1000.0))
+    try:
+        stake     = float(data.get("total_eligible_stake", 1000.0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "total_eligible_stake must be a number"}), 400
+    if not isinstance(accused, str) or not accused.strip():
+        return jsonify({"error": "accused_id is required"}), 400
+    if not isinstance(accuser, str) or not accuser.strip():
+        return jsonify({
+            "error": ("accuser_id is required — the API no longer defaults "
+                      "the filer to 'protocol_monitor' (callers must not "
+                      "impersonate the protocol monitor)"),
+        }), 400
+    if stake != stake or stake <= 0:  # NaN or non-positive
+        return jsonify({"error": "total_eligible_stake must be a positive number"}), 400
 
     try:
         cond = _SlashCond(cond_str)
@@ -3264,6 +3357,15 @@ def slashing_file():
         "state":             case.state.value,
         "evidence_deadline": int(case.evidence_deadline),
         "next_step":         "Submit evidence within 48h, then call /api/v1/governance/slashing/case/<case_id>",
+        "evidence_only":     True,
+        "provenance": {
+            "accuser_id":             "caller_declared_unauthenticated",
+            "total_eligible_stake":   "caller_declared_unverified",
+            "note": ("an accusation is EVIDENCE for the 7-step dispute "
+                      "process, not a verdict; the quorum base is "
+                      "caller-declared and must be derived from the staked "
+                      "validator registry in production"),
+        },
         "whitepaper_ref":    "L4.9 Step 1: Accusation filed",
         "timestamp":         int(time.time()),
     })
@@ -9174,8 +9276,15 @@ def kv_get_signal(entity_id: str):
 @app.route("/api/v1/kv/signal/<entity_id>", methods=["POST"])
 def kv_put_signal(entity_id: str):
     """
-    0G KV — Write behavioral signal to KV store.
-    Log layer records the write immutably; KV layer serves reads at <10ms.
+    0G KV — Write behavioral signal to KV store (demo surface).
+
+    W3-M honesty fix: this endpoint has NO KV store or DA layer behind it —
+    it computes local hashes only. The previous response claimed
+    ``immutable: True`` and ``da_submitted: True`` unconditionally, which
+    manufactured persistence that never happened. The response now labels
+    the data provenance (caller-supplied phi/theta), reports da_submitted/
+    persisted as false, and carries the standard synthetic disclosure so
+    no consumer mistakes the demo write for a real 0G KV/DA write.
     """
     import hashlib
     body  = request.get_json(force=True) or {}
@@ -9187,16 +9296,23 @@ def kv_put_signal(entity_id: str):
     log_hash = "0x" + hashlib.sha3_256(f"log:{entity_id}:{phi}".encode()).hexdigest()
 
     return jsonify({
-        "status":       "written",
+        "status":           "computed",
         "kv_layer": {
             "key":          f"entity:{h[:16]}",
             "kv_root":      kv_root,
             "written_at":   int(time.time()),
+            "persisted":    False,
+            "note":          ("no KV store is wired behind this endpoint — "
+                               "kv_root is a hash of the submitted values, "
+                               "not a root of stored data"),
         },
         "log_layer": {
             "log_hash":     log_hash,
-            "immutable":    True,
-            "da_submitted": True,
+            "immutable":    False,
+            "persisted":    False,
+            "da_submitted": False,
+            "note":          ("log_hash is sha3-256 over the submitted phi — a "
+                               "local commitment, not an immutable log record"),
         },
         "signal": {
             "entity_id": entity_id,
@@ -9205,6 +9321,13 @@ def kv_put_signal(entity_id: str):
             "verdict":   "ALLOWED" if phi >= theta else "BLOCKED",
         },
         "timestamp": int(time.time()),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "demo KV surface — phi/theta are caller-supplied, the verdict is a "
+            "local comparison of those values, and nothing is persisted to any "
+            "KV/DA layer; do not consume as TRION-verified truth"
+        ),
+        "data_provenance": "caller_supplied",
     }), 201
 
 

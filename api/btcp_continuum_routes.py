@@ -232,6 +232,19 @@ def btcp_route():
                 "cc_coherence": route.cc_coherence,
             },
             "btcp_score": round(btcp_score_final(route, state), 6),
+            "state_provenance": {
+                "nl_scores": "caller_supplied",
+                "gas_forecasts": "caller_supplied",
+                "cc_coherence": "caller_supplied",
+                "mf_scores": "caller_supplied",
+                "validator_counts": "caller_supplied",
+                "note": ("BIBL chain state comes from the request body — this "
+                         "endpoint computes a route RECOMMENDATION over "
+                         "caller-supplied evidence. It is not a TRION-verified "
+                         "route verdict; verified routes come from "
+                         "/api/v1/btcp/orchestrate + on-chain certificate "
+                         "verification"),
+            },
             "whitepaper": "K1 Resolution",
         })
     except Exception as e:
@@ -349,6 +362,41 @@ def btcp_modules():
 # SybilResistance) and the persisted escrows (state_store/escrow_monitor)
 # through to the API, passing their actual outputs through unchanged.
 
+# ── Caller-truth guardrails (W3-M, INV-016 family) ──────────────────────────
+#
+# "APIs submit evidence, never manufacture truth." Matching tolerances are
+# behavioral price-discovery parameters, not free-form caller settings: an
+# uncapped price_tolerance lets a caller match ANY magnitude pair (including
+# wildly divergent ones), degenerating BITP "price discovery" into arbitrary
+# pairing. The spec default is 0.02 (2%, BTCP_SPEC §5.1 behavioral_price_
+# tolerance); callers may tighten or widen within a bounded band, never
+# remove the discipline.
+MATCH_TOLERANCE_MAX = 0.10   # hard cap: 10% divergence ceiling for API callers
+MATCH_TOLERANCE_MIN = 0.0    # tolerances below 0 mean "match nothing" — reject
+
+
+def _bounded_tolerance(data, key, default, what):
+    """Parse a matching tolerance with a hard cap (fail-closed on abuse).
+
+    Returns (value, None) on success or (None, error_message) when the
+    supplied value is non-numeric, NaN, negative, or above the cap.
+    """
+    raw = data.get(key, default)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None, f"{what} must be a number"
+    if value != value:  # NaN
+        return None, f"{what} must be a number (got NaN)"
+    if value < MATCH_TOLERANCE_MIN:
+        return None, f"{what} must be >= {MATCH_TOLERANCE_MIN}"
+    if value > MATCH_TOLERANCE_MAX:
+        return None, (
+            f"{what} is capped at {MATCH_TOLERANCE_MAX} (got {value}) — "
+            f"behavioral price discovery cannot run with an unbounded "
+            f"tolerance; the spec default is 0.02")
+    return value, None
+
 
 def _require(data, key, cast, what=None):
     """Fetch + cast a required request field; clear ValueError on failure."""
@@ -457,7 +505,10 @@ def btcp_bitp_match():
                          hex strings, magnitude, chain_id, deadline)
       candidates       — list of the same intent objects to search across
                          chains
-      price_tolerance  — optional, default 0.02
+      price_tolerance  — optional, default 0.02, capped at 0.10 (see
+                         MATCH_TOLERANCE_MAX above — a caller cannot widen
+                         the matching band past the behavioral-discipline
+                         ceiling)
 
     Optional extra intent fields are forwarded when the running BITPIntent
     dataclass declares them; unknown fields are ignored. On a match the
@@ -469,7 +520,10 @@ def btcp_bitp_match():
         payload = data.get("intent") if isinstance(data.get("intent"), dict) else data
         intent_a = _build_bitp_intent(payload)
         candidates = _intent_list(data, "candidates")
-        price_tolerance = float(data.get("price_tolerance", 0.02))
+        price_tolerance, err = _bounded_tolerance(
+            data, "price_tolerance", 0.02, "price_tolerance")
+        if err:
+            return jsonify({"error": err}), 400
 
         matcher = BITPMatcher()
         match = matcher.find_complement(intent_a, candidates, price_tolerance)
@@ -480,6 +534,7 @@ def btcp_bitp_match():
             "paste": matcher.execute_paste(intent_a, match) if matched else None,
             "candidates_considered": len(candidates),
             "price_tolerance": price_tolerance,
+            "price_tolerance_cap": MATCH_TOLERANCE_MAX,
             "whitepaper": "Module 2.5 — BITP Matcher",
         })
     except Exception as e:
@@ -491,8 +546,9 @@ def btcp_netting():
     """Netting pair finder (Module 2.6) — pure NETTING routes.
 
     Same payload shape as /bitp/match (intent, candidates) plus an optional
-    ``tolerance`` (default 0.01). Netting finds the exact opposite intent on
-    the *same* chain from a different entity; gas cost is the state-update
+    ``tolerance`` (default 0.01, capped at 0.10 — same MATCH_TOLERANCE_MAX
+    discipline as BITP). Netting finds the exact opposite intent on the
+    *same* chain from a different entity; gas cost is the state-update
     floor from NettingEngine.netting_gas_cost().
     """
     from core.btcp.modules import NettingEngine
@@ -501,7 +557,10 @@ def btcp_netting():
         payload = data.get("intent") if isinstance(data.get("intent"), dict) else data
         intent_a = _build_bitp_intent(payload)
         candidates = _intent_list(data, "candidates")
-        tolerance = float(data.get("tolerance", 0.01))
+        tolerance, err = _bounded_tolerance(
+            data, "tolerance", 0.01, "tolerance")
+        if err:
+            return jsonify({"error": err}), 400
 
         engine = NettingEngine()
         pair = engine.find_netting_pair(intent_a, candidates, tolerance)
@@ -511,6 +570,7 @@ def btcp_netting():
             "netting_pair": _bitp_intent_to_json(pair) if found else None,
             "netting_gas_cost": engine.netting_gas_cost(),
             "tolerance": tolerance,
+            "tolerance_cap": MATCH_TOLERANCE_MAX,
             "candidates_considered": len(candidates),
             "whitepaper": "Module 2.6 — Netting Engine",
         })
@@ -1059,26 +1119,109 @@ def continuum_bdc():
 
 @btcp_bp.route("/api/v1/continuum/settlement", methods=["POST"])
 def continuum_settlement():
-    """Thermodynamic Settlement Triggers."""
+    """Thermodynamic Settlement Triggers (CONTINUUM 4.5).
+
+    Truth boundary (W3-M): ``btcp_route_verified`` is a settlement GATE —
+    the API must never let a caller simply assert it. Two disciplines:
+
+    * ``route_id`` (optional): when supplied, the gate is DERIVED from
+      server-side state — the route is looked up in the persisted BTCP
+      state store and its proofs are re-verified via
+      BTCPOchestrator.verify_route_proofs (fail-closed, zk_pending
+      included). A caller-supplied ``btcp_route_verified`` is IGNORED
+      whenever ``route_id`` is present.
+    * Without ``route_id``: the trigger computation runs on caller-supplied
+      inputs and the response labels them ``caller_attested`` — the result
+      is a computation preview, not a settlement authorization.
+
+    The default for a bare ``btcp_route_verified`` (no route_id) is False —
+    omitting the field must never read as "route verified".
+    """
     from continuum.engines import ThermodynamicSettlement
     data = request.get_json(force=True, silent=True) or {}
     try:
+        route_id = data.get("route_id")
+        if route_id is not None and (not isinstance(route_id, str) or not route_id):
+            return jsonify({"error": "route_id must be a non-empty string"}), 400
+
+        caller_claim = data.get("btcp_route_verified")
+        derived = None
+        route_lookup = None
+        if route_id is not None:
+            # DERIVE the gate from persisted state + proof verification —
+            # caller-supplied btcp_route_verified is ignored (never trust).
+            try:
+                orch = _get_orchestrator()
+                routes = orch._store.get_routes()
+                if route_id not in routes:
+                    return jsonify({
+                        "error": ("route_id not found in the persisted BTCP "
+                                  "state store — cannot derive "
+                                  "btcp_route_verified for an unknown route"),
+                        "route_id": route_id,
+                    }), 404
+                derived, verify_errors = orch.verify_route_proofs(route_id)
+                route_lookup = {
+                    "route_id": route_id,
+                    "found": True,
+                    "proofs_all_valid": derived,
+                    "verify_errors": verify_errors,
+                }
+            except Exception as e:
+                return jsonify({
+                    "error": f"route verification failed: {e}",
+                    "route_id": route_id,
+                }), 500
+            btcp_route_verified = derived
+        else:
+            # Caller-attested gate — labeled, default False (fail-closed).
+            if caller_claim is None:
+                btcp_route_verified = False
+            else:
+                if not isinstance(caller_claim, bool):
+                    return jsonify({
+                        "error": "btcp_route_verified must be a boolean",
+                    }), 400
+                btcp_route_verified = caller_claim
+
         ts = ThermodynamicSettlement()
         result = ts.check_trigger(
             coherence_a=float(data.get("coherence_a", 0.85)),
             threshold_a=float(data.get("threshold_a", 0.55)),
             coherence_b=float(data.get("coherence_b", 0.80)),
             threshold_b=float(data.get("threshold_b", 0.55)),
-            btcp_route_verified=data.get("btcp_route_verified", True),
+            btcp_route_verified=btcp_route_verified,
             temporal_alignment_valid=data.get("temporal_alignment_valid", True),
             mf_detected=data.get("mf_detected", False),
         )
-        return jsonify({
+        out = {
             "triggered": result.triggered,
             "conditions": result.conditions,
             "reason": result.reason,
+            # Provenance labels — a consumer can never mistake a caller
+            # computation preview for a verified settlement authorization.
+            "btcp_route_verified": btcp_route_verified,
+            "btcp_route_verified_provenance": (
+                "derived_from_persisted_route_proofs" if route_id is not None
+                else "caller_attested"),
+            "input_provenance": {
+                "coherence_a": "caller_supplied",
+                "threshold_a": "caller_supplied",
+                "coherence_b": "caller_supplied",
+                "threshold_b": "caller_supplied",
+                "note": ("coherence/threshold inputs are caller-supplied "
+                         "evidence, not TRION-verified values; the trigger "
+                         "verdict below is a computation on that evidence"),
+            },
             "whitepaper": "CONTINUUM 4.5 — Thermodynamic Settlement",
-        })
+        }
+        if route_lookup is not None:
+            out["route_verification"] = route_lookup
+            if caller_claim is not None and caller_claim is not derived:
+                out["caller_claim_ignored"] = (
+                    f"caller-supplied btcp_route_verified={caller_claim} was "
+                    f"ignored; derived value={derived} from route proofs")
+        return jsonify(out)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1317,6 +1460,49 @@ def _privacy_level_arg(data):
     raise ValueError("privacy_level must be a level name or number")
 
 
+def _proof_provenance_summary(route):
+    """W3-M (INV-016 / W2-F handoff): surface witness provenance at the TOP
+    LEVEL of the orchestrate response.
+
+    The orchestrator already labels each proof dict with ``witness_source``
+    (caller_self_attested / caller_supplied_batch_economics) and defers
+    un-witnessed circuits as ``status: "zk_pending"`` (core/btcp/
+    orchestrator.py). Those labels were previously buried inside ``proofs``;
+    this summary hoists them so a consumer reading the response top-level
+    can never mistake self-attested caller data or deferred circuits for
+    TRION-verified truth. ``proof_verification.all_valid`` stays the
+    fail-closed verdict (zk_pending ⇒ not valid).
+    """
+    proofs = (getattr(route, "proofs", None) or {}) if route is not None else {}
+    per_proof = {}
+    zk_pending = []
+    witness_labeled = []
+    for name, proof in proofs.items():
+        row = {}
+        if isinstance(proof, dict):
+            row["status"] = proof.get("status", "generated")
+            if "witness_source" in proof:
+                row["witness_source"] = proof["witness_source"]
+                witness_labeled.append(name)
+            if proof.get("status") == "zk_pending":
+                zk_pending.append(name)
+        else:
+            row["status"] = "generated"
+        per_proof[name] = row
+    return {
+        "per_proof": per_proof,
+        "witness_source_labels": witness_labeled,
+        "zk_pending": zk_pending,
+        "note": (
+            "Proofs with witness_source=caller_* attest CALLER-SUPPLIED claims "
+            "(behavioral_data / iap_economics), not TRION-verified truth. "
+            "Proofs listed in zk_pending are honestly deferred — no proof "
+            "bytes exist and the route is NOT fully proven. Consult "
+            "proof_verification.all_valid for the fail-closed verification "
+            "verdict, which is False whenever any proof is zk_pending."),
+    }
+
+
 @btcp_bp.route("/api/v1/btcp/orchestrate", methods=["POST"])
 def btcp_orchestrate():
     """Run the full BTCPOrchestrator six-step route sequence (Gap #4).
@@ -1454,6 +1640,17 @@ def btcp_orchestrate():
             "steps": steps,
             "route": route.to_dict() if route else None,
             "proofs": (route.proofs if route else None) or {},
+            "proof_provenance": _proof_provenance_summary(route),
+            "witness_inputs": {
+                "behavioral_data": data.get("behavioral_data") is not None,
+                "iap_economics": data.get("iap_economics") is not None,
+                "note": (
+                    "behavioral_data and iap_economics are caller-supplied "
+                    "WITNESS EVIDENCE — the orchestrator labels the proofs "
+                    "built from them with witness_source (see "
+                    "proof_provenance); thresholds remain protocol constants "
+                    "and cannot be moved by the caller"),
+            },
             "proof_verification": {
                 "all_valid": verified,
                 "errors": verify_errors,
@@ -1526,6 +1723,12 @@ def btcp_sanctions_upsert():
     admin token when TRION_ADMIN_TOKEN is set. Payload:
       {"address": "0x..", "lists": ["OFAC_SDN"], "confidence": 1.0,
        "remove": false}
+
+    W3-M fail-closed policy: the sanctions list is AUTHORITATIVE compliance
+    data, not caller evidence. When NEITHER TRION_ADMIN_TOKEN NOR the global
+    TRION_API_KEY is configured, this endpoint refuses to mutate the list
+    (503) — an unauthenticated caller must never be able to delist a
+    sanctioned address. Reads (/sanctions/<address>) stay public.
     """
     admin_token = None
     import os
@@ -1534,6 +1737,17 @@ def btcp_sanctions_upsert():
         auth = request.headers.get("Authorization", "")
         if auth != f"Bearer {admin_token}":
             return jsonify({"error": "unauthorized"}), 401
+    elif not os.environ.get("TRION_API_KEY", "").strip():
+        # No admin token AND no global API key: the write path is NOT
+        # authenticated by any layer — refuse (fail-closed). When
+        # TRION_API_KEY is set, the app-level before_request middleware
+        # already enforces X-API-Key on this POST.
+        return jsonify({
+            "error": "sanctions upsert disabled",
+            "reason": ("no TRION_ADMIN_TOKEN and no TRION_API_KEY configured — "
+                       "unauthenticated sanctions-list mutation is refused; "
+                       "configure an admin credential to enable the feed"),
+        }), 503
     data = request.get_json(force=True, silent=True) or {}
     address = data.get("address", "")
     if not isinstance(address, str) or len(address) < 10:

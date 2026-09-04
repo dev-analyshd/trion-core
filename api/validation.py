@@ -60,8 +60,14 @@ TX_HASH_RE = re.compile(r'^(0x)?[a-fA-F0-9]{64}$')
 # Block number: positive integer up to 2^53 (JS-safe)
 BLOCK_NUM_RE = re.compile(r'^\d{1,16}$')
 
-# Chain ID: positive integer 1-100000
-CHAIN_ID_RE = re.compile(r'^\d{1,6}$')
+# Chain ID: positive integer 1..2**32-1 (10 digits). The EVM chain-id
+# space is uint256 in EIP-155 but every real id fits uint32; the canonical
+# TRION registry (api/chains_registry.py) tops out at Harmony 1666600000.
+# The old 1-100000 bound rejected VALID canonical ids (Zora 7777777,
+# Eth Sepolia 11155111, Neon 245022934, Aurora 1313161554) — reported by
+# W3-C; this validator is plausibility-only (no registry membership claim).
+CHAIN_ID_RE = re.compile(r'^\d{1,10}$')
+CHAIN_ID_MAX = 2**32 - 1
 
 
 def validate_entity_id(eid: Optional[str]) -> bool:
@@ -101,11 +107,15 @@ def validate_block_num(n: Optional[str | int]) -> bool:
 
 
 def validate_chain_id(cid: Optional[str | int]) -> bool:
-    """Return True if `cid` is a plausible chain ID (1-100000)."""
+    """Return True if `cid` is a plausible chain ID (1..2**32-1).
+
+    Plausibility only — a True result does NOT mean the id exists in the
+    canonical chain registry (see api/chains_registry.py for membership).
+    """
     if cid is None:
         return False
     s = str(cid)
-    return bool(CHAIN_ID_RE.match(s) and 1 <= int(s) <= 100000)
+    return bool(CHAIN_ID_RE.match(s) and 1 <= int(s) <= CHAIN_ID_MAX)
 
 
 def normalise_entity_id(eid: str) -> str:
@@ -211,7 +221,14 @@ if __name__ == '__main__':
 
     assert validate_chain_id(1)
     assert validate_chain_id('42161')
+    # canonical registry ids previously rejected by the 1-100000 bound (W3-C)
+    assert validate_chain_id(7777777)          # Zora
+    assert validate_chain_id(11155111)         # Eth Sepolia
+    assert validate_chain_id(245022934)        # Neon
+    assert validate_chain_id(1313161554)       # Aurora
+    assert validate_chain_id(1666600000)       # Harmony (registry max)
     assert not validate_chain_id(0)
     assert not validate_chain_id('abc')
+    assert not validate_chain_id(2**32)        # past the uint32 id space
 
     print("✓ All validation self-tests passed")
