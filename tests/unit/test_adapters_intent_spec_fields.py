@@ -17,12 +17,19 @@ representations:
    intents exactly this way,
 4. ``BTCPIntent.hash()`` is a deterministic 32-byte SHA3-256 that covers
    every §4.1 field (append-only policy, mirroring BITPIntent.hash() in
-   core/btcp/modules.py and Intent::hash() in rust/src/types.rs).
+   core/btcp/modules.py and Intent::hash() in rust/src/types.rs),
+5. the Rust clipboard entry ``BITPIntentData`` (rust/src/bitp_matcher.rs,
+   the §17 CUT/MATCH/PASTE object) statically covers the same §4.1 list
+   (no cargo in this sandbox — structural source check).
 """
 import dataclasses
+import re
+from pathlib import Path
 
 from adapters import BTCPIntent
 from core.btcp.modules import BITPIntent
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 # spec §4.1 field names, lowercased for cross-language comparison
@@ -255,6 +262,51 @@ class TestIntentHash:
         # (no vectors were pinned before), and both are 32-byte sha3-256
         modules_intent = BITPIntent(b"\x01" * 32, b"\xAA" * 32, b"\xBB" * 32, 1000.0, 1, 1000)
         assert len(modules_intent.hash()) == 32 == len(BTCPIntent(*LEGACY_ARGS).hash())
+
+
+class TestRustClipboardParity:
+    """Static cross-language parity: the Rust clipboard entry
+    BITPIntentData (rust/src/bitp_matcher.rs — the §17 CUT/MATCH/PASTE
+    object that adds behavioral_proof_root to the intent data) must cover
+    the same §4.1 list. Rust is not compiled in this sandbox (no cargo),
+    so this is a structural source check, not a runtime one."""
+
+    @staticmethod
+    def _clipboard_struct_fields() -> set:
+        source = (REPO_ROOT / "rust" / "src" / "bitp_matcher.rs").read_text()
+        match = re.search(
+            r"pub struct BITPIntentData\s*\{(.*?)\n\}", source, re.DOTALL
+        )
+        assert match, "pub struct BITPIntentData not found in rust/src/bitp_matcher.rs"
+        return {
+            m.group(1).lower()
+            for m in re.finditer(r"pub\s+([A-Za-z_][A-Za-z0-9_]*)\s*:", match.group(1))
+        }
+
+    def test_rust_clipboard_entry_covers_spec_41(self):
+        fields = self._clipboard_struct_fields()
+        # action/value are carried directly; magnitude/chain_id are the
+        # legacy magnitude/chain carriers (same roles as the python twins)
+        required = SPEC_FIELDS | {"magnitude", "chain_id", "behavioral_proof_root"}
+        missing = required - fields
+        assert not missing, f"rust BITPIntentData missing: {sorted(missing)}"
+
+    def test_rust_clipboard_keeps_17_proof_binding(self):
+        fields = self._clipboard_struct_fields()
+        assert {"behavioral_proof_root", "nonce"} <= fields
+
+    def test_cut_commitment_binds_the_spec_fields(self):
+        # the §17 commitment must hash the §4.1 field set too (append-only
+        # extension) — the spec_fields_canonical encoder must be called
+        # from execute_cut
+        source = (REPO_ROOT / "rust" / "src" / "bitp_matcher.rs").read_text()
+        cut = re.search(
+            r"pub fn execute_cut.*?\n    \}", source, re.DOTALL
+        )
+        assert cut, "execute_cut not found"
+        assert "spec_fields_canonical" in cut.group(0), (
+            "execute_cut no longer binds the §4.1 field set into the commitment"
+        )
 
 
 class TestCrossRepresentationParity:
