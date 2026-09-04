@@ -157,6 +157,159 @@ library CanonicalCertificate {
         return bytes32(uint256(uint160(dest)));
     }
 
+    // ── §2 strict payload decode (the wire format IS the 346-byte P) ───────
+
+    /// @notice The 13-byte domain tag as an integer: "TRION-CERT-V1".
+    uint256 private constant DOMAIN_TAG_INT = 0x5452494f4e2d434552542d5631;
+
+    /// @notice Strict decode of the canonical 346-byte payload P into a Cert
+    ///         (the Solidity twin of the py reference `decode_payload`):
+    ///         exact width, exact domain tag, fixed field order. Verifiers
+    ///         that receive the certificate as raw bytes (the cross-VM wire
+    ///         format of §7 — e.g. TRIONOracleV3.submitCertificateAttestation)
+    ///         never trust an ABI-decoded struct: they decode P itself, so a
+    ///         mismatched field layout fails closed at step 1.
+    function decode(bytes calldata payload) internal pure returns (Cert memory cert) {
+        require(payload.length == PAYLOAD_WIDTH, "CERT: bad width");
+        require(_load(payload, 0, 13) == DOMAIN_TAG_INT, "CERT: bad domain tag");
+        cert.certificateKind     = uint8(_load(payload, 13, 1));
+        cert.protocolVersion     = uint24(_load(payload, 14, 3));
+        cert.validatorEpoch      = uint32(_load(payload, 17, 4));
+        cert.certificateNonce    = uint64(_load(payload, 21, 8));
+        cert.escrowId            = bytes32(_load(payload, 29, 32));
+        cert.routeId             = bytes32(_load(payload, 61, 32));
+        cert.intentHash          = bytes32(_load(payload, 93, 32));
+        cert.entityId            = bytes32(_load(payload, 125, 32));
+        cert.sourceChain         = uint32(_load(payload, 157, 4));
+        cert.destChain           = uint32(_load(payload, 161, 4));
+        cert.destination         = bytes32(_load(payload, 165, 32));
+        cert.amount              = _load(payload, 197, 32);
+        cert.anchorBh            = bytes32(_load(payload, 229, 32));
+        cert.executionBh         = bytes32(_load(payload, 261, 32));
+        cert.coherence           = uint64(_load(payload, 293, 8));
+        cert.threshold           = uint64(_load(payload, 301, 8));
+        cert.hhiAtEmission       = uint64(_load(payload, 309, 8));
+        cert.totalEffectivePower = uint64(_load(payload, 317, 8));
+        cert.validatorCount      = uint32(_load(payload, 325, 4));
+        cert.awaEnforced         = _load(payload, 329, 1) == 1;
+        cert.issuedAt            = uint64(_load(payload, 330, 8));
+        cert.ttl                 = uint64(_load(payload, 338, 8));
+    }
+
+    /// @dev Big-endian scalar read of `width` bytes at `offset` — calldataload
+    ///      returns a 32-byte BE word, so shifting right by (256 − 8·width)
+    ///      leaves exactly the field. memory-safe (reads only).
+    function _load(bytes calldata payload, uint256 offset, uint256 width)
+        private
+        pure
+        returns (uint256 v)
+    {
+        assembly ("memory-safe") {
+            v := shr(sub(256, mul(width, 8)), calldataload(add(payload.offset, offset)))
+        }
+    }
+
+    // ── §6 byte-level verification primitives (raw payload P) ───────────────
+    // The hot verification path (TRIONOracleV3.submitCertificateAttestation,
+    // BTCPEscrow.releaseEscrowCanonical) consumes the certificate as the raw
+    // 346-byte P and NEVER materializes a Cert struct: every field is read
+    // straight from calldata (short-lived stack values only — this is what
+    // keeps the via-ir stack layout within budget on solc 0.8.24).
+
+    /// @notice §6 steps 1, 3 and 4 on the RAW payload: exact width, exact
+    ///         domain tag, known kind, supported version, non-zero nonce,
+    ///         bound dest_chain, HHI below the CRITICAL tier, AWA enforced,
+    ///         the isSafe verdict (coherence ≥ threshold), non-zero ttl and
+    ///         the §9 freshness window (drift widens the LOWER bound only).
+    ///         Byte-level twin of checkStructureAndConsensus() +
+    ///         checkFreshness() — both paths are adversarially pinned by the
+    ///         tests (probe struct path, oracle/escrow byte path).
+    function checkPayload(bytes calldata payload, uint256 now) internal pure {
+        require(payload.length == PAYLOAD_WIDTH, "CERT: bad width");
+        require(_load(payload, 0, 13) == DOMAIN_TAG_INT, "CERT: bad domain tag");
+        require(_load(payload, 13, 1) == CERT_KIND_ESCROW_RELEASE, "CERT: unknown kind");
+        require(_load(payload, 14, 3) <= SUPPORTED_PROTOCOL_VERSION, "CERT: version too new");
+        require(_load(payload, 21, 8) > 0, "CERT: zero nonce");
+        require(_load(payload, 161, 4) != 0, "CERT: dest chain unbound");
+        require(_load(payload, 309, 8) <= HHI_MAX_ACCEPTABLE, "CERT: hhi critical");
+        require(_load(payload, 329, 1) == 1, "CERT: awa not enforced");
+        require(_load(payload, 293, 8) >= _load(payload, 301, 8), "CERT: not safe");
+        require(_load(payload, 338, 8) > 0, "CERT: zero ttl");
+        // §6 step 3 — freshness (§9.1: issued_at ≤ now ≤ issued_at + ttl with
+        // the drift tolerance on the lower bound ONLY).
+        require(_load(payload, 330, 8) <= now + CLOCK_DRIFT_TOLERANCE, "CERT: future-dated");
+        require(now <= _load(payload, 330, 8) + _load(payload, 338, 8), "CERT: expired");
+    }
+
+    /// @notice keccak256(P) computed on the raw payload — identical to
+    ///         payloadDigest(Cert) by construction (P IS the payload bytes).
+    function payloadDigestOf(bytes calldata payload) internal pure returns (bytes32) {
+        return keccak256(payload);
+    }
+
+    /// @notice FAMILY 1 signed message over the raw payload: the EIP-191 wrap
+    ///         of keccak256(P) — identical to ethSignedDigest(Cert). NOTE the
+    ///         double hash: the EIP-191 prefix wraps the 32-byte INNER digest
+    ///         keccak256(P), never the raw 346-byte P (§3.2 family 1).
+    function ethSignedDigestOf(bytes calldata payload) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(payload)));
+    }
+
+    /// @notice validator_epoch (§2 offset 17) — the §6 step 2 registry key.
+    function epochOf(bytes calldata payload) internal pure returns (uint32) {
+        return uint32(_load(payload, 17, 4));
+    }
+
+    /// @notice certificate_nonce (§2 offset 21).
+    function nonceOf(bytes calldata payload) internal pure returns (uint64) {
+        return uint64(_load(payload, 21, 8));
+    }
+
+    /// @notice escrow_id (§2 offset 29) — the binding key.
+    function escrowIdOf(bytes calldata payload) internal pure returns (bytes32) {
+        return bytes32(_load(payload, 29, 32));
+    }
+
+    /// @notice route_id (§2 offset 61).
+    function routeIdOf(bytes calldata payload) internal pure returns (bytes32) {
+        return bytes32(_load(payload, 61, 32));
+    }
+
+    /// @notice entity_id (§2 offset 125).
+    function entityIdOf(bytes calldata payload) internal pure returns (bytes32) {
+        return bytes32(_load(payload, 125, 32));
+    }
+
+    /// @notice destination (§2 offset 165) — settlement-tuple half A.
+    function destinationOf(bytes calldata payload) internal pure returns (bytes32) {
+        return bytes32(_load(payload, 165, 32));
+    }
+
+    /// @notice amount (§2 offset 197) — settlement-tuple half B.
+    function amountOf(bytes calldata payload) internal pure returns (uint256) {
+        return _load(payload, 197, 32);
+    }
+
+    /// @notice coherence (§2 offset 293, ×1e6).
+    function coherenceOf(bytes calldata payload) internal pure returns (uint64) {
+        return uint64(_load(payload, 293, 8));
+    }
+
+    /// @notice threshold (§2 offset 301, ×1e6) — must equal registry Θ(t) (H-03).
+    function thresholdOf(bytes calldata payload) internal pure returns (uint64) {
+        return uint64(_load(payload, 301, 8));
+    }
+
+    /// @notice total_effective_power (§2 offset 317, ×1e6) — §6 step 6 cross-check.
+    function totalPowerOf(bytes calldata payload) internal pure returns (uint64) {
+        return uint64(_load(payload, 317, 8));
+    }
+
+    /// @notice validator_count (§2 offset 325) — §6 step 4 cross-check.
+    function validatorCountOf(bytes calldata payload) internal pure returns (uint32) {
+        return uint32(_load(payload, 325, 4));
+    }
+
     // ── §5.2 quorum (L4.2 tier table — normative, exact integers) ───────────
 
     /// @notice L4.2 tier quorum over REGISTERED weights (never envelope
