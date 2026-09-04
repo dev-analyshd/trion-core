@@ -40,6 +40,12 @@ class ConsensusProof:
     hhi_at_emission:      float
     coherence_score:      float
     threshold_margin:     float
+    # ── M-07 (Wave 3 D, CANONICAL_CERTIFICATE §6 step 4): AWA bit ───────
+    # 1 iff AWA held at emission. MD §17 / ED-A1: a certificate is an
+    # emission; the frozen state must be checkable at verification —
+    # ``awa_enforced = 0`` (False) means the emission happened while truth
+    # emission was frozen, and the proof MUST be rejected.
+    awa_enforced:         bool = True
 
 
 @dataclass
@@ -83,25 +89,62 @@ class BTCPProofBuilder:
 
     Verification on receiving chain:
     1. Check consensus_proof against known TRION validator set
-    2. Check certification_block is within certification_expiry
-    3. Check validator_key_version was valid at certification_block
+    2. Check certification time base + TTL is within certification_expiry
+    3. Check validator_key_version was valid at certification time
     4. If valid: execute natively — no bridge contract, no wrapped token
     """
 
-    # A3 Resolution: Certification validity windows by value tier
-    CERT_WINDOWS = [
-        (1_000,         10_000),    # <$1K → 10K blocks
-        (100_000,       50_000),    # $1K-$100K → 50K blocks
-        (10_000_000,    200_000),   # $100K-$10M → 200K blocks
-        (float('inf'),  500_000),   # >$10M → 500K blocks
+    # ── H-06 (Wave 3 D): CANONICAL value-tier TTL table, in SECONDS ─────
+    #
+    # CANONICAL_CERTIFICATE.md §9.2 (A3 resolution, portable form). The
+    # previous block-denominated tables in py and rust DISAGREED
+    # (py: <1k→10k, <100k→50k, <10M→200k, else 500k blocks; rust: 0→50k,
+    # 10k→100k, 100k→200k, 1M→500k blocks) and blocks are not VM-portable
+    # — the canonical TTL is in SECONDS:
+    #
+    #   | value (USD equivalent at emission) | canonical ttl |
+    #   | <  $1,000                           |  3,600 s (1 h) |
+    #   | <  $100,000                         | 86,400 s (24 h) |
+    #   | <  $10,000,000                      | 259,200 s (3 d) |
+    #   | >= $10,000,000                      | 604,800 s (7 d) |
+    #
+    # Mirrors core/consensus/certificate.py::TTL_TIERS_USD (the canonical
+    # certificate envelope's ttl source — same four tiers, same values).
+    # The anchor-side depth requirement (≥ tier blocks on the ANCHOR chain
+    # before emission) remains an emission-side, off-chain check — see the
+    # rust MAX_PROOF_VALIDITY_BLOCKS reorg-depth guard.
+    CERT_TTL_SECONDS = [
+        (1_000,         3_600),      # <  $1k     → 1 h
+        (100_000,      86_400),      # <  $100k   → 24 h
+        (10_000_000,  259_200),      # <  $10M    → 3 d
+        (float('inf'), 604_800),     # >= $10M    → 7 d
     ]
 
-    def compute_cert_expiry(self, value_usd: float) -> int:
-        """A3: Certification validity window based on route value."""
-        for threshold, blocks in self.CERT_WINDOWS:
+    # Retired constant (H-06): the block-denominated CERT_WINDOWS table
+    # was deleted — keep the attribute name absent so stale references
+    # fail loudly instead of silently using non-canonical windows.
+
+    # M-07 (Wave 3 D): canonical HHI CRITICAL threshold on the ×1e4 scale.
+    # The spec rejects hhi > 4000 (CANONICAL_CERTIFICATE §6 step 4;
+    # MD/sigma_engine 4000-CRITICAL). On the rust 0-1 scale this is 0.40.
+    # The previous py check normalized 0-10000 → 0-1 and rejected > 0.5
+    # (= 5000 on the ×1e4 scale) — NOT the spec's 4000.
+    HHI_CRITICAL_X1E4 = 4_000
+    HHI_CRITICAL_NORMALIZED = 0.40   # 4000 / 10_000
+
+    def compute_cert_ttl(self, value_usd: float) -> int:
+        """A3/§9.2: canonical certification TTL (SECONDS) for a value tier."""
+        for threshold, ttl in self.CERT_TTL_SECONDS:
             if value_usd < threshold:
-                return blocks
-        return 500_000
+                return ttl
+        return 604_800
+
+    # H-06 back-compat alias: legacy callers knew this name. The return is
+    # now SECONDS (canonical) — not blocks. Callers wanting the name to
+    # reflect the unit should call compute_cert_ttl.
+    def compute_cert_expiry(self, value_usd: float) -> int:
+        """Deprecated alias of :meth:`compute_cert_ttl` (returns SECONDS)."""
+        return self.compute_cert_ttl(value_usd)
 
     def build_proof(
         self,
@@ -116,14 +159,32 @@ class BTCPProofBuilder:
         coherence: float,
         threshold: float,
         validator_key_version: bytes = b"\x00" * 4,
+        awa_enforced: bool = True,
     ) -> BTCPProof:
-        expiry = self.compute_cert_expiry(value_usd)
+        """Build a BTCPProof.
+
+        H-06: ``certification_expiry`` = certification_block + TTL where
+        TTL is the canonical §9.2 SECOND-based value-tier window
+        (compute_cert_ttl). ``certification_block`` is the certification
+        time base (epoch seconds in the canonical envelope — see
+        core/consensus/certificate.py::CanonicalCertificate.issued_at;
+        block-height bases remain valid only for the emission-side anchor
+        reorg-depth check). The block-denominated value-tier windows are
+        RETIRED (audit H-06: py and rust tables disagreed and blocks are
+        not VM-portable).
+
+        M-07: ``awa_enforced`` records the MD §17 AWA state at emission
+        (ED-A1 — 1 iff AWA held). Verification rejects proofs emitted
+        while truth emission was frozen.
+        """
+        expiry = self.compute_cert_ttl(value_usd)
         consensus = ConsensusProof(
             validator_signatures=validator_signatures,
             diversity_certificate=diversity_weights,
             hhi_at_emission=hhi,
             coherence_score=coherence,
             threshold_margin=coherence - threshold,
+            awa_enforced=awa_enforced,
         )
         return BTCPProof(
             anchor_bh=anchor_bh,
@@ -282,18 +343,25 @@ class BTCPProofBuilder:
         vice versa) — the old python checks were strictly weaker (no HHI,
         no signer-count, no distinct-signer/shape checks), so a python-built
         proof could pass here and fail on the rust side:
-          * certification window (expiry / anchor depth)
+          * certification TTL (§9.2 second-based value-tier window; H-06 —
+            the old block tables are retired)
           * coherence above threshold
-          * HHI not too concentrated — the python spiritual plane emits HHI on
-            the 0-10000 scale, rust on 0-1; values > 1 are normalised before
-            the shared > 0.5 rejection threshold
+          * HHI not too concentrated — M-07 (Wave 3 D): the canonical rule
+            rejects hhi > 4000 on the ×1e4 scale (= 0.40 on the rust 0-1
+            scale; CANONICAL_CERTIFICATE §6 step 4). The python spiritual
+            plane emits HHI on the 0-10000 scale, rust on 0-1; values > 1
+            are normalised before the shared 4000-CRITICAL rejection.
+            (Previously the py check rejected > 0.5 normalized = 5000 —
+            NOT the spec's 4000.)
+          * awa_enforced — M-07/ED-A1: proofs emitted while the MD §17 AWA
+            emission freeze was active are rejected (fail-closed).
           * >= 3 validator signatures (rust: InsufficientSigners)
           * distinct signers, each signature exactly 65 bytes
             (secp256k1 ECDSA r[32] || s[32] || v[1]) — shape check only;
             cryptographic verification is the on-chain quorum's job
         """
         if current_block > proof.certification_expiry:
-            return False  # certification expired
+            return False  # certification expired (§9.2 TTL elapsed)
         sigs = proof.consensus_proof.validator_signatures
         if len(sigs) < 3:
             return False  # insufficient signers (rust parity)
@@ -301,11 +369,15 @@ class BTCPProofBuilder:
             return False
         if proof.consensus_proof.threshold_margin < 0:
             return False  # coherence below threshold
+        # M-07/ED-A1: AWA must have held at emission (MD §17: emission
+        # frozen ⇒ the "proof" is not a valid TRION attestation).
+        if not getattr(proof.consensus_proof, "awa_enforced", True):
+            return False  # emitted during AWA freeze
         hhi = float(proof.consensus_proof.hhi_at_emission)
         if hhi > 1.0:
             hhi = hhi / 10_000.0  # python 0-10000 scale → rust 0-1 scale
-        if hhi > 0.5:
-            return False  # too concentrated (rust parity)
+        if hhi > self.HHI_CRITICAL_NORMALIZED:
+            return False  # too concentrated (hhi > 4000 ×1e4 — M-07 canonical)
         seen = set()
         for sig in sigs:
             vid = sig.validator_id if isinstance(sig.validator_id, bytes) else bytes(sig.validator_id)

@@ -326,12 +326,20 @@ class TestBTCPProofBuilder:
         assert not pb.verify_proof(proof, current_block=18000000 + 100000)
 
     def test_cert_expiry_by_value_tier(self):
-        """A3: Certification validity windows."""
+        """A3/§9.2 (H-06, Wave 3 D): canonical SECOND-based TTL tiers.
+
+        The block-denominated table was retired (py and rust tables
+        disagreed; blocks are not VM-portable — audit H-06). Values mirror
+        core/consensus/certificate.py::TTL_TIERS_USD and
+        CANONICAL_CERTIFICATE.md §9.2 exactly.
+        """
         pb = BTCPProofBuilder()
-        assert pb.compute_cert_expiry(500) == 10_000       # <$1K
-        assert pb.compute_cert_expiry(50_000) == 50_000     # $1K-$100K
-        assert pb.compute_cert_expiry(5_000_000) == 200_000  # $100K-$10M
-        assert pb.compute_cert_expiry(50_000_000) == 500_000  # >$10M
+        assert pb.compute_cert_ttl(500) == 3_600         # <  $1k     → 1 h
+        assert pb.compute_cert_ttl(50_000) == 86_400     # <  $100k   → 24 h
+        assert pb.compute_cert_ttl(5_000_000) == 259_200  # <  $10M    → 3 d
+        assert pb.compute_cert_ttl(50_000_000) == 604_800  # >= $10M    → 7 d
+        # legacy name preserved as seconds-returning alias (H-06)
+        assert pb.compute_cert_expiry(50_000) == 86_400
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
