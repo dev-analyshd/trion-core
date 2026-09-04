@@ -59,12 +59,20 @@
 ## Layout (honest status)
 
 * `TrionSDK.ts` — the typed SDK documented above (canonical).
-* `sdk/src/` — sibling copies of overlapping clients
-  (`index.ts`, `trion.ts`, `trion-sdk.ts`, `client.ts`) plus the WASM
-  signal processor sources. These overlap heavily with `TrionSDK.ts`
-  (registered as an audit item: "SDK duplication / wasm P0"); consolidation
-  is tracked as Wave 4 dead-code work. Until then, the trust model above
-  applies to every copy: none of them sign, verify signatures, or compute
-  quorum truth.
+* `sdk/src/` — four overlapping TS client copies (`index.ts`, `trion.ts`,
+  `trion-sdk.ts`, `client.ts`) plus the generated chain-id bindings and the
+  WASM signal processor sources. W4-Q disposition: each copy is now headed
+  with a **DUPLICATE — NOT CANONICAL** note; grep-proven that no application
+  imports them (frontend uses its own `lib/api.ts`, the institutional
+  dashboard its own `lib/trion/client.ts`). They are retained only because
+  two closed-wave battery tests pin them — the chain-id discipline scan
+  (`tests/unit/test_chain_registry_canonical.py`) and the no-signing-surface
+  check (`tests/unit/test_api_truth_boundaries.py`). Consolidation
+  (deletion) requires updating those tests and is deferred to a coordinated
+  breaking-change window (W5-S). Until then the trust model above applies to
+  every copy: none of them sign, verify signatures, or compute quorum truth.
+* `sdk/src/generated_chain_ids.ts` + `sdk/src/wasm/` — NOT duplicates:
+  generated bindings (registry-derived, imported by `TrionSDK.ts`) and the
+  real WASM signal processor.
 * `trion_sdk.py` — the Python sibling client; same trust model (read +
   classify, no signing, no verification).

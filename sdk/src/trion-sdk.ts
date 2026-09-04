@@ -3,6 +3,20 @@
  * Complete TypeScript client for all TRION API endpoints
  * Type system enforces signal taxonomy at compile time.
  */
+/**
+ * ── DUPLICATE — NOT CANONICAL (W4-Q disposition) ──────────────────────────
+ * This file is one of four overlapping TS SDK copies under sdk/src/ (index,
+ * trion, trion-sdk, client). The canonical SDK is sdk/TrionSDK.ts (same
+ * trust model: read/pack/classify — never sign, verify, or decide quorum).
+ * Nothing in the repo imports this copy (grep-proven W4-Q); it is retained
+ * only because two closed-wave battery tests pin it:
+ * tests/unit/test_chain_registry_canonical.py (chain-id discipline) and
+ * tests/unit/test_api_truth_boundaries.py (no-signing-surface check).
+ * Do NOT add features here — extend sdk/TrionSDK.ts. Deletion is deferred to
+ * a coordinated breaking-change window (W5-S) that updates those tests.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
 
 export type SignalType =
   | "VALUATION" | "SILENCE" | "MANIPULATION_ALERT"
