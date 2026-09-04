@@ -26,7 +26,7 @@ Implementation of Section 2.1 / 2.2 of the Inverted Truth Hierarchy:
     Retail ← DeFi ← Oracle (Chainlink) ← CEX price feeds ← CEX order matching ← (no ground truth)
 
   TRION STACK (behavioral ground truth):
-    Retail ← DeFi ← TRION BTV ← On-chain BH ledger ← 37 chains (1.9M+ tamper-proof records)
+    Retail ← DeFi ← TRION BTV ← On-chain BH ledger ← registered chains (1.9M+ tamper-proof records)
 
 The BTV is NOT a faster pipe carrying CEX data.
 It is derived from the actual behavioral record of what every entity did on every chain,
@@ -478,7 +478,7 @@ def _compute_source_diversity(asset: str, chains_active: int) -> float:
     Compute D_effective = 1 - HHI for this asset across indexed chains.
     More chains with more balanced volume → higher diversity.
     """
-    # Chain count-based diversity: 37 chains → near-maximum diversity
+    # Chain count-based diversity: more chains → near-maximum diversity
     n = max(1, chains_active)
     # Equal-weight HHI baseline for n sources = 1/n
     hhi_equal = 1.0 / n
