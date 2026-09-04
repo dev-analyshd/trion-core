@@ -59,6 +59,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from dataclasses import dataclass, field, asdict
 
+from core.generated_chain_bindings import TOTAL_CHAINS
+
 logger = logging.getLogger(__name__)
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
@@ -354,7 +356,7 @@ def compute_btv(asset: str, quote: str = "USD") -> BTVDerivation:
     bh_stats = _fetch_bh_stats()
     bh_total      = bh_stats.get("total_bhs", 0)
     bh_by_chain   = bh_stats.get("by_chain", {})
-    chains_active = len(bh_by_chain) if bh_by_chain else 37
+    chains_active = len(bh_by_chain) if bh_by_chain else TOTAL_CHAINS
     by_event      = bh_stats.get("by_event_type", {})
     swap_count    = by_event.get("SWAP", 0) + by_event.get("1", 0)
     steps.append(f"  → BH ledger depth: {bh_total:,} records across {chains_active} chains")
@@ -430,7 +432,7 @@ def compute_btv(asset: str, quote: str = "USD") -> BTVDerivation:
 
     # ── Step 10: Overall confidence ────────────────────────────────────────────
     depth_conf    = min(1.0, math.log10(max(bh_total, 1)) / math.log10(2_000_000))
-    chain_conf    = min(1.0, chains_active / 37.0)
+    chain_conf    = min(1.0, chains_active / TOTAL_CHAINS)
     signal_conf   = coherence
     confidence    = round((depth_conf * 0.35 + chain_conf * 0.30 + signal_conf * 0.35), 4)
     steps.append(f"STEP 10: Confidence = depth({depth_conf:.3f})×0.35 + chains({chain_conf:.3f})×0.30 + C(t)({signal_conf:.3f})×0.35")
