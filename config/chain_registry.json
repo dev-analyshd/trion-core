@@ -2,7 +2,7 @@
   "version": "2.1.0",
   "generated_by": "P3-CONSOLIDATE chain-registry unification (base: FIX-2 vm-chain-implementer)",
   "total_chains": 129,
-  "integrated_chains": 41,
+  "integrated_chains": 40,
   "vm_families": 18,
   "vm_distribution": {
     "COSMOS": 20,
@@ -27,7 +27,7 @@
   "schema": {
     "name": "Chain display name",
     "vm": "Virtual machine family (ALGORAND, CARDANO, COSMOS, EVM, HEDERA, MOVE, MULTIVERSX, NEAR, PVM, STARKNET, STELLAR, SVM, TON, TRON, UTXO, VECHAIN, WAVES, XRPL)",
-    "chainId": "Numeric chain ID (TRION canonical \u2014 for Cosmos chains without a numeric ID, a TRION-assigned value is used)",
+    "chainId": "Numeric chain ID (TRION canonical — for Cosmos chains without a numeric ID, a TRION-assigned value is used)",
     "rpc": "Public RPC endpoint (read-only, no API keys)",
     "finalitySec": "Typical time-to-finality in seconds (used by BTCP finality normalizer, max(A,B))",
     "gasUsd": "Typical simple-transfer gas cost in USD (used by BTCP_score routing, not authoritative)",
@@ -708,11 +708,11 @@
       "rpc": "https://rpc.api.moonriver.moonbeam.network",
       "finalitySec": 24,
       "gasUsd": 0.05,
-      "integrated": true,
+      "integrated": false,
       "explorer": "https://moonriver.moonscan.io",
       "nativeToken": "MOVR",
       "decimals": 18,
-      "notes": ""
+      "notes": "not integrated: no indexer coverage (trion-evm covers Moonbeam 1284 only) and no BH streamer worker; registry previously flagged it live with zero ingestion paths"
     },
     {
       "name": "Sei EVM",
