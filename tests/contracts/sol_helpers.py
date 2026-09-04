@@ -113,8 +113,23 @@ class EvmHarness:
 
 # ── validator keys ──────────────────────────────────────────────────────────
 
-def make_validators(n, seed_start=1):
-    """Deterministic validator keypairs: address + private key."""
+def addr_key(a: str) -> int:
+    """Numeric sort key for checksummed address strings (string sort is NOT
+    numeric order — '0xC4...' < '0xa0...' as strings)."""
+    return int(a, 16)
+
+
+def sort_numeric(addrs):
+    return sorted(addrs, key=addr_key)
+
+
+def make_validators(n, seed_start=0xCE57_0AAA_0000_0000_0000_0000_0000_0001):
+    """Deterministic validator keypairs: address + private key.
+
+    Keys are deliberately far away from eth_tester's default accounts (which
+    are derived from private keys 1..10) so validator addresses never collide
+    with the harness owner/attacker/destination accounts.
+    """
     out = []
     for i in range(n):
         key = (seed_start + i).to_bytes(32, "big")
