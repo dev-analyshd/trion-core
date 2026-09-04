@@ -25,6 +25,15 @@ _log = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+# ── FAISS ANIMA service base URL (single resolution point) ────────────────
+# Every internal call to the anima-service honors FAISS_SERVICE_URL (or the
+# FAISS_URL alias) — previously 21 hardcoded 127.0.0.1:8000 call sites broke
+# any deployment where the service is not on localhost (docker compose,
+# separate hosts).
+_FAISS_BASE = os.environ.get(
+    "FAISS_SERVICE_URL", os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
+)
+
 
 # ── Synthetic-data disclosure helper (audit FIX-PY) ──────────────────────────
 # Every endpoint whose per-entity values are hash/RNG-seeded demo data (rather
@@ -453,7 +462,7 @@ def faiss_stats():
         pass
 
     try:
-        with _req.urlopen("http://127.0.0.1:8000/health", timeout=3) as r:
+        with _req.urlopen(f"{_FAISS_BASE}/health", timeout=3) as r:
             data = _json.loads(r.read())
         # Merge: use max of FAISS service count and live streamer count
         data["indexed_vectors"] = max(data.get("indexed_vectors", 0), live_vectors)
@@ -545,7 +554,7 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
     try:
         # ── Mental confidence ──────────────────────────────────────────────
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/mental_confidence/{eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/mental_confidence/{eid}", timeout=1
         ) as _r:
             mental = json.loads(_r.read())
         if mental.get("status") == "neutral_prior":
@@ -560,14 +569,14 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
 
         # ── ANIMA score ────────────────────────────────────────────────────
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/anima/{eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/anima/{eid}", timeout=1
         ) as _r:
             anima_d = json.loads(_r.read())
         a_val = float(anima_d.get("anima_score", 0.5))
 
         # ── Depth (physical proxy) ─────────────────────────────────────────
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/depth/{eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/depth/{eid}", timeout=1
         ) as _r:
             depth_d = json.loads(_r.read())
         depth = float(depth_d.get("akashic_depth", 0.0))
@@ -622,7 +631,7 @@ def _get_sigma_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
     # ── 2. Try local computation from validator signals in FAISS ────────────
     try:
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/spiritual/validators?entity={eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/spiritual/validators?entity={eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
             if data and "validators" in data and len(data["validators"]) >= 3:
@@ -666,7 +675,7 @@ def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
     # ── 1. Try live annotation service ──────────────────────────────────────
     try:
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/conscious/annotations/{eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/conscious/annotations/{eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
             if "k_score" in data and isinstance(data["k_score"], (int, float)):
@@ -678,7 +687,7 @@ def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
     # ── 2. Try indigenous knowledge / cultural context from FAISS ───────────
     try:
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/conscious/indigenous/{eid}", timeout=1
+            f"{_FAISS_BASE}/api/v1/conscious/indigenous/{eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
             if data and data.get("k_score", 0) > 0.10:
@@ -1265,7 +1274,7 @@ def anima_signal(entity_id: str):
     try:
         import urllib.request as _ur
         with _ur.urlopen(
-            f"http://127.0.0.1:8000/api/v1/archetype/{entity_id}", timeout=3
+            f"{_FAISS_BASE}/api/v1/archetype/{entity_id}", timeout=3
         ) as _r:
             _arch = json.loads(_r.read())
         if _arch.get("archetype_id") is not None and _arch.get("archetype_id", -1) >= 0:
@@ -1312,6 +1321,16 @@ def health():
     })
 
 
+@app.route("/healthz")
+def healthz():
+    """Liveness probe — mirrors the FAISS service and Next.js convention.
+
+    Liveness must NOT check downstream dependencies (that is /readyz's job)
+    so a slow FAISS cold-start never gets the pod killed.
+    """
+    return jsonify({"status": "ok", "service": "trion-oracle-api", "timestamp": int(time.time())})
+
+
 @app.route("/readyz")
 def readyz():
     """Readiness probe — used by Railway/Compose to gate routing.
@@ -1325,7 +1344,7 @@ def readyz():
     (which otherwise surfaces as 500s during the first 10-15s after boot).
     """
     import urllib.request as _ur
-    faiss_url = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+    faiss_url = _FAISS_BASE
     faiss_ok = False
     faiss_vec = 0
     try:
@@ -1369,7 +1388,7 @@ def stats():
     indexed_vectors = 0
     try:
         import urllib.request as _ur
-        with _ur.urlopen("http://127.0.0.1:8000/health", timeout=1) as _r:
+        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _fstats = json.loads(_r.read())
             indexed_vectors = int(_fstats.get("indexed_vectors", _fstats.get("vector_count", 0)))
     except Exception:
@@ -2832,7 +2851,7 @@ def governance_falsifiability():
     live_entities   = None
     try:
         import urllib.request as _ur
-        with _ur.urlopen("http://127.0.0.1:8000/health", timeout=1) as _r:
+        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _h = json.loads(_r.read())
             live_bh_count      = _h.get("total_bh_records")
             live_vector_count  = _h.get("total_vectors")
@@ -3275,7 +3294,7 @@ def anima_intelligence():
     imp = get_imp()
     try:
         import urllib.request as _ur
-        with _ur.urlopen("http://127.0.0.1:8000/health", timeout=2) as _r:
+        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=2) as _r:
             faiss_health = json.loads(_r.read())
         depth    = float(faiss_health.get("indexed_vectors", faiss_health.get("vector_count", 0)))
         pa_proxy = min(1.0, depth / 5000.0)
@@ -3330,7 +3349,7 @@ def _faiss_depth() -> float:
     """Helper: current Akashic depth from FAISS service."""
     try:
         import urllib.request as _ur
-        with _ur.urlopen("http://127.0.0.1:8000/health", timeout=1) as _r:
+        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _d = json.loads(_r.read())
             return float(_d.get("indexed_vectors", _d.get("vector_count", 0)))
     except Exception:
@@ -3341,7 +3360,7 @@ def _proxy_faiss(path: str) -> tuple:
     """Proxy a GET request to FAISS service at port 8000. Returns (data, status)."""
     try:
         import urllib.request as _ur
-        with _ur.urlopen(f"http://127.0.0.1:8000{path}", timeout=3) as _r:
+        with _ur.urlopen(f"{_FAISS_BASE}{path}", timeout=3) as _r:
             return json.loads(_r.read()), 200
     except Exception as e:
         return {"error": f"FAISS unavailable: {e}"}, 503
@@ -3911,7 +3930,7 @@ def validators_list():
     list. Falls back to the local L4.8 HHI validator set if FAISS is unreachable.
     """
     import requests as _req
-    faiss_url = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+    faiss_url = _FAISS_BASE
     try:
         r = _req.get(f"{faiss_url}/api/v1/spiritual/validators", timeout=10)
         if r.status_code == 200:
@@ -4876,7 +4895,7 @@ def bh_ledger_get(entity_id: str):
     import requests as _req
     limit    = request.args.get("limit", 50, type=int)
     chain_id = request.args.get("chain_id", None, type=int)
-    faiss_url = "http://127.0.0.1:8000"
+    faiss_url = _FAISS_BASE
     try:
         params = {"limit": min(limit, 200)}
         if chain_id is not None:
@@ -8874,7 +8893,7 @@ def demo_stats():
     faiss_count = 0
     try:
         import urllib.request as _ur
-        resp = _ur.urlopen("http://127.0.0.1:8000/stats", timeout=2)
+        resp = _ur.urlopen(f"{_FAISS_BASE}/stats", timeout=2)
         data = json.loads(resp.read())
         faiss_count = data.get("total_vectors", 0)
     except Exception:
@@ -9027,7 +9046,7 @@ def zg_agent_id(entity_id: str):
     # Pull live coherence score from FAISS if available
     phi_live = round(0.40 + seed * 0.55, 4)
     try:
-        with _ur.urlopen(f"http://127.0.0.1:8000/planes/{entity_id}/physical", timeout=2) as r:
+        with _ur.urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
             pd = _j.loads(r.read())
             phi_live = round(pd.get("phi", phi_live), 4)
     except Exception:
@@ -9099,7 +9118,7 @@ def kv_get_signal(entity_id: str):
     phi_source = "hash_seeded_fallback"
 
     try:
-        with _ur.urlopen(f"http://127.0.0.1:8000/planes/{entity_id}/physical", timeout=2) as r:
+        with _ur.urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
             pd = _j.loads(r.read())
             phi = round(pd.get("phi", phi), 4)
             allowed = phi >= theta
@@ -9230,7 +9249,7 @@ def zg_full_stack():
     # Pull FAISS stats
     faiss_vectors = 89
     try:
-        with _ur.urlopen("http://127.0.0.1:8000/health", timeout=2) as r:
+        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=2) as r:
             fd = _j.loads(r.read())
             faiss_vectors = fd.get("indexed_vectors", 89)
     except Exception:
@@ -9738,7 +9757,7 @@ def architecture_inversion():
         import requests as _req
         _moat  = _req.get("http://127.0.0.1:5000/api/v1/moat",    timeout=2).json()
         _bh    = _req.get("http://127.0.0.1:5000/api/v1/bh/stats", timeout=2).json()
-        _faiss = _req.get("http://127.0.0.1:8000/health",          timeout=2).json()
+        _faiss = _req.get(f"{_FAISS_BASE}/health",          timeout=2).json()
         _uni   = _req.get("http://127.0.0.1:5000/api/v1/signal/uniswap", timeout=2).json()
     except Exception:
         _moat = _bh = _faiss = _uni = {}
