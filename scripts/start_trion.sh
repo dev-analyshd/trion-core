@@ -17,12 +17,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Python path configuration ────────────────────────────────────────────────
-# Support custom library locations (for environments where system pip is restricted)
-export PYTHONPATH="/home/user/pylibs:${PYTHONPATH:-}"
-if [ -d "/home/user/.local/lib/python3.10/site-packages" ]; then
-    export PYTHONPATH="/home/user/.local/lib/python3.10/site-packages:$PYTHONPATH"
+# Support custom library locations (for environments where system pip is restricted).
+# TRION_EXTRA_PYTHONPATH lets you prepend site-packages without editing this script.
+if [ -n "${TRION_EXTRA_PYTHONPATH:-}" ]; then
+    export PYTHONPATH="${TRION_EXTRA_PYTHONPATH}:${PYTHONPATH:-}"
 fi
-echo "PYTHONPATH configured: $PYTHONPATH"
+echo "PYTHONPATH configured: ${PYTHONPATH:-<default>}"
 WORKSPACE="$(dirname "$SCRIPT_DIR")"
 cd "$WORKSPACE"
 
