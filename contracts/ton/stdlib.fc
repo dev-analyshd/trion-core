@@ -11,3 +11,18 @@ int equal_slices(slice a, slice b) asm "SDEQ";
 
 ;; dict_get? — returns (found_slice, found_flag); used as routes_dict.dict_get?(key_len, key)
 (slice, int) dict_get?(cell dict, int key_len, slice key) asm(key dict key_len) "DICTGET" "NULLSWAPIFNOT";
+
+;; ── C-01 (Wave 2): TVM-native Ed25519 + gas primitives for canonical ──────────
+;; certificate verification. Declared exactly as the official ton-stdlib
+;; does (ancient, stable TVM opcodes — no 2023-upgrade instructions used):
+;;
+;; check_signature (CHKSIGNU): checks the Ed25519 signature (64 bytes in the
+;;   slice) of the 32-byte BIG-ENDIAN representation of the 256-bit integer
+;;   `hash`, against the 256-bit Ed25519 public key. Used over
+;;   cell_hash(P-root) — see the escrow.fc header for the documented
+;;   family-2 digest deviation (CHKSIGNS max data = 1023 bits < 346 bytes).
+int check_signature(int hash, slice signature, int public_key) asm "CHKSIGNU";
+
+;; accept_message (ACCEPT): buys gas credit from the incoming message value —
+;;   the certificate path is verification-heavy and the SUBMITTER pays.
+() accept_message() asm "ACCEPT";
