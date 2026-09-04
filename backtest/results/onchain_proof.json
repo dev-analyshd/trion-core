@@ -1,4 +1,8 @@
 {
+  "superseded": true,
+  "superseded_by": "backtest_report.json",
+  "superseded_reason": "This on-chain proof anchors the metrics of the degenerate v1 backtest (DD findings C4 / 6.1): the v1 signal path returned COLD_START defaults for all 40 entities (coherence 0.0) and the v1 detector logic (`not coherent or silence`) was a tautology, so the run flagged everything (FPR 1.0, TN 0, separation 0.0). The remediated backtest (backtest_report.json, engine v2) replays behavioral event histories and scores them through the core/ coherence pipeline with a Youden's-J-calibrated threshold. The on-chain transaction itself is historical fact and is preserved unaltered; only its interpretation is superseded.",
+  "superseded_at": "2026-09-03T00:00:00Z",
   "published_at": "2026-06-01T18:37:48.153Z",
   "network": "Arbitrum Sepolia",
   "chainId": 421614,
@@ -861,7 +865,7 @@
       "chain": "bsc",
       "exploit_type": "FLASH_LOAN",
       "event_type": "FLASH_LOAN",
-      "description": "Flash loan WBNB → inflate ELEPHANT price → redeem TRUNK → sell. Classic AMM exploit.",
+      "description": "Flash loan WBNB \u2192 inflate ELEPHANT price \u2192 redeem TRUNK \u2192 sell. Classic AMM exploit.",
       "tx_hash": "0x5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f",
       "fingerprint_signals": [
         "FLASH_LOAN",

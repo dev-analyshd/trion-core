@@ -1,0 +1,19 @@
+TRION Protocol — Held-Out (Non-Circular) Backtest Summary
+======================================================================
+
+Methodology: held_out_split
+Split: 67%/33% train/test (seed=42)
+Threshold: theta=0.54 frozen from TRAIN (Youden's J)
+
+TRAIN (20 exploits):
+  Recall:     100.0%
+  Cohen's d:  6.31
+
+TEST (10 exploits):
+  Recall:     100.0%
+  Cohen's d:  7.78
+
+Controls: mean C=0.7588
+
+Interpretation:
+  Held-out recall: 100.0% (95% CI: 72.2%–100.0%) at frozen θ=0.54 (Youden's J on TRAIN only). Cohen's d vs control cohort: 7.78. Separation delta (control − attacker): +0.320 (bootstrap 95% CI: [0.289, 0.355]). Note: small TEST sample size (10) produces wide CIs. Expand the held-out set in future runs for tighter bounds. Flag rule is C(t) < θ (calibrated); silence is reported separately.
