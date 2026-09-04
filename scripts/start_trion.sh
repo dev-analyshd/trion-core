@@ -103,22 +103,25 @@ start_api() {
     log "Starting TRION Oracle API..."
     export FLASK_URL="$FLASK_URL"
     if [ "$BACKGROUND" = true ]; then
-        cd "$WORKSPACE" && nohup python3 -m api.app \
+        cd "$WORKSPACE" && nohup python3 serve.py \
             > "$LOG_DIR/api.log" 2>&1 &
         echo $! > "$LOG_DIR/api.pid"
     else
-        cd "$WORKSPACE" && python3 -m api.app
+        cd "$WORKSPACE" && python3 serve.py
     fi
 }
 
 start_validators() {
-    log "Starting Validator P2P Network..."
-    if [ "$BACKGROUND" = true ]; then
-        cd "$WORKSPACE" && nohup python3 -m trion_l0.main \
+    # The old `python3 -m trion_l0.main` module was removed long ago — this
+    # step used to crash the script (and silently log a python error in
+    # background mode). The validator mesh is the Go binary now:
+    if command -v go >/dev/null 2>&1; then
+        log "Starting Validator P2P Network (go run)..."
+        cd "$WORKSPACE/validator" && nohup go run ./cmd/trion-validator \
             > "$LOG_DIR/validators.log" 2>&1 &
         echo $! > "$LOG_DIR/validators.pid"
     else
-        cd "$WORKSPACE" && python3 -m trion_l0.main
+        log "Skipping validator mesh: no Go toolchain on PATH (build validator/cmd/trion-validator where go exists)"
     fi
 }
 

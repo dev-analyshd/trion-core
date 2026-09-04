@@ -82,7 +82,7 @@ echo "[4/7] ✓ Cleaned up"
 
 # ── 5. Start sync daemon (background) ───────────────────────────
 echo "[5/7] Starting hourly sync daemon..."
-nohup python3 zg_sync_daemon.py \
+nohup python3 zg/zg_sync_daemon.py \
   > 0g-state/logs/sync_daemon.log 2>&1 &
 SYNC_PID=$!
 echo $SYNC_PID > 0g-state/sync_daemon.pid
@@ -91,7 +91,7 @@ echo "       Logs: tail -f 0g-state/logs/sync_daemon.log"
 
 # ── 6. Start DA streamer (background) ───────────────────────────
 echo "[6/7] Starting DA streamer..."
-nohup python3 zg_da_streamer.py \
+nohup python3 zg/zg_da_streamer.py \
   > 0g-state/logs/da_streamer.log 2>&1 &
 DA_PID=$!
 echo $DA_PID > 0g-state/da_streamer.pid
