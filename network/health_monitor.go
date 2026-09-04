@@ -4,7 +4,8 @@
 // consensus messaging. WHY: goroutine model handles thousands of concurrent connections.
 //
 // This module implements the health monitoring component specified in Part 11.
-// Runs concurrent health checks across all 35 chains + FAISS + Oracle API.
+// Runs concurrent health checks across its 19 configured endpoints
+// (14 EVM RPCs, SOLANA/NEAR/TON, plus the FAISS and Oracle services).
 
 package main
 
