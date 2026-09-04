@@ -4,7 +4,7 @@ Primary: 0G Mainnet (chain 16661) | TRIONExecutionGate: 0xA85B49C73B5710d9ddB1CB
 Testnet: Arbitrum Sepolia | TRIONSensingOracle: 0x1d129D34279d1246aB08a41dfE610EaF8D794237
 
 All signals are published on-chain via publishBehavioralTruth().
-194 Flask routes + 151 FAISS FastAPI routes = 345 total.
+282 Flask routes + 165 FAISS FastAPI routes = 447 total.
 """
 import os
 import time
@@ -10272,7 +10272,7 @@ def trion_vision():
             "behavioral_vectors":   _live_bh_count_str() + " BH records",
             "chains":               _registry_chain_counts()["chains_indexed"],
             "formulas":             "28 live + 56 synthetic-demo (84 registered)",
-            "tests":                "606 passing",
+            "tests":                "691 passing",
             "bh_records":           _live_bh_count_str() + " per-transaction",
             "bh_performance":       "0.023ms avg (434× faster than spec)",
             "languages":            7,

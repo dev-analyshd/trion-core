@@ -2,7 +2,7 @@
 
 | Section | Contents |
 |---------|---------|
-| [api/endpoints.md](api/endpoints.md) | Full REST API reference — all 194 routes |
+| [api/endpoints.md](api/endpoints.md) | Full REST API reference — all 282 routes |
 | [architecture/five_planes.md](architecture/five_planes.md) | Five behavioral planes: Φ M Σ K A |
 | [architecture/bootstrap.md](architecture/bootstrap.md) | Cold-start bootstrapping sequence |
 | [architecture/chameleon.md](architecture/chameleon.md) | Chameleon Protocol — adversarial noise defense |
