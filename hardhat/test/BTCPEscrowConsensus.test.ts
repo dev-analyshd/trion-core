@@ -193,7 +193,7 @@ describe("BTCPEscrow consensus-gated release (S3/C2 — signature-quorum oracle)
     await expect(escrow.connect(deployer).releaseEscrow(escrowId, execBH, COHERENCE))
       .to.emit(escrow, "EscrowReleased");
     expect(await ethers.provider.getBalance(dest.address) - destBefore).to.equal(ONE_ETH);
-    expect((await escrow.getEscrow(escrowId)).state).to.equal(3n); // State.RELEASED
+    expect((await escrow.getEscrowCore(escrowId)).state).to.equal(3n); // State.RELEASED
   });
 
   it("aggregated attestation batches are fail-closed: non-validator, unsorted, disputed, empty", async () => {

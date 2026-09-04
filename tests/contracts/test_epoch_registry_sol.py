@@ -23,8 +23,17 @@ Run: python3 tests/contracts/test_epoch_registry_sol.py
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from sol_helpers import EvmHarness, make_validators, sort_numeric  # noqa: E402
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location(
+    "tests.contracts.sol_helpers",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "sol_helpers.py"))
+import sys as _sys
+_sh = _ilu.module_from_spec(_spec)
+_sys.modules[_spec.name] = _sh
+_spec.loader.exec_module(_sh)
+EvmHarness, make_validators, sort_numeric = (  # noqa: E402
+    _sh.EvmHarness, _sh.make_validators, _sh.sort_numeric
+)
 
 PASSED = []
 FAILED = []
