@@ -11,12 +11,22 @@ Environment=PYTHONPATH=/opt/trion:/opt/trion/pylibs
 Environment=FLASK_ENV=production
 Environment=PORT=5000
 Environment=FAISS_SERVICE_URL=http://127.0.0.1:8000
+# serve.py is a SINGLE process (no gunicorn workers), so the in-process BH
+# streamer gate is the correct mode for this unit (api/app.py default 0 is
+# for multi-worker images; the docker entrypoints run the standalone
+# scripts/run_bh_streamer.py instead — never both).
+Environment=TRION_STREAMER_INPROCESS=1
 # serve.py = Flask + flask-socketio push layer: REST API on :5000 plus the
 # /socket.io/ websocket (/feed namespace) that nginx proxies and the
 # dashboard's live signal feed consumes. The REST-only alternative is
 # `gunicorn --workers 4 --bind 127.0.0.1:5000 api.app:app` — it does NOT
-# serve the websocket.
+# serve the websocket (and with >1 workers you must NOT set
+# TRION_STREAMER_INPROCESS=1: each worker would spawn its own streamer).
 # (The old VALIDATOR_URL env is gone: nothing in the API reads it.)
+# BH ledger: the app + in-process streamer write <WorkingDirectory>/bh_ledger.db
+# (/opt/trion/bh_ledger.db). One-time host setup (as root, before first start):
+#   install -o trion -g trion -m 0644 /dev/null /opt/trion/bh_ledger.db
+# trion-faiss.service points BH_LEDGER_DB at the same file below.
 ExecStart=/usr/bin/python3 serve.py
 Restart=on-failure
 RestartSec=10
@@ -27,7 +37,7 @@ TimeoutStopSec=30
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/trion/data /opt/trion/logs
+ReadWritePaths=/opt/trion/data /opt/trion/logs /opt/trion/bh_ledger.db
 PrivateTmp=true
 PrivateDevices=true
 ProtectKernelTunables=true

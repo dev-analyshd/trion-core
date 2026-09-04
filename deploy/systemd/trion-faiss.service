@@ -9,6 +9,9 @@ WorkingDirectory=/opt/trion
 Environment=PYTHONPATH=/opt/trion/anima-service:/opt/trion/pylibs
 Environment=FAISS_PORT=8000
 Environment=FAISS_INDEX_PATH=/opt/trion/data/faiss.index
+# Read the SAME live BH ledger the api unit writes (see trion-api.service):
+# default here would be anima-service/bh_ledger.db — a different, static file.
+Environment=BH_LEDGER_DB=/opt/trion/bh_ledger.db
 ExecStart=/usr/bin/python3 anima-service/faiss_service.py
 Restart=on-failure
 RestartSec=10
