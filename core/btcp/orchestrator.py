@@ -791,42 +791,44 @@ class BTCPOrchestrator:
         immediately. Store failures fall back to the session-scoped
         counter (monotonic in-process; restart caveat documented above).
         """
-        try:
-            persisted = self._store.load_all(ENTITY_NONCE_KIND)
-        except Exception:
-            persisted = {}
-        last = None
-        entry = persisted.get(entity_key)
-        if entry is not None:
+        # P-PY-04 (final red-team pass): the read-modify-write must be
+        # ATOMIC — the lock is held across load → compute → save so two
+        # concurrent create_route calls for one entity can never observe
+        # the same store snapshot and mint the same nonce.
+        with _ENTITY_NONCE_LOCK:
             try:
-                last = int(entry[1])
-            except (TypeError, ValueError):
-                last = None
+                persisted = self._store.load_all(ENTITY_NONCE_KIND)
+            except Exception:
+                persisted = {}
+            last = None
+            entry = persisted.get(entity_key)
+            if entry is not None:
+                try:
+                    last = int(entry[1])
+                except (TypeError, ValueError):
+                    last = None
 
-        if last is None:
-            # First sight (or unreadable row): seed from wall-clock ms, but
-            # never below the in-memory counter (keeps in-session monotonicity).
-            seed = int(time.time() * 1000) % (2 ** 32)
-            with _ENTITY_NONCE_LOCK:
+            if last is None:
+                # First sight (or unreadable row): seed from wall-clock ms,
+                # but never below the in-memory counter.
+                seed = int(time.time() * 1000) % (2 ** 32)
                 mem = _ENTITY_NONCES.get(entity_key)
                 if mem is not None:
                     seed = max(seed, mem + 1) % (2 ** 32)
-            nonce = seed if seed > 0 else 1
-        else:
-            nonce = last + 1
-            if nonce >= 2 ** 32:
-                nonce = 1
-
-        with _ENTITY_NONCE_LOCK:
+                nonce = seed if seed > 0 else 1
+            else:
+                nonce = last + 1
+                if nonce >= 2 ** 32:
+                    nonce = 1
             _ENTITY_NONCES[entity_key] = nonce
-        try:
-            self._store.save(ENTITY_NONCE_KIND, entity_key, int(nonce), "uint32")
-        except Exception as store_err:
-            print(
-                f"[btcp.orchestrator] entity-nonce persistence failed for "
-                f"{entity_key!r} ({store_err}) — session-scoped counter in use",
-                file=sys.stderr,
-            )
+            try:
+                self._store.save(ENTITY_NONCE_KIND, entity_key, int(nonce), "uint32")
+            except Exception as store_err:
+                print(
+                    f"[btcp.orchestrator] entity-nonce persistence failed for "
+                    f"{entity_key!r} ({store_err}) — session-scoped counter in use",
+                    file=sys.stderr,
+                )
         return nonce
 
     # ── Akashic execution records (BTCP gap #7) ────────────────────────
@@ -1006,6 +1008,22 @@ class BTCPOrchestrator:
         """
         start_time = time.perf_counter()
         errors = []
+        
+        # Step 0 (P-PY-03, final red-team pass): REGISTRY MEMBERSHIP — both
+        # route legs must exist in the canonical chain registry
+        # (core.generated_chain_bindings, generated from
+        # config/chain_registry.json). A route to a chain that does not
+        # exist can never verify: the registry is the single source of
+        # truth for what chains ARE. Fail-closed, no EVM-adapter default.
+        from core.generated_chain_bindings import ID_TO_NAME as _REGISTRY_IDS
+        if source_chain not in _REGISTRY_IDS:
+            errors.append(
+                f"source chain {source_chain} is not in the canonical "
+                f"registry (config/chain_registry.json)")
+        if dest_chain not in _REGISTRY_IDS:
+            errors.append(
+                f"dest chain {dest_chain} is not in the canonical "
+                f"registry (config/chain_registry.json)")
         
         # Step 1: Validate addresses
         if not self.gateway.validate_chain_address(source_address, source_chain):
@@ -1201,12 +1219,33 @@ class BTCPOrchestrator:
         ]
     
     def verify_route_proofs(self, route_id: str) -> Tuple[bool, List[str]]:
-        """Verify all proofs for a route."""
+        """Verify all proofs for a route.
+
+        P-PY-03 (final red-team pass): verification is registry-bound — a
+        route whose legs reference chains that do not exist in the
+        canonical registry (config/chain_registry.json) can NEVER verify,
+        regardless of proof validity. The registry is the single source of
+        truth for what chains ARE.
+        """
         route = self._routes.get(route_id)
         if route is None:
             return False, ["Route not found"]
-        
-        return self.privacy_router.verify_proofs(route.proofs)
+
+        from core.generated_chain_bindings import ID_TO_NAME as _REGISTRY_IDS
+        registry_errors = []
+        for leg, chain_id in (
+            ("source", route.intent.source_chain),
+            ("dest", route.intent.dest_chain),
+        ):
+            if chain_id not in _REGISTRY_IDS:
+                registry_errors.append(
+                    f"{leg} chain {chain_id} is not in the canonical "
+                    f"registry (config/chain_registry.json)")
+
+        ok, errors = self.privacy_router.verify_proofs(route.proofs)
+        if registry_errors:
+            return False, registry_errors + errors
+        return ok, errors
 
 
 # ── Proof Aggregator ────────────────────────────────────────────────────────
