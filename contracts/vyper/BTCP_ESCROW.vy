@@ -198,6 +198,13 @@ def release(escrow_id: bytes32, btcp_route_signal: bytes32):
     record: EscrowRecord = self.escrows[escrow_id]
     assert record.state == HOLDING, "BTCP: not in HOLDING state"
 
+    # P-VY-01 (final red-team pass): expiry guard — an escrow past its
+    # block timeout must travel the funder-protection (revert/refund) path,
+    # never be released to the destination by a fresh late quorum verdict.
+    # Solidity-tier parity (releaseEscrow's EXPIRED check).
+    assert block.number <= record.lock_block + record.timeout_blocks, \
+        "BTCP: escrow expired"
+
     # Verify TRION consensus proof — BOUND to this escrow via anchorBH.
     # (M3 fix: a quorum-safe verdict attested for a DIFFERENT escrow can
     # never release this one; one fresh verdict cannot be replayed across

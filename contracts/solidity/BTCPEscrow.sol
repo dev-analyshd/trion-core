@@ -492,7 +492,7 @@ contract BTCPEscrow {
         // deployment's chain — a quorum-signed certificate destined for a
         // foreign chain (even an otherwise-valid one) can never pay here.
         require(
-            CanonicalCertificate.destChainOf(payload) == uint32(block.chainid),
+            uint256(CanonicalCertificate.destChainOf(payload)) == block.chainid,
             "CERT_DEST_CHAIN_NOT_THIS_CHAIN"
         );
     }
