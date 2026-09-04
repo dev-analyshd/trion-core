@@ -172,6 +172,7 @@ mod tests {
             deadline: 0,
             nonce: 0,
             constraints: Default::default(),
+            btcp_version: crate::types::SemVer::new(1, 0, 0),
         }
     }
 

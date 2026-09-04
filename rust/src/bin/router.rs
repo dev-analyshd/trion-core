@@ -26,6 +26,7 @@ fn main() {
         deadline: 1787141851,
         nonce: 42,
         constraints: IntentConstraints::default(),
+        btcp_version: SemVer::new(1, 0, 0),
     };
 
     let analyses = vec![
