@@ -350,12 +350,17 @@ def get_enriched_chains():
             ]
         live_records = None
         # Case-insensitive: the streamer writes lowercase names, the rust
-        # indexers UPPERCASE — accept either for the same chain.
+        # indexers UPPERCASE — accept either for the same chain, and SUM every
+        # distinct matching label (a ledger normally has one writer, but both
+        # conventions writing the same chain must not lose rows).
         live_stats_ci = {str(k).lower(): v for k, v in live_stats.items()}
+        matched_labels = {}
         for lbl in label_candidates:
-            if lbl.lower() in live_stats_ci:
-                live_records = live_stats_ci[lbl.lower()]
-                break
+            key = str(lbl).lower()
+            if key in live_stats_ci:
+                matched_labels[key] = live_stats_ci[key]
+        if matched_labels:
+            live_records = sum(matched_labels.values())
 
         e = enrich(c, live_records)
         if live_records is not None:
