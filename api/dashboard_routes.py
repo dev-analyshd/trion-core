@@ -21,7 +21,7 @@ Sections:
   /app/marketplace        — Behavioral Data Marketplace
   /app/agent-id           — AI Agent Identity
   /app/timescale          — TimescaleDB live data
-  /app/chains             — 100-chain coverage matrix
+  /app/chains             — registry chain coverage matrix
   /app/settings           — Configuration & deployment
 """
 
@@ -148,7 +148,7 @@ def timescale_page():
 
 @dashboard_bp.route("/chains")
 def chains_page():
-    """100-chain coverage matrix."""
+    """Registry chain coverage matrix (live count from chain_registry.json)."""
     return _redirect_to_react()
 
 

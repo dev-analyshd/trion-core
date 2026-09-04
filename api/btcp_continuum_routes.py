@@ -653,7 +653,7 @@ def btcp_pipeline_status():
 
 @btcp_bp.route("/api/v1/btcp/mainnet_bootstrap")
 def btcp_mainnet_bootstrap():
-    """Mainnet bootstrap sequence for 100+ chains across 14 VM families."""
+    """Mainnet bootstrap sequence (phased rollout across the registry VM families)."""
     from core.btcp.mainnet_bootstrap import build_chain_registry, get_bootstrap_status
     chains = build_chain_registry()
     status = get_bootstrap_status(chains)
