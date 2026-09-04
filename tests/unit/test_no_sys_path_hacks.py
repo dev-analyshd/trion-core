@@ -41,6 +41,12 @@ _ALLOWLIST = frozenset({
     "core/agent/safety_pipeline.py",
     "core/akashic/bibl.py",
     "core/akashic/epigenetics.py",
+    # W3-D: AWA rtiv import fallback for direct-script execution (same
+    # pattern as core/akashic/bibl.py — lazy import with repo-root fixup).
+    "core/governance/awa.py",
+    # W3-D: d_engine wash-discount import from core/akashic/depth — same
+    # direct-script fixup pattern as bibl.py/awa.py.
+    "core/master/d_engine.py",
     "core/auditor/contract_auditor.py",
     "core/btcp/integration.py",
     "core/btcp/orchestrator.py",

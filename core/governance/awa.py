@@ -2,12 +2,39 @@
 TRION Protocol — AWA Enforcement State Machine + Gratitude Protocol + Bootstrap Protocol
 Chapter 14: Governance Architecture
 
-AWA (Adaptive Watchdog Architecture) — enforces network-level behavioral standards.
-AWA is enforced iff ALL conditions are simultaneously met:
-  1. consensus_quorum >= 2/3 of validator stake-weight
-  2. validator_hhi < 4000 (CRITICAL threshold — see sigma_engine.py)
-  3. gratitude_score >= 1 (at least 1 Gratitude Protocol signal in last 30 days)
-  4. public_good_minimum >= 0.15 (15% of protocol capacity reserved for public good)
+AWA (Anti-Weaponization Architecture — MD §17 / V2 §14.2 canonical name).
+Historical note: this module previously carried the mislabel "Adaptive
+Watchdog Architecture" (spec conflict K15); MD §17 names it the
+Anti-Weaponization Architecture and that name is normative here.
+
+CANONICAL 6-CONDITION SET (MD §17, quoted verbatim)::
+
+    AWA_enforced iff all_of:
+        no_single_entity_controls_signal_weights
+        no_single_entity_controls_validator_selection
+        Public_Good_Charter_minimum >= 15%
+        Sovereignty_Dignity_Protocol_active
+        Right_to_Invisibility_enforced
+        Gratitude >= 1
+    AWA_enforced = FALSE → signal emission FROZEN
+    Cannot be overridden by any single entity. By design.
+
+``AWAState.awa_canonical`` is the spec-exact conjunction of those six
+conditions (``iff`` semantics preserved: TRUE iff all six hold). The
+operational ``enforced`` field is a fail-closed SUPERSET — the six canonical
+conditions PLUS two validator-health checks (consensus quorum >= 2/3 and
+validator HHI < 4000 CRITICAL, per sigma_engine.py). Freeing on extra
+conditions is conservative (it can only freeze MORE, never less), and the
+MD §17 guarantee holds exactly: any canonical condition failing ⇒
+``awa_canonical = FALSE`` ⇒ ``emission_frozen = True``.
+
+EMISSION FREEZE (MD §17, wired Wave 3 D): every ``evaluate()`` updates the
+module-level ``EmissionGate`` singleton; ``signal_factory.build_signal``
+consults it as a hard precondition and converts truth signals into
+structured SILENCE (T(t) = 0) while frozen. The gate can only be released by
+a subsequent passing ``evaluate()`` — there is no single-entity override
+(no public unfreeze). A WEAPONIZATION_ATTEMPT (Chameleon §17 / MD §17)
+freezes the gate immediately via ``trigger_weaponization_freeze()``.
 
 Gratitude Protocol:
   Entities that VOLUNTARILY disclose exploitable vulnerabilities they could have
@@ -24,10 +51,10 @@ Bootstrap Protocol Weight:
   Transition is complete when bootstrap_weight < 0.01 (D > ~46,000)
 
 AWA State:
-  ENFORCED   — all 8 conditions met (4 active + 4 anti-centralization), AWA active
-  SUSPENDED  — quorum or HHI condition failed
+  ENFORCED   — all 8 conditions met (6 canonical + quorum + HHI), AWA active
+  SUSPENDED  — quorum or HHI condition failed (supplemental health)
   DEGRADED   — gratitude or public_good condition not met
-  FROZEN     — anti-centralization / R_inv / SDP condition violated (WP2 §17:
+  FROZEN     — anti-centralization / R_inv / SDP condition violated (MD §17:
                signal emission FROZEN, cannot be overridden by any single entity)
   EMERGENCY  — HHI > 4000 (validator concentration CRITICAL)
 
@@ -49,6 +76,145 @@ AWA_QUORUM      = 2.0 / 3.0
 AWA_HHI_MAX     = 4000
 AWA_GRATITUDE_MIN = 1.0
 AWA_PUBLIC_GOOD_MIN = 0.15
+
+# ─── MD §17 canonical condition names (verbatim) ─────────────────────────────
+# AWA_enforced iff all_of: <these six>. Encoded explicitly (Wave 3 D,
+# spec-matrix R-CH-02 remediation) — the AWA freeze is the F12 control.
+CANONICAL_AWA_CONDITIONS: List[str] = [
+    "no_single_entity_controls_signal_weights",
+    "no_single_entity_controls_validator_selection",
+    "Public_Good_Charter_minimum",          # >= 0.15
+    "Sovereignty_Dignity_Protocol_active",
+    "Right_to_Invisibility_enforced",
+    "Gratitude",                            # >= 1
+]
+
+
+class EmissionFrozenError(RuntimeError):
+    """Raised by hard-gate consumers when truth emission is AWA-frozen.
+
+    MD §17: ``AWA_enforced = FALSE → signal emission FROZEN … Cannot be
+    overridden by any single entity.`` On-chain / publication paths call
+    :func:`assert_emission_allowed` so a frozen AWA state is fail-closed
+    at the boundary, not only inside ``build_signal``.
+    """
+
+
+class EmissionGate:
+    """MD §17 emission-freeze gate (singleton — see ``_emission_gate``).
+
+    * ``frozen`` — truth emission frozen (T(t) = 0, structured SILENCE only).
+    * Freeze sources: any ``AWAEnforcer.evaluate()`` whose state is not
+      enforced (automatically wired), or a governance WEAPONIZATION_ATTEMPT
+      via :meth:`trigger_weaponization_freeze`.
+    * Release: ONLY a subsequent ``evaluate()`` returning an enforced state.
+      There is deliberately NO public unfreeze — "cannot be overridden by
+      any single entity" is enforced structurally, not by policy.
+    """
+
+    def __init__(self) -> None:
+        self._frozen: bool = False
+        self._reason: str = ""
+        self._source: str = ""
+        self._since: float = 0.0
+
+    # ── read API (consumed by core/master/signal_factory.py) ────────────
+    def is_frozen(self) -> bool:
+        return self._frozen
+
+    @property
+    def reason(self) -> str:
+        return self._reason
+
+    @property
+    def source(self) -> str:
+        return self._source
+
+    @property
+    def since(self) -> float:
+        return self._since
+
+    def freeze(self, reason: str, source: str, now: Optional[float] = None) -> None:
+        """Freeze emission (governance action / AWA evaluation only)."""
+        if not self._frozen:
+            self._since = now if now is not None else time.time()
+        self._frozen = True
+        self._reason = reason
+        self._source = source
+
+    # ── write API (AWAEnforcer.evaluate only) ────────────────────────────
+    def _update_from_state(self, state: "AWAState") -> None:
+        """Called by every AWAEnforcer.evaluate(): frozen iff not enforced.
+
+        A passing evaluation RELEASES a previous freeze (the only release
+        path — single-entity override is structurally impossible).
+        """
+        if state.enforced:
+            if self._frozen:
+                # Release with an audit trail of the prior freeze.
+                self._frozen = False
+                self._reason = ""
+                self._source = ""
+            return
+        detail = ", ".join(state.failing_conditions) or state.status
+        self.freeze(
+            reason=f"AWA_{state.status}: {detail}"[:512],
+            source="governance.awa.evaluate",
+            now=state.timestamp,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "emission_frozen": self._frozen,
+            "freeze_reason":   self._reason,
+            "freeze_source":   self._source,
+            "frozen_since":    int(self._since) if self._since else None,
+            "spec":            "MD §17 / V2 §14.2 — AWA_enforced=FALSE → signal emission FROZEN",
+        }
+
+
+# Module-level singleton consumed by the signal emission path.
+_emission_gate = EmissionGate()
+
+
+def get_emission_gate() -> EmissionGate:
+    """The process-wide AWA emission-freeze gate (MD §17)."""
+    return _emission_gate
+
+
+def is_emission_frozen() -> bool:
+    """True while AWA is not enforced — truth emission must be silent (T(t)=0)."""
+    return _emission_gate.is_frozen()
+
+
+def trigger_weaponization_freeze(reason: str = "WEAPONIZATION_ATTEMPT") -> None:
+    """Governance/Chameleon hook (MD §17 WEAPONIZATION_ATTEMPT → FROZEN).
+
+    Freezes emission immediately; release requires a passing AWA
+    ``evaluate()`` (no single-entity override).
+    """
+    _emission_gate.freeze(
+        reason=f"WEAPONIZATION_ATTEMPT: {reason}"[:512],
+        source="governance.awa.weaponization",
+    )
+
+
+def assert_emission_allowed(signal_type: object = None) -> None:
+    """Hard precondition for publication paths (fail-closed).
+
+    Raises :class:`EmissionFrozenError` while the gate is frozen. SILENCE
+    signals remain emittable (silence IS the information — MD §11);
+    ``signal_type`` may be a ``SignalType``/name and is checked for that.
+    Wiring point for API/on-chain publication (Agent M / VM tiers).
+    """
+    if not _emission_gate.is_frozen():
+        return
+    name = getattr(signal_type, "name", signal_type)
+    if name == "SILENCE":
+        return
+    raise EmissionFrozenError(
+        f"TRUTH EMISSION FROZEN (AWA, MD §17): {_emission_gate.reason or 'AWA not enforced'}"
+    )
 
 GRATITUDE_DECAY_PER_WEEK = 0.95
 GRATITUDE_WINDOW_DAYS    = 30
@@ -79,7 +245,7 @@ class GratitudeEvent:
 class AWAState:
     """Current state of the AWA enforcement system."""
     enforced:         bool
-    status:           str         # ENFORCED|SUSPENDED|DEGRADED|EMERGENCY
+    status:           str         # ENFORCED|SUSPENDED|DEGRADED|EMERGENCY|FROZEN
     consensus_quorum: float       # Current quorum fraction [0,1]
     validator_hhi:    float       # Current validator HHI
     gratitude_score:  float       # Current gratitude score (decayed)
@@ -90,6 +256,14 @@ class AWAState:
     failing_conditions: List[str]
     timestamp:        float
     disclosure:       str
+    # ── MD §17 canonical fields (Wave 3 D, R-CH-02) ─────────────────────
+    # awa_canonical: spec-exact AWA_enforced — iff all six MD §17 conditions.
+    awa_canonical:    bool = True
+    # emission_frozen: MD §17 freeze flag (True iff not enforced — the
+    # operational fail-closed superset, which includes awa_canonical).
+    emission_frozen:  bool = False
+    # canonical_conditions: per-condition MD §17 verdicts (spec names).
+    canonical_conditions: Dict[str, bool] = field(default_factory=dict)
 
 
 class GratitudeProtocol:
@@ -258,8 +432,18 @@ class AWAEnforcer:
             try:
                 # Import inside method so the AWA module remains importable
                 # even if the right_to_invisibility module has optional deps
-                # (e.g. missing sqlite3) on minimal runtimes.
-                from core.governance.right_to_invisibility import RightToInvisibility
+                # (e.g. missing sqlite3) on minimal runtimes. Direct-script
+                # execution (`python core/governance/awa.py`) needs the repo
+                # root on sys.path for the package-qualified import — the
+                # same fixup pattern used by core/akashic/bibl.py.
+                try:
+                    from core.governance.right_to_invisibility import RightToInvisibility
+                except ImportError:
+                    import sys as _sys, os as _os
+                    _sys.path.insert(
+                        0, _os.path.join(_os.path.dirname(__file__), "..", "..")
+                    )
+                    from core.governance.right_to_invisibility import RightToInvisibility
                 # Use an in-memory DB to avoid filesystem side-effects on import.
                 self._rtiv_handle = RightToInvisibility(db_path=":memory:")
             except Exception:
@@ -296,14 +480,16 @@ class AWAEnforcer:
             return True  # data-pending
         return mx < AWA_SIGNAL_WEIGHT_MAX_SHARE
 
-    def _check_no_single_entity_controls_validators(
+    def _check_no_single_entity_controls_validator_selection(
         self, validator_stake_distribution: Optional[Dict[str, float]]
     ) -> bool:
-        """Runtime check: no single entity controls >= 1/3 of validator stake.
+        """Runtime check: no single entity controls validator selection.
 
-        BFT safety floor: an adversary with >= 1/3 stake can halt consensus.
-        Per WP2 §17 AWA, this must be runtime-evaluated against the live
-        validator stake distribution.
+        MD §17 condition name is ``no_single_entity_controls_validator_selection``;
+        implemented as the BFT safety floor on validator stake: an adversary
+        with >= 1/3 of validator stake controls validator selection outcomes
+        (halts consensus / selects the set). Data-pending distributions are
+        treated as PASS with a disclosure flag (presumption of innocence).
         """
         mx = self._max_share(validator_stake_distribution)
         if mx is None:
@@ -340,7 +526,7 @@ class AWAEnforcer:
         # AUDIT-3 G2 fix: all 8 AWA conditions now runtime-evaluated.
         rtiv_ok     = self._check_right_to_invisibility()
         weights_ok  = self._check_no_single_entity_controls_weights(signal_weight_distribution)
-        validators_ok = self._check_no_single_entity_controls_validators(validator_stake_distribution)
+        validators_ok = self._check_no_single_entity_controls_validator_selection(validator_stake_distribution)
         sdp_ok      = self._check_sovereignty_dignity()
 
         # Track which anti-centralization checks were data-pending (unmeasured).
@@ -360,11 +546,36 @@ class AWAEnforcer:
 
         failing = [k for k, v in conditions.items() if not v]
 
+        # ── MD §17 canonical 6-condition conjunction (spec-exact iff) ────
+        # AWA_enforced iff all_of: no_single_entity_controls_signal_weights,
+        # no_single_entity_controls_validator_selection,
+        # Public_Good_Charter_minimum >= 15%, Sovereignty_Dignity_Protocol_active,
+        # Right_to_Invisibility_enforced, Gratitude >= 1.
+        canonical_conditions = {
+            "no_single_entity_controls_signal_weights":
+                conditions["no_single_entity_controls_weights"],
+            "no_single_entity_controls_validator_selection":
+                conditions["no_single_entity_controls_validators"],
+            "Public_Good_Charter_minimum":
+                conditions["public_good"],
+            "Sovereignty_Dignity_Protocol_active":
+                conditions["sovereignty_dignity_protocol"],
+            "Right_to_Invisibility_enforced":
+                conditions["right_to_invisibility"],
+            "Gratitude":
+                conditions["gratitude"],
+        }
+        awa_canonical = all(canonical_conditions.values())
+
         # AUDIT-3 G2 fix: wire the 4 newly-runtime conditions into `enforced`.
         # Per WP2 §17: "AWA_enforced = FALSE -> signal emission FROZEN. Cannot
         # be overridden by any single entity. By design." Any failing condition
         # (including the anti-centralization + R_inv + SDP conditions) freezes
         # signal emission. Status tier reflects which category failed.
+        #
+        # Wave 3 D: `enforced` is the operational fail-closed SUPERSET —
+        # canonical six + supplemental quorum/HHI validator-health checks.
+        # awa_canonical (above) preserves the spec-exact iff semantics.
         if validator_hhi >= AWA_HHI_MAX:
             status = "EMERGENCY"
             enforced = False
@@ -376,7 +587,7 @@ class AWAEnforcer:
             enforced = False
         elif not (rtiv_ok and weights_ok and validators_ok and sdp_ok):
             # Anti-centralization / dignity / invisibility violation.
-            # WP2 §17: "Cannot be overridden by any single entity."
+            # MD §17: "Cannot be overridden by any single entity."
             status = "FROZEN"
             enforced = False
         else:
@@ -424,8 +635,15 @@ class AWAEnforcer:
             failing_conditions = failing_details,
             timestamp        = now,
             disclosure       = self._disclosure(status, enforced, failing_details, bootstrap_w),
+            awa_canonical    = awa_canonical,
+            emission_frozen  = not enforced,
+            canonical_conditions = canonical_conditions,
         )
         self._last_state = state
+        # MD §17 emission-freeze wiring (Wave 3 D): every evaluation updates
+        # the process-wide emission gate. A failing state freezes truth
+        # emission (T(t) silence); a passing state is the ONLY release path.
+        _emission_gate._update_from_state(state)
         return state
 
     def _disclosure(self, status: str, enforced: bool, failing: List[str], bw: float) -> str:
@@ -441,6 +659,15 @@ class AWAEnforcer:
         return {
             "enforced":          state.enforced,
             "status":            state.status,
+            # MD §17 canonical view (Wave 3 D): spec-exact six-condition
+            # AWA_enforced + the emission-freeze verdict.
+            "awa_canonical":     state.awa_canonical,
+            "emission_frozen":   state.emission_frozen,
+            "canonical_conditions": {
+                name: {"met": state.canonical_conditions.get(name, False)}
+                for name in CANONICAL_AWA_CONDITIONS
+            },
+            "emission_gate":     _emission_gate.to_dict(),
             "conditions": {
                 "consensus_quorum": {"value": round(state.consensus_quorum, 4), "threshold": AWA_QUORUM, "met": state.conditions_met["quorum"]},
                 "validator_hhi":    {"value": round(state.validator_hhi, 1),    "threshold": AWA_HHI_MAX, "met": state.conditions_met["hhi"]},
@@ -514,6 +741,41 @@ if __name__ == "__main__":
     print(f"Emergency state: {state_emergency.status}")
     assert state_emergency.status == "EMERGENCY"
     assert not state_emergency.enforced
+
+    # MD §17 canonical semantics: quorum/HHI are supplemental — the six
+    # canonical conditions can all hold while the operational gate freezes
+    # (fail-closed superset), but never the reverse.
+    state_suppl = enforcer.evaluate(
+        consensus_quorum=0.40,          # supplemental failure
+        validator_hhi=1200,             # all six canonical conditions OK
+        public_good_pct=0.20,
+        akashic_depth=5000,
+    )
+    assert state_suppl.awa_canonical and not state_suppl.enforced
+    assert state_suppl.emission_frozen
+
+    # Emission gate: frozen after a failing evaluate, released by a passing one
+    assert is_emission_frozen(), "failing evaluate must freeze emission"
+    _pass = enforcer.evaluate(
+        consensus_quorum=0.80, validator_hhi=1200,
+        public_good_pct=0.20, akashic_depth=5000,
+    )
+    assert _pass.enforced and not is_emission_frozen()
+
+    # WEAPONIZATION_ATTEMPT freeze + no single-entity override
+    trigger_weaponization_freeze("self-test weaponization")
+    assert is_emission_frozen()
+    try:
+        assert_emission_allowed("VALUATION")
+        raise AssertionError("must raise while frozen")
+    except EmissionFrozenError:
+        pass
+    assert_emission_allowed("SILENCE")   # silence is always emittable
+    enforcer.evaluate(                    # only a passing evaluate releases
+        consensus_quorum=0.80, validator_hhi=1200,
+        public_good_pct=0.20, akashic_depth=5000,
+    )
+    assert not is_emission_frozen()
 
     bprot = BootstrapProtocol()
     print(f"Bootstrap weight D=0:      {bprot.compute_weight(0):.6f}")

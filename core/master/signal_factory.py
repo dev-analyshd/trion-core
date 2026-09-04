@@ -76,6 +76,117 @@ class SignalType(IntEnum):
     CONSENSUS_ADAPTATION  = 23   # L4.1     — adaptive consensus mechanism state change
 
 
+# ─── BTCP §14.2 domain signal registry (Wave 3 D, R-SG-03 remediation) ────────
+#
+# BTCP Master Implementation Spec §14.2 "New Signal Types to Add" lists ten
+# BTCP-domain names. Three already exist in the canonical 24-type registry
+# above (BTCP_ROUTE=22, CONSENSUS_ADAPTATION=23, RESURRECTION=4). The
+# remaining seven are registered here as an EXPLICIT BTCP-domain extension:
+#
+#   * The canonical 24-type registry stays EXACTLY 24 (signal_types.md
+#     invariant "Exactly 24 signal types are defined; new types require a
+#     protocol fork"; wasm signal_type_count()==24; rust
+#     SIGNAL_TYPE_COUNT==24; on-chain ids 0–23 — cross-language parity).
+#   * BTCP §14.2 types are emitted as TYPED SUB-PAYLOADS (signal_subtype)
+#     on their closest canonical carrier — the same pattern the repo
+#     already established for LIQUIDITY_OCEAN (core/extended/
+#     natural_liquidity.py: "emitted as an EXTENDED PAYLOAD on
+#     LIQUIDITY_HEALTH (id 10)").
+#   * classify_signal() makes every one of the 31 names classifiable at
+#     emission (domain / carrier / severity / emitter layer / TTL class).
+BTCP_DOMAIN_SIGNALS = {
+    # name                  carrier (canonical 24)         severity      emitter_layer
+    "BEHAVIORAL_TRUTH":   {"carrier": "VALUATION",             "severity": "info",     "layer": "L1",  "ttl_class": "critical"},
+    "SHADOW_CHAIN":       {"carrier": "SYSTEMIC_RISK",         "severity": "warning",  "layer": "L9",  "ttl_class": "critical"},
+    "LIQUIDITY_OCEAN":    {"carrier": "LIQUIDITY_HEALTH",      "severity": "info",     "layer": "L7",  "ttl_class": "non_critical"},
+    "CHAIN_RELIABILITY":  {"carrier": "CROSS_CHAIN_COHERENCE", "severity": "warning",  "layer": "L9",  "ttl_class": "non_critical"},
+    "BTCP_ESCROW_EVENT":  {"carrier": "BTCP_ROUTE",            "severity": "info",     "layer": "L9",  "ttl_class": "non_critical"},
+    "BTCP_TIMEOUT":       {"carrier": "BTCP_ROUTE",            "severity": "warning",  "layer": "L9",  "ttl_class": "critical"},
+    "GENESIS_COMMITMENT": {"carrier": "GENESIS",               "severity": "info",     "layer": "L2",  "ttl_class": "non_critical"},
+}
+
+# Canonical MD §11 19-type list (exact names, MD wins semantics) — used by
+# the registry-completeness classification and tests.
+CANONICAL_19_TYPES = [
+    "VALUATION", "SILENCE", "LIQUIDITY_HEALTH", "MANIPULATION_ALERT",
+    "TRAJECTORY", "SYSTEMIC_RISK", "GOVERNANCE_SIGNAL",
+    "CROSS_CHAIN_COHERENCE", "STABLECOIN_HEALTH", "PHASE_TRANSITION",
+    "FORK_DIVERGENCE", "GENESIS", "REGULATORY_BHV", "SOVEREIGN_BEHAVIORAL",
+    "MEV_EXPOSURE", "ENERGY_PARTICIPATION", "BIOLOGICAL_CAPITAL",
+    "BTCP_ROUTE", "CONSENSUS_ADAPTATION",
+]
+
+# V2 Part 5 five extended types (authoritative where MD is silent).
+V2_EXTENDED_5_TYPES = [
+    "RESURRECTION", "NEGATIVE_SPACE", "INSTITUTIONAL_BHV",
+    "ECOSYSTEM_HEALTH", "BOOTSTRAP",
+]
+
+
+def signal_registry() -> dict:
+    """Complete registry view: canonical 24 + BTCP §14.2 domain extension."""
+    return {
+        "canonical_24": [t.name for t in SignalType],
+        "canonical_19": CANONICAL_19_TYPES,
+        "v2_extended_5": V2_EXTENDED_5_TYPES,
+        "btcp_domain_7": sorted(BTCP_DOMAIN_SIGNALS.keys()),
+        "total_classifiable": len(SignalType) + len(BTCP_DOMAIN_SIGNALS),
+    }
+
+
+def classify_signal(name_or_type) -> dict:
+    """Emission classification for any canonical or BTCP-domain signal name.
+
+    Returns {type_name, signal_type_id, domain, carrier, severity,
+    emitter_layer, ttl_class}. Unknown names raise KeyError (fail-closed:
+    an unclassifiable type must not be emitted — signal_types.md envelope
+    rule "A signal without a valid emitter_layer MUST be rejected").
+    """
+    if isinstance(name_or_type, SignalType):
+        st = name_or_type
+    else:
+        try:
+            st = SignalType[str(name_or_type).upper()]
+        except KeyError:
+            name = str(name_or_type).upper()
+            if name in BTCP_DOMAIN_SIGNALS:
+                meta = BTCP_DOMAIN_SIGNALS[name]
+                carrier = SignalType[meta["carrier"]]
+                domain = "btcp_14_2"
+                return {
+                    "type_name":       name,
+                    "signal_type_id":  int(carrier),   # carried on the carrier id
+                    "domain":          domain,
+                    "carrier":         meta["carrier"],
+                    "signal_subtype":  name,
+                    "severity":        meta["severity"],
+                    "emitter_layer":   meta["layer"],
+                    "ttl_class":       meta["ttl_class"],
+                }
+            raise KeyError(
+                f"unclassifiable signal type {name_or_type!r} — not in the "
+                f"canonical 24 (MD §11 ∪ V2 Part 5) nor the BTCP §14.2 "
+                f"domain registry"
+            )
+    name = st.name
+    if name in CANONICAL_19_TYPES:
+        domain = "canonical_19"
+    elif name in V2_EXTENDED_5_TYPES:
+        domain = "v2_extended_5"
+    else:  # pragma: no cover — enum is exactly 19 + 5
+        raise KeyError(f"signal type {name} not in the canonical lists")
+    return {
+        "type_name":      name,
+        "signal_type_id": int(st),
+        "domain":         domain,
+        "carrier":        name,
+        "signal_subtype": None,
+        "severity":       "critical" if name in ("MANIPULATION_ALERT", "SYSTEMIC_RISK") else "info",
+        "emitter_layer":  "L1",
+        "ttl_class":      "critical" if name in ("MANIPULATION_ALERT", "SYSTEMIC_RISK") else "non_critical",
+    }
+
+
 def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> dict:
     """
     Biological Rhythm Timer — four phases.
@@ -230,6 +341,21 @@ def _build_provenance(
     return prov
 
 
+def _awa_gate_state():
+    """Consult the MD §17 emission-freeze gate (governance singleton).
+
+    Returns (frozen: bool, gate_dict: dict). Import is lazy so the signal
+    factory stays importable in minimal runtimes (governance layer absent
+    → no freeze state recorded → gate open; honest default documented in
+    core/governance/awa.py).
+    """
+    try:
+        from core.governance.awa import is_emission_frozen, get_emission_gate
+        return is_emission_frozen(), get_emission_gate().to_dict()
+    except Exception:
+        return False, {"emission_frozen": False, "freeze_reason": "governance layer unavailable"}
+
+
 def build_signal(
     entity_id:            object,
     signal_type:          SignalType,
@@ -249,6 +375,15 @@ def build_signal(
     temporal_coherence:   float = 1.0,
     conf_genesis:         Optional[float] = None,
     akashic_depth:        Optional[float] = None,
+    # ── L0.5 Signal Selection Principle (entropy-budget gate, Wave 3 D) ──
+    # Optional caller-supplied information-gain / entropy-cost figures.
+    # When BOTH are provided, the L0.5 gate applies: a signal whose
+    # dI_gained/dS_entropy_cost <= theta_selection is SUPPRESSED (emitted
+    # as SILENCE with the selection record). Values are NEVER fabricated —
+    # omitting them means the budget is unmeasured for this emission.
+    i_gained:             Optional[float] = None,
+    s_entropy_cost:       Optional[float] = None,
+    theta_selection:      float = 1.0,
 ) -> dict:
     """
     Build a complete TRIONSignal object with all whitepaper-mandated fields.
@@ -261,6 +396,18 @@ def build_signal(
       conf_genesis, silence_gap, limiting_plane, coherence_trend, eta_blocks,
       akashic_depth, timestamp, ttl_seconds.
 
+    EMISSION GATES (fail-closed, in order — Wave 3 D):
+      1. MD §17 AWA freeze: while the governance AWA emission gate is frozen
+         (AWA_enforced = FALSE — any of the six canonical conditions failed
+         or a WEAPONIZATION_ATTEMPT fired), every non-SILENCE request is
+         converted into a structured SILENCE signal (T(t) = 0) carrying the
+         awa_freeze record. SILENCE itself is always emittable — "the
+         silence is not absence. It is information" (MD §2).
+      2. L0.5 Signal Selection: when the caller supplies BOTH i_gained and
+         s_entropy_cost, the thermodynamic selection principle applies
+         (dI/dS > theta_selection) — a below-threshold signal is emitted as
+         SILENCE with the selection record (never fabricated inputs).
+
     Args:
         provenance: optional caller-supplied source records (behavioral-hash
             ids as strings, or source dicts) that back this signal. They are
@@ -268,6 +415,9 @@ def build_signal(
             auto-recorded coherence/BRT/genomic entries. When omitted, the
             chain still records the actual computation sources (it is never
             an empty list).
+        i_gained / s_entropy_cost / theta_selection: optional L0.5 entropy-
+            budget inputs (see above). Omitted = budget unmeasured (no
+            fabrication).
     """
     now = time.time()
     brt = compute_brt(now, observed_timestamps)
@@ -277,6 +427,96 @@ def build_signal(
     emits = coherence_result.get("emits", False)
 
     entity_id_str = entity_id.hex() if isinstance(entity_id, bytes) else str(entity_id)
+
+    # ── Emission gate 1: MD §17 AWA freeze (T(t) silence) ──────────────────
+    # AWA_enforced = FALSE → signal emission FROZEN (cannot be overridden by
+    # any single entity). Truth requests become structured SILENCE carrying
+    # the freeze record; SILENCE requests pass through unchanged.
+    awa_frozen, awa_gate_dict = _awa_gate_state()
+    if awa_frozen and signal_type != SignalType.SILENCE:
+        frozen_coh = dict(coherence_result)
+        frozen_coh.update({
+            "emits": False, "silence": True,
+            "coherence_gap": max(0.0, theta - C),
+        })
+        frozen_sig = build_signal(
+            entity_id, SignalType.SILENCE, frozen_coh,
+            signal_value=None, ci_95_lower=0.0, ci_95_upper=0.0,
+            observed_timestamps=observed_timestamps,
+            provenance=provenance,
+            genomic_generation=genomic_generation,
+            immune_clearance=immune_clearance,
+            validator_count=validator_count,
+            validator_hhi=validator_hhi,
+            reflexivity_flag=reflexivity_flag,
+            oe_factor=oe_factor,
+            temporal_coherence=temporal_coherence,
+            conf_genesis=conf_genesis,
+            akashic_depth=akashic_depth,
+        )
+        frozen_sig.update({
+            "requested_signal_type": signal_type.name,
+            "requested_signal_type_id": int(signal_type),
+            "awa_freeze": awa_gate_dict,
+            "silence_explanation": (
+                "TRUTH EMISSION FROZEN (AWA, MD §17): "
+                + (awa_gate_dict.get("freeze_reason") or "AWA not enforced")
+                + ". T(t) = 0 — silence is information."
+            ),
+            **(extra or {}),
+        })
+        return frozen_sig
+
+    # ── Emission gate 2: L0.5 Signal Selection Principle ────────────────
+    # dI_gained/dS_entropy_cost > theta_selection — applied only when the
+    # caller supplies real figures (no fabricated budget inputs).
+    selection_record = None
+    if i_gained is not None and s_entropy_cost is not None:
+        from core.primitives.thermodynamics import apply_signal_selection
+        selection_record = apply_signal_selection(
+            signal_id="(pending)",
+            i_gained=float(i_gained),
+            s_entropy_cost=float(s_entropy_cost),
+            theta=float(theta_selection),
+        )
+        if not selection_record.selected:
+            sel_coh = dict(coherence_result)
+            sel_coh.update({
+                "emits": False, "silence": True,
+                "coherence_gap": max(0.0, theta - C),
+            })
+            sel_sig = build_signal(
+                entity_id, SignalType.SILENCE, sel_coh,
+                signal_value=None, ci_95_lower=0.0, ci_95_upper=0.0,
+                observed_timestamps=observed_timestamps,
+                provenance=provenance,
+                genomic_generation=genomic_generation,
+                immune_clearance=immune_clearance,
+                validator_count=validator_count,
+                validator_hhi=validator_hhi,
+                reflexivity_flag=reflexivity_flag,
+                oe_factor=oe_factor,
+                temporal_coherence=temporal_coherence,
+                conf_genesis=conf_genesis,
+                akashic_depth=akashic_depth,
+            )
+            sel_sig.update({
+                "requested_signal_type": signal_type.name,
+                "signal_selection": {
+                    "i_gained": selection_record.i_gained,
+                    "s_entropy_cost": selection_record.s_entropy_cost,
+                    "ratio": selection_record.ratio,
+                    "theta": selection_record.theta,
+                    "selected": False,
+                    "reason": selection_record.reason,
+                },
+                "silence_explanation": (
+                    "L0.5 SIGNAL SELECTION SUPPRESSED: " + selection_record.reason
+                ),
+                **(extra or {}),
+            })
+            return sel_sig
+
     depth = akashic_depth if akashic_depth is not None else coherence_result.get("akashic_depth", 0)
 
     if conf_genesis is None and depth is not None and depth >= 0:
@@ -332,6 +572,15 @@ def build_signal(
         "provenance":         prov,
         **(extra or {}),
     }
+    if selection_record is not None and selection_record.selected:
+        signal["signal_selection"] = {
+            "i_gained": selection_record.i_gained,
+            "s_entropy_cost": selection_record.s_entropy_cost,
+            "ratio": selection_record.ratio,
+            "theta": selection_record.theta,
+            "selected": True,
+            "reason": selection_record.reason,
+        }
     return signal
 
 
@@ -1161,6 +1410,49 @@ def build_consensus_adaptation(
     )
 
 
+# ─── BTCP §14.2 domain signal builder (typed sub-payload emission) ──────────
+
+def build_btcp_domain_signal(
+    subtype: str,
+    entity_id,
+    coherence_result: dict,
+    signal_value: float,
+    detail: Optional[dict] = None,
+) -> dict:
+    """Emit a BTCP §14.2 domain signal (R-SG-03, Wave 3 D).
+
+    The BTCP-domain type (BEHAVIORAL_TRUTH, SHADOW_CHAIN, LIQUIDITY_OCEAN,
+    CHAIN_RELIABILITY, BTCP_ESCROW_EVENT, BTCP_TIMEOUT, GENESIS_COMMITMENT)
+    is carried as a TYPED SUB-PAYLOAD (``signal_subtype``) on its closest
+    canonical-24 carrier — the registry-parity pattern this repo already
+    uses for LIQUIDITY_OCEAN (core/extended/natural_liquidity.py). The
+    canonical 24-type registry itself stays exactly 24.
+
+    Route-failure signaling (top-10 remediation #8): CHAIN_RELIABILITY and
+    BTCP_TIMEOUT now have a concrete, classifiable emission path.
+
+    Fails closed on unknown subtypes (KeyError from classify_signal).
+    """
+    meta = classify_signal(subtype)
+    carrier = SignalType[meta["carrier"]]
+    return build_signal(
+        entity_id=entity_id,
+        signal_type=carrier,
+        coherence_result=coherence_result,
+        signal_value=signal_value,
+        ci_95_lower=max(0.0, signal_value - 0.10),
+        ci_95_upper=min(1.0, signal_value + 0.10),
+        extra={
+            "signal_subtype":  meta["type_name"],
+            "btcp_domain":     True,
+            "domain":          meta["domain"],
+            "severity":        meta["severity"],
+            "emitter_layer":   meta["emitter_layer"],
+            **(detail or {}),
+        },
+    )
+
+
 # ─── Self-test ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1261,4 +1553,21 @@ if __name__ == "__main__":
               f"  prov={len(s['provenance'])} records{star}")
 
     print(f"\n  * = extended signals (whitepaper Section 11 original — L6–L9 planes)")
+    # BTCP §14.2 domain signals (typed sub-payloads on canonical carriers)
+    btcp_domain = [
+        build_btcp_domain_signal(sub, entity, coherence, 0.7)
+        for sub in BTCP_DOMAIN_SIGNALS
+    ]
+    assert len(btcp_domain) == 7
+    for sig, sub in zip(btcp_domain, BTCP_DOMAIN_SIGNALS):
+        assert sig["signal_subtype"] == sub
+        assert sig["signal_type_id"] < 24, "must ride a canonical-24 carrier"
+        assert classify_signal(sub)["domain"] == "btcp_14_2"
+    try:
+        build_btcp_domain_signal("NOT_A_TYPE", entity, coherence, 0.7)
+        raise AssertionError("unknown subtype must fail closed")
+    except KeyError:
+        pass
+
     print(f"\nPHASE 15 PASS — all {len(sigs)}/24 signal types built with full provenance")
+    print(f"                + {len(btcp_domain)}/7 BTCP §14.2 domain subtypes classifiable")
