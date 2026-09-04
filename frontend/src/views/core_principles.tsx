@@ -175,7 +175,7 @@ export function ZeroBridgePage() {
           </p>
           <div className="flex gap-4 flex-wrap">
             {/* Counts derived from config/chain_registry.json via lib/config */}
-            <Badge status={(bootstrap?.total_chains ?? CHAIN_COUNT) + ' chains live'} />
+            <Badge status={(bootstrap?.total_chains ?? CHAIN_COUNT) + ' bootstrap chains configured'} />
             <Badge status={`${VM_FAMILY_COUNT} VM families`} />
             <Badge status={`${(CHAIN_COUNT * (CHAIN_COUNT - 1) / 2).toLocaleString()} bridge pairs eliminated`} />
           </div>
