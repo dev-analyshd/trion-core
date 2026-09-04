@@ -95,7 +95,7 @@ questions answered concretely for M1:
   (`anchor_bh`, `execution_chain`, `entity_id`) and every proof; a
   changed value fails proof verification and certificate binding
   (`anchorBH == escrowId` on-chain, BTCPEscrow.sol:241 /
-  BTCP_ESCROW.vy:169).
+  BTCP_ESCROW.vy:214).
 - *Caller-supplied security truth*: proof thresholds (coherence floor,
   HHI ceiling, quorum, sig shape) are protocol constants, not call
   arguments (INV-010/011/012); behavioral *witness scores* supplied by
@@ -110,7 +110,7 @@ questions answered concretely for M1:
 States (py `EscrowState`, escrow_monitor.py:47-53; superset of the
 schema.sql `HOLDING|RELEASED|REVERTED` enum, documented in
 state_store.py:39-44; on-chain Vyper: `IDLE|HOLDING|RELEASED|REVERTED`,
-BTCP_ESCROW.vy:37-40; Solidity adds `PENDING_AKASHIC` +
+BTCP_ESCROW.vy:64-67; Solidity adds `PENDING_AKASHIC` +
 `EMERGENCY_REVERTED`, BTCPEscrow.sol:102):
 
 ```
@@ -123,7 +123,7 @@ IDLE → HOLDING → (PENDING_AKASHIC) → RELEASED | REVERTED | EMERGENCY_REVER
 |---|------|----|---------------|--------------------------------|---------------|-----------------|------------------|-----------------|------------------------|
 | E1 | IDLE | HOLDING | anyone with funds (Vyper `lock`, permissionless; py `lock_escrow`; Solidity: relayer only, `onlyRelayer`) | locked value itself (msg.value); escrow_id derived on-chain from (intent_hash ‖ entity ‖ block) in Vyper — not caller-chosen | escrow_id unused (state IDLE); amount > 0; timeout > 0; destination ≠ 0 | duplicate escrow_id rejected ("escrow exists"); same-block same-intent collision fails closed | deadline starts at lock block | Solidity `whenNotPaused` blocks NEW locks only; existing escrows continue their lifecycle | locking with a zero/absurd timeout to brick funds; choosing your own escrow_id (Solidity tier accepts caller id — Wave 2 item) |
 | E2 | HOLDING | PENDING_AKASHIC | escrow monitor (E1 resolution: Akashic unavailable at execution time) | akashic outage observation | escrow in HOLDING | idempotent flag set | after 24h (AKASHIC_RECOVERY_SECONDS) auto-degrades to revert | n/a | using PENDING_AKASHIC to dodge the coherence gate |
-| E3 | HOLDING | RELEASED | permissionless caller presenting a valid route verdict (Vyper `release`); relayer/consensus authority (Solidity/SVM); py monitor `release_escrow` (settlement engine) | consensus certificate: quorum ≥ floor, freshness ≤ 300s, `coherence ≥ threshold`, **verdict bound to THIS escrow** (anchorBH == escrowId) | settlement verified first (G1 two-phase, py `verify_settlement`); not past timeout; coherence ≥ protocol floor | second release refused (state ≠ HOLDING); funds move exactly once | release after timeout refused (block check, escrow_monitor.py:236) | pause never blocks settling escrows (existing lifecycle proceeds) | releasing on a verdict attested for a different escrow (route-spoof, M3 fix); caller lowering the coherence floor (INV-003) |
+| E3 | HOLDING | RELEASED | permissionless caller presenting a valid route verdict (Vyper `release`); relayer/consensus authority (Solidity/SVM); py monitor `release_escrow` (settlement engine) | consensus certificate: quorum ≥ oracle live-set minimum (M-03 closed W2-L: Vyper release() now consults minRouteAttestations() — max(2, ⌈2/3·validatorCount⌉) — and fails closed on interface mismatch), freshness ≤ 300s, `coherence ≥ threshold`, **verdict bound to THIS escrow** (anchorBH == escrowId) | settlement verified first (G1 two-phase, py `verify_settlement`); not past timeout; coherence ≥ protocol floor | second release refused (state ≠ HOLDING); funds move exactly once | release after timeout refused (block check, escrow_monitor.py:236) | pause never blocks settling escrows (existing lifecycle proceeds) | releasing on a verdict attested for a different escrow (route-spoof, M3 fix); caller lowering the coherence floor (INV-003); releasing on a sub-quorum verdict (M-03 — 2 attestations on a larger set) |
 | E4 | PENDING_AKASHIC | RELEASED | escrow monitor after Akashic recovery | same as E3 + akashic recovery within 24h | within AKASHIC_RECOVERY_SECONDS; coherence ≥ floor | same as E3 | window expiry → only revert remains | n/a | "recovering" after 24h with a stale coherence value |
 | E5 | HOLDING / PENDING_AKASHIC | REVERTED | anyone after timeout (permissionless escape, py + Vyper); relayer for coherence-failure/route-invalid; py also on execution_confirmed=FALSE | timeout: block height evidence; failure: consensus verdict / MF signal | escrow in HOLDING or PENDING_AKASHIC (or Disputed in rust) | second revert refused (terminal) | 24h akashic window expiry forces TIMEOUT/AKASHIC_OUTAGE_24H reason | cascade revert to parent escrow (Gap 9) fires automatically | reverting an escrow whose counterparty escrow already RELEASED (two-phase discipline) |
 | E6 | HOLDING / PENDING_AKASHIC | EMERGENCY_REVERTED | **anyone** after 7 days (Gap 8 escape hatch; no TRION signal needed) | elapsed-time evidence only (lock_timestamp + 7d) | 7 days elapsed; state still HOLDING/PENDING_AKASHIC | idempotent (terminal) | this IS the ultimate timeout | this IS the emergency path — deliberately permissionless | triggering before 7 days; TRION being able to block it |
