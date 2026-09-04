@@ -53,10 +53,26 @@ export interface BHResult {
   payload_len: number;  // always 93
 }
 
-/** Pad/truncate a hex string to exactly 32 bytes. */
+/**
+ * Lenient hex → exactly 32 bytes, byte-identical to Rust hex_to_32bytes()
+ * (indexers/crates/trion-common/src/hash_dna.rs) and Python
+ * _hex_to_32bytes() (anima-service/faiss_service.py, bh_streamer.py):
+ * strip optional 0x, LEFT-aligned, at most 32 bytes, zero-padded on the
+ * right, invalid nibbles decode as 0 (never throws, never substitutes).
+ * Per docs/protocol/CANONICAL_BH.md §9.
+ */
 function hexTo32Bytes(hex: string): Buffer {
-  const clean = hex.replace(/^0x/, "").padStart(64, "0").slice(0, 64);
-  return Buffer.from(clean, "hex");
+  const clean = hex.replace(/^0[xX]/, "");
+  const out = Buffer.alloc(32); // zero-initialized
+  const nibble = (c: string): number => {
+    const v = parseInt(c, 16);
+    return Number.isNaN(v) ? 0 : v;
+  };
+  const byteCount = Math.min(Math.floor(clean.length / 2), 32);
+  for (let i = 0; i < byteCount; i++) {
+    out[i] = (nibble(clean[i * 2]) << 4) | nibble(clean[i * 2 + 1]);
+  }
+  return out;
 }
 
 /**
@@ -90,8 +106,9 @@ export function canonicalBH(
   // event_type: 1 byte
   payload[off] = eventType & 0xFF; off += 1;
 
-  // magnitude_nano: 8 bytes BE
-  const magNano = BigInt(Math.round(Math.max(0, Math.min(1, magnitudeNorm)) * 1_000_000_000));
+  // magnitude_nano: 8 bytes BE — TRUNCATE toward zero, never round: must
+  // match Python int(...) and Rust `as u64` (docs/protocol/CANONICAL_BH.md §1).
+  const magNano = BigInt(Math.trunc(Math.max(0, Math.min(1, magnitudeNorm)) * 1_000_000_000));
   payload.writeBigUInt64BE(magNano, off); off += 8;
 
   // context: 8 bytes BE
