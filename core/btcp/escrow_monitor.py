@@ -66,6 +66,15 @@ class RevertReason(IntEnum):
 EMERGENCY_ESCAPE_SECONDS = 7 * 24 * 3600   # 7 days
 AKASHIC_RECOVERY_SECONDS = 24 * 3600       # 24 hours
 
+# INV-003 (docs/security/CANONICAL_INVARIANTS.md): the coherence gate's
+# protocol floor. Callers of release_escrow / release_from_pending_akashic
+# may pass their own ``min_coherence`` only to TIGHTEN the gate — never to
+# loosen it below this floor (which mirrors BTCPProofBuilder's
+# DEFAULT_COHERENCE_THRESHOLD, core/btcp/modules.py: the Σ(t) > 0.55
+# whitepaper §4.3 gate is one number everywhere).  Previously a caller
+# could pass min_coherence=0.0 and release on an incoherent verdict.
+MIN_COHERENCE_FLOOR = 0.55
+
 
 @dataclass
 class Escrow:
@@ -219,10 +228,17 @@ class EscrowMonitor:
         self,
         escrow_id: str,
         coherence: float,
-        min_coherence: float = 0.55,
+        min_coherence: float = MIN_COHERENCE_FLOOR,
         block_number: Optional[int] = None,
     ) -> bool:
-        """Release escrow. Requires settlement verified + coherence >= threshold."""
+        """Release escrow. Requires settlement verified + coherence >= threshold.
+
+        INV-003: ``min_coherence`` is clamped to the protocol floor
+        (MIN_COHERENCE_FLOOR) — a caller can tighten the gate, never
+        loosen it. The coherence value itself is caller-supplied at this
+        Python simulation layer; on-chain its integrity is the consensus
+        certificate's job (see the invariant register).
+        """
         esc = self._escrows.get(escrow_id)
         if not esc:
             return False
@@ -230,7 +246,8 @@ class EscrowMonitor:
             return False
         if not esc.settlement_verified:
             return False  # G1: settlement must be verified first
-        if coherence < min_coherence:
+        effective_min = max(float(min_coherence), MIN_COHERENCE_FLOOR)
+        if coherence < effective_min:
             return False
         # Check timeout
         if block_number is not None and block_number > esc.lock_block + esc.timeout_blocks:
@@ -251,15 +268,20 @@ class EscrowMonitor:
         return True
 
     def release_from_pending_akashic(
-        self, escrow_id: str, coherence: float, min_coherence: float = 0.55,
+        self, escrow_id: str, coherence: float,
+        min_coherence: float = MIN_COHERENCE_FLOOR,
     ) -> bool:
-        """E1: Release after Akashic recovery (within 24h)."""
+        """E1: Release after Akashic recovery (within 24h).
+
+        INV-003: same protocol-floor clamp as ``release_escrow``.
+        """
         esc = self._escrows.get(escrow_id)
         if not esc or esc.state != EscrowState.PENDING_AKASHIC:
             return False
         if time.time() > esc.lock_timestamp + AKASHIC_RECOVERY_SECONDS:
             return False  # 24h window expired
-        if coherence < min_coherence:
+        effective_min = max(float(min_coherence), MIN_COHERENCE_FLOOR)
+        if coherence < effective_min:
             return False
         esc.state = EscrowState.RELEASED
         esc.settled_at = time.time()
