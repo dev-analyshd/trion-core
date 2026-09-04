@@ -1,4 +1,17 @@
 # TRION Protocol — Prometheus Monitoring Configuration
+#
+# HONEST STATE (2026-09): neither the Flask API nor the FAISS service
+# implements a /metrics endpoint, so the trion-api and trion-faiss scrape
+# jobs below 404 and show as DOWN until prometheus_client (or equivalent)
+# lands in api/app.py and anima-service/faiss_service.py. The jobs are kept
+# so the stack is wired the moment that happens. The trion_* metric names
+# in alerts.yml likewise do not exist anywhere yet.
+#
+# Removed in this pass (dead targets): the Go validator (nothing listens on
+# :6000 — cmd/trion-validator is a one-shot self-test), node-exporter and
+# cAdvisor (services never defined in deploy/docker/docker-compose.yml),
+# and the alertmanager section (no alertmanager service in the stack).
+# Re-add them when those services actually exist.
 
 global:
   scrape_interval: 15s
@@ -12,14 +25,8 @@ global:
 rule_files:
   - "alerts.yml"
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-            - alertmanager:9093
-
 scrape_configs:
-  # ── TRION API Server ───────────────────────────────────────
+  # ── TRION API Server (serve.py, Flask + flask-socketio) ────
   - job_name: "trion-api"
     static_configs:
       - targets: ["api:5000"]
@@ -39,28 +46,8 @@ scrape_configs:
         target_label: service
         replacement: trion-faiss
 
-  # ── Validator Node ─────────────────────────────────────────
-  - job_name: "trion-validator"
-    static_configs:
-      - targets: ["validator:6000"]
-    metrics_path: "/metrics"
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: service
-        replacement: trion-validator
-
-  # ── Nginx ──────────────────────────────────────────────────
+  # ── Nginx (stub_status IS configured in deploy/nginx/trion.conf) ──
   - job_name: "nginx"
     static_configs:
       - targets: ["nginx:80"]
     metrics_path: "/nginx_status"
-
-  # ── Node Exporter (host metrics) ───────────────────────────
-  - job_name: "node-exporter"
-    static_configs:
-      - targets: ["node-exporter:9100"]
-
-  # ── cAdvisor (container metrics) ───────────────────────────
-  - job_name: "cadvisor"
-    static_configs:
-      - targets: ["cadvisor:8080"]

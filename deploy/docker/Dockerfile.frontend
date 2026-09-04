@@ -20,17 +20,20 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy built artifacts
-COPY --from=builder /app/.next ./.next
+# Next.js `output: 'standalone'` (frontend/next.config.ts) emits a
+# self-contained server at .next/standalone/server.js — copy that plus the
+# static assets and public dir it serves. `node server.js` from a plain
+# `.next` output would not work.
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
 
 # Install curl for health check
 RUN apk add --no-cache curl
 
+# The Next.js app exposes /healthz and /readyz route handlers (not /health).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD curl -f http://localhost:3000/healthz || exit 1
 
 EXPOSE 3000
 
