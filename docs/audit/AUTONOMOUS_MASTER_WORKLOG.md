@@ -118,3 +118,36 @@ Battery at close: 759 unit + 9 skipped · 87 btcp + 1 xfail · 134 golden ·
 47 contracts (pytest) + 574 direct-script checks across 9 suites · 120/121
 adversarial (1 = known PQC-lib env gap).
 Wave 3 dispatch: C/D/M/N/O per A's spec matrix remediation list.
+
+### WAVE 3 CLOSE — INFRASTRUCTURE, MATH, API TRUTH (lead integration, HEAD 1de698d)
+
+Agents: C, D/D2, M/M2, N, O (+lead). Report-delivery kills absorbed by completion
+agents + lead; all work landed and verified.
+- C: 2c2ceac + 5390e7c — one canonical registry enforced: hardcoded chain-id
+  sites rewired/audited (disposition matrix), counts honest, scanner test added.
+- D/D2: 17c2f82 AWA canonical 6-condition set + fail-closed EmissionGate
+  (singleton, no unfreeze API, Chameleon WEAPONIZATION→freeze) · 39955a2 HHI
+  4000-CRITICAL + §9.2 second TTL table (py/rust/certificate.py identical) ·
+  a3c8334 24 canonical signals + 7 BTCP domain · 4ef65f2 wash-trading D_eff
+  discount + conservation audit · 1b26967 clipboard enforced expiry + BEO
+  witness binding + persisted per-entity nonces. 152 new tests; master
+  formula verification 104/0/1 "ALL FORMULAS ENFORCED AS SPECIFIED".
+- M/M2: f857b0f relayer submit-only + single-signature custody honesty ·
+  a2a74ad SDK trust model (no client-side truth) · da04992 api truth
+  boundaries (orchestrate witness_source/zk_pending surfaced; settlement gate
+  DERIVED from persisted proofs; tolerance caps; gratitude/slashing/reputation/
+  kv/sanctions/cex/price-feed provenance; SSRF guard; X-API-Key enforced) —
+  34-test attack battery.
+- N: dcda8d5 — all 35 schema.sql tables dispositioned (12 operative writers
+  incl. blo/bitp/shadow/genesis + consumed-certificate/conflict guards;
+  6 deploy-gated; 17 honest NONE markers), atomic step-6 writes,
+  crash-injection tests, replay/equivocation store guard. 56 new tests.
+- O: 7 commits + lead completion 9d298d5 — custody matrix, per-profile
+  topology, runbook truth, zero dead env vars, render build fix.
+- Lead: 1de698d — AWA EmissionGate wired into /api/v1/publish (MD §17 "silence
+  is information" at the route boundary): frozen ⇒ 503 + silence:true + no
+  chain write; adversarial freeze test + regression tests (24 AWA tests).
+Battery at close: 1019 unit + 9 skipped · 87 btcp + 1 xfail · 134 golden ·
+47 contracts (pytest) + direct suites green · master-formula 104/105 (1
+documented) · api truth 34/34.
+Wave 4 dispatch: P red team, Q dead-code restructure, R docs conformance.
