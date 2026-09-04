@@ -2462,12 +2462,16 @@ class VMAdapterFactory:
     
     @classmethod
     def get_by_chain_id(cls, chain_id: int) -> Optional[BaseVMAdapter]:
-        """Get an adapter by chain ID."""
+        """Get an adapter by chain ID.
+
+        Unknown/unmapped chains resolve to the OOA (observation-only) adapter
+        per BTCP spec §5.2 — non-integrated chains are anchored by observation
+        at penalized confidence, NOT silently routed through the EVM adapter
+        as if they were integrated EVM chains (the old default)."""
         cls._init_adapters()
         vm_type = CHAIN_VM_MAP.get(chain_id)
         if vm_type is None:
-            # Default to EVM for unknown chains
-            return cls._adapters[VMType.EVM]
+            return cls._adapters.get(VMType.OOA)
         return cls._adapters.get(vm_type)
     
     @classmethod
