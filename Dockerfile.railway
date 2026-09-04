@@ -102,9 +102,9 @@ COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
 
 # ── All language source directories ──────────────────────────────────────────
-# Rust workspace (BTCP router, 19 spec modules, 94 tests)
+# Rust workspace (BTCP router + 27 spec modules, 147 #[test])
 COPY rust/            ./rust/
-# Rust L0 indexer crates (21 chain crates)
+# Rust L0 indexer crates (21 chain crates + shared trion-common)
 COPY indexers/        ./indexers/
 # Go P2P validator network
 COPY validator/       ./validator/

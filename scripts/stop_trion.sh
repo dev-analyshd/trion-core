@@ -35,7 +35,11 @@ done
 
 # Also kill any remaining Python processes that match TRION services
 pkill -f "faiss_service.py" 2>/dev/null && log "✓ Stopped faiss_service.py" || true
-pkill -f "api.app" 2>/dev/null && log "✓ Stopped api.app" || true
-pkill -f "trion_l0" 2>/dev/null && log "✓ Stopped validator network" || true
+pkill -f "serve.py" 2>/dev/null && log "✓ Stopped serve.py (Flask + socketio)" || true
+pkill -f "api.app" 2>/dev/null && log "✓ Stopped api.app (gunicorn)" || true
+# The old `trion_l0` module was removed long ago — the validator step in
+# start_trion.sh is the one-shot Go self-test (go run ./cmd/trion-validator).
+pkill -f "cmd/trion-validator" 2>/dev/null && log "✓ Stopped validator self-test" || true
+pkill -f "run_bh_streamer" 2>/dev/null && log "✓ Stopped BH streamer" || true
 
 log "All TRION services stopped"

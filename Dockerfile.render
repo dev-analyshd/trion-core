@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Multi-stage build:
-#   Stage 1: rust-builder  — compiles all 14 Rust L0 indexer binaries
+#   Stage 1: rust-builder  — compiles all 21 Rust L0 indexer binaries
 #   Stage 2: node-builder  — npm install for all Node.js relayers & chains
 #   Stage 3: next-builder  — builds Next.js React frontend (standalone)
 #   Stage 4: runtime       — Python 3.11 + Node.js 20 + Rust bins + Next.js

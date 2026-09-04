@@ -56,10 +56,10 @@ restart_process() {
 wait_faiss
 
 # ── Native VM Rust Indexers ──────────────────────────────────
-# NEAR Mainnet      (chain_id 1200) — trion-near
-# TON Mainnet       (chain_id 1100) — trion-ton
-# Polkadot Westend  (chain_id 901)  — trion-pvm
-# StarkNet Mainnet  (chain_id 8000) — trion-starknet
+# NEAR Mainnet      (chain_id 23000) — trion-near
+# TON Mainnet       (chain_id 22000) — trion-ton
+# Polkadot Mainnet  (chain_id 25000) — trion-pvm
+# StarkNet Mainnet  (chain_id 24000) — trion-starknet
 
 pids=()
 

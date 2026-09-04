@@ -20,7 +20,8 @@ log()  { echo "[$(date -u +%H:%M:%S)] [EVM-EXTRAS] $*"; }
 
 log "EVM Extras chains (POLYGON/BNB/MANTLE/LINEA/SCROLL/ZG) are indexed"
 log "by the trion-evm Rust binary in the Rust Indexers workflow."
-log "All 12 EVM mainnet chains covered (see CHAINS array in trion-evm/src/main.rs)."
+log "trion-evm's CHAINS array (indexers/crates/trion-evm/src/main.rs) holds"
+log "55 chains: 54 mainnets + ZG_NEWTON (16600 testnet)."
 
 # Check trion-evm binary
 if [[ ! -x "$BIN_DIR/trion-evm" ]]; then
@@ -38,16 +39,20 @@ else
 fi
 log "FAISS target: $FAISS_URL"
 log ""
-log "Chains verified in trion-evm/src/main.rs CHAINS array (mainnet + testnets):"
+log "Head of the trion-evm CHAINS array (indexers/crates/trion-evm/src/main.rs —"
+log "55 entries: 54 mainnet + ZG_NEWTON 16600 testnet):"
 log "  ETH_MAINNET    (1)       ARB_MAINNET (42161)"
 log "  BASE_MAINNET   (8453)    OP_MAINNET  (10)"
 log "  POLYGON        (137)     BNB_MAINNET (56)"
 log "  HASHKEY        (177)     MANTLE      (5000)"
 log "  LINEA          (59144)   SCROLL      (534352)"
-log "  ZG_MAINNET     (16661)   ZG_NEWTON   (16600)"
-log "  BNB_TESTNET    (97)      BASE_SEPOLIA (84532)"
-log "  ARB_SEPOLIA    (421614)  OP_SEPOLIA  (11155420)"
-log ""
+log "  ZG_MAINNET     (16661)   + 44 more (AVALANCHE, FANTOM, SONIC,"
+log "  ZKSYNC_ERA, BERACHAIN, XLAYER, XDC, STORY_IP, BLAST, MANTA_PACIFIC,"
+log "  MODE, TAIKO, FRAXTAL, METIS, CELO, GNOSIS, MOONBEAM, KAIA, CORE,"
+log "  BITLAYER, BOB, ROOTSTOCK, CRONOS, AURORA, HARMONY, IOTEX, CONFLUX,"
+log "  MONAD, FILECOIN, HYPERLIQUID, ABSTRACT, ZORA, WEMIX, OKT_CHAIN,"
+log "  OASIS_SAPPHIRE, TELOS, KROMA, CYBER, SEI_EVM, CANTO, NEON_EVM,"
+log "  IOTA_EVM, BOT_CHAIN, ZG_NEWTON) — the array is the authoritative list."
 log "Tailing EVM Rust indexer log..."
 
 EVM_LOG="$LOG_DIR/trion-evm.log"
