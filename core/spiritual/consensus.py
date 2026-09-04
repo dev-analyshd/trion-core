@@ -26,6 +26,7 @@ not a code problem.
 from __future__ import annotations
 
 import math
+import random
 import statistics
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -291,6 +292,8 @@ def simulate_coordination_attack(
     base_validators: List[Validator],
     n_byzantine:     int,
     coordination_levels: List[float],
+    delta:           float = 90.0,  # valuation-scale window; must match the
+                                    # scale of Validator.valuation (demo: ~$1800, σ≈60)
 ) -> List[dict]:
     """
     Demonstrate the self-defeating property:
@@ -300,15 +303,22 @@ def simulate_coordination_attack(
         0.0 = fully independent (d_j = 1.0, maximum voting power)
         1.0 = perfectly coordinated (d_j → 0, zero effective power)
     """
+    median_vec = _median_vector(base_validators)
     results = []
     for coord_level in coordination_levels:
         validators_copy = []
         for i, v in enumerate(base_validators):
             is_byz = i < n_byzantine
             if is_byz:
-                corr = coord_level
-                # Generate a model_outputs vector with this correlation to median
-                outputs = [0.5 + coord_level * 0.1 * j for j in range(10)]
+                # Coordinated outputs: blend the honest median vector with
+                # per-validator noise that vanishes as coordination → 1.
+                # Same dimensionality as the honest vectors, and the
+                # correlation with the median genuinely rises with coord.
+                rng = random.Random(hash(v.validator_id) & 0xFFFFFFFF)
+                outputs = [
+                    max(0.0, min(1.0, m + rng.gauss(0.0, 0.12) * (1.0 - coord_level)))
+                    for m in median_vec
+                ]
             else:
                 outputs = v.model_outputs
             validators_copy.append(Validator(
@@ -321,7 +331,7 @@ def simulate_coordination_attack(
                 is_byzantine = is_byz,
             ))
 
-        result = compute_dw_bft_consensus(validators_copy)
+        result = compute_dw_bft_consensus(validators_copy, delta=delta)
         results.append({
             "coordination_level":         round(coord_level, 2),
             "byzantine_effective_weight": result.byzantine_effective_weight,
@@ -362,7 +372,10 @@ def build_demo_validators(n: int = 12) -> List[Validator]:
 
 if __name__ == "__main__":
     validators = build_demo_validators(12)
-    result = compute_dw_bft_consensus(validators, delta=0.05)
+    # delta is in valuation units: the demo valuations are ~$1800 with σ≈$60,
+    # so a 0.05 window (a [0,1]-scale value) would contain nobody and the
+    # demo would print Σ=0 with safety failing for a bogus reason.
+    result = compute_dw_bft_consensus(validators, delta=90.0)
 
     print(f"Σ(t) = {result.sigma:.4f}")
     print(f"Consensus value: ${result.consensus_value:.2f}")

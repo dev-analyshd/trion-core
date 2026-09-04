@@ -245,14 +245,18 @@ if __name__ == "__main__":
     assert not result.f8_violation
 
     # Concentrated validator set (CRITICAL)
+    # 3 whales + 17 minnows: share^2 sum ≈ 3×(1000/3017)^2 → HHI ≈ 3297.
+    # (The previous scenario used 5 whales over 20 validators, which computes
+    # to HHI ≈ 1988 — WARNING, not CRITICAL — and failed its own assertion.)
     concentrated = [
-        ValidatorStake(f"v{i}", 1000.0 if i < 5 else 1.0, 0.80,
-                       800.0 if i < 5 else 0.8,
+        ValidatorStake(f"v{i}", 1000.0 if i < 3 else 1.0, 0.80,
+                       800.0 if i < 3 else 0.8,
                        "single_region", "single_juris", "single_continent")
         for i in range(20)
     ]
     result_c = compute_hhi_enforcement(concentrated)
     print(f"Concentrated: HHI={result_c.hhi:.1f} tier={result_c.tier.value} paused={result_c.consensus_paused}")
     assert result_c.hhi > 2500
+    assert result_c.tier.value == "DANGER"
 
     print("L4.8 HHI + Geographic Enforcement: PASS")
