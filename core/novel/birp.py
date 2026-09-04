@@ -155,7 +155,11 @@ def _verify_xor_invariant(sense: bytes, antisense: bytes, payload: bytes) -> boo
 class DNACodeRegistration:
     """An entity's registered DNA_Code secret."""
     entity_id:        str
-    code_commitment:  bytes       # SHA3-256(initial_code) — we never store the raw code
+    # SHA3-256(current-epoch code) — commit_0 = SHA3-256(initial_code) at
+    # registration, then advanced in lockstep with the rotation chain by
+    # verify_dna_code() (commit_n = SHA3-256(code_n)). We never store the
+    # raw code at any epoch.
+    code_commitment:  bytes
     registered_at:    float       # unix timestamp of registration
     current_epoch:    int         # epoch number (0 at registration)
     last_rotated_at:  float       # timestamp of last rotation
@@ -231,43 +235,86 @@ def verify_dna_code(
     now: float,
 ) -> tuple[bool, int, str]:
     """
-    Verify a submitted DNA_Code against the stored commitment.
+    Verify a submitted DNA_Code against the stored per-epoch commitment chain.
 
-    The submitted code is rotated forward to the current epoch (based on
-    `now`), then hashed and compared to the stored commitment.  Because
-    rotation is a hash chain, the verifier rotates the SUBMITTED code
-    (which the entity derives from their stored initial secret) rather
-    than rotating the commitment.
+    Commitment chain (whitepaper §16 time-based rotation):
+
+        code_0   = initial secret                  (never stored)
+        code_n   = SHA3-256(code_{n-1} || n)       — one-way hash rotation
+        commit_n = SHA3-256(code_n)                — per-epoch commitment
+
+    ``registration.code_commitment`` holds ``commit_m`` for the epoch
+    ``m = registration.current_epoch`` that the registration is tracking
+    (``commit_0 = SHA3-256(initial_code)`` at registration time). The
+    submitted code must therefore be ``code_m`` — the entity's code for
+    the registration's tracked epoch (the initial code while the
+    registration is at epoch 0; otherwise the code re-derived client-side
+    via ``rotate_dna_code_for_epoch``).
+
+    On success the registration is caught up to the wall-clock epoch
+    ``n >= m`` by re-deriving the chain forward from the verified code
+    (loop) and advancing ``code_commitment`` to ``commit_n``.  Because
+    each rotation is a one-way hash, a replayed older code (including the
+    initial code) no longer matches the advanced commitment — this
+    realises the whitepaper property "stolen DNA_Code at time T is
+    permanently invalid at T + interval": an attacker holding ``code_m``
+    cannot derive ``code_n``.
 
     Args:
-        registration:   stored DNACodeRegistration
-        submitted_code: the entity's current-epoch code (already rotated)
+        registration:   stored DNACodeRegistration (mutated on success to
+                        advance the commitment chain; store the updated
+                        object)
+        submitted_code: the entity's code for the registration's tracked
+                        epoch (see above)
         now:            current unix timestamp
 
     Returns:
-        (verified, current_epoch, message)
+        (verified, effective_epoch, message)
     """
     expected_epoch = _dna_code_epoch(registration.registered_at, now)
-    # The submitted_code should already be at the expected epoch.
-    # We hash it and compare to the stored commitment.
-    submitted_hash = hashlib.sha3_256(submitted_code).digest()
-    if submitted_hash == registration.code_commitment and expected_epoch == 0:
-        return True, 0, "DNA_Code verified at epoch 0 (no rotation yet)"
+    stored_epoch = registration.current_epoch
 
-    # For epochs > 0, the entity must have rotated the initial code forward
-    # `expected_epoch` times.  We cannot re-derive the initial code from
-    # the commitment, so we trust the entity to submit the correctly-
-    # rotated code.  To prevent replay of an old rotated code, we hash
-    # the submitted code together with the epoch number and check it
-    # against a re-derived commitment chain.
-    #
-    # NOTE: In production, the entity calls `rotate_dna_code_for_epoch`
-    # with their initial code (kept client-side) to derive the current
-    # epoch's code.  The verifier then hashes that and compares.
+    # The submitted code must match the per-epoch commitment of the
+    # registration's tracked epoch: SHA3-256(code_m) == code_commitment.
+    submitted_hash = hashlib.sha3_256(submitted_code).digest()
+    if submitted_hash != registration.code_commitment:
+        return (
+            False,
+            stored_epoch,
+            (
+                f"DNA_Code verification FAILED — submitted code does not match "
+                f"the epoch-{stored_epoch} commitment (wall-clock epoch "
+                f"{expected_epoch})"
+            ),
+        )
+
+    if expected_epoch <= stored_epoch:
+        # Registration is already at (or past — the chain is one-way and
+        # cannot be rewound) the wall-clock epoch: plain epoch check.
+        if stored_epoch == 0:
+            return True, 0, "DNA_Code verified at epoch 0 (no rotation yet)"
+        return True, stored_epoch, f"DNA_Code verified at epoch {stored_epoch}"
+
+    # Catch the registration up to the wall-clock epoch: re-derive the
+    # chain forward from the verified code
+    #   code_j = SHA3-256(code_{j-1} || j)
+    # and advance the stored commitment in lockstep
+    #   commit_n = SHA3-256(code_n).
+    current_code = submitted_code
+    for j in range(stored_epoch + 1, expected_epoch + 1):
+        current_code = hashlib.sha3_256(current_code + j.to_bytes(8, "big")).digest()
+    registration.code_commitment = hashlib.sha3_256(current_code).digest()
+    registration.current_epoch = expected_epoch
+    registration.last_rotated_at = (
+        registration.registered_at + expected_epoch * DNA_CODE_ROTATION_SECONDS
+    )
     return (
-        submitted_hash == registration.code_commitment,
+        True,
         expected_epoch,
-        f"DNA_Code verification at epoch {expected_epoch}",
+        (
+            f"DNA_Code verified at epoch {stored_epoch}; commitment chain "
+            f"advanced to epoch {expected_epoch}"
+        ),
     )
 
 
