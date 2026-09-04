@@ -394,12 +394,12 @@ docs > judgment):
 |---|---|---|
 | Rust core builder | `indexers/crates/trion-common/src/hash_dna.rs::canonical_bh` | **COMPLIANT** — exact 93-byte layout, truncating nano, lenient hex, dual-strand |
 | Rust entity key | same file `bh_id`/`normalise` | **COMPLIANT** — §6 |
-| Rust per-crate magnitude | all 21 `indexers/crates/*/src/main.rs` | **FIXED (this wave)** — session-max rolling state removed; deterministic §4 formula pinned (static fix, needs cargo verification) |
-| Rust per-crate timestamps | 12 crates used `SystemTime::now()` | **FIXED (this wave)** — block-time sources / 0 fallback per §5 (static fix, needs cargo verification) |
-| Python reference | `core/primitives/behavioral_hash.py::compute_behavioral_hash` | **FIXED (this wave)** — entity/block fields now lenient 32-byte canonical; magnitude nano path already truncating; USD path retained as non-canonical display fallback |
+| Rust per-crate magnitude | all 21 `indexers/crates/*/src/main.rs` | **FIXED (this wave, commit "bh: make the rust indexers deterministic")** — session-max rolling state removed; deterministic §4 formula pinned (static fix, needs cargo verification) |
+| Rust per-crate timestamps | 12 crates hashed `SystemTime::now()`; 6 more had wall-clock fallbacks; trion-utxo too | **FIXED (this wave, same commit)** — block-time sources / canonical 0 per §5, incl. the new `trion-common::iso8601_to_epoch` helper (static fix, needs cargo verification) |
+| Python reference | `core/primitives/behavioral_hash.py::compute_behavioral_hash` | **FIXED (this wave, commit "bh: make the python reference builder emit the canonical 93-byte payload")** — entity/block fields now lenient 32-byte canonical; payload magnitude uses the deterministic §4 fixed scale (USD/max_90d paths retained as opt-in display, never in the payload) |
 | Python streamer | `core/realtime/bh_streamer.py::compute_bh` | **COMPLIANT** — §4/§5/§6/§8/§9 all deterministic (Task 20) |
 | Python FAISS service | `anima-service/faiss_service.py::canonical_bh` | **COMPLIANT** — byte-identical Rust port incl. `_hex_to_32bytes` |
-| TypeScript | `chains/shared/canonical_bh.ts` | **FIXED (this wave)** — magnitude rounding → truncation; `hexTo32Bytes` right-aligned/padStart → lenient left-aligned §9 port |
+| TypeScript | `chains/shared/canonical_bh.ts` | **FIXED (this wave, commit "bh: fix the typescript builder magnitude truncation and lenient hex decode")** — magnitude rounding → truncation; `hexTo32Bytes` right-aligned/padStart → lenient left-aligned §9 port (verified live via bun against all 52 golden vectors) |
 | Python extended v2 | `core/primitives/extended_payload.py` | **COMPLIANT (v2 opt-in)** — 176-byte layout per §2 |
 
 Unverified boundary (external toolchain policy): the Rust changes are
@@ -414,10 +414,16 @@ first.
 
 ## 13. Golden vectors
 
-`tests/golden/vectors.json` pins ≥ 12 canonical vectors (plain transfer, swap,
-MEV/flash-loan, max magnitudes, zero value, minimal fields, per-chain decimal
-normalization 18/9/6dp, distinct chain ids, every event-type byte, lenient
-block-hash edge cases) with `payload_hex`, `sense`, `antisense` for each.
+`tests/golden/vectors.json` pins **52 canonical vectors** (the two frozen
+reference vectors, realistic chain events — plain transfer, swap, MEV capture,
+flash loan —, magnitude maxima and clamps, zero value, all-zero minimal
+payload, per-chain decimal normalization 18/6/9/7dp, chain-id separation
+including u32 max, all 20 event-type bytes, lenient block-hash edges —
+`0x0`, odd-length, invalid nibbles, uppercase —, entity rules — pinned
+`bh_id`, case-insensitivity, non-EVM passthrough, synthetic per-tx senders —,
+context and timestamp edges, and a 0.5-ulp truncation edge that fails any
+rounding implementation) with `payload_hex`, `sense`, `antisense` and
+`magnitude_nano` for each.
 `tests/golden/test_golden_vectors.py` verifies, for every vector:
 
 1. the **Python** canonical builder reproduces the pinned bytes/digests;
