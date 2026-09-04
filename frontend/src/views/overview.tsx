@@ -3,9 +3,9 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, StatCard, ProgressBar, Badge, DataTable, KVList, CodeBlock, ArchitectureFlow, PlaneGauge, EmptyState, Tag } from '../components/ui';
-import { useAPI, useStream, useCounter } from '../lib/hooks';
+import { useAPI, useStream, useCounter, useSocketFeed } from '../lib/hooks';
 import { fetchAPI, fmt, pct, tfmt, dtfmt, truncate, hex, compact, statusColor, ms, cleanText } from '../lib/api';
 import * as Icons from 'lucide-react';
 
@@ -23,8 +23,25 @@ export function DashboardPage() {
   const { data: faiss } = useAPI('/api/v1/faiss', 5000);
   const { data: bhStats } = useAPI('/api/v1/bh/stats', 3000);
   const { data: streamer } = useAPI('/api/v1/btcp/streamer/status', 2000);
-  const { items: feedItems, speedMs } = useStream('/api/v1/feed', 3000);
+  const { items: polledFeed, speedMs } = useStream('/api/v1/feed', 3000);
   const { items: bhItems } = useStream('/api/v1/bh/recent_feed', 2000);
+  // WebSocket push (serve.py flask-socketio, /feed namespace): signals arrive
+  // instantly instead of waiting for the next 3s poll. Polling stays on as the
+  // safety net — entries are the same shape and dedupe by entity+timestamp.
+  const socketFeed = useSocketFeed();
+  const feedItems = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    const keyOf = (s: any) => `${s?.entity_id ?? ''}:${s?.timestamp ?? ''}`;
+    for (const s of [...socketFeed.signals, ...polledFeed]) {
+      const k = keyOf(s);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(s);
+      if (out.length >= 100) break;
+    }
+    return out;
+  }, [socketFeed.signals, polledFeed]);
 
   // Compute total BHs from per_chain sum (the streamer also tracks this)
   const bhTotal = streamer?.total_bhs || Object.values(bhStats?.per_chain || {}).reduce((a: number, b: any) => a + Number(b), 0) || 0;
@@ -225,7 +242,7 @@ export function DashboardPage() {
           />
         </Card>
 
-        <Card title="Live Signal Feed" live>
+        <Card title="Live Signal Feed" live right={<Badge status={socketFeed.connected ? 'LIVE' : 'PENDING'} label={socketFeed.connected ? 'WS PUSH' : 'POLLING'} />}>
           <DataTable
             headers={['Time', 'Protocol', 'Score', 'Grade']}
             rows={feedItems.slice(0, 10).map((s: any) => [
