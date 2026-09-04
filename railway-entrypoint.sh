@@ -17,9 +17,15 @@
 #   /api/v1/health  — Flask app-level health (deep, includes oracle stats)
 #
 # OPTIONAL SERVICES (env toggles, default OFF):
-#   TRION_ENABLE_VALIDATOR=1       — Go P2P Validator (port 6000)
+#   TRION_ENABLE_VALIDATOR=1       — Go validator mesh + TRION-BFT self-test
+#                                     (one-shot, prints PASS and exits — no
+#                                     daemon, nothing listens on :6000)
 #   TRION_ENABLE_SIGNAL_PROCESSING=1 — C++ FFT signal engine
-#   TRION_ENABLE_MONITORING=1       — Prometheus/Grafana
+#
+# NOTE: this image does NOT run the relayer (TRION_ENABLE_RELAYER is inert
+# here — the entrypoint has no relayer section). Railway = observation stack:
+# FAISS + API + streamer + frontend, no on-chain signing. Relayer keys belong
+# to the render/full stack or a standalone supervisors/ run.
 # =============================================================================
 set -u
 
@@ -38,6 +44,22 @@ export PYTHONDONTWRITEBYTECODE=1
 log()  { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
 warn() { echo "[entrypoint $(date +%H:%M:%S)] WARN: $*" >&2; }
 die()  { echo "[entrypoint $(date +%H:%M:%S)] FATAL: $*" >&2; exit 1; }
+
+# ── Signing-custody guard (master command §17) ─────────────────────────────
+# This stack is observation-only (no relayer), but the Flask API's testnet
+# bridge (api/blockchain.py) reads PRIVATE_KEY/RELAYER_PRIVATE_KEY — under
+# TRION_ENV=production raw env private keys are refused outright (env keys
+# are DEV/TESTNET-ONLY). Escape hatch: TRION_ALLOW_RAW_ENV_KEYS=1 — see
+# DEPLOYMENT.md "Signing and key custody".
+if [ "${TRION_ENV:-development}" = "production" ] \
+   && [ "${TRION_ALLOW_RAW_ENV_KEYS:-0}" != "1" ]; then
+    for _key_var in RELAYER_PRIVATE_KEY PRIVATE_KEY ZG_PRIVATE_KEY \
+                    DEPLOY_0G_PRIVATE DEPLOYER_PRIVATE_KEY; do
+        if [ -n "$(eval "printf '%s' \"\${${_key_var}:-}\"")" ]; then
+            die "TRION_ENV=production but raw env private key ${_key_var} is set — env keys are DEV/TESTNET-ONLY (see DEPLOYMENT.md 'Signing and key custody')"
+        fi
+    done
+fi
 
 # ── 0. Preflight (env / storage / RPC sanity) ─────────────────────────────
 log "Running preflight checks..."
