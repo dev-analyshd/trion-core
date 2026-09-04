@@ -100,15 +100,14 @@ services:
       FLASK_URL: "http://127.0.0.1:5000"
       PYTHONUNBUFFERED: "1"
       NODE_ENV: "production"
-      TRION_ENABLE_FAISS: "1"
+      # Only toggles the railway entrypoint gates on (its image runs FAISS /
+      # API / streamer / frontend unconditionally — the TRION_ENABLE_FAISS,
+      # RUST, RELAYER, ZG_SYNC, ZG_DA, EXTRAS, NATIVE toggles that used to sit
+      # here are read by nothing in that entrypoint and were removed).
       TRION_ENABLE_STREAMER: "1"
       TRION_MAX_CHAINS: "${TRION_MAX_CHAINS:-12}"
-      TRION_ENABLE_RUST: "0"
-      TRION_ENABLE_RELAYER: "0"
-      TRION_ENABLE_ZG_SYNC: "0"
-      TRION_ENABLE_ZG_DA: "0"
-      TRION_ENABLE_EXTRAS: "0"
-      TRION_ENABLE_NATIVE: "0"
+      TRION_ENABLE_VALIDATOR: "${TRION_ENABLE_VALIDATOR:-0}"
+      TRION_ENABLE_SIGNAL_PROCESSING: "${TRION_ENABLE_SIGNAL_PROCESSING:-0}"
       ZG_NETWORK: "mainnet"
       ZG_CHAIN_ID: "16661"
       ZERO_G_RPC: "https://evmrpc.0g.ai"
@@ -155,14 +154,14 @@ services:
       ZG_CHAIN_ID: "16661"
       ZERO_G_RPC: "https://evmrpc.0g.ai"
       ZG_EXECUTION_GATE_ADDR: "${ZG_EXECUTION_GATE_ADDR:-0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b}"
+      # render-entrypoint.sh gates (the TRION_ENABLE_EXTENDED /
+      # _NATIVE_RELAYER / _EXT_RELAYER toggles that used to sit here were read
+      # by nothing anywhere and were removed):
       TRION_ENABLE_FAISS: "1"
       TRION_ENABLE_RUST: "1"
       TRION_ENABLE_EXTRAS: "1"
       TRION_ENABLE_NATIVE: "1"
-      TRION_ENABLE_EXTENDED: "1"
       TRION_ENABLE_RELAYER: "1"
-      TRION_ENABLE_NATIVE_RELAYER: "1"
-      TRION_ENABLE_EXT_RELAYER: "1"
       TRION_ENABLE_ZG_SYNC: "1"
       TRION_ENABLE_ZG_DA: "1"
       TRION_ENABLE_VALIDATOR: "${TRION_ENABLE_VALIDATOR:-0}"
