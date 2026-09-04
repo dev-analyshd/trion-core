@@ -18,6 +18,8 @@ import sys
 import json
 import time
 import hashlib
+import secrets
+import threading
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple, Any
 from enum import IntEnum
@@ -251,6 +253,70 @@ _TERMINAL_ROUTE_STATUSES = (
 _FEE_CALCULATOR = ValidatorFeeCalculator()
 
 
+# ── Intent identity (INV-008 / INV-014) ──────────────────────────────────
+# Route/intent ids mix a per-process monotonic counter with a random
+# session tag so two identical rapid submissions can never collide into
+# one route (the previous id derivation hashed time.time() alone —
+# same-microsecond identical calls silently clobbered the live route).
+# Intent nonces are per-entity monotonic (spec §4.1 "per-entity monotonic
+# counter"), seeded from the wall-clock millisecond on first sight so a
+# restart cannot rewind them into already-used territory except across
+# a sub-millisecond restart (documented caveat — W3-D owns the persisted
+# per-entity counter).
+_INTENT_SEQ_LOCK = threading.Lock()
+_INTENT_SEQ = 0
+_SESSION_TAG = secrets.token_hex(8)
+_ENTITY_NONCES: Dict[str, int] = {}
+_ENTITY_NONCE_LOCK = threading.Lock()
+
+
+def _next_intent_sequence() -> int:
+    """Process-global monotonic intent sequence (never repeats in-process)."""
+    global _INTENT_SEQ
+    with _INTENT_SEQ_LOCK:
+        _INTENT_SEQ += 1
+        return _INTENT_SEQ
+
+
+def _next_entity_nonce(entity_key: str) -> int:
+    """Per-entity monotonic nonce, seeded from wall-clock ms (spec §4.1)."""
+    with _ENTITY_NONCE_LOCK:
+        last = _ENTITY_NONCES.get(entity_key)
+        seed = int(time.time() * 1000) % (2 ** 32)
+        nonce = (last + 1) if last is not None else seed
+        if nonce >= 2 ** 32:
+            nonce = 1
+        _ENTITY_NONCES[entity_key] = nonce
+        return nonce
+
+
+# ── Route status machine (INV-013, docs/protocol/BTCP_STATE_MACHINE.md M1) ─
+# Terminal states are frozen (a same-status replay is an idempotent no-op;
+# any different target is rejected). FAILURE/TIMEOUT are reachable from any
+# active state. Execution progress is forward-only along the IntEnum order
+# PENDING → INTENT_CREATED → PROOFS_GENERATED → SOURCE_EXECUTED →
+# DEST_EXECUTED → COMPLETED.
+_ACTIVE_ROUTE_STATUSES = (
+    RouteStatus.PENDING,
+    RouteStatus.INTENT_CREATED,
+    RouteStatus.PROOFS_GENERATED,
+    RouteStatus.SOURCE_EXECUTED,
+    RouteStatus.DEST_EXECUTED,
+)
+_FAILURE_ROUTE_STATUSES = (RouteStatus.FAILED, RouteStatus.TIMEOUT)
+
+
+def _route_transition_allowed(current: RouteStatus, new: RouteStatus) -> bool:
+    """M1 transition-table law: is current → new legal?"""
+    if new == current:
+        return True          # idempotent replay of the same status: no-op
+    if current in _TERMINAL_ROUTE_STATUSES:
+        return False         # terminal states are frozen (no resurrection)
+    if new in _FAILURE_ROUTE_STATUSES:
+        return True          # failure sinks reachable from any active state
+    return int(new.value) > int(current.value)   # forward-only progress
+
+
 def _privacy_mode_name(level: PrivacyLevel) -> str:
     """PrivacyLevel → schema.sql btcp_privacy_mode.
 
@@ -452,7 +518,15 @@ class PrivacyRouter:
                 threshold_manipulation=0.30,
             )
             proof = self.zk.generate_behavioral_credential(bc_witness)
-            proofs["behavioral_credential"] = proof.to_dict()
+            credential_row = proof.to_dict()
+            # INV-016: witness provenance is explicit. The thresholds are
+            # protocol constants (hardcoded above — the caller cannot move
+            # the goalposts), but the SCORES come from caller-supplied
+            # behavioral_data: the proof attests a *claim*, not a TRION
+            # attestation, until the witness is bound to the Akashic BEO
+            # ledger (Wave 3 D). Downstream consumers must read this label.
+            credential_row["witness_source"] = "caller_self_attested"
+            proofs["behavioral_credential"] = credential_row
         
         # Always add IAP share proof for gas fairness — but only with REAL
         # batch economics. The previous implementation hardcoded
@@ -491,7 +565,11 @@ class PrivacyRouter:
                 num_participants=int(iaph["num_participants"]),
             )
             proof = self.zk.generate_iap_share(iap_witness)
-            proofs["iap_share"] = proof.to_dict()
+            iap_row = proof.to_dict()
+            # INV-016: batch economics are caller/IAP-scheduler-supplied
+            # values, not protocol measurements — labeled as such.
+            iap_row["witness_source"] = "caller_supplied_batch_economics"
+            proofs["iap_share"] = iap_row
         else:
             proofs["iap_share"] = {
                 "zk_proof": None,
@@ -862,8 +940,14 @@ class BTCPOrchestrator:
                 errors.append(f"Invalid dest address for chain {dest_chain}")
         
         # Step 2: Create intent
+        # INV-008/INV-014: the id mixes the caller's immutable parameters
+        # with a random session tag and a process-global monotonic sequence —
+        # two identical rapid submissions can never collide into one route
+        # (the previous derivation hashed time.time() alone).
+        seq = _next_intent_sequence()
         intent_id = hashlib.sha3_256(
-            f"{source_chain}:{dest_chain}:{source_address}:{dest_address}:{amount}:{time.time()}".encode()
+            f"{source_chain}:{dest_chain}:{source_address}:{dest_address}:"
+            f"{amount}:{_SESSION_TAG}:{seq}".encode()
         ).hexdigest()[:16]
         
         intent = BTCPIntent(
@@ -876,7 +960,9 @@ class BTCPOrchestrator:
             asset=asset,
             intent_type=intent_type,
             deadline=int(time.time()) + deadline_offset,
-            nonce=int(time.time() * 1000) % (2**32),
+            # spec §4.1: per-entity monotonic counter (was a raw
+            # wall-clock-ms read — not monotonic, not per-entity)
+            nonce=_next_entity_nonce(str(source_address)),
         )
         
         # Step 3: Encode for both VMs
@@ -968,10 +1054,46 @@ class BTCPOrchestrator:
         return self._routes.get(route_id)
     
     def update_route_status(self, route_id: str, status: RouteStatus) -> bool:
-        """Update the status of a route."""
+        """Update the status of a route.
+
+        INV-013 (M1 transition law, docs/protocol/BTCP_STATE_MACHINE.md):
+
+        * a same-status update is an idempotent **no-op** — no persistence
+          write, no akashic re-recording, no validator-pool reward
+          recompute.  This is what makes a replayed completion event
+          harmless even when it lands in a *different UTC epoch* than the
+          original (the store's (epoch, pool, route) replay guard only
+          collapses same-epoch replays).
+        * terminal states (COMPLETED/FAILED/TIMEOUT) are frozen — any
+          *different* target from a terminal state is rejected
+          (resurrection / audit-trail rewrite attack).
+        * FAILED/TIMEOUT remain reachable from every active state
+          (escrow timeout / failure classification can strike at any
+          step).
+        * execution progress is forward-only along the RouteStatus
+          numeric ladder (reordering attacks rejected).
+
+        Returns False (and changes nothing) for an illegal transition.
+        """
         route = self._routes.get(route_id)
         if route is None:
             return False
+        try:
+            status = RouteStatus(status)
+        except ValueError:
+            return False
+        if not _route_transition_allowed(route.status, status):
+            print(
+                f"[btcp.orchestrator] rejected illegal route-status transition "
+                f"{route.route_id}: {route.status.name} -> {status.name} "
+                f"(INV-013: terminal states are frozen; progress is "
+                f"forward-only)",
+                file=sys.stderr,
+            )
+            return False
+        if route.status == status:
+            # Idempotent replay of the current status — nothing to do.
+            return True
         route.status = status
         route.updated_at = time.time()
         self._persist_route(route)
