@@ -5408,7 +5408,7 @@ def bh_vm_feed():
             },
         },
         "per_chain": per_chain,
-        "whitepaper": "L0.1 — per-transaction canonical BH dual-strand · 13 VM families",
+        "whitepaper": f"L0.1 — per-transaction canonical BH dual-strand · {_registry_chain_counts()['vm_families']} VM families",
     })
 
 
