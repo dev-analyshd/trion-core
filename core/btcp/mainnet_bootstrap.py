@@ -14,7 +14,7 @@ Sequence:
   Phase 5 (Months 36-60): Reach 50 chains — 1,225 pairs eliminated
   Phase 6 (Months 60+):   Reach 100 chains — 4,950 pairs eliminated
 
-This module generates the complete bootstrap configuration for all 106
+This module generates the complete bootstrap configuration for all 152
 chains across 20 VM families (see VmFamily), with deployment scripts and verification.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
@@ -93,7 +93,7 @@ class ChainConfig:
         return d
 
 
-# ── Complete Chain Registry (106 chains, 14 VM families) ──────────────────────
+# ── Complete Chain Registry (152 chains, 20 VM families) ──────────────────────
 
 def _stable_chain_id(name: str) -> int:
     """Deterministic synthetic chain id (sha3-based, stable across processes).
@@ -103,7 +103,7 @@ def _stable_chain_id(name: str) -> int:
 
 
 def build_chain_registry() -> List[ChainConfig]:
-    """Build the complete 106-chain registry with bootstrap phase assignments."""
+    """Build the complete 152-chain registry with bootstrap phase assignments."""
     chains: List[ChainConfig] = []
 
     # ── Phase 1: First 3 EVM chains ──────────────────────────────────────────
