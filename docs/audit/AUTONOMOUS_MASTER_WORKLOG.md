@@ -151,3 +151,23 @@ Battery at close: 1019 unit + 9 skipped · 87 btcp + 1 xfail · 134 golden ·
 47 contracts (pytest) + direct suites green · master-formula 104/105 (1
 documented) · api truth 34/34.
 Wave 4 dispatch: P red team, Q dead-code restructure, R docs conformance.
+
+### WAVE 4 CLOSE + WAVE 5 (exploit fixes) — HEAD 45eda91
+
+Wave 4: P (red team — battery landed by lead after kill), Q (dead-code: e280ea7
+hardhat byte-pins + compiled-artifact regeneration + drift guards; ec5c9d2
+frontend dead hook; c0eed54 broken scripts; d4660f0 sdk/src isolated; 4889e1f
+gitignore root-cause), R (docs: 60c9e77 conformance truth pass + 713c42c K1-K22
+spec banners).
+Wave 5 (lead, Agent S): five confirmed exploits CLOSED —
+- 39cd184a-part-1: P-EVM-01 dest_chain binding (escrow + oracle reject
+  certificates not destined for this chain — P's double-pay amplifier dead) +
+  P-EVM-02 akashic expiry flip (enterPendingAkashic rejects expired escrows)
+- part-2: P-PY-01 NaN magnitude raises (py; TS inherently safe via BigInt) +
+  P-PY-02 chain_id validated not masked (py + rust static + TS)
+- part-3: P-API-02 path-aware write gate (publish/zg-da/zg-storage require
+  X-API-Key on EVERY method)
+- 45eda91: test isolation — global EmissionGate singleton swapped in
+  suite-level AWA tests (ordering flake root-caused and closed)
+Red team battery: 59 + 13 tests; adversarial 179/180 (1 = PQC env). Units
+1022+9. All five exploit tests flipped to assert-FIXED.
