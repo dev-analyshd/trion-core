@@ -58,3 +58,19 @@ Lead: freeze performed above; this worklog opened.
 (Agents append per-wave results via the lead after integration; per-agent
 detailed logs live in the shared engineering worklog outside the repo and in
 each agent's final report to the lead.)
+
+### WAVE 1 CLOSE (lead integration, HEAD 298a1d6)
+
+Agents: A ✓, B ✓, E ✓ (report delivery timed out; all 3 commits landed and lead-verified), F ✓.
+Commits: d7ca82e (spec matrix, 107 requirements, 22 spec conflicts K1-K22 resolved) ·
+B: cf4cd71/8831b3a/dfab58d/c542504/3f6ce2e/31f823f (canonical BH doc v1 93-byte layout;
+py/TS/rust builder parity fixes incl. deterministic rust magnitude+timestamps across
+21 crates; 52 golden vectors / 134 tests) · E: d0d6e20/b9b2a87/298a1d6 (canonical
+certificate doc with cross-VM domain separation; validator security audit = Wave 2
+work order: 6 CRITICAL C-01..C-06, 8 HIGH H-01..H-08, M/L register; py reference
+encoder core/consensus/certificate.py) · F: 65925e6/f3a27e7/9e2b84f/b160ba4/273805d/
+d720105 (BTCP state machine 26 states/33 transitions; invariants register INV-001..022;
+py-layer enforcement: 18 ENFORCED/3 PARTIAL/0 UNENFORCED; 49 attack tests).
+Battery: 759 unit + 9 skipped, 134 golden, 87 btcp + 1 xfail (72h dispute window —
+registered open), 33 bitp. Zero regressions.
+Wave 2 dispatch: G/H/I/J/K/L against VALIDATOR_SECURITY_AUDIT.md + CANONICAL_CERTIFICATE.md.
