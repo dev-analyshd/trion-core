@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
+[COMPLETED ONE-TIME CODE-MOD TOOL — DO NOT RUN]
+
 Phase 2.1 helper: apply @require_entity_id() decorator to all Flask routes
 that accept <entity_id> path parameters in api/app.py.
 
-Skips routes that already have the decorator. Idempotent.
+Historical record only (W4-Q): the decoration was applied long ago and this
+idempotent helper has no remaining work to do. Kept for provenance of the
+Phase 2.1 remediation — re-running it is a no-op at best and a source of
+conflicts at worst.
 """
 import re
 from pathlib import Path

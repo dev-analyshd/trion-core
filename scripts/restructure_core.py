@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
+[COMPLETED ONE-TIME MIGRATION TOOL — DO NOT RUN]
+
 Restructure src/ → core/ — Phase 2
 Copies ALL Python files from src/ to core/ with the new directory structure
 prescribed by the institutional grade execution document.
 Then creates a compatibility shim so `from src.*` imports still work.
+
+Historical record only (W4-Q): the migration has long since landed (src/ no
+longer exists) and the compatibility shim it creates was later removed
+(FIX-4). The MAPPING below is the authoritative file-level provenance of the
+restructure — kept for that reason, not as a runnable tool.
 """
 import os
 import shutil

@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 """
+[COMPLETED ONE-TIME MIGRATION TOOL — DO NOT RUN]
+
 Generate src/ compatibility shim that re-exports from core/.
 This allows existing `from src.core.coherence_engine import X` to work
 after the move to `core/master/coherence.py`.
+
+Historical record only (W4-Q): the src/ shim layer this script created was
+LATER DELIBERATELY REMOVED (FIX-4 — all Python imports now point directly at
+core/*; see tests/conftest.py and tests/unit/test_no_sys_path_hacks.py).
+Running this script today would recreate the deleted shim layer and undo
+that cleanup. It is kept for its SHIM_MAP — the authoritative old-path →
+canonical-path provenance record of the restructure — not as a tool.
 """
 import os
 

@@ -11,6 +11,8 @@ For each contract:
   1. Prepare the Cairo source code files
   2. Submit to Voyager's verification API
   3. Check verification status
+
+Live-RPC external tool — network calls, no test battery coverage.
 """
 import json
 import os
@@ -18,14 +20,16 @@ import sys
 import time
 import cloudscraper
 
-scraper = cloudscraper.create_scraper()
-
-# Load deployments
-DEPLOYMENTS_FILE = "/home/z/my-project/trion-core/deployments/starknet_sepolia.json"
+# Repo-relative paths (W4-Q fix: the hardcoded /home/z/my-project/trion-core
+# machine paths predated the repo move and the deployments/ restructure).
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEPLOYMENTS_FILE = os.path.join(REPO, "chains", "starknet", "starknet_sepolia_deployments.json")
 with open(DEPLOYMENTS_FILE) as f:
     deployments = json.load(f)
 
-CONTRACTS_DIR = "/home/z/my-project/trion-core/contracts/starknet/src"
+CONTRACTS_DIR = os.path.join(REPO, "contracts", "starknet", "src")
+
+scraper = cloudscraper.create_scraper()
 
 # Map contract names to their source files
 CONTRACT_FILES = {
@@ -180,7 +184,7 @@ def main():
         "compilerVersion": COMPILER_VERSION,
         "results": results,
     }
-    report_path = "/home/z/my-project/trion-core/docs/proofs/voyager_verification_report.json"
+    report_path = os.path.join(REPO, "docs", "proofs", "voyager_verification_report.json")
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)

@@ -6,7 +6,17 @@ Verifies that:
   - Python _entity_seed uses SHA3-256 (matches Rust bh_id + TS entityIdFromAddr)
   - Python canonical_bh (via hashlib.sha3_256) matches Rust + TS payload layout
 
-Run: python3 /home/z/my-project/repos/trion-core/scripts/cross_lang_bh_check.py
+Role in the verification lattice (W4-Q note): the CANONICAL cross-language
+suite is tests/golden/test_golden_vectors.py (52 vectors, py/rust/ts parity,
+run in the pytest battery). This script additionally pins the entity-id
+derivation rules (address normalisation / case-insensitivity) and the
+entity_seed construction, and emits the paste-into-Rust/TS vectors that
+indexers/crates/trion-common/src/hash_dna.rs embeds. It is self-contained
+Python (verifies Python against itself + the frozen vectors) — keep it for
+the entity-id/entity-seed pins; do NOT extend it with new digest checks
+(put those in the golden suite).
+
+Run: python3 scripts/cross_lang_bh_check.py
 """
 import hashlib
 import sys

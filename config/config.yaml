@@ -1,5 +1,17 @@
 # TRION Protocol — Configuration
 # All values can be overridden via environment variables.
+#
+# ── STATUS (W4-Q audit): NO CODE READS THIS FILE ─────────────────────────────
+# Grep-proven: main.py, serve.py, api/, core/, scripts/, deploy/ contain no
+# yaml reader for this path — the operative runtime configuration is
+# .env.example + config/deployment.env + the service entrypoints. This file
+# is a design-time reference snapshot (plane weights, thresholds, relayer
+# chain list). Two known drifts vs the canonical chain registry
+# (config/chain_registry.json, 129 chains): indexers.svm.chain_id 103
+# (registry: Solana Devnet = 901) and relayer chain zg_galileo 16602 (0G
+# Galileo testnet is not a registry member). Do NOT treat those ids as
+# canonical; do NOT add new runtime config here — wire new settings through
+# the env/deployment path. Tracked for disposition by the docs wave.
 
 oracle:
   port: 5000
