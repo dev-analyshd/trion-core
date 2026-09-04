@@ -5,8 +5,14 @@ import { trionGet } from "./client";
 
 /**
  * useTrionPoll — interval-polled GET hook with live/loaded/error state.
- * Mirrors the reference dashboard's useAPI pattern: the Flask backend has
- * no WebSocket for every dataset, so short-interval polling keeps views live.
+ * Mirrors the reference dashboard's useAPI pattern.
+ *
+ * Live data note: the backend DOES run a Flask-SocketIO push channel
+ * (serve.py + api/socket_push.py, /feed namespace — new signal-feed entries
+ * and periodic health packets), which the public dashboard (frontend/)
+ * consumes. This terminal deliberately stays on REST polling for every
+ * dataset: no socket.io client dependency here, and polling covers the
+ * many endpoints the push channel does not carry.
  */
 export function useTrionPoll<T>(
   path: string | null,
