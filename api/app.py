@@ -68,11 +68,24 @@ _RL_BUCKET_CAP       = 10_000  # hard cap on tracked IPs (prevents memory blowup
 _rl_lock     = threading.Lock()
 _rl_buckets: dict = {}   # ip → deque of request timestamps
 
+# P-API-04 (final red-team pass): X-Forwarded-For is CLIENT-SUPPLIED. In
+# direct deployments a spoofed XFF rotates the rate-limit key and frames
+# other IPs for 429s. It is honored ONLY when the operator explicitly
+# declares a trusted proxy front (TRION_TRUST_PROXY=1) — the documented
+# nginx/compose topology — and the LAST untrusted-to-trusted entry is used
+# then (the proxy-appended one), not the client-chosen first element.
+_TRION_TRUST_PROXY = os.environ.get("TRION_TRUST_PROXY", "").strip() == "1"
+
 def _get_client_ip() -> str:
-    """Return the real client IP, respecting X-Forwarded-For if behind a proxy."""
-    xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        return xff.split(",")[0].strip()
+    """Real client IP. X-Forwarded-For is honored ONLY when a trusted proxy
+    is declared (TRION_TRUST_PROXY=1); otherwise the socket address is
+    authoritative and spoofed XFF headers are ignored."""
+    if _TRION_TRUST_PROXY:
+        xff = request.headers.get("X-Forwarded-For", "")
+        if xff:
+            # trust the LAST entry: the proxy appends the true client after
+            # any client-injected prefix
+            return xff.split(",")[-1].strip()
     return request.remote_addr or "unknown"
 
 
@@ -169,6 +182,8 @@ _WRITE_PATHS = frozenset({
     "/api/v1/publish/",          # on-chain publication + feed push
     "/api/v1/zg/da/submit",      # external DA submission
     "/api/v1/zg/storage/store",  # storage-store write
+    "/api/v1/zg/sync",           # spawns the 0G mainnet sync process
+    "/api/v1/zg/compute/infer",  # runs submitted compute jobs
 })
 
 def _is_write_path(path: str) -> bool:
@@ -2654,6 +2669,19 @@ def zg_da_submit():
     computed per 0G DA's Reed-Solomon encoding protocol.
     POST body: { entity_id, ... } or uses GET param ?id=<entity>.
     """
+    # P-API-05 (final red-team pass): DA publication is a truth-emission
+    # surface — while the AWA EmissionGate is frozen, submissions fail
+    # closed (silence is information, MD §17) exactly like /api/v1/publish.
+    from core.governance.awa import assert_emission_allowed, EmissionFrozenError
+    try:
+        assert_emission_allowed("VALUATION")
+    except EmissionFrozenError as exc:
+        return jsonify({
+            "error": "awa_emission_frozen",
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
+        }), 503
+
     if request.method == "POST":
         try:
             blob = request.get_json(force=True) or {}
