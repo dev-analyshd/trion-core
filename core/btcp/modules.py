@@ -930,14 +930,36 @@ class AkashicClipboard:
             )
         return matched
 
-    def execute_paste(self, commitment_a: bytes, commitment_b: bytes) -> bool:
+    def execute_paste(
+        self,
+        commitment_a: bytes,
+        commitment_b: bytes,
+        now: Optional[float] = None,
+    ) -> bool:
         """Phase 3 (PASTE): remove both matched commitments.
 
         Returns True iff both commitments were live entries (matcher state
-        advanced). Honest limitation: no dual-chain transfer emission here.
+        advanced). P-PY-05 (final red-team pass): a deadline-aware paste —
+        when ``now`` is supplied, commitments whose intents have expired
+        are REFUSED (recorded EXPIRED, not FILLED); the clipboard's expiry
+        enforcement (required in MATCH) now holds through the terminal
+        transition too. Honest limitation: no dual-chain transfer emission
+        here.
         """
         a = self._entries.pop(commitment_a, None)
         b = self._entries.pop(commitment_b, None)
+
+        if now is not None:
+            for which in ("a", "b"):
+                entry = a if which == "a" else b
+                if entry is not None and now >= entry.deadline:
+                    # expired before paste: terminal EXPIRED, not FILLED
+                    commitment = commitment_a if which == "a" else commitment_b
+                    self._record(entry, commitment, "EXPIRED")
+                    if which == "a":
+                        a = None
+                    else:
+                        b = None
         if a is not None:
             self._record(a, commitment_a, "FILLED")
         if b is not None:
