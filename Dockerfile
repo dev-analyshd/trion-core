@@ -46,7 +46,6 @@ COPY config/           ./config/
 COPY shared/           ./shared/
 COPY serve.py          ./serve.py
 COPY main.py           ./main.py
-COPY deployments.json  ./deployments.json
 COPY zg/               ./zg/
 COPY schema.sql        ./schema.sql
 COPY proof-ledger/     ./proof-ledger/

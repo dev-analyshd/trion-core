@@ -157,7 +157,6 @@ COPY sdk/             ./sdk/
 COPY proof-ledger/    ./proof-ledger/
 COPY serve.py         ./serve.py
 COPY main.py          ./main.py
-COPY deployments.json ./deployments.json
 COPY zg/              ./zg/
 COPY schema.sql       ./schema.sql
 COPY package.json     ./package.json
