@@ -320,3 +320,68 @@ class TestPublicationRouteFreeze:
                 assert r.get_json().get("silence") is None or True
         finally:
             gate._frozen = was_frozen
+
+
+# ─── RED-4-F1: every external zg publication surface must fail closed ────────
+
+class TestZgSurfacesFreeze:
+    """/api/v1/zg/{sync,storage/store,compute/infer} are truth-emission
+    surfaces. RED-4 pass 4 found all three executing external publication /
+    subprocess spawn while the AWA EmissionGate was frozen (P-API-05's fix
+    had covered only /api/v1/zg/da/submit). All must 503 silence when frozen."""
+
+    _SURFACES = [
+        ("GET",  "/api/v1/zg/sync"),
+        ("POST", "/api/v1/zg/storage/store"),
+        ("GET",  "/api/v1/zg/storage/store"),
+        ("POST", "/api/v1/zg/compute/infer"),
+        ("GET",  "/api/v1/zg/compute/infer"),
+    ]
+
+    def _gate(self):
+        from core.governance.awa import get_emission_gate
+        return get_emission_gate()
+
+    def test_zg_surfaces_503_silence_when_frozen(self):
+        import os
+        os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        from api.app import app  # noqa: PLC0415 — wiring-under-test import
+
+        gate = self._gate()
+        was_frozen = gate.is_frozen()
+        try:
+            if not was_frozen:
+                gate.freeze(reason="red-4-f1-regression", source="test_awa_freeze")
+            c = app.test_client()
+            for method, path in self._SURFACES:
+                r = c.open(path, method=method, json={} if method == "POST" else None)
+                assert r.status_code == 503, (
+                    f"{method} {path} returned {r.status_code} while frozen — "
+                    "external publication surface not gated (RED-4-F1)"
+                )
+                j = r.get_json() or {}
+                assert j.get("silence") is True, f"{method} {path}: silence flag missing"
+                assert j.get("error") == "awa_emission_frozen"
+        finally:
+            gate._frozen = was_frozen
+
+    def test_zg_surfaces_not_gated_by_default(self):
+        """Control: unfrozen gate — endpoints serve their normal (possibly
+        erroring for toolchain reasons) responses, not the freeze 503."""
+        import os
+        os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        from api.app import app  # noqa: PLC0415
+
+        gate = self._gate()
+        was_frozen = gate.is_frozen()
+        try:
+            gate._frozen = False
+            c = app.test_client()
+            for method, path in self._SURFACES:
+                r = c.open(path, method=method, json={} if method == "POST" else None)
+                body = r.get_json(silent=True) or {}
+                assert not (r.status_code == 503 and body.get("error") == "awa_emission_frozen"), (
+                    f"{method} {path} froze with an open gate"
+                )
+        finally:
+            gate._frozen = was_frozen
