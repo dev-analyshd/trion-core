@@ -1,7 +1,7 @@
 {
-  "name": "trion-arbilink-agent",
+  "name": "trion-core",
   "version": "1.0.0",
-  "description": "TRION Thermodynamic Execution Gate \u2014 ArbiLink agent skill for Arbitrum",
+  "description": "TRION Protocol — behavioral truth oracle and BTCP cross-chain settlement (root manifest: master chain indexer orchestration)",
   "type": "module",
   "scripts": {
     "trion:index-all": "node scripts/trion_master_indexer.mjs",
@@ -64,17 +64,19 @@
   },
   "keywords": [
     "arbitrum",
-    "arbilink",
     "trion",
     "behavioral-oracle",
     "execution-gate",
     "defi-security",
-    "ai-agent"
+    "ai-agent",
+    "trion",
+    "btcp",
+    "behavioral-oracle"
   ],
   "author": "TRION Protocol",
   "license": "MIT",
   "devDependencies": {
     "solc": "^0.8.35"
   },
-  "_note": "Root package manifest. Scripts referencing the ArbiLink agent skill src/ (register/start/gate/server, main: src/skill.js) were removed in audit fix BUILD-2 \u2014 that source tree was never committed to this repo. The remaining scripts orchestrate the master chain indexer."
+  "_note": "Root package manifest for the master chain indexer scripts. Renamed from the pre-rebrand 'trion-arbilink-agent' identity (the ArbiLink skill source it referenced was never committed to this repo) to match the project."
 }
