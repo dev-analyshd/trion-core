@@ -280,6 +280,15 @@ library CanonicalCertificate {
         return bytes32(_load(payload, 125, 32));
     }
 
+    /// @notice dest_chain (§2 offset 161) — the chain this certificate
+    ///         settles on. A deployment must reject certificates whose
+    ///         dest_chain is not its own chain id (P-EVM-01: cross-chain
+    ///         certificate confusion — same quorum cert settling escrows on
+    ///         a foreign deployment).
+    function destChainOf(bytes calldata payload) internal pure returns (uint32) {
+        return uint32(_load(payload, 161, 4));
+    }
+
     /// @notice destination (§2 offset 165) — settlement-tuple half A.
     function destinationOf(bytes calldata payload) internal pure returns (bytes32) {
         return bytes32(_load(payload, 165, 32));

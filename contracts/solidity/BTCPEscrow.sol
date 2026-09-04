@@ -488,6 +488,13 @@ contract BTCPEscrow {
         );
         require(esc.amount == CanonicalCertificate.amountOf(payload), "CERT_AMOUNT_MISMATCH");
         require(esc.minCoherence <= CanonicalCertificate.coherenceOf(payload), "CERT_COHERENCE_INSUFFICIENT");
+        // P-EVM-01 (Wave 4 red team): the certificate must settle on THIS
+        // deployment's chain — a quorum-signed certificate destined for a
+        // foreign chain (even an otherwise-valid one) can never pay here.
+        require(
+            CanonicalCertificate.destChainOf(payload) == uint32(block.chainid),
+            "CERT_DEST_CHAIN_NOT_THIS_CHAIN"
+        );
     }
 
     /// @dev §6 step 5 — recover + order the signers, then membership, weight
@@ -682,6 +689,10 @@ contract BTCPEscrow {
         Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
+        // P-EVM-02 (Wave 4 red team): a block-expired escrow must go down
+        // the expiry path (revert/refund), never be flipped into the
+        // Akashic recovery window to extend its release lifetime.
+        require(block.number <= esc.lockBlock + esc.timeoutBlocks, "ESCROW_EXPIRED");
         require(esc.settlementCheckHash == bytes32(0), "ALREADY_VERIFIED");
 
         esc.settlementCheckHash = settlementCheckHash;
@@ -734,6 +745,10 @@ contract BTCPEscrow {
         Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
+        // P-EVM-02 (Wave 4 red team): a block-expired escrow must go down
+        // the expiry path (revert/refund), never be flipped into the
+        // Akashic recovery window to extend its release lifetime.
+        require(block.number <= esc.lockBlock + esc.timeoutBlocks, "ESCROW_EXPIRED");
         require(block.number <= esc.lockBlock + esc.timeoutBlocks, "EXPIRED");
         require(coherence >= esc.minCoherence, "COHERENCE_INSUFFICIENT");
         // G1: Two-Phase Confirmation — settlement check must be verified
@@ -770,6 +785,10 @@ contract BTCPEscrow {
         Escrow storage esc = _escrows[escrowId];
         require(esc.escrowId != bytes32(0), "ESCROW_NOT_FOUND");
         require(esc.state == State.HOLDING, "NOT_HOLDING");
+        // P-EVM-02 (Wave 4 red team): a block-expired escrow must go down
+        // the expiry path (revert/refund), never be flipped into the
+        // Akashic recovery window to extend its release lifetime.
+        require(block.number <= esc.lockBlock + esc.timeoutBlocks, "ESCROW_EXPIRED");
 
         esc.state = State.PENDING_AKASHIC;
         uint256 deadline = block.timestamp + AKASHIC_RECOVERY_SECONDS;
