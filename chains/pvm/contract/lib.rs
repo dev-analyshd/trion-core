@@ -1,14 +1,65 @@
-//! TRION PVM Oracle — ink! Smart Contract
+//! ═══════════════════════════════════════════════════════════════════════
+//! ⚠ RESEARCH / NON-PRODUCTION — NOT AN ORACLE OF RECORD (audit C-05) ⚠
+//! ═══════════════════════════════════════════════════════════════════════
 //!
-//! Polkadot equivalent of TRIONOracleV3.sol.
+//! TRION PVM Legacy Oracle — ink! Smart Contract (RESEARCH STUB)
 //! Runs on Polkadot's contracts pallet (PVM / PolkaVM).
+//!
+//! WHAT THIS IS: a legacy route-store stub kept for research/reference
+//! parity with the shape of TRIONOracleV3.sol. It is NOT the Polkadot
+//! equivalent of TRIONOracleV3 and MUST NOT be deployed or wired to any
+//! funded consumer as an oracle of record.
+//!
+//! WHY (audit finding C-05, PVM leg — MEDIUM):
+//!   `publish_btcp_route` (lines ~95-136) is an OWNER-VALIDATOR WRITE with
+//!   NO signatures, NO quorum, NO validator epoch, NO freshness — any key
+//!   in the owner/validator list can mark any route "safe" unilaterally.
+//!   The whitepaper invariant "TRION consensus is the only oracle" is
+//!   absent here. No funded escrow consumer exists in this repo (the
+//!   `gate` crate stores an `oracle_addr` but never calls it; the
+//!   `chains/pvm/execute.ts` relayer never invokes this contract), which
+//!   is why the tier is MEDIUM, not CRITICAL.
+//!
+//! HONESTY FLAGS (misuse must be loud, not silent):
+//!   - `PRODUCTION_STATUS` const below — "RESEARCH_NON_PRODUCTION".
+//!   - `is_oracle_of_record()` message — always returns `false`; any
+//!     integrating contract can (and MUST) check it and refuse to bind.
+//!   - This header + the doc comments on `publish_btcp_route`.
+//!   - CANONICAL_INVARIANTS.md registers the PVM tier as research/partial.
+//!
+//! CANONICAL UPGRADE PATH (what a production PVM oracle of record needs,
+//! per docs/protocol/CANONICAL_CERTIFICATE.md §3.2/§7 — NOT implemented
+//! here, Wave-2 follow-on once the epoch registrar lands):
+//!   * Signature verification — ink! CAN do it natively:
+//!     `ink_env::crypto::verify_signature` supports Ed25519, Sr25519 AND
+//!     Ecdsa (secp256k1), so both certificate families (1 = secp256k1
+//!     EIP-191 for EVM-compat chains, 2 = Ed25519 raw-P) verify in-contract.
+//!     Family choice for PVM per CANONICAL_CERTIFICATE §14.5: sr25519 is
+//!     ink!'s native scheme but is NOT family 2 — either standardize PVM on
+//!     Ed25519 or register a family 5 (sr25519); that decision is open.
+//!   * Hashing — ink! natively provides Keccak256, Sha2x256, Blake2x256
+//!     (`ink_env::hash`). The canonical `certificate_hash` is FIPS-202
+//!     SHA3-256, which ink! does NOT provide natively — a production tier
+//!     must either take the certificate hash as a registrar-published input
+//!     (same pattern as the TON tier) or document a Keccak256 consumed-key
+//!     deviation. EIP-191 wrapping for family 1 uses Keccak256 (native).
+//!   * Epoch registry — `ink::storage::Mapping` supports the per-epoch
+//!     validator set (id → pubkey + s_j·d_j weights ×1e6) + total power;
+//!     §10.2 grace rule is plain integer arithmetic on `block_timestamp`.
+//!   * Weight quorum — the L4.2 tier checks (3·signed > 2·total, etc.) are
+//!     u128 integer math, directly expressible; `Self::env()` callers carry
+//!     no authority — authority must live in the signatures, exactly like
+//!     TRIONOracleV3.submitRouteAttestation.
 //!
 //! Messages:
 //!   - new()                 — constructor, sets caller as owner
-//!   - publish_btcp_route()  — store route with coherence/threshold
-//!   - verify_execution()    — returns (is_safe, coherence, threshold)
+//!   - publish_btcp_route()  — store route with coherence/threshold (OWNER
+//!                             WRITE — see C-05 note above; not consensus)
+//!   - verify_execution()    — returns (is_safe, coherence, threshold) (a
+//!                             DATA READ of the stored row, nothing more)
 //!   - add_validator()       — owner-only validator management
 //!   - get_route()           — read route state
+//!   - is_oracle_of_record() — ALWAYS false (honesty flag)
 
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
@@ -16,6 +67,14 @@
 mod trion_pvm_oracle {
     use ink::prelude::vec::Vec;
     use ink::storage::Mapping;
+
+    // ── Honesty flag (audit C-05) ─────────────────────────────────────────
+
+    /// RESEARCH / NON-PRODUCTION marker. This contract is a legacy
+    /// owner-write route store, NOT a TRION oracle of record: it verifies
+    /// no signatures, no quorum, no validator epoch. Do not deploy against
+    /// value. Pinned by tests/contracts/test_pvm_oracle.py.
+    pub const PRODUCTION_STATUS: &str = "RESEARCH_NON_PRODUCTION";
 
     // ── Storage ───────────────────────────────────────────────────────────────
 
@@ -94,6 +153,16 @@ mod trion_pvm_oracle {
 
         /// Publish a BTCP route.
         /// coherence_score and threshold_score are scaled ×1_000_000
+        ///
+        /// ⚠ C-05 (RESEARCH STUB): this is an OWNER-VALIDATOR data write —
+        /// NO validator signatures, NO quorum, NO epoch, NO freshness are
+        /// checked. A row written here is NOT TRION consensus evidence and
+        /// must never gate the movement of funds. `is_safe` in
+        /// `verify_execution()` merely restates `coherence ≥ threshold` for
+        /// the row THIS caller wrote. A production tier must replace this
+        /// entrypoint with signature-verified attestations over the
+        /// canonical certificate payload (see the module header's upgrade
+        /// path notes).
         #[ink(message)]
         pub fn publish_btcp_route(
             &mut self,
@@ -188,6 +257,14 @@ mod trion_pvm_oracle {
         /// Read-only queries
         #[ink(message)]
         pub fn owner(&self) -> AccountId { self.owner }
+
+        /// HONESTY FLAG (audit C-05): always `false`. This contract is a
+        /// research stub, not an oracle of record — integrators MUST refuse
+        /// to bind value to any oracle whose `is_oracle_of_record()` is
+        /// false. Kept as a message (not just a const) so the mis-binding
+        /// attempt is visible on-chain to any auditor.
+        #[ink(message)]
+        pub fn is_oracle_of_record(&self) -> bool { false }
 
         #[ink(message)]
         pub fn route_count(&self) -> u64 { self.route_count }

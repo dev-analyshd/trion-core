@@ -638,11 +638,12 @@ magnitude); (3) `/validator_fee` accepts caller validator-count inputs
 | py `core/btcp` | INV-001,002,003,004,005,006,007,008,009,010,011,012,013,014,017,019,020,021 | INV-015/018 (72h window), INV-016 (BEO binding) | — | 0 hard UNENFORCED remain after this wave's fixes |
 | rust `rust/src` (static) | 001,002,004,005,007,008,010,011,017,019,020,021 | 015/018; 016 N/A | — | runtime verification pending cargo |
 | EVM Solidity | 001,002,004,005,011,012,013 | 003,010,014,015 | — | Wave 2 work: minCoherence floor, derived ids, dispute wiring |
-| Vyper | 001,002,003,004,005,010,011 | 015 (dispute wiring) | — | strongest escrow tier |
+| Vyper | 001,002,003,004,005,010,011 | 015 (dispute wiring) | — | strongest escrow tier; W2-L M-03 closed: release quorum derived from the oracle's live validator set (minRouteAttestations, fail-closed on interface mismatch) |
 | SVM/Soroban | 001,002,004,013 | 003,005,010,011,012,014 | — | release-authority bootstrap fallback (W2-H) |
 | Move | 001,002,004,008,013 | 003,014 | 005,011,012 | relayer-flag coherence (W2-I) |
 | TON | 001,002,004,008 | 003,005,010,011,014 | — | W2-J |
 | Cairo/Starknet | 001,002,004 | 003,005,010,011,014 | — | W2-K |
+| PVM (ink!) | — | — (research tier) | all (no production BTCP contract deployed) | RESEARCH/NON-PRODUCTION tier (W2-L, C-05 PVM leg): contracts/pvm/legacy_oracle.rs is an owner-write route store honestly labeled non-production (PRODUCTION_STATUS const + is_oracle_of_record()→false); no signatures/quorum/epoch — NOT an oracle of record; no funded consumer exists (gate crate stores oracle_addr but never calls it; chains/pvm relayer never invokes it); canonical upgrade path (ink! sig families, epoch registry, FIPS-SHA3 deviation) documented in-source; pinned by tests/contracts/test_pvm_oracle.py |
 
 (Counting rule: an invariant that is N/A at a layer is noted in the
 row's status cells, not counted as a failure.)
