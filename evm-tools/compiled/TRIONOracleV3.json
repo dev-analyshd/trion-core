@@ -1,0 +1,1210 @@
+{
+  "contractName": "TRIONOracleV3",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "isSafe",
+          "type": "bool"
+        }
+      ],
+      "name": "BTCPRoutePublished",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "publicCommitment",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "moatFactor",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "coherent",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "limitingPlane",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "planesPacked",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "signalBlock",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "signalTimestamp",
+          "type": "uint64"
+        }
+      ],
+      "name": "BehavioralSignalPublished",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "coherence",
+          "type": "uint32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "threshold",
+          "type": "uint32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "blockNum",
+          "type": "uint64"
+        }
+      ],
+      "name": "EntropyNominal",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "validator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "attestationCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "RouteAttestationSubmitted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "attestationCount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "requiredQuorum",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "isSafe",
+          "type": "bool"
+        }
+      ],
+      "name": "RouteVerdictFinalized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "limitingPlane",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "coherenceGap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "signalBlock",
+          "type": "uint64"
+        }
+      ],
+      "name": "SilenceRecorded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "limitingPlane",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "coherenceGap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "etaBlocks",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "signalBlock",
+          "type": "uint64"
+        }
+      ],
+      "name": "SilenceRecordedV2",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "coherence",
+          "type": "uint32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "threshold",
+          "type": "uint32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "packedData",
+          "type": "uint256"
+        }
+      ],
+      "name": "ThermodynamicCollapseIntercepted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "status",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "coherence",
+          "type": "uint32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint32",
+          "name": "threshold",
+          "type": "uint32"
+        }
+      ],
+      "name": "ThermodynamicSignalEtched",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "validator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "validatorCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "ValidatorRegistered",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "BTCP_ROUTE_FRESHNESS_SECONDS",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_v",
+          "type": "address"
+        }
+      ],
+      "name": "addValidator",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "behavioralSignals",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "publicCommitment",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "moatFactor",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "coherent",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint8",
+          "name": "limitingPlane",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint256",
+          "name": "planesPacked",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timingPacked",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "initialized",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "btcpRoutes",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherence",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isSafe",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getBehavioralSignal",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "publicCommitment",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "moatFactor",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "coherent",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint8",
+          "name": "limitingPlane",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "initialized",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getBehavioralSignalPlanes",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "phiPlane",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "mentalPlane",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "sigmaPlane",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "consciousPlane",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "animaPlane",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "signalBlock",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "signalTimestamp",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getSignalInfo",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "isValidator",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "minRouteAttestations",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "phi",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "mental",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "sigma",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "conscious",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "anima",
+          "type": "uint64"
+        }
+      ],
+      "name": "packPlanes",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "thresholdScore",
+          "type": "uint256"
+        }
+      ],
+      "name": "publishBTCPRoute",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "entityId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "publicCommitment",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "coherenceScore",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "threshold",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "moatFactor",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "coherent",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint8",
+              "name": "limitingPlane",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "planesPacked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timingPacked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "initialized",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct ITRIONOracleV3.BehavioralSignal",
+          "name": "s",
+          "type": "tuple"
+        }
+      ],
+      "name": "publishBehavioralSignal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "packedData",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "signatures",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "publishSignal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "quorumRequired",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "routeAttestationCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "routeAttested",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "routeBinding",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "attestationCount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isSafe",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherence",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "threshold",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "routeVerdictFinalized",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "thresholdScore",
+          "type": "uint256"
+        }
+      ],
+      "name": "routeVerdictHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_q",
+          "type": "uint256"
+        }
+      ],
+      "name": "setQuorum",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "signalCountByEntity",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "signals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "packedData",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "initialized",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "routeId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "anchorBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "executionBH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "coherenceScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "thresholdScore",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "signatures",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "submitRouteAttestation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalBehavioralSignals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "planesPacked",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "planeIndex",
+          "type": "uint8"
+        }
+      ],
+      "name": "unpackPlane",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "validatorCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "txId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "verifyExecution",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isSafe",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint32",
+          "name": "coherence",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "threshold",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60808060405234607a575f8054336001600160a01b0319821681178355916001600160a01b03909116907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09080a36002600655335f52600560205260405f20600160ff1982541617905560016007556122f4908161007f8239f35b5f80fdfe60806040526004361015610011575f80fd5b5f3560e01c80626debfb146101e3578063088868e8146101de5780630898b616146101d95780630f43a677146101d4578063107494eb146101cf5780632687c865146101ca5780632cd699cb146101c55780632df7d9b9146101c05780632f32463c146101bb5780633173e5ec146101b657806347b81cad146101b15780634d238c8e146101ac578063506a29a5146101a757806354dbed12146101a257806355148f751461019d57806363c90ca9146101985780636887ae6f1461019357806388d26cfc1461018e5780638da5cb5b14610189578063b645905614610184578063c1ba4e591461017f578063c2c806891461017a578063c996dfa114610175578063de2bfbe614610170578063eaf490561461016b578063f2fde38b14610166578063facd743b14610161578063fc5618841461015c5763fdf6fed014610157575f80fd5b6116fd565b6116a5565b611668565b61159c565b611582565b61128a565b61126d565b611249565b6111db565b6110b9565b611092565b611076565b610fcf565b610fa5565b610f68565b610f02565b610eab565b610da2565b610cc0565b610a1c565b61060a565b6105b0565b61052b565b6104d6565b610486565b610469565b610320565b6102e1565b610244565b602435906001600160401b03821682036101fe57565b5f80fd5b604435906001600160401b03821682036101fe57565b606435906001600160401b03821682036101fe57565b608435906001600160401b03821682036101fe57565b346101fe5760a03660031901126101fe576004356001600160401b03811681036101fe576bffffffff0000000000000000906102dd6102816101e8565b610289610202565b610291610218565b9161029a61022e565b9463ffffffff67ffffffff000000006040519889988360801b9060801b16968360601b9060601b169560401b169360201b16911617171717829190602083019252565b0390f35b346101fe575f3660031901126101fe576020600654604051908152f35b60a09060031901126101fe576004359060243590604435906064359060843590565b346101fe577f04c903d94fea543b642213803a2bba93458c4296d39b26bd8f57de3ee014eced61034f366102fe565b5f549495949093919290610373906001600160a01b03165b6001600160a01b031690565b33148015610443575b61038590611829565b610397865f52600860205260405f2090565b6005810191858354155f146103ef57506103d892938255600182015583600282015584600382015560048585101591019060ff801983541691151516179055565b4290555b604051911115815280602081015b0390a2005b825461041495149350919083610435575b5082610427575b82610419575b505061186d565b6103dc565b60030154149050835f61040d565b600281015485149250610407565b60018201541492505f610400565b50335f90815260056020526040902061038590610462905b5460ff1690565b905061037c565b346101fe575f3660031901126101fe576020600754604051908152f35b346101fe5760203660031901126101fe576004355f5260046020526040805f2060ff6001825492015416825191825215156020820152f35b60ff8116036101fe57565b35906104d4826104be565b565b346101fe5760403660031901126101fe576004356024356104f6816104be565b611fe060ff82169160051b169080820460201490151715610526576001600160401b03602092604051921c168152f35b6118c9565b346101fe5760203660031901126101fe576004355f52600460205260405f20546105676001600160401b038260881c166001600160401b031690565b6040805160ff8416815263ffffffff600885901c81166020830152602885901c16918101919091526001600160401b0360489390931c831660608201529116608082015260a090f35b346101fe5760203660031901126101fe576004355f52600a602052602060405f2054604051908152f35b9181601f840112156101fe578235916001600160401b0383116101fe576020808501948460051b0101116101fe57565b346101fe5760c03660031901126101fe5760043560443560843560643560243560a4356001600160401b0381116101fe576106499036906004016105da565b93906106568515156118dd565b61066b610666838689878c611fb5565b6121c2565b94610675816119b4565b955f915f5b81811061098a575050505050610698865f52600860205260405f2090565b9260058401958654155f14610937576106d593855560018501558060028501558160038501551015600483019060ff801983541691151516179055565b4283555b5f905f5b83518110156108065761073361072f61045b610701895f52600960205260405f2090565b61071b61070e868a611b75565b516001600160a01b031690565b60018060a01b03165f5260205260405f2090565b1590565b610740575b6001016106dd565b9161079c60019161077961076c61075f8a5f52600960205260405f2090565b61071b61070e898b611b75565b805460ff19166001179055565b61078b885f52600a60205260405f2090565b6107958154611b89565b9055611b89565b926107aa61070e8287611b75565b877fc4313ad2d70464fd94179f84f4115fd802e3d80d14df991a8a08cf0068f4ab9c6107fc6107e1835f52600a60205260405f2090565b5493604051918291888060a01b031695829190602083019252565b0390a39050610738565b5092915061081057005b61087960047f04c903d94fea543b642213803a2bba93458c4296d39b26bd8f57de3ee014eced93836103ea9454421161092e575b508561084e61218e565b80610861835f52600a60205260405f2090565b54101580610910575b61088b575b5050015460ff1690565b60405190151581529081906020820190565b7ff3d577962535c616f54e06f5c331d60db08835f882a03d0c28eac4c77ced5d7c906108c261076c845f52600b60205260405f2090565b6108d4835f52600a60205260405f2090565b546109066108e58787015460ff1690565b60405193849384919260409194936060840195845260208401521515910152565b0390a2855f61086f565b5061092961072f61045b845f52600b60205260405f2090565b61086a565b4290555f610844565b919061095b93855414928361097c575b508261096e575b5081610960575b5061186d565b6106d9565b90506003830154145f610955565b60028501541491505f61094e565b60018601541492505f610947565b806109f96109ae6109a86109a1600195878b6119fa565b3691611a40565b8661220c565b95838060a01b038716906109c3821515611a85565b6001600160a01b0388165f9081526005602052604090206109ec906109e79061045b565b611add565b848060a01b031610611b29565b610a1685610a07838d611b75565b6001600160a01b039091169052565b0161067a565b346101fe5760603660031901126101fe576024356004356044356001600160401b0381116101fe57610a529036906004016105da565b610a7c610a7761072f6001610a6f875f52600460205260405f2090565b015460ff1690565b611b97565b610a8a600654821015611be3565b610ae66040516020810190610ade81610ad089893046889290916074949284526bffffffffffffffffffffffff199060601b166020840152603483015260548201520190565b03601f19810183528261195d565b5190206121c2565b5f91825b818410610c66578686610b1f610afe61197e565b83815260016020820152610b1a835f52600460205260405f2090565b611cc7565b60ff821663ffffffff610b328460081c90565b1692610b5063ffffffff610b468360281c90565b1663ffffffff1690565b918360016001600160401b03610b668560481c90565b1692827f1eff1a9d3684f9c3261159f69e680d7c8d99bbedff11e777fee886dfc878027360405180610bb88a8d878491604091949363ffffffff809260ff606087019816865216602085015216910152565b0390a2149182610c14575b505015610bcc57005b6040805163ffffffff95861681529290941660208301529281019290925233917fda61feb8d2814ef60bca413b9fec67ecfdd8da7d93067c0486ef26deea019b5b90606090a3005b6040805163ffffffff8981168252871660208201526001600160401b0392909216908201527fdc8e64a9b459106d0586feb26afcdbb157070b758dffc130bf05dbf5909cc42790606090a28386610bc3565b600190610cb8610c7d6109a86109a188878b6119fa565b91610ca3610c9e61045b8560018060a01b03165f52600560205260405f2090565b611c2f565b838060a01b0316838060a01b03831611611c7b565b930192610aea565b346101fe5760203660031901126101fe57600435805f52600860205260405f20906102dd60405191610cf18361193d565b8354928381526001850154602082015260028501549160408201928352610d54610d4c6003880154926060850193845260a0600560ff60048c0154169a608088019b15158c52015495019485525f52600a60205260405f2090565b549651151590565b92519051915192604051968796879260a094919796959260c08501988552602085015215156040840152606083015260808201520152565b600435906001600160a01b03821682036101fe57565b346101fe5760203660031901126101fe57610dbb610d8c565b610dcf60018060a01b035f54163314611d35565b6001600160a01b038116908115610e705761076c81610e0f610e0a61072f61045b610e289660018060a01b03165f52600560205260405f2090565b611d80565b6001600160a01b03165f90815260056020526040902090565b610e3b610e36600754611b89565b600755565b6007546040519081527fb4a7f5c563a0e35593d156394ed681bdc9c39467d7d722749d23862c2e4b712c9080602081016103ea565b60405162461bcd60e51b81526020600482015260136024820152725452494f4e3a207a65726f206164647265737360681b6044820152606490fd5b346101fe5760203660031901126101fe57600435805f526008602052600560405f200154151580610ee4575b6020906040519015158152f35b505f52600a602052602060405f2054610efb61218e565b1115610ed7565b346101fe5760203660031901126101fe576004355f52600860205260c060405f208054906001810154906002810154600382015490600560ff600485015416930154936040519586526020860152604085015260608401521515608083015260a0820152f35b346101fe5760203660031901126101fe57606063ffffffff80610f8c600435611e0c565b9193906040519415158552166020840152166040820152f35b346101fe5760203660031901126101fe576004355f526002602052602060405f2054604051908152f35b346101fe5760203660031901126101fe576004355f908152600160208181526040928390208054928101546002820154600383015460048401546005850154600686015460078701546008978801548b519a8b52988a0196909652988801939093526060870191909152608086015260ff808216151560a0870152921c821660c085015260e084019490945261010083019390935291909116151561012082015261014090f35b346101fe575f3660031901126101fe57602060405161012c8152f35b346101fe575f3660031901126101fe575f546040516001600160a01b039091168152602090f35b346101fe5760203660031901126101fe576001600160401b03600435805f526001602052600660405f200154905f5260016020526102dd600760405f200154916111126111096111098360201c90565b63ffffffff1690565b6111226111096111098460401c90565b6111326111096111098560601c90565b6111426111096111098660801c90565b9161115c6111508860401c90565b6001600160401b031690565b9363ffffffff604051998a991696168895939197969492909760e08701986001600160401b031687526001600160401b031660208701526001600160401b031660408601526001600160401b031660608501526001600160401b031660808401526001600160401b031660a08301526001600160401b03169060c00152565b346101fe5760203660031901126101fe5760043561120360018060a01b035f54163314611d35565b6002811061121057600655005b60405162461bcd60e51b81526020600482015260116024820152702a2924a7a71d1038bab7b93ab6901e101960791b6044820152606490fd5b346101fe57602061126561125c366102fe565b93929092611fb5565b604051908152f35b346101fe575f3660031901126101fe576020600354604051908152f35b346101fe576101403660031901126101fe575f546112b0906001600160a01b0316610367565b3314801561155f575b6112c290611829565b6112ca611ffd565b60ff16600410156112da9061200c565b6112e336612065565b6fffffffffffffffff00000000000000004360401b166001600160401b03421617610100820190815260016101208301526004358261132a825f52600160205260405f2090565b90611334916120e3565b611346905f52600260205260405f2090565b805461135190611b89565b905560035461135f90611b89565b6003555161136d8160401c90565b6001600160401b03169082516020840151936040810194855192606083019384519060808501519360a08601948986516113a690151590565b9960c089019a8b516113b89060ff1690565b9060e08b0151926113cf906001600160401b031690565b9460405198899861142a988a97929560ff919a99956001600160401b03979588966101009a956101208d019e8d5260208d015260408c015260608b0152151560808a01521660a088015260c08701521660e085015216910152565b037fa35149c10f570da7e461e210c06893062bfff88d93c2f66b938d2c1b330cb09991a2511561145657005b7f7744aacf7e2a8e77b97de29e8356b64f3cf830080b643d60c00df9ea75abafb8936103ea91835187518082115f146115575761149291611dcc565b81517fd4e5f484b785ab53a49f9ae04266116d648c7efe6d9952e9c71c775f4409b213895187519061150187866114ca8d5160ff1690565b604051958695869360ff6080946001600160401b03949897939860a088019988526020880152166040860152606085015216910152565b0390a261151a6103e88204925198519551965160ff1690565b6040519687968794909695919360ff6001600160401b039460a09660c089019a895260208901521660408701526060860152608085015216910152565b50505f611492565b50335f9081526005602052604090206112c29061157b9061045b565b90506112b9565b346101fe575f3660031901126101fe57602061126561218e565b346101fe5760203660031901126101fe576115b5610d8c565b5f54906001600160a01b038216906115ce338314611d35565b6001600160a01b0316918215611614576001600160a01b03191682175f9081557f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09080a3005b60405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201526564647265737360d01b6064820152608490fd5b346101fe5760203660031901126101fe576001600160a01b03611689610d8c565b165f526005602052602060ff60405f2054166040519015158152f35b346101fe5760403660031901126101fe576004356024356001600160a01b03811681036101fe575f9182526009602090815260408084206001600160a01b039093168452918152912060ff9054166040519015158152f35b346101fe5760203660031901126101fe576004355f52600160205260405f2061172461198d565b815481526102dd6001830154602083019081526002840154926040810193845260038501549460608201958652816117ea6117e36117db600485015496608085019788526117cd6101206117c4600861179c60058b015461179360a061178a8360ff1690565b15159c019b8c52565b60081c60ff1690565b60ff1660c08c0190815299600681015460e08d015260078101546101008d0152015460ff1690565b15159801978852565b519851995196519351151590565b935160ff1690565b9351151590565b936040519788978895919360ff9360c0969299989560e089019a8952602089015260408801526060870152151560808601521660a08401521515910152565b1561183057565b60405162461bcd60e51b815260206004820152601560248201527415149253d38e881b9bdd08185d5d1a1bdc9a5e9959605a1b6044820152606490fd5b1561187457565b60405162461bcd60e51b815260206004820152602760248201527f5452494f4e3a20726f7574652076616c756573206d69736d61746368202d20646044820152661a5cdc1d5d195960ca1b6064820152608490fd5b634e487b7160e01b5f52601160045260245ffd5b156118e457565b60405162461bcd60e51b815260206004820152601e60248201527f5452494f4e3a20656d707479206174746573746174696f6e20626174636800006044820152606490fd5b634e487b7160e01b5f52604160045260245ffd5b60c081019081106001600160401b0382111761195857604052565b611929565b90601f801991011681019081106001600160401b0382111761195857604052565b604051906104d460408361195d565b604051906104d46101408361195d565b6001600160401b0381116119585760051b60200190565b906119be8261199d565b6119cb604051918261195d565b82815280926119dc601f199161199d565b0190602036910137565b634e487b7160e01b5f52603260045260245ffd5b9190811015611a3b5760051b81013590601e19813603018212156101fe5701908135916001600160401b0383116101fe5760200182360381136101fe579190565b6119e6565b9291926001600160401b0382116119585760405191611a69601f8201601f19166020018461195d565b8294818452818301116101fe578281602093845f960137010152565b15611a8c57565b60405162461bcd60e51b8152602060048201526024808201527f5452494f4e3a20696e76616c6964206174746573746174696f6e207369676e616044820152637475726560e01b6064820152608490fd5b15611ae457565b60405162461bcd60e51b815260206004820152601d60248201527f5452494f4e3a206174746573746572206e6f742076616c696461746f720000006044820152606490fd5b15611b3057565b60405162461bcd60e51b815260206004820152601f60248201527f5452494f4e3a207369676e6572206f72646572696e67207265717569726564006044820152606490fd5b8051821015611a3b5760209160051b010190565b5f1981146105265760010190565b15611b9e57565b60405162461bcd60e51b815260206004820152601c60248201527f5452494f4e3a205369676e616c20616c726561647920657463686564000000006044820152606490fd5b15611bea57565b60405162461bcd60e51b815260206004820152601a60248201527f5452494f4e3a20496e73756666696369656e742071756f72756d0000000000006044820152606490fd5b15611c3657565b60405162461bcd60e51b815260206004820152601860248201527f5452494f4e3a20496e76616c69642076616c696461746f7200000000000000006044820152606490fd5b15611c8257565b60405162461bcd60e51b815260206004820152601f60248201527f5452494f4e3a205369676e6572206f72646572696e67207265717569726564006044820152606490fd5b600160206104d493805184550151151591019060ff801983541691151516179055565b90604051611cf78161193d565b60a0600582948054845260018101546020850152600281015460408501526003810154606085015260ff600482015416151560808501520154910152565b15611d3c57565b606460405162461bcd60e51b815260206004820152602060248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152fd5b15611d8757565b60405162461bcd60e51b815260206004820152601860248201527f5452494f4e3a20616c72656164792076616c696461746f7200000000000000006044820152606490fd5b9190820391821161052657565b90604051604081018181106001600160401b0382111761195857604052602060ff60018395805485520154161515910152565b611e26611e21825f52600860205260405f2090565b611cea565b60a081015180611f0b575050611e47611e4c915f52600460205260405f2090565b611dd9565b611e5c61072f6020830151151590565b611f02575163ffffffff611e708260081c90565b1691611e8463ffffffff610b468460281c90565b916001600160401b03611e978260481c90565b166032611edd61012c611ed56001600160401b03600160ff611eca83611ebd8b60881c90565b166001600160401b031690565b981614961642611dcc565b109243611dcc565b109082611efa575b5081611ef2575b50929190565b90505f611eec565b91505f611ee5565b505f905f905f90565b61012c611f1e611f2e9295939542611dcc565b10925f52600a60205260405f2090565b54611f3761218e565b1115611f466080850151151590565b9283611fad575b5082611fa5575b50604083015163ffffffff811115611f9c5750606063ffffffff935b015163ffffffff811115611f8f575063ffffffff8080935b9416921690565b63ffffffff809193611f88565b60609093611f70565b91505f611f54565b92505f611f4d565b93919290926040519360208501954687523060601b604087015260548601526074850152609484015260b483015260d482015260d48152611ff760f48261195d565b51902090565b60c435612009816104be565b90565b1561201357565b60405162461bcd60e51b815260206004820152601a60248201527f5452494f4e3a20696e76616c696420706c616e6520696e6465780000000000006044820152606490fd5b359081151582036101fe57565b6101409060031901126101fe5761207a61198d565b90600435825260243560208301526044356040830152606435606083015260843560808301526120aa60a4612058565b60a08301526120b960c46104c9565b60c083015260e43560e0830152610104356101008301526120db610124612058565b610120830152565b600861217b6101206104d494805185556020810151600186015560408101516002860155606081015160038601556080810151600486015561215f6005860161214461213260a0850151151590565b829060ff801983541691151516179055565b60c0830151815461ff00191660089190911b61ff0016179055565b60e0810151600686015561010081015160078601550151151590565b91019060ff801983541691151516179055565b6007548060011b90808204600214901517156105265760028101809111610526576003900460028110156120095750600290565b60405160208101917f19457468657265756d205369676e6564204d6573736167653a0a3332000000008352603c820152603c8152611ff7605c8261195d565b6040513d5f823e3d90fd5b9060418151036122b857602081015191606060408301519201515f1a907f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a083116122a557601b821415806122ad575b6122a55761228d5f93602095604051948594859094939260ff6060936080840197845216602083015260408201520152565b838052039060015afa156122a0575f5190565b612201565b505050505f90565b50601c82141561225b565b50505f9056fea26469706673582212207db0b4518fb58d4c6f75405d666ec2ac40d75737ff2d7e6cd3bba634a44b8f0c64736f6c63430008240033",
+  "compiler": {
+    "version": "0.8.36+commit.8a079791.Emscripten.clang+viaIR",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    }
+  },
+  "updatedAt": "2026-09-04T00:35:49.362Z"
+}
