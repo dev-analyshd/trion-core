@@ -634,7 +634,12 @@ NON_EVM_CHAINS: Dict[int, Dict] = {
     200803: {"name": "dogecoin", "label": "Dogecoin", "vm": "UTXO", "rpc": "https://dogeblocks.com/api", "block_time": 60, "native_symbol": "DOGE", "decimals": 8},
 
     # ── VM Family 10: Stellar ──────────────────────────────────────────────
-    200901: {"name": "stellar", "label": "Stellar", "vm": "STELLAR", "rpc": "https://horizon.stellar.org", "block_time": 5, "native_symbol": "XLM", "decimals": 7},
+    # id 27000 = canonical registry id (config/chain_registry.json). Was 200901,
+    # which collided with bitlayer in CHAIN_RPCS: both workers share
+    # _last_block/_stop_flags keyed by chain id, and stellar's string cursor
+    # made the bitlayer worker raise "can only concatenate str (not 'int')
+    # to str" on every poll after the first stellar update.
+    27000: {"name": "stellar", "label": "Stellar", "vm": "STELLAR", "rpc": "https://horizon.stellar.org", "block_time": 5, "native_symbol": "XLM", "decimals": 7},
 
     # ── VM Family 11: Hedera ───────────────────────────────────────────────
     201001: {"name": "hedera", "label": "Hedera", "vm": "HEDERA", "rpc": "https://mainnet.hashio.io/api", "block_time": 2, "native_symbol": "HBAR", "decimals": 8},
