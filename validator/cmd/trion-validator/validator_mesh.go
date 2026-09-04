@@ -22,6 +22,8 @@ import (
         "sync"
         "time"
 
+        "github.com/trion-protocol/validator/internal/consensus"
+        "github.com/trion-protocol/validator/internal/p2p"
         "github.com/trion-protocol/validator/internal/p2p/meshsha3"
 )
 
@@ -45,18 +47,12 @@ type ValidatorProfile struct {
 
 // BehavioralAttestation is one validator's signed attestation of a behavioral signal.
 // Communicated peer-to-peer without touching any smart contract.
-type BehavioralAttestation struct {
-        EntityID         string    `json:"entity_id"`
-        SignalType       string    `json:"signal_type"`
-        CoherenceC       float64   `json:"coherence_c"`
-        ThresholdTheta   float64   `json:"threshold_theta"`
-        ValidatorID      string    `json:"validator_id"`
-        DiversityWeight  float64   `json:"diversity_weight"`
-        Timestamp        int64     `json:"timestamp"`
-        BlockNumber      uint64    `json:"block_number"`
-        SignatureSense   string    `json:"signature_sense"`   // SHA3-256(payload||0x00)
-        SignatureAntisense string  `json:"signature_antisense"` // SHA3-256(payload||0xFF)
-}
+//
+// It is an ALIAS of internal/p2p.BehavioralAttestation (identical JSON wire
+// format): the mesh and the TRION-BFT consensus engine (internal/consensus)
+// therefore share the exact same attestation type — attestations gossiped by
+// the mesh are consensus block transactions, with no conversion step.
+type BehavioralAttestation = p2p.BehavioralAttestation
 
 // QuorumResult is the DW-BFT aggregated result after collecting f+1 attestations.
 // Weighted quorum: Σ d_j · vote_j / Σ d_j ≥ 2/3
@@ -73,13 +69,15 @@ type QuorumResult struct {
 
 // MeshNode is a single node in the TRION P2P validator mesh.
 type MeshNode struct {
-        mu           sync.RWMutex
-        self         ValidatorProfile
-        peers        map[ValidatorID]*ValidatorProfile
-        attestations map[string][]BehavioralAttestation // keyed by entity_id
-        quorumCh     chan QuorumResult
-        ctx          context.Context
-        cancel       context.CancelFunc
+        mu               sync.RWMutex
+        self             ValidatorProfile
+        peers            map[ValidatorID]*ValidatorProfile
+        attestations     map[string][]BehavioralAttestation // keyed by entity_id
+        quorumCh         chan QuorumResult
+        ctx              context.Context
+        cancel           context.CancelFunc
+        consensusHandler func(consensus.ConsensusMessage)    // consensus frames → engine (set via SetConsensusHandler)
+        attestationHook  func(p2p.BehavioralAttestation)     // attestations → engine mempool (set via SetAttestationHook)
 }
 
 // NewMeshNode constructs a validator mesh node.
@@ -102,13 +100,31 @@ func (m *MeshNode) AddPeer(p ValidatorProfile) {
         m.peers[p.ID] = &p
 }
 
-// Attest broadcasts a behavioral attestation to all known peers.
+// Attest stores an attestation, feeds the consensus hook, gossips it to
+// peers, and checks quorum.
 func (m *MeshNode) Attest(a BehavioralAttestation) {
         m.mu.Lock()
         m.attestations[a.EntityID] = append(m.attestations[a.EntityID], a)
+        hook := m.attestationHook
         m.mu.Unlock()
+        if hook != nil {
+                hook(a) // consensus engine: attestations become block transactions
+        }
 
         go m.gossip(a)
+        go m.tryQuorum(a.EntityID)
+}
+
+// AttestLocal stores an attestation received from a peer (no re-gossip) and
+// feeds the consensus hook.
+func (m *MeshNode) AttestLocal(a BehavioralAttestation) {
+        m.mu.Lock()
+        m.attestations[a.EntityID] = append(m.attestations[a.EntityID], a)
+        hook := m.attestationHook
+        m.mu.Unlock()
+        if hook != nil {
+                hook(a)
+        }
         go m.tryQuorum(a.EntityID)
 }
 
@@ -276,17 +292,32 @@ func (m *MeshNode) Listen(addr string) error {
         return nil
 }
 
+// handlePeer ingests one wire frame from a peer. Frames are backward
+// compatible: a legacy frame (no "t" field) is a behavioral attestation and
+// flows through the original attestation path; a typed frame is a TRION-BFT
+// consensus message (proposal / prevote / precommit / block / evidence) and
+// is dispatched to the registered consensus handler (see bft_mesh.go).
 func (m *MeshNode) handlePeer(conn net.Conn) {
         defer conn.Close()
         dec := json.NewDecoder(conn)
-        var att BehavioralAttestation
-        if err := dec.Decode(&att); err != nil {
+        var raw json.RawMessage
+        if err := dec.Decode(&raw); err != nil {
                 return
         }
-        m.mu.Lock()
-        m.attestations[att.EntityID] = append(m.attestations[att.EntityID], att)
-        m.mu.Unlock()
-        go m.tryQuorum(att.EntityID)
+        att, env, err := decodeMeshFrame(raw)
+        if err != nil {
+                return
+        }
+        if env != nil {
+                m.mu.RLock()
+                h := m.consensusHandler
+                m.mu.RUnlock()
+                if h != nil {
+                        h(env.Msg)
+                }
+                return
+        }
+        m.AttestLocal(att)
 }
 
 // Stop shuts down the mesh node.
@@ -294,6 +325,13 @@ func (m *MeshNode) Stop() { m.cancel() }
 
 // QuorumResults returns the channel where quorum results are published.
 func (m *MeshNode) QuorumResults() <-chan QuorumResult { return m.quorumCh }
+
+// AttestationCount returns how many attestations exist for a given entity.
+func (m *MeshNode) AttestationCount(entityID string) int {
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+        return len(m.attestations[entityID])
+}
 
 func main() {
         // Self-test: build two validators, have them attest, check quorum.
@@ -329,4 +367,14 @@ func main() {
         fmt.Printf("  dual_strand_sense=%s...\n", sense[:16])
         fmt.Printf("  dual_strand_antisense=%s...\n", antisense[:16])
         fmt.Println("PASS — Go validator mesh primitives verified")
+
+        // TRION-BFT consensus over the mesh (Task 15-b): four in-process
+        // validators, real TCP gossip of proposals/prevotes/precommits, one
+        // attestation entering through the LEGACY mesh path, finalized blocks
+        // exposed on a channel.
+        fmt.Println()
+        fmt.Println("TRION-BFT consensus — self-test (4 validators, TCP mesh)")
+        if err := runBFTDemo(); err != nil {
+                log.Fatalf("BFT self-test FAILED: %v", err)
+        }
 }
