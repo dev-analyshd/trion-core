@@ -164,16 +164,25 @@ class CMEEngine:
         entity_a_vector: List[float],     # 128-dim BEO vector
         entity_a_direction: str,           # "BUY" or "SELL"
         candidate_pool: List[Dict],        # [{entity_id, vector, direction, health, liquidity, ...}]
-        temporal_window: Tuple[float, float] = (0, 3600),  # 1-hour window
+        temporal_window: Tuple[float, float] = (0, 3600),  # RELATIVE seconds vs. now — "intent expressed within the last hour"
         independence_threshold: float = 0.3,
     ) -> CMEResult:
-        """Find the best complement for entity A."""
+        """Find the best complement for entity A.
+
+        ``temporal_window`` is interpreted as a RELATIVE window in seconds
+        measured against the current time (the moment of the match attempt):
+        a candidate is temporally aligned when its intent ``timestamp`` is
+        ``temporal_window[0]``–``temporal_window[1]`` seconds old. Candidate
+        timestamps are epoch values (~1.7e9), so they must never be compared
+        against the window bounds directly.
+        """
         best_score = 0.0
         best_candidate = None
         best_components = {
             "direction": 0.0, "temporal": 0.0, "health": 0.0,
             "independence": 0.0, "liquidity": 0.0,
         }
+        now = time.time()
 
         for candidate in candidate_pool:
             # Direction complement: A buys ↔ B sells
@@ -185,9 +194,14 @@ class CMEEngine:
             if dir_comp == 0.0:
                 continue  # no complement possible
 
-            # Temporal alignment
-            candidate_time = candidate.get("timestamp", time.time())
-            temporal_align = 1.0 if temporal_window[0] <= candidate_time <= temporal_window[1] else 0.5
+            # Temporal alignment — RELATIVE window: the candidate's intent
+            # age (now - timestamp) must fall inside temporal_window. (The
+            # old code compared the raw epoch timestamp against the (0, 3600)
+            # bounds, which could never match, so every candidate silently
+            # received the 0.5 fallback.)
+            candidate_time = candidate.get("timestamp", now)
+            intent_age = now - candidate_time
+            temporal_align = 1.0 if temporal_window[0] <= intent_age <= temporal_window[1] else 0.5
 
             # Behavioral health: C(t) > Θ(t)
             health = candidate.get("behavioral_health", 0.5)
