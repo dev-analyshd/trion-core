@@ -16,9 +16,16 @@
  * Quorum: publishSignal requires `quorumRequired` signatures over
  *   keccak256(abi.encodePacked(chainId, oracleAddr, txId, packedData))
  * each prefixed with the EIP-191 "\x19Ethereum Signed Message:\n32" header.
- * For a single-validator setup this relayer signs with RELAYER_PRIVATE_KEY
- * (which must also be the registered validator). For multi-validator quorum,
- * collect signatures from peers via SIGNER_KEYS_JSON (comma separated).
+ *
+ *   TRUTH-IN-ADVERTISING (W3-M): this relayer submits exactly ONE signature
+ *   — its own. It does NOT collect signatures from peer validators (no
+ *   multi-sig aggregation is implemented; the SIGNER_KEYS_JSON env var
+ *   mentioned in older docs does not exist). A single-signature submission
+ *   only succeeds on chains whose oracle quorumRequired == 1 (the
+ *   documented single-validator bootstrap floor); on chains with a higher
+ *   quorum the contract will reject the submission — by design, the relayer
+ *   can never manufacture the missing validator attestations. The relayer
+ *   SUBMITS evidence; the contract is the authorizer.
  *
  * Required env (live mode):
  *   RELAYER_PRIVATE_KEY      hex private key (0x… or 64 hex chars) for a registered validator
@@ -315,8 +322,10 @@ function classifyGateStatus(coherence, threshold) {
 }
 
 function packGateSignal(signal, blockNum) {
-  const phi_t   = signal.coherence || signal.signal_value || 0.5;
-  const theta   = signal.threshold || 0.55;
+  // W3-M fail-closed: gate packing shares the same validation — no defaults.
+  const err = validateSignal(signal);
+  if (err) throw new Error(`refusing to pack invalid gate signal: ${err}`);
+  const { coh: phi_t, thr: theta } = signalFields(signal);
   const status  = classifyGateStatus(phi_t, theta);
   const drop    = BigInt(Math.max(0, Math.floor((theta - phi_t) / theta * 100 * 10000)));
   const phi_t32 = clampU32(phi_t * 1_000_000);
@@ -334,14 +343,25 @@ function packGateSignal(signal, blockNum) {
 }
 
 function deriveBeoHash(entity, signal) {
-  const coh = signal.coherence_score ?? signal.coherence ?? 0.5;
+  // W3-M provenance note: this is a TRANSPORT COMMITMENT derived from the
+  // oracle API response — keccak256 over (entity, coherence, signal_id).
+  // It commits the relayer to the bytes it saw; it is NOT a behavioral
+  // equivalence proof and NOT validator consensus. The on-chain gate is
+  // the authorizer; this hash only binds the submission to its input data.
+  // (Callers validate the signal first — signalFields has no defaults.)
+  const { coh } = signalFields(signal);
   const dna = [entity, coh.toFixed(6), signal.signal_id || ""].join(":");
   return ethers.keccak256(ethers.toUtf8Bytes(dna));
 }
 
 function deriveDAProofHash(entity, signal, status) {
-  const proof = JSON.stringify({ entity, phi_t: signal.coherence || 0.5,
-    theta: signal.threshold || 0.55, status, ts: Date.now(), chain: "0G-Galileo" });
+  // W3-M provenance note: despite the historical name, this is NOT a "proof" —
+  // it is sha256 over the JSON blob the relayer is submitting (a content
+  // commitment for the DA layer). Anyone can recompute it from the same
+  // bytes; it carries zero verification weight. (Signal validated first —
+  // signalFields has no defaults.)
+  const { coh: phi_t, thr: theta } = signalFields(signal);
+  const proof = JSON.stringify({ entity, phi_t, theta, status, ts: Date.now(), chain: "0G-Galileo" });
   return "0x" + createHash("sha256").update(proof).digest("hex");
 }
 
@@ -370,6 +390,13 @@ async function initZGGate(wallet) {
 
 async function pushToZGGate(entity, signal) {
   if (!zgGate || !zgWallet) return; // skip in DRY_RUN or if init failed
+
+  // W3-M fail-closed: never push an invalid signal to the gate.
+  const verr = validateSignal(signal);
+  if (verr) {
+    console.warn(`  [0G-GATE   ] ${entity.slice(0,12)}… SKIPPED — invalid oracle signal: ${verr}`);
+    return;
+  }
 
   try {
     const blockNum = await zgProvider.getBlockNumber();
@@ -424,6 +451,44 @@ for (const c of CHAINS) {
   activeChains.push({ ...c, rpc, addr });
 }
 
+// ── Signal validation (W3-M fail-closed) ─────────────────────────────────────
+// The relayer must NEVER fabricate signal values. The old packing path
+// defaulted missing fields (coherence → 0.5, threshold → 0.55), which meant
+// a malformed/truncated oracle response would still be signed and published
+// on-chain as if it were real data. Now: missing or out-of-range values
+// throw, the entity is skipped for the cycle, and nothing is signed.
+function _num(v) {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function validateSignal(signal) {
+  if (!signal || typeof signal !== "object") {
+    return "oracle response is not an object";
+  }
+  const coh = signal.coherence_score ?? signal.coherence ?? signal.signal_value;
+  const thr = signal.threshold;
+  if (!_num(coh)) {
+    return "coherence_score/coherence/signal_value missing or not a finite number";
+  }
+  if (coh < 0 || coh > 1) {
+    return `coherence ${coh} out of range [0,1]`;
+  }
+  if (!_num(thr)) {
+    return "threshold missing or not a finite number";
+  }
+  if (thr <= 0 || thr > 1) {
+    return `threshold ${thr} out of range (0,1]`;
+  }
+  return null; // valid
+}
+
+function signalFields(signal) {
+  // Coherence/threshold are VALIDATED by validateSignal() before this runs.
+  const coh = signal.coherence_score ?? signal.coherence ?? signal.signal_value;
+  const thr = signal.threshold;
+  return { coh, thr };
+}
+
 // ── Signal packing ───────────────────────────────────────────────────────────
 function clampU32(x) {
   if (x < 0) return 0n;
@@ -444,11 +509,13 @@ function clampU64(x) {
  *  status[8] | coherence[32] | threshold[32] | blockNum[64] | timestamp[64]
  *
  * Oracle v2 response uses `coherence_score` (not `coherence` / `signal_value`).
- * We support both field names for forward/backward compatibility.
+ * We support both field names for forward/backward compatibility — but the
+ * value MUST be present and validated (see validateSignal): no defaults.
  */
 function packSignal(signal) {
-  const coh = signal.coherence_score ?? signal.coherence ?? signal.signal_value ?? 0.5;
-  const thr = signal.threshold ?? 0.55;
+  const err = validateSignal(signal);
+  if (err) throw new Error(`refusing to pack invalid signal: ${err}`);
+  const { coh, thr } = signalFields(signal);
   const isSafe = coh >= thr ? 1n : 0n;
   const coherence = clampU32(coh * 1_000_000);
   const threshold = clampU32(thr * 1_000_000);
@@ -501,6 +568,15 @@ function persistRelayerState() {
 
 // ── On-chain submission ──────────────────────────────────────────────────────
 async function pushToChain(chain, entity, signal, wallet) {
+  // W3-M fail-closed: a malformed oracle response must never be packed,
+  // signed, or published. The old path defaulted missing values
+  // (coherence 0.5 / threshold 0.55) and published them as real data.
+  const verr = validateSignal(signal);
+  if (verr) {
+    console.warn(`  [${chain.key.padEnd(10)}] SKIPPED — invalid oracle signal for ${entity.slice(0,12)}…: ${verr}`);
+    return { ok: false, skipped: true, error: `invalid signal: ${verr}` };
+  }
+
   const txId = deriveTxId(entity, signal);
   const packed = packSignal(signal);
 
@@ -660,8 +736,13 @@ async function tick(wallet) {
       console.error(` [${entity}] oracle fetch failed: ${e.message}`);
       continue;
     }
-    const coh  = signal.coherence_score ?? signal.coherence ?? signal.signal_value ?? 0.5;
-    const thr  = signal.threshold ?? 0.55;
+    // W3-M: fail-closed validation BEFORE any use — no default values.
+    const verr = validateSignal(signal);
+    if (verr) {
+      console.warn(` [${entity}] SKIPPED — invalid oracle response: ${verr} (refusing to sign/publish defaults)`);
+      continue;
+    }
+    const { coh, thr } = signalFields(signal);
     const safe = coh >= thr;
     console.log(` [${entity}] φ=${coh.toFixed(4)} θ=${thr.toFixed(4)} → ${safe ? "SAFE" : "INTERCEPT"}  arch=${signal.archetype ?? signal.signal_type ?? "?"}`);
 
@@ -673,6 +754,41 @@ async function tick(wallet) {
     // Also push to 0G ExecutionGate (live mode only — no-op in DRY_RUN)
     // eslint-disable-next-line no-await-in-loop
     await pushToZGGate(entity, signal);
+  }
+}
+
+// ── Live-mode preflight (W3-M) ────────────────────────────────────────────────
+// Before the first submission, read the oracle's own registration state for
+// every live chain: is THIS signer a registered validator, and what is the
+// contract's quorumRequired? The contract remains the sole authorizer — this
+// is a loud, honest warning layer so a misconfigured relayer fails visibly
+// instead of burning gas on guaranteed reverts. Warnings do not skip the
+// chain: registry rotation can change both values at any time, and the
+// contract enforces the real rule on every submit.
+async function preflightChainAccess(wallet) {
+  if (!wallet) return;
+  for (const chain of activeChains) {
+    if (DRY_RUN || !chain.addr) continue;
+    try {
+      const provider = new ethers.JsonRpcProvider(chain.rpc, chain.chainId, {
+        staticNetwork: true,
+      });
+      const oracle = new ethers.Contract(chain.addr, ABI, provider);
+      const [isValidator, quorumRequired] = await Promise.all([
+        oracle.isValidator(wallet.address).catch(() => null),
+        oracle.quorumRequired().catch(() => null),
+      ]);
+      if (isValidator === false) {
+        console.warn(
+          `  [preflight ] ${chain.key}: signer ${wallet.address} is NOT a registered validator on this oracle — publishSignal will revert until the validator registry is updated`);
+      }
+      if (quorumRequired !== null && Number(quorumRequired) > 1) {
+        console.warn(
+          `  [preflight ] ${chain.key}: quorumRequired=${Number(quorumRequired)} but this relayer submits ONE signature — submission will be rejected until peer validator signatures are aggregated (multi-sig collection is NOT implemented; see header)`);
+      }
+    } catch (e) {
+      console.warn(`  [preflight ] ${chain.key}: preflight unreachable (${(e?.message || e).slice(0, 60)}) — continuing, the contract remains the authority`);
+    }
   }
 }
 
@@ -735,6 +851,10 @@ async function main() {
     }
   }
   console.log("");
+
+  // W3-M preflight: warn on unregistered signer / quorum > 1 (see header —
+  // the contract is the authorizer; these are loud configuration warnings).
+  await preflightChainAccess(wallet);
 
   // Initialise 0G ExecutionGate connection (reads storageRoot from chain)
   await initZGGate(wallet);
