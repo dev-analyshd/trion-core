@@ -262,12 +262,18 @@ _FEE_CALCULATOR = ValidatorFeeCalculator()
 # counter"), seeded from the wall-clock millisecond on first sight so a
 # restart cannot rewind them into already-used territory except across
 # a sub-millisecond restart (documented caveat — W3-D owns the persisted
-# per-entity counter).
+# per-entity counter). W3-D RESOLUTION: create_route now uses the
+# STORE-BACKED counter (see _next_persisted_entity_nonce) — the persisted
+# value survives restarts, closing the rewind caveat; this session-scoped
+# helper remains the no-store fallback.
 _INTENT_SEQ_LOCK = threading.Lock()
 _INTENT_SEQ = 0
 _SESSION_TAG = secrets.token_hex(8)
 _ENTITY_NONCES: Dict[str, int] = {}
 _ENTITY_NONCE_LOCK = threading.Lock()
+
+# State-store kind for persisted per-entity monotonic nonces (W3-D).
+ENTITY_NONCE_KIND = "entity_nonce"
 
 
 def _next_intent_sequence() -> int:
@@ -519,13 +525,35 @@ class PrivacyRouter:
             )
             proof = self.zk.generate_behavioral_credential(bc_witness)
             credential_row = proof.to_dict()
-            # INV-016: witness provenance is explicit. The thresholds are
-            # protocol constants (hardcoded above — the caller cannot move
-            # the goalposts), but the SCORES come from caller-supplied
-            # behavioral_data: the proof attests a *claim*, not a TRION
-            # attestation, until the witness is bound to the Akashic BEO
-            # ledger (Wave 3 D). Downstream consumers must read this label.
-            credential_row["witness_source"] = "caller_self_attested"
+            # INV-016 witness provenance + W3-D Akashic BEO binding: the
+            # thresholds are protocol constants (hardcoded above — the
+            # caller cannot move the goalposts) and the SCORES remain
+            # caller-supplied claims (witness_scores_source below is always
+            # the honest label for them). The ENTITY, however, is now bound
+            # to the Akashic BEO ledger when that ledger knows it: the
+            # binding record carries the ledger's own facts (beo_id,
+            # last_active, record count, entropy) — read-only via
+            # core/akashic/beo_lookup.py. Bound ⇒ witness_source upgrades
+            # from caller_self_attested to akashic_beo_bound; unknown
+            # entity or absent ledger ⇒ stays self-attested with the
+            # reason (never a fabricated binding).
+            credential_row["witness_scores_source"] = "caller_supplied_behavioral_data"
+            try:
+                from core.akashic.beo_lookup import lookup_beo_binding
+                beo_binding = lookup_beo_binding(str(intent.source_address))
+            except Exception:
+                beo_binding = None
+            if beo_binding is not None:
+                credential_row["witness_source"] = "akashic_beo_bound"
+                credential_row["beo_binding"] = beo_binding
+            else:
+                credential_row["witness_source"] = "caller_self_attested"
+                credential_row["beo_binding"] = None
+                credential_row["beo_binding_reason"] = (
+                    "entity not present in the Akashic BEO ledger (or ledger "
+                    "unavailable) — identity unbound; scores remain "
+                    "caller-supplied claims"
+                )
             proofs["behavioral_credential"] = credential_row
         
         # Always add IAP share proof for gas fairness — but only with REAL
@@ -749,6 +777,58 @@ class BTCPOrchestrator:
         """Write one route through to SQLite (upsert)."""
         self._store.save_route(route.route_id, _route_to_row(route), ROUTE_ROW_TYPE)
 
+    # ── Persisted per-entity nonces (W3-D, spec §4.1) ───────────────────
+
+    def _next_persisted_entity_nonce(self, entity_key: str) -> int:
+        """Per-entity monotonic nonce, PERSISTED across restarts (spec §4.1).
+
+        Read-modify-write against the shared SQLite state store (KV kind
+        ``entity_nonce``): the counter resumes from the persisted value
+        after a restart instead of re-seeding from wall-clock ms, so it is
+        strictly monotonic for the lifetime of the store. First sight of an
+        entity seeds from the wall-clock millisecond (the same seed
+        discipline as the session-scoped fallback) and persists
+        immediately. Store failures fall back to the session-scoped
+        counter (monotonic in-process; restart caveat documented above).
+        """
+        try:
+            persisted = self._store.load_all(ENTITY_NONCE_KIND)
+        except Exception:
+            persisted = {}
+        last = None
+        entry = persisted.get(entity_key)
+        if entry is not None:
+            try:
+                last = int(entry[1])
+            except (TypeError, ValueError):
+                last = None
+
+        if last is None:
+            # First sight (or unreadable row): seed from wall-clock ms, but
+            # never below the in-memory counter (keeps in-session monotonicity).
+            seed = int(time.time() * 1000) % (2 ** 32)
+            with _ENTITY_NONCE_LOCK:
+                mem = _ENTITY_NONCES.get(entity_key)
+                if mem is not None:
+                    seed = max(seed, mem + 1) % (2 ** 32)
+            nonce = seed if seed > 0 else 1
+        else:
+            nonce = last + 1
+            if nonce >= 2 ** 32:
+                nonce = 1
+
+        with _ENTITY_NONCE_LOCK:
+            _ENTITY_NONCES[entity_key] = nonce
+        try:
+            self._store.save(ENTITY_NONCE_KIND, entity_key, int(nonce), "uint32")
+        except Exception as store_err:
+            print(
+                f"[btcp.orchestrator] entity-nonce persistence failed for "
+                f"{entity_key!r} ({store_err}) — session-scoped counter in use",
+                file=sys.stderr,
+            )
+        return nonce
+
     # ── Akashic execution records (BTCP gap #7) ────────────────────────
 
     def _record_execution(self, route: BTCPRoute) -> None:
@@ -961,8 +1041,9 @@ class BTCPOrchestrator:
             intent_type=intent_type,
             deadline=int(time.time()) + deadline_offset,
             # spec §4.1: per-entity monotonic counter (was a raw
-            # wall-clock-ms read — not monotonic, not per-entity)
-            nonce=_next_entity_nonce(str(source_address)),
+            # wall-clock-ms read — not monotonic, not per-entity).
+            # W3-D: store-backed — persists across restarts.
+            nonce=self._next_persisted_entity_nonce(str(source_address)),
         )
         
         # Step 3: Encode for both VMs

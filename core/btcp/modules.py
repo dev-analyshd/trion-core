@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import sys
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -614,6 +615,18 @@ class BITPIntent:
     privacy:       str = "PUBLIC"
     btcp_version:  str = "1.0.0"        # semver (spec encodes as bytes12)
     nonce:         int = 0              # per-entity monotonic counter
+    # §17 behavioral proof binding (W3-D, rust parity). The root of the
+    # entity's behavioral evidence that binds the clipboard commitment
+    # (H(intent || behavioral_proof_root || nonce) — spec §17). Mirrors
+    # rust/src/bitp_matcher.rs::BITPIntentData.behavioral_proof_root
+    # (required there, ``H256::default()`` ≡ None here → "0"*64 in the
+    # commitment text). Deliberately NOT part of ``hash()`` — the §4.1
+    # intent hash pins the §4.1 field set only (rust types::Intent::hash
+    # parity, append-only policy); the proof root enters through the §17
+    # clipboard commitment (AkashicClipboard._commitment) instead, so a
+    # different proof root is a different commitment, not a different
+    # intent.
+    behavioral_proof_root: Optional[bytes] = None
 
     def hash(self) -> bytes:
         """SHA3-256 over the §4.1 field set (legacy fields first).
@@ -720,6 +733,225 @@ class BITPMatcher:
             "cross_chain_movement": 0,         # ZERO
             "bridge": "NONE",
         }
+
+
+class AkashicClipboard:
+    """Module 2.5 clipboard tier — the Akashic commitment store (W3-D).
+
+    Phase 1 (CUT)   : post a behavioral commitment to the clipboard.
+    Phase 2 (MATCH) : find a complementary unexpired commitment.
+    Phase 3 (PASTE) : remove both matched commitments.
+
+    EXPIRY IS ENFORCED UNCONDITIONALLY (spec §5.1 / INV-007, W2-F handoff):
+    ``match`` REQUIRES ``now`` (unix seconds) and rejects expired seeking
+    intents and expired candidates outright — unlike the pure
+    ``BITPMatcher.find_complement`` (whose optional ``current_time``
+    preserves legacy pure-function callers), this clipboard tier is the
+    storage tier and enforces the deadline on every match, mirroring
+    ``rust/src/bitp_matcher.rs`` where ``now`` is a required argument.
+
+    PERSISTENCE (W3-N call-site handoff): when a ``store`` is supplied
+    (duck-typed: anything with ``record_bitp_clipboard(commitment_hash,
+    **columns)`` — e.g. ``core/btcp/state_store.py::BtcpStateStore``),
+    every phase transition is written through to the ``bitp_clipboard``
+    table: CUT → POSTED, MATCH → MATCHED (both sides, with
+    counterparty_hash + matched_at), PASTE → FILLED (both sides), prune →
+    EXPIRED. The live match set stays in memory — the rows are the
+    lifecycle/audit projection (schema.sql marks this class as the
+    operative writer for the table). Without a store the tier is
+    memory-only exactly as before.
+
+    HONEST LIMITATION (same as the rust clipboard): the in-memory match
+    set does not survive a restart (the store rows persist the lifecycle
+    for audit; a restart-rebuild of the live set from them is future work
+    — the mirror rows lack the full §4.1 field set). Treat a returned
+    match as "clipboard state advanced", not "funds moved on chains" —
+    dual-chain transfer emission (spec §14.1 item 7) is out of scope here.
+    """
+
+    #: chain_b sentinel recorded on POSTED rows: the desired target chain
+    #: is genuinely unknown at CUT time (matcher-driven; chain selection
+    #: happens at MATCH via the complement). 0 is not a registered chain
+    #: id — materialized with the real complement chain on MATCH.
+    CHAIN_B_UNDETERMINED = 0
+
+    def __init__(self, matcher: Optional[BITPMatcher] = None, store=None):
+        self._matcher = matcher or BITPMatcher()
+        self._store = store
+        self._entries: Dict[bytes, BITPIntent] = {}
+        self._expired_dropped = 0
+
+    def _commitment(self, intent: BITPIntent) -> bytes:
+        """§17 commitment = H(intent || behavioral_proof_root || nonce).
+
+        Byte-compatible with ``rust/src/bitp_matcher.rs::execute_cut``: the
+        §4.1 field set is appended to the legacy seven segments (append-only
+        extension policy — a different constraint set yields a different
+        commitment).
+        """
+        parts = [
+            intent.entity_id.hex(),
+            intent.asset_in.hex(),
+            intent.asset_out.hex(),
+            str(intent.magnitude),
+            str(intent.deadline),
+            (intent.behavioral_proof_root.hex()
+             if getattr(intent, "behavioral_proof_root", None) else "0" * 64),
+            str(intent.nonce),
+            ":".join([
+                intent.action,
+                str(intent.value),
+                str(intent.max_total_gas),
+                intent.min_finality,
+                str(intent.min_nl_score),
+                (intent.chain_pref if isinstance(intent.chain_pref, str)
+                 else ",".join(str(c) for c in intent.chain_pref)),
+                intent.privacy,
+                intent.btcp_version,
+            ]),
+        ]
+        return hashlib.sha3_256(":".join(parts).encode()).digest()
+
+    def _record(
+        self,
+        intent: BITPIntent,
+        commitment: bytes,
+        status: str,
+        chain_b: Optional[int] = None,
+        counterparty_hash: Optional[str] = None,
+        matched_at: Optional[float] = None,
+    ) -> None:
+        """Write one lifecycle row through to the store (best effort).
+
+        Full column set on every write — ``record_bitp_clipboard`` upserts
+        (INSERT OR REPLACE), so partial rows would reset the other columns
+        to their defaults. Store failures are swallowed after a stderr
+        note: the clipboard's live semantics must not depend on the
+        projection (same discipline as the orchestrator's nonce store).
+        """
+        if self._store is None:
+            return
+        try:
+            self._store.record_bitp_clipboard(
+                commitment.hex(),
+                entity_id=intent.entity_id.hex(),
+                asset_x=intent.asset_in.hex(),
+                asset_y=intent.asset_out.hex(),
+                chain_a=int(intent.chain_id),
+                chain_b=(int(chain_b) if chain_b is not None
+                         else self.CHAIN_B_UNDETERMINED),
+                magnitude=float(intent.magnitude),
+                behavioral_proof_root=(
+                    intent.behavioral_proof_root.hex()
+                    if intent.behavioral_proof_root else None
+                ),
+                intent_hash=intent.hash().hex(),
+                status=status,
+                counterparty_hash=counterparty_hash,
+                matched_at=matched_at,
+            )
+        except Exception as err:
+            print(
+                f"[btcp.modules] bitp_clipboard row write failed for "
+                f"{commitment.hex()[:16]}… ({err}) — lifecycle projection "
+                f"degraded, live clipboard unaffected",
+                file=sys.stderr,
+            )
+
+    def execute_cut(self, intent: BITPIntent) -> bytes:
+        """Phase 1 (CUT): post commitment to the clipboard. Assets untouched."""
+        commitment = self._commitment(intent)
+        self._entries[commitment] = intent
+        self._record(intent, commitment, "POSTED")
+        return commitment
+
+    def _prune_expired(self, now: float) -> int:
+        """Drop expired commitments (append-only store pruning rule: a dead
+        commitment can never match — removing it from the live match set is
+        expiry enforcement, not history deletion; the Akashic record of the
+        intent itself is permanent)."""
+        dead = [k for k, v in self._entries.items() if now >= v.deadline]
+        for k in dead:
+            intent = self._entries.pop(k)
+            self._record(intent, k, "EXPIRED")
+        self._expired_dropped += len(dead)
+        return len(dead)
+
+    def find_complement(
+        self,
+        intent: BITPIntent,
+        now: float,
+        price_tolerance: float = 0.02,
+    ) -> Optional[BITPIntent]:
+        """Phase 2 (MATCH) — expiry ENFORCED (required ``now``).
+
+        An expired seeking intent matches nothing; expired candidates are
+        pruned and never served. Self-matches (same entity) are rejected
+        (spec §5.1 anti-wash, INV-007).
+
+        When a store is wired, a successful match records BOTH sides as
+        MATCHED (each row carrying the other side's commitment hash as
+        counterparty_hash + matched_at, and the now-materialized target
+        chain). The seeking side's row transitions POSTED → MATCHED only
+        when it was posted through this clipboard (an unposted seeking
+        intent has no row to transition); the matched (candidate) side
+        always does. counterparty_hash is always the §17 commitment hash
+        (deterministic in the intent — ``_commitment``), never a §4.1
+        intent hash.
+        """
+        if now >= intent.deadline:
+            return None  # expired seeking intent — its commitment is dead
+        self._prune_expired(now)
+        candidates = list(self._entries.values())
+        matched = self._matcher.find_complement(
+            intent, candidates,
+            price_tolerance=price_tolerance,
+            current_time=now,          # UNCONDITIONAL expiry enforcement
+        )
+        if matched is not None and self._store is not None:
+            matched_commitment = self._commitment(matched)
+            seeking_commitment = self._commitment(intent)
+            if seeking_commitment in self._entries:
+                # transition the seeking side's POSTED row → MATCHED
+                self._record(
+                    intent, seeking_commitment, "MATCHED",
+                    chain_b=matched.chain_id,
+                    counterparty_hash=matched_commitment.hex(),
+                    matched_at=float(now),
+                )
+            # the matched (candidate) side always has a POSTED row here —
+            # its counterparty_hash is the seeking intent's §17 commitment
+            # (deterministic in the intent, posted or not)
+            self._record(
+                matched, matched_commitment, "MATCHED",
+                chain_b=intent.chain_id,
+                counterparty_hash=seeking_commitment.hex(),
+                matched_at=float(now),
+            )
+        return matched
+
+    def execute_paste(self, commitment_a: bytes, commitment_b: bytes) -> bool:
+        """Phase 3 (PASTE): remove both matched commitments.
+
+        Returns True iff both commitments were live entries (matcher state
+        advanced). Honest limitation: no dual-chain transfer emission here.
+        """
+        a = self._entries.pop(commitment_a, None)
+        b = self._entries.pop(commitment_b, None)
+        if a is not None:
+            self._record(a, commitment_a, "FILLED")
+        if b is not None:
+            self._record(b, commitment_b, "FILLED")
+        return a is not None and b is not None
+
+    def clipboard_size(self, now: Optional[float] = None) -> int:
+        if now is not None:
+            self._prune_expired(now)
+        return len(self._entries)
+
+    @property
+    def expired_dropped(self) -> int:
+        return self._expired_dropped
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
