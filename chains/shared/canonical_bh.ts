@@ -97,6 +97,12 @@ export function canonicalBH(
   chainId:       number,         // fits in u32
   blockHashHex:  string,         // 64 hex chars (zero-padded to 32 bytes)
 ): BHResult {
+  // P-PY-02 parity: chain_id is VALIDATED, never masked — an out-of-range
+  // id is malformed input (must not alias another chain's BH identity).
+  // (magnitudeNorm is inherently fail-closed: BigInt(NaN) throws.)
+  if (!Number.isInteger(chainId) || chainId < 0 || chainId > 0xFFFFFFFF) {
+    throw new RangeError(`canonicalBH: chainId out of u32 range: ${chainId}`);
+  }
   const payload = Buffer.alloc(93);
   let off = 0;
 

@@ -251,7 +251,13 @@ pub fn canonical_bh(
     // timestamp: 8 bytes BE
     payload.extend_from_slice(&timestamp_secs.to_be_bytes());
 
-    // chain_id: 4 bytes BE (u32)
+    // chain_id: 4 bytes BE (u32) — VALIDATED, never truncated (P-PY-02
+    // parity: chain 2^32+1 must be an error, not a silent alias of 1).
+    assert!(
+        chain_id <= u32::MAX as u64,
+        "canonical_bh: chain_id {} exceeds u32 range",
+        chain_id
+    );
     payload.extend_from_slice(&(chain_id as u32).to_be_bytes());
 
     // block_hash: 32 bytes
