@@ -23,7 +23,7 @@ See `.env.example` for the complete list. Key variables:
    - Next.js frontend on $PORT
    - Flask API on port 5000 (internal)
    - FAISS ANIMA engine on port 8000 (internal)
-   - BH Streamer (71 EVM + 58 non-EVM chains — source: config/chain_registry.json)
+   - BH Streamer (96 workers: 60 EVM + 36 non-EVM, its own in-file registry; the canonical chain registry holds 129 chains / 18 VM families)
 5. Health check: `GET /api/v1/health` (auto-configured, 300s timeout)
 
 ## Docker Compose (Local)

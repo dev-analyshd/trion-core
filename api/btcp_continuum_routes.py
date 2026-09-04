@@ -703,7 +703,13 @@ def streamer_start():
         if streamer and streamer.is_running():
             return jsonify({"status": "ALREADY_RUNNING", "stats": streamer.get_stats()})
         start_streamer()
-        return jsonify({"status": "STARTED", "message": "BH streamer started for 7 chains"})
+        try:
+            from core.realtime.bh_streamer import get_streamer as _gs
+            _st = _gs()
+            _n = _st.get_stats().get("chains_active", 96) if _st else 96
+        except Exception:
+            _n = 96
+        return jsonify({"status": "STARTED", "message": f"BH streamer started for {_n} chains"})
     except Exception as e:
         return jsonify({"status": "ERROR", "error": str(e)}), 500
 

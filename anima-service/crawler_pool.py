@@ -11,7 +11,7 @@ connectors in ``core.mental.anima.data_sources``:
   - ecological       → GBIF + IUCN
   - regulatory       → SEC EDGAR full-text search
   - academic         → arXiv API
-  - multilingual     → anima-service/multilingual_sentiment (50+ languages)
+  - multilingual     → anima-service/multilingual_sentiment (10 lexicons)
 
 Each crawler is a thin wrapper that calls one of those fetchers and returns
 a ``DataSourceResult`` (source_name, data, timestamp, success). The pool

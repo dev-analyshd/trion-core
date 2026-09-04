@@ -265,7 +265,7 @@ def native_stack_report() -> dict:
     _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return {
         "python":     {"engine": "api + akashic + src/", "wired": True, "role": "Behavioral engine + API"},
-        "rust":       {"engine": "indexers (14 crates)", "wired": os.path.exists(os.path.join(_root, "indexers", "Cargo.toml")), "role": "L0 indexers + BH pipeline"},
+        "rust":       {"engine": "indexers (21 per-VM crates + trion-common)", "wired": os.path.exists(os.path.join(_root, "indexers", "Cargo.toml")), "role": "L0 indexers + BH pipeline"},
         "javascript": {"engine": "relayer/relayer.js + relayer_non_evm.js", "wired": os.path.exists(os.path.join(_root, "relayer", "relayer.js")), "role": "Multi-chain relayers"},
         "typescript": {"engine": "chains/*/execute.ts + sdk/", "wired": os.path.exists(os.path.join(_root, "chains", "svm", "execute.ts")), "role": "Chain adapters + SDK"},
         "solidity":   {"engine": "contracts/*.sol", "wired": len([f for f in os.listdir(os.path.join(_root, "contracts")) if f.endswith(".sol")]) > 0, "role": "Smart contracts"},

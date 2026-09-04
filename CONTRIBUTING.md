@@ -14,7 +14,7 @@ institutional-grade directory structure:
 - `core/` — Python behavioral engine (the brain)
 - `api/` — Oracle API (Flask, port 5000)
 - `anima-service/` — FAISS ANIMA engine (FastAPI, port 8000)
-- `indexers/` — Rust L0 chain indexers (14 crates)
+- `indexers/` — Rust L0 chain indexers (21 per-VM crates + trion-common)
 - `validator/` — Go P2P validator mesh
 - `contracts/` — Solidity + Vyper smart contracts
 - `sdk/` — TypeScript SDK

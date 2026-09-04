@@ -102,11 +102,11 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 | Metric | Value |
 |---|---|
 | Chains indexed | **129 registered / 41 integrated** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
-| VM families | **13** |
-| API routes | **194** live |
-| Whitepaper formulas | **84/84** (L0–L10) — 100% coverage |
-| Rust L0 crates | **13** |
-| Tests passing | **184 unit + 5 skipped** (live-chain skips by design) |
+| VM families | **18** |
+| API routes | **180+ in app.py** (268 incl. blueprints) |
+| Whitepaper formulas | **84 registered** (L0–L10) — 28 live + 56 synthetic-demo (labeled) |
+| Rust L0 crates | **21** per-VM (+ trion-common) |
+| Tests passing | **606 unit + 9 skipped** (live-chain/env skips by design) |
 | BH payload | **93 bytes** canonical SHA3-256 dual-strand |
 | Implementation languages | **12** (Rust · Python · TypeScript · Solidity · Cairo · FunC · Haskell · C++ · Go · Julia · WebAssembly · Vyper) |
 | 0G components integrated | **6/6** |
@@ -133,7 +133,7 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 | Signal | GET | `/api/v1/signal/uniswap` | 34-field TRIONSignal with genomic signature |
 | BH ledger | GET | `/api/v1/bh/stats` | 75,000+ per-transaction behavioral hashes |
 | Live BH stream | GET | `/api/v1/bh/recent_feed` | Real-time tx stream — MEV/TRANSFER/GOVERNANCE |
-| Whitepaper | GET | `/api/v1/whitepaper/coverage` | All 84 formulas live and verified |
+| Whitepaper | GET | `/api/v1/whitepaper/coverage` | 84 formulas registered (28 live, 56 labeled synthetic-demo) |
 
 ---
 

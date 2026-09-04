@@ -688,7 +688,7 @@ Protect the heart. The rest will take care of itself.
 
 ```
 trion-core/
-├── api/                          # Oracle API — Flask, 177+ routes
+├── api/                          # Oracle API — Flask, 180+ routes (268 incl. blueprints)
 │   ├── app.py                    # Main application entry point
 │   ├── btcp_continuum_routes.py  # 22 BTCP + Continuum endpoints
 │   ├── blockchain.py             # On-chain publishing relay
@@ -996,5 +996,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — 57 formulas verified, 18 VM families — test counts as of 2026-09-03: pytest 609 unit + 121 adversarial + 186 integration; 146 Rust `#[test]` (not compiled here); hardhat 43; go 15*  
+*TRION Protocol — Whitepaper v2.0 — 84 formulas registered (28 live + 56 synthetic-demo), 18 VM families — test counts as of 2026-09-04: pytest 606 unit + 9 skipped (live-server/env skips by design); 146 Rust `#[test]` (not compiled here); hardhat 43; go 15*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
