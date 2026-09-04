@@ -10264,10 +10264,15 @@ def trion_vision():
         },
 
         "live_proof": {
-            "behavioral_vectors":   "2,133,100+ indexed",
-            "chains":               35,
-            "formulas":             "65/65 live",
-            "tests":                "328 passing",
+            # 20-d audit: every one of these was stale or unverifiable —
+            # chains now derives from the canonical registry, formulas quote
+            # the real registry split (28 LIVE + 56 SYNTHETIC-DEMO), tests
+            # track the current suite, and the vector count is the live BH
+            # ledger count instead of a marketing figure.
+            "behavioral_vectors":   _live_bh_count_str() + " BH records",
+            "chains":               _registry_chain_counts()["chains_indexed"],
+            "formulas":             "28 live + 56 synthetic-demo (84 registered)",
+            "tests":                "606 passing",
             "bh_records":           _live_bh_count_str() + " per-transaction",
             "bh_performance":       "0.023ms avg (434× faster than spec)",
             "languages":            7,
