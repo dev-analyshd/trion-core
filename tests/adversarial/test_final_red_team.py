@@ -323,22 +323,8 @@ class TestDestChainGateFreshAngles:
             # restore the shared chain class id for the module fixture
             type(h.t.backend.chain).chain_id = saved
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-EVM-03 CONFIRMED (HIGH): the dest-chain gate compares "
-               "destChainOf(payload) == uint32(block.chainid) "
-               "(BTCPEscrow.sol:495) — the cast TRUNCATES a deployment "
-               "chain id ≥ 2^32 modulo 2^32, so a certificate destined for "
-               "registry chain X settles on ANY deployment whose chainid ≡ X "
-               "(mod 2^32). Verified on a real EVM with the CHAINID opcode "
-               "reporting 4294967297 (uint32 → 1): a chain-1 certificate "
-               "(full valid quorum) settled a 1-ETH escrow there — the "
-               "P-EVM-01 double-pay class re-opened for high-id chains "
-               "(py-evm's own default artificial id 131277322940537 is "
-               "already > 2^32). TODO(W5-lead): compare full-width "
-               "block.chainid == uint256(destChainOf(payload)) — which "
-               "also fails closed for deployments outside the u32 registry "
-               "space instead of aliasing them onto a registry chain.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_high_chainid_truncation_aliases_registry_chain(self, evm):
         """Desired behavior: a certificate DESTINED FOR REGISTRY CHAIN 1
         must be rejected on a deployment whose chainid is 2^32+1 — that
@@ -702,14 +688,8 @@ class TestVyperEscrowFresh:
             {"from": vy.other, "gas": 500_000})
         assert w3.eth.get_balance(vy.dest) - before == w3.to_wei(1, "ether")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-VY-01 CONFIRMED (HIGH): BTCP_ESCROW.vy release() has no "
-               "block-timeout guard — a fresh quorum verdict releases an "
-               "EXPIRED escrow to the destination, voiding the funder's "
-               "INV-004 timeout refund protection. TODO(W5-lead): add the "
-               "Solidity-tier parity check "
-               "block.number <= lock_block + timeout_blocks.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_release_after_timeout_rejected(self, vy):
         """INV-004 (BTCP_STATE_MACHINE.md R7 — 'releasing funds after
         timeout' is a forbidden alternative): an escrow past
@@ -772,17 +752,8 @@ class TestOrchestratorFresh:
         rows = orch._store.read_btcp_table("btcp_cross_chain_messages")
         assert len(rows) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-PY-04 CONFIRMED (MED): _next_persisted_entity_nonce "
-               "read-modify-writes the store WITHOUT holding a lock across "
-               "load_all → compute → save; two concurrent create_route "
-               "calls for one entity return the SAME nonce and the second "
-               "intent's cross-chain message row is silently dropped by "
-               "the (sender, source, target, nonce) UNIQUE index + INSERT "
-               "OR IGNORE. TODO(W5-lead): make the counter RMW atomic (one "
-               "lock across load+compute+save, or a SQL-side atomic "
-               "upsert-returning).")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_concurrent_create_route_no_duplicate_nonce(self, tmp_path):
         """Spec §4.1: the intent nonce is per-entity MONOTONIC. Two
         concurrent create_route calls with the same entity (the
@@ -827,16 +798,8 @@ class TestOrchestratorFresh:
         rows = orch._store.read_btcp_table("btcp_cross_chain_messages")
         assert len(rows) == 3   # seed + 2 concurrent routes all recorded
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-PY-03 CONFIRMED (MED): create_route performs NO canonical "
-               "registry membership check — unknown chain ids default to "
-               "the EVM adapter and routes to off-registry (999) or "
-               "fabricated (2^30) chains are created, persisted and fully "
-               "proof-VERIFIED (the API settlement gate then derives "
-               "btcp_route_verified=True for a chain that does not exist "
-               "in config/chain_registry.json). TODO(W5-lead): registry "
-               "membership check on both route legs, fail-closed.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_off_registry_chain_route_cannot_verify(self, tmp_path):
         """A route whose destination chain is NOT in the canonical registry
         (999 — the relayer's documented off-registry HyperLiquid entry —
@@ -867,13 +830,8 @@ class TestOrchestratorFresh:
         ok, errs = orch.verify_route_proofs(r.route.route_id)
         assert ok is True, errs
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-PY-03 API amplification: POST /api/v1/btcp/orchestrate "
-               "with dest_chain=999 then POST /api/v1/continuum/settlement "
-               "derives btcp_route_verified=True + triggered=True for an "
-               "off-registry destination chain. TODO(W5-lead): same fix as "
-               "the orchestrator-level xfail.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_api_settlement_gate_for_off_registry_chain(self):
         """The M2 settlement gate is DERIVED from persisted proofs — but
         nothing checks the route's chains exist in the canonical registry,
@@ -942,15 +900,8 @@ class TestApiFreshAttacks:
             r = full_app_client.get(p)
             assert r.status_code == 401, (p, r.status_code)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-API-03 CONFIRMED (HIGH): /api/v1/zg/sync (methods GET+"
-               "POST) is a WRITE route (spawns the 0G mainnet storage-sync "
-               "node process) that is NOT in _WRITE_PATHS — an "
-               "unauthenticated GET passes the key gate (verified live: "
-               "200 + process spawn with TRION_API_KEY set). Named in the "
-               "original P-API-02 report but left out of the fix. "
-               "TODO(W5-lead): add '/api/v1/zg/sync' to _WRITE_PATHS.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_zg_sync_get_requires_key(self, full_app_client, monkeypatch):
         import api.app as api_app
         monkeypatch.setattr(api_app, "_TRION_API_KEY", "w5r2-redteam-key")
@@ -967,14 +918,8 @@ class TestApiFreshAttacks:
             f"unauthenticated GET on the 0G sync write route → {r.status_code}")
         assert not spawned, "node process spawned without a key"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-API-03 CONFIRMED (HIGH): /api/v1/zg/compute/infer (methods "
-               "POST+GET) submits an 0G Compute job with attacker-controlled "
-               "entity_id/prompt and is NOT in _WRITE_PATHS — an "
-               "unauthenticated GET ?id=…&prompt=… passes the key gate "
-               "(verified live: 200 + job args captured). TODO(W5-lead): add "
-               "'/api/v1/zg/compute/infer' to _WRITE_PATHS.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_zg_compute_infer_get_requires_key(self, full_app_client,
                                                monkeypatch):
         import api.app as api_app
@@ -1002,17 +947,8 @@ class TestApiFreshAttacks:
         assert codes[:5] == [200] * 5
         assert 429 in codes[5:], codes
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-API-04 CONFIRMED (MED): _get_client_ip() trusts the "
-               "client-supplied X-Forwarded-For header (first entry, no "
-               "trusted-proxy allowlist) as the rate-limit bucket key — "
-               "rotating a fake XFF per request yields a fresh bucket per "
-               "request (verified: 40 requests, zero 429s) and spoofed XFF "
-               "can FILL a victim IP's bucket (verified: victim's genuine "
-               "request then 429s). TODO(W5-lead): key on "
-               "request.remote_addr unless an explicit trusted-proxy "
-               "config is set.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_rotating_xff_cannot_bypass_rate_limit(self, full_app_client,
                                                    monkeypatch):
         import api.app as api_app
@@ -1040,17 +976,8 @@ class TestApiFreshAttacks:
         assert r.status_code == 200, (
             "spoofed XFF framed a victim IP out of the API (429)")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-API-05 CONFIRMED (MED): while the AWA EmissionGate is "
-               "frozen (protocol-wide 'silence' state), the 0G "
-               "DA/storage publication routes still accept "
-               "attacker-controlled behavioral-signal data — "
-               "assert_emission_allowed is wired ONLY into /api/v1/publish "
-               "(verified live: publish → 503 fail-closed, zg/da/submit → "
-               "200 with the attacker blob submitted). MD §17 truth "
-               "publication must fail closed on every emission surface. "
-               "TODO(W5-lead): gate the zg write handlers too.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_awa_freeze_blocks_zg_publication(self, full_app_client,
                                               monkeypatch):
         import api.app as api_app
@@ -1258,14 +1185,8 @@ class TestMathBoundariesFresh:
 
 class TestClipboardExpiry:
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="P-PY-05 CONFIRMED (LOW): AkashicClipboard.execute_paste "
-               "takes no clock — a matched pair whose deadlines BOTH pass "
-               "before the paste still transitions to FILLED (D2's expiry "
-               "enforcement covers MATCH only). In-memory tier, no funds, "
-               "no live API surface — audit-truth parity note. "
-               "TODO(W5-lead): pass `now` and refuse dead commitments.")
+    # FIXED (Wave 5, lead) — the exploit is closed; the test below now
+    # asserts the DEFENSE, not the vulnerability.
     def test_paste_after_deadline_refused(self):
         """Phase 3 (PASTE) must not fill a commitment whose deadline has
         passed — the clipboard's expiry enforcement (required `now` in
@@ -1286,6 +1207,7 @@ class TestClipboardExpiry:
         matched = cb.find_complement(a, now=NOW)
         assert matched is b                 # matched while unexpired
 
-        # both deadlines pass; the pair is still pending paste
-        ok = cb.execute_paste(ca, cb._commitment(matched))
+        # both deadlines pass; the pair is still pending paste — the
+        # deadline-aware paste (now=after both deadlines) REFUSES them
+        ok = cb.execute_paste(ca, cb._commitment(matched), now=NOW + 200)
         assert ok is False, "expired commitments were FILLED (P-PY-05)"
