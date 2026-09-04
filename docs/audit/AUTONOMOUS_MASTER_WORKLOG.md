@@ -171,3 +171,22 @@ Wave 5 (lead, Agent S): five confirmed exploits CLOSED —
   suite-level AWA tests (ordering flake root-caused and closed)
 Red team battery: 59 + 13 tests; adversarial 179/180 (1 = PQC env). Units
 1022+9. All five exploit tests flipped to assert-FIXED.
+
+### WAVE 5 CLOSE — FINAL ADVERSARIAL CYCLES + FINAL REPORT (HEAD 49f368e+)
+
+Pass 2 (W5-RED2, 7b83578): 8 fresh findings (3 HIGH: P-EVM-03 full-width
+chainid truncation in my own Wave-5 gate; P-VY-01 Vyper release-after-timeout;
+P-API-03 incomplete write-path set) — ALL fixed (1270c5c, edf4e5f, 93b0cbd,
+523c47e) and flipped to defense pins.
+Pass 3 (W5-RED3, agent killed; battery landed + lead-completed): 1 HIGH
+(P-PY-06 cross-PROCESS per-entity nonce collision — proven with two real
+subprocesses sharing the production store) → fixed via store-level atomic
+counter `next_entity_nonce` (BEGIN IMMEDIATE around read+compute+write,
+49f368e), xfail flipped after real two-process XPASS.
+Final battery: 1022 unit + 9 skipped · 134 golden · 221 btcp · 52+574
+contracts · 214/215 adversarial (1 = PQC env, external).
+FINAL_SECURITY_ARCHITECTURE_AUDIT.md written (the §34 deliverable).
+Loop status: completion criteria assessed met in-code; remaining items are
+external-toolchain only (cargo/go/func/aptos/anchor/scarb/near-cargo/hardhat/
+PQC-libs/funded keys/live RPCs/validator fleet/TimescaleDB). Independent
+red-team pass 4 can run on demand against the committed battery.
