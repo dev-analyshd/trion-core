@@ -13,7 +13,10 @@ WorkingDirectory=/opt/trion/frontend
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=FLASK_URL=http://127.0.0.1:5000
-Environment=NEXT_PUBLIC_API_URL=https://trion.example.com/api
+# (NEXT_PUBLIC_API_URL removed: nothing in either frontend reads it — the
+# Next.js rewrites proxy /api/* to FLASK_URL and the browser talks to the
+# same origin; the only NEXT_PUBLIC_* var the code consumes is
+# NEXT_PUBLIC_WS_URL)
 ExecStart=/usr/bin/node .next/standalone/server.js
 Restart=on-failure
 RestartSec=10

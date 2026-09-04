@@ -68,7 +68,6 @@ services:
       faiss:
         condition: service_healthy
     environment:
-      - FLASK_ENV=production
       - FLASK_PORT=5000
       - PORT=5000
       - FAISS_SERVICE_URL=http://faiss:8000
@@ -115,7 +114,9 @@ services:
     environment:
       - NODE_ENV=production
       - FLASK_URL=http://api:5000
-      - NEXT_PUBLIC_API_URL=https://trion.example.com/api
+      # (NEXT_PUBLIC_API_URL removed: nothing in either frontend reads it —
+      # the Next.js rewrites proxy /api/* to FLASK_URL; the only
+      # NEXT_PUBLIC_* var the code consumes is NEXT_PUBLIC_WS_URL)
     volumes:
       - ./logs:/app/logs
     networks:
