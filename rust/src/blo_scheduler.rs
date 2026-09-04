@@ -136,6 +136,7 @@ mod tests {
             deadline: 1787141851,
             nonce: 42,
             constraints: IntentConstraints::default(),
+            btcp_version: SemVer::new(1, 0, 0),
         }
     }
 

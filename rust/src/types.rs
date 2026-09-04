@@ -144,6 +144,10 @@ pub struct BEOState {
 }
 
 /// Intent — what the user wants (not how to execute it)
+/// Field set covers the BTCP Master Spec §4.1 Intent object. The router
+/// legacy fields are kept: `intent_type` ≙ spec `action`, `amount_in` ≙
+/// spec `value`, and the spec constraint block lives on
+/// [`IntentConstraints`] alongside its legacy fields.
 #[derive(Debug, Clone)]
 pub struct Intent {
     pub intent_id: H256,
@@ -159,12 +163,24 @@ pub struct Intent {
     pub deadline: u64,
     pub nonce: u64,
     pub constraints: IntentConstraints,
+    /// Spec §4.1 `btcp_version` — protocol semver (spec encodes bytes12).
+    /// Defaults to the crate's `BTCP_VERSION` major.minor.patch (1.0.0).
+    pub btcp_version: SemVer,
 }
 
 impl Intent {
     pub fn hash(&self) -> H256 {
+        // Legacy 9-field prefix (order preserved) with the spec §4.1
+        // fields appended after it — the same append-only extension
+        // policy as the Python `BITPIntent::hash` in core/btcp/modules.py
+        // (the two objects carry different legacy field sets, so the byte
+        // streams differ; the construction policy is identical).
+        let max_total_gas = match self.constraints.max_total_gas {
+            Some(gas) => gas.to_string(),
+            None => "none".to_string(),
+        };
         let data = format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}:{}",
+            "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
             self.entity_id.to_hex(),
             self.source_chain,
             self.dest_chain,
@@ -173,20 +189,45 @@ impl Intent {
             self.amount_in,
             self.intent_type,
             self.deadline,
-            self.nonce
+            self.nonce,
+            self.btcp_version,
+            max_total_gas,
+            self.constraints.min_finality as u8,
+            self.constraints.min_nl_score,
+            format!("{:?}", self.constraints.chain_pref),
+            self.constraints.privacy as u8,
         );
         H256::sha3(data.as_bytes())
     }
 }
 
 /// Intent execution constraints
+/// Legacy router constraints plus the BTCP Master Spec §4.1 constraint
+/// field set (`max_total_gas`, `min_finality`, `min_nl_score`,
+/// `chain_pref`, `privacy`).
 #[derive(Debug, Clone)]
 pub struct IntentConstraints {
+    // legacy router constraints
     pub max_slippage: f64,
     pub deadline: u64,
     pub privacy_level: PrivacyLevel,
     pub allow_partial_fill: bool,
     pub allow_deferred: bool,
+    // BTCP Master Spec §4.1 constraint fields
+    /// USD-equivalent gas ceiling across ALL chains (spec uint128);
+    /// `None` = unbounded.
+    pub max_total_gas: Option<u128>,
+    /// Minimum finality band (spec uint8): FAST | STANDARD | SECURE.
+    pub min_finality: MinFinality,
+    /// Liquidity-health floor scaled ×1000 (spec uint16; 300 = 0.30).
+    pub min_nl_score: u16,
+    /// Chain routing preference (spec bytes): OPTIMAL | SINGLE_CHAIN |
+    /// explicit allow-list.
+    pub chain_pref: ChainPreference,
+    /// Spec §4.1 privacy (uint8): PUBLIC | ZK_CREDENTIAL | INVISIBLE.
+    /// The legacy 5-tier `privacy_level` is kept alongside and bridges
+    /// via [`PrivacyLevel::spec_code`] / [`SpecPrivacy::to_legacy`].
+    pub privacy: SpecPrivacy,
 }
 
 impl Default for IntentConstraints {
@@ -197,6 +238,12 @@ impl Default for IntentConstraints {
             privacy_level: PrivacyLevel::Standard,
             allow_partial_fill: true,
             allow_deferred: true,
+            // spec §4.1 defaults
+            max_total_gas: None,
+            min_finality: MinFinality::Standard,
+            min_nl_score: 300,
+            chain_pref: ChainPreference::Optimal,
+            privacy: SpecPrivacy::Public,
         }
     }
 }
@@ -209,6 +256,76 @@ pub enum PrivacyLevel {
     Standard,
     Compliant,
     Full,
+}
+
+impl PrivacyLevel {
+    /// Spec §4.1 privacy code: PUBLIC = 0, ZK_CREDENTIAL = 1,
+    /// INVISIBLE = 2. The legacy Basic/Standard/Compliant tiers all fall
+    /// in the spec's ZK_CREDENTIAL band; Full maps to INVISIBLE.
+    pub fn spec_code(&self) -> u8 {
+        match self {
+            PrivacyLevel::Public => 0,
+            PrivacyLevel::Basic | PrivacyLevel::Standard | PrivacyLevel::Compliant => 1,
+            PrivacyLevel::Full => 2,
+        }
+    }
+}
+
+/// Spec §4.1 min_finality (uint8): FAST | STANDARD | SECURE
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MinFinality {
+    Fast = 0,
+    Standard = 1,
+    Secure = 2,
+}
+
+impl Default for MinFinality {
+    fn default() -> Self {
+        MinFinality::Standard
+    }
+}
+
+/// Spec §4.1 chain_pref (spec encodes as bytes):
+/// OPTIMAL | [chain_list] | SINGLE_CHAIN
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChainPreference {
+    /// Router is free to pick the optimal cross-chain route
+    Optimal,
+    /// Restrict execution to a single chain
+    SingleChain,
+    /// Explicit allow-list of chains
+    Allowed(Vec<ChainId>),
+}
+
+impl Default for ChainPreference {
+    fn default() -> Self {
+        ChainPreference::Optimal
+    }
+}
+
+/// Spec §4.1 privacy (uint8): PUBLIC | ZK_CREDENTIAL | INVISIBLE
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecPrivacy {
+    Public = 0,
+    ZkCredential = 1,
+    Invisible = 2,
+}
+
+impl Default for SpecPrivacy {
+    fn default() -> Self {
+        SpecPrivacy::Public
+    }
+}
+
+impl SpecPrivacy {
+    /// Map onto the legacy 5-tier [`PrivacyLevel`] used by the router.
+    pub fn to_legacy(self) -> PrivacyLevel {
+        match self {
+            SpecPrivacy::Public => PrivacyLevel::Public,
+            SpecPrivacy::ZkCredential => PrivacyLevel::Standard,
+            SpecPrivacy::Invisible => PrivacyLevel::Full,
+        }
+    }
 }
 
 /// Route type selection
