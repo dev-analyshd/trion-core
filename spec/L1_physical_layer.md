@@ -11,6 +11,8 @@ inputs consumed by L0.1 (Behavioral Hash) and L5 (TRION Master).
 ---
 
 ## L1.1 Physical Richness
+> **SUPERSEDED:** see WHITEPAPER_V2.txt L1.1 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K19). V2 L1.1's nine f1–f9 features (volume entropy, counterparty diversity, …) are the canonical Φ feature set (`core/physical/phi_engine.py`). The nine features below are the per-indexer entropy feature set the Rust indexers actually compute (`rust/indexers/crates/*/features`) — both live in code; record the split. Unify naming per the matrix.
+
 
 Every behavioral observation is decomposed into **nine Shannon-entropy features**
 `f1..f9`, computed over a sliding observation window of length `W` (default `W = 256`).

@@ -147,6 +147,8 @@ bootstrap_proof = ZK_proof( LSI == 1.0 AND genome_correctly_formed )
 ---
 
 ## L4.8 HHI Geographic Enforcement
+> **SUPERSEDED:** see WHITEPAPER_MD.txt L4.1 / V2 L4.8 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K11). The canonical HHI is over effective stake ×10 000 with 1500/2500/4000 tiers (`core/spiritual/hhi_monitor.py`, Go mesh). The 0–1-scale per-jurisdiction/infra HHI below is a useful engineering *supplement* (infra-concentration is otherwise unspecified) — keep, documented as such.
+
 
 Validator concentration is bounded using the Herfindahl-Hirschman Index.
 
@@ -177,6 +179,8 @@ HHI_infra > 0.18  ->  non-compliant (provider flagged,validator offboarding init
 ---
 
 ## L4.9 Slashing Conditions and Dispute Resolution
+> **SUPERSEDED:** see WHITEPAPER_V2.txt L4.9 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K12). V2 L4.9's five-condition registry (COORDINATED_ATTACK 50%, LOW_ACCURACY, HSM, UPTIME, SYBIL_CLUSTER) + 72h dispute is canonical (`core/spiritual/slashing.py`, `core/governance/slashing.py`, Go evidence-based double-signing). The S1–S6 conditions below must be read as merged into that one registry, not as a parallel schedule.
+
 
 Six slashable conditions, each with a severity and dispute window.
 

@@ -6,6 +6,8 @@
 > window. If any condition is violated, the corresponding TRION claim is falsified.
 
 ## Scope
+> **SUPERSEDED:** see WHITEPAPER_MD.txt §20 / V2 Part 13 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K13). The MD/V2 F1–F15 set (manipulation resistance, contradictory signals, CI calibration, …) is canonical and is what `core/governance/falsifiability_registry.py` implements. The F1–F15 numbering below is a DIFFERENT per-layer condition set — valuable operational monitors, but they must be renumbered (e.g. R-F1…R-F15) to remove the collision.
+
 
 A scientific protocol must specify in advance the conditions under which it would
 be proven wrong. TRION commits to 15 falsifiability conditions; violation of any

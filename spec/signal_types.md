@@ -4,6 +4,8 @@
 > This document enumerates all 24 canonical signal types emitted by a TRION chain.
 
 ## Scope
+> **SUPERSEDED IN PART (S23 acronym); COUNT CONFIRMED CANONICAL (K4):** see WHITEPAPER_MD.txt §11 / BTCP_SPEC title — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K4/K5). K5: **BTCP = Behavioral Transaction Continuity Protocol** (BTCP_SPEC governs; the S23 expansion “Behavioral Trusted Channel Protocol” is an error). K4: the canonical signal set is 24 = MD §11's 19 canonical + 5 V2 extended types — exactly what this registry and `core/master/signal_factory.py` implement (ids 0–23 dense, new types require a protocol fork); BTCP §14.2's 10 names are classifiable as typed sub-payloads on canonical carriers.
+
 
 Every signal carries a mandatory envelope and trigger conditions. Signals are
 selected per L0.5 (Signal Selection Principle) and emitted over the channels

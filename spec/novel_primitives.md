@@ -172,6 +172,8 @@ verify_BZK(proof, claim):
 ---
 
 ## P5 BIBL (Behavioral Inheritance and Biological Ledger)
+> **SUPERSEDED:** see WHITEPAPER_MD.txt §18 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K6). MD wins: **BIBL = Behavioral Inter-Block Layer** (inter-block intelligence window; `core/akashic/bibl.py`, `core/btcp/bibl_engine.py`). The P5 fork-inheritance concept below is real but RENAMED — it is NOT the BIBL of MD §18 (proposed new name: Behavioral Ledger Inheritance, BLI). No code implements P5 inheritance.
+
 
 ### Concept
 

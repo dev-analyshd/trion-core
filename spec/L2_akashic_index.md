@@ -12,6 +12,8 @@ anomaly detection.
 ---
 
 ## L2.1 Akashic Depth
+> **SUPERSEDED:** see WHITEPAPER_MD.txt L0.4 / L9.2 (information conservation) — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K9). MD wins: the Akashic Index is append-only, monotone accumulation (V2 L2.1 integral); `core/akashic/depth.py` / `core/master/d_engine.py` / `akashic/timescale_store.py` are append-only. The exponential decay / fossilization pruning below is NON-CANONICAL (describes a different quantity).
+
 
 Each BEO has an Akashic Depth that quantifies how deeply it is buried in memory.
 
@@ -73,6 +75,8 @@ if max Sim < tau_arch (default 0.55):
 ---
 
 ## L2.3 Genesis Confidence Decay
+> **SUPERSEDED:** see WHITEPAPER_V2.txt L2.3 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K8). V2 wins (MD silent): `conf_genesis(t) = 1 − e^(−λ·D_asset)` — confidence GROWS with accumulated depth (`core/akashic/genesis.py`, archetype-matched λ). The decay form below describes novelty decay, a different, non-canonical quantity.
+
 
 A newly detected entity is provisionally labeled GENESIS. Confidence that this is
 truly a novel entity decays with time, allowing resurrection claims to override it.
