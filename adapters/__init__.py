@@ -335,7 +335,38 @@ CHAIN_VM_MAP: Dict[int, VMType] = {
 
 @dataclass
 class BTCPIntent:
-    """Standardized BTCP intent representation across all VMs."""
+    """Standardized BTCP intent representation across all VMs.
+
+    Legacy transport fields (intent_id .. timestamp) keep their positional
+    order and defaults, so every existing keyword/positional construction
+    keeps working. The BTCP Master Spec §4.1 field set is appended after
+    them with the spec defaults — mirroring ``core/btcp/modules.py``
+    ``BITPIntent`` and ``rust/src/types.rs`` ``Intent`` so all three
+    intent representations carry the same §4.1 fields:
+
+    ==============  =================================================
+    action           SWAP | TRANSFER | LIQUIDITY | STAKE | BORROW
+                     (spec name, default SWAP; the legacy ``intent_type``
+                     carries the same concept for VM encoding and keeps
+                     its own TRANSFER default — both are transport-real)
+    value            uint256 behavioral magnitude units (None = unset;
+                     the legacy ``amount`` int carries the transport value)
+    max_total_gas    uint128 USD equivalent across all chains (None =
+                     unbounded)
+    min_finality     FAST | STANDARD | SECURE
+    min_nl_score     uint16 ×1000 liquidity-health floor (spec name
+                     min_NL_score; 300 = 0.30)
+    chain_pref       OPTIMAL | [chain_list] | SINGLE_CHAIN
+    privacy          PUBLIC | ZK_CREDENTIAL | INVISIBLE (the route-level
+                     PrivacyLevel in core/btcp/orchestrator.py stays a
+                     separate, coarser routing concern)
+    btcp_version     semver string (spec encodes as bytes12)
+    ==============  =================================================
+
+    ``deadline`` (uint64) and ``nonce`` (uint64, default 0) were already
+    legacy fields here and already match the spec defaults.
+    """
+    # legacy transport fields — positional order frozen (backwards compatible)
     intent_id: str = ""
     source_chain: int = 0
     dest_chain: int = 0
@@ -348,17 +379,69 @@ class BTCPIntent:
     nonce: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
+    # BTCP Master Spec §4.1 fields (defaults per spec)
+    action:        str = "SWAP"
+    value:         Optional[int] = None
+    max_total_gas: Optional[int] = None
+    min_finality:  str = "STANDARD"
+    min_nl_score:  int = 300            # ×1000 → default 0.30 NL floor
+    chain_pref:    Union[str, List[int]] = "OPTIMAL"
+    privacy:       str = "PUBLIC"
+    btcp_version:  str = "1.0.0"        # semver (spec encodes as bytes12)
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
     
+    @staticmethod
+    def _canonical_field(value: Any) -> str:
+        """Deterministic text encoding of one §4.1 field for hashing.
+        
+        Mirrors ``core/btcp/modules.py`` ``_canonical_intent_field``:
+        bytes → hex, str → as-is, list/tuple → comma-joined recursively,
+        None → "none", floats via repr() (stable across processes).
+        """
+        if value is None:
+            return "none"
+        if isinstance(value, (bytes, bytearray)):
+            return bytes(value).hex()
+        if isinstance(value, (list, tuple)):
+            return "[" + ",".join(
+                BTCPIntent._canonical_field(v) for v in value) + "]"
+        if isinstance(value, float):
+            return repr(value)
+        return str(value)
+    
     def hash(self) -> bytes:
-        """Hash of the canonical intent representation."""
-        canonical = (
-            f"{self.intent_id}:{self.source_chain}:{self.dest_chain}:"
-            f"{self.source_address}:{self.dest_address}:{self.amount}:"
-            f"{self.asset}:{self.intent_type}:{self.deadline}:{self.nonce}"
-        )
+        """Hash of the canonical intent representation.
+        
+        Legacy fields in their original order (byte-identical text to the
+        pre-§4.1 encoding for those fields) with the §4.1 fields appended —
+        the same append-only extension policy as ``BITPIntent.hash()`` in
+        core/btcp/modules.py and ``Intent::hash()`` in rust/src/types.rs.
+        No hash vectors were ever pinned for this object, so the extended
+        format is defined here and stays stable going forward.
+        """
+        canonical = ":".join([
+            f"{self.intent_id}",
+            f"{self.source_chain}",
+            f"{self.dest_chain}",
+            f"{self.source_address}",
+            f"{self.dest_address}",
+            f"{self.amount}",
+            f"{self.asset}",
+            f"{self.intent_type}",
+            f"{self.deadline}",
+            f"{self.nonce}",
+            # BTCP Master Spec §4.1 fields
+            self._canonical_field(self.action),
+            self._canonical_field(self.value),
+            self._canonical_field(self.max_total_gas),
+            self._canonical_field(self.min_finality),
+            self._canonical_field(self.min_nl_score),
+            self._canonical_field(self.chain_pref),
+            self._canonical_field(self.privacy),
+            self._canonical_field(self.btcp_version),
+        ])
         return hashlib.sha3_256(canonical.encode()).digest()
 
 
