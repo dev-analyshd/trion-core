@@ -8,7 +8,7 @@ Session: 2026-09-02 | Branch: agent-fix-phase-1 | Repo: /home/z/trion-core (back
 ### Evidence:
 - git status clean on main @ 240232e; backup copied to /home/z/trion-core-backup-phase0; branch agent-fix-phase-1 created
 - pytest 9.0.2 available; 555 tests collected
-- Secret scan: NO hardcoded private keys/mnemonics/API keys in code (64-hex hits = backtest exploit tx hashes, not keys)
+- Secret scan: NO hardcoded private keys/mnemonics/API keys in code (64-hex hits = backtest exploit tx hashes, not keys). **Correction (2026-09-03, per external DD review):** this scan missed two committed secrets — the EVM deployer key (removed 67a05bd, still present in git history until the history purge) and a Bitcoin testnet WIF key in docs/proofs/BTC_STARKNET_ZERO_BRIDGE.md (removed in 6d50c57). The scan's claim was true of the paths it checked, false of the repository. Any future secret scan must cover docs/, proofs and markdown, not just code.
 - config/deployment.env: public addresses only (ORACLE_ADDRESS, VAULT_ADDRESS) — not secrets
 - chains/pvm/execute.ts:74 mnemonic from process.env.DOT_MNEMONIC — fail-closed, correct
 - git history for .env*: only documentation commits, no leaked env files

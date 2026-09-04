@@ -704,7 +704,11 @@ Despite the gaps, the following are substantively and correctly implemented:
 - `spec/BTCP_SPEC.txt` (45 pages, 79,271 chars) — BTCP Master Implementation Spec
 - `spec/WHITEPAPER_MD.txt` (38 pages, 64,442 chars) — Whitepaper Markdown version
 
-### Component Audit: 52/52 Implemented (100%)
+### Component Audit: 61 components across 7 categories (table corrected 2026-09-03)
+
+> The heading previously said "52/52" while the table below it summed to 61 — an
+> arithmetic error in the original self-audit (flagged by the external DD review). The
+> rows are unchanged; only the total is corrected.
 
 | Category | Required | Implemented | Status |
 |---|---|---|---|
@@ -714,7 +718,10 @@ Despite the gaps, the following are substantively and correctly implemented:
 | ZK Circuits | 5 | 5 | ✅ 100% |
 | Schema BTCP Tables | 11 | 11 | ✅ 100% |
 | Falsifiability Conditions | 15 | 15 | ✅ 100% |
-| **Total** | **52** | **52** | **✅ 100%** |
+| **Total** | **61** | **61** | **✅ 100%** |
+
+> "Implemented" here means a module with matching semantics exists and its unit tests
+> pass — it is not a claim of production deployment or live-network operation.
 
 ### Formula Verification: 10/10 Verified (100%)
 
