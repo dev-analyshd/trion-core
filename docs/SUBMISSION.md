@@ -101,12 +101,12 @@ TRION's ANIMA engine classifies every on-chain entity into one of **10 behaviora
 
 | Metric | Value |
 |---|---|
-| Chains indexed | **129 registered / 41 integrated** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
+| Chains indexed | **129 registered / 40 integrated** (EVM, SVM, NEAR, TON, Move, Cosmos, PVM, SUI, StarkNet, UTXO, TVM, PI, Movement) |
 | VM families | **18** |
-| API routes | **180+ in app.py** (268 incl. blueprints) |
+| API routes | **282 in app.py** (blueprints registered at boot) + 165 FAISS FastAPI |
 | Whitepaper formulas | **84 registered** (L0–L10) — 28 live + 56 synthetic-demo (labeled) |
 | Rust L0 crates | **21** per-VM (+ trion-common) |
-| Tests passing | **606 unit + 9 skipped** (live-chain/env skips by design) |
+| Tests passing | **691 unit + 9 skipped** (live-chain/env skips by design) |
 | BH payload | **93 bytes** canonical SHA3-256 dual-strand |
 | Implementation languages | **12** (Rust · Python · TypeScript · Solidity · Cairo · FunC · Haskell · C++ · Go · Julia · WebAssembly · Vyper) |
 | 0G components integrated | **6/6** |

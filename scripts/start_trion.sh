@@ -31,7 +31,6 @@ cd "$WORKSPACE"
 # ── Configuration ─────────────────────────────────────────────
 FAISS_PORT=${FAISS_PORT:-8000}
 API_PORT=${API_PORT:-5000}
-VALIDATOR_PORT=${VALIDATOR_PORT:-6000}
 FRONTEND_PORT=${FRONTEND_PORT:-3000}
 FLASK_URL=${FLASK_URL:-"http://127.0.0.1:$API_PORT"}
 
@@ -164,8 +163,7 @@ if [ "$BACKGROUND" = true ]; then
     wait_for_port $API_PORT "Oracle API" || true
     
     if [ "$START_VALIDATORS" = true ]; then
-        start_validators
-        wait_for_port $VALIDATOR_PORT "Validator Network" || true
+        start_validators   # one-shot Go self-test — no port to wait for
     fi
     
     if [ "$START_FRONTEND" = true ]; then
@@ -183,9 +181,6 @@ if [ "$BACKGROUND" = true ]; then
     log "============================================================"
     log "  FAISS Engine:    http://127.0.0.1:$FAISS_PORT"
     log "  Oracle API:      http://127.0.0.1:$API_PORT"
-    if [ "$START_VALIDATORS" = true ]; then
-        log "  Validator Net:   http://127.0.0.1:$VALIDATOR_PORT"
-    fi
     if [ "$START_FRONTEND" = true ] && command -v npm &>/dev/null; then
         log "  Frontend:        http://127.0.0.1:$FRONTEND_PORT"
     fi
