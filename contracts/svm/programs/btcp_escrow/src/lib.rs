@@ -778,6 +778,11 @@ pub mod btcp_escrow {
         require!(!config.paused, BTCPError::Paused);
 
         require!(min_coherence <= MAX_COHERENCE, BTCPError::InvalidCoherence);
+        // INV-003 (follow-on 2): tightening-only — the escrow-local floor
+        // may sit ABOVE Θ_min 0.55, never below it (Move/Cairo parity,
+        // fail-fast at lock: a lock can never encode a sub-floor
+        // expectation).
+        require!(min_coherence >= MIN_COHERENCE_FLOOR, BTCPError::CoherenceFloor);
         require!(timeout_slots > 0, BTCPError::ZeroTimeout);
         require!(!entity_id.is_zero(), BTCPError::ZeroDestination);
         require!(escrow_id != [0u8; 32], BTCPError::InvalidArgument);

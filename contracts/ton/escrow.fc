@@ -210,6 +210,8 @@ const int ERR_ZERO_AMOUNT         = 125;
 const int ERR_ZERO_TIMEOUT        = 126;
 const int ERR_EMERGENCY_NOT_YET   = 127;
 const int ERR_INVALID_COHERENCE   = 128;
+;; INV-003 (follow-on 2): sub-floor min_coherence at lock (tighten-only)
+const int ERR_COHERENCE_FLOOR     = 162;
 const int ERR_SEND_FAILED         = 129;
 ;; C-01 canonical-certificate errors (130+)
 const int ERR_PAUSED              = 130;
@@ -459,6 +461,11 @@ cell dict_get_escrow(cell escrows_dict, int escrow_id) inline {
         throw_unless(ERR_ZERO_AMOUNT, msg_value > 0);
         throw_unless(ERR_ZERO_TIMEOUT, timeout_secs > 0);
         throw_unless(ERR_INVALID_COHERENCE, min_coherence <= 1000000);
+        ;; INV-003 (follow-on 2): tightening-only — the escrow-local floor
+        ;; may sit ABOVE Θ_min 0.55 (550000 ×1e6), never below it. Rejected
+        ;; at lock, fail-fast (Move/Cairo parity): a lock can never encode
+        ;; a sub-floor expectation. Release stays certificate-gated.
+        throw_unless(ERR_COHERENCE_FLOOR, min_coherence >= 550000);
         ;; settlement-tuple binding requires a basechain destination whose
         ;; 256-bit account hash the certificate can bind (§6 step 7)
         throw_unless(ERR_BIND_DEST, is_bindable_destination(destination));

@@ -239,6 +239,7 @@ ERR_NOT_HOLDING = 122
 ERR_EXPIRED = 123
 ERR_COHERENCE_INSUFF = 124
 ERR_PAUSED = 130
+ERR_COHERENCE_FLOOR = 162  # INV-003 follow-on 2: sub-floor min_coherence at lock
 ERR_CERT_TAG = 131
 ERR_CERT_KIND = 132
 ERR_CERT_VERSION = 133
@@ -390,6 +391,10 @@ class TVMEscrowMirror:
                 raise TVMError(126)
             if min_coherence > 1_000_000:
                 raise TVMError(128)
+            # INV-003 (follow-on 2): tightening-only — sub-floor rejected at
+            # lock, fail-fast (mirrors contracts/ton/escrow.fc op 0x01)
+            if min_coherence < 550_000:
+                raise TVMError(ERR_COHERENCE_FLOOR)
             if not is_bindable_destination(dest_bits):
                 raise TVMError(ERR_BIND_DEST)
             if escrow_id in self.escrows:
@@ -974,6 +979,25 @@ def test_binding_attacks():
     body, _, _ = make_envelope(fx2[4], fx2[0], fx2[1], fx2[2])
     check("escrow min_coherence floor above cert coherence rejected (124)",
           m2.release("x", body) == ERR_COHERENCE_INSUFF)
+
+    # INV-003 follow-on 2 — lock-side tightening-only floor (fail-fast):
+    # sub-floor min_coherence is rejected AT LOCK (Move/Cairo parity), the
+    # floor value itself (550_000) is accepted
+    m3, fx3 = fresh_world()
+    eid3 = int.from_bytes(_sha3("escrow-floor-1"), "big")
+    err3 = m3.lock("relayer", amount, eid3, int.from_bytes(_sha3("route-F"), "big"),
+                   549_999, 3600, int.from_bytes(_sha3("entity-F"), "big"),
+                   dest_addr_bits(int.from_bytes(_sha3("dest-F"), "big")))
+    check("lock with sub-floor min_coherence rejected (162, INV-003 tighten-only)",
+          err3 == ERR_COHERENCE_FLOOR, f"err={err3}")
+    check("no escrow created by the sub-floor lock",
+          eid3 not in m3.escrows and m3.vault_balance == amount)
+    ok_floor = m3.lock("relayer", amount, eid3, int.from_bytes(_sha3("route-F"), "big"),
+                       550_000, 3600, int.from_bytes(_sha3("entity-F"), "big"),
+                       dest_addr_bits(int.from_bytes(_sha3("dest-F"), "big")))
+    check("lock at exactly the 0.55 floor accepted",
+          ok_floor is None and eid3 in m3.escrows
+          and m3.vault_balance == 2 * amount)
 
 
 def test_freshness_and_preconditions():

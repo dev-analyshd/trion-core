@@ -128,6 +128,26 @@ def main():
           core[6] == 3)
     # state field index verified below via a second lock
 
+    # INV-003 follow-on 2 — lock-side tightening-only floor (fail-fast):
+    # sub-floor min_coherence is rejected AT LOCK (Move/Cairo/SVM/TON
+    # parity); exactly 550_000 (0.55 ×1e6) is accepted. Still unbound
+    # here so the cleanup release uses the trusted-relayer path.
+    esc_floor = w3.keccak(text="escrow-floor")
+    check("lock with sub-floor min_coherence reverts (INV-003 tighten-only)",
+          must_revert(w3, escrow.functions.lockEscrow(
+              esc_floor, route_id, w3.keccak(text="entity-F"), dest,
+              549_999, 1000, b"\x00" * 32), acct))
+    escrow.functions.lockEscrow(
+        esc_floor, route_id, w3.keccak(text="entity-F"), dest,
+        550_000, 1000, b"\x00" * 32
+    ).transact({"from": acct, "value": w3.to_wei(1, "ether"), "gas": 2_000_000})
+    core_floor = escrow.functions.getEscrowCore(esc_floor).call()
+    check("lock at exactly the 0.55 floor accepted (HOLDING)",
+          core_floor[0] == esc_floor and core_floor[6] == 1)
+    # restore a clean state for the section below (release the floor escrow)
+    escrow.functions.verifySettlementCheck(esc_floor, w3.keccak(text="checkF")).transact({"from": acct})
+    escrow.functions.releaseEscrow(esc_floor, w3.keccak(text="bhF"), 900_000).transact({"from": acct, "gas": 1_000_000})
+
     print("\n2) one-way oracle binding")
     escrow.functions.setTRIONOracle(oracle.address).transact({"from": acct})
     check("oracle bound", escrow.functions.trionOracle().call() == oracle.address)
@@ -203,6 +223,14 @@ def main():
         print("FAILED:", FAILED)
         sys.exit(1)
     print("BTCPEscrow oracle gate (H1 binding, quorum, freshness) verified on real EVM.")
+
+
+def test_full_battery_runs_clean():
+    """pytest entry point (battery-integrity fix, follow-on-2 loop): the
+    script battery must run clean whenever the pytest contracts battery
+    runs — main() exits non-zero on any check() failure. Script-mode
+    ("python3 tests/contracts/<file>.py") keeps working unchanged."""
+    main()
 
 
 if __name__ == "__main__":
