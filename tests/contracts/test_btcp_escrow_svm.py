@@ -2246,5 +2246,13 @@ def main():
     return 0
 
 
+def test_full_battery_runs_clean():
+    """pytest entry point (battery-integrity fix, follow-on-2 loop): the
+    script battery must run clean whenever the pytest contracts battery
+    runs. main() returns 0 iff every check passed. Script-mode
+    ("python3 tests/contracts/<file>.py") keeps working unchanged."""
+    assert main() == 0
+
+
 if __name__ == "__main__":
     sys.exit(main())
