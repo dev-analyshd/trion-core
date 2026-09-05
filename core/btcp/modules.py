@@ -784,30 +784,41 @@ class AkashicClipboard:
     def _commitment(self, intent: BITPIntent) -> bytes:
         """§17 commitment = H(intent || behavioral_proof_root || nonce).
 
-        Byte-compatible with ``rust/src/bitp_matcher.rs::execute_cut``: the
-        §4.1 field set is appended to the legacy seven segments (append-only
-        extension policy — a different constraint set yields a different
-        commitment).
+        CANONICAL BYTE FORMAT (the follow-on-1 ruling from
+        docs/audit/canonical-sweep/FINAL_RELEASE_VERDICT.md — the py↔rust
+        encoding divergence is closed): every segment is encoded by
+        ``_canonical_intent_field`` — bytes → lowercase hex with NO 0x
+        prefix, ``None`` → ``"none"``, floats via ``repr`` (integral floats
+        keep the ``.0``), ints decimal, strings as-is, lists → bracketed
+        comma-join ``[1,137]`` — so the Python text and
+        ``rust/src/bitp_matcher.rs::execute_cut`` are byte-identical by
+        construction. Corpus:
+        ``tests/golden/bitp_cut_commitment_vectors.json``; static Rust
+        parity pin: ``tests/golden/test_bitp_cut_commitment_vectors.py``.
+        The §4.1 field set is appended to the legacy seven segments
+        (append-only extension policy — a different constraint set yields
+        a different commitment). Note the float domain of the ruling:
+        finite |v| < 1e16 — beyond it Python repr switches to scientific
+        notation while Rust Display does not; the corpus stays inside.
         """
         parts = [
-            intent.entity_id.hex(),
-            intent.asset_in.hex(),
-            intent.asset_out.hex(),
-            str(intent.magnitude),
-            str(intent.deadline),
-            (intent.behavioral_proof_root.hex()
+            _canonical_intent_field(intent.entity_id),
+            _canonical_intent_field(intent.asset_in),
+            _canonical_intent_field(intent.asset_out),
+            _canonical_intent_field(intent.magnitude),
+            _canonical_intent_field(intent.deadline),
+            (_canonical_intent_field(intent.behavioral_proof_root)
              if getattr(intent, "behavioral_proof_root", None) else "0" * 64),
-            str(intent.nonce),
+            _canonical_intent_field(intent.nonce),
             ":".join([
-                intent.action,
-                str(intent.value),
-                str(intent.max_total_gas),
-                intent.min_finality,
-                str(intent.min_nl_score),
-                (intent.chain_pref if isinstance(intent.chain_pref, str)
-                 else ",".join(str(c) for c in intent.chain_pref)),
-                intent.privacy,
-                intent.btcp_version,
+                _canonical_intent_field(intent.action),
+                _canonical_intent_field(intent.value),
+                _canonical_intent_field(intent.max_total_gas),
+                _canonical_intent_field(intent.min_finality),
+                _canonical_intent_field(intent.min_nl_score),
+                _canonical_intent_field(intent.chain_pref),
+                _canonical_intent_field(intent.privacy),
+                _canonical_intent_field(intent.btcp_version),
             ]),
         ]
         return hashlib.sha3_256(":".join(parts).encode()).digest()

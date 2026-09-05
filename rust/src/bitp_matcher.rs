@@ -100,10 +100,10 @@ impl BITPIntentData {
 
     /// Deterministic text encoding of the §4.1 field set for the CUT
     /// commitment (append-only extension; see `execute_cut`). Mirrors the
-    /// python canonical encoders (`_canonical_intent_field` in
-    /// core/btcp/modules.py, `BTCPIntent::_canonical_field` in
-    /// adapters/__init__.py): None → "none", enums → their spec names,
-    /// allow-lists → comma-joined.
+    /// python canonical encoder (`_canonical_intent_field` in
+    /// core/btcp/modules.py — the follow-on-1 canonical byte-format ruling):
+    /// None → "none", enums → their spec names, allow-lists → bracketed
+    /// comma-join `[1,137]` (byte-identical to the python list rule).
     fn spec_fields_canonical(&self) -> String {
         let min_finality = match self.min_finality {
             MinFinality::Fast => "FAST",
@@ -114,7 +114,7 @@ impl BITPIntentData {
             ChainPreference::Optimal => "OPTIMAL".to_string(),
             ChainPreference::SingleChain => "SINGLE_CHAIN".to_string(),
             ChainPreference::Allowed(ids) => format!(
-                "ALLOWED[{}]",
+                "[{}]",
                 ids.iter()
                     .map(|id| id.to_string())
                     .collect::<Vec<_>>()
@@ -144,6 +144,23 @@ impl BITPIntentData {
     }
 }
 
+/// Python-repr-compatible f64 text for the canonical §17 CUT commitment
+/// (follow-on-1 byte-format ruling): Python `repr(100.0)` == `"100.0"`
+/// (finite floats always render a decimal point or exponent) while
+/// Rust's `{}` prints `"100"`. Finite integral magnitudes inside
+/// |v| < 1e16 therefore gain the trailing `.0` so the commitment text is
+/// byte-identical with the python encoder. Beyond 1e16 Python switches
+/// to scientific notation (`repr(1e16)` == `"1e+16"`) which Rust's
+/// Display never emits — the ruling's documented float domain boundary;
+/// the canonical corpus stays inside it.
+fn py_repr_f64(v: f64) -> String {
+    if v.is_finite() && v == v.trunc() && v.abs() < 1e16 {
+        format!("{:.1}", v)
+    } else {
+        format!("{}", v)
+    }
+}
+
 /// BITP Matcher — CUT/MATCH/PASTE three-phase engine
 /// Phase 1 (CUT): Post commitment to Akashic clipboard. Assets untouched.
 /// Phase 2 (MATCH): Scan for complementary intent.
@@ -167,6 +184,18 @@ impl BITPMatcher {
     ///     commitment = H(intent_A || behavioral_proof_root || nonce)
     /// — the proof root and nonce are bound in so a commitment is unique
     /// per behavioral state and cannot be replayed across epochs.
+    ///
+    /// CANONICAL BYTE FORMAT (follow-on-1 ruling, byte-identical with
+    /// `core/btcp/modules.py::AkashicClipboard._commitment`): every
+    /// segment follows the python canonical encoder — hex WITHOUT the
+    /// 0x prefix (`hex::encode`, so a zero proof root is `"0" * 64`,
+    /// matching the python None fallback), floats via `py_repr_f64`
+    /// (python `repr` semantics — integral values keep the `.0`),
+    /// None → "none", allow-lists bracketed. Corpus:
+    /// tests/golden/bitp_cut_commitment_vectors.json; static parity
+    /// pin: tests/golden/test_bitp_cut_commitment_vectors.py (no cargo
+    /// in this sandbox — the Rust side is pinned statically; cargo
+    /// build/test remains the documented unverified boundary).
     pub fn execute_cut(&mut self, intent: &BITPIntentData) -> H256 {
         // The first seven segments below are the pre-§4.1 commitment
         // text (byte-identical for those fields); the §4.1 field set is
@@ -176,12 +205,12 @@ impl BITPMatcher {
         let commitment = H256::sha3(
             format!(
                 "{}:{}:{}:{}:{}:{}:{}:{}",
-                intent.entity_id.to_hex(),
+                hex::encode(intent.entity_id.0),
                 hex::encode(&intent.asset_in),
                 hex::encode(&intent.asset_out),
-                intent.magnitude,
+                py_repr_f64(intent.magnitude),
                 intent.deadline,
-                intent.behavioral_proof_root.to_hex(),
+                hex::encode(intent.behavioral_proof_root.0),
                 intent.nonce,
                 intent.spec_fields_canonical()
             )

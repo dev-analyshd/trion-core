@@ -1,9 +1,11 @@
 # GOLDEN VECTOR CORPUS — unification index (§16/§17, Master Sweep 2026-09-04)
 
 **Corpus location:** `tests/golden/vectors.json` (52 canonical BH vectors) +
-`tests/golden/` suite (134 tests) + certificate corpus (68 vectors) +
+`tests/golden/` suite (143 tests) + certificate corpus (68 vectors) +
 `config/bh_schema_v1.json::test_vector` + pinned Rust
-`indexers/crates/trion-common/src/hash_dna.rs::cross_language_canonical_bh_vector`.
+`indexers/crates/trion-common/src/hash_dna.rs::cross_language_canonical_bh_vector`
++ **§17 CUT commitment corpus (6 vectors,
+`tests/golden/bitp_cut_commitment_vectors.json` — follow-on-1 closed)**.
 
 ## Corpus coverage (BH §1–§9)
 
@@ -32,8 +34,12 @@ rounding implementation).
 - `entityIdFromAddr` (§6 helper) had no corpus coverage — divergence found &
   fixed this sweep (7b41a46); 3 live probes now pinned in the sweep evidence;
   corpus extension recommended at the next vector re-issuance.
-- CUT commitment (§17): no corpus vectors — the py↔rust byte-format
-  divergence (open item) was found by live digest comparison, not the corpus.
-  Adding commitment vectors is the remediation's first step.
+- ~~CUT commitment (§17): no corpus vectors~~ **CLOSED (follow-on-1):** the
+  canonical byte-format ruling is issued (every segment via the canonical
+  encoder policy — no 0x prefixes, None → "none", python-repr floats,
+  bracketed allow-lists), the py encoder rebuilt to it, the Rust twin
+  aligned (statically pinned; cargo-blocked here), and a 6-vector corpus
+  pinning the preimage TEXT and the sha3-256 digest now guards it
+  (`tests/golden/test_bitp_cut_commitment_vectors.py`, 9 tests).
 - Rule: corpus changes require a spec mandate + coordinated four-language
   re-issuance in one commit (CANONICAL_BH.md §2).
