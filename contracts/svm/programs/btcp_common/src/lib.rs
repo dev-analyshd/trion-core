@@ -69,6 +69,14 @@ pub const SCALE: u64 = 1_000_000;
 /// Maximum valid coherence score
 pub const MAX_COHERENCE: u64 = 1_000_000;
 
+/// INV-003 (follow-on 2 ruling): the protocol coherence floor Θ_min
+/// 0.55 ×1e6 — the same number as core/btcp/escrow_monitor.py
+/// MIN_COHERENCE_FLOOR and the Move twin's MIN_COHERENCE_FLOOR. A
+/// locker may TIGHTEN their gate (up to MAX_COHERENCE); never loosen
+/// it below the floor — sub-floor values are rejected AT LOCK
+/// (fail-fast, Move/Cairo parity).
+pub const MIN_COHERENCE_FLOOR: u64 = 550_000;
+
 // ── Behavioral Entity Oracle (BEO) Identity ─────────────────────────────────
 /// BEO identity: SHA3-256(normalize(chain_address))
 /// Stored as 32-byte array, same as Solana pubkey layout but semantically
@@ -335,6 +343,9 @@ pub enum BTCPError {
 
     #[msg("Invalid coherence score (must be ≤ 1,000,000)")]
     InvalidCoherence,
+
+    #[msg("INV-003: coherence below the 0.55 protocol floor (tighten-only)")]
+    CoherenceFloor,
 
     #[msg("Timeout blocks must be > 0")]
     ZeroTimeout,

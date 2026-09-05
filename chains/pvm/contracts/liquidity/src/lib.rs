@@ -76,6 +76,9 @@ mod trion_pvm_liquidity {
         CommitmentExpired,
         CoherenceTooLow,
         TooManyValidators,
+        /// INV-003 (follow-on 2): sub-floor min_coherence at commit
+        /// (tighten-only — the same 0.55 protocol floor as the escrows)
+        CoherenceFloor,
     }
     pub type Result<T> = core::result::Result<T, Error>;
 
@@ -102,6 +105,10 @@ mod trion_pvm_liquidity {
             expiry:        u64,
         ) -> Result<()> {
             if min_coherence > 1_000_000 { return Err(Error::InvalidScore); }
+            // INV-003 (follow-on 2): tightening-only — the commitment-local
+            // floor may sit ABOVE Θ_min 0.55 (550000 ×1e6), never below it
+            // (escrow-tier parity, fail-fast at commit)
+            if min_coherence < 550_000 { return Err(Error::CoherenceFloor); }
             if self.commitments.get(commitment_id).is_some() {
                 return Err(Error::CommitmentAlreadyExists);
             }

@@ -93,39 +93,52 @@ require in release/revert) · Move ENFORCED (assert state, btcp_escrow.move:128,
 (G1 two-phase) and (b) `coherence ≥ threshold` where the threshold can
 never be lowered by the caller below the protocol floor (Σ-floor 0.55 —
 the same constant as the proof builder's `DEFAULT_COHERENCE_THRESHOLD`).
-Callers may tighten (raise) the threshold, never loosen it.
+Callers may tighten (raise) the threshold, never loosen it. **Follow-on 2
+ruling (canonical-sweep verdict, 2026-09-04):** the tightening-only rule
+extends to the LOCK-side intake on every tier that accepts a caller-set
+escrow-local min — sub-floor values are rejected AT LOCK (fail-fast,
+Move/Cairo parity): a lock can never encode a sub-floor expectation.
 
 **Authority.** BTCP_SPEC Gap D/§14.3 ("C(t) ≥ Θ(t)"); whitepaper §4.3
 2/3-BFT floor; ENG-DECISION: floor value 0.55 mirrors
 modules.py:143 (BTCPProofBuilder.DEFAULT_COHERENCE_THRESHOLD) — the
 coherence gate is one number everywhere.
 
-**Enforced today:** py PARTIAL→ENFORCED this wave: two-phase flag was
-enforced (escrow_monitor.py:231), but `min_coherence` was a
-caller-supplied parameter with no floor — a caller could pass 0.0
-(attack: zero-coherence release).  This wave adds
-`MIN_COHERENCE_FLOOR` clamping in `release_escrow` /
-`release_from_pending_akashic`.  The *coherence value itself* remains
-caller-supplied at the py layer (its integrity is the certificate's job
-on-chain) — see INV-011.  rs PARTIAL (monitor is a state machine; the
-verdict gate lives in the oracle/escrow contract) · Sol PARTIAL
-(`minCoherence` is a lock-time relayer argument with an upper bound but
-no floor — BTCPEscrow.sol:294 `require(minCoherence <= 1_000_000)`;
-oracle-side threshold check exists in `_consensusGate`:260-261) · Vy
-ENFORCED (threshold comes from the oracle verdict, not the caller:
-BTCP_ESCROW.vy:173→235) · SVM PARTIAL (min_n with MAX bound only, release
-authority key) · Move PARTIAL (relayer-set `coherence_verified` flag,
-btcp_escrow.move:117-125 — no on-chain quorum binding) · TON PARTIAL
-(relayer/owner-gated release, escrow.fc:40) · Cai PARTIAL (threshold
-arguments checked for range, not floor).
+**Enforced today (re-verified this loop at HEAD):** py ENFORCED
+(release-time clamp `MIN_COHERENCE_FLOOR` in `release_escrow` /
+`release_from_pending_akashic` — the coherence value itself remains
+caller-supplied at the py simulation layer, its integrity is the
+certificate's job on-chain, see INV-011) · Sol ENFORCED (lock-time floor
+`MIN_COHERENCE_FLOOR = 550_000` — follow-on 2 — in both `lockEscrow`
+paths; release is certificate-gated: checkPayload requires cert
+coherence ≥ registry-bound threshold, plus the escrow-local tightening) ·
+Vy ENFORCED (spec §14 exact — threshold comes from the oracle verdict,
+not the caller, and the spec lock carries no min at all:
+BTCP_ESCROW.vy:173→235) · SVM ENFORCED (lock-time floor
+`MIN_COHERENCE_FLOOR`/`CoherenceFloor` — follow-on 2; release:
+cert.coherence ≥ escrow.min_coherence, threshold registry-bound) · Move
+ENFORCED (lock-time floor `E_COHERENCE_FLOOR`, `MIN_COHERENCE_FLOOR =
+550_000`; canonical-certificate release path) · TON ENFORCED (lock-time
+floor `ERR_COHERENCE_FLOOR = 162` — follow-on 2; C-01 canonical
+certificate release) · Cairo ENFORCED (lock-side INV-003 floor per its
+contract test battery) · pvm liquidity ENFORCED (commit-time floor —
+follow-on 2, both pvm twins synced).
 
 **Test.** `test_invariants.py::test_inv003_coherence_floor` (release with
 min_coherence=0.0 supplied by the caller is still gated at 0.55),
 `::test_inv003_two_phase_release` (release before verify_settlement
-fails).
+fails), `::test_inv003_floor_value_is_the_proof_builder_default`; lock-side
+regressions: `test_btcp_escrow_sol.py` (real-EVM sub-floor lock reverts,
+floor-exact accepted), `hardhat/test/BTCPEscrowConsensus.test.ts`
+(COHERENCE_BELOW_FLOOR + floor-exact), `test_btcp_escrow_svm.py`
+(lock-attacks + static parity needles), `test_btcp_escrow_ton.py`
+(ERR_COHERENCE_FLOOR=162), `test_btcp_escrow_move.py` (INV-003 at lock),
+`test_btcp_escrow_cairo.py` (INV-003 floor preserved).
 
-**Remediation.** W2-G (floor on lock-time minCoherence), W2-I (bind
-coherence verdict on-chain instead of relayer flag), W2-H/J/K/L parity.
+**Remediation.** W2-G (lock-time minCoherence floor) CLOSED this loop on
+Sol/SVM/TON (Move/Cairo already had it); W2-I (on-chain quorum binding)
+CLOSED by the C-01 canonical-certificate wave; W2-H/J/K/L parity CLOSED
+(see the per-tier tests above).
 
 ### INV-004 — No release after timeout
 

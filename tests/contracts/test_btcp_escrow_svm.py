@@ -623,6 +623,10 @@ class SvmEscrowMirror:
             raise ProgErr("Paused")
         if min_coherence > SCALE:
             raise ProgErr("InvalidCoherence")
+        # INV-003 (follow-on 2): tightening-only — sub-floor min_coherence
+        # rejected at lock (fail-fast; mirrors the Move/Cairo twins)
+        if min_coherence < 550_000:
+            raise ProgErr("CoherenceFloor")
         if timeout_slots == 0:
             raise ProgErr("ZeroTimeout")
         if entity_id == b"\x00" * 32:
@@ -1998,6 +2002,16 @@ def lock_attacks():
         coh = e.variant == "InvalidCoherence"
     check("lock with min_coherence above 1e6 rejected (INV-003: cannot loosen above scale)",
           coh)
+    try:
+        lock(min_coherence=549_999)
+        floor = False
+    except ProgErr as e:
+        floor = e.variant == "CoherenceFloor"
+    check("lock with sub-floor min_coherence rejected (INV-003 follow-on 2: tighten-only)",
+          floor)
+    check("lock at exactly the 0.55 floor (550_000) accepted",
+          lock(min_coherence=550_000,
+               escrow_id=sha3_256(b"escrow-floor-ok")) is not None)
     funder_before = w.m.accounts[w.funder].lamports
     lock()  # valid
     check("lock encumbers exactly the amount (funder balance drops by amount only)",
@@ -2074,6 +2088,7 @@ def static_parity():
         "RevertReason::Emergency",
         "EMERGENCY_REVERT_SECONDS",
         "cert.coherence >= escrow.min_coherence",
+        "require!(min_coherence >= MIN_COHERENCE_FLOOR, BTCPError::CoherenceFloor)",
         "escrow.state == EscrowState::Holding",
         "escrow.is_expired(clock.slot)",
         "3u128", "2u128", "4u128", "20u128", "17u128",   # tier literals
@@ -2146,6 +2161,7 @@ def static_parity():
         ("CERT_HHI_MAX", 4_000), ("CERT_TTL_MAX", 604_800),
         ("CERT_DRIFT_TOLERANCE_SECS", 60), ("D_CONSENSUS_TIER1", 600_000),
         ("D_CONSENSUS_TIER2", 400_000), ("MAX_VALIDATORS", 256),
+        ("MIN_COHERENCE_FLOOR", 550_000),
     ]
     bad = [n for n, v in common_consts if not const_u64(n, common, v)]
     check("static: btcp_common certificate constants match the canonical doc",

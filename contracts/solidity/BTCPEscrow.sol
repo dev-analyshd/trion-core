@@ -144,6 +144,15 @@ contract BTCPEscrow {
     // ── Constants (Phase 1.1 audit) ──────────────────────────────────────────
     uint256 public constant EMERGENCY_ESCAPE_SECONDS = 7 days;   // Gap 8: 7-day absolute max
     uint256 public constant AKASHIC_RECOVERY_SECONDS = 24 hours; // E1: 24h PENDING_AKASHIC window
+    /// INV-003 (follow-on 2 ruling): the protocol coherence floor Θ_min
+    /// 0.55 (BTCP_SPEC §17 dynamic threshold; the same number as
+    /// core/btcp/escrow_monitor.py::MIN_COHERENCE_FLOOR and the Move
+    /// twin's MIN_COHERENCE_FLOOR). A locker may TIGHTEN their gate
+    /// above the floor, never loosen below it — sub-floor values are
+    /// rejected AT LOCK (fail-fast, Move/Cairo parity), so a lock can
+    /// never encode a sub-floor expectation. Release remains certificate-
+    /// gated (cert coherence ≥ registry threshold ≥ floor) regardless.
+    uint256 public constant MIN_COHERENCE_FLOOR = 550_000; // ×1e6
 
     mapping(bytes32 => Escrow) private _escrows;
     bytes32[] public escrowList;
@@ -597,6 +606,9 @@ contract BTCPEscrow {
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
         require(minCoherence <= 1_000_000, "INVALID_COHERENCE");
+        // INV-003 (follow-on 2): tightening-only — sub-floor min_coherence
+        // is rejected at lock (fail-fast; Move/Cairo parity)
+        require(minCoherence >= MIN_COHERENCE_FLOOR, "COHERENCE_BELOW_FLOOR");
         require(timeoutBlocks > 0, "ZERO_TIMEOUT");
 
         _escrows[escrowId] = Escrow({
@@ -651,6 +663,9 @@ contract BTCPEscrow {
         require(msg.value > 0, "ZERO_AMOUNT");
         require(destination != address(0), "ZERO_DESTINATION");
         require(minCoherence <= 1_000_000, "INVALID_COHERENCE");
+        // INV-003 (follow-on 2): tightening-only — sub-floor min_coherence
+        // is rejected at lock (fail-fast; Move/Cairo parity)
+        require(minCoherence >= MIN_COHERENCE_FLOOR, "COHERENCE_BELOW_FLOOR");
         require(timeoutBlocks > 0, "ZERO_TIMEOUT");
 
         _escrows[escrowId] = Escrow({

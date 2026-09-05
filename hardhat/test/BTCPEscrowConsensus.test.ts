@@ -342,4 +342,29 @@ describe("BTCPEscrow consensus-gated release (S3/C2 — signature-quorum oracle)
       escrow.connect(deployer).setTRIONOracle(ethers.ZeroAddress),
     ).to.be.revertedWith("ZERO_ORACLE");
   });
+
+  it("INV-003 follow-on 2 — lock-side coherence floor 0.55 is tightening-only (fail-fast)", async () => {
+    const [, , , , , dest] = await ethers.getSigners();
+    const [deployer] = await ethers.getSigners();
+    const EscrowFactory = await ethers.getContractFactory("BTCPEscrow");
+    const escrow: Contract = await EscrowFactory.connect(deployer).deploy();
+    await escrow.waitForDeployment();
+
+    const escrowId = ethers.id("escrow-floor");
+    const routeId = ethers.id("route-floor");
+    // 549_999 is one ulp below the Θ_min 0.55 floor — rejected at lock
+    await expect(
+      escrow.connect(deployer).lockEscrow(
+        escrowId, routeId, ethers.id("entity"), dest.address,
+        549_999n, TIMEOUT, ethers.ZeroHash, { value: ONE_ETH },
+      ),
+    ).to.be.revertedWith("COHERENCE_BELOW_FLOOR");
+    // exactly 550_000 (0.55 ×1e6) is the no-op tightening — accepted
+    await expect(
+      escrow.connect(deployer).lockEscrow(
+        escrowId, routeId, ethers.id("entity"), dest.address,
+        550_000n, TIMEOUT, ethers.ZeroHash, { value: ONE_ETH },
+      ),
+    ).to.emit(escrow, "EscrowLocked");
+  });
 });
