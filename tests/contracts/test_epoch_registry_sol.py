@@ -180,5 +180,13 @@ def main():
     print("TrionEpochRegistry: sequential rotation, grace, weights, takeover-guards verified.")
 
 
+def test_full_battery_runs_clean():
+    """pytest entry point (battery-integrity fix, follow-on-2 loop): the
+    script battery must run clean whenever the pytest contracts battery
+    runs — main() exits non-zero on any check() failure. Script-mode
+    ("python3 tests/contracts/<file>.py") keeps working unchanged."""
+    main()
+
+
 if __name__ == "__main__":
     main()

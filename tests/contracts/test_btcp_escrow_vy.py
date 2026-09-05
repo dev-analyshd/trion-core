@@ -234,8 +234,13 @@ def main():
     print("\n1) lock() — payable, derived escrow_id, EscrowLocked event")
     intent_hash = w3.keccak(text="intent-A")
     entity_id = w3.keccak(text="entity-A")
+    # timeout 100 blocks: sections 2a-2d mine ~12 txs (each must_revert is
+    # a mined block) before the 2d release — a 10-block timeout let the
+    # escrow self-expire (INV-004 correctly refused the release; the test
+    # rotted because this script battery never ran under pytest). This
+    # file is now pytest-collected (test_full_battery_runs_clean below).
     txh = escrow.functions.lock(
-        intent_hash, entity_id, 10, dest
+        intent_hash, entity_id, 100, dest
     ).transact({"from": acct, "value": w3.to_wei(1, "ether"), "gas": 500_000})
     rcpt = w3.eth.wait_for_transaction_receipt(txh)
     escrow_id = rcpt.logs[0]["topics"][1]  # indexed escrow_id from EscrowLocked
@@ -466,6 +471,14 @@ def main():
     print("BTCP_ESCROW.vy complies with whitepaper §14.3 semantics on real EVM execution.")
     print("M-03 CLOSED: release quorum derives from the oracle's live validator state; "
           "interface mismatch fails closed.")
+
+
+def test_full_battery_runs_clean():
+    """pytest entry point (battery-integrity fix, follow-on-2 loop): the
+    script battery must run clean whenever the pytest contracts battery
+    runs — main() exits non-zero on any check() failure. Script-mode
+    ("python3 tests/contracts/<file>.py") keeps working unchanged."""
+    main()
 
 
 if __name__ == "__main__":
