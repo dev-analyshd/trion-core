@@ -1,0 +1,111 @@
+{
+ "schema_version": "1.0.0",
+ "canonical_doc": "docs/audit/canonical-sweep/GOLDEN_VECTOR_CORPUS.md",
+ "description": "CANONICAL \u00a717 BITP CUT commitment byte format (follow-on-1 ruling, FINAL_RELEASE_VERDICT.md): preimage text pinned at BOTH the text level and the sha3-256 digest level. Every segment encoded by the python canonical encoder policy (_canonical_intent_field, core/btcp/modules.py): bytes \u2192 lowercase hex NO 0x prefix (variable length, no zero padding), None \u2192 'none', floats \u2192 python repr (integral keep .0), ints decimal, lists \u2192 bracketed comma-join. Field order: entity_id, asset_in, asset_out, magnitude, deadline, behavioral_proof_root (None \u2192 '0'*64), nonce, then the eight \u00a74.1 fields as one colon-joined segment (action, value, max_total_gas, min_finality, min_nl_score, chain_pref, privacy, btcp_version). Rust twin: rust/src/bitp_matcher.rs::execute_cut (py_repr_f64 for floats, hex::encode for H256/bytes) \u2014 cargo-blocked in this sandbox, statically pinned by tests/golden/test_bitp_cut_commitment_vectors.py.",
+ "float_domain": "finite |v| < 1e16 (python repr == rust py_repr_f64 inside it)",
+ "vectors": [
+  {
+   "id": "cut_v1_defaults_32byte",
+   "description": "all \u00a74.1 spec defaults, no proof root (0*64 fallback), nonce 0, 32-byte entity",
+   "input": {
+    "entity_id": "abababababababababababababababababababababababababababababababab",
+    "asset_in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_out": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "magnitude": 100.0,
+    "chain_id": 1,
+    "deadline": 2000
+   },
+   "canonical_text": "abababababababababababababababababababababababababababababababab:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:100.0:2000:0000000000000000000000000000000000000000000000000000000000000000:0:SWAP:none:none:STANDARD:300:OPTIMAL:PUBLIC:1.0.0",
+   "expected_sha3_256": "76d0da1819c651fe3d5084f3b1f1eb020c433ef15ac665a167ca62168fabf76a"
+  },
+  {
+   "id": "cut_v2_proof_root_nonce",
+   "description": "proof root bound + nonce 7 (\u00a717 uniqueness fields)",
+   "input": {
+    "entity_id": "abababababababababababababababababababababababababababababababab",
+    "asset_in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_out": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "magnitude": 100.0,
+    "chain_id": 1,
+    "deadline": 2000,
+    "behavioral_proof_root": "1111111111111111111111111111111111111111111111111111111111111111",
+    "nonce": 7
+   },
+   "canonical_text": "abababababababababababababababababababababababababababababababab:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:100.0:2000:1111111111111111111111111111111111111111111111111111111111111111:7:SWAP:none:none:STANDARD:300:OPTIMAL:PUBLIC:1.0.0",
+   "expected_sha3_256": "bf823518c0a21859c7f992ce38d2cc6de9e7071e08523a84ea5a7ba90c327298"
+  },
+  {
+   "id": "cut_v3_value_gas_fast",
+   "description": "value/max_total_gas set (int decimal), FAST finality \u2014 None\u2192none exercised on v1 only",
+   "input": {
+    "entity_id": "abababababababababababababababababababababababababababababababab",
+    "asset_in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_out": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "magnitude": 100.0,
+    "chain_id": 1,
+    "deadline": 2000,
+    "behavioral_proof_root": "2222222222222222222222222222222222222222222222222222222222222222",
+    "nonce": 1,
+    "value": 2500000000000000000,
+    "max_total_gas": 88,
+    "min_finality": "FAST"
+   },
+   "canonical_text": "abababababababababababababababababababababababababababababababab:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:100.0:2000:2222222222222222222222222222222222222222222222222222222222222222:1:SWAP:2500000000000000000:88:FAST:300:OPTIMAL:PUBLIC:1.0.0",
+   "expected_sha3_256": "582c68329d561f0c2f37c26313ef5186a603e3cda3d883465f041432299f5e00"
+  },
+  {
+   "id": "cut_v4_chain_pref_allowed",
+   "description": "chain_pref allow-list \u2192 bracketed [1,137] (was the three-way divergence)",
+   "input": {
+    "entity_id": "abababababababababababababababababababababababababababababababab",
+    "asset_in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_out": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "magnitude": 100.0,
+    "chain_id": 1,
+    "deadline": 2000,
+    "chain_pref": [
+     1,
+     137
+    ]
+   },
+   "canonical_text": "abababababababababababababababababababababababababababababababab:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:100.0:2000:0000000000000000000000000000000000000000000000000000000000000000:0:SWAP:none:none:STANDARD:300:[1,137]:PUBLIC:1.0.0",
+   "expected_sha3_256": "2eb25eb73aefbd71b8755d718c1b84a3bf68200c47601af5da09396d0bbec095"
+  },
+  {
+   "id": "cut_v5_nondefaults",
+   "description": "SINGLE_CHAIN + ZK_CREDENTIAL + nl floor 750 + semver 2.1.3 + nonce 42",
+   "input": {
+    "entity_id": "abababababababababababababababababababababababababababababababab",
+    "asset_in": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset_out": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "magnitude": 100.0,
+    "chain_id": 1,
+    "deadline": 2000,
+    "min_nl_score": 750,
+    "chain_pref": "SINGLE_CHAIN",
+    "privacy": "ZK_CREDENTIAL",
+    "btcp_version": "2.1.3",
+    "nonce": 42
+   },
+   "canonical_text": "abababababababababababababababababababababababababababababababab:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:100.0:2000:0000000000000000000000000000000000000000000000000000000000000000:42:SWAP:none:none:STANDARD:750:SINGLE_CHAIN:ZK_CREDENTIAL:2.1.3",
+   "expected_sha3_256": "a055049f37cc9a3cd7a8ef85b19ff1a9d9db0edc340bd2940a3ea126e8ae9f46"
+  },
+  {
+   "id": "cut_v6_short_ids_fractional",
+   "description": "8-byte ids (variable-length hex, no padding), fractional magnitude 1234.567, INVISIBLE",
+   "input": {
+    "entity_id": "0101010101010101",
+    "asset_in": "cdcdcdcdcdcdcdcd",
+    "asset_out": "efefefefefefefef",
+    "magnitude": 1234.567,
+    "chain_id": 137,
+    "deadline": 9876543210,
+    "behavioral_proof_root": "1111111111111111111111111111111111111111111111111111111111111111",
+    "nonce": 99,
+    "privacy": "INVISIBLE"
+   },
+   "canonical_text": "0101010101010101:cdcdcdcdcdcdcdcd:efefefefefefefef:1234.567:9876543210:1111111111111111111111111111111111111111111111111111111111111111:99:SWAP:none:none:STANDARD:300:OPTIMAL:INVISIBLE:1.0.0",
+   "expected_sha3_256": "a7812a46c4627a6b85e06d8011ce1000cf6b70205e356c190fc0315c779b9fa6"
+  }
+ ]
+}
