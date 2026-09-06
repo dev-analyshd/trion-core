@@ -172,7 +172,7 @@ TRION implements Living Security — cryptographic keys derived from behavioral 
 - **Falsifiability Registry**: 15 outcome-based F-conditions (WP2 §20),
   each with a specific test metric, threshold, and window.
 
-## Consensus Security — Canonical Certificates (Waves 1–3)
+## Consensus Security — Canonical Certificates 
 
 Every consuming VM tier — EVM (Solidity + Vyper), Solana, Move, TON, NEAR,
 Starknet/Cairo — verifies the 346-byte canonical certificate against a
