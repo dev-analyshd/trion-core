@@ -43,8 +43,13 @@ from typing import Any
 import requests
 from flask import Blueprint, jsonify, request
 
+from api.faiss_client import faiss_headers
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 FAISS_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+# /index/* writes require X-API-Key — resolved by api.faiss_client with the
+# same FAISS_API_KEY → FAISS_SERVICE_API_KEY → TRION_API_KEY order the
+# FAISS service itself enforces (SEC-01).
 
 CEX_CHAIN_IDS = {
     "BINANCE":  90001,
@@ -511,6 +516,7 @@ def cex_ingest():
     # Classify records → BHs
     classified = _classify_cex_event(data_type, records)
     bhs_built = []
+    bhs_full  = []   # complete BH dicts (full strands) for the FAISS forward
     alerts_raised = []
 
     with _db_lock:
@@ -519,6 +525,7 @@ def cex_ingest():
             bh = _build_cex_bh(cex_name, asset, event_type, usd_val,
                                ctx_flags, ts, chain_id, batch_id)
             _store_bh(conn, bh, ingest_id, cex_name, asset, data_type, usd_val, market)
+            bhs_full.append(bh)
             bhs_built.append({
                 "event_type":   bh["event_name"],
                 "magnitude":    bh["magnitude_norm"],
@@ -553,26 +560,41 @@ def cex_ingest():
     # Estimate Φ(t) enrichment: each BH adds to Physical Layer entropy estimate
     phi_delta = round(0.0008 * min(len(bhs_built), 500), 4)
 
-    # Forward to FAISS (non-blocking, best-effort)
+    # Forward to FAISS (non-blocking, best-effort).
+    # Payload must match the /index/add_tx_bh_batch TxBhBatchPayload schema
+    # (chain_id/chain_label/block_num/block_hash/timestamp + entries), built
+    # from the full BH dicts — the bhs_built summaries carry only truncated
+    # strands. CEX order flow is anonymized and USD-denominated, so the
+    # address/wei/selector fields get honest placeholders (the endpoint
+    # stores them verbatim; magnitude_norm carries the real magnitude).
     def _forward_to_faiss():
         try:
-            entity_id = _entity_id_bytes(cex_name, asset).hex()
-            requests.post(f"{FAISS_URL}/index/add_tx_bh_batch", json={
-                "chain": f"CEX_{cex_name}",
-                "block_number": ts,
-                "block_hash": batch_id,
-                "bhs": [
+            requests.post(f"{FAISS_URL}/index/add_tx_bh_batch", headers=faiss_headers(), json={
+                "chain_id":    chain_id,
+                "chain_label": f"CEX_{cex_name}",
+                "block_num":   ts,               # no real block — ts is the pseudo-block
+                "block_hash":  bhs_full[0]["block_hash_hex"] if bhs_full else batch_id,
+                "timestamp":   ts,
+                "entries": [
                     {
                         "tx_hash":        f"{ingest_id}_{i}",
-                        "entity_id_hex":  _entity_id_bytes(cex_name, asset).hex(),
-                        "sense_hex":      b["sense_hex"].rstrip("…"),
-                        "antisense_hex":  b["antisense_hex"].rstrip("…"),
-                        "event_type":     list(EVENT_TYPES.keys())[
-                            list(EVENT_TYPES.values()).index(b["event_type"])
-                        ] if b["event_type"] in EVENT_TYPES.values() else 0,
-                        "magnitude_norm": b["magnitude"],
+                        "entity_id":      bh["entity_id_hex"],
+                        "from_addr":      f"CEX:{cex_name}",
+                        "to_addr":        f"MARKET:{asset}",
+                        "event_type":     bh["event_type"],
+                        "event_type_name": bh["event_name"],
+                        "magnitude_norm": bh["magnitude_norm"],
+                        "value_wei":      "0",
+                        "selector":       "0x",
+                        "sense_hex":      bh["sense_hex"],
+                        "antisense_hex":  bh["antisense_hex"],
+                        "timestamp":      bh["ts"],
+                        "chain_id":       bh["chain_id"],
+                        "chain_label":    f"CEX_{cex_name}",
+                        "block_num":      ts,
+                        "block_hash":     bh["block_hash_hex"],
                     }
-                    for i, b in enumerate(bhs_built)
+                    for i, bh in enumerate(bhs_full)
                 ],
             }, timeout=3)
         except Exception:
@@ -849,6 +871,28 @@ def hostile_feed():
     })
 
 
+def _resolve_webhook_ips(host: str) -> list:
+    """Resolve a webhook hostname to its address strings (SEC-15).
+
+    Literal IPs never hit DNS — the caller checks them directly. Returns
+    [] on any resolution failure so callers fail closed (an unresolvable
+    host cannot be verified as a public target).
+    """
+    import socket as _socket
+    try:
+        infos = _socket.getaddrinfo(host, None)
+    except Exception:
+        return []
+    ips = []
+    for info in infos:
+        sa = info[4]
+        if isinstance(sa, tuple) and sa:
+            ip = sa[0]
+            if ip not in ips:
+                ips.append(ip)
+    return ips
+
+
 @cex_bp.route("/api/v1/cex/webhook/register", methods=["POST"])
 def webhook_register():
     """
@@ -872,27 +916,45 @@ def webhook_register():
         return jsonify({"registered": False,
                         "reason": "url must be a valid http/https endpoint"}), 400
 
-    # W3-M SSRF guard (basic): the alert pusher POSTs to this URL from the
+    # W3-M SSRF guard: the alert pusher POSTs to this URL from the
     # server — an internal/loopback target lets a caller probe and interact
-    # with internal services through TRION. Reject obvious private/loopback
-    # literals; full DNS-rebinding protection belongs at the egress proxy.
-    import re as _re
+    # with internal services through TRION. SEC-15: the hostname is now
+    # RESOLVED and every address it maps to is checked, so a DNS-rebinded
+    # name (internal.evil.com → 169.254.169.254) is rejected like the
+    # literal. Unresolvable hosts fail closed (an unverifiable target is
+    # not a public one). Full delivery-time IP pinning still belongs to
+    # the egress proxy.
+    import ipaddress as _ipaddress
     from urllib.parse import urlparse as _urlparse
     _host = (_urlparse(url).hostname or "").lower()
-    _private = (
-        _host in ("localhost", "0.0.0.0", "::1", "metadata.google.internal")
-        or _re.match(r"^127\.", _host) is not None
-        or _re.match(r"^10\.", _host) is not None
-        or _re.match(r"^192\.168\.", _host) is not None
-        or _re.match(r"^169\.254\.", _host) is not None
-        or _re.match(r"^172\.(1[6-9]|2[0-9]|3[01])\.", _host) is not None
-    )
-    if _private:
+    _resolved: list = []
+    if _host:
+        try:
+            _resolved = [str(_ipaddress.ip_address(_host))]  # literal IP: no DNS
+        except ValueError:
+            _resolved = _resolve_webhook_ips(_host)
+    _private_reason = None
+    if not _resolved:
+        _private_reason = ("webhook host is unresolvable — a target that "
+                           "cannot be verified as public is refused (SSRF guard)")
+    else:
+        for _ip in _resolved:
+            try:
+                _addr = _ipaddress.ip_address(_ip)
+            except ValueError:
+                _private_reason = (f"webhook host maps to an unparseable "
+                                   f"address ({_ip!r}) — refused (SSRF guard)")
+                break
+            if not _addr.is_global or _addr.is_multicast:
+                _private_reason = (
+                    f"webhook host resolves to a private/reserved range "
+                    f"({_ip}) — server-side alert delivery to internal "
+                    f"targets is not allowed (SSRF guard)")
+                break
+    if _private_reason:
         return jsonify({
             "registered": False,
-            "reason": ("webhook host resolves to a private/loopback range — "
-                       "server-side alert delivery to internal targets is "
-                       "not allowed (SSRF guard)"),
+            "reason": _private_reason,
         }), 400
 
     events_str = ",".join(str(e).upper() for e in events) if events else "ALL"

@@ -16,20 +16,38 @@ import logging
 import threading
 from collections import deque
 from flask import Flask, jsonify, request, render_template, send_from_directory
-from flask_cors import CORS
 from api.validation import require_entity_id, validate_entity_id, validate_address
+from api.faiss_client import faiss_headers, faiss_urlopen
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s [api] %(message)s")
 _log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static')
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# ── CORS (SEC-14): cross-origin browser access is OPT-IN ───────────────────
+# TRION_CORS_ORIGINS — comma-separated origin list, e.g.
+#   TRION_CORS_ORIGINS="http://localhost:3000,https://dashboard.trion.io"
+# Unset (default) → same-origin only: no Access-Control headers are emitted
+# at all, replacing the old wildcard "*" posture.  Both bundled frontends
+# reach this API through their own server-side Next.js proxies
+# (frontend/next.config.js rewrites; frontend-institutional /api/trion/*),
+# so they need no browser-level CORS.  Direct cross-origin clients (a dev
+# WebSocket page, an external dashboard) must be listed in this variable.
+_CORS_ORIGINS = [
+    o.strip() for o in os.environ.get("TRION_CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
 
 # ── FAISS ANIMA service base URL (single resolution point) ────────────────
 # Every internal call to the anima-service honors FAISS_SERVICE_URL (or the
 # FAISS_URL alias) — previously 21 hardcoded 127.0.0.1:8000 call sites broke
 # any deployment where the service is not on localhost (docker compose,
 # separate hosts).
+#
+# The service is API-key protected (SEC-01): call sites go through
+# api.faiss_client (faiss_urlopen / faiss_headers) so the X-API-Key header —
+# resolved FAISS_API_KEY → FAISS_SERVICE_API_KEY → TRION_API_KEY, identical
+# to the service — rides on every request.
 _FAISS_BASE = os.environ.get(
     "FAISS_SERVICE_URL", os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
 )
@@ -168,14 +186,18 @@ def _rate_limit():
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── API key authentication (write/admin operations) ───────────────────────────
-# Set TRION_API_KEY in Replit Secrets to enable.  When the var is absent auth
-# is disabled so read-only public deployments need no config change.
-# All GET/HEAD/OPTIONS requests are always public — oracle data is intentionally
-# world-readable.  POST/PUT/PATCH/DELETE require a valid X-API-Key header.
+# Set TRION_API_KEY in Replit Secrets to enable.  When the var is absent
+# the API runs fail-closed for WRITES (SEC-03): GET/HEAD/OPTIONS reads
+# stay public so read-only dashboards need no config change, but every
+# state-changing request — POST/PUT/PATCH/DELETE — is refused with 503
+# until an operator configures a key.  When the key IS set,
+# GET/HEAD/OPTIONS remain public (oracle data is intentionally
+# world-readable) and everything else requires a valid X-API-Key header.
 # P-API-02 (Wave 4 red team): some WRITE routes historically answered GET
 # (side effects: on-chain publication, DA/storage submission). The method
 # model alone could not see those — the write-path set below is
-# METHOD-AGNOSTIC: any request to these paths requires the key, GET included.
+# METHOD-AGNOSTIC: any request to these paths requires the key, GET
+# included, and is refused even when no key is configured at all.
 _TRION_API_KEY = os.environ.get("TRION_API_KEY", "").strip()
 
 _WRITE_PATHS = frozenset({
@@ -195,10 +217,36 @@ def _is_write_path(path: str) -> bool:
             return True
     return False
 
+def _writes_disabled_response():
+    """503 for a write on a deployment with no TRION_API_KEY (SEC-03):
+    the API is read-only until an operator configures a key."""
+    from flask import Response as _R
+    _log.warning("Write refused (auth not configured): %s %s",
+                 request.method, request.path)
+    return _R(
+        json.dumps({
+            "error": "auth_not_configured",
+            "message": ("Write operations are disabled: TRION_API_KEY is not "
+                        "set. Set TRION_API_KEY and send its value in the "
+                        "X-API-Key header to enable writes; reads stay public."),
+        }),
+        status=503,
+        mimetype="application/json",
+    )
+
 @app.before_request
 def _require_api_key():
     if not _TRION_API_KEY:
-        return None  # auth disabled — set TRION_API_KEY secret to enable
+        # SEC-03 fail-closed default: an unconfigured deployment is
+        # read-only.  Reads stay public; writes are refused (including
+        # the method-agnostic write paths, which are writes on GET too).
+        if _is_write_path(request.path):
+            return _writes_disabled_response()
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return None  # read-only traffic stays public without a key
+        if request.path in ("/api/v1/health",):
+            return None
+        return _writes_disabled_response()
 
     if _is_write_path(request.path):
         pass  # write path: authenticated on EVERY method (P-API-02)
@@ -348,9 +396,16 @@ def _feed_push(entry: dict):
 
 @app.after_request
 def add_cors(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    # SEC-14: no wildcard CORS.  Cross-origin access is opt-in via
+    # TRION_CORS_ORIGINS (see the _CORS_ORIGINS block at the top): a
+    # listed Origin is echoed exactly; anything else gets no header.
+    if _CORS_ORIGINS:
+        origin = request.headers.get("Origin", "")
+        if origin in _CORS_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-API-Key"
+            response.headers.add("Vary", "Origin")
     return response
 
 
@@ -481,7 +536,7 @@ def zg_stats():
 @app.route("/api/v1/faiss")
 def faiss_stats():
     """Live FAISS ANIMA engine stats — merges FAISS service + real-time streamer count."""
-    import urllib.request as _req, json as _json
+    import json as _json
     vol = _market_volatility()
 
     # Start with streamer live data (always available if streamer is running)
@@ -502,7 +557,7 @@ def faiss_stats():
         pass
 
     try:
-        with _req.urlopen(f"{_FAISS_BASE}/health", timeout=3) as r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=3) as r:
             data = _json.loads(r.read())
         # Merge: use max of FAISS service count and live streamer count
         data["indexed_vectors"] = max(data.get("indexed_vectors", 0), live_vectors)
@@ -590,10 +645,9 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
     a fresh fetch. Returns a JSON-serialisable tuple (None or dict-as-tuple-of-pairs)
     so lru_cache can hash it.
     """
-    import urllib.request as _ur
     try:
         # ── Mental confidence ──────────────────────────────────────────────
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/mental_confidence/{eid}", timeout=1
         ) as _r:
             mental = json.loads(_r.read())
@@ -608,14 +662,14 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         m_val = float(mental.get("mental_m", 0.5))
 
         # ── ANIMA score ────────────────────────────────────────────────────
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/anima/{eid}", timeout=1
         ) as _r:
             anima_d = json.loads(_r.read())
         a_val = float(anima_d.get("anima_score", 0.5))
 
         # ── Depth (physical proxy) ─────────────────────────────────────────
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/depth/{eid}", timeout=1
         ) as _r:
             depth_d = json.loads(_r.read())
@@ -670,7 +724,7 @@ def _get_sigma_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
 
     # ── 2. Try local computation from validator signals in FAISS ────────────
     try:
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/spiritual/validators?entity={eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
@@ -710,11 +764,9 @@ def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
 
     Returns (k_value, source_description)
     """
-    import urllib.request as _ur
-
     # ── 1. Try live annotation service ──────────────────────────────────────
     try:
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/conscious/annotations/{eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
@@ -726,7 +778,7 @@ def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
 
     # ── 2. Try indigenous knowledge / cultural context from FAISS ───────────
     try:
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/conscious/indigenous/{eid}", timeout=1
         ) as _r:
             data = json.loads(_r.read())
@@ -1327,8 +1379,7 @@ def anima_signal(entity_id: str):
     archetype_distance = round(1.0 - planes["anima"], 6)
     vector_neighbors = 0
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(
+        with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/archetype/{entity_id}", timeout=3
         ) as _r:
             _arch = json.loads(_r.read())
@@ -1398,12 +1449,11 @@ def readyz():
     is up but its downstream FAISS dependency is still cold-starting
     (which otherwise surfaces as 500s during the first 10-15s after boot).
     """
-    import urllib.request as _ur
     faiss_url = _FAISS_BASE
     faiss_ok = False
     faiss_vec = 0
     try:
-        with _ur.urlopen(f"{faiss_url}/healthz", timeout=1.5) as _r:
+        with faiss_urlopen(f"{faiss_url}/healthz", timeout=1.5) as _r:
             faiss_ok = (_r.status == 200)
     except Exception:
         faiss_ok = False
@@ -1442,8 +1492,7 @@ def stats():
     # Pull indexed_vectors from FAISS service for stats (uses /health which has all fields)
     indexed_vectors = 0
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _fstats = json.loads(_r.read())
             indexed_vectors = int(_fstats.get("indexed_vectors", _fstats.get("vector_count", 0)))
     except Exception:
@@ -3026,8 +3075,7 @@ def governance_falsifiability():
     live_vector_count = None
     live_entities   = None
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _h = json.loads(_r.read())
             live_bh_count      = _h.get("total_bh_records")
             live_vector_count  = _h.get("total_vectors")
@@ -3499,8 +3547,7 @@ def anima_intelligence():
 
     imp = get_imp()
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=2) as _r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=2) as _r:
             faiss_health = json.loads(_r.read())
         depth    = float(faiss_health.get("indexed_vectors", faiss_health.get("vector_count", 0)))
         pa_proxy = min(1.0, depth / 5000.0)
@@ -3554,8 +3601,7 @@ def anima_intelligence():
 def _faiss_depth() -> float:
     """Helper: current Akashic depth from FAISS service."""
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=1) as _r:
             _d = json.loads(_r.read())
             return float(_d.get("indexed_vectors", _d.get("vector_count", 0)))
     except Exception:
@@ -3565,8 +3611,7 @@ def _faiss_depth() -> float:
 def _proxy_faiss(path: str) -> tuple:
     """Proxy a GET request to FAISS service at port 8000. Returns (data, status)."""
     try:
-        import urllib.request as _ur
-        with _ur.urlopen(f"{_FAISS_BASE}{path}", timeout=3) as _r:
+        with faiss_urlopen(f"{_FAISS_BASE}{path}", timeout=3) as _r:
             return json.loads(_r.read()), 200
     except Exception as e:
         return {"error": f"FAISS unavailable: {e}"}, 503
@@ -4138,7 +4183,8 @@ def validators_list():
     import requests as _req
     faiss_url = _FAISS_BASE
     try:
-        r = _req.get(f"{faiss_url}/api/v1/spiritual/validators", timeout=10)
+        r = _req.get(f"{faiss_url}/api/v1/spiritual/validators",
+                     headers=faiss_headers(), timeout=10)
         if r.status_code == 200:
             return jsonify({"validators": r.json(), "source": "faiss", "timestamp": int(time.time())})
     except Exception:
@@ -5106,7 +5152,8 @@ def bh_ledger_get(entity_id: str):
         params = {"limit": min(limit, 200)}
         if chain_id is not None:
             params["chain_id"] = chain_id
-        r = _req.get(f"{faiss_url}/bh/ledger/{entity_id}", params=params, timeout=5)
+        r = _req.get(f"{faiss_url}/bh/ledger/{entity_id}", params=params,
+                     headers=faiss_headers(), timeout=5)
         return jsonify(r.json()), r.status_code
     except Exception as e:
         return jsonify({
@@ -5955,6 +6002,10 @@ def signal_by_type(type_name: str, entity_id: str):
     base    = _compute_signal(entity_id)
     h       = hashlib.sha3_256(entity_id.encode()).digest()
     vol     = _market_volatility()
+    # COLD_START signals carry no plane_breakdown (no FAISS sediment yet) —
+    # same defensive access as the /planes consumers below; per-plane 0.0
+    # means "unobserved", so every bootstrap flag stays truthfully set.
+    pb      = base.get("plane_breakdown", {})
 
     # Build coherence_result dict compatible with signal_factory.build_signal()
     coh = {
@@ -5967,11 +6018,11 @@ def signal_by_type(type_name: str, entity_id: str):
         "limiting_plane":base["limiting_plane"],
         "trend":         base.get("coherence_trend", "STABLE"),
         "eta_blocks":    base.get("eta_blocks", 0),
-        "plane_breakdown":base["plane_breakdown"],
+        "plane_breakdown":pb,
         "bootstrap_planes": {
-            "sigma_bootstrap": base["plane_breakdown"]["spiritual"] <= 0.26,
-            "k_bootstrap":     base["plane_breakdown"]["conscious"] <= 0.11,
-            "anima_bootstrap": base["plane_breakdown"]["anima"] <= 0.11,
+            "sigma_bootstrap": pb.get("spiritual", 0.0) <= 0.26,
+            "k_bootstrap":     pb.get("conscious", 0.0) <= 0.11,
+            "anima_bootstrap": pb.get("anima", 0.0) <= 0.11,
         },
         "weights":       base.get("weights", {}),
         "akashic_depth": base.get("akashic_depth", 0),
@@ -6032,7 +6083,7 @@ def signal_by_type(type_name: str, entity_id: str):
             sig = build_negative_space(entity_id, coh,
                 absence_duration_blocks=abs_dur,
                 expected_activity_score=exp_act,
-                absence_significance=round(abs(exp_act - base["plane_breakdown"]["physical"]), 4),
+                absence_significance=round(abs(exp_act - pb.get("physical", 0.0)), 4),
                 pattern_context="Notable by absence before governance event")
         elif tn == "PHASE_TRANSITION":
             phases = ["SOLID","LIQUID","GAS","PLASMA"]
@@ -6066,6 +6117,9 @@ def signal_by_type(type_name: str, entity_id: str):
             gs = round(0.30 + (h[28]/255.0)*0.65, 4)
             hhi_g = round(800 + (h[29]/255.0)*6000, 1)
             quorum_reached = h[30] > 100
+            # h is a 32-byte sha3-256 digest — bytes 32..34 live in a chained
+            # digest (same derivation pattern as the generation hashes below).
+            hx = hashlib.sha3_256(h).digest()
             # AUDIT-3 G4 fix: prior code `awa_enforced=hhi_g > 3500` was INVERTED
             # (True when HHI dangerously high). Per WP2 §17 and core/governance/awa.py
             # AWA_HHI_MAX=4000, AWA_QUORUM=2/3, AWA_GRATITUDE_MIN=1.0,
@@ -6075,8 +6129,8 @@ def signal_by_type(type_name: str, entity_id: str):
             # Gratitude + public_good_pct are derived deterministically from the
             # entity hash bytes for this synthetic signal path; production reads
             # these from the live AWAEnforcer singleton via /api/v1/governance/awa.
-            public_good_pct  = round(0.05 + (h[31]/255.0) * 0.40, 4)  # [0.05, 0.45]
-            gratitude_score  = round((h[32]/255.0) * 2.50, 4)         # [0.00, 2.50]
+            public_good_pct  = round(0.05 + (h[31]/255.0) * 0.40, 4)   # [0.05, 0.45]
+            gratitude_score  = round((hx[0]/255.0) * 2.50, 4)          # [0.00, 2.50]
             awa_enforced = (
                 hhi_g < 4000
                 and quorum_reached
@@ -6085,9 +6139,9 @@ def signal_by_type(type_name: str, entity_id: str):
             )
             sig = build_governance_signal(entity_id, coh,
                 governance_score=gs, quorum_reached=quorum_reached,
-                hhi=hhi_g, validator_count=int(5 + h[33]%20),
+                hhi=hhi_g, validator_count=int(5 + hx[1]%20),
                 awa_enforced=awa_enforced, signals_frozen=not awa_enforced,
-                active_proposal=f"PROP-{h[34]%1000:04d}")
+                active_proposal=f"PROP-{hx[2]%1000:04d}")
         elif tn == "CROSS_CHAIN_COHERENCE":
             ccs = round(0.30 + (h[0]/255.0)*0.65, 4)
             sig = build_cross_chain_coherence(entity_id, coh,
@@ -6150,9 +6204,9 @@ def signal_by_type(type_name: str, entity_id: str):
                 observations_needed=obs_need,
                 observations_current=min(obs_cur, obs_need),
                 planes_bootstrapped={
-                    "sigma": base["plane_breakdown"]["spiritual"] > 0.26,
-                    "k":     base["plane_breakdown"]["conscious"] > 0.11,
-                    "anima": base["plane_breakdown"]["anima"] > 0.11,
+                    "sigma": pb.get("spiritual", 0.0) > 0.26,
+                    "k":     pb.get("conscious", 0.0) > 0.11,
+                    "anima": pb.get("anima", 0.0) > 0.11,
                 },
                 estimated_blocks_to_full=max(0, int((obs_need - obs_cur) * 100)))
         else:
@@ -9098,8 +9152,7 @@ def demo_simulate_attack():
 def demo_stats():
     faiss_count = 0
     try:
-        import urllib.request as _ur
-        resp = _ur.urlopen(f"{_FAISS_BASE}/stats", timeout=2)
+        resp = faiss_urlopen(f"{_FAISS_BASE}/stats", timeout=2)
         data = json.loads(resp.read())
         faiss_count = data.get("total_vectors", 0)
     except Exception:
@@ -9219,7 +9272,7 @@ def zg_agent_id(entity_id: str):
     Each behavioral archetype is tokenized per 0G Agent Identity standard.
     Supports: encrypted metadata, interactive evolution, tradable ownership, composability.
     """
-    import hashlib, urllib.request as _ur, json as _j
+    import hashlib, json as _j
     seed = _entity_seed(entity_id)
     h    = hashlib.sha3_256(entity_id.encode()).hexdigest()
 
@@ -9252,7 +9305,7 @@ def zg_agent_id(entity_id: str):
     # Pull live coherence score from FAISS if available
     phi_live = round(0.40 + seed * 0.55, 4)
     try:
-        with _ur.urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
+        with faiss_urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
             pd = _j.loads(r.read())
             phi_live = round(pd.get("phi", phi_live), 4)
     except Exception:
@@ -9314,7 +9367,7 @@ def kv_get_signal(entity_id: str):
     Implements 0G Storage KV layer for sub-10ms pre-execution DeFi lookups.
     KV layer = structured mutable state; Log layer = immutable audit trail.
     """
-    import hashlib, urllib.request as _ur, json as _j
+    import hashlib, json as _j
     seed = _entity_seed(entity_id)
     h    = hashlib.sha3_256(entity_id.encode()).hexdigest()
 
@@ -9324,7 +9377,7 @@ def kv_get_signal(entity_id: str):
     phi_source = "hash_seeded_fallback"
 
     try:
-        with _ur.urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
+        with faiss_urlopen(f"{_FAISS_BASE}/planes/{entity_id}/physical", timeout=2) as r:
             pd = _j.loads(r.read())
             phi = round(pd.get("phi", phi), 4)
             allowed = phi >= theta
@@ -9476,7 +9529,7 @@ def zg_full_stack():
     # Pull FAISS stats
     faiss_vectors = 89
     try:
-        with _ur.urlopen(f"{_FAISS_BASE}/health", timeout=2) as r:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=2) as r:
             fd = _j.loads(r.read())
             faiss_vectors = fd.get("indexed_vectors", 89)
     except Exception:
@@ -9984,7 +10037,8 @@ def architecture_inversion():
         import requests as _req
         _moat  = _req.get("http://127.0.0.1:5000/api/v1/moat",    timeout=2).json()
         _bh    = _req.get("http://127.0.0.1:5000/api/v1/bh/stats", timeout=2).json()
-        _faiss = _req.get(f"{_FAISS_BASE}/health",          timeout=2).json()
+        _faiss = _req.get(f"{_FAISS_BASE}/health", headers=faiss_headers(),
+                          timeout=2).json()
         _uni   = _req.get("http://127.0.0.1:5000/api/v1/signal/uniswap", timeout=2).json()
     except Exception:
         _moat = _bh = _faiss = _uni = {}

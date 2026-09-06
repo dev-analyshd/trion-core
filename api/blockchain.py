@@ -230,15 +230,26 @@ class ChainRelay:
         return self._w3 is not None and self._oracle is not None and self._account is not None
 
     def _entity_to_bytes32(self, entity_id: str) -> bytes:
-        """Convert entity_id string to bytes32."""
+        """Convert entity_id string to bytes32.
+
+        Canonical SHA3-256 (SEC-20): the behavioral-hash pipeline
+        (core/primitives/behavioral_hash.py, trion-common hash_dna) is
+        SHA3-256 everywhere — the on-chain oracle entity id must key to
+        the same identity, not a SHA-256 shadow that matches no BEO
+        ledger entry.
+        """
         raw = entity_id.encode()
-        h = hashlib.sha256(raw).digest()
+        h = hashlib.sha3_256(raw).digest()
         return h
 
     def _commitment(self, entity_id: str, score: float, ts: int) -> bytes:
-        """Generate public commitment hash (no behavior content)."""
+        """Generate public commitment hash (no behavior content).
+
+        SHA3-256 for the same canonical-alignment reason as
+        _entity_to_bytes32 (SEC-20).
+        """
         payload = f"{entity_id}:{score:.6f}:{ts // 300}".encode()
-        return hashlib.sha256(payload).digest()
+        return hashlib.sha3_256(payload).digest()
 
     def _plane_index(self, plane_name: str) -> int:
         mapping = {"Physical": 0, "Mental": 1, "Spiritual": 2, "Conscious": 3, "ANIMA": 4}
