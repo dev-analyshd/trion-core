@@ -37,11 +37,18 @@ core/consensus/certificate.py — including the pinned golden vector — plus:
     checks in the canonical order (and that the relayer/owner/validator
     authorization is gone from both release paths).
 
-HONEST UNVERIFIED BOUNDARIES (no scarb toolchain here):
-  * Cairo compilation is not exercised — `scarb build` / `cairo-test` must
-    run before deployment; the exact corelib paths (starknet::ecdsa,
-    starknet::crypto::poseidon_hash_span) and trait-generation syntax are
-    the likeliest compile-fix surfaces.
+HONEST VERIFIED / UNVERIFIED BOUNDARIES:
+  * Cairo compilation IS NOW EXERCISED: `scarb build` (sierra + casm)
+    compiles the whole contracts/starknet crate AND the twin-carrying
+    contracts/cairo crate clean under BOTH scarb 2.10.1 / starknet
+    2.10.1 (the version chains/starknet/scripts/build-and-verify.sh pins)
+    and scarb 2.8.4 / starknet 2.8.4 — using the version-portable corelib
+    paths core::poseidon::poseidon_hash_span and
+    core::ecdsa::check_ecdsa_signature, u256-backed felt_lt() range
+    comparisons (felt252 has no PartialOrd), crate:: module paths, and
+    the current #[generate_trait] impl form (R-16 corelib-skew
+    migration). A real cairo-test integration run must still confirm
+    runtime behavior before first mainnet emission.
   * Cairo's poseidon_hash_span (Hades Poseidon) cannot be reproduced in
     Python here, so the mirror's D_stark / D_gate use a documented SHA3-256
     STAND-IN over the identical felt inputs (the Poseidon call is Starknet
@@ -50,7 +57,7 @@ HONEST UNVERIFIED BOUNDARIES (no scarb toolchain here):
   * The canonical STARK-curve generator constant likewise cannot be
     reproduced without the toolchain, so the ECDSA model runs on NIST
     P-192 (same short-Weierstrass ECDSA scheme, felt-compatible sizes).
-    A real cairo-test integration run must confirm verify_ecdsa_signature
+    A real cairo-test integration run must confirm check_ecdsa_signature
     accepts quorum signatures produced by the fleet signer before first
     mainnet emission.
 
@@ -350,7 +357,7 @@ class StarkKey:
 
 
 def stark_verify(pub_point, digest_felt, r, s):
-    """Mirror of starknet::ecdsa::verify_ecdsa_signature(pubkey, msg, (r,s))
+    """Mirror of core::ecdsa::check_ecdsa_signature(msg, pubkey, r, s)
     over the modeled curve point."""
     if pub_point is None:
         return False
@@ -2046,9 +2053,9 @@ def test_static_source_assertions():
     check("D_stark = Poseidon(domain, chunks) via poseidon_hash_span",
           "poseidon_hash_span" in cert_src
           and "input.append(DOMAIN_FELT);" in cert_src)
-    check("STARK-curve ECDSA via starknet::ecdsa",
-          "use starknet::ecdsa;" in cert_src
-          and "verify_ecdsa_signature" in cert_src)
+    check("STARK-curve ECDSA via core::ecdsa (version-portable path)",
+          "use core::ecdsa::check_ecdsa_signature;" in cert_src
+          and "check_ecdsa_signature(" in cert_src)
     check("tier-1 quorum is STRICT (3*signed > 2*total)",
           "3 * signed_power > 2 * total_power" in cert_src)
     check("tier-2/3 quorum inequalities present",
@@ -2065,10 +2072,11 @@ def test_static_source_assertions():
                         ("amount_hi20", 160), ("amount_lo12", 96),
                         ("anchor_hi19", 152), ("anchor_lo13", 104),
                         ("exec_hi18", 144), ("exec_lo14", 112)]:
-        if f"assert(c.{piece} < P2_{bits}" not in cert_src:
+        if f"assert(felt_lt(c.{piece}, P2_{bits})" not in cert_src:
             check(f"range assert for {piece} < 2^{bits}", False)
-    check("all 16 felt pieces are range-asserted in check_structure",
-          all(f"assert(c.{p} < P2_{b}" in cert_src
+    check("all 16 felt pieces are range-asserted in check_structure "
+          "(felt_lt: felt252 has no PartialOrd, compares as u256)",
+          all(f"assert(felt_lt(c.{p}, P2_{b})" in cert_src
               for p, b in [("escrow_hi2", 16), ("escrow_lo30", 240),
                            ("route_hi1", 8), ("route_lo31", 248),
                            ("intent_hi31", 248), ("intent_lo1", 8),
@@ -2086,9 +2094,9 @@ def test_static_source_assertions():
           f"diff={set(src_fields) ^ set(CERT_STRUCT_FIELDS)}")
     # binding helpers enforce the wrap-proof recomposition bounds
     check("escrow binding asserts escrow_hi2 < 2^11 (no wrap aliasing)",
-          "c.escrow_hi2 < P2_11" in cert_src)
+          "felt_lt(c.escrow_hi2, P2_11)" in cert_src)
     check("destination binding asserts dest_hi21 < 2^163",
-          "c.dest_hi21 < P2_163" in cert_src)
+          "felt_lt(c.dest_hi21, P2_163)" in cert_src)
 
     # ── trion_epoch_registry.cairo ───────────────────────────────────
     check("registry is append-only (epoch must be strictly newer)",
@@ -2139,8 +2147,8 @@ def test_static_source_assertions():
     check("gate registry binding is one-way",
           "assert(!self.registry_bound.read(), 'GATE: registry bound');" in gate_src)
     check("gate uses the shared family-3 library + epoch registry",
-          "use trion_certificate::" in gate_src
-          and "use trion_epoch_registry::" in gate_src)
+          "use crate::trion_certificate::" in gate_src
+          and "use crate::trion_epoch_registry::" in gate_src)
     check("gate publish path is permissionless (no caller authorization)",
           "is_validator" not in gate_code and "Not validator" not in gate_code)
 

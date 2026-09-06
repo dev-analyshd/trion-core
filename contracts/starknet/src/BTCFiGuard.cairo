@@ -67,7 +67,7 @@ pub struct BTCFiBEOScore {
 pub mod BTCFiGuard {
     use super::{IBTCFiGuard, ITRIONOracleReaderDispatcher, ITRIONOracleReaderDispatcherTrait};
     use starknet::{
-        ContractAddress, get_caller_address, get_block_timestamp,
+        ContractAddress, get_caller_address,
         storage::{StoragePointerReadAccess, StoragePointerWriteAccess},
     };
 

@@ -108,6 +108,7 @@ pub mod TrionEpochRegistry {
     use super::{
         EpochMeta, IEpochRegistry, ValidatorEntry, ValidatorRegistration,
     };
+    use crate::trion_certificate::felt_lt;
     use starknet::{
         ContractAddress, get_caller_address,
         storage::{
@@ -173,7 +174,7 @@ pub mod TrionEpochRegistry {
             let n = entries.len();
             let n_u64: u64 = n.into();
             assert(n > 0, 'REG: empty epoch');
-            assert(n <= MAX_EPOCH_VALIDATORS, 'REG: epoch too large');
+            assert(n_u64 <= MAX_EPOCH_VALIDATORS, 'REG: epoch too large');
             // Append-only: strictly increasing epochs, a sealed set is
             // never rewritten (§10.2 — changes land at the next boundary).
             let latest = self.latest_epoch.read();
@@ -188,9 +189,12 @@ pub mod TrionEpochRegistry {
                 if i >= n { break; }
                 let e = *entries.at(i);
 
-                assert(e.vid_hi16 < P2_128, 'REG: vid_hi range');
-                assert(e.vid_lo16 < P2_128, 'REG: vid_lo range');
-                assert(e.stark_pubkey < P2_251, 'REG: pubkey range');
+                // felt ordering: felt252 has no PartialOrd — the felt range
+                // bounds compare as u256 through the family-3 library helper
+                // (exact integer comparison, same fail-closed semantics).
+                assert(felt_lt(e.vid_hi16, P2_128), 'REG: vid_hi range');
+                assert(felt_lt(e.vid_lo16, P2_128), 'REG: vid_lo range');
+                assert(felt_lt(e.stark_pubkey, P2_251), 'REG: pubkey range');
                 assert(e.stark_pubkey != 0, 'REG: zero pubkey');
                 assert(e.stake_weight != 0, 'REG: zero stake');
                 assert(e.stake_weight <= MAX_WEIGHT, 'REG: stake cap');

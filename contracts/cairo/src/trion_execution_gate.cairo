@@ -34,7 +34,7 @@
 // A behavioral signal is NOT a kind-1 ESCROW_RELEASE certificate
 // (§6 step 1: unknown kinds fail closed), so the gate signs its own
 // domain-separated message with the SAME family-3 machinery
-// (felt domain tag + Poseidon + starknet::ecdsa + epoch registry)
+// (felt domain tag + Poseidon + core::ecdsa + epoch registry)
 // instead of consuming an escrow certificate — "TRION-SIGNAL-V1"
 // is disjoint from "TRION-CERT-V1" (cross-purpose signature reuse
 // is structurally impossible: a certificate signature never
@@ -45,13 +45,10 @@
 // from the last published signal so consumers fail closed on
 // staleness through their own freshness discipline.
 
-use trion_certificate::{SigEntry, EPOCH_GRACE, is_fresh, quorum_met, verify_signature};
-use trion_epoch_registry::{
-    IEpochRegistryDispatcher, IEpochRegistryDispatcherTrait,
-};
-use core::traits::Into;
-use core::array::{ArrayTrait, SpanTrait};
-use starknet::crypto::poseidon_hash_span;
+// The interface's signature-set ABI type comes from the family-3 library
+// (crate-rooted path — the contract module below pulls the full gate
+// machinery from the same twin modules).
+use crate::trion_certificate::SigEntry;
 
 #[starknet::interface]
 pub trait ITRIONExecutionGate<TContractState> {
@@ -116,9 +113,10 @@ pub mod TRIONExecutionGate {
     use core::integer::u256;
     use core::array::{ArrayTrait, SpanTrait};
     use core::traits::Into;
-    use starknet::crypto::poseidon_hash_span;
-    use trion_certificate::{SigEntry, EPOCH_GRACE, is_fresh, quorum_met, verify_signature};
-    use trion_epoch_registry::{
+    use core::poseidon::poseidon_hash_span;
+    use core::num::traits::Zero;
+    use crate::trion_certificate::{SigEntry, EPOCH_GRACE, is_fresh, quorum_met, verify_signature};
+    use crate::trion_epoch_registry::{
         IEpochRegistryDispatcher, IEpochRegistryDispatcherTrait,
     };
     use super::{BehavioralSignal, ExecutionDecision};
@@ -251,7 +249,7 @@ pub mod TRIONExecutionGate {
     /// field elements directly), so there is no wrap surface: the
     /// composed digest binds every signal value exactly.
     #[generate_trait]
-    impl GateDigest of GateDigestTrait<ContractState> {
+    impl GateDigest of GateDigestTrait {
         fn signal_digest(
             self: @ContractState,
             entity_id: felt252,
