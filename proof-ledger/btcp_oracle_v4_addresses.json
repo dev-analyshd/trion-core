@@ -1,8 +1,0 @@
-{
-  "eth_sepolia": "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39",
-  "arb_sepolia": "0x4b4C232f6E5B3c21deC1d424e0920fBB2302C05D",
-  "timestamp": "2026-04-13T05:42:03.317Z",
-  "version": "v4",
-  "contract": "TRIONOracleV3",
-  "note": "Updated with publishBTCPRoute — Fix 1"
-}
