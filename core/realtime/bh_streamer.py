@@ -874,10 +874,15 @@ def fetch_cosmos_block(rpc_url, height, chain_name="cosmos"):
         req = urllib.request.Request(f"{rpc_url}/block?height={height}", headers={"User-Agent": "TRION/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-            block = data.get("result", {}).get("block", {})
+            result = data.get("result", {})
+            block = result.get("block", {})
             txs = block.get("data", {}).get("txs", [])
             tx_ids = [f"cosmos_tx_{height}_{i}" for i in range(min(len(txs), 50))]
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": block.get("header", {}).get("last_block_id", {}).get("hash", "0x0"), "number": height, "timestamp": _iso_to_epoch(block.get("header", {}).get("time", ""))}
+            # R-21: the CURRENT block's own `block_id.hash` — the same field the
+            # fixed trion-cosmos crate reads from LCD /blocks/{h}.  The old
+            # `header.last_block_id.hash` read the PARENT block's hash, so the
+            # Python fetcher anchored every block to the previous block's id.
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": result.get("block_id", {}).get("hash", "0x0"), "number": height, "timestamp": _iso_to_epoch(block.get("header", {}).get("time", ""))}
     except:
         return None
 
@@ -934,15 +939,27 @@ def fetch_near_block(rpc_url, height, chain_name="near"):
 def fetch_ton_block(rpc_url, seq, chain_name="ton"):
     """Fetch TON masterchain block via HTTP API."""
     try:
-        req = urllib.request.Request(f"{rpc_url}/getMasterchainInfo", headers={"User-Agent": "TRION/1.0"})
+        # R-14: PER-SEQNO root_hash via toncenter GET /getBlockHeader — the same
+        # call the Rust trion-ton crate uses for catch-up seqnos (and that
+        # genesis_backfill_ton.py uses for the whole walk).  The old code
+        # stamped the TIP's root_hash (from getMasterchainInfo) on every seqno,
+        # so every non-tip block was anchored to a hash that is not its own.
+        # The per-tx rows below are still synthetic counts (toncenter v2
+        # exposes no per-block tx list); the Rust trion-ton crate is the real
+        # per-tx path.  Genuinely-missing → warn + honest "0x0" (CANONICAL_BH
+        # §9 — never a fabricated id).
+        req = urllib.request.Request(
+            f"{rpc_url}/getBlockHeader?workchain=-1&shard=8000000000000000&seqno={seq}",
+            headers={"User-Agent": "TRION/1.0"},
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-        # Anchor to the REAL masterchain tip the API reports (root_hash) — the
-        # per-tx rows below are still synthetic counts (toncenter v2 exposes
-        # no per-block tx list); the Rust trion-ton crate is the real path.
-        _info = (data.get("result") or {}).get("masterchain_info", {})
-        _last = _info.get("last", {}) if isinstance(_info, dict) else {}
-        _root = str(_last.get("root_hash") or "0x0")
+        _root = ""
+        if data.get("ok"):
+            _root = str((data.get("result") or {}).get("root_hash") or "")
+        if not _root:
+            print(f"[streamer] TON seqno {seq}: no root_hash from toncenter — zero block hash", file=sys.stderr)
+            _root = "0x0"
         tx_ids = [f"ton_tx_{seq}_{i}" for i in range(10)]
         return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": _root, "number": seq}
     except:
