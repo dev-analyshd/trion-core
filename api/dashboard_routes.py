@@ -31,6 +31,8 @@ import os
 import json
 import time
 
+from api.faiss_client import faiss_headers
+
 # ── TimescaleDB store (P0 fix: was referenced but never imported) ─────────────
 # core/akashic/timescale_store.py provides get_timescale_store(); it degrades
 # gracefully to None when psycopg2 is not installed or TIMESCALEDB_URL is unset.
@@ -60,9 +62,14 @@ ORACLE_URL = os.environ.get("ORACLE_INTERNAL_URL", "http://127.0.0.1:5000")
 
 
 def _proxy(url, timeout=10):
-    """Proxy a GET request to an internal service with graceful fallback."""
+    """Proxy a GET request to an internal service with graceful fallback.
+
+    X-API-Key is attached only for FAISS URLs (the service is key-protected,
+    SEC-01) — never for the Oracle, whose own auth key may differ.
+    """
+    headers = faiss_headers() if url.startswith(FAISS_URL) else None
     try:
-        r = requests.get(url, timeout=timeout)
+        r = requests.get(url, timeout=timeout, headers=headers)
         if r.status_code == 200:
             return r.json()
     except Exception:

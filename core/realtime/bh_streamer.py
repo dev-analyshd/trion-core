@@ -532,6 +532,16 @@ class FAISSAccumulator:
             "FAISS_SERVICE_URL",
             os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
         )
+        # X-API-Key for the FAISS service (SEC-01) — same resolution order
+        # as faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY
+        # → TRION_API_KEY.  Empty → None → header omitted (write attempts
+        # then fail closed on the service side, which is the safe posture).
+        self._faiss_api_key = (
+            os.environ.get("FAISS_API_KEY")
+            or os.environ.get("FAISS_SERVICE_API_KEY")
+            or os.environ.get("TRION_API_KEY")
+            or ""
+        ).strip() or None
         self._last_flush = time.time()
         self._flush_thread = None
         self._stop_flush = threading.Event()
@@ -589,10 +599,13 @@ class FAISSAccumulator:
                 "vectors": payload_items,
                 "source": "bh_streamer",
             }).encode("utf-8")
+            flush_headers = {"Content-Type": "application/json"}
+            if self._faiss_api_key:
+                flush_headers["X-API-Key"] = self._faiss_api_key
             req = urllib.request.Request(
                 f"{self._faiss_url}/index/add_batch",
                 data=payload,
-                headers={"Content-Type": "application/json"},
+                headers=flush_headers,
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
@@ -828,14 +841,20 @@ def _synthetic_tx_sender(chain_name: str, tx_hash: str) -> str:
     Aptos tx counts; Starknet/Tron/Polkadot tx hashes without a sender
     field).
 
-    sha3-256("{chain_name}:{tx_hash}") — distinct and deterministic per
-    transaction, so each tx maps to its own BEO entity instead of the old
-    `from="unknown"` behaviour that collapsed EVERY transaction on EVERY
-    such chain into the single synthetic entity sha3("unknown").  This is
-    NOT a real on-chain sender: real sender attribution for these VM
-    families remains the job of the dedicated per-VM Rust indexers.
+    Returns the NAMESPACED preimage "{chain_name}:{tx_hash}" — distinct and
+    deterministic per transaction, so each tx maps to its own BEO entity
+    instead of the old `from="unknown"` behaviour that collapsed EVERY
+    transaction on EVERY such chain into the single synthetic entity
+    sha3("unknown").  compute_bh() then applies the single SHA3-256
+    (entity = sha3(normalise("<chain>:<tx_hash>")) — the exact form pinned
+    by the golden vector `entity_synthetic_tx_sender`, and the same
+    bh_id("<chain>:<tx_hash>") construction the per-VM Rust indexers use);
+    the old pre-hashed hexdigest return double-hashed here and diverged
+    from that pin.  This is NOT a real on-chain sender: real sender
+    attribution for these VM families remains the job of the dedicated
+    per-VM Rust indexers.
     """
-    return hashlib.sha3_256(f"{chain_name}:{tx_hash}".encode()).hexdigest()
+    return f"{chain_name}:{tx_hash}"
 
 
 def fetch_solana_block(rpc_url, slot, chain_name="solana"):
@@ -875,7 +894,11 @@ def fetch_aptos_block(rpc_url, height, chain_name="aptos"):
                 tx_count = 0
             tx_ids = [f"aptos_tx_{height}_{i}" for i in range(min(tx_count, 50))]
             _apt_ts = int(data.get("block_timestamp") or 0)  # microseconds
-            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("previous_block_hash", "0x0"), "number": height, "timestamp": _apt_ts // 1_000_000}
+            # Live API field: /v1/blocks/by_height returns `block_hash`
+            # (previous_block_hash no longer exists in the current response —
+            # the stale key silently degraded every block to "0x0"); same
+            # field the trion-aptos / trion-movement Rust crates read.
+            return {"transactions": [{"hash": h, "from": _synthetic_tx_sender(chain_name, h), "to": "unknown", "value": "0"} for h in tx_ids], "hash": data.get("block_hash", "0x0"), "number": height, "timestamp": _apt_ts // 1_000_000}
     except:
         return None
 

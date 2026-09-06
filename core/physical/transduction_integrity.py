@@ -35,6 +35,25 @@ SELF_ENTITY_ID = "TRION_PROTOCOL"
 SELF_DB_PATH = os.environ.get("SELF_VERIFICATION_DB", "self_verification.db")
 SILENCE_THRESHOLD = 0.25  # same threshold as src/agent/safety_pipeline.py
 
+
+def _faiss_headers() -> dict:
+    """
+    X-API-Key for the FAISS service (SEC-01) — same resolution order as
+    faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+    TRION_API_KEY.  Empty/unset → header omitted (requests then fail
+    closed on the service side, which is the safe posture).  Kept local
+    like core/realtime/bh_streamer.py's resolver — core must not import
+    from the api/ package above it.
+    """
+    key = (
+        os.environ.get("FAISS_API_KEY")
+        or os.environ.get("FAISS_SERVICE_API_KEY")
+        or os.environ.get("TRION_API_KEY")
+        or ""
+    ).strip()
+    return {"X-API-Key": key} if key else {}
+
+
 _lock = threading.Lock()
 
 
@@ -123,10 +142,10 @@ def _evolve_gk(behavioral_event: str, temporal_marker: float, context_vector: di
 
 # ── Signal gathering (real HTTP calls to already-running TRION services) ──────
 
-def _get_json(url: str, timeout: float = 3.0) -> Optional[dict]:
+def _get_json(url: str, timeout: float = 3.0, headers: Optional[dict] = None) -> Optional[dict]:
     try:
         import requests
-        r = requests.get(url, timeout=timeout)
+        r = requests.get(url, timeout=timeout, headers=headers)
         if r.status_code == 200:
             return r.json()
     except Exception:
@@ -136,7 +155,8 @@ def _get_json(url: str, timeout: float = 3.0) -> Optional[dict]:
 
 def _score_transduction_integrity(faiss_url: str) -> tuple[float, dict]:
     """Spiritual/Conscious/ANIMA/Mental/Physical plane health, from L1.4 TI."""
-    data = _get_json(f"{faiss_url}/api/v1/transduction_integrity")
+    data = _get_json(f"{faiss_url}/api/v1/transduction_integrity",
+                     headers=_faiss_headers())
     if not data:
         return 0.5, {"available": False}
     return float(data.get("system_ti", 0.5)), {
@@ -148,7 +168,7 @@ def _score_transduction_integrity(faiss_url: str) -> tuple[float, dict]:
 
 def _score_component_fitness(faiss_url: str) -> tuple[float, dict]:
     """L0.6 Evolutionary Fitness — health of TRION's own components."""
-    data = _get_json(f"{faiss_url}/fitness")
+    data = _get_json(f"{faiss_url}/fitness", headers=_faiss_headers())
     if not data or not data.get("components"):
         return 0.5, {"available": False}
     fitnesses = [c.get("fitness", 0.5) for c in data["components"].values()]
@@ -171,6 +191,7 @@ def _register_self_component_fitness(
         import requests
         requests.post(
             f"{faiss_url}/fitness/update",
+            headers=_faiss_headers(),
             json={
                 "component": component,
                 "PA": round(max(0.0, min(1.0, pa)), 6),

@@ -16,7 +16,12 @@ log = logging.getLogger(__name__)
 self_verification_bp = Blueprint("self_verification", __name__)
 
 ORACLE_API_URL = os.environ.get("ORACLE_API_URL", "http://127.0.0.1:5000")
-FAISS_URL = os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
+# Canonical FAISS resolution, same order as api/app.py _FAISS_BASE — this
+# file previously read only the FAISS_URL alias, so deployments that set
+# FAISS_SERVICE_URL silently left the monitor pointed at the default host.
+FAISS_URL = os.environ.get(
+    "FAISS_SERVICE_URL", os.environ.get("FAISS_URL", "http://127.0.0.1:8000")
+)
 
 try:
     from core.physical.transduction_integrity import (
