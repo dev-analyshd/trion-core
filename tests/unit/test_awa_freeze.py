@@ -280,21 +280,32 @@ class TestAWAStateSurface:
 # ─── API publication wiring (lead integration — MD §17 at the route) ─────────
 
 class TestPublicationRouteFreeze:
-    """/api/v1/publish/<entity> must fail closed while emission is frozen."""
+    """/api/v1/publish/<entity> must fail closed while emission is frozen.
 
-    def test_publish_route_503_silence_when_frozen(self):
+    SEC-03: the API refuses unauthenticated writes on unconfigured
+    deployments, so these exercise the AWA gate as an authenticated
+    writer (monkeypatched module key) — the path a keyed deployment
+    takes to reach the route at all.
+    """
+
+    _KEY = "awa-freeze-route-key"
+
+    def test_publish_route_503_silence_when_frozen(self, monkeypatch):
         import os
         os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        import api.app as api_app
         from core.governance.awa import get_emission_gate
         from api.app import app  # noqa: PLC0415 — wiring-under-test import
 
+        monkeypatch.setattr(api_app, "_TRION_API_KEY", self._KEY)
         gate = get_emission_gate()
         was_frozen = gate.is_frozen()
         try:
             if not was_frozen:
                 gate.freeze(reason="regression-test", source="test_awa_freeze")
             c = app.test_client()
-            r = c.post("/api/v1/publish/awa-freeze-regression-entity")
+            r = c.post("/api/v1/publish/awa-freeze-regression-entity",
+                       headers={"X-API-Key": self._KEY})
             assert r.status_code == 503
             j = r.get_json()
             assert j.get("silence") is True
@@ -303,18 +314,21 @@ class TestPublicationRouteFreeze:
         finally:
             gate._frozen = was_frozen
 
-    def test_publish_route_open_when_unfrozen(self):
+    def test_publish_route_open_when_unfrozen(self, monkeypatch):
         import os
         os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        import api.app as api_app
         from core.governance.awa import get_emission_gate
         from api.app import app  # noqa: PLC0415
 
+        monkeypatch.setattr(api_app, "_TRION_API_KEY", self._KEY)
         gate = get_emission_gate()
         was_frozen = gate.is_frozen()
         try:
             gate._frozen = False
             c = app.test_client()
-            r = c.post("/api/v1/publish/awa-freeze-open-entity")
+            r = c.post("/api/v1/publish/awa-freeze-open-entity",
+                       headers={"X-API-Key": self._KEY})
             assert r.status_code in (200, 503)  # 503 only if frozen by a sibling
             if r.status_code == 200:
                 assert r.get_json().get("silence") is None or True
@@ -328,8 +342,13 @@ class TestZgSurfacesFreeze:
     """/api/v1/zg/{sync,storage/store,compute/infer} are truth-emission
     surfaces. RED-4 pass 4 found all three executing external publication /
     subprocess spawn while the AWA EmissionGate was frozen (P-API-05's fix
-    had covered only /api/v1/zg/da/submit). All must 503 silence when frozen."""
+    had covered only /api/v1/zg/da/submit). All must 503 silence when frozen.
 
+    SEC-03: the requests run as an authenticated writer (module key
+    monkeypatched) so the auth layer is transparent and the AWA gate
+    itself is what is under test."""
+
+    _KEY = "awa-freeze-zg-key"
     _SURFACES = [
         ("GET",  "/api/v1/zg/sync"),
         ("POST", "/api/v1/zg/storage/store"),
@@ -342,11 +361,13 @@ class TestZgSurfacesFreeze:
         from core.governance.awa import get_emission_gate
         return get_emission_gate()
 
-    def test_zg_surfaces_503_silence_when_frozen(self):
+    def test_zg_surfaces_503_silence_when_frozen(self, monkeypatch):
         import os
         os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        import api.app as api_app
         from api.app import app  # noqa: PLC0415 — wiring-under-test import
 
+        monkeypatch.setattr(api_app, "_TRION_API_KEY", self._KEY)
         gate = self._gate()
         was_frozen = gate.is_frozen()
         try:
@@ -354,7 +375,8 @@ class TestZgSurfacesFreeze:
                 gate.freeze(reason="red-4-f1-regression", source="test_awa_freeze")
             c = app.test_client()
             for method, path in self._SURFACES:
-                r = c.open(path, method=method, json={} if method == "POST" else None)
+                r = c.open(path, method=method, json={} if method == "POST" else None,
+                           headers={"X-API-Key": self._KEY})
                 assert r.status_code == 503, (
                     f"{method} {path} returned {r.status_code} while frozen — "
                     "external publication surface not gated (RED-4-F1)"
@@ -365,20 +387,23 @@ class TestZgSurfacesFreeze:
         finally:
             gate._frozen = was_frozen
 
-    def test_zg_surfaces_not_gated_by_default(self):
+    def test_zg_surfaces_not_gated_by_default(self, monkeypatch):
         """Control: unfrozen gate — endpoints serve their normal (possibly
         erroring for toolchain reasons) responses, not the freeze 503."""
         import os
         os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
+        import api.app as api_app
         from api.app import app  # noqa: PLC0415
 
+        monkeypatch.setattr(api_app, "_TRION_API_KEY", self._KEY)
         gate = self._gate()
         was_frozen = gate.is_frozen()
         try:
             gate._frozen = False
             c = app.test_client()
             for method, path in self._SURFACES:
-                r = c.open(path, method=method, json={} if method == "POST" else None)
+                r = c.open(path, method=method, json={} if method == "POST" else None,
+                           headers={"X-API-Key": self._KEY})
                 body = r.get_json(silent=True) or {}
                 assert not (r.status_code == 503 and body.get("error") == "awa_emission_frozen"), (
                     f"{method} {path} froze with an open gate"

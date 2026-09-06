@@ -90,6 +90,24 @@ def full_app_client():
     return app.test_client()
 
 
+# SEC-03: the full app refuses unauthenticated writes when TRION_API_KEY
+# is unset, so the full-app boundary tests below run as an authenticated
+# writer (the auth matrix itself is pinned in
+# tests/unit/test_api_auth_failclosed.py).
+_W_KEY = "truth-boundaries-write-key"
+
+
+def _write_headers():
+    return {"X-API-Key": _W_KEY}
+
+
+def _keyed_app(monkeypatch):
+    """Monkeypatch the module key on and hand back the header dict to send."""
+    import api.app as api_app
+    monkeypatch.setattr(api_app, "_TRION_API_KEY", _W_KEY)
+    return _write_headers()
+
+
 _ORCH_MIN = {
     "source_chain": 1,
     "dest_chain": 137,
@@ -406,15 +424,16 @@ def test_api_key_middleware_gates_writes(full_app_client, monkeypatch):
     assert r.status_code == 200
 
 
-def test_gratitude_disclosure_is_not_auto_verified(full_app_client):
+def test_gratitude_disclosure_is_not_auto_verified(full_app_client, monkeypatch):
     """A public self-report must be recorded UNVERIFIED with zero credit —
     the old route hardcoded verified=True, minting gratitude credit."""
+    hdr = _keyed_app(monkeypatch)
     r = full_app_client.post("/api/v1/governance/gratitude", json={
         "entity_id": "0x" + "11" * 20,
         "vulnerability_id": "VULN-W3M-001",
         "severity": "CRITICAL",
         "description": "self-reported claim",
-    })
+    }, headers=hdr)
     assert r.status_code == 200
     j = r.get_json()
     assert j["verified"] is False
@@ -426,15 +445,16 @@ def test_gratitude_disclosure_is_not_auto_verified(full_app_client):
         "entity_id": "0x" + "11" * 20,
         "vulnerability_id": "VULN-W3M-002",
         "severity": "CATASTROPHIC",
-    })
+    }, headers=hdr)
     assert r.status_code == 400
 
 
-def test_kv_put_signal_does_not_fabricate_persistence(full_app_client):
+def test_kv_put_signal_does_not_fabricate_persistence(full_app_client, monkeypatch):
     """The demo KV write must not claim immutable/da_submitted truth —
     provenance and synthetic labels are mandatory."""
+    hdr = _keyed_app(monkeypatch)
     r = full_app_client.post("/api/v1/kv/signal/0x" + "11" * 20,
-                             json={"phi": 1.0, "theta": 0.1})
+                             json={"phi": 1.0, "theta": 0.1}, headers=hdr)
     assert r.status_code == 201
     j = r.get_json()
     assert j["is_synthetic"] is True
@@ -446,13 +466,14 @@ def test_kv_put_signal_does_not_fabricate_persistence(full_app_client):
     assert j["signal"]["verdict"] == "ALLOWED"
 
 
-def test_slashing_filing_is_evidence_only(full_app_client):
+def test_slashing_filing_is_evidence_only(full_app_client, monkeypatch):
     """Accusation filing: no default 'protocol_monitor' impersonation,
     positive stake required, and the caller-declared quorum base labeled."""
+    hdr = _keyed_app(monkeypatch)
     r = full_app_client.post("/api/v1/governance/slashing/file", json={
         "accused_id": "validator_7",
         "condition": "S1_DOUBLE_SIGNING",
-    })
+    }, headers=hdr)
     assert r.status_code == 400   # accuser_id required — no silent default
 
     r = full_app_client.post("/api/v1/governance/slashing/file", json={
@@ -460,7 +481,7 @@ def test_slashing_filing_is_evidence_only(full_app_client):
         "accuser_id": "0x" + "33" * 20,
         "condition": "S1_DOUBLE_SIGNING",
         "total_eligible_stake": 0.0001,   # tiny quorum base from a caller
-    })
+    }, headers=hdr)
     assert r.status_code == 200
     j = r.get_json()
     assert j["evidence_only"] is True
@@ -473,18 +494,19 @@ def test_slashing_filing_is_evidence_only(full_app_client):
         "accused_id": "validator_7",
         "accuser_id": "0x" + "33" * 20,
         "total_eligible_stake": -5,
-    })
+    }, headers=hdr)
     assert r.status_code == 400
 
 
-def test_reputation_observe_labels_caller_attestation(full_app_client):
+def test_reputation_observe_labels_caller_attestation(full_app_client, monkeypatch):
     """Caller-supplied coherence/manipulation numbers must be labeled
     caller_self_attested — an observation is evidence, not measurement."""
+    hdr = _keyed_app(monkeypatch)
     r = full_app_client.post("/api/v1/reputation/observe", json={
         "entity_id": "0x" + "44" * 20,
         "coherence": 1.0,          # self-attested perfect coherence
         "manipulation_score": 0.0,
-    })
+    }, headers=hdr)
     assert r.status_code == 200
     j = r.get_json()
     assert j["witness_source"] == "caller_self_attested"
@@ -492,22 +514,24 @@ def test_reputation_observe_labels_caller_attestation(full_app_client):
     # non-numeric coherence is rejected
     r = full_app_client.post("/api/v1/reputation/observe", json={
         "entity_id": "0x" + "44" * 20, "coherence": "very-high",
-    })
+    }, headers=hdr)
     assert r.status_code == 400
 
 
-def test_reputation_endorse_requires_and_labels_endorser(full_app_client):
+def test_reputation_endorse_requires_and_labels_endorser(full_app_client, monkeypatch):
     """The endorsement route no longer defaults to 'anonymous' and labels
     the endorser as unauthenticated (no validator signature is checked)."""
+    hdr = _keyed_app(monkeypatch)
     entity = "0x" + "55" * 20
     # create the entity first via the server-side path
     full_app_client.get(f"/api/v1/reputation/{entity}")
-    r = full_app_client.post(f"/api/v1/reputation/{entity}/endorse", json={})
+    r = full_app_client.post(f"/api/v1/reputation/{entity}/endorse", json={},
+                             headers=hdr)
     assert r.status_code == 400   # endorser_id required
 
     r = full_app_client.post(
         f"/api/v1/reputation/{entity}/endorse",
-        json={"endorser_id": "validator_i_promise"})
+        json={"endorser_id": "validator_i_promise"}, headers=hdr)
     assert r.status_code == 200
     j = r.get_json()
     if "error" not in j:
@@ -515,22 +539,28 @@ def test_reputation_endorse_requires_and_labels_endorser(full_app_client):
         assert "unverified claim" in j["endorser_note"]
 
 
-def test_cex_webhook_register_blocks_private_targets(full_app_client):
+def test_cex_webhook_register_blocks_private_targets(full_app_client, monkeypatch):
     """SSRF guard: the server-side alert pusher must not be aimed at
     loopback/private ranges through an unauthenticated registration."""
+    hdr = _keyed_app(monkeypatch)
     for url in ("http://127.0.0.1:8080/alerts",
                 "http://localhost/alerts",
                 "http://10.0.0.5/alerts",
                 "http://192.168.1.10/alerts",
                 "http://169.254.169.254/latest/meta-data"):
         r = full_app_client.post("/api/v1/cex/webhook/register",
-                                 json={"url": url, "cex_name": "BINANCE"})
+                                 json={"url": url, "cex_name": "BINANCE"},
+                                 headers=hdr)
         assert r.status_code == 400, url
         assert "private" in r.get_json()["reason"]
-    # a public HTTPS endpoint registers fine
+    # a public HTTPS endpoint registers fine — the resolver is mocked so
+    # the check stays deterministic in offline environments (SEC-15)
+    import api.cex_integration as cex_mod
+    monkeypatch.setattr(cex_mod, "_resolve_webhook_ips",
+                        lambda host: ["93.184.216.34"])
     r = full_app_client.post("/api/v1/cex/webhook/register",
                              json={"url": "https://compliance.example.com/x",
-                                   "cex_name": "BINANCE"})
+                                   "cex_name": "BINANCE"}, headers=hdr)
     assert r.status_code == 200
 
 

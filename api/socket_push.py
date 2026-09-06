@@ -22,9 +22,19 @@ from app import app  # noqa: E402 — the 9,043-line Flask app, untouched
 
 log = logging.getLogger("trion.ws")
 
+# SEC-14: Socket.IO cross-origin connections are opt-in via the same
+# TRION_CORS_ORIGINS list the HTTP layer uses (comma-separated origins).
+# Unset (default) → same-origin only, replacing the previous wildcard "*".
+# A cross-origin client (e.g. a dev page on http://localhost:3000 opening
+# ws://127.0.0.1:5000 directly) must list its origin in TRION_CORS_ORIGINS.
+_CORS_ORIGINS = [
+    o.strip() for o in os.environ.get("TRION_CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*",
+    cors_allowed_origins=_CORS_ORIGINS if _CORS_ORIGINS else None,
     async_mode="threading",
     logger=False,
     engineio_logger=False,
