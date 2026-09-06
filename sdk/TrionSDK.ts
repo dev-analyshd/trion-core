@@ -33,6 +33,29 @@ export type SignalType =
     | 'MANIPULATION_ALERT'
     | 'TEMPORAL_ANOMALY'
     | 'UNKNOWN'
+    // M-073 canonical taxonomy (owner ruling): 29 types = 19 base (D1 §11)
+    // + 10 BTCP-family (BTCP master spec §2 + §14.2). BTCP_ROUTE and
+    // CONSENSUS_ADAPTATION sit in both families, so the closed set holds
+    // 27 distinct names while the taxonomy count is 29. The literals below
+    // complete the closed set (13 base names); REGULATORY_BHV/MEV_EXPOSURE
+    // are the internal enum spellings the oracle API emits for the two
+    // drifted whitepaper names. TEMPORAL_ANOMALY/UNKNOWN above are legacy
+    // literals outside the canonical 29.
+    | 'LIQUIDITY_HEALTH'
+    | 'TRAJECTORY'
+    | 'SYSTEMIC_RISK'
+    | 'GOVERNANCE_SIGNAL'
+    | 'CROSS_CHAIN_COHERENCE'
+    | 'STABLECOIN_HEALTH'
+    | 'PHASE_TRANSITION'
+    | 'FORK_DIVERGENCE'
+    | 'REGULATORY_BEHAVIORAL'
+    | 'REGULATORY_BHV'          // internal enum spelling of REGULATORY_BEHAVIORAL
+    | 'SOVEREIGN_BEHAVIORAL'
+    | 'MEV_BEHAVIORAL'
+    | 'MEV_EXPOSURE'            // internal enum spelling of MEV_BEHAVIORAL
+    | 'ENERGY_PARTICIPATION'
+    | 'BIOLOGICAL_CAPITAL'
     // ── BTCP Signal Types (April 2026) ────────────────────────────────────────
     | 'BTCP_ROUTE'              // BTCP route selected + executed (anchor_BH → exec_BH)
     | 'BEHAVIORAL_TRUTH'        // TRION truth signal consensus proof emitted
@@ -319,6 +342,24 @@ export class TrionSDK {
             MANIPULATION_ALERT:   3,
             TEMPORAL_ANOMALY:     2,
             UNKNOWN:              2,
+            // M-073 base-19 additions (status codes follow the core
+            // severity convention: SYSTEMIC_RISK is critical-class → 3,
+            // warning-class advisories → 2, information → 1).
+            LIQUIDITY_HEALTH:     2,   // advisory — NL tier crossing (alert when NL < 0.30)
+            TRAJECTORY:           1,   // safe — pre-manifestation information
+            SYSTEMIC_RISK:        3,   // unsafe — cascade risk
+            GOVERNANCE_SIGNAL:    1,   // safe — governance health record
+            CROSS_CHAIN_COHERENCE: 2,  // advisory — divergence across chains
+            STABLECOIN_HEALTH:    2,   // advisory — depeg risk watch
+            PHASE_TRANSITION:     2,   // advisory — lifecycle state change
+            FORK_DIVERGENCE:      2,   // advisory — fork with resolution weights
+            REGULATORY_BEHAVIORAL: 2,  // advisory — regulatory precursor
+            REGULATORY_BHV:        2,  // internal spelling — same type
+            SOVEREIGN_BEHAVIORAL: 2,   // advisory — SBA divergence
+            MEV_BEHAVIORAL:       2,   // advisory — MEV exposure
+            MEV_EXPOSURE:         2,   // internal spelling — same type
+            ENERGY_PARTICIPATION: 1,   // safe — participation index
+            BIOLOGICAL_CAPITAL:   1,   // safe — ecosystem health
             // BTCP signal status codes
             BTCP_ROUTE:           1,   // safe — route confirmed
             BEHAVIORAL_TRUTH:     1,   // safe — consensus proof valid
