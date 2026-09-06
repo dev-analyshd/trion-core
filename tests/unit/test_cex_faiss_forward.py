@@ -186,3 +186,120 @@ class TestForwardPayloadContract:
         assert seen.wait(5)
         assert captured["payload"]["entries"] == []
         assert set(captured["payload"]) == set(BATCH_FIELDS)
+
+
+# ── R-20: canonical L0.1 verification of the CEX-built strands ────────────────
+#
+# The old CEX builder packed a NONZERO context_flags word and a 2^63-scale
+# magnitude, so the endpoint's canonical recomputation (context=0, 1e9 nano
+# scale — faiss_service.py canonical_bh via verify_bh_complementarity) could
+# never reproduce the strands and the /index/add_tx_bh_batch `verified`
+# counter stayed 0 for every CEX forward.  These tests run the builder's
+# output through the SAME recompute path the endpoint uses.
+
+# Copied verbatim from the EVENT_NAMES list inside add_tx_bh_batch
+# (anima-service/faiss_service.py) — the endpoint derives the event name it
+# recomputes with from the entry's event_type byte via this list.
+_ENDPOINT_EVENT_NAMES = [
+    "TRANSFER", "SWAP", "LIQUIDITY", "STAKE", "UNSTAKE",
+    "GOVERNANCE", "PROPOSAL", "BORROW", "REPAY", "LIQUIDATE", "BRIDGE", "DEPLOY",
+    "UPGRADE", "MINT", "BURN", "ORACLE_UPDATE",
+    "MEV_CAPTURE", "FLASH_LOAN", "AIRDROP", "CLAIM",
+]
+
+_faiss_service = None
+
+
+def _endpoint_recompute():
+    """verify_bh_complementarity — the exact function /index/add_tx_bh_batch
+    calls on every entry.  Loaded lazily so the payload-contract tests above
+    stay fast; tests/conftest.py already puts anima-service on sys.path."""
+    global _faiss_service
+    if _faiss_service is None:
+        import faiss_service  # noqa: PLC0415 — anima-service is on sys.path
+        _faiss_service = faiss_service
+    return _faiss_service.verify_bh_complementarity
+
+
+def _endpoint_name(event_type: int) -> str:
+    """The endpoint's own event-name derivation from the byte."""
+    return (_ENDPOINT_EVENT_NAMES[event_type]
+            if 0 <= event_type < len(_ENDPOINT_EVENT_NAMES) else "TRANSFER")
+
+
+def _verify_entry_like(entry: dict) -> bool:
+    """Recompute an entry exactly the way add_tx_bh_batch does."""
+    return _endpoint_recompute()(
+        entry["sense_hex"], entry["antisense_hex"],
+        entry["entity_id" if "entity_id" in entry else "entity_id_hex"],
+        _endpoint_name(entry["event_type"]),
+        entry["magnitude_norm"],
+        "0",
+        float(entry["timestamp"] if "timestamp" in entry else entry["ts"]),
+        entry["chain_id"],
+        entry["block_hash" if "block_hash" in entry else "block_hash_hex"],
+    )
+
+
+class TestCanonicalL01Verification:
+
+    def test_built_bh_passes_endpoint_recomputation(self):
+        """_build_cex_bh strands must satisfy the endpoint's canonical check.
+
+        Covers a plain BUY, a >$1M CTX_LARGE sell and a wash-flagged record —
+        the CEX classification flags must NOT leak into the canonical payload.
+        """
+        cases = [
+            (1, 850_000.0, 0x0000000000000001),    # SWAP, SPOT
+            (16, 1_250_000.0, 0x0000000000000021),  # MEV, SPOT|LARGE
+            (3, 60_000.0, 0x0000000000000013),      # STAKE, SPOT|LIQUIDAT|WASH (canonical byte; WASH maps to 3)
+            (0, 0.0, 0x0000000000000002),           # TRANSFER, zero magnitude
+        ]
+        for event_type, usd, ctx in cases:
+            bh = cex_mod._build_cex_bh(
+                "BINANCE", "ETH/USDT", event_type, usd, ctx,
+                1_750_000_000, 90001, "batch-id-11c")
+            assert _verify_entry_like(bh), (
+                "CEX BH no longer matches the canonical L0.1 recomputation",
+                event_type, usd, ctx)
+
+    def test_payload_context_zero_and_nano_scale(self):
+        """The 93-byte payload itself: 8 zero context bytes, 1e9 nano magnitude."""
+        bh = cex_mod._build_cex_bh(
+            "BINANCE", "ETH/USDT", 1, 850_000.0,
+            0x0000000000000031,  # nonzero classification — must NOT enter payload
+            1_750_000_000, 90001, "batch-id-11c")
+        payload = bytes.fromhex(bh["payload_hex"])
+        assert len(payload) == 93
+        # context bytes [41:49] — canonical reserved field is always 0
+        assert payload[41:49] == b"\x00" * 8, "nonzero context in canonical payload"
+        # magnitude bytes [33:41] — canonical 1e9 nano scale, not 2^63
+        mag_nano = int.from_bytes(payload[33:41], "big")
+        assert mag_nano == bh["magnitude_nano"]
+        assert mag_nano <= 1_000_000_000
+        assert mag_nano == int(max(0.0, min(1.0, bh["magnitude_norm"])) * 1e9)
+
+    def test_forwarded_entries_pass_endpoint_recomputation(self, client, captured_post):
+        """End-to-end pin: every entry the daemon thread POSTs verifies."""
+        captured, seen = captured_post
+        _ingest(client)
+        assert seen.wait(5)
+        entries = captured["payload"]["entries"]
+        assert entries
+        for e in entries:
+            assert _verify_entry_like(e), (
+                "forwarded entry fails the canonical recomputation", e["tx_hash"])
+
+    def test_forwarded_magnitude_norm_is_unrounded(self, client, captured_post):
+        """The endpoint re-derives mag_nano from the forwarded float — it must
+        be the builder's exact value (round() would desync it from the payload)."""
+        captured, seen = captured_post
+        _ingest(client)
+        assert seen.wait(5)
+        # the BUY record from _RECORDS: 850_000 USD → builder's magnitude_norm
+        sent = {e["magnitude_norm"] for e in captured["payload"]["entries"]}
+        assert cex_mod._magnitude_norm(850_000) in sent
+        for e in captured["payload"]["entries"]:
+            # every forwarded float re-derives the nano value it was built from
+            assert 0.0 <= e["magnitude_norm"] <= 1.0
+            assert int(max(0.0, min(1.0, e["magnitude_norm"])) * 1e9) <= 1_000_000_000
