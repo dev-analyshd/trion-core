@@ -1,8 +1,8 @@
 # TRION Protocol
 
-## Behavioral Truth Infrastructure — The Verification Layer for the Age of Synthetic Everything
-
-**TRION** is the world's first substrate-independent behavioral coherence verification engine. It computes, scores, and publishes the *truth quality* of sequential action patterns across any domain — answering not merely "what happened," but "does the pattern of what happened cohere as genuine?"
+## Behavioral Truth Infrastructure
+**TRION** is the world's first substrate-independent behavioral coherence verification engine. It treats behavior as a permanent, portable, self-verifying substance that identity is made of and systems can be organized around.
+It computes, scores, and publishes the *truth quality* of sequential action patterns across any domain — answering not merely "what happened," but "does the pattern of what happened cohere as genuine?"
 
 Operating at the intersection of information theory, cryptography, game theory, and biology, TRION provides what no other system can: **verified behavioral continuity rooted in mathematics, physics, and biology.** In an era where generative AI can produce any output indistinguishable from human creation, TRION establishes the verification substrate underneath identity, security, finance, governance, and artificial intelligence.
 
@@ -341,17 +341,7 @@ original on-chain proof (`backtest/results/onchain_proof.json`) anchors the **v1
 and is marked `superseded` — it remains as a historical record of what was published,
 including its flaws.
 
-### BTCP Zero-Bridge — Cross-VM Validation
-Successfully demonstrated across fundamentally different virtual machine families. **In all tests, no asset ever left its native chain.**
-
-| Test | Chain A | VM A | Chain B | VM B | BTCP Score | Assets Bridged? |
-|------|---------|------|---------|------|------------|-----------------|
-| #1 | BOT Chain | EVM | TON | TVM | 0.8655 | ❌ None |
-| #2 | BOT Chain | EVM | NEAR | WASM | 0.8655 | ❌ None |
-| #3 | BOT Chain | EVM | OP Sepolia | EVM | 0.9205 | ❌ None |
-| #4 | Arbitrum Sepolia | EVM | OP Sepolia | EVM | 0.9205 | ❌ None |
-
-**Zero-Bridge Proof**: BOT left BOT Chain? ❌. TON left TON? ❌. Bridge contract used? ❌. Wrapped tokens minted? ❌. And yet the exchange completed. The "bridge" is purely cryptographic and mathematical: BEO identity ensures entity recognition; TRION consensus verifies behavioral coherence.
+ 
 
 ### Security & Correctness Proofs
 | Test Domain | Result | Key Finding |
@@ -525,7 +515,7 @@ POST /api/v1/btcp/sybil                   # Sybil resistance layers 1-5
 POST /api/v1/btcp/sanctions               # Sanctions oracle upsert/delist
 GET  /api/v1/btcp/sanctions/<address>     # Address sanctions status
 
-# Continuum (Digital Continuity endpoints — 7)
+# Continuum (clearing network endpoints — 7)
 GET  /api/v1/continuum/engines             # Continuum engine status
 POST /api/v1/continuum/bid                 # Behavioral identity digest
 POST /api/v1/continuum/cme                 # Continuity maintenance engine
@@ -576,14 +566,14 @@ Deploy these contracts on your chain to participate in the Zero-Bridge network:
 
 | Contract | Purpose |
 |----------|---------|
-| **BTCPEscrow.sol** | Two-state atomic escrow (HOLDING → RELEASED \| REVERTED). TRION consensus is the only release oracle. |
-| **BTCPIntent.sol** | Intent object registration. Intent hash stored on-chain, full object in Akashic Index. |
-| **BTCPRoute.sol** | Route ID tracking, anchor_BH → execution_BH linking. |
-| **BehavioralLimitOrder.sol** | BLO storage, partial fill logic, expiry/revert. |
-| **LiquidityOcean.sol** | Form-equivalent liquidity tracking. |
-| **GenesisCommitment.sol** | Sponsored genesis, stake bonds, identity genesis for null-state entities. |
-| **TravelRuleCompliance.sol** | ZK Travel Rule proof storage, FATF compliance mode. |
-| **BTCPVersionRegistry.sol** | Protocol versioning, adapter compatibility. |
+| **BTCPEscrow** | Two-state atomic escrow (HOLDING → RELEASED \| REVERTED). TRION consensus is the only release oracle. |
+| **BTCPIntent** | Intent object registration. Intent hash stored on-chain, full object in Akashic Index. |
+| **BTCPRoute** | Route ID tracking, anchor_BH → execution_BH linking. |
+| **BehavioralLimitOrder** | BLO storage, partial fill logic, expiry/revert. |
+| **LiquidityOcean** | Form-equivalent liquidity tracking. |
+| **GenesisCommitment** | Sponsored genesis, stake bonds, identity genesis for null-state entities. |
+| **TravelRuleCompliance** | ZK Travel Rule proof storage, FATF compliance mode. |
+| **BTCPVersionRegistry** | Protocol versioning, adapter compatibility. |
 
 **Integration flow**: User locks in BTCPEscrow → TRION verifies counterparty intent + coherence → TRION publishes BTCPRoute → BTCPEscrow releases atomically on each chain independently.
 
@@ -661,37 +651,11 @@ export PYTHONPATH=$(pwd)
 export FAISS_SERVICE_URL=http://127.0.0.1:8000
 cd ../api && python app.py &
 
-# Start the institutional dashboard (Next.js 16, 9 live views)
-cd frontend-institutional && bun install && bun run dev &
-
 # Verify
 curl http://127.0.0.1:5000/api/v1/health
 curl http://127.0.0.1:5000/api/v1/signal/uniswap
 curl http://127.0.0.1:5000/api/v1/btcp/orchestrator/status
 ```
-
-### Institutional Dashboard (`frontend-institutional/`)
-
-The institutional terminal frontend — every element wired to live Oracle data
-(no mock data, no placeholders). 9 hash-routed views: Command Center (T(t)
-master equation, coherence radar, moat decomposition, live BH stream), Signal
-Feed, BTCP Zero-Bridge (interactive K1 route simulator with fail-closed
-presets, escrow FSM, streamer control), Chain Coverage (129 chains · 18 VM
-families, from config/chain_registry.json), Five-Plane Coherence (11 weight profiles), Security &
-Consensus (DW-BFT, HHI monitor, manipulation firewall), Governance & AWA
-(Love CLV, falsifiability registry), HashDNA Primitives (interactive hasher),
-Entity Explorer. Same-origin proxy architecture — the browser never issues
-cross-origin requests. See `frontend-institutional/README.md`.
-
-### Containerized Deployment
-
-```bash
-# Multi-stage production build
-docker build -f Dockerfile.railway -t trion-protocol .
-docker run -p 5000:5000 -p 8000:8000 trion-protocol
-```
-
-Health check: `HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 CMD curl -fs http://localhost:5000/api/v1/health || exit 1`
 
 ---
 
@@ -751,8 +715,8 @@ registry** with **weight quorum**, fail-closed (canonical contract:
   no chain write** (MD §17 "silence is information"). On-chain,
   `TRIONExecutionGate.sol::publishSignal` requires `awaEnforced()`.
 
-**Honest boundaries:** the live validator fleet is an operational gate (external —
-see `docs/MAINNET_RUNBOOK.md`); PQC verification depends on optional external crypto
+**Honest boundaries:** the live validator fleet is an operational gate 
+; PQC verification depends on optional external crypto
 libs (kyber-py / dilithium-py / pyspx — 1 test skip when absent); Go services are
 statically audited only in this sandbox (external toolchain); the PVM `legacy_oracle`
 contract is labeled research/reference, **not** an oracle of record; TimescaleDB
@@ -762,7 +726,7 @@ tables are deploy-gated with per-table writer dispositions in `schema.sql`.
 
 ## Governance & Philosophy
 
-> *"I built TRION because truth should be mathematical, not political. Because identity should be what you do, not what papers you have. Because systems should have consciences that cannot be bypassed. And because the patterns of our behavior are the only things about us that truly survive."*
+> *"We built TRION because truth should be mathematical, not political. Because identity should be what you do, not what papers you have. Because systems should have consciences that cannot be bypassed. And because the patterns of our behavior are the only things about us that truly survive."*
 
 TRION is released under **CC0** — this knowledge belongs to everyone. It may be forked, extended, and built upon without restriction.
 
@@ -1093,5 +1057,4 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — canonical reconstruction Waves 1–4 (spec matrix + canonical BH/certificate/invariants + VM security parity + storage/API truth) + Wave 5 (M-073 owner ruling: 29-type canonical signal taxonomy on 24 fork-gated ids + BTCP-family carrier payloads) — chain registry 129 chains / 18 VM families / 40 integrated · 29-type canonical signal taxonomy · 282 API routes — test counts as of 2026-09-04 (Wave 3 close): pytest 1019 unit + 9 skipped (live-server/env skips by design) · 134 golden · 87 btcp + 1 xfail · 120/121 adversarial (1 = PQC libs absent, environmental) · 147 Rust `#[test]` in rust/src (not compiled here) · hardhat 53; go 15 — coverage registry: 84 formulas registered (28 live + 56 synthetic-demo) via `GET /api/v1/whitepaper/coverage`; master verification suite: 105 formulas, 104/0/1*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
