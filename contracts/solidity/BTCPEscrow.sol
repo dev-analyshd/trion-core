@@ -355,9 +355,13 @@ contract BTCPEscrow {
     ///                        index-aligned with the signature batch (must
     ///                        equal the registered epoch values exactly).
     /// @param signatures      Concatenated 65-byte (r,s,v) EIP-191
-    ///                        signatures over keccak256(P), sorted ascending
-    ///                        by recovered signer, distinct within the batch
-    ///                        (length must be an exact multiple of 65).
+    ///                        signatures over the ESCROW-BOUND digest
+    ///                        (keccak256(ESCROW_BINDING_DOMAIN ‖
+    ///                        address(this) ‖ keccak256(P)) — SEC-21: the
+    ///                        quorum signs for THIS deployment), sorted
+    ///                        ascending by recovered signer, distinct within
+    ///                        the batch (length must be an exact multiple
+    ///                        of 65).
     /// @return true iff the escrow was settled. false = a nonce CONFLICT was
     ///         recorded instead (equivocation evidence, no settlement).
     /// @dev Reverts (fail-closed) on every §6 violation; also requires the
@@ -436,7 +440,10 @@ contract BTCPEscrow {
     ///      signature verification with envelope weight-claim cross-checks,
     ///      L4.2 weight quorum (H-04). Registry binding is a hard
     ///      precondition — the canonical path does not exist in
-    ///      trusted-relayer mode.
+    ///      trusted-relayer mode. Signature verification uses the
+    ///      escrow-deployment-bound digest (SEC-21), not the oracle's plain
+    ///      payload digest — the value path is stricter than the
+    ///      observability path by design.
     function _verifyCanonicalCertificate(
         bytes calldata payload,
         uint256[] calldata envelopeWeights,
@@ -464,7 +471,11 @@ contract BTCPEscrow {
             "THRESHOLD_NOT_FROM_REGISTRY"
         );
 
-        bytes32 ethDigest = CanonicalCertificate.ethSignedDigestOf(payload);
+        // SEC-21 (P-EVM-01 amplifier, Wave 5): the VALUE path verifies the
+        // quorum over the ESCROW-BOUND digest — the certificate's
+        // signatures are only valid for THIS deployment, so a quorum-signed
+        // release for one escrow contract can never settle a second one.
+        bytes32 ethDigest = CanonicalCertificate.escrowBoundEthDigestOf(payload, address(this));
         uint256 signedPower = _verifyCanonicalSignatures(
             ethDigest, epoch, signatures, envelopeWeights
         );

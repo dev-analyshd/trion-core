@@ -279,7 +279,10 @@ def _lock_funded(h, escrow, escrow_id, route_id, entity_id, dest, amount_wei,
 
 
 def _release_args(h, vals, epoch, escrow_id, route_id, entity_id, dest, amount,
-                  **kw):
+                  escrow, **kw):
+    """Build a release call for `escrow` — the quorum signs the
+    deployment-BOUND digest (SEC-21), so the batch is only valid on that
+    escrow contract."""
     kw.setdefault("validator_count", len(vals))
     cert = _sh.make_cert(
         validator_epoch=epoch,
@@ -289,7 +292,8 @@ def _release_args(h, vals, epoch, escrow_id, route_id, entity_id, dest, amount,
         amount=amount, issued_at=h.now(), **kw)
     stakes = {v["addr"]: 1_000_000 for v in vals}
     divs = {v["addr"]: 800_000 for v in vals}
-    sigs, st, dv, _ = _sh.sign_cert_with_weights(h, cert, vals, stakes, divs)
+    sigs, st, dv, _ = _sh.sign_cert_with_weights(
+        h, cert, vals, stakes, divs, escrow_address=escrow.address)
     env = []
     for s, d in zip(st, dv):
         env.extend((s, d))
@@ -346,7 +350,7 @@ class TestDestChainGateFreshAngles:
         # chainid=2^32+1 deployment (its truncated u32 view aliases to 1)
         env, sigs, payload = _release_args(
             h2, vals, epoch, escrow_id, route_id, entity_id, h2.dest, amount,
-            source_chain=137, dest_chain=1)
+            escrow2, source_chain=137, dest_chain=1)
         dest_before = h2.balance(h2.dest)
         assert h2.must_revert(
             escrow2.functions.releaseEscrowCanonical(payload, env, sigs),
@@ -367,7 +371,7 @@ class TestDestChainGateFreshAngles:
         _lock_funded(h, escrow, escrow_id, route_id, entity_id, h.dest, amount)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest,
-            amount, dest_chain=0)
+            amount, escrow, dest_chain=0)
         assert h.must_revert(
             escrow.functions.releaseEscrowCanonical(payload, env, sigs),
             gas=5_000_000)
@@ -393,7 +397,7 @@ class TestDestChainGateFreshAngles:
         _lock_funded(h, escrow, escrow_id, route_id, entity_id, h.dest, amount)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest,
-            amount, source_chain=1, dest_chain=1)
+            amount, escrow, source_chain=1, dest_chain=1)
         h.tx(escrow.functions.releaseEscrowCanonical(payload, env, sigs),
              gas=5_000_000)
         assert escrow.functions.getEscrowCore(escrow_id).call()[6] == 3
@@ -403,7 +407,7 @@ class TestDestChainGateFreshAngles:
         _lock_funded(h, escrow, escrow_id2, route_id, entity_id, h.dest, amount)
         env2, sigs2, payload2 = _release_args(
             h, evm.vals, epoch, escrow_id2, route_id, entity_id, h.dest,
-            amount, source_chain=999, dest_chain=1)
+            amount, escrow, source_chain=999, dest_chain=1)
         h.tx(escrow.functions.releaseEscrowCanonical(payload2, env2, sigs2),
              gas=5_000_000)
         assert escrow.functions.getEscrowCore(escrow_id2).call()[6] == 3
@@ -438,7 +442,8 @@ class TestAkashicWindowChaining:
         # block timeout is NOWHERE near (1e6 blocks) — only the wall clock
         # can bound this escrow, and it does:
         env, sigs, payload = _release_args(
-            h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest, amount)
+            h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest,
+            amount, escrow)
         assert h.must_revert(
             escrow.functions.releaseEscrowCanonical(payload, env, sigs),
             gas=5_000_000)                      # AKASHIC_WINDOW_EXPIRED
@@ -474,7 +479,8 @@ class TestAkashicWindowChaining:
             escrow_id, h.w3.keccak(text="relayer-chosen")))
         epoch = _fresh_epoch(evm)
         env, sigs, payload = _release_args(
-            h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest, amount)
+            h, evm.vals, epoch, escrow_id, route_id, entity_id, h.dest,
+            amount, escrow)
         before = h.balance(h.dest)
         h.tx(escrow.functions.releaseEscrowCanonical(payload, env, sigs),
              gas=5_000_000)
@@ -508,7 +514,7 @@ class TestAkashicWindowChaining:
         _lock_funded(h, escrow, eb, route_id, entity_id, h.dest, amount)
         assert escrow.functions.totalLockedBalance().call() == 2 * amount
         env, sigs, payload = _release_args(
-            h, evm.vals, epoch, ea, route_id, entity_id, h.dest, amount)
+            h, evm.vals, epoch, ea, route_id, entity_id, h.dest, amount, escrow)
         h.tx(escrow.functions.releaseEscrowCanonical(payload, env, sigs),
              gas=5_000_000)
         h.tx(escrow.functions.revertEscrow(eb, 3))   # MANUAL (non-timeout)
