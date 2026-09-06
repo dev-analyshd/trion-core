@@ -19,9 +19,21 @@ Provenance (whitepaper Section 11 — previously always empty, fixed):
   Every signal carries a non-empty `provenance` list recording the actual
   computation sources: caller-supplied source records (e.g. behavioral-hash
   ids backing the signal) plus auto-recorded entries for the coherence
-  evaluation, the BRT phase derivation (OBSERVED vs CLOCK_FALLBACK), and
-  the genomic signature generation. Entries are factual records of what
-  produced the signal value — never fabricated hashes.
+  evaluation, the BRT phase derivation (OBSERVED vs CLOCK_FALLBACK), the
+  genomic signature generation, and the validator-set composition. Entries
+  are factual records of what produced the signal value — never fabricated
+  hashes.
+
+Validator provenance (M-080 / D2-056):
+  validator_count / validator_hhi are real validator-set composition
+  figures at emission: the persistent registry (core/spiritual/
+  validator_registry.py) wins whenever it holds active validators — count
+  = active validators, HHI = stake-share concentration on the L4.8 ×10000
+  scale. Caller-supplied figures are the recorded fallback, and with no
+  registry data the prior defaults (0 / 0.0) are kept with a provenance
+  record flagged "unavailable" — the factory never synthesizes validator
+  numbers (the hash-derived demo figures live in api/app.py, labeled
+  there in /stats).
 
 BRT observed-timestamp path (fixed import):
   compute_brt() derives circadian/ultradian phases from observed timestamps
@@ -33,8 +45,15 @@ BRT observed-timestamp path (fixed import):
   silently degraded to wall-clock. The biological_time dict now carries
   an honest `brt_source` label.
 
-SILENCE signal carries:
-  coherence_gap, limiting_plane, coherence_trend, eta
+SILENCE signal carries (M-004 / D2-040 / D2-059 — silence is information):
+  coherence_gap (Θ−C), limiting_plane (which plane is pulling C down —
+  argmin of the weighted plane contributions), coherence_trend, eta_blocks
+  (int(gap × 1000) — the heuristic shared with the on-chain
+  SilenceRecordedV2 emission). Engine-computed values pass through
+  unchanged; when a caller's coherence dict omits them (the AWA-freeze
+  and L0.5-selection recursions below, ad-hoc dicts) they are derived
+  from the same plane_breakdown × weights data the engine used — never
+  fabricated.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -42,6 +61,7 @@ License: CC0
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from typing import Optional
@@ -278,6 +298,209 @@ def _genomic_signature(entity_id_str: str, generation: int = 0) -> str:
     return sense_b.hex() + antisense_b.hex()   # 128 hex chars = 64 bytes
 
 
+# ─── M-004 / D2-040 / D2-059: structured SILENCE payload ──────────────────────
+
+# Canonical five-plane names (core/master/coherence.py output convention).
+SILENCE_PLANE_NAMES = ("physical", "mental", "spiritual", "conscious", "anima")
+
+# plane_breakdown raw-score key → (canonical plane, weights key). The engine
+# (core/master/coherence.py) computes limiting_plane as argmin over the
+# weighted contributions w_i · plane_i; this table reproduces that mapping.
+_PLANE_BREAKDOWN_TO_WEIGHT = (
+    # breakdown key   plane          weights key
+    ("phi_adj",  "physical",  "alpha"),
+    ("m_adj",    "mental",    "beta"),
+    ("sigma",    "spiritual", "gamma"),
+    ("k_plane",  "conscious", "delta"),
+    ("anima",    "anima",     "epsilon"),
+)
+
+# Canonical ETA heuristic — blocks per unit coherence gap. Identical to the
+# engine (core/master/coherence.py) and mirrored on-chain (TRIONOracleV3.sol
+# SilenceRecordedV2: gap ×1000 in ×1e6 fixed point → gap/1000).
+ETA_BLOCKS_PER_GAP = 1000
+
+
+def _as_float(value, default=None):
+    """Coerce to float, returning `default` for None/non-numeric values."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _derive_silence_payload(coherence_result: dict) -> dict:
+    """Derive the four structured SILENCE fields (M-004, D2-040 / D2-059).
+
+    Silence is information: it must identify WHAT is silent (the limiting
+    plane) and WHEN recovery is expected (eta). The coherence engine
+    computes both; this derivation closes the paths where a caller-supplied
+    coherence dict omits them (the AWA-freeze and L0.5-selection recursions
+    in build_signal, ad-hoc dicts) using the same tracking data the engine
+    used — never fabricating a plane or a recovery estimate:
+
+      limiting_plane = argmin_i(w_i · plane_i) computed from
+                       plane_breakdown × weights when the engine value is
+                       absent. With no plane scores at all, a recorded
+                       temporal-coherence lagging_plane (the stalest plane
+                       input stream — core/physical/temporal_coherence.py)
+                       is the last-resort plane; otherwise None (honest
+                       null — nothing is invented).
+      eta_blocks     = int(gap × ETA_BLOCKS_PER_GAP). A SILENCE whose gap
+                       is positive but whose carried eta is non-positive
+                       contradicts the canonical heuristic and is repaired
+                       here; a VALUATION keeps its caller-supplied eta
+                       (normally 0 — nothing to recover).
+    """
+    C     = _as_float(coherence_result.get("C"), 0.0)
+    theta = _as_float(coherence_result.get("theta"), 0.0)
+    silent = not coherence_result.get("emits", C < theta)
+
+    gap = _as_float(coherence_result.get("coherence_gap"))
+    if gap is None:
+        gap = max(0.0, theta - C)
+
+    limiting_plane = coherence_result.get("limiting_plane")
+    if limiting_plane is None:
+        breakdown = coherence_result.get("plane_breakdown") or {}
+        weights   = coherence_result.get("weights") or {}
+        contributions = {}
+        for key, plane, wkey in _PLANE_BREAKDOWN_TO_WEIGHT:
+            if key in breakdown:
+                score = _as_float(breakdown[key])
+                if score is not None:
+                    contributions[plane] = score * _as_float(weights.get(wkey), 1.0)
+        if not contributions:
+            # Non-engine breakdown keys (e.g. display-case plane names) —
+            # unweighted argmin preserves the same ordering the engine
+            # would see over those scores.
+            for key, value in breakdown.items():
+                score = _as_float(value)
+                if score is not None:
+                    contributions[str(key)] = score
+        if contributions:
+            limiting_plane = min(contributions, key=contributions.get)
+        else:
+            # Plane-input freshness tracking, if the caller recorded it:
+            # the stalest plane stream is the limiting one.
+            limiting_plane = coherence_result.get("lagging_plane")
+
+    eta_blocks = _as_float(coherence_result.get("eta_blocks"))
+    if eta_blocks is None or (silent and gap > 0 and eta_blocks <= 0):
+        eta_blocks = int(gap * ETA_BLOCKS_PER_GAP) if gap > 0 else 0
+
+    return {
+        "coherence_gap":   gap,
+        "limiting_plane":  limiting_plane,
+        "coherence_trend": coherence_result.get("trend", "STABLE"),
+        "eta_blocks":      int(eta_blocks),
+    }
+
+
+# ─── M-080 / D2-056: validator provenance figures ─────────────────────────────
+
+# Process-lifetime cache of the validator registry instance (see
+# _load_validator_registry). Tests and alternative deployments may inject
+# or clear it directly.
+_VALIDATOR_REGISTRY = None
+
+
+def _load_validator_registry():
+    """Return the process-cached ValidatorRegistry, or None when absent.
+
+    The registry (core/spiritual/validator_registry.py — the Python-side
+    validator set, SQLite-persisted) is imported lazily so the signal
+    factory stays importable in minimal runtimes, and instantiated only
+    when its DB file already exists: signal emission must never create
+    registry storage as a side effect. Validators registered through the
+    same process are visible immediately; cross-process updates appear
+    after restart (the same freshness model as the Σ bootstrap
+    disclosure).
+    """
+    global _VALIDATOR_REGISTRY
+    if _VALIDATOR_REGISTRY is not None:
+        return _VALIDATOR_REGISTRY
+    try:
+        from core.spiritual.validator_registry import ValidatorRegistry
+        if not os.path.exists(ValidatorRegistry.DB_PATH):
+            return None
+        _VALIDATOR_REGISTRY = ValidatorRegistry()
+    except Exception:
+        return None
+    return _VALIDATOR_REGISTRY
+
+
+def _resolve_validator_figures(caller_count: int, caller_hhi: float) -> tuple:
+    """Resolve (validator_count, validator_hhi, provenance_record).
+
+    M-080: validator figures must be real validator-set composition
+    values at emission, never hash-derived placeholders. Priority:
+
+      1. Registry — when the validator registry holds active validators,
+         its composition wins: count = active validators, HHI =
+         stake-share concentration (compute_hhi, the L4.8 ×10000 scale
+         used by the HHI tiers). Caller/demo figures that were overridden
+         are still recorded under ``caller_supplied``.
+      2. Caller — figures supplied by the emission path (e.g. a
+         governance/EP computation that already counted its validator
+         set) pass through labeled ``caller``.
+      3. Unavailable — no registry data: the prior defaults (0 / 0.0)
+         are retained and the provenance record is flagged, so consumers
+         can tell real from fallback. The factory never synthesizes
+         validator numbers.
+    """
+    caller_count = int(caller_count or 0)
+    caller_hhi   = _as_float(caller_hhi, 0.0)
+    caller_supplied = caller_count > 0 or caller_hhi > 0.0
+
+    registry = None
+    try:
+        registry = _load_validator_registry()
+    except Exception:
+        registry = None
+
+    if registry is not None:
+        active = registry.active_validators()
+        if active:
+            from core.spiritual.sigma_engine import compute_hhi
+            count = len(active)
+            hhi   = _as_float(compute_hhi([v.stake for v in active]), 0.0)
+            record = {
+                "source":          "validator_registry",
+                "stage":           "validator composition figures (M-080)",
+                "status":          "registry",
+                "validator_count": count,
+                "validator_hhi":   round(hhi, 2),
+                "hhi_basis":       "stake-share HHI (L4.8 ×10000 scale)",
+            }
+            if caller_supplied:
+                record["caller_supplied"] = {
+                    "validator_count": caller_count,
+                    "validator_hhi":   round(caller_hhi, 2),
+                }
+            return count, hhi, record
+
+    if caller_supplied:
+        return caller_count, caller_hhi, {
+            "source":          "validator_registry",
+            "stage":           "validator composition figures (M-080)",
+            "status":          "caller",
+            "validator_count": caller_count,
+            "validator_hhi":   round(caller_hhi, 2),
+        }
+
+    return 0, 0.0, {
+        "source":          "validator_registry",
+        "stage":           "validator composition figures (M-080)",
+        "status":          "unavailable",
+        "validator_count": 0,
+        "validator_hhi":   0.0,
+        "note":            "no validator registry data — figures are not registry-backed",
+    }
+
+
 def _build_provenance(
     caller_provenance: Optional[list],
     coherence_result:  dict,
@@ -286,6 +509,7 @@ def _build_provenance(
     entity_id_str:     str,
     genomic_generation: int,
     now:               float,
+    validator_record:  Optional[dict] = None,
 ) -> list:
     """
     Build the actual provenance chain for a TRIONSignal.
@@ -299,6 +523,9 @@ def _build_provenance(
       3. BRT derivation record — wall-clock vs OBSERVED circular statistics,
          with the observation count.
       4. Genomic-signature record — the dual-strand SHA3-256 generation.
+      5. Validator-composition record (M-080) — where validator_count /
+         validator_hhi came from: registry figures, caller figures, or an
+         explicit unavailable flag.
 
     All entries are factual descriptions of the computation performed;
     no hashes or sources are fabricated.
@@ -337,6 +564,11 @@ def _build_provenance(
         "generation": genomic_generation,
         "ts":         int(now),
     })
+
+    if validator_record is not None:
+        rec = dict(validator_record)
+        rec["ts"] = int(now)
+        prov.append(rec)
 
     return prov
 
@@ -418,6 +650,18 @@ def build_signal(
         i_gained / s_entropy_cost / theta_selection: optional L0.5 entropy-
             budget inputs (see above). Omitted = budget unmeasured (no
             fabrication).
+
+    SILENCE payload (M-004): the four structured silence fields
+    (silence_gap, limiting_plane, coherence_trend, eta_blocks) are taken
+    from the coherence engine when present and derived from the engine's
+    own plane_breakdown × weights data otherwise — see
+    _derive_silence_payload.
+
+    Validator provenance (M-080): validator_count / validator_hhi resolve
+    from the validator registry when it holds active validators;
+    caller-supplied figures apply only as the recorded fallback, and with
+    neither the defaults (0 / 0.0) are kept with a provenance record
+    flagged "unavailable" — see _resolve_validator_figures.
     """
     now = time.time()
     brt = compute_brt(now, observed_timestamps)
@@ -517,6 +761,19 @@ def build_signal(
             })
             return sel_sig
 
+    # ── M-004: structured SILENCE payload (D2-040 / D2-059) ────────────────
+    # gap + limiting_plane + trend + eta on every emission. Engine-computed
+    # values pass through; the AWA/L0.5 recursions above and ad-hoc caller
+    # dicts that omit them get them derived from the same engine data.
+    silence_payload = _derive_silence_payload(coherence_result)
+
+    # ── M-080: validator provenance figures (D2-056) ────────────────────
+    # Real validator-set composition at emission — registry figures win,
+    # caller figures are the recorded fallback, never a fabrication.
+    validator_count, validator_hhi, validator_record = _resolve_validator_figures(
+        validator_count, validator_hhi,
+    )
+
     depth = akashic_depth if akashic_depth is not None else coherence_result.get("akashic_depth", 0)
 
     if conf_genesis is None and depth is not None and depth >= 0:
@@ -533,6 +790,7 @@ def build_signal(
         entity_id_str=entity_id_str,
         genomic_generation=genomic_generation,
         now=now,
+        validator_record=validator_record,
     )
 
     signal = {
@@ -546,12 +804,12 @@ def build_signal(
         "threshold":          theta,
         "margin":             coherence_result.get("margin", C - theta),
         "plane_breakdown":    coherence_result.get("plane_breakdown", {}),
-        "limiting_plane":     coherence_result.get("limiting_plane"),
+        "limiting_plane":     silence_payload["limiting_plane"],
         "weights":            coherence_result.get("weights", {}),
         "silence":            not emits,
-        "silence_gap":        coherence_result.get("coherence_gap", 0),
-        "coherence_trend":    coherence_result.get("trend", "STABLE"),
-        "eta_blocks":         coherence_result.get("eta_blocks", 0),
+        "silence_gap":        silence_payload["coherence_gap"],
+        "coherence_trend":    silence_payload["coherence_trend"],
+        "eta_blocks":         silence_payload["eta_blocks"],
         "akashic_depth":      depth,
         "observer_effect":    round(oe_factor, 6),
         "OE_factor":          round(oe_factor, 6),
@@ -607,6 +865,7 @@ def build_valuation(
 # ─── Signal Type 1: SILENCE ───────────────────────────────────────────────────
 
 def build_silence(entity_id, coherence_result: dict) -> dict:
+    payload = _derive_silence_payload(coherence_result)
     return build_signal(
         entity_id=entity_id,
         signal_type=SignalType.SILENCE,
@@ -618,9 +877,9 @@ def build_silence(entity_id, coherence_result: dict) -> dict:
             "silence_explanation": (
                 f"Coherence C(t)={coherence_result.get('C', 0):.4f} "
                 f"below threshold Θ(t)={coherence_result.get('theta', 0):.4f}. "
-                f"Limiting plane: {coherence_result.get('limiting_plane', 'unknown')}. "
-                f"Trend: {coherence_result.get('trend', 'STABLE')}. "
-                f"ETA: ~{coherence_result.get('eta_blocks', 0)} blocks."
+                f"Limiting plane: {payload['limiting_plane'] or 'unknown'}. "
+                f"Trend: {payload['coherence_trend']}. "
+                f"ETA: ~{payload['eta_blocks']} blocks."
             ),
         }
     )
@@ -868,6 +1127,7 @@ def build_systemic_risk(
         signal_value=risk_score,
         ci_95_lower=max(0.0, risk_score - 0.08),
         ci_95_upper=min(1.0, risk_score + 0.08),
+        validator_hhi=hhi,
         extra={
             "risk_score":               risk_score,
             "risk_tier":                tier,
@@ -935,6 +1195,8 @@ def build_governance_signal(
         signal_value=governance_score,
         ci_95_lower=max(0.0, governance_score - 0.05),
         ci_95_upper=min(1.0, governance_score + 0.05),
+        validator_count=validator_count,
+        validator_hhi=hhi,
         extra={
             "governance_score":  governance_score,
             "quorum_reached":    quorum_reached,
@@ -1258,6 +1520,7 @@ def build_energy_participation(
         signal_value=ep_score,
         ci_95_lower=max(0.0, ep_score - 0.05),
         ci_95_upper=min(1.0, ep_score + 0.05),
+        validator_count=validator_count,
         extra={
             "ep_score":                    ep_score,
             "validator_count":             validator_count,
@@ -1515,6 +1778,7 @@ if __name__ == "__main__":
         assert "coherence_engine" in sources, f"Missing coherence provenance in {sig['signal_type']}"
         assert "brt" in sources, f"Missing BRT provenance in {sig['signal_type']}"
         assert "genomic_signature" in sources, f"Missing genomic provenance in {sig['signal_type']}"
+        assert "validator_registry" in sources, f"Missing validator provenance in {sig['signal_type']}"
         assert sig["biological_time"].get("brt_source") == "CLOCK_FALLBACK", \
             "no observations supplied → BRT must be honestly labeled CLOCK_FALLBACK"
 
@@ -1526,7 +1790,21 @@ if __name__ == "__main__":
     )
     assert sig_prov["provenance"][0]["bh_id"] == "bh_abc123"
     assert sig_prov["provenance"][1]["source"] == "rpc"
-    assert len(sig_prov["provenance"]) == 5  # 2 caller + 3 auto records
+    assert len(sig_prov["provenance"]) == 6  # 2 caller + 4 auto records
+
+    # M-004: SILENCE payload is structured on every path. The self-test
+    # silence dict carries eta_blocks=0 alongside gap=0.22 — the emission
+    # repairs it to the canonical int(gap × 1000) heuristic; the engine's
+    # limiting_plane passes through unchanged.
+    sil_sig = sigs[1]
+    assert sil_sig["signal_type"] == "SILENCE"
+    assert sil_sig["limiting_plane"] == "anima"
+    assert sil_sig["eta_blocks"] == 220, "SILENCE eta repaired to int(gap × 1000)"
+
+    # M-080: every signal records where its validator figures came from
+    vrec = [p for p in sil_sig["provenance"] if p["source"] == "validator_registry"][0]
+    assert vrec["status"] in ("registry", "caller", "unavailable")
+    assert vrec["validator_count"] == sil_sig["validator_count"]
 
     # Observed-timestamp BRT path now actually resolves (broken import fixed)
     import random as _random

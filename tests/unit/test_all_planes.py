@@ -286,6 +286,139 @@ def test_signal_factory():
     assert sil['silence']
     assert sil['silence_gap'] == 0.22
     assert sil['provenance'], "SILENCE signals carry provenance too"
+    # M-004: the carried eta_blocks=0 contradicts gap=0.22 under the
+    # canonical int(gap × 1000) heuristic → repaired at emission; the
+    # engine-supplied limiting_plane passes through unchanged.
+    assert sil['eta_blocks'] == 220
+    assert sil['limiting_plane'] == 'anima'
+
+
+def test_silence_payload_structured(monkeypatch):
+    """M-004 / D2-059: SILENCE is structured information — gap, limiting_plane,
+    coherence_trend, eta_blocks — on every emission path, including coherence
+    dicts (AWA-freeze / L0.5-selection shape) that omit the fields entirely."""
+    import core.master.signal_factory as sf
+    from core.master.signal_factory import build_silence, build_valuation
+
+    entity = b'\xab'*32
+    five_planes = {'physical', 'mental', 'spiritual', 'conscious', 'anima'}
+
+    # Engine-shaped dict WITHOUT limiting_plane / eta / gap — the factory
+    # must derive all four fields from plane_breakdown × weights.
+    coh = {
+        "C": 0.34, "theta": 0.55, "emits": False,
+        "plane_breakdown": {"phi_adj": 0.4, "m_adj": 0.4, "sigma": 0.4,
+                            "k_plane": 0.4, "anima": 0.1},
+        "weights": {"alpha": 0.2, "beta": 0.2, "gamma": 0.2,
+                    "delta": 0.2, "epsilon": 0.2},
+    }
+    sil = build_silence(entity, coh)
+    assert sil['silence'] is True
+    assert sil['silence_gap'] == pytest.approx(0.21)     # Θ − C derived
+    assert sil['limiting_plane'] == 'anima'              # argmin(w_i · plane_i)
+    assert sil['limiting_plane'] in five_planes
+    assert sil['eta_blocks'] == 210                      # int(gap × 1000)
+    assert sil['coherence_trend'] == 'STABLE'
+
+    # Engine-computed figures pass through unchanged (no re-derivation)
+    from core.master.coherence import CoherenceEngine, CoherenceInput
+    eng = CoherenceEngine()
+    r = eng.compute_coherence(CoherenceInput(
+        phi_adj=0.30, m_adj=0.30, sigma=0.30, k_plane=0.30, anima=0.30,
+        volatility=0.90, akashic_depth=100, moat_time=1e6))
+    assert r['silence']
+    sil2 = build_silence(entity, r)
+    assert sil2['limiting_plane'] == r['limiting_plane'] in five_planes
+    assert sil2['eta_blocks'] == r['eta_blocks'] > 0
+    assert sil2['silence_gap'] == pytest.approx(r['coherence_gap'])
+
+    # AWA-freeze conversion: a truth request becomes SILENCE that still
+    # carries the structured payload (limiting plane derived from the
+    # plane_breakdown the engine supplied).
+    monkeypatch.setattr(sf, '_awa_gate_state',
+                        lambda: (True, {"emission_frozen": True,
+                                        "freeze_reason": "test freeze"}))
+    healthy = {
+        "C": 0.80, "theta": 0.55, "emits": True,
+        "plane_breakdown": {"phi_adj": 0.8, "m_adj": 0.8, "sigma": 0.8,
+                            "k_plane": 0.8, "anima": 0.8},
+        "weights": {"alpha": 0.2, "beta": 0.2, "gamma": 0.2,
+                    "delta": 0.2, "epsilon": 0.2},
+    }
+    frozen = build_valuation(entity, healthy, 0.80, 0.75, 0.85)
+    assert frozen['signal_type'] == 'SILENCE'
+    assert frozen['limiting_plane'] in five_planes
+    assert frozen['eta_blocks'] == 0    # freeze gap is 0: no coherence deficit
+    assert frozen['requested_signal_type'] == 'VALUATION'
+
+
+def test_validator_provenance_figures(monkeypatch):
+    """M-080 / D2-056: validator_count / validator_hhi are real validator-set
+    composition figures at emission — registry-backed when the registry holds
+    validators, caller figures only as the recorded fallback, never
+    hash-derived fabrications from the factory."""
+    import core.master.signal_factory as sf
+    from core.master.signal_factory import SignalType
+
+    entity = b'\xab'*32
+    coherence = {
+        "C":0.72,"theta":0.62,"margin":0.10,"emits":True,"silence":False,
+        "coherence_gap":0,"limiting_plane":"anima","trend":"STABLE",
+        "eta_blocks":0,"plane_breakdown":{},"weights":{},
+    }
+
+    def _vrec(sig):
+        recs = [p for p in sig['provenance'] if p['source'] == 'validator_registry']
+        assert recs, "validator provenance record missing"
+        return recs[0]
+
+    # No registry data → honest flagged fallback, zero figures, no fabrication
+    monkeypatch.setattr(sf, '_load_validator_registry', lambda: None)
+    sig = sf.build_signal(entity, SignalType.VALUATION, coherence,
+                          signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77)
+    assert sig['validator_count'] == 0 and sig['validator_hhi'] == 0.0
+    rec = _vrec(sig)
+    assert rec['status'] == 'unavailable'
+    assert 'note' in rec and 'ts' in rec
+
+    # Registry with active validators → real composition figures
+    class _V:
+        def __init__(self, stake):
+            self.stake = stake
+    class _StubRegistry:
+        def active_validators(self):
+            return [_V(100.0), _V(100.0), _V(300.0), _V(300.0)]
+    monkeypatch.setattr(sf, '_load_validator_registry', lambda: _StubRegistry())
+    sig2 = sf.build_signal(entity, SignalType.VALUATION, coherence,
+                           signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77)
+    assert sig2['validator_count'] == 4
+    # stake shares (.125, .125, .375, .375) → HHI = 2(.015625)+2(.140625) = 3125
+    assert sig2['validator_hhi'] == pytest.approx(3125.0)
+    rec2 = _vrec(sig2)
+    assert rec2['status'] == 'registry'
+    assert rec2['validator_count'] == 4
+    assert rec2['hhi_basis']
+
+    # Caller figures are the recorded fallback when the registry is absent
+    monkeypatch.setattr(sf, '_load_validator_registry', lambda: None)
+    sig3 = sf.build_signal(entity, SignalType.VALUATION, coherence,
+                           signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                           validator_count=9, validator_hhi=1500.0)
+    assert sig3['validator_count'] == 9
+    assert sig3['validator_hhi'] == 1500.0
+    assert _vrec(sig3)['status'] == 'caller'
+
+    # Registry figures win over caller/demo figures (real composition at
+    # emission); the overridden caller figures stay recorded
+    monkeypatch.setattr(sf, '_load_validator_registry', lambda: _StubRegistry())
+    sig4 = sf.build_signal(entity, SignalType.VALUATION, coherence,
+                           signal_value=0.72, ci_95_lower=0.67, ci_95_upper=0.77,
+                           validator_count=9, validator_hhi=1500.0)
+    assert sig4['validator_count'] == 4
+    assert sig4['validator_hhi'] == pytest.approx(3125.0)
+    rec4 = _vrec(sig4)
+    assert rec4['status'] == 'registry'
+    assert rec4['caller_supplied'] == {'validator_count': 9, 'validator_hhi': 1500.0}
 
 
 # ─── BTCP Tests ──────────────────────────────────────────────────
