@@ -10,7 +10,6 @@ use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
-    hex_to_32bytes,
     freq_entropy, histogram_entropy,
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
@@ -187,14 +186,21 @@ async fn main() -> Result<()> {
             let eid = block_entity_id(CHAIN_LBL, height);
             let bh = bh_id(&eid);
             let vector = build_vector(&features, &format!("{}:{}", CHAIN_LBL, height));
-            // CANONICAL_BH.md §9 — lenient hex decode of the chain's real block hash
-            // (byte-identical to the Python/TS pipelines). The old SHA3
-            // substitution (bh_id(block_hash)) was unreproducible
-            // cross-language. Missing hash -> canonical "0x0".
+            // SEC-05 / SWEEP-B D1 — pass the REAL Koios block hash VERBATIM
+            // (tx_info's `block_hash` — the same hash the Python streamer's
+            // CARDANO fetcher reads from /blocks as blk["hash"]);
+            // the lenient decoder inside canonical_bh owns the §9 hex decode,
+            // so pre-normalising here — the old SHA3 substitution
+            // (bh_id(block_hash)) or the interim 0ef64fd decode-and-re-encode
+            // that dropped the chain's own "0x…" string — is exactly what §9
+            // forbids ("never a silent substitution"). Genuinely-missing →
+            // warn + honest "0x0" (32 zero bytes), never a fabricated
+            // synthetic id.
             let block_hash_hex = if block_hash.is_empty() {
+                warn!("[{}] block {}: no block hash from Koios — zero block hash", CHAIN_LBL, height);
                 "0x0".to_string()
             } else {
-                hex::encode(hex_to_32bytes(block_hash.trim_start_matches("0x")))
+                block_hash.to_string()
             };
 
             let payload = BatchPayload {

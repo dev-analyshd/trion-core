@@ -215,9 +215,18 @@ async fn main() -> Result<()> {
             // 0 = unknown. Never wall-clock.
             let ts_u64    = block["timestamp"].as_u64().unwrap_or(0);
             let ts        = ts_u64 as f64;
-            let block_hash = block["block_hash"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("snark_block:{}:{}", CHAIN_LBL, block_num)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL Starknet block hash
+            // VERBATIM (starknet_getBlockWithTxs `block_hash` — the same
+            // field the Python streamer's starknet fetcher reads).
+            // Genuinely-missing → warn + honest "0x0" (32 zero bytes),
+            // never the old synthetic bh_id("snark_block:…") substitution.
+            let block_hash = match block["block_hash"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] block {}: no block hash from Starknet RPC — zero block hash", CHAIN_LBL, block_num);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

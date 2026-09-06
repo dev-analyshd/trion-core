@@ -224,9 +224,20 @@ async fn main() -> Result<()> {
             // 0 = unknown. Never wall-clock.
             let ts_u64    = block["block_timestamp"].as_u64().unwrap_or(0) / 1_000_000;
             let ts        = ts_u64 as f64;
-            let block_hash = block["block_hash"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("aptos_block:{}:{}", CHAIN_LBL, height)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL Aptos block hash VERBATIM:
+            // REST /blocks/by_height returns `block_hash` (live-verified on
+            // mainnet). The Python streamer reads a stale
+            // `previous_block_hash` key the current API no longer returns
+            // (degrading to "0x0" there — core/-side follow-up). Genuinely-
+            // missing → warn + honest "0x0" (32 zero bytes), never the old
+            // synthetic bh_id("aptos_block:…") substitution.
+            let block_hash = match block["block_hash"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] block {}: no block hash from Aptos REST — zero block hash", CHAIN_LBL, height);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

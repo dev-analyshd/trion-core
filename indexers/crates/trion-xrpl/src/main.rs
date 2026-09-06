@@ -281,7 +281,13 @@ async fn main() -> Result<()> {
                 Err(e) => { warn!("[{}] ledger {} error: {}", CHAIN_LBL, ledger_num, e); continue; }
             };
 
-            let ledger_hash = ledger.get("ledger_hash").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            // rippled exposes the ledger hash both at result.ledger_hash and
+            // as ledger.hash (the field the Python fetcher reads) — accept either.
+            let ledger_hash = ledger.get("hash")
+                .or_else(|| ledger.get("ledger_hash"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let close_time  = ledger.get("close_time").and_then(|v| v.as_u64()).unwrap_or(0);
             // CANONICAL_BH.md §5 — XRPL ledger close_time (+946684800 epoch shift);
             // 0 = unknown, never wall-clock.
@@ -302,10 +308,15 @@ async fn main() -> Result<()> {
             let bh       = bh_id(&eid);
             let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, ledger_num));
             let ts_f     = ts as f64;
+            // SEC-05 — pass the REAL ledger hash verbatim: bh_id() here was a
+            // silent SHA3 substitution (hash-of-hash) that canonical BH §9
+            // explicitly forbids. Genuinely-missing → honest zero, never a
+            // fabricated synthetic id.
             let block_hash_hex = if ledger_hash.is_empty() {
-                bh_id(&format!("xrpl_ledger:{}:{}", CHAIN_LBL, ledger_num))
+                warn!("[{}] ledger {}: no ledger hash from rippled — zero block hash", CHAIN_LBL, ledger_num);
+                "0x0".to_string()
             } else {
-                bh_id(&ledger_hash)
+                ledger_hash.clone()
             };
 
             let payload = BatchPayload {

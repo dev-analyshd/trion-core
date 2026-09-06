@@ -319,9 +319,15 @@ async fn main() -> Result<()> {
             let bh       = bh_id(&eid);
             let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, nonce));
             let block_hash_hex = if hyper_hash.is_empty() {
-                bh_id(&format!("mx_hyperblock:{}:{}", CHAIN_LBL, nonce))
+                // SEC-05 — genuinely-missing → honest zero (§9), never a
+                // fabricated synthetic id.
+                warn!("[{}] nonce {}: no hyperblock hash — zero block hash", CHAIN_LBL, nonce);
+                "0x0".to_string()
             } else {
-                bh_id(&hyper_hash)
+                // SEC-05 — REAL hyperblock hash verbatim: bh_id() here was a
+                // silent SHA3 substitution (hash-of-hash) that canonical BH §9
+                // explicitly forbids.
+                hyper_hash.clone()
             };
 
             let payload = BatchPayload {

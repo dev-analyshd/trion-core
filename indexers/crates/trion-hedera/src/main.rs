@@ -22,7 +22,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, classify_event_type, event_type_name,
-    hex_to_32bytes, freq_entropy, histogram_entropy,
+    freq_entropy, histogram_entropy,
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
@@ -38,6 +38,15 @@ const HEDERA_RPCS: &[&str] = &[
 
 /// 1 HBAR = 1e8 tinybar; JSON-RPC values are in 1e18 wei-equivalent
 const WEI_DECIMALS: f64 = 1e18;
+
+/// SWEEP-B D2 / CANONICAL_BH.md §4 — the chain registry declares HBAR
+/// decimals = 8 (config/chain_registry.json "Hedera" entry) and the Python
+/// streamer's NON_EVM_CHAINS[28000] declares the same, dividing the
+/// identical Hashio JSON-RPC value by 10^8 in compute_bh. The §4 magnitude
+/// divisor follows the registry-declared decimals, NOT the 1e18
+/// wei-equivalence of the EVM RPC surface — both pipelines must divide by
+/// the same power of ten or the same tx hashes differently per path.
+const HBAR_DECIMALS: f64 = 1e8;
 
 async fn rpc(client: &reqwest::Client, base: &str, method: &str, params: Value) -> Result<Value> {
     let url = base.trim_end_matches('/');
@@ -127,13 +136,14 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 // ── Per-tx Behavioral Hash pipeline ──────────────────────────────────────────
 
 /// CANONICAL_BH.md §4 — deterministic magnitude normalization:
-///   human = raw / 10^18 (EVM-style wei; HBAR tinybar differs — see CANONICAL_BH.md §4); M = min(1, log10(human + 1) / log10(1001))
+///   human = raw / 10^8 (registry decimals for HBAR — see HBAR_DECIMALS);
+///   M = min(1, log10(human + 1) / log10(1001))
 /// The rolling session-max tracker was removed: it made the BH of a fixed
 /// transaction depend on what else the process had observed (canonical
 /// violation — the same tx must always produce the same BH).
 fn hbar_magnitude(wei: u128) -> f64 {
     let w = (wei as u64).min(u64::MAX / 2);
-    let human = w as f64 / 1e18;
+    let human = w as f64 / HBAR_DECIMALS;
     if human <= 0.0 { return 0.0; }
     ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
 }
@@ -232,15 +242,20 @@ async fn main() -> Result<()> {
             let eid      = block_entity_id(CHAIN_LBL, num);
             let bh       = bh_id(&eid);
             let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, num));
-            // CANONICAL_BH.md §9 — the payload's block_hash is the lenient
-            // hex decode of the chain's real block hash (byte-identical to
-            // the Python/TS pipelines). The old SHA3-substitution
-            // (bh_id(block_hash)) was unreproducible cross-language and has
-            // been removed. Missing hash → canonical "0x0" (32 zero bytes).
+            // SEC-05 / SWEEP-B D1 — pass the REAL Hashio block hash VERBATIM
+            // (the same `block.hash` field the Python streamer reads for the
+            // HEDERA family); the lenient decoder inside canonical_bh owns
+            // the §9 hex decode, so pre-normalising here — the old SHA3
+            // substitution (bh_id(block_hash)) or the interim
+            // decode-and-re-encode that dropped the chain's own "0x…" string
+            // — is exactly what §9 forbids ("never a silent substitution").
+            // Genuinely-missing → warn + honest "0x0" (32 zero bytes),
+            // never a fabricated synthetic id.
             let block_hash_hex = if block_hash.is_empty() {
+                warn!("[{}] block {}: no block hash from RPC — zero block hash", CHAIN_LBL, num);
                 "0x0".to_string()
             } else {
-                hex::encode(hex_to_32bytes(block_hash.trim_start_matches("0x")))
+                block_hash.clone()
             };
 
             let payload = BatchPayload {

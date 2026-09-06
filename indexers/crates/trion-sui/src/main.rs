@@ -147,12 +147,20 @@ fn sui_bh_batch(cp: &Value, seq: u64, chain_id: u64, label: &str, cp_hash: &str,
 
         let et  = classify_sui_tx(per_tx_gas);
         let mag = sui_magnitude(per_tx_gas);
-        // Use digest prefix as entity ID proxy (no sender available from checkpoint)
-        let eid = bh_id(&digest);
+        // §6 / golden vector `entity_synthetic_tx_sender` — checkpoints carry
+        // only digests (no sender fields), so the canonical per-tx entity is
+        // bh_id("<chain_name>:<tx_hash>") — the namespaced synthetic-sender
+        // preimage (SWEEP-B D3 sui-entity arm; was bh_id(digest), an
+        // un-namespaced preimage no other pipeline shared). NOTE: the live
+        // Python streamer's `_synthetic_tx_sender` pre-hashes the same string
+        // before compute_bh (a double hash) — a core/-side divergence from
+        // this pinned form, not replicated here.
+        let sender = format!("sui:{}", digest);
+        let eid = bh_id(&sender);
         let (sense_hex, antisense_hex) = canonical_bh(&eid, et, mag, 0, ts, chain_id, cp_hash);
 
         entries.push(TxBhEntry {
-            tx_hash: digest.clone(), from_addr: digest[..digest.len().min(8)].to_string(),
+            tx_hash: digest.clone(), from_addr: sender,
             to_addr: String::new(),
             event_type: et, event_type_name: event_type_name(et).to_string(),
             entity_id: eid, magnitude_norm: mag, value_wei: per_tx_gas.to_string(),
@@ -211,9 +219,18 @@ async fn main() -> Result<()> {
             // 0 = unknown. Never wall-clock.
             let ts_u64    = cp["timestamp_ms"].as_u64().unwrap_or(0) / 1000;
             let ts        = ts_u64 as f64;
-            let cp_hash   = cp["digest"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("sui_cp:{}:{}", CHAIN_LBL, seq)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL checkpoint digest
+            // VERBATIM (the same `digest` field the Python streamer's Sui
+            // fetcher reads); genuinely-missing → warn + honest "0x0"
+            // (32 zero bytes), never the old synthetic bh_id("sui_cp:…")
+            // fallback.
+            let cp_hash = match cp["digest"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] checkpoint {}: no digest from RPC — zero block hash", CHAIN_LBL, seq);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

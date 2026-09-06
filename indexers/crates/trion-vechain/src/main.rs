@@ -22,7 +22,6 @@ use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, classify_event_type, event_type_name,
-    hex_to_32bytes,
     freq_entropy, histogram_entropy,
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
@@ -252,14 +251,20 @@ async fn main() -> Result<()> {
             let eid      = block_entity_id(CHAIN_LBL, num);
             let bh       = bh_id(&eid);
             let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, num));
-            // CANONICAL_BH.md §9 — lenient hex decode of the chain's real block hash
-            // (byte-identical to the Python/TS pipelines). The old SHA3
-            // substitution (bh_id(block_hash)) was unreproducible
-            // cross-language. Missing hash -> canonical "0x0".
+            // SEC-05 / SWEEP-B D1 — pass the REAL Thor block `id` VERBATIM (the
+            // same field the Python streamer reads for the VECHAIN family:
+            // data["id"]); the lenient decoder inside canonical_bh owns the §9
+            // hex decode, so pre-normalising here — the old SHA3 substitution
+            // (bh_id(block_hash)) or the interim 0ef64fd decode-and-re-encode
+            // that dropped the chain's own "0x…" string — is exactly what §9
+            // forbids ("never a silent substitution"). Genuinely-missing →
+            // warn + honest "0x0" (32 zero bytes), never a fabricated
+            // synthetic id.
             let block_hash_hex = if block_hash.is_empty() {
+                warn!("[{}] block {}: no block hash from Thor — zero block hash", CHAIN_LBL, num);
                 "0x0".to_string()
             } else {
-                hex::encode(hex_to_32bytes(block_hash.trim_start_matches("0x")))
+                block_hash.clone()
             };
 
             let payload = BatchPayload {
