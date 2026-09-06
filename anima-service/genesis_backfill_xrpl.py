@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION  = 128
 FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 RPC        = os.environ.get("XRPL_RPC_URL", "https://xrplcluster.com")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "3"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "30"))
@@ -84,7 +88,7 @@ def ingest_ledger(index: int):
         "timestamp": ts, "bh_id": bh_id, "block_num": index, "chain_id": CHAIN_ID, "block_hash": ledger_hash,
     }
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"index": index, "indexed": True}
     except Exception as e:

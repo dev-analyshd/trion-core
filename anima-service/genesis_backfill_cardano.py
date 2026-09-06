@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION  = 128
 FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 API        = os.environ.get("KOIOS_API_URL", "https://api.koios.rest/api/v1")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "2"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "20"))
@@ -77,7 +81,7 @@ def ingest_block(height: int):
         "bh_id": bh_id, "block_num": height, "chain_id": CHAIN_ID, "block_hash": h,
     }
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"height": height, "indexed": True}
     except Exception as e:

@@ -36,6 +36,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION   = 128
 FAISS_URL   = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 SOLANA_RPC  = os.environ.get("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
 CHAIN_ID    = 900   # canonical registry id (config/chain_registry.json); trion-svm indexer uses 900 too (was 101)
 CHAIN_NAME  = "sol-mainnet"
@@ -189,7 +193,7 @@ def ingest_slot(slot: int) -> Optional[dict]:
     }
 
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"slot": slot, "indexed": True, **r.json()}
     except Exception as e:

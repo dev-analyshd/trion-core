@@ -34,6 +34,7 @@ Run: pytest tests/test_beo_cross_chain_vm.py -v
 """
 import hashlib
 import math
+import os
 import random
 import sys
 import time
@@ -94,14 +95,24 @@ def _perturb(vec: list[float], sigma: float = 0.05) -> list[float]:
     return [x / norm for x in noisy]
 
 
+# X-API-Key for the FAISS service (SEC-01) — same resolution order as
+# faiss_service.py; sent only on FAISS calls, not on Oracle API calls.
+_FAISS_KEY = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+
+
+def _faiss_headers(url: str) -> dict:
+    return {"X-API-Key": _FAISS_KEY} if (_FAISS_KEY and url.startswith(FAISS_URL)) else {}
+
+
 def _post(url: str, payload: dict) -> dict:
-    r = requests.post(url, json=payload, timeout=10)
+    r = requests.post(url, json=payload, headers=_faiss_headers(url), timeout=10)
     r.raise_for_status()
     return r.json()
 
 
 def _get(url: str, **params) -> dict:
-    r = requests.get(url, params=params, timeout=10)
+    r = requests.get(url, params=params, headers=_faiss_headers(url), timeout=10)
     r.raise_for_status()
     return r.json()
 

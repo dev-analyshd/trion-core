@@ -30,6 +30,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import sqlite3
 import sys
 import time
@@ -43,6 +44,13 @@ SIGNAL_SELECTION_THETA = 0.5
 BASE_PRESENCE          = 0.02
 D_ENTROPY_COST         = 0.1
 DIMENSION              = 128
+
+# X-API-Key for the FAISS service (SEC-01) — same resolution order as faiss_service.py
+FAISS_KEY = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_FAISS_HEADERS = {"Content-Type": "application/json"}
+if FAISS_KEY:
+    _FAISS_HEADERS["X-API-Key"] = FAISS_KEY
 
 # ── Shannon / histogram entropy (mirrors entropy.rs) ─────────────────────────
 
@@ -189,7 +197,7 @@ def _post_bulk_backfill(faiss_url: str, items: list) -> Tuple[int, int]:
     req = urllib.request.Request(
         f"{faiss_url}/index/bulk_backfill",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=_FAISS_HEADERS,
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -392,7 +400,7 @@ def main():
                 req = urllib.request.Request(
                     f"{args.faiss_url}/archetypes/train",
                     method="POST",
-                    headers={"Content-Type": "application/json"},
+                    headers=_FAISS_HEADERS,
                     data=b"{}",
                 )
                 with urllib.request.urlopen(req, timeout=180) as resp:

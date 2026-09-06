@@ -44,6 +44,7 @@ SQLite persistence (entity state survives restarts)
 """
 
 import asyncio
+import hmac
 import os
 import math
 import hashlib
@@ -100,7 +101,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 try:
@@ -426,6 +428,86 @@ app = FastAPI(
     description="Level 2 Complete — L2.1–L2.7, L6.2, Three-Tier, Merkle",
     version="2.0.0",
 )
+
+
+# ── API-key authentication (SEC-01 / SEC-24) ───────────────────────────────────
+# Key resolution: FAISS_API_KEY → FAISS_SERVICE_API_KEY → TRION_API_KEY (the
+# same secret the Flask Oracle API reads, so one key secures both services).
+#
+# Enforcement matrix:
+#   • Key SET       — every non-public route requires an X-API-Key header
+#                     (constant-time compare); missing/invalid → 401.
+#   • Key UNSET     — fail closed: all non-GET requests and the admin/danger
+#                     families (/index/*, /api/v1/slash*, /api/v1/pqc/sign)
+#                     return 503, so an accidentally exposed instance cannot
+#                     be written to or used as a signing oracle. Read-only
+#                     GETs stay open for local inspection.
+#   • Public paths  — health/readiness probes + docs never require the key.
+
+_FAISS_API_KEY = (
+    os.environ.get("FAISS_API_KEY")
+    or os.environ.get("FAISS_SERVICE_API_KEY")
+    or os.environ.get("TRION_API_KEY")
+    or ""
+).strip()
+
+_AUTH_PUBLIC_PATHS = {
+    "/health", "/healthz", "/readyz", "/api/v1/health", "/stats",
+    "/docs", "/redoc", "/openapi.json",
+}
+
+# Refused even for read-only GETs when no key is configured. All of these are
+# POST-only today; the prefix match is defence-in-depth against method drift.
+_AUTH_KEY_REQUIRED_PREFIXES = (
+    "/index/",
+    "/api/v1/slash",
+    "/api/v1/pqc/sign",
+)
+
+
+def _path_is_public(path: str) -> bool:
+    return (path.rstrip("/") or "/") in _AUTH_PUBLIC_PATHS
+
+
+def _path_is_privileged(path: str) -> bool:
+    return any(path == pre.rstrip("/") or path.startswith(pre)
+               for pre in _AUTH_KEY_REQUIRED_PREFIXES)
+
+
+@app.middleware("http")
+async def enforce_api_key(request: Request, call_next):
+    path = request.url.path
+    if not _path_is_public(path):
+        if _FAISS_API_KEY:
+            provided = request.headers.get("X-API-Key", "")
+            if not provided or not hmac.compare_digest(
+                provided.encode("utf-8"), _FAISS_API_KEY.encode("utf-8")
+            ):
+                return JSONResponse(
+                    {"error": "unauthorized",
+                     "detail": "X-API-Key header missing or invalid"},
+                    status_code=401,
+                )
+        else:
+            read_only = request.method in ("GET", "HEAD", "OPTIONS")
+            if not read_only or _path_is_privileged(path):
+                return JSONResponse(
+                    {"error": "faiss_auth_not_configured",
+                     "detail": ("FAISS_API_KEY not configured — write and admin "
+                                "endpoints disabled (read-only GETs remain open)")},
+                    status_code=503,
+                )
+    return await call_next(request)
+
+
+if _FAISS_API_KEY:
+    logger.info("[auth] FAISS API-key auth ENABLED — all non-health routes require X-API-Key")
+else:
+    logger.warning(
+        "[auth] FAISS_API_KEY is NOT set — write/admin endpoints are DISABLED (503); "
+        "only health probes and read-only GETs answer. Set FAISS_API_KEY (or "
+        "TRION_API_KEY) to enable full operation."
+    )
 
 
 @app.get("/healthz", include_in_schema=False)
@@ -11404,11 +11486,14 @@ if __name__ == "__main__":
     from anyio import to_thread
 
     port = int(os.environ.get("FAISS_PORT") or os.environ.get("PORT") or "8000")
-    logger.info("Starting TRION Akashic Intelligence Engine on port %d", port)
+    # Default loopback-only (SEC-01); containers set FAISS_HOST=0.0.0.0 to
+    # expose the service on the compose network / published port.
+    host = os.environ.get("FAISS_HOST") or "127.0.0.1"
+    logger.info("Starting TRION Akashic Intelligence Engine on %s:%d", host, port)
 
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=host,
         port=port,
         backlog=4096,          # OS-level accept queue — default 2048
         timeout_keep_alive=30, # Keep Rust indexer connections alive longer
