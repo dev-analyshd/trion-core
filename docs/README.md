@@ -8,7 +8,6 @@
 | [protocol/CANONICAL_CERTIFICATE.md](protocol/CANONICAL_CERTIFICATE.md) | 346-byte cross-VM certificate, weight quorum, replay/TTL rules |
 | [protocol/BTCP_STATE_MACHINE.md](protocol/BTCP_STATE_MACHINE.md) | BTCP machines M1–M5, 26 states / 33 transitions |
 | [security/CANONICAL_INVARIANTS.md](security/CANONICAL_INVARIANTS.md) | INV-001…022 invariant register with enforcement status |
-| [audit/AUTONOMOUS_MASTER_WORKLOG.md](audit/AUTONOMOUS_MASTER_WORKLOG.md) | Append-only wave log (Waves 1–4) |
 | **Reference docs** | |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture (post Wave 1–3 truth) |
 | [api/endpoints.md](api/endpoints.md) | REST API reference (the live route set is 282 — see `api/app.py`) |
@@ -18,7 +17,6 @@
 | [architecture/living_security.md](architecture/living_security.md) | 8-component DNA-mimetic security system |
 | [CHAIN_MANIFEST.md](CHAIN_MANIFEST.md) | 129 chains · 18 VM families (recomputed from the registry) |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment guide (custody + topology truth) |
-| [MAINNET_RUNBOOK.md](MAINNET_RUNBOOK.md) | Mainnet go-live gating conditions |
 | [proofs/attack_simulations.md](proofs/attack_simulations.md) | Historical attack simulation results |
 | [proofs/falsifiability.md](proofs/falsifiability.md) | Falsifiability conditions F1–F15 |
 | [deployments/](deployments/) | Self-reported deployment records (honestly labeled) |
@@ -28,11 +26,9 @@
 | [`../signal-processing/src/`](../signal-processing/src/) | C++ FFT behavioral entropy engine |
 | [`../validator/`](../validator/) | Go validator mesh (DW-BFT; external toolchain) |
 | [audit/](audit/) | Audit reports (in-repo, honestly labeled — see the audit README) |
-| [SUBMISSION.md](SUBMISSION.md) | 0G APAC Hackathon 2026 submission |
+
 
 ## Quick Links
-
 - **Whitepaper formula coverage:** `GET /api/v1/whitepaper/coverage`
-- **Live signal:** `GET /api/v1/signal/{entity}`
-- **0G integration:** `GET /api/v1/zg/integration`
+- **Live signal:** `GET /api/v1/signal/{entity}`mz
 - **Main README:** [../README.md](../README.md)
