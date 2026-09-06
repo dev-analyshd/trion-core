@@ -6,7 +6,7 @@
 // transaction flows using a Fast Fourier Transform (FFT) approach.
 // Used by the Physical plane (Φ) to detect frequency-domain manipulation
 // signatures — wash trading shows up as periodic spikes in the FFT spectrum
-// that are invisible to time-domain analysis.
+// that are invisible to time-domain analysis, thats not random.
 //
 // Interface:
 //   compute_entropy_fft(signal, n)  → double  (Shannon entropy from FFT magnitudes)
