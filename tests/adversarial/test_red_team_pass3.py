@@ -58,7 +58,10 @@ that reopens the hole fails CI):
     HOLDING, escrow's own canonicalHighestNonce == 0) — the two
     consumed-nonce trackers are independent by design, the escrow
     re-verifies at the point of value movement, and the mixed-tier
-    "oracle accepted it" claim settles nothing.
+    "oracle accepted it" claim settles nothing. The value path is
+    additionally deployment-bound (SEC-21): the quorum signs the
+    escrow's own address into the release digest, so settlement needs
+    a batch signed for THIS deployment.
   - Duplicate certificates at different nonces for the same escrow:
     the oracle's strictly-increasing (epoch, escrow) nonce ordering
     rejects a LOWER nonce after a higher one was accepted; the ESCROW
@@ -223,8 +226,23 @@ def _lock_funded(h, escrow, escrow_id, route_id, entity_id, dest, amount_wei,
             escrow_id, h.w3.keccak(text="g1-" + escrow_id.hex())))
 
 
+def _sign_batch(h, cert, vals, escrow=None):
+    """Sign `cert` for one audience: `escrow` set → the deployment-bound
+    digest (the VALUE path, releaseEscrowCanonical — SEC-21); escrow=None →
+    the plain payload digest (the oracle observability path)."""
+    stakes = {v["addr"]: 1_000_000 for v in vals}
+    divs = {v["addr"]: 800_000 for v in vals}
+    sigs, st, dv, _ = _sh.sign_cert_with_weights(
+        h, cert, vals, stakes, divs,
+        escrow_address=escrow.address if escrow is not None else None)
+    env = []
+    for s, d in zip(st, dv):
+        env.extend((s, d))
+    return env, b"".join(sigs)
+
+
 def _release_args(h, vals, epoch, escrow_id, route_id, entity_id, dest, amount,
-                  **kw):
+                  escrow=None, **kw):
     kw.setdefault("validator_count", len(vals))
     cert = _sh.make_cert(
         validator_epoch=epoch,
@@ -232,13 +250,8 @@ def _release_args(h, vals, epoch, escrow_id, route_id, entity_id, dest, amount,
         escrow_id=escrow_id, route_id=route_id, entity_id=entity_id,
         destination=b"\x00" * 12 + bytes.fromhex(dest[2:]),
         amount=amount, issued_at=h.now(), **kw)
-    stakes = {v["addr"]: 1_000_000 for v in vals}
-    divs = {v["addr"]: 800_000 for v in vals}
-    sigs, st, dv, _ = _sh.sign_cert_with_weights(h, cert, vals, stakes, divs)
-    env = []
-    for s, d in zip(st, dv):
-        env.extend((s, d))
-    return env, b"".join(sigs), cert.encode_payload(), cert
+    env, sigs = _sign_batch(h, cert, vals, escrow=escrow)
+    return env, sigs, cert.encode_payload(), cert
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -267,10 +280,15 @@ class TestOracleSubmissionSurface:
         _lock_funded(h, escrow, escrow_id, route_id, entity_id, h.dest, amount)
 
         env, sigs, payload, cert = _release_args(
-            h, vals, epoch, escrow_id, route_id, entity_id, h.dest, amount)
+            h, vals, epoch, escrow_id, route_id, entity_id, h.dest, amount,
+            escrow=escrow)
 
-        # the oracle accepts the certificate (full §6 sequence passes)
-        h.tx(oracle.functions.submitCertificateAttestation(payload, env, sigs))
+        # the oracle accepts the certificate's plain-digest batch (full §6
+        # sequence passes on the observability path — SEC-21 binds only the
+        # VALUE path, so the oracle batch and the escrow batch are signed
+        # over different digests for the SAME payload)
+        env_o, sigs_o = _sign_batch(h, cert, vals)
+        h.tx(oracle.functions.submitCertificateAttestation(payload, env_o, sigs_o))
         rec = oracle.functions.canonicalBinding(escrow_id).call()
         assert rec[0] is True and rec[7] == 1        # recorded, nonce 1
 
@@ -309,10 +327,10 @@ class TestOracleSubmissionSurface:
 
         env1, sigs1, payload1, _ = _release_args(
             h, vals, epoch, escrow_id, route_id, entity_id, h.dest, amount,
-            certificate_nonce=1)
+            certificate_nonce=1, escrow=escrow)
         env2, sigs2, payload2, _ = _release_args(
             h, vals, epoch, escrow_id, route_id, entity_id, h.dest, amount,
-            certificate_nonce=2)
+            certificate_nonce=2, escrow=escrow)
 
         dest_before = h.balance(h.dest)
         h.tx(escrow.functions.releaseEscrowCanonical(payload1, env1, sigs1),

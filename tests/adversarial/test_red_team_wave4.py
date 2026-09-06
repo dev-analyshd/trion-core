@@ -52,8 +52,10 @@ that reopens the hole fails CI):
   - escrow state machine: reentrancy (attacker contract on the canonical
     release), legacy↔canonical double-release interleavings both
     directions, post-release revert/emergency, G1 settlement-check gate,
-    same-certificate replay, sweepETH cannot touch in-flight funds
-    (only force-sent excess), akashic window expiry
+    same-certificate replay, same-certificate CROSS-DEPLOYMENT double-pay
+    (SEC-21: the quorum signs the escrow's own address into the digest, so
+    one certificate settles exactly one deployment), sweepETH cannot touch
+    in-flight funds (only force-sent excess), akashic window expiry
   - L4.2 tier math boundaries on-chain AND in py (exactly-2/3 strict,
     3/4 inclusive, 17/20 inclusive, just-below rejection)
   - storage: concurrent consume_certificate is serialized (exactly one
@@ -243,7 +245,10 @@ def _lock_funded(h, escrow, escrow_id, route_id, entity_id, dest, amount_wei,
 
 
 def _release_args(h, vals, epoch, power, theta, escrow_id, route_id,
-                  entity_id, dest, amount, **kw):
+                  entity_id, dest, amount, escrow, **kw):
+    """Build a release call for `escrow` — the quorum signs the
+    deployment-BOUND digest (SEC-21), so the batch is only valid on that
+    escrow contract."""
     kw.setdefault("validator_count", len(vals))
     cert = _sh.make_cert(
         validator_epoch=epoch,
@@ -253,7 +258,8 @@ def _release_args(h, vals, epoch, power, theta, escrow_id, route_id,
         amount=amount, issued_at=h.now(), **kw)
     stakes = {v["addr"]: 1_000_000 for v in vals}
     divs = {v["addr"]: 800_000 for v in vals}
-    sigs, st, dv, _ = _sh.sign_cert_with_weights(h, cert, vals, stakes, divs)
+    sigs, st, dv, _ = _sh.sign_cert_with_weights(
+        h, cert, vals, stakes, divs, escrow_address=escrow.address)
     env = []
     for s, d in zip(st, dv):
         env.extend((s, d))
@@ -283,7 +289,7 @@ class TestCrossChainCertificateConfusion:
         # chain (dest_chain 999 is a completely different registry chain)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount, dest_chain=999)
+            entity_id, h.dest, amount, escrow, dest_chain=999)
 
         dest_before = h.balance(h.dest)
         # FIXED: the release is REJECTED despite a full valid quorum
@@ -294,9 +300,13 @@ class TestCrossChainCertificateConfusion:
         assert evm.chain_id != 999  # sanity: it really is a foreign chain
 
     def test_same_cert_double_pay_across_two_deployments(self, evm):
-        """P-EVM-01 amplifier: the SAME quorum certificate settles identical
-        escrow tuples on TWO escrow deployments — the destination is paid
-        TWICE from one validator authorization. TODO(Wave-5) with P-EVM-01."""
+        """P-EVM-01 amplifier / SEC-21 FIXED (Wave 5): the SAME quorum
+        certificate must NOT settle identical escrow tuples on TWO escrow
+        deployments — that would pay the destination TWICE from one
+        validator authorization. The certificate's signatures are bound to
+        escrowA's deployment (address(this) is in the signed digest), so
+        the second deployment rejects the batch and nothing is paid
+        twice."""
         h = evm.h
         epoch = _fresh_epoch(evm)
         escrow_id = h.w3.keccak(text="p-evm-01-double-pay")
@@ -306,18 +316,25 @@ class TestCrossChainCertificateConfusion:
         _lock_funded(h, evm.escrowA, escrow_id, route_id, entity_id, h.dest, amount)
         _lock_funded(h, evm.escrowB, escrow_id, route_id, entity_id, h.dest, amount)
 
+        # the quorum signs ONE release — for escrowA's deployment only
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount)
+            entity_id, h.dest, amount, evm.escrowA)
 
         before = h.balance(h.dest)
         h.tx(evm.escrowA.functions.releaseEscrowCanonical(payload, env, sigs),
              gas=5_000_000)
-        h.tx(evm.escrowB.functions.releaseEscrowCanonical(payload, env, sigs),
-             gas=5_000_000)
         paid = h.balance(h.dest) - before
-        # CURRENT (broken) behavior: one certificate, two payments.
-        assert paid == 2 * amount
+        assert paid == amount                     # escrowA settles — once
+        # FIXED: the same certificate is INVALID on escrowB — the
+        # deployment-bound digest recovers non-signer garbage → no payout
+        assert h.must_revert(
+            evm.escrowB.functions.releaseEscrowCanonical(payload, env, sigs),
+            gas=5_000_000)
+        paid = h.balance(h.dest) - before
+        # desired behavior: one certificate, ONE payment.
+        assert paid == amount
+        assert evm.escrowB.functions.getEscrowCore(escrow_id).call()[6] == 1  # HOLDING
 
     def test_ed25519_signature_family_rejected_on_evm(self, evm):
         """PINNED DEFENSE: a py/ed25519-family certificate batch (64-byte
@@ -333,7 +350,7 @@ class TestCrossChainCertificateConfusion:
         _lock_funded(h, escrow, escrow_id, route_id, entity_id, h.dest, amount)
         env, _, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount)
+            entity_id, h.dest, amount, escrow)
 
         ed_batch = b"\x11" * 64 + b"\x22" * 64 + b"\x33" * 64  # 3 ed sigs
         assert h.must_revert(
@@ -364,7 +381,7 @@ class TestCrossChainCertificateConfusion:
         # but is SIGNED by registry-2's keys — membership fails
         env, sigs, payload = _release_args(
             h, vals2, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount, validator_count=5)
+            entity_id, h.dest, amount, evm.escrowA, validator_count=5)
         assert h.must_revert(
             evm.escrowA.functions.releaseEscrowCanonical(payload, env, sigs),
             gas=3_000_000)
@@ -566,7 +583,7 @@ class TestQuorumTierBoundaries:
                          h.dest, amount)
             env, sigs, payload = _release_args(
                 h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-                entity_id, h.dest, amount, hhi_at_emission=hhi)
+                entity_id, h.dest, amount, evm.escrowA, hhi_at_emission=hhi)
             if ok:
                 h.tx(evm.escrowA.functions.releaseEscrowCanonical(
                     payload, env, sigs), gas=5_000_000)
@@ -594,7 +611,7 @@ class TestEscrowStateMachineBypass:
                      amount, timeout_blocks=timeout_blocks)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount)
+            entity_id, h.dest, amount, escrow)
         return escrow_id, payload, env, sigs
 
     def test_reentrancy_on_canonical_release_blocked(self, evm):
@@ -610,7 +627,7 @@ class TestEscrowStateMachineBypass:
                      attacker.address, amount)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, attacker.address, amount)
+            entity_id, attacker.address, amount, escrow)
         h.tx(attacker.functions.arm(payload, env, sigs))
         before = h.balance(attacker.address)
         rcpt = h.tx(attacker.functions.attack(), gas=5_000_000)
@@ -659,7 +676,7 @@ class TestEscrowStateMachineBypass:
                      amount, settle=False)
         env, sigs, payload = _release_args(
             h, evm.vals, epoch, 4_000_000, 550_000, escrow_id, route_id,
-            entity_id, h.dest, amount)
+            entity_id, h.dest, amount, escrow)
         assert h.must_revert(
             escrow.functions.releaseEscrowCanonical(payload, env, sigs),
             gas=3_000_000)  # SETTLEMENT_NOT_VERIFIED

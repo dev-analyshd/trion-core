@@ -255,6 +255,38 @@ library CanonicalCertificate {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(payload)));
     }
 
+    /// @notice Domain tag of the escrow-deployment binding: keccak256(
+    ///         "TRION-ESCROW-BOUND-V1"). The escrow VALUE path folds the
+    ///         payload digest with the consuming deployment's address under
+    ///         this tag — one quorum certificate authorizes ONE escrow.
+    bytes32 private constant ESCROW_BINDING_DOMAIN =
+        0x7d2abb7b662e58696a052610824542b32fbde263c9b6ca3af2b9ec1d9e64be1f;
+
+    /// @notice SEC-21 (P-EVM-01 amplifier): the ESCROW-RELEASE family 1
+    ///         signed message — the EIP-191 wrap of
+    ///         keccak256(ESCROW_BINDING_DOMAIN ‖ escrowDeployment ‖
+    ///         keccak256(P)). The quorum's signatures bind to exactly ONE
+    ///         escrow deployment: the same 346-byte P replayed at a second
+    ///         deployment (a same-chain clone, or a redeployed upgrade)
+    ///         recovers non-signer addresses and fails §6 step 5. The
+    ///         oracle's ethSignedDigestOf (observability path, no value
+    ///         movement) stays deployment-agnostic — only the value path
+    ///         binds.
+    function escrowBoundEthDigestOf(bytes calldata payload, address escrowDeployment)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n32",
+                keccak256(
+                    abi.encodePacked(ESCROW_BINDING_DOMAIN, escrowDeployment, keccak256(payload))
+                )
+            )
+        );
+    }
+
     /// @notice validator_epoch (§2 offset 17) — the §6 step 2 registry key.
     function epochOf(bytes calldata payload) internal pure returns (uint32) {
         return uint32(_load(payload, 17, 4));

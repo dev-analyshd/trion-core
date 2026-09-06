@@ -219,19 +219,45 @@ def cert_to_sol(cert: PyCanonicalCertificate) -> dict:
 
 # ── signing ─────────────────────────────────────────────────────────────────
 
+# SEC-21: the EVM escrow verifies release certificates over the
+# deployment-BOUND digest — the Python twin of
+# CanonicalCertificate.escrowBoundEthDigestOf. A certificate signed for one
+# escrow deployment recovers garbage signers on any other deployment.
+ESCROW_BINDING_DOMAIN = Web3.keccak(text="TRION-ESCROW-BOUND-V1")
+
+
+def escrow_binding_inner(harness: EvmHarness, escrow_address, inner: bytes) -> bytes:
+    """keccak(ESCROW_BINDING_DOMAIN ‖ escrow ‖ inner) — the deployment-bound
+    inner digest the EVM-family validators sign for a SPECIFIC escrow
+    (CanonicalCertificate.escrowBoundEthDigestOf, SEC-21 fix)."""
+    escrow = bytes.fromhex(
+        escrow_address.removeprefix("0x")
+        if isinstance(escrow_address, str) else escrow_address.hex())
+    return harness.w3.keccak(ESCROW_BINDING_DOMAIN + escrow + inner)
+
+
 def eip191_signed_hash(harness: EvmHarness, inner: bytes) -> bytes:
     """keccak(b"\\x19Ethereum Signed Message:\\n32" ‖ inner) — the value the
     EVM-family validators sign (CanonicalCertificate.ethSignedDigest)."""
     return harness.w3.keccak(b"\x19Ethereum Signed Message:\n32" + inner)
 
 
-def sign_cert(harness: EvmHarness, cert: PyCanonicalCertificate, signers):
+def sign_cert(harness: EvmHarness, cert: PyCanonicalCertificate, signers,
+              escrow_address=None):
     """Sign the canonical payload with `signers` (list of validator dicts).
+
+    With `escrow_address` the signatures are made over the deployment-bound
+    digest (CanonicalCertificate.escrowBoundEthDigestOf) — what the EVM
+    escrow verifies on releaseEscrowCanonical (SEC-21: the quorum signs for
+    ONE escrow deployment). Without it the plain EIP-191 wrap of keccak256(P)
+    is signed (the oracle observability path, submitCertificateAttestation).
 
     Returns (signatures, stakeWeights, diversityWeights, signersSorted) —
     sorted ascending by signer address (the V3 batch discipline).
     """
     inner = harness.w3.keccak(cert.encode_payload())   # keccak256(P)
+    if escrow_address is not None:
+        inner = escrow_binding_inner(harness, escrow_address, inner)
     msg = encode_defunct(primitive=inner)              # EIP-191 wrap of inner
     entries = []
     for v in signers:
@@ -248,15 +274,18 @@ def sign_cert(harness: EvmHarness, cert: PyCanonicalCertificate, signers):
     )
 
 
-def sign_cert_with_weights(harness, cert, signers, stake, diversity):
+def sign_cert_with_weights(harness, cert, signers, stake, diversity,
+                           escrow_address=None):
     """Sign + attach the envelope weight CLAIMS (§4) in signer-sorted order.
 
     `stake`/`diversity` may be either an index-aligned list (matching
     `signers`) or an address-keyed mapping ({addr: value}); returns the fully
     assembled (signatures, stakeWeights, diversityWeights, sorted_addrs) call
-    arguments.
+    arguments. `escrow_address` selects the deployment-bound digest (see
+    sign_cert — the escrow release path); the default signs the plain
+    payload digest (the oracle path).
     """
-    sigs, _, _, sorted_addrs = sign_cert(harness, cert, signers)
+    sigs, _, _, sorted_addrs = sign_cert(harness, cert, signers, escrow_address)
     by_addr = {v["addr"]: i for i, v in enumerate(signers)}
 
     def _pick(weights, addr):
