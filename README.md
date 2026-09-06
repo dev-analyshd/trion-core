@@ -551,11 +551,14 @@ GET /api/v1/whitepaper/coverage           # Formula coverage verification
 ### Signal Schema
 
 Every TRION signal carries a standardized set of fields enabling institutional consumption.
-Signal types are a closed registry: **24 canonical types** (MD §11's 19 + 5 V2
-extended, ids 0–23 dense — `core/master/signal_factory.py`, `spec/signal_types.md`);
-the 10 BTCP §14.2 domain names are all classifiable (3 already canonical + 7 as typed
-sub-payloads on canonical carriers). New types require a protocol fork (fail-closed
-KeyError on unknown names).
+Signal types are a closed registry per the **M-073 owner ruling: 29 canonical types** —
+19 base (MD §11) + 10 BTCP-family (BTCP spec §2 + §14.2; closed set = 27 distinct
+names — BTCP_ROUTE and CONSENSUS_ADAPTATION are dual-family). The registry **id space
+stays fork-gated at 24** (ids 0–23 dense, wasm/rust/on-chain parity —
+`core/master/signal_factory.py`, `spec/signal_types.md`); the 7 BTCP-family names that
+are not enum members ride canonical carriers as typed sub-payloads, each with a
+spec-faithful builder. New ids require a protocol fork (fail-closed KeyError on
+unknown names).
 
 - `coherence`, `threshold`, `silence` — primary gating decision
 - `planes` — individual scores for Φ, M, Σ, K, A
@@ -833,11 +836,14 @@ trion-core/
 │   ├── config.yaml                # Service configuration
 │   ├── bh_schema_v1.json          # Canonical BH schema (event enums source)
 │   └── deployment.env             # Deployment variables
-├── zk/                            # Zero-Knowledge Proof System
-│   ├── __init__.py                # 5 circuits: Intent, Complementarity, Credential, Travel, IAP
-│   ├── circuits/                  # Circuit definitions
-│   ├── keys/                      # Proving/verification keys
-│   └── proofs/                    # Generated proof storage
+├── zk/                            # Zero-Knowledge Proof System (Python)
+│   └── __init__.py                # ZKProofSystem: Schnorr-Pedersen Σ-protocol over
+│                                  # secp256k1; 5 circuits (Intent, Complementarity,
+│                                  # Credential, Travel, IAP) — see zk-circuits/ for
+│                                  # the Circom/Groth16 twins
+├── zk-circuits/                   # Circom 2.1.6 / Groth16 circuit sources (5 circuits)
+│                                  # — no zkeys/r1cs/proof artifacts committed: the
+│                                  # trusted-setup ceremony is pending (RISK_REGISTER R-03)
 ├── contracts/                     # All smart contracts organized by VM family
 │   ├── README.md                  # Full contract index (65+ contracts, 9 VMs)
 │   ├── starknet/                  # Cairo contracts (8 — deployed on Sepolia)
@@ -1087,5 +1093,5 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 
 ---
 
-*TRION Protocol — Whitepaper v2.0 — canonical reconstruction Waves 1–4 (spec matrix + canonical BH/certificate/invariants + VM security parity + storage/API truth) — chain registry 129 chains / 18 VM families / 40 integrated · 24 canonical signal types · 282 API routes — test counts as of 2026-09-04 (Wave 3 close): pytest 1019 unit + 9 skipped (live-server/env skips by design) · 134 golden · 87 btcp + 1 xfail · 120/121 adversarial (1 = PQC libs absent, environmental) · 147 Rust `#[test]` in rust/src (not compiled here) · hardhat 53; go 15 — coverage registry: 84 formulas registered (28 live + 56 synthetic-demo) via `GET /api/v1/whitepaper/coverage`; master verification suite: 105 formulas, 104/0/1*  
+*TRION Protocol — Whitepaper v2.0 — canonical reconstruction Waves 1–4 (spec matrix + canonical BH/certificate/invariants + VM security parity + storage/API truth) + Wave 5 (M-073 owner ruling: 29-type canonical signal taxonomy on 24 fork-gated ids + BTCP-family carrier payloads) — chain registry 129 chains / 18 VM families / 40 integrated · 29-type canonical signal taxonomy · 282 API routes — test counts as of 2026-09-04 (Wave 3 close): pytest 1019 unit + 9 skipped (live-server/env skips by design) · 134 golden · 87 btcp + 1 xfail · 120/121 adversarial (1 = PQC libs absent, environmental) · 147 Rust `#[test]` in rust/src (not compiled here) · hardhat 53; go 15 — coverage registry: 84 formulas registered (28 live + 56 synthetic-demo) via `GET /api/v1/whitepaper/coverage`; master verification suite: 105 formulas, 104/0/1*  
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  

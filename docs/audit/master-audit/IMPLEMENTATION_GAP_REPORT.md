@@ -1,18 +1,18 @@
 # Implementation Gap Report — Breakdown by Domain + Honest Stub Register
 
-**Task ID:** 9-c (from REQUIREMENTS_MATRIX.md, post-session statuses) · **Base:** 296 merged requirements across 15 domains (620 doc sources)
-**Post-session totals:** IMPLEMENTED 212 · PARTIALLY IMPLEMENTED 70 · MISSING 3 · CONTRADICTORY 3 · DEAD/FALSE CLAIM 1 · UNKNOWN 7 (BROKEN 0)
+**Task ID:** 9-c (from REQUIREMENTS_MATRIX.md, post-session statuses) · **Base:** 296 merged requirements across 15 domains (620 doc sources) · **Wave-5 refresh (12-b):** M-073 resolved by owner ruling — totals below updated
+**Post-session totals (post-Wave-5):** IMPLEMENTED 212 · PARTIALLY IMPLEMENTED 70 · MISSING 3 · CONTRADICTORY 2 · RESOLVED-BY-OWNER-RULING 1 · DEAD/FALSE CLAIM 1 · UNKNOWN 7 (BROKEN 0)
 
 "IMPLEMENTED" throughout = code exists and matches spec per the deep read. It does NOT mean production operation: no validator fleet, single-sig relayer, testnet deployments self-reported, Rust/Go statically verified only.
 
 ---
 
-## 1. Status by domain (post-session)
+## 1. Status by domain (post-Wave-5 refresh — counts re-derived from REQUIREMENTS_MATRIX.md)
 
 | Domain (rows) | IMPL | PARTIAL | MISSING | CONTRA | DEAD | UNK | Dominant gap |
 |---|---:|---:|---:|---:|---:|---:|---|
 | 1. Formulas & Math (72) | 68 | 4 | 0 | 0 | 0 | 0 | constants registry (M-072); flash-loan constant (M-023); transduction HSM (M-025) |
-| 2. Signal System (35) | 30 | 4 | 0 | 1 | 0 | 0 | taxonomy contradiction M-073; provenance M-080; institutional/regulatory/consensus-adaptation partial |
+| 2. Signal System (35) | 29 | 5 | 0 | 0 | 0 | 0 | provenance M-080; institutional/regulatory/consensus-adaptation partial — M-073 LEFT this list (owner ruling + 11-a: 29-type taxonomy implemented, RESOLVED-BY-OWNER-RULING) |
 | 3. Five-Plane (10) | 7 | 3 | 0 | 0 | 0 | 0 | Σ/K/A stub disclosure (M-110); ANIMA scale (M-116); conscious network (M-117) |
 | 4. BTCP Protocol (50) | 42 | 8 | 0 | 0 | 0 | 0 | ZK legs unbuilt (M-145/209/211); shadow sources SIMULATED (M-149); sensing-oracle SNARK (M-163); adoption (M-164) |
 | 5. Contracts (15) | 11 | 3 | 0 | 1 | 0 | 0 | scope contradiction M-168; staking/governance-vote mechanics (M-179/180); semi-immutability deploy (M-166) |
@@ -26,9 +26,9 @@
 | 13. Testing/Verification (26) | 2 | 23 | 1 | 0 | 0 | 0 | **the falsification/proof domain is designed, not operated** (F-conditions need fleet+uptime); Coq/Lean/TLA+ MISSING (M-266) |
 | 14. Governance/Team/Roadmap (21) | 9 | 9 | 1 | 0 | 0 | 2 | mainnet MISSING (M-288); vote/timelock mechanics (M-270/272); team/finance UNKNOWN (M-274/275); L2/L6 bootstrap (M-280/284) |
 | 15. Documentation Claims (8) | 2 | 1 | 0 | 1 | 0 | 4 | doc-internal drift M-296; unvalidatable claims UNKNOWN |
-| **TOTAL (296)** | **212** | **70** | **3** | **3** | **1** | **7** | |
+| **TOTAL (296)** | **212** | **70** | **3** | **2** | **1** | **7** | (+1 RESOLVED-BY-OWNER-RULING: M-073) |
 
-(Session delta: Formulas/Signals — M-004 moved Formulas→Signals-wise SILENCE payload from PARTIAL to IMPLEMENTED, 8-c; security hardening this session is annotation-level: the 14 SEC fixes pin behaviors that were already spec-side IMPLEMENTED rows.)
+(Session delta: Formulas/Signals — M-004 moved Formulas→Signals-wise SILENCE payload from PARTIAL to IMPLEMENTED, 8-c; security hardening this session is annotation-level: the 14 SEC fixes pin behaviors that were already spec-side IMPLEMENTED rows. Wave-5 delta (12-b): M-073 CONTRADICTORY → RESOLVED-BY-OWNER-RULING — owner ruling 29-type taxonomy, implemented by 11-a, pinned by 20 new tests in tests/unit/test_signal_registry.py; Domain 2's row counts above are re-derived from the matrix (the pre-refresh 30/4 split was a transcription drift vs the matrix's 29/5).)
 
 ## 2. Where the gaps concentrate
 
@@ -73,4 +73,6 @@ Carried forward from the deep-read synthesis (worklog Task 7); re-checked agains
 
 Closed or narrowed this session: SILENCE payload fields (M-004 → IMPLEMENTED), validator provenance figures at emission (M-080 improved, still partial), FAISS/Flask auth boundaries (matrix rows M-217/M-222 hardened), BIRP signature verification (M-197/M-198), escrow 2×-pay (M-173/M-175 invariant restored), indexer hash integrity (M-006/101 hardened).
 
-Untouched by design (external or structural): fleet, ZK ceremony, formal proofs, falsification live windows, mainnet, team/hardware, doc-level contradictions (19), TimescaleDB depth, ANIMA scale.
+Closed or narrowed in Wave 5 (Tasks 11-a…11-d, recorded 12-b): M-073 signal taxonomy (owner ruling + 29-type implementation); M-006/M-213 canonical-BH integrity extended to the CEX path + TON/cosmos Python streamer (R-14/R-20/R-21); core/-side FAISS keying (R-22 — matrix row M-217 scope); cairo crate buildability (R-16 — supports the Contracts domain's static-verify caveat); beo cross-chain coverage test now self-sufficient (the 10-b (d) classification closed).
+
+Untouched by design (external or structural): fleet, ZK ceremony, formal proofs, falsification live windows, mainnet, team/hardware, doc-level contradictions (19 recorded — 18 unresolved after the M-073 ruling), TimescaleDB depth, ANIMA scale.

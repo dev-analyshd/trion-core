@@ -1,6 +1,6 @@
 # File Disposition — Session-Touched Files + Dead-Content Recommendations
 
-**Task ID:** 9-c · **Scope:** (a) every file touched by the fix waves this session (git status vs c0ccb14: 79 modified + 1 rename + 4 new = 84 entries) with disposition and one-line evidence; (b) recommended dispositions for the repo's known dead/duplicate content areas from the deep read — **RECOMMENDATIONS ONLY** (Master Command §22: no blind deletion; nothing outside the fix lanes was touched this session).
+**Task ID:** 9-c (original) · **Updated:** Task 12-a (Wave 7 §22 cleanup — §2 converted from recommendations into a disposition ledger: provable areas deleted with 9-point evidence, retained areas carry their blocking check) · **Scope:** (a) every file touched by the fix waves this session (git status vs c0ccb14: 79 modified + 1 rename + 4 new = 84 entries) with disposition and one-line evidence; (b) recommended dispositions for the repo's known dead/duplicate content areas from the deep read — recommendations as of 9-c, actioned where provable as of 12-a (Master Command §22: no blind deletion).
 
 All session changes are in the working tree (uncommitted at write time; coordinator commit pending). Dispositions for (a) are KEEP — every touched file carries a functional change with named test evidence. **Write-time note:** a parallel lane (no worklog entry at this file's write time) landed additional fixes in the tree during this session — cold-start signal-route 500s, the CEX→FAISS forward schema, keyed transduction-integrity calls, FAISS_SERVICE_URL resolution in self_verification_routes, and the algorand/aptos/cardano/pvm/sui/vechain verbatim-hash class fixes; they are included in §1 and verified green (tests re-run at write time: test_api_cold_start 8P, test_cex_faiss_forward 5P, golden+registry 150P).
 
@@ -102,33 +102,71 @@ All session changes are in the working tree (uncommitted at write time; coordina
 
 ---
 
-## 2. Dead / duplicate content areas — RECOMMENDED disposition (future cleanup pass)
+## 2. Dead / duplicate content areas — disposition ledger (§22 proofs run by Task 12-a)
 
-Per Master Command §22 these are recommendations only: every DELETE requires proof-of-no-callers first; nothing was deleted this session except dead code arms inside files already being fixed (Waves unreachable fallback; synthetic-id generators; the stale `pub mod cairo;` line; the hedera hex re-encode).
+Per Master Command §22 every DELETE requires proof-of-no-callers first. The 12-a pass ran the full 9-point proof (source / build-config / deploy / tests / scripts / dynamic loads / CI / integration / uploaded-spec) for every 9-c recommendation; results below. Nothing outside the recommendation areas was deleted. Deletions live in the working tree (uncommitted, restorable via `git checkout -- <path>`); post-deletion battery held at tests/unit 1136P/6S/0F + `import api.app` boot OK after each batch.
 
-| # | Area (deep-read evidence) | Current state | Recommended disposition |
-|---|---|---|---|
-| 1 | validator/cmd/trion-validator/crawler_coordinator.go — cmd-level STUB copy of the remediated internal/p2p crawler (hardcoded 0.50/0.40/SourceCount=0 placeholders) | stale duplicate; drift risk if anything calls it | **DELETE-WITH-PROOF**: grep callers of the cmd stub; if zero (expected — internal/p2p is the real path), remove in a housekeeping commit; else quarantine behind a deprecation comment |
-| 2 | sdk/src — 4 overlapping TS clients; canonical is sdk/TrionSDK.ts (pinned by 2 tests) | deliberate consolidation deferral (W5-S) | **CONSOLIDATE** later: fold the 3 non-canonical clients into TrionSDK.ts façades or delete-with-proof per client |
-| 3 | chains/near deploy_wasm.cjs vs deploy_wasm.mjs — near-duplicate deploy scripts; the .cjs hardcodes Replit-host absolute paths /home/runner/workspace/... (non-portable) | both tracked; mjs is the portable one | **DELETE-WITH-PROOF** the .cjs (no importers expected); keep the .mjs |
-| 4 | Duplicate XSL/SBA implementations: extended/xsl_engine vs cross_species; governance/sba_engine vs extended/sovereign_behavioral; reconciled exports in extended/__init__ | dual implementations with reconciled exports | **KEEP + DOCUMENT**: pick the canonical module per concept, mark the other `# compatibility shim` (deleting risks import-graph churn; exports already reconciled) |
-| 5 | core/physical/transduction_integrity.py — misnamed (docstring says self_verification.py); duplicate TI concept also in temporal_coherence.py | two files share the TI concept | **RENAME/DOC-FIX** in a docs pass; no functional change |
-| 6 | mainmain_bootstrap.py — 152-chain display registry with sha3-derived synthetic chain ids + legacy duplicates (Aptos 5001 vs 20000) | self-labeled "display artifact" in comments | **KEEP (labeled)** or regenerate from config/chain_registry.json; do not delete — frontends consume it |
-| 7 | trion-botchain vs trion-evm — BOT_CHAIN 677 is also in trion-evm's CHAINS ⇒ double BH rows if both run | config-level hazard (the MEV byte bug itself is fixed) | **OPERATOR GUIDANCE / CONFIG**: run one or the other per chain; add a startup warning or dedupe guard in a future pass |
-| 8 | package.json dead script refs — `indexer.ts`, `client.ts`, `program/` don't exist in that dir | dead refs after CLEANUP-1 moved SVM programs to contracts/svm/programs/ | **CLEAN** in a housekeeping commit (remove dead script entries) |
-| 9 | chains/starknet verify-contracts.ts / verify-all.ts — hardcode the expected deployer address (duplicating deployments JSON) | duplication risk on redeploy | **REFACTOR** to read the deployer from the deployments record |
-| 10 | TimescaleDB — 17/35 tables declaration-only (schema.sql vs live writers) | documented per-table dispositions exist | **KEEP schema in-tree** (it is the normative DDL); keep the per-table writer labels accurate |
-| 11 | Historical audit docs (docs/audit/*.md pre-dating the canonical sweep; TRION_AUDIT_REPORT.md root) | superseded banners present (TRION_AUDIT_REPORT.md header is exemplary) | **KEEP** — audit trail; ensure each carries a superseded/refresh pointer (SWEEP-B.md got its refresh line this session) |
-| 12 | Runtime artifacts (akashic_state.db, bh_ledger.db, *.index, .hypothesis, .pytest_cache) | gitignored; recreated by test runs | **NO ACTION** — hygiene passes during the fix waves already removed caches; .gitignore covers the rest |
-| 13 | vyper 0.3.10 — repo requires it exactly; undeclared in pyproject/requirements | dependency-declaration gap (Task-3 lesson) | **DECLARE** (add to dev deps) in a housekeeping commit — not done this session to stay in-lane |
-| 14 | .env.railway (untracked local copy left on disk) | gitignored now; template example tracked | **LEAVE** local file; operators copy from .env.railway.example per its header |
+### 2a. DELETED (this session, 12-a) — all 9 checks passed
+
+**#1 — `validator/cmd/trion-validator/crawler_coordinator.go`** (cmd-level stub copy of the remediated `internal/p2p/crawler.go`; hardcoded 0.50/0.40/SourceCount=0 placeholders). Replacement is pinned by `validator/internal/p2p/p2pgo_test.go` (real ANIMA-service crawler, CA/ CRED tests).
+1. Source: zero references — every top-level identifier it defines (NLPSignal, CrawlerConfig, CrawlResult, CrawlerPool, NewCrawlerPool, crawlLanguage, updateCred, CrossSourceAgreement, DefaultCrawlerConfigs, CrawlerSelfTest) greps clean in the 3 sibling package files and repo-wide; `core/native_bridge.py` (:96/:177) and `core/master/channel_architecture.py` (:252) reference the pre-restructure path `go/crawler_coordinator.go` (nonexistent since the 2.0.0 restructure) — unaffected by this deletion.
+2. Build configs: no config names the file — Makefile / railway-entrypoint.sh / ci-go.yml build the *package* `./cmd/trion-validator/`, whose `func main()` lives in validator_mesh.go and never calls CrawlerSelfTest.
+3. Deploy refs: Dockerfile.railway copies `validator/` wholesale; no file-level reference.
+4. Tests: no test references (internal/p2p tests exercise the real crawler, a different package).
+5. Scripts: none (scripts/, root .mjs/.sh grep-clean, hidden dirs included).
+6. Dynamic loads: none construct the validator/cmd path.
+7. CI: no workflow step names the file (ci-go.yml = package-level build/test).
+8. Integration: the cmd binary is the one-shot mesh self-test; nothing integrates the crawler stub.
+9. Uploaded spec: M-233 / Channel-14 "Go crawler coordination" is satisfied by `internal/p2p/crawler.go`; no extracted-requirements mention of the cmd file.
+Compile caveat: no Go toolchain in the sandbox (standing R-01-class gap) — deletion is an unused-file removal with zero symbol refs, so package compilation cannot regress; ci-go.yml `go build ./...` covers it in CI.
+
+**#3 — `chains/near/deploy_wasm.cjs`** (CJS twin of the portable `deploy_wasm.mjs`; hard-requires `/home/runner/workspace/node_modules/…` → crashes on any non-GHA machine). The `.mjs` twin is KEPT (portable, has fs fallbacks).
+1. Source: zero importers — repo-wide grep incl. hidden dirs finds only docs/deep-read descriptions and the file's own usage comment.
+2. Build configs: no package.json script names it (chains/near/package.json scripts are cargo-only, pre- and post-12-a).
+3. Deploy refs: none in Dockerfiles/compose/deploy/supervisors.
+4. Tests: none.
+5. Scripts: none.
+6. Dynamic loads: none.
+7. CI: none.
+8. Integration: the NEAR deploy path of record is the `.mjs` — `docs/deployments/near_testnet.json` ("when_redeploying") names `chains/near/deploy_wasm.mjs` only.
+9. Uploaded spec: no extracted-requirements mention.
+
+**#8 — dead `package.json` script entries** (12 entries across `chains/{starknet,pvm,svm,sui,ton,near}/package.json` pointing at never-committed files: `indexer`/`client`/`dev`→indexer.ts|client.ts (6 dirs), `start`→indexer.ts (sui), `build:program`/`check:program`/`test:program`→`program/` (svm — CLEANUP-1 moved SVM programs to `contracts/svm/programs/`)). Live entries kept: execute/fund-check (starknet — files exist), cargo contract/oracle/contracts entries (near/pvm — dirs exist), ton echo stubs.
+1. Source: no source invokes them — zero repo hits for `tsx indexer.ts` / `tsx client.ts` / `npm run indexer|client` outside the package.json files themselves and docs describing them as broken.
+2. Build configs: referenced files don't exist in their dirs (deep-read 02 §179); tsconfigs use globs (`src/**/*`, `*.ts`) with no explicit file refs; root package.json scripts (`trion:index-*`) all resolve to existing files.
+3. Deploy refs: none.
+4. Tests: none.
+5. Scripts: none (scripts/ grep-clean).
+6. Dynamic loads: none.
+7. CI: no workflow step calls them.
+8. Integration: the live chain-adapter entrypoints are `execute.ts` + the Rust/Python indexers; no integration consumes the dead entries.
+9. Uploaded spec: no extracted-requirements mention.
+All 6 files re-validated as JSON (json.load + node parse) after the edit.
+
+### 2b. Retained — blocking check / standing reason (original numbering)
+
+| # | Area | Retained because (blocking check or standing reason) |
+|---|---|---|
+| 2 | sdk/src — 4 overlapping TS clients; canonical is sdk/TrionSDK.ts | check (1) fails: live consumers exist — `tests/unit/test_chain_registry_canonical.py` reads sdk/src/index.ts and pins sdk/src/generated_chain_ids.ts (:123/:231/:508), sdk/trion_sdk.py references the TS twins; disposition is CONSOLIDATE (deliberate W5-S deferral), and sdk/ is an actively-edited lane this wave — not a provable-dead deletion target |
+| 4 | XSL/SBA dual implementations (extended/xsl_engine vs cross_species; governance/sba_engine vs extended/sovereign_behavioral; reconciled exports in extended/__init__) | disposition is KEEP + DOCUMENT (compatibility-shim marking is a code edit, not a deletion; deleting risks import-graph churn; exports already reconciled) |
+| 5 | core/physical/transduction_integrity.py misnamed docstring; TI concept duplicated in core/physical/temporal_coherence.py | disposition is RENAME/DOC-FIX only — and core/ is an actively-edited lane (the file carries uncommitted keyed-FAISS changes from §1) |
+| 6 | mainmain_bootstrap.py — 152-chain display registry | recommendation VOID: no such file at HEAD af5317b, in git history (`git log --diff-filter=D` clean), or the working tree — the only repo mention of the name is this ledger (presumably removed before the current git history); recorded so future cleanup passes don't hunt for it |
+| 7 | trion-botchain vs trion-evm BOT_CHAIN 677 double-BH hazard | config/operator-guidance item (startup warning or dedupe guard) — nothing to delete; the MEV byte bug itself was fixed in 7-d |
+| 9 | chains/starknet verify-contracts.ts / verify-all.ts hardcode the deployer address | disposition is REFACTOR (read deployer from the deployments record) — a code change, not a deletion |
+| 10 | TimescaleDB — 17/35 tables declaration-only | KEEP: schema.sql is the normative DDL; per-table writer labels stay accurate (12-c pinned them with tests/unit/test_schema_spec_tables.py 11P) |
+| 11 | Historical audit docs (docs/audit/*.md pre-canonical-sweep; TRION_AUDIT_REPORT.md root) | KEEP: audit trail with superseded banners — deleting history is not a §22 deletion target |
+| 12 | Runtime artifacts (akashic_state.db, *.index, .hypothesis, .pytest_cache) | NO ACTION: gitignored, recreated by test runs; hygiene passes remove them (12-a cleaned caches again post-run) |
+| 13 | vyper 0.3.10 undeclared in pyproject/requirements | DECLARE is a dependency *addition*, not a deletion — out of the 12-a deletion lane; stays a housekeeping recommendation |
+| 14 | .env.railway untracked local copy | LEAVE: gitignored; operators copy from .env.railway.example (7-e) |
+
+Out-of-lane observation for core/ owners (recorded, not actioned): `core/native_bridge.py` builds/runs `crawler_coordinator` from the pre-restructure `go/` path that no longer exists, so the live `go_crawler_selftest` API keys (`api/app.py` :4982, `api/dashboard_routes.py` :472) report `available:false` by construction; `core/master/channel_architecture.py` impl_paths for Channel 14 likewise lists `go/crawler_coordinator.go`. None of these referenced the deleted validator/cmd file, so the #1 deletion is independent of them.
 
 ---
 
 ## 3. Not touched, deliberately
 
 - `rust/` crate (trion-btcp) — no fix lane touched it; 147 tests remain static-verified only.
-- `validator/` Go code — fleet gap is operational, not code.
+- `validator/` Go code — fleet gap is operational, not code (12-a touched validator/ only to delete the dead cmd-level crawler stub in §2a; no functional validator code changed).
 - `zk-circuits/` — blocked on ceremony.
 - All doc-level contradiction sources (the three uploaded specs) — outside the repo.
 - Historical `docs/deep-read/*.md` audit notes that mention `.env.railway` — left as historical records (only descriptive mentions, zero functional refs — verified in 7-e).

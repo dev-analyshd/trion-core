@@ -4,26 +4,27 @@
 **This file:** repo-side consolidation at docs/audit/master-audit/ — row set identical to upload/extracted/requirements_master.md; statuses re-annotated where the fix waves (Tasks 7-a…7-f, 8-a…8-c) changed the evidence. Fix-wave changes live in the working tree (uncommitted at write time; coordinator commit pending).
 **Columns:** ID · Requirement (short) · Sources · Type · Pri (max of source priorities) · Contra (⚠ = docs disagree — see Contradiction section) · Status · Evidence (repo paths @ c0ccb14 + fix-wave notes)
 
-**Status legend:** IMPLEMENTED · PARTIALLY IMPLEMENTED · MISSING · CONTRADICTORY · DEAD/FALSE CLAIM · UNKNOWN. "IMPLEMENTED" = code exists and matches spec per the 9-agent deep read — live production operation is NOT implied (no validator fleet, single-sig relayer, testnet deployments self-reported). Rust/Go/Cairo verified statically (no cargo/go/forge/scarb in sandbox).
+**Status legend:** IMPLEMENTED · PARTIALLY IMPLEMENTED · MISSING · CONTRADICTORY · DEAD/FALSE CLAIM · RESOLVED-BY-OWNER-RULING · UNKNOWN. "IMPLEMENTED" = code exists and matches spec per the 9-agent deep read — live production operation is NOT implied (no validator fleet, single-sig relayer, testnet deployments self-reported). Rust/Go verified statically (no cargo/go in sandbox); Cairo now compiles under both pinned scarb versions (Wave 5, 11-b — R-16 closed). "RESOLVED-BY-OWNER-RULING" = a doc-vs-doc conflict closed by owner decision (Wave 5, M-073) — the ruling is the requirement; implementation + tests cited in the row.
 
-✏️ = changed / hardened / corrected during this audit session (annotation names the wave and the regression test).
+✏️ = changed / hardened / corrected during this audit session or the Wave-5 refresh (Tasks 11-a…11-d, recorded by 12-b; annotation names the wave and the regression test).
 
 ---
 
 ## DASHBOARD
 
-### Status distribution (matrix build → after this session's fixes)
+### Status distribution (matrix build → after this session's fixes; Wave-5 refresh (12-b) applied)
 
-| Status | At build (Task 5) | After fix waves | Δ |
+| Status | At build (Task 5) | After fix waves + Wave 5 | Δ |
 |---|---:|---:|---|
 | IMPLEMENTED | 211 | 212 | +1 (M-004 SILENCE payload fields landed, 8-c) |
 | PARTIALLY IMPLEMENTED | 71 | 70 | −1 |
 | MISSING | 3 | 3 | — (M-184 validator fleet, M-266 Coq/Lean/TLA+, M-288 mainnet) |
-| CONTRADICTORY | 3 | 3 | — (doc-level: M-073, M-168, M-296) |
+| CONTRADICTORY | 3 | 2 | −1 (M-073 → RESOLVED-BY-OWNER-RULING, Wave 5 / 11-a; doc-level M-168, M-296 remain) |
 | BROKEN | 0 | 0 | — |
-| DEAD/FALSE CLAIM | 1 | 1 | — (M-203 Aave "real validation") |
+| DEAD/FALSE CLAIM | 1 | 1 | — (M-203 Aave "real validation" — the doc's claim; the repo labels the incident SIMULATED) |
+| RESOLVED-BY-OWNER-RULING | 0 | 1 | +1 (M-073 — 29-type taxonomy ruling, implemented + pinned by 11-a) |
 | UNKNOWN | 7 | 7 | — |
-| **TOTAL** | **296** | **296** | 1 status flip, 13 ✏️ annotations |
+| **TOTAL** | **296** | **296** | 2 status flips (M-004 8-c · M-073 owner ruling 11-a), 15 ✏️-annotated rows (13 pre-Wave-5 + M-073/M-213 new; M-006/M-267 annotations extended by the Wave-5 refresh) |
 
 ### Priority distribution
 
@@ -55,12 +56,12 @@
 | 15. Documentation Claims (8) | 8 |
 | **TOTAL (programmatic count)** | **296** |
 
-### Status × domain (post-session)
+### Status × domain (post-Wave-5 refresh)
 
 | Domain | IMPL | PARTIAL | MISS | CONTRA | DEAD | UNK |
 |---:|---:|---:|---:|---:|---:||
 | 1. Formulas & Math (72) | 69 | 3 | 0 | 0 | 0 | 0 |
-| 2. Signal System (35) | 29 | 5 | 0 | 1 | 0 | 0 |
+| 2. Signal System (35) | 29 | 5 | 0 | 0 | 0 | 0 |
 | 3. Five-Plane Architecture (10) | 7 | 3 | 0 | 0 | 0 | 0 |
 | 4. BTCP Protocol (50) | 42 | 8 | 0 | 0 | 0 | 0 |
 | 5. Contracts (15) | 11 | 3 | 0 | 1 | 0 | 0 |
@@ -75,11 +76,21 @@
 | 14. Governance/Team/Roadmap (21) | 9 | 9 | 1 | 0 | 0 | 2 |
 | 15. Documentation Claims (8) | 2 | 1 | 0 | 1 | 0 | 4 |
 
+Wave-5 refresh (12-b): Domain 2's M-073 moved CONTRA → RESOLVED-BY-OWNER-RULING (own status — counted in neither the IMPL nor CONTRA column); 11-c's R-20 canonical-CEX fix extends M-006's evidence annotation, and R-14/R-21 close the TON/cosmos Python-streamer divergences behind M-213's row.
+
 ---
 
-## CONTRADICTORY items (19 — docs disagree on the requirement itself)
+## CONTRADICTORY items (19 recorded — 18 unresolved after Wave 5)
 
-None were resolved this session: contradictions are doc-vs-doc conflicts; the fix waves only hardened the repo side. Full notes: upload/extracted/requirements_master.md §Contradiction Register; repo-internal conflicts K1–K22: docs/audit/CANONICAL_SPEC_MATRIX.md.
+One left the register this session: **M-073, closed by the owner's taxonomy ruling** (below) — the other 18 remain doc-vs-doc conflicts that code fixes cannot close (a spec reconciliation pass is the only path for them). Full notes: upload/extracted/requirements_master.md §Contradiction Register; repo-internal conflicts K1–K22: docs/audit/CANONICAL_SPEC_MATRIX.md.
+
+**Resolved this session (recorded so future readers don't re-flag):**
+
+| ID | Pri | Requirement | Sources | Resolution |
+|---|---|---|---|---|
+| M-073 | CRITICAL | Signal taxonomy closed at exactly 19 types. | D1-069, D2-077 | **RESOLVED-BY-OWNER-RULING (Wave 5, Task 11-a):** canonical taxonomy = **29 types** = 19 base (D1 §11) + 10 BTCP-family (BTCP master spec §2 + §14.2); closed set = **27 distinct names** (BTCP_ROUTE + CONSENSUS_ADAPTATION counted in both families per the ruling's own note). Implemented: `core/master/signal_factory.py` (ruling constants, `signal_registry()` ruling view, 7 spec-faithful builders on canonical carriers), `spec/signal_types.md` (ruling + taxonomy table + invariants), TS/Python SDK consumers; pinned by **20 new tests** in `tests/unit/test_signal_registry.py` (TestM073RulingTaxonomy + TestSpecFaithfulBuilders — full tests/unit 1107P/9S at 11-a close). Registry id space stays fork-gated at 24 (wasm/rust/on-chain parity); the 7 BTCP-only names ride canonical carrier payloads. |
+
+**Unresolved (18):**
 
 | ID | Pri | Requirement | Sources |
 |---|---|---|---|
@@ -91,7 +102,6 @@ None were resolved this session: contradictions are doc-vs-doc conflicts; the fi
 | M-054 | CRITICAL | BTCP_score (route optimization): [0.25·NL+0.20·normalize_gas+0.20·finality_conf+0.15·CC_coherence+0.20·BEO_continuity]×(… | D1-018, D1-109, D3-091, D3-263 |
 | M-059 | MEDIUM | BITP/BLO commitment hashes: Hash_DNA(entity\|\|intent\|\|expiry\|\|behavioral_proof\|\|timestamp[\|\|nonce]). | D3-273, D3-274 |
 | M-072 | CRITICAL | Canonical constants registry: every weight/threshold/κ/fee across all 3 docs indexed and implemented; D1 Appendix B =… | D1-150, D3-296 |
-| M-073 | CRITICAL | Signal taxonomy closed at exactly 19 types. | D1-069, D2-077 |
 | M-110 | CRITICAL | Σ/K/A planes must not be undisclosed fixed-value stubs in C(t) — real engines or disclosed bootstrap. | D3-076, D3-213 |
 | M-168 | CRITICAL | Smart contracts for EXACTLY two things: (1) publishing signals to chains (Solidity), (2) economic coordination… | D1-084 |
 | M-172 | CRITICAL | BTCP_ESCROW.vy (Vyper 0.3.10): 4 state constants IDLE/HOLDING/RELEASED/REVERTED, EscrowRecord struct, storage… | D3-217, D3-237, D3-238, D3-239, D3-241, D3-242, D3-023 |
@@ -107,30 +117,29 @@ None were resolved this session: contradictions are doc-vs-doc conflicts; the fi
 
 ## Top-20 implementation backlog (CRITICAL / HIGH, not IMPLEMENTED)
 
-Ordered by status severity (MISSING / CONTRADICTORY / UNKNOWN first), then structural weight. M-004 left the backlog this session (8-c).
+Ordered by status severity (MISSING / CONTRADICTORY / UNKNOWN first), then structural weight. M-004 (8-c) and M-073 (owner ruling, 11-a) left the backlog this session.
 
 | # | ID | Pri | Requirement (short) | Status | Blocker |
 |---|---|---|---|---|---|
 | 1 | M-184 | CRITICAL | Validator set: minimum 100 validators across ≥4 continents at launch. | MISSING | No live fleet — emission via single-sig relayer; software launch gate exists, fleet does not |
-| 2 | M-073 | CRITICAL | Signal taxonomy closed at exactly 19 types. | CONTRADICTORY | Repo emits 24 signal types, docs close at 19 (D3 adds 10 more); no canonical registry to arbitrate |
-| 3 | M-168 | CRITICAL | Smart contracts for EXACTLY two things: (1) publishing signals to chains (Solidity), (2)… | CONTRADICTORY | Spec says contracts for exactly 2 things; repo has 9 VM languages, ~33.7k lines of contracts |
-| 4 | M-110 | CRITICAL | Σ/K/A planes must not be undisclosed fixed-value stubs in C(t) — real engines or disclosed… | PARTIALLY IMPLEMENTED | Σ/K/A bootstrap fixed values still feed some paths (Σ=0.25, K=0.10, A=0.10) — engines real, disclosure partial |
-| 5 | M-072 | CRITICAL | Canonical constants registry: every weight/threshold/κ/fee across all 3 docs indexed and… | PARTIALLY IMPLEMENTED | Constants scattered across core modules; no single canonical constants file (10 D1 + 9 D3 symbols unvalued) |
-| 6 | M-183 | CRITICAL | Validator hardware: 32+ cores EPYC/Xeon, 256GB DDR5 ECC, 10TB NVMe, A100/H100, 10Gbps fiber… | UNKNOWN | Hardware spec (EPYC/256GB/HSM) has no repo enforcement and cannot be verified from code |
-| 7 | M-163 | CRITICAL | Sensing Oracle / Dark Field Protocol: entity computes privately on-device, submits… | PARTIALLY IMPLEMENTED | Sensing-Oracle contract exists; the ZK coherence proof circuit is not built |
-| 8 | M-166 | CRITICAL | Semi-immutability: bytecode immutable AND expression=f(bytecode, environment_signal) changes… | PARTIALLY IMPLEMENTED | Semi-immutability engines + API exist; no deployed semi-immutable contract demonstrated |
-| 9 | M-215 | CRITICAL | Akashic Index on TimescaleDB (billions of events, microsecond queries); BH schema + BTCP_ROUTE… | PARTIALLY IMPLEMENTED | TimescaleDB 17/35 tables declaration-only; psycopg2 guarded — schema in-tree, depth absent |
-| 10 | M-242 | CRITICAL | Proof 1 — Manipulation resistance: no rational actor profitably manipulates TRION for assets… | PARTIALLY IMPLEMENTED | Proof 1 manipulation-resistance: monitors + attack-cost model exist; theorem is prose |
-| 11 | M-243 | CRITICAL | Proof 2 — Consensus safety: DW-BFT safe and live under conditions stronger than standard BFT. | PARTIALLY IMPLEMENTED | Proof 2 consensus safety: 50-sybil measured 75.8%→0%; bridge-vs-multisig comparison is prose |
-| 12 | M-244 | CRITICAL | Proof 3 — Quantum resistance: LSS resistant to arbitrarily powerful quantum computers… | PARTIALLY IMPLEMENTED | Proof 3 quantum resistance: PQC round-trips real; the proof itself is prose (AN-10) |
-| 13 | M-245 | CRITICAL | Proof 4 — Signal convergence: diversity-weighted consensus is a consistent estimator… | PARTIALLY IMPLEMENTED | Proof 4 convergence: monitors exist; consistent-estimator proof is prose |
-| 14 | M-247 | CRITICAL | F1/F2 falsification (manipulation resistance + consensus safety): documented successful… | PARTIALLY IMPLEMENTED | F1/F2 falsification wired to modules + replay engine; continuous live monitoring not running (no fleet) |
-| 15 | M-180 | CRITICAL | Vyper for security-critical contracts (staking/slashing/token); simpler syntax = smaller… | PARTIALLY IMPLEMENTED | Vyper for staking/slashing/token: token+escrow yes; staking is an ink! stub, slashing is Python/Go/Solidity |
-| 16 | M-280 | CRITICAL | Roadmap L2 — Akashic Index: EVM-genesis bootstrap, archetype clustering (K-means 128-dim)… | PARTIALLY IMPLEMENTED | L2 bootstrap in progress (D(t)=18.3%); archetype evolution partial |
-| 17 | M-284 | CRITICAL | Roadmap L6 — D1: BC/BRT/BIBL gas intelligence; D2: FIRST TESTNET SIGNAL (three-plane C(t), Θ… | PARTIALLY IMPLEMENTED | L6 first testnet signal live but via 3→5-plane bootstrap stubs |
-| 18 | M-277 | CRITICAL | Build discipline: do not skip levels; each level is the foundation of the next; test every… | PARTIALLY IMPLEMENTED | Level discipline: repo followed L0→L9 order, but first signal predates full per-level testing |
-| 19 | M-233 | CRITICAL | Exact language stack: Rust core/crypto; Go networking/crawler-coordination/API gateway; Python… | PARTIALLY IMPLEMENTED | All 10 languages present; Rust/Go statically verified only (no cargo/go in sandbox) |
-| 20 | M-252 | CRITICAL | F8/F9 (D1): HHI>2500 sustained 30 days without correction; geographic distribution <4… | PARTIALLY IMPLEMENTED | F8/F9: HHI monitor + violation chips exist; auto-correction not live |
+| 2 | M-168 | CRITICAL | Smart contracts for EXACTLY two things: (1) publishing signals to chains (Solidity), (2)… | CONTRADICTORY | Spec says contracts for exactly 2 things; repo has 9 VM languages, ~33.7k lines of contracts |
+| 3 | M-110 | CRITICAL | Σ/K/A planes must not be undisclosed fixed-value stubs in C(t) — real engines or disclosed… | PARTIALLY IMPLEMENTED | Σ/K/A bootstrap fixed values still feed some paths (Σ=0.25, K=0.10, A=0.10) — engines real, disclosure partial |
+| 4 | M-072 | CRITICAL | Canonical constants registry: every weight/threshold/κ/fee across all 3 docs indexed and… | PARTIALLY IMPLEMENTED | Constants scattered across core modules; no single canonical constants file (10 D1 + 9 D3 symbols unvalued) |
+| 5 | M-183 | CRITICAL | Validator hardware: 32+ cores EPYC/Xeon, 256GB DDR5 ECC, 10TB NVMe, A100/H100, 10Gbps fiber… | UNKNOWN | Hardware spec (EPYC/256GB/HSM) has no repo enforcement and cannot be verified from code |
+| 6 | M-163 | CRITICAL | Sensing Oracle / Dark Field Protocol: entity computes privately on-device, submits… | PARTIALLY IMPLEMENTED | Sensing-Oracle contract exists; the ZK coherence proof circuit is not built |
+| 7 | M-166 | CRITICAL | Semi-immutability: bytecode immutable AND expression=f(bytecode, environment_signal) changes… | PARTIALLY IMPLEMENTED | Semi-immutability engines + API exist; no deployed semi-immutable contract demonstrated |
+| 8 | M-215 | CRITICAL | Akashic Index on TimescaleDB (billions of events, microsecond queries); BH schema + BTCP_ROUTE… | PARTIALLY IMPLEMENTED | TimescaleDB 17/35 tables declaration-only; psycopg2 guarded — schema in-tree, depth absent |
+| 9 | M-242 | CRITICAL | Proof 1 — Manipulation resistance: no rational actor profitably manipulates TRION for assets… | PARTIALLY IMPLEMENTED | Proof 1 manipulation-resistance: monitors + attack-cost model exist; theorem is prose |
+| 10 | M-243 | CRITICAL | Proof 2 — Consensus safety: DW-BFT safe and live under conditions stronger than standard BFT. | PARTIALLY IMPLEMENTED | Proof 2 consensus safety: 50-sybil measured 75.8%→0%; bridge-vs-multisig comparison is prose |
+| 11 | M-244 | CRITICAL | Proof 3 — Quantum resistance: LSS resistant to arbitrarily powerful quantum computers… | PARTIALLY IMPLEMENTED | Proof 3 quantum resistance: PQC round-trips real; the proof itself is prose (AN-10) |
+| 12 | M-245 | CRITICAL | Proof 4 — Signal convergence: diversity-weighted consensus is a consistent estimator… | PARTIALLY IMPLEMENTED | Proof 4 convergence: monitors exist; consistent-estimator proof is prose |
+| 13 | M-247 | CRITICAL | F1/F2 falsification (manipulation resistance + consensus safety): documented successful… | PARTIALLY IMPLEMENTED | F1/F2 falsification wired to modules + replay engine; continuous live monitoring not running (no fleet) |
+| 14 | M-180 | CRITICAL | Vyper for security-critical contracts (staking/slashing/token); simpler syntax = smaller… | PARTIALLY IMPLEMENTED | Vyper for staking/slashing/token: token+escrow yes; staking is an ink! stub, slashing is Python/Go/Solidity |
+| 15 | M-280 | CRITICAL | Roadmap L2 — Akashic Index: EVM-genesis bootstrap, archetype clustering (K-means 128-dim)… | PARTIALLY IMPLEMENTED | L2 bootstrap in progress (D(t)=18.3%); archetype evolution partial |
+| 16 | M-284 | CRITICAL | Roadmap L6 — D1: BC/BRT/BIBL gas intelligence; D2: FIRST TESTNET SIGNAL (three-plane C(t), Θ… | PARTIALLY IMPLEMENTED | L6 first testnet signal live but via 3→5-plane bootstrap stubs |
+| 17 | M-277 | CRITICAL | Build discipline: do not skip levels; each level is the foundation of the next; test every… | PARTIALLY IMPLEMENTED | Level discipline: repo followed L0→L9 order, but first signal predates full per-level testing |
+| 18 | M-233 | CRITICAL | Exact language stack: Rust core/crypto; Go networking/crawler-coordination/API gateway; Python… | PARTIALLY IMPLEMENTED | All 10 languages present; Rust/Go statically verified only (no cargo/go in sandbox) |
+| 19 | M-252 | CRITICAL | F8/F9 (D1): HHI>2500 sustained 30 days without correction; geographic distribution <4… | PARTIALLY IMPLEMENTED | F8/F9: HHI monitor + violation chips exist; auto-correction not live |
 
 Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 clean-history FP study), M-270/M-272 (governance vote/timelock mechanics), M-274/M-275 (team/finance-level, no code evidence), M-266 (Coq/Lean/TLA+ artifacts), M-288 (mainnet).
 
@@ -147,7 +156,7 @@ Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 cle
 | M-003 | Dynamic threshold Θ(t)=Θ_min+(Θ_max−Θ_min)·V(t), Θ_min=0.55, Θ_max=0.92 (0.55+0.37·V). | D1-006, D2-038, D3-262 | constant | CRITICAL | no | IMPLEMENTED | rust/src/master_equation.rs (Θ=0.55+0.37·clamp(V)); core/master/; escrow coherence floors 0.55… |
 | M-004 | Structured SILENCE payload: coherence_gap, limiting_plane, coherence_trend, estimated time-to-threshold; 'silence is information'. | D1-001, D1-071, D3-074 | schema | CRITICAL | no | IMPLEMENTED | core/master/signal factory + rust/src/signal_emitter.rs (SILENCE payload=Θ−C gap); api… ✏️ FIXED THIS AUDIT (8-c): limiting_plane/eta_blocks now derived at emission — engine passthrough, else argmin(w·plane) + int(gap×1000) (shared w/ TRIONOracleV3 SilenceRecordedV2); regressions tests/unit/test_all_planes.py::test_silence_payload_structured |
 | M-005 | Moat M_moat(t)=D·Q·R·X·F·N — six multiplicative independently-growing factors. | D2-006, D2-049 | formula | HIGH | no | IMPLEMENTED | core/master/moat (MoatEngine D·Q·R·X·F·N; repo-specific sub-formulas D=log1p(d/1000)/log(11)… |
-| M-006 | Behavioral Hash BH(event,t)=Hash_DNA(preimage) — canonical cross-VM preimage layout. | D1-009, D2-009, D3-266, D3-009 | formula | CRITICAL | ⚠ YES | IMPLEMENTED | core/primitives/behavioral_hash.py; indexers/crates/trion-common/src/hash_dna.rs… ✏️ HARDENED THIS AUDIT (7-d/8-b): indexer BH block_hash bytes [61..93] now carry real chain hashes (ton/pi/xrpl/mx/hedera), synthetic ids deleted per CANONICAL_BH §9 — the doc-level preimage contradiction itself is unchanged |
+| M-006 | Behavioral Hash BH(event,t)=Hash_DNA(preimage) — canonical cross-VM preimage layout. | D1-009, D2-009, D3-266, D3-009 | formula | CRITICAL | ⚠ YES | IMPLEMENTED | core/primitives/behavioral_hash.py; indexers/crates/trion-common/src/hash_dna.rs… ✏️ HARDENED THIS AUDIT (7-d/8-b): indexer BH block_hash bytes [61..93] now carry real chain hashes (ton/pi/xrpl/mx/hedera), synthetic ids deleted per CANONICAL_BH §9 — the doc-level preimage contradiction itself is unchanged. ✏️ WAVE 5 (11-c, R-20): the CEX integration's BH construction is now canonical (8 zero context bytes, magnitude at the 1e9 nano scale, unrounded magnitude_norm forwarded) — the add_tx_bh_batch verified counter is 3/3 in the live E2E; pinned by TestCanonicalL01Verification (4 new tests in tests/unit/test_cex_faiss_forward.py, importing the endpoint's own verify_bh_complementarity) |
 | M-007 | Dual-strand hashing: sense=SHA3-256(P\|\|0x00); antisense=SHA3-256(P\|\|0xFF) XOR complement(sense); verify sense⊕antisense==expected. | D1-010, D2-080, D3-267 | security | CRITICAL | no | IMPLEMENTED | Py/Rust/TS parity + Go meshsha3 (FIPS202 SHA3-256, XOR-NOT invariant tests); used in every BH… |
 | M-008 | BEO entity resolution: BEO_confidence=(w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP)/Σw; multi-wallet→one entity before hashing. | D1-012, D2-010, D3-269, D3-191 | formula | CRITICAL | ⚠ YES | IMPLEMENTED | core/primitives/entity_resolution (BEO, resolve_batch/deployer APIs; cross-VM BEO golden vector… |
 | M-009 | Resonance communication: Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0 (shared behavioral vocabulary). | D1-013, D2-011 | protocol | HIGH | no | IMPLEMENTED | core/primitives/resonance; api /beo/resonance/{a}/{b} |
@@ -219,7 +228,7 @@ Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 cle
 
 | ID | Requirement | Sources | Type | Pri | Contra | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| M-073 | Signal taxonomy closed at exactly 19 types. | D1-069, D2-077 | schema | CRITICAL | ⚠ YES | CONTRADICTORY | core/master/signal_factory (24 types); rust/src/signal_emitter.rs (24 registry ids 0–23); sdk (20… |
+| M-073 | Signal taxonomy closed at exactly 19 types. | D1-069, D2-077 | schema | CRITICAL | ⚠ YES | RESOLVED-BY-OWNER-RULING | ✏️ RESOLVED (owner ruling + Wave 5 / 11-a): canonical taxonomy = 29 types — 19 base (D1 §11) + 10 BTCP-family (BTCP master spec §2 + §14.2; closed set 27 distinct names, BTCP_ROUTE/CONSENSUS_ADAPTATION dual-family). Implemented in core/master/signal_factory.py (ruling constants + registry ruling view + 7 spec-faithful builders riding canonical carriers) and spec/signal_types.md; registry id space stays fork-gated at 24 (rust signal_emitter / wasm / on-chain ids 0–23 parity) with the 7 BTCP-only names as carrier sub-payloads — pinned by 20 new tests in tests/unit/test_signal_registry.py (full tests/unit 1107P/9S at 11-a close) |
 | M-074 | TRIONSignal full schema — every field present, no optional fields, no partial signals (34 fields / 7 groups). | D2-050 | schema | CRITICAL | no | IMPLEMENTED | core signal dataclasses; tests/test_extended_payload (176-byte v2 payload, 25 tests) |
 | M-075 | Identity fields: signal_id bytes32, signal_type, entity_id bytes32 (BEO id). | D2-051 | schema | CRITICAL | no | IMPLEMENTED | core TRIONSignal dataclass; rust types.rs |
 | M-076 | Content fields: signal_value float64 (S(t)) + confidence_interval CI_95 always present — never a bare point value. | D1-070, D2-052, D2-008 | schema | CRITICAL | no | IMPLEMENTED | ci_95 always non-null (SDK dataclass + conformal intervals in mental_transformer) |
@@ -394,7 +403,7 @@ Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 cle
 | ID | Requirement | Sources | Type | Pri | Contra | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | M-212 | Rust L0 daemon: block streaming + 9 Shannon-entropy features per block (doc3 EXISTS map, path trion-l0/ now consolidated into rust/). | D3-008, D3-288 | module | HIGH | no | IMPLEMENTED | rust/ crate + indexers/ (22-crate workspace); 9 entropy features in phi_engine + svm_indexer… |
-| M-213 | Every transaction/swap/deposit/vote/bridge permanently recorded and read every block, every chain, continuously (behavioral… | D2-002 | architecture | HIGH | no | IMPLEMENTED | bh_streamer polls ~61 public RPCs; bh_ledger.db (SQLite WAL) + optional PG; FAISS vectors; 0G… |
+| M-213 | Every transaction/swap/deposit/vote/bridge permanently recorded and read every block, every chain, continuously (behavioral… | D2-002 | architecture | HIGH | no | IMPLEMENTED | bh_streamer polls ~61 public RPCs; bh_ledger.db (SQLite WAL) + optional PG; FAISS vectors; 0G… ✏️ WAVE 5 (11-c, R-14/R-21): TON fetcher now takes per-seqno getBlockHeader root_hash (tip-root anchoring removed) and the cosmos fetcher reads the current block's block_id.hash — the Python streamer's TON/cosmos digests now match the Rust crates; pinned by NEW tests/unit/test_bh_streamer_fetchers.py (6P) |
 | M-214 | Multi-chain RPC failover adapter covering Arbitrum, BNB, ETH, Base, Polygon, Avalanche. | D3-010 | module | MEDIUM | no | IMPLEMENTED | rust/src/adapters/evm; relayer retry/backoff; network/health_monitor.go (19 endpoints, goroutines) |
 | M-215 | Akashic Index on TimescaleDB (billions of events, microsecond queries); BH schema + BTCP_ROUTE linkage tables. | D1-031, D1-033, D1-131, D2-121, D3-017, D3-077 | deployment | CRITICAL | no | PARTIALLY IMPLEMENTED | schema.sql (7 Phase-0 tables + btcp_version_registry + linkage); faiss_service psycopg2/TimescaleDB… |
 | M-216 | Historical bootstrap: full EVM history from genesis loaded before first live signal; archetype library >90% behavioral coverage. | D1-036 | deployment | HIGH | no | PARTIALLY IMPLEMENTED | backfill checkpoints + /backfill/status + /index/bulk_backfill (~50× faster path); 12 archetypes +… |
@@ -468,7 +477,7 @@ Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 cle
 | M-264 | F14 (D2): Observer-effect correction — M_adj not lower than M_base for high-OE assets (continuous). | D2-151 | testing | HIGH | no | PARTIALLY IMPLEMENTED | reflexivity dampening implemented; high-OE asset class validation not run |
 | M-265 | Attack simulation scripts: local (core detectors + NL) and on-chain proof generation; 7 historical exploits. | D3-018, D3-019, D1-144 | testing | MEDIUM | no | IMPLEMENTED | scripts/simulate_attacks.py (offline + --live Oracle:5000/FAISS:8000; Jimbos, Rodeo, Sentiment… |
 | M-266 | Formal-verification specialists in Coq, Lean, TLA+ (tests find known bugs; proofs eliminate unknown bugs). | D2-128 | governance | HIGH | no | MISSING | No Coq/Lean/TLA+ artifacts anywhere in repo (Haskell Theorems + hspec only) |
-| M-267 | Test-suite breadth evidence (no direct doc req): master formula verification, cross-language golden vectors, property-based, contract… |  | testing | HIGH | no | IMPLEMENTED | tests/ (~97 files, ~1,730 pytest functions): test suite TRUE baseline 1650 passed / 113 failed (all… ✏️ EXTENDED THIS AUDIT: +4 regression batteries (test_faiss_auth 11, test_api_auth_failclosed 19, test_api_publish_hashing 6, test_birp_attestation_cairo 11) + the flipped same-cert-double-pay regression; see FINAL_TEST_REPORT.md |
+| M-267 | Test-suite breadth evidence (no direct doc req): master formula verification, cross-language golden vectors, property-based, contract… |  | testing | HIGH | no | IMPLEMENTED | tests/ (~97 files, ~1,730 pytest functions): test suite TRUE baseline 1650 passed / 113 failed (all… ✏️ EXTENDED THIS AUDIT: +4 regression batteries (test_faiss_auth 11, test_api_auth_failclosed 19, test_api_publish_hashing 6, test_birp_attestation_cairo 11) + the flipped same-cert-double-pay regression; see FINAL_TEST_REPORT.md. ✏️ WAVE 5 (11-a…11-d): +2 test files, +40 tests (tests/unit/test_core_faiss_auth.py 10, tests/unit/test_bh_streamer_fetchers.py 6, +4 canonical-CEX tests into test_cex_faiss_forward.py, +20 M-073 ruling tests into test_signal_registry.py); per-lane full tests/unit runs 1092–1107 passed / 9 skipped / 0 failed; test_bh_ledger_cross_chain_coverage now self-supplies two-chain evidence (11-d, 1P live) — post-Wave-5 full-suite re-run PENDING (Wave 7; see FINAL_TEST_REPORT.md §Wave 5) |
 
 ### 14. Governance/Team/Roadmap (21)
 
@@ -514,6 +523,6 @@ Runner-ups: M-248/M-249 (F3–F5 live windows need fleet+uptime), M-259 (F13 cle
 ## Method notes
 
 - Source of truth: the three uploaded PDFs (extracted to upload/extracted/requirements_doc{1,2,3}.md) are the normative requirement set; code is the evidence. 620 source requirements merged to 296 rows (avg 2.09 sources/row); every source ID appears in exactly one row (Task-5 generator validated coverage 620/620, zero orphans/dups).
-- Status assigned ONLY from worklog evidence (Tasks 1–4 deep read; Task 3 true test baseline 1650P/113F/28S/1x/3E). This session's ✏️ annotations come from the fix-wave worklog entries (Tasks 7-a…7-f, 8-a…8-c) and name their regression tests; only M-004's status flipped.
+- Status assigned ONLY from worklog evidence (Tasks 1–4 deep read; Task 3 true test baseline 1650P/113F/28S/1x/3E). This session's ✏️ annotations come from the fix-wave worklog entries (Tasks 7-a…7-f, 8-a…8-c) and the Wave-5 entries (Tasks 11-a…11-d, recorded by 12-b), and name their regression tests; M-004's status flipped in 8-c, M-073's flipped to RESOLVED-BY-OWNER-RULING in the Wave-5 refresh.
 - Row grouping here re-sorts the 296 rows into the 15 domains by M-ID (the source file appended M-204/M-205 and M-206 under repeat section headers; the row set is identical — verified: 296 rows, IDs M-001..M-296).
 - Caveat inherited from the source matrix: statuses are evidence-based guesses from the deep read, not a re-audit; spot-verification of any row should go to the cited repo paths first.
