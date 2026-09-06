@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION  = 128
 FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "100"))
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 
@@ -93,7 +97,7 @@ def ingest_tx(tx: dict, chain_name: str, chain_id: int):
         "block_hash": tx.get("hash", ""),
     }
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"version": version, "indexed": True}
     except Exception as e:

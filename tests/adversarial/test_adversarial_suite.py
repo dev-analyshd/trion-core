@@ -433,7 +433,7 @@ class TestDDoSRateLimiting:
         assert all(s == 429 for s in statuses[5:]), \
             f"all post-threshold should be 429, got: {statuses[5:]}"
 
-    def test_faiss_concurrent_writes_50_threads(self):
+    def test_faiss_concurrent_writes_50_threads(self, monkeypatch):
         """FAISS service must not crash under 50 concurrent /index/add writes.
 
         The FAISS service uses an in-process threading.Lock (_DB_WRITE_LOCK)
@@ -441,9 +441,18 @@ class TestDDoSRateLimiting:
         writers stress both the SQLite serialization and the FAISS index
         mutation path. All writes must succeed (200) or fail with a controlled
         4xx/5xx — never raise an unhandled exception.
+
+        The service enforces X-API-Key auth (SEC-01): a throwaway key is
+        pinned on the in-process app and sent with every write so the burst
+        measures contention, not auth rejections (unkeyed writes fail closed
+        with 503).
         """
         import faiss_service
         from fastapi.testclient import TestClient
+
+        test_key = "trion-adversarial-faiss-key"
+        monkeypatch.setattr(faiss_service, "_FAISS_API_KEY", test_key)
+        auth_headers = {"X-API-Key": test_key}
 
         client = TestClient(faiss_service.app)
         results: list[tuple[int, str]] = []
@@ -462,7 +471,7 @@ class TestDDoSRateLimiting:
                     "vector": vec,
                     "magnitude": 1.0,
                     "entropy": 1.0,
-                })
+                }, headers=auth_headers)
                 return (r.status_code, r.text[:200])
             except Exception as e:
                 return (-1, f"EXCEPTION: {type(e).__name__}: {e}")

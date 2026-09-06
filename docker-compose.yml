@@ -24,6 +24,11 @@
 #   http://localhost:8000/healthz                       FAISS ANIMA alive
 #   http://localhost:8000/readyz                        FAISS readiness
 #
+#   FAISS :8000 is published loopback-only (127.0.0.1) — reachable from the
+#   host itself, NOT from other machines (SEC-01). Callers inside the container
+#   keep using 127.0.0.1:8000. Set FAISS_API_KEY in .env to require X-API-Key
+#   auth on all non-health FAISS routes (writes fail closed while unset).
+#
 # Healthcheck model (new in v5):
 #   /healthz     process is alive (always 200)
 #   /readyz       ready to serve (200 only when deps also ready)
@@ -40,13 +45,15 @@ services:
     profiles: ["dev", ""]
     ports:
       - "${PORT:-5000}:5000"
-      - "${FAISS_PORT:-8000}:8000"
+      - "127.0.0.1:${FAISS_PORT:-8000}:8000"   # loopback-only publish (SEC-01)
     env_file:
       - path: .env
         required: false
     environment:
       PORT: "${PORT:-5000}"
       FAISS_PORT: "8000"
+      FAISS_HOST: "0.0.0.0"          # bind all interfaces inside the container
+      FAISS_API_KEY: "${FAISS_API_KEY:-}"   # unset → FAISS fails closed on writes
       FLASK_PORT: "5000"
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"
@@ -86,13 +93,15 @@ services:
     profiles: ["railway"]
     ports:
       - "${PORT:-10000}:10000"
-      - "${FAISS_PORT:-8000}:8000"
+      - "127.0.0.1:${FAISS_PORT:-8000}:8000"   # loopback-only publish (SEC-01)
     env_file:
       - path: .env
         required: false
     environment:
       PORT: "${PORT:-10000}"
       FAISS_PORT: "8000"
+      FAISS_HOST: "0.0.0.0"          # bind all interfaces inside the container
+      FAISS_API_KEY: "${FAISS_API_KEY:-}"   # unset → FAISS fails closed on writes
       FLASK_PORT: "5000"
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"
@@ -139,13 +148,15 @@ services:
     profiles: ["full"]
     ports:
       - "${PORT:-10000}:10000"
-      - "${FAISS_PORT:-8000}:8000"
+      - "127.0.0.1:${FAISS_PORT:-8000}:8000"   # loopback-only publish (SEC-01)
     env_file:
       - path: .env
         required: false
     environment:
       PORT: "${PORT:-10000}"
       FAISS_PORT: "8000"
+      FAISS_HOST: "0.0.0.0"          # bind all interfaces inside the container
+      FAISS_API_KEY: "${FAISS_API_KEY:-}"   # unset → FAISS fails closed on writes
       FLASK_PORT: "5000"
       FAISS_SERVICE_URL: "http://127.0.0.1:8000"
       FAISS_URL: "http://127.0.0.1:8000"

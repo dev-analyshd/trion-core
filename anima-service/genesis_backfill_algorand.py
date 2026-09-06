@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION  = 128
 FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 API        = os.environ.get("ALGO_API_URL", "https://mainnet-api.algonode.cloud")
 WORKERS    = int(os.environ.get("BACKFILL_WORKERS", "4"))
 BATCH_SIZE = int(os.environ.get("BACKFILL_BATCH", "40"))
@@ -77,7 +81,7 @@ def ingest_block(round_num: int):
         "bh_id": bh_id, "block_num": round_num, "chain_id": CHAIN_ID, "block_hash": gh,
     }
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"round": round_num, "indexed": True}
     except Exception as e:

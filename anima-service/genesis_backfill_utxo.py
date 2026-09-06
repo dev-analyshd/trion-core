@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 DIMENSION  = 128
 FAISS_URL  = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
+FAISS_KEY  = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HDRS      = {"X-API-Key": FAISS_KEY} if FAISS_KEY else {}   # SEC-01: FAISS service auth
+
 
 # Each chain gets its own conservative worker/batch/delay settings to respect
 # free public API rate limits (blockcypher especially: ~3 req/sec unauth).
@@ -139,7 +143,7 @@ def ingest_height(chain_name: str, chain_id: int, height: int):
         "bh_id": bh_id, "block_num": height, "chain_id": chain_id, "block_hash": block["hash"],
     }
     try:
-        r = requests.post(f"{FAISS_URL}/index/add", json=payload, timeout=10)
+        r = requests.post(f"{FAISS_URL}/index/add", json=payload, headers=_HDRS, timeout=10)
         r.raise_for_status()
         return {"height": height, "indexed": True}
     except Exception as e:

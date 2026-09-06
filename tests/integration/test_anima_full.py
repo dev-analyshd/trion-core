@@ -121,6 +121,13 @@ BASE = "http://127.0.0.1:8000"
 TIMEOUT = 90          # seconds per HTTP call — generous: live FAISS indexers can saturate add_batch
 DIM = 128             # FAISS index dimension
 
+# X-API-Key for the FAISS service (SEC-01) — same resolution order as
+# faiss_service.py. Boot the live service with the same env var or the
+# write endpoints will refuse these requests.
+_FAISS_KEY = (os.environ.get("FAISS_API_KEY") or os.environ.get("FAISS_SERVICE_API_KEY")
+              or os.environ.get("TRION_API_KEY") or "")
+_HEADERS = {"X-API-Key": _FAISS_KEY} if _FAISS_KEY else {}
+
 BOLD  = "\033[1m"
 GREEN = "\033[32m"
 RED   = "\033[31m"
@@ -146,10 +153,10 @@ def uid(prefix: str = "anima") -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
 def post(path: str, body: dict, *, timeout: int = TIMEOUT) -> requests.Response:
-    return requests.post(f"{BASE}{path}", json=body, timeout=timeout)
+    return requests.post(f"{BASE}{path}", json=body, headers=_HEADERS, timeout=timeout)
 
 def get(path: str, *, params: dict = None, timeout: int = TIMEOUT) -> requests.Response:
-    return requests.get(f"{BASE}{path}", params=params, timeout=timeout)
+    return requests.get(f"{BASE}{path}", params=params, headers=_HEADERS, timeout=timeout)
 
 def assert_ok(r: requests.Response, label: str) -> dict:
     assert r.status_code in (200, 201), \
@@ -2212,7 +2219,7 @@ class TestConcurrentIndexAdd:
                     return str(exc)[:20]
 
             connector = aiohttp.TCPConnector(limit=200)
-            async with aiohttp.ClientSession(connector=connector) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=_HEADERS) as session:
                 tasks = [_one(session, i) for i in range(1000)]
                 results = await asyncio.gather(*tasks)
             return results
@@ -2269,7 +2276,7 @@ class TestConcurrentReads:
                     return str(exc)[:20]
 
             connector = aiohttp.TCPConnector(limit=200)
-            async with aiohttp.ClientSession(connector=connector) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=_HEADERS) as session:
                 tasks = [_one(session, p) for p in endpoints]
                 return await asyncio.gather(*tasks)
 
@@ -2312,7 +2319,7 @@ class TestThunderingHerd:
                     return str(exc)[:20]
 
             connector = aiohttp.TCPConnector(limit=200)
-            async with aiohttp.ClientSession(connector=connector) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=_HEADERS) as session:
                 tasks = [_one(session, p) for p in endpoints]
                 return await asyncio.gather(*tasks)
 
@@ -2384,7 +2391,7 @@ class TestMixedStorm:
                     return str(exc)[:20]
 
             connector = aiohttp.TCPConnector(limit=200)
-            async with aiohttp.ClientSession(connector=connector) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=_HEADERS) as session:
                 tasks = [_one(session, m, p, b) for m, p, b in all_requests]
                 return await asyncio.gather(*tasks)
 

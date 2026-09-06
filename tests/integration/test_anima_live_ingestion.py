@@ -46,6 +46,12 @@ sys.path.insert(0, str(ROOT / "api"))
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+# X-API-Key for the FAISS service (SEC-01). The service is booted by this
+# module with this key, so requests — the BH streamer's /index/add_batch
+# POSTs included — must carry it.
+_TEST_FAISS_KEY = os.environ.get("FAISS_API_KEY") or "trion-test-key"
+
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
@@ -53,7 +59,8 @@ def _free_port() -> int:
 
 
 def _http_get_json(url: str, timeout: float = 15.0) -> Dict[str, Any]:
-    req = urllib.request.Request(url, headers={"User-Agent": "trion-phase3-test/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "trion-phase3-test/1.0",
+                                                "X-API-Key": _TEST_FAISS_KEY})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
 
@@ -62,7 +69,8 @@ def _http_post_json(url: str, body: Dict[str, Any], timeout: float = 30.0) -> Di
     payload = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         url, data=payload, headers={"Content-Type": "application/json",
-                                    "User-Agent": "trion-phase3-test/1.0"},
+                                    "User-Agent": "trion-phase3-test/1.0",
+                                    "X-API-Key": _TEST_FAISS_KEY},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -99,6 +107,7 @@ def _boot_faiss_service(scope: str):
     env.update({
         "FAISS_PORT": str(port),
         "PORT":       str(port),
+        "FAISS_API_KEY":        _TEST_FAISS_KEY,
         "FAISS_INDEX_PATH":     os.path.join(workdir, "akashic_faiss.index"),
         "FAISS_CENTROIDS_PATH": os.path.join(workdir, "trion_archetype_centroids.npy"),
         "FAISS_STATE_DB":       os.path.join(workdir, "akashic_state.db"),
@@ -187,6 +196,20 @@ def bh_streamer(faiss_service):
     os.environ["FAISS_SERVICE_URL"] = faiss_service["base_url"]
     faiss_service["env"]["FAISS_SERVICE_URL"] = faiss_service["base_url"]
 
+    # FAISSAccumulator POSTs via urllib without an auth header. Until it grows
+    # native X-API-Key support, wrap urllib.request.Request so requests to our
+    # test service carry the key (chain-RPC calls pass through untouched).
+    _orig_request = urllib.request.Request
+
+    def _request_with_key(url, *args, **kwargs):
+        if str(url).startswith(faiss_service["base_url"] + "/"):
+            headers = dict(kwargs.get("headers") or {})
+            headers.setdefault("X-API-Key", _TEST_FAISS_KEY)
+            kwargs["headers"] = headers
+        return _orig_request(url, *args, **kwargs)
+
+    urllib.request.Request = _request_with_key
+
     # Streamer writes to bh_ledger.db in CWD by default. Override via param.
     # NOTE: we use a SEPARATE file from the FAISS service's bh_ledger.db
     # because the streamer's CREATE TABLE schema has an extra `valid` column
@@ -206,6 +229,7 @@ def bh_streamer(faiss_service):
             streamer.stop()
         except Exception:
             pass
+        urllib.request.Request = _orig_request
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -461,6 +485,7 @@ if __name__ == "__main__":
     env = os.environ.copy()
     env.update({
         "FAISS_PORT": str(port), "PORT": str(port),
+        "FAISS_API_KEY": _TEST_FAISS_KEY,
         "FAISS_INDEX_PATH":     os.path.join(workdir, "akashic_faiss.index"),
         "FAISS_CENTROIDS_PATH": os.path.join(workdir, "trion_archetype_centroids.npy"),
         "FAISS_STATE_DB":       os.path.join(workdir, "akashic_state.db"),
@@ -490,6 +515,18 @@ if __name__ == "__main__":
 
         os.environ["FAISS_SERVICE_URL"] = base_url
         bh_db = os.path.join(workdir, "bh_streamer_ledger.db")
+
+        # Same key-injecting wrapper as the bh_streamer fixture above.
+        _orig_request = urllib.request.Request
+
+        def _request_with_key(url, *args, **kwargs):
+            if str(url).startswith(base_url + "/"):
+                headers = dict(kwargs.get("headers") or {})
+                headers.setdefault("X-API-Key", _TEST_FAISS_KEY)
+                kwargs["headers"] = headers
+            return _orig_request(url, *args, **kwargs)
+
+        urllib.request.Request = _request_with_key
         from core.realtime.bh_streamer import start_streamer
         streamer = start_streamer(db_path=bh_db)
         try:
@@ -505,6 +542,7 @@ if __name__ == "__main__":
             print("\nSMOKE PASS")
         finally:
             streamer.stop()
+            urllib.request.Request = _orig_request
     finally:
         proc.terminate()
         try: proc.wait(timeout=10)
