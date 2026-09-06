@@ -44,6 +44,26 @@ GENESIS_LAMBDA_DEFAULT = 0.001   # fallback when no archetypes available
 FAISS_SERVICE_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 _ARCHETYPE_MATCH_ENDPOINT = f"{FAISS_SERVICE_URL}/archetypes/match_vector"
 
+
+def _faiss_headers() -> dict:
+    """
+    X-API-Key for the FAISS service (SEC-01) — same resolution order as
+    faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+    TRION_API_KEY.  Empty/unset → header omitted (the POST then fails
+    closed on the service side, which is the safe posture: callers fall
+    back to the local cosine computation).  Kept local like
+    core/realtime/bh_streamer.py's resolver — core must not import from
+    the api/ package above it.
+    """
+    key = (
+        os.environ.get("FAISS_API_KEY")
+        or os.environ.get("FAISS_SERVICE_API_KEY")
+        or os.environ.get("TRION_API_KEY")
+        or ""
+    ).strip()
+    return {"X-API-Key": key} if key else {}
+
+
 # Lazy-import requests so the module stays importable without it installed.
 def _get_requests():
     try:
@@ -76,6 +96,7 @@ def query_faiss_archetype_similarities(
             _ARCHETYPE_MATCH_ENDPOINT,
             json={"vector": feature_vector.tolist()},
             timeout=timeout,
+            headers=_faiss_headers(),
         )
         resp.raise_for_status()
         data = resp.json()
