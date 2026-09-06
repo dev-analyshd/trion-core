@@ -4,9 +4,6 @@
   "description": "TRION PVM — Polkadot/Substrate behavioral indexer + ink! oracle client",
   "type": "module",
   "scripts": {
-    "indexer": "tsx indexer.ts",
-    "client": "tsx client.ts",
-    "dev": "tsx --watch indexer.ts",
     "build:oracle": "cd contract && cargo build --release 2>&1",
     "check:oracle": "cd contract && cargo check 2>&1",
     "test:oracle": "cd contract && cargo test 2>&1",

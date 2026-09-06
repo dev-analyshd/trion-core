@@ -4,8 +4,6 @@
   "description": "TRION TON — The Open Network behavioral indexer",
   "type": "module",
   "scripts": {
-    "indexer": "tsx indexer.ts",
-    "dev": "tsx --watch indexer.ts",
     "build:contracts": "echo 'FunC: compile with func-js or ton-compiler. See contracts/*.fc'",
     "lint:contracts": "echo 'Contracts: oracle.fc intent.fc gate.fc liquidity.fc'"
   },

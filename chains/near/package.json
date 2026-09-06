@@ -4,8 +4,6 @@
   "description": "TRION NEAR — NEAR Protocol behavioral indexer",
   "type": "module",
   "scripts": {
-    "indexer": "tsx indexer.ts",
-    "dev": "tsx --watch indexer.ts",
     "build:contract": "cd contract && cargo build --release --target wasm32-unknown-unknown 2>&1",
     "check:contract": "cd contract && cargo check 2>&1",
     "test:contract": "cd contract && cargo test 2>&1"

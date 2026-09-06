@@ -42,7 +42,8 @@ labels wherever a component is research/partial/external. Append-only record:
   hardcoded chain-id sites).
 - Math: AWA canonical 6-condition set + fail-closed `EmissionGate` (no unfreeze
   API); HHI 4000-CRITICAL; second-based value-tier TTL (py/rust/doc identical);
-  24 canonical signals + 7 BTCP domain names; wash-trading D_eff discount +
+  29 canonical signal types per the M-073 owner ruling (19 base + 10
+  BTCP-family; id space fork-gated at 24); wash-trading D_eff discount +
   conservation audit; clipboard expiry + BEO witness binding + persisted
   per-entity nonces. Master formula verification: 104/0/1 — "ALL FORMULAS
   ENFORCED AS SPECIFIED".
@@ -211,7 +212,9 @@ operational path-rot and honesty gaps, all fixed below.
 ### Fixed — Chain registry integrity
 - 4 literal duplicate chains removed (Cardano/Algorand + testnets existed as
   BOTH UTXO 210xx stubs AND live-indexer entries); header counts corrected
-  (124 total / 41 integrated / 18 VM families, recounted distribution).
+  (129 total / 40 integrated / 18 VM families per the config/chain_registry.json
+  recount — 2026-09-04 correction; the 124/41 figures recorded at 2.1.0
+  predated the Wave-3 registry recount).
 - Dead divergent TS registry deleted (zero importers; namespace collided with
   relayer TRON=7001 and SVM 900).
 - api gap-fill entries pointed at canonical live-indexer families; supervisor

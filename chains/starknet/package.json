@@ -5,7 +5,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "indexer": "tsx indexer.ts",
     "execute": "tsx execute.ts",
     "fund-check": "tsx src/fund-check.ts"
   },

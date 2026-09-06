@@ -3,14 +3,7 @@
   "version": "1.0.0",
   "description": "TRION SVM — Solana behavioral indexer + oracle client",
   "type": "module",
-  "scripts": {
-    "indexer": "tsx indexer.ts",
-    "client": "tsx client.ts",
-    "dev": "tsx --watch indexer.ts",
-    "build:program": "cd program && cargo build-sbf 2>&1",
-    "check:program": "cd program && cargo check 2>&1",
-    "test:program": "cd program && cargo test 2>&1"
-  },
+  "scripts": {},
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@solana/web3.js": "^1.98.4",
