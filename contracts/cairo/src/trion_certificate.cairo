@@ -18,8 +18,16 @@
 ///   domain_felt = felt("TRION-CERT-V1")   — 13-char short string, one felt
 ///   D_stark     = Poseidon(domain_felt, f_0 .. f_11)
 ///   signature   = (r, s) felt pair on the STARK curve
-///   verify      = starknet::ecdsa::verify_ecdsa_signature(stark_pubkey,
-///                                                          D_stark, (r, s))
+///   verify      = core::ecdsa::check_ecdsa_signature(D_stark, stark_pubkey,
+///                                                    r, s)
+///
+/// CORELIB VERSIONS: the crypto entry points live on the version-portable
+/// core:: paths (core::poseidon::poseidon_hash_span +
+/// core::ecdsa::check_ecdsa_signature, present in corelib 2.8.4 AND 2.10.1
+/// — the starknet::crypto / starknet::ecdsa aliases do not exist in either),
+/// and felt252 carries no PartialOrd, so every felt range check goes through
+/// felt_lt() below. Both facts are compile-verified under scarb 2.8.4 and
+/// 2.10.1.
 ///
 /// FELT-RANGE DESIGN (the audit's felt-specific risk list):
 ///   • Every 31-byte chunk is < 2^248 < 2^251 < STARK_PRIME, and every
@@ -43,7 +51,7 @@
 ///     below the prime (no wrap ⇒ exact equality).
 ///
 /// AGENT K DECISION (CANONICAL_CERTIFICATE §14.1 — Poseidon vs Pedersen):
-///   D_stark uses POSEIDON (starknet::crypto::poseidon_hash_span) — the
+///   D_stark uses POSEIDON (core::poseidon::poseidon_hash_span) — the
 ///   Starknet-native cheap hash — as the frozen family-3 choice. Pedersen
 ///   remains a documented per-deployment alternative (§3.2 "fixed per
 ///     deployment family"); switching would be a one-line change in
@@ -56,9 +64,9 @@
 /// TrionEpochRegistry (trion_epoch_registry.cairo — the §10.2 registrar).
 
 use core::traits::Into;
-use core::array::{ArrayTrait, SpanTrait};
-use starknet::crypto::poseidon_hash_span;
-use starknet::ecdsa;
+use core::array::ArrayTrait;
+use core::poseidon::poseidon_hash_span;
+use core::ecdsa::check_ecdsa_signature;
 
 // ── §2 / §3.2 constants (cross-VM template — see the Solidity twin
 //    contracts/solidity/libraries/CanonicalCertificate.sol for the family-1
@@ -109,6 +117,7 @@ pub const EPOCH_GRACE: u64 = 2;
 pub const P2_8: felt252 = 0x100;
 pub const P2_11: felt252 = 0x800;
 pub const P2_16: felt252 = 0x10000;
+pub const P2_24: felt252 = 0x1000000;
 pub const P2_32: felt252 = 0x100000000;
 pub const P2_72: felt252 = 0x1000000000000000000;
 pub const P2_80: felt252 = 0x100000000000000000000;
@@ -125,9 +134,25 @@ pub const P2_163: felt252 = 0x80000000000000000000000000000000000000000;
 pub const P2_168: felt252 = 0x1000000000000000000000000000000000000000000;
 pub const P2_192: felt252 = 0x1000000000000000000000000000000000000000000000000;
 pub const P2_200: felt252 = 0x100000000000000000000000000000000000000000000000000;
+pub const P2_232: felt252 = 0x10000000000000000000000000000000000000000000000000000000000;
 pub const P2_235: felt252 = 0x80000000000000000000000000000000000000000000000000000000000;
 pub const P2_240: felt252 = 0x1000000000000000000000000000000000000000000000000000000000000;
 pub const P2_248: felt252 = 0x100000000000000000000000000000000000000000000000000000000000000;
+
+// ── felt ordering (felt252 has no PartialOrd in the corelib) ─────────────
+
+/// felt252 carries no ordering in the Cairo corelib, so every range check
+/// in this module compares as u256 instead: every felt is < 2^251 < 2^256,
+/// so the felt→u256 conversion is total and exact, and the u256 `<` is the
+/// true integer comparison of the two felts. Used ONLY against the constant
+/// power-of-two bounds (equality stays `==`); a piece that fails
+/// felt_lt(x, 2^k) would wrap a chunk product — it fails closed here,
+/// exactly as the module header's range discipline demands.
+pub fn felt_lt(x: felt252, bound: felt252) -> bool {
+    let xu: u256 = x.into();
+    let bu: u256 = bound.into();
+    xu < bu
+}
 
 // ── §2 canonical certificate, family-3 ABI form ──────────────────────────
 
@@ -225,22 +250,22 @@ pub fn check_structure(cert: @Certificate) {
     assert(c.ttl < 0x100000000_u64, 'CERT: ttl range');
     // felt piece ranges — each piece is bounded to its byte width so that
     // every product in compose_chunks() stays < 2^248 < 2^251 < STARK_PRIME.
-    assert(c.escrow_hi2 < P2_16, 'CERT: escrow_hi2 range');
-    assert(c.escrow_lo30 < P2_240, 'CERT: escrow_lo30 range');
-    assert(c.route_hi1 < P2_8, 'CERT: route_hi1 range');
-    assert(c.route_lo31 < P2_248, 'CERT: route_lo31 range');
-    assert(c.intent_hi31 < P2_248, 'CERT: intent_hi31 range');
-    assert(c.intent_lo1 < P2_8, 'CERT: intent_lo1 range');
-    assert(c.entity_hi30 < P2_240, 'CERT: entity_hi30 range');
-    assert(c.entity_lo2 < P2_16, 'CERT: entity_lo2 range');
-    assert(c.dest_hi21 < P2_168, 'CERT: dest_hi21 range');
-    assert(c.dest_lo11 < P2_88, 'CERT: dest_lo11 range');
-    assert(c.amount_hi20 < P2_160, 'CERT: amount_hi20 range');
-    assert(c.amount_lo12 < P2_96, 'CERT: amount_lo12 range');
-    assert(c.anchor_hi19 < P2_152, 'CERT: anchor_hi19 range');
-    assert(c.anchor_lo13 < P2_104, 'CERT: anchor_lo13 range');
-    assert(c.exec_hi18 < P2_144, 'CERT: exec_hi18 range');
-    assert(c.exec_lo14 < P2_112, 'CERT: exec_lo14 range');
+    assert(felt_lt(c.escrow_hi2, P2_16), 'CERT: escrow_hi2 range');
+    assert(felt_lt(c.escrow_lo30, P2_240), 'CERT: escrow_lo30 range');
+    assert(felt_lt(c.route_hi1, P2_8), 'CERT: route_hi1 range');
+    assert(felt_lt(c.route_lo31, P2_248), 'CERT: route_lo31 range');
+    assert(felt_lt(c.intent_hi31, P2_248), 'CERT: intent_hi31 range');
+    assert(felt_lt(c.intent_lo1, P2_8), 'CERT: intent_lo1 range');
+    assert(felt_lt(c.entity_hi30, P2_240), 'CERT: entity_hi30 range');
+    assert(felt_lt(c.entity_lo2, P2_16), 'CERT: entity_lo2 range');
+    assert(felt_lt(c.dest_hi21, P2_168), 'CERT: dest_hi21 range');
+    assert(felt_lt(c.dest_lo11, P2_88), 'CERT: dest_lo11 range');
+    assert(felt_lt(c.amount_hi20, P2_160), 'CERT: amount_hi20 range');
+    assert(felt_lt(c.amount_lo12, P2_96), 'CERT: amount_lo12 range');
+    assert(felt_lt(c.anchor_hi19, P2_152), 'CERT: anchor_hi19 range');
+    assert(felt_lt(c.anchor_lo13, P2_104), 'CERT: anchor_lo13 range');
+    assert(felt_lt(c.exec_hi18, P2_144), 'CERT: exec_hi18 range');
+    assert(felt_lt(c.exec_lo14, P2_112), 'CERT: exec_lo14 range');
 }
 
 // ── §3.2 family-3 digest ─────────────────────────────────────────────────
@@ -258,21 +283,21 @@ pub fn compose_chunks(cert: @Certificate) -> Array<felt252> {
     // defensive: the structural range asserts must have run — re-assert the
     // pieces this function multiplies (a library user calling only
     // stark_digest() still gets the full range discipline).
-    assert(c.escrow_lo30 < P2_240, 'CERT: escrow_lo30 range');
-    assert(c.route_hi1 < P2_8, 'CERT: route_hi1 range');
-    assert(c.route_lo31 < P2_248, 'CERT: route_lo31 range');
-    assert(c.intent_hi31 < P2_248, 'CERT: intent_hi31 range');
-    assert(c.intent_lo1 < P2_8, 'CERT: intent_lo1 range');
-    assert(c.entity_hi30 < P2_240, 'CERT: entity_hi30 range');
-    assert(c.entity_lo2 < P2_16, 'CERT: entity_lo2 range');
-    assert(c.dest_hi21 < P2_168, 'CERT: dest_hi21 range');
-    assert(c.dest_lo11 < P2_88, 'CERT: dest_lo11 range');
-    assert(c.amount_hi20 < P2_160, 'CERT: amount_hi20 range');
-    assert(c.amount_lo12 < P2_96, 'CERT: amount_lo12 range');
-    assert(c.anchor_hi19 < P2_152, 'CERT: anchor_hi19 range');
-    assert(c.anchor_lo13 < P2_104, 'CERT: anchor_lo13 range');
-    assert(c.exec_hi18 < P2_144, 'CERT: exec_hi18 range');
-    assert(c.exec_lo14 < P2_112, 'CERT: exec_lo14 range');
+    assert(felt_lt(c.escrow_lo30, P2_240), 'CERT: escrow_lo30 range');
+    assert(felt_lt(c.route_hi1, P2_8), 'CERT: route_hi1 range');
+    assert(felt_lt(c.route_lo31, P2_248), 'CERT: route_lo31 range');
+    assert(felt_lt(c.intent_hi31, P2_248), 'CERT: intent_hi31 range');
+    assert(felt_lt(c.intent_lo1, P2_8), 'CERT: intent_lo1 range');
+    assert(felt_lt(c.entity_hi30, P2_240), 'CERT: entity_hi30 range');
+    assert(felt_lt(c.entity_lo2, P2_16), 'CERT: entity_lo2 range');
+    assert(felt_lt(c.dest_hi21, P2_168), 'CERT: dest_hi21 range');
+    assert(felt_lt(c.dest_lo11, P2_88), 'CERT: dest_lo11 range');
+    assert(felt_lt(c.amount_hi20, P2_160), 'CERT: amount_hi20 range');
+    assert(felt_lt(c.amount_lo12, P2_96), 'CERT: amount_lo12 range');
+    assert(felt_lt(c.anchor_hi19, P2_152), 'CERT: anchor_hi19 range');
+    assert(felt_lt(c.anchor_lo13, P2_104), 'CERT: anchor_lo13 range');
+    assert(felt_lt(c.exec_hi18, P2_144), 'CERT: exec_hi18 range');
+    assert(felt_lt(c.exec_lo14, P2_112), 'CERT: exec_lo14 range');
 
     // small integer fields → felt (Into is total for u8/u64 → felt252).
     let kind_f: felt252 = c.certificate_kind.into();
@@ -287,7 +312,6 @@ pub fn compose_chunks(cert: @Certificate) -> Array<felt252> {
     let vcount_f: felt252 = c.validator_count.into();
     let awa_f: felt252 = c.awa_enforced.into();
     let issued_f: felt252 = c.issued_at.into();
-    let ttl_f: felt252 = c.ttl.into();
     // hhi and ttl straddle chunk boundaries — split at their byte edges.
     let hhi_hi1_f: felt252 = (c.hhi / 0x100000000000000_u64).into();
     let hhi_lo7_f: felt252 = (c.hhi % 0x100000000000000_u64).into();
@@ -344,15 +368,12 @@ pub fn compose_chunks(cert: @Certificate) -> Array<felt252> {
 pub fn stark_digest(cert: @Certificate) -> felt252 {
     let mut input: Array<felt252> = ArrayTrait::new();
     input.append(DOMAIN_FELT);
-    let mut chunks = compose_chunks(cert);
+    let chunks = compose_chunks(cert);
     let n = chunks.len();
     let mut i: usize = 0;
     loop {
         if i >= n { break; }
-        match chunks.pop_front() {
-            Option::Some(chunk) => input.append(chunk),
-            Option::None => break,
-        };
+        input.append(*chunks.at(i));
         i += 1;
     };
     poseidon_hash_span(input.span())
@@ -364,9 +385,7 @@ pub fn verify_signature(
     stark_pubkey: felt252, d_stark: felt252, sig: @SigEntry,
 ) -> bool {
     let s = *sig;
-    ecdsa::verify_ecdsa_signature(
-        stark_pubkey, d_stark, ecdsa::Signature { r: s.sig_r, s: s.sig_s },
-    )
+    check_ecdsa_signature(d_stark, stark_pubkey, s.sig_r, s.sig_s)
 }
 
 // ── §5.2 quorum (integer, wrap-proof) ────────────────────────────────────
@@ -407,13 +426,13 @@ pub fn is_fresh(issued_at: u64, ttl: u64, now: u64) -> bool {
 /// rejected by the lock-side range assert (fail-closed, documented).
 pub fn escrow_id_matches(cert: @Certificate, escrow_id: felt252) -> bool {
     let c = *cert;
-    c.escrow_hi2 < P2_11 && c.escrow_hi2 * P2_240 + c.escrow_lo30 == escrow_id
+    felt_lt(c.escrow_hi2, P2_11) && c.escrow_hi2 * P2_240 + c.escrow_lo30 == escrow_id
 }
 
 /// Same discipline for the route id (route_hi1 < 2^3 ⇒ product < 2^251).
 pub fn route_id_matches(cert: @Certificate, route_id: felt252) -> bool {
     let c = *cert;
-    c.route_hi1 < 0x8 && c.route_hi1 * P2_248 + c.route_lo31 == route_id
+    felt_lt(c.route_hi1, 0x8) && c.route_hi1 * P2_248 + c.route_lo31 == route_id
 }
 
 /// Destination binding against a Starknet ContractAddress. Real Starknet
@@ -426,7 +445,7 @@ pub fn destination_matches(
 ) -> bool {
     let c = *cert;
     let addr_felt: felt252 = destination.into();
-    c.dest_hi21 < P2_163 && c.dest_hi21 * P2_88 + c.dest_lo11 == addr_felt
+    felt_lt(c.dest_hi21, P2_163) && c.dest_hi21 * P2_88 + c.dest_lo11 == addr_felt
 }
 
 /// Amount binding against the escrow's u256 amount. The 32-byte
@@ -437,8 +456,8 @@ pub fn destination_matches(
 /// piece range assert — no felt wrap.
 pub fn amount_matches(cert: @Certificate, amount: u256) -> bool {
     let c = *cert;
-    assert(c.amount_hi20 < P2_160, 'CERT: amount_hi20 range');
-    assert(c.amount_lo12 < P2_96, 'CERT: amount_lo12 range');
+    assert(felt_lt(c.amount_hi20, P2_160), 'CERT: amount_hi20 range');
+    assert(felt_lt(c.amount_lo12, P2_96), 'CERT: amount_lo12 range');
     let high_f: felt252 = amount.high.into();
     let mid_f: felt252 = (amount.low / 0x1000000000000000000000000_u128).into();
     let lo_f: felt252 = (amount.low % 0x1000000000000000000000000_u128).into();
@@ -450,6 +469,6 @@ pub fn amount_matches(cert: @Certificate, amount: u256) -> bool {
 /// 2^251 — no wrap). Returns the composed entity felt key.
 pub fn entity_key(cert: @Certificate) -> felt252 {
     let c = *cert;
-    assert(c.entity_hi30 < P2_235, 'CERT: entity_hi30 binding');
+    assert(felt_lt(c.entity_hi30, P2_235), 'CERT: entity_hi30 binding');
     c.entity_hi30 * P2_16 + c.entity_lo2
 }

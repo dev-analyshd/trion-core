@@ -44,7 +44,7 @@
 /// E7 cascade). Pause blocks NEW LOCKS only — settlements are never
 /// pausable (M2 E3: "pause never blocks settling escrows").
 
-use trion_certificate::{Certificate, SigEntry};
+use crate::trion_certificate::{Certificate, SigEntry};
 
 #[starknet::interface]
 pub trait IBTCPEscrow<TContractState> {
@@ -128,18 +128,19 @@ pub struct EscrowRecord {
 #[starknet::contract]
 pub mod BTCPEscrow {
     use super::{EscrowRecord, IBTCPEscrow};
+    use core::num::traits::Zero;
     use starknet::{
         ContractAddress, get_caller_address, get_block_timestamp,
         storage::{Map, StorageMapReadAccess, StorageMapWriteAccess,
                   StoragePointerReadAccess, StoragePointerWriteAccess},
     };
-    use trion_certificate::{
+    use crate::trion_certificate::{
         Certificate, SigEntry, EPOCH_GRACE, HHI_MAX_ACCEPTABLE,
         check_structure, is_fresh, quorum_met, stark_digest,
         escrow_id_matches, route_id_matches, destination_matches,
-        amount_matches, verify_signature,
+        amount_matches, felt_lt, verify_signature,
     };
-    use trion_epoch_registry::{
+    use crate::trion_epoch_registry::{
         IEpochRegistryDispatcher, IEpochRegistryDispatcherTrait,
     };
 
@@ -332,7 +333,7 @@ pub mod BTCPEscrow {
     /// non-panic rejection is the §8.2 equivocation conflict, which
     /// returns (false, _) after emitting evidence so the event persists.
     #[generate_trait]
-    impl CertificateGate of CertificateGateTrait<ContractState> {
+    impl CertificateGate of CertificateGateTrait {
         fn verify_release_certificate(
             ref self: ContractState,
             escrow_id: felt252,
@@ -519,8 +520,11 @@ pub mod BTCPEscrow {
             // are never pausable — see release_escrow).
             assert(!self.paused.read(), 'BTCP: paused');
             assert(escrow_id != 0, 'BTCP: zero escrow id');
-            assert(escrow_id < FELT_ID_MAX, 'BTCP: escrow id range');
-            assert(route_id < FELT_ID_MAX, 'BTCP: route id range');
+            // felt ordering: felt252 has no PartialOrd — the id-range bound
+            // compares as u256 through the family-3 library helper (exact
+            // integer comparison; same fail-closed semantics).
+            assert(felt_lt(escrow_id, FELT_ID_MAX), 'BTCP: escrow id range');
+            assert(felt_lt(route_id, FELT_ID_MAX), 'BTCP: route id range');
             assert(amount > 0_u256, 'BTCP: zero amount');
             // INV-003: the coherence gate is protocol-floored — callers
             // may tighten (raise), never loosen below 0.55.

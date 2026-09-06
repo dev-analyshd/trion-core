@@ -43,10 +43,10 @@ HONEST VERIFIED / UNVERIFIED BOUNDARIES:
     chains/starknet/scripts/build-and-verify.sh pins) and scarb 2.8.4 /
     starknet 2.8.4 — using the version-portable corelib paths
     core::poseidon::poseidon_hash_span and core::ecdsa::check_ecdsa_signature
-    (the starknet::crypto / starknet::ecdsa paths trion_certificate.cairo
-    uses do NOT exist in corelib 2.10.1 — that crate's other files carry
-    pre-existing compile errors under the repo's own pinned toolchain,
-    untouched here).
+    (the same version-portable paths trion_certificate.cairo now uses —
+    R-16 migrated the starknet::crypto / starknet::ecdsa imports there, and
+    both contracts/starknet and contracts/cairo compile clean under both
+    toolchain versions).
   * Cairo's poseidon_hash_span (Hades Poseidon) cannot be reproduced in
     Python here, so the mirror's digest uses the same documented SHA3-256
     STAND-IN over the identical felt inputs as the escrow mirror test
@@ -156,7 +156,7 @@ class StarkKey:
 
 
 def stark_verify(pub_point, digest_felt, r, s):
-    """Mirror of starknet::ecdsa::verify_ecdsa_signature(pubkey, msg, (r,s))
+    """Mirror of core::ecdsa::check_ecdsa_signature(msg, pubkey, r, s)
     over the modeled curve point."""
     if pub_point is None:
         return False
