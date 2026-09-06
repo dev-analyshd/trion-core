@@ -2,9 +2,7 @@
   "name": "trion-sui",
   "version": "1.0.0",
   "type": "module",
-  "scripts": {
-    "start": "tsx indexer.ts"
-  },
+  "scripts": {},
   "dependencies": {
     "@mysten/sui": "^1.45.2",
     "tsx": "^4.7.0",
