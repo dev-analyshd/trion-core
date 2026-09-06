@@ -4371,30 +4371,43 @@ def resonance(entity_a: str, entity_b: str):
     })
 
 
-# ── Signal Types Registry (core enum: 24 = 19 whitepaper §11 + 5 extended) ────
+# ── Signal Types Registry (M-073: 29-type canonical taxonomy over 24 ids) ────
 @app.route("/api/v1/signal/types")
 def signal_types():
-    """Signal-type registry AS IMPLEMENTED in the core enum.
+    """Signal-type registry — the M-073 canonical 29-type taxonomy view.
 
-    TRUE STRUCTURE (this endpoint previously claimed "19 per whitepaper
-    Section 11" while listing only the divergent ids 0-18 subset — fixed to
-    report the real registry):
-      * The core registry (core/master/signal_factory.SignalType) defines
-        24 types — a hard parity constraint shared with the wasm signal
-        processor (signal_type_count() == 24) and the on-chain type ids
-        (spec/signal_types.md: "new types require a protocol fork").
-      * 19 of the 24 are the whitepaper §11 canonical types. Two carry
-        internal name drift: REGULATORY_BEHAVIORAL→REGULATORY_BHV (id 16)
-        and MEV_BEHAVIORAL→MEV_EXPOSURE (id 14). This endpoint performs the
-        whitepaper ↔ internal name ↔ id translation; the core enum members
-        are NOT renamed (24-type parity is load-bearing).
-      * 5 types are extended beyond whitepaper §11: RESURRECTION (4),
-        NEGATIVE_SPACE (7), INSTITUTIONAL_BHV (15), ECOSYSTEM_HEALTH (17),
-        BOOTSTRAP (18).
+    CANONICAL VIEW (M-073 owner ruling; the registry is
+    core/master/signal_factory.signal_registry() — imported, not duplicated):
+      * 29 canonical types = 19 base types (whitepaper §11) + 10 BTCP-family
+        types (BTCP master spec §2's six new signals + §14.2's four
+        event-signals). signal_types lists exactly these 29 rows.
+      * BTCP_ROUTE and CONSENSUS_ADAPTATION sit in BOTH families (the
+        ruling's own note), so the taxonomy count is 29 while the closed
+        set holds 27 distinct names — both rows carry dual_family: true.
+      * 19 of the 24 core-registry members are the whitepaper §11 types.
+        Two carry internal name drift: REGULATORY_BEHAVIORAL→REGULATORY_BHV
+        (id 16) and MEV_BEHAVIORAL→MEV_EXPOSURE (id 14). This endpoint
+        performs the whitepaper ↔ internal name ↔ id translation; the core
+        enum members are NOT renamed (24-type parity is load-bearing).
+      * Registry parity: the core SignalType enum stays EXACTLY 24 members
+        with dense ids 0-23 — a hard constraint shared with the wasm signal
+        processor (signal_type_count() == 24), the Rust emitter
+        (SIGNAL_TYPE_COUNT == 24) and the on-chain type ids
+        (spec/signal_types.md: "new types require a protocol fork"). The
+        seven BTCP-family names that are not enum members ride their
+        closest canonical carrier as typed sub-payloads (signal_subtype);
+        their rows report the carrier's id.
+      * 4 registry members beyond the closed set (NEGATIVE_SPACE (7),
+        INSTITUTIONAL_BHV (15), ECOSYSTEM_HEALTH (17), BOOTSTRAP (18))
+        remain classifiable and emittable — listed in
+        registry_v2_extended with their on-chain ids so the full 24-member
+        id mapping stays exposed.
     """
-    from core.master.signal_factory import SignalType
+    from core.master.signal_factory import (
+        SignalType, signal_registry, RULING_NAME_ALIASES, classify_signal,
+    )
 
-    # Whitepaper §11 canonical name → internal SignalType enum name
+    # Ruling (whitepaper §11) spelling → internal SignalType enum name
     # (identity except where the internal name drifted).
     WHITEPAPER_11_INTERNAL = {
         "VALUATION":             "VALUATION",
@@ -4442,30 +4455,82 @@ def signal_types():
         "BIOLOGICAL_CAPITAL":    "L6.1 BC ecosystem health signal — Flow·Resilience·Uniqueness·Interdependence",
         "BTCP_ROUTE":            "Cross-chain behavioral routing signal — BTCP route established/executed (whitepaper §18)",
         "CONSENSUS_ADAPTATION":  "Temporary consensus parameter recommendation to chains — C(t) threshold adaptation event",
+        # BTCP-family descriptions (M-073 closed set)
+        "BEHAVIORAL_TRUTH":      "Sensing Oracle output — public commitment + 7-plane coherence result; behavior content never stored (Dark Field)",
+        "SHADOW_CHAIN":          "Hostile/unintegrated chain shadow confidence from 5 source classes; ultra-light node, break-rejoin phases, Dead Zone marking",
+        "LIQUIDITY_OCEAN":       "Form-equivalent total liquidity — score > 0 means routable liquidity exists; only zero is thermodynamic death",
+        "CHAIN_RELIABILITY":     "Per-chain failure-rate warning with EXTERNAL_CAUSE vs ENTITY_CAUSE classification for routing decisions",
+        "BTCP_ESCROW_EVENT":     "Escrow state transition (HOLDING | RELEASED | REVERTED) on the behavioral state channel",
+        "BTCP_TIMEOUT":          "Escrow timeout — funds revert to the entity, intent preserved for re-routing; recorded in the Akashic Index",
+        "GENESIS_COMMITMENT":    "New entity/asset genesis commitment — 7 pathways incl. SponsoredGenesis bond; asset genesis enters the Liquidity Ocean",
     }
-    internal_to_whitepaper = {v: k for k, v in WHITEPAPER_11_INTERNAL.items()}
 
+    # The M-073 canonical view, straight from the core registry: 19 base
+    # rows + 10 BTCP-family rows = 29 (two dual-family names listed once per
+    # family; the closed set holds 27 distinct names).
+    reg = signal_registry()
     types = []
-    for st in SignalType:
-        internal_name = st.name
-        whitepaper_name = internal_to_whitepaper.get(internal_name)
+    for ruling_name in reg["ruling_base_19"]:
+        internal_name = WHITEPAPER_11_INTERNAL[ruling_name]
+        st = SignalType[internal_name]
         types.append({
-            "id":             int(st),
-            "name":           internal_name,          # code-internal name (core enum)
-            "whitepaper_name": whitepaper_name,       # §11 canonical name; None → extended
-            "source":         "whitepaper §11" if whitepaper_name
-                              else "extended beyond whitepaper §11",
-            "description":    DESCRIPTIONS.get(internal_name, ""),
+            "id":              int(st),
+            "name":            internal_name,       # code-internal name (core enum)
+            "whitepaper_name": ruling_name,         # §11 canonical name
+            "source":          "whitepaper §11",
+            "family":          "base_19",
+            "dual_family":     ruling_name in reg["dual_family_2"],
+            "description":     DESCRIPTIONS.get(internal_name, ""),
+        })
+    # BTCP master spec §2 lists the first six family names; §14.2 the four
+    # event-signals — the registry preserves that order (signal_factory
+    # BTCP_FAMILY_10_TYPES).
+    for i, fam_name in enumerate(reg["btcp_family_10"]):
+        meta = classify_signal(fam_name)
+        row = {
+            "id":              meta["signal_type_id"],   # enum id (member or carrier)
+            "name":            fam_name,
+            "whitepaper_name": None,                     # family row — BTCP spec, not §11
+            "source":          "BTCP master spec §2" if i < 6 else "BTCP master spec §14.2",
+            "family":          "btcp_family_10",
+            "dual_family":     fam_name in reg["dual_family_2"],
+            "description":     DESCRIPTIONS.get(fam_name, ""),
+        }
+        if meta["signal_subtype"]:                      # rides a canonical carrier
+            row["carrier"] = meta["carrier"]
+            row["signal_subtype"] = meta["signal_subtype"]
+        types.append(row)
+
+    # Registry members beyond the M-073 closed set (V2 Part 5 extended) —
+    # kept with their on-chain ids so the full 24-member id mapping this
+    # endpoint has always exposed stays complete.
+    v2_extended = []
+    for name in reg["v2_extended_5"]:
+        if name in reg["closed_set_27"]:
+            continue                                     # RESURRECTION is in the 29 view
+        st = SignalType[name]
+        v2_extended.append({
+            "id":         int(st),
+            "name":       name,
+            "source":     "V2 Part 5 extended (registry; beyond the 29-type taxonomy)",
+            "description": DESCRIPTIONS.get(name, ""),
         })
 
-    canonical = [t for t in types if t["whitepaper_name"]]
-    extended  = [t for t in types if not t["whitepaper_name"]]
-
     return jsonify({
-        "total":                        len(types),
-        "canonical_per_whitepaper":     len(canonical),
-        "extended_beyond_whitepaper":   len(extended),
+        "total":                        reg["canonical_total"],       # 29
+        "canonical_per_whitepaper":     len(reg["ruling_base_19"]),   # 19
+        "extended_beyond_whitepaper":   len(reg["btcp_family_10"]),   # 10 (2 dual-family)
+        "closed_set_distinct":          len(reg["closed_set_27"]),    # 27
+        "dual_family":                  list(reg["dual_family_2"]),
+        "dual_family_note": (
+            "BTCP_ROUTE and CONSENSUS_ADAPTATION sit in BOTH families (the "
+            "M-073 ruling's own note): the taxonomy counts 19 base + 10 "
+            "BTCP-family = 29 types while the closed set holds 27 distinct "
+            "names — the two dual-family rows are listed once per family and "
+            "flagged dual_family: true."
+        ),
         "signal_types":                 types,
+        "registry_v2_extended":         v2_extended,
         "name_drift": [
             {"whitepaper_name": "REGULATORY_BEHAVIORAL",
              "internal_name": "REGULATORY_BHV", "id": 16},
@@ -4473,16 +4538,21 @@ def signal_types():
              "internal_name": "MEV_EXPOSURE", "id": 14},
         ],
         "parity_note": (
-            "The core registry is a hard 24-type parity constraint (wasm "
+            "The M-073 canonical taxonomy is 29 types (19 whitepaper §11 base "
+            "+ 10 BTCP-family) over a closed set of 27 distinct names. The "
+            "core registry stays a hard 24-type parity constraint (wasm "
             "signal_processor signal_type_count() == 24; spec/signal_types.md: "
             "new types require a protocol fork; on-chain type ids mirror the "
-            "same 24). The 24 = 19 whitepaper §11 canonical types (two with "
-            "internal name drift, mapped here) + 5 extended types "
-            "(ids 4, 7, 15, 17, 18). Core enum members are not renamed; the "
-            "API performs the whitepaper ↔ internal ↔ id translation."
+            "same 24): the seven BTCP-family names that are not enum members "
+            "ride their closest canonical carrier as typed sub-payloads "
+            "(carrier + signal_subtype on their rows), and the four V2 "
+            "extended members beyond the closed set stay listed with their "
+            "ids in registry_v2_extended. Core enum members are not renamed; "
+            "the API performs the whitepaper ↔ internal ↔ id translation."
         ),
-        "whitepaper": "TRION Whitepaper Section 11 — The 19 Signal Types "
-                      "(canonical subset of the 24-type core registry)",
+        "whitepaper": "TRION Whitepaper §11 (19 base types) + BTCP Master Spec "
+                      "§2/§14.2 (10 BTCP-family types) — M-073 ruling: 29-type "
+                      "canonical taxonomy",
         "timestamp":  int(time.time()),
     })
 
@@ -5971,36 +6041,60 @@ def signal_full(entity_id: str):
     return jsonify(data)
 
 
-# ── Per-Type Signal Endpoints — all 19 whitepaper signal types ─────────────────
+# ── Per-Type Signal Endpoints — M-073 closed set (27 names) + registry extras ──
 @app.route("/api/v1/signal/type/<type_name>/<entity_id>")
 def signal_by_type(type_name: str, entity_id: str):
     """
     Emit a specific TRIONSignal type for an entity.
-    Supports all 19 whitepaper signal types (Section 11).
+    Accepts every closed-set name of the M-073 canonical taxonomy (27
+    distinct: the 19 base §11 types + the 10 BTCP-family names, with
+    BTCP_ROUTE / CONSENSUS_ADAPTATION shared between the families), plus the
+    registry spellings that remain emittable (the V2 extended types
+    NEGATIVE_SPACE | INSTITUTIONAL_BHV | ECOSYSTEM_HEALTH | BOOTSTRAP and
+    the internal drift names REGULATORY_BHV | MEV_EXPOSURE).
 
-    type_name: VALUATION | SILENCE | MANIPULATION_ALERT | GENESIS | RESURRECTION |
-               FORK_DIVERGENCE | TRAJECTORY | NEGATIVE_SPACE | PHASE_TRANSITION |
-               SYSTEMIC_RISK | LIQUIDITY_HEALTH | GOVERNANCE_SIGNAL |
-               CROSS_CHAIN_COHERENCE | STABLECOIN_HEALTH | MEV_EXPOSURE |
-               INSTITUTIONAL_BHV | REGULATORY_BHV | ECOSYSTEM_HEALTH | BOOTSTRAP
+    type_name: VALUATION | SILENCE | LIQUIDITY_HEALTH | MANIPULATION_ALERT |
+               TRAJECTORY | SYSTEMIC_RISK | GOVERNANCE_SIGNAL |
+               CROSS_CHAIN_COHERENCE | STABLECOIN_HEALTH | PHASE_TRANSITION |
+               FORK_DIVERGENCE | GENESIS | REGULATORY_BEHAVIORAL/REGULATORY_BHV |
+               SOVEREIGN_BEHAVIORAL | MEV_BEHAVIORAL/MEV_EXPOSURE |
+               ENERGY_PARTICIPATION | BIOLOGICAL_CAPITAL | BTCP_ROUTE |
+               CONSENSUS_ADAPTATION | BEHAVIORAL_TRUTH | SHADOW_CHAIN |
+               LIQUIDITY_OCEAN | CHAIN_RELIABILITY | BTCP_ESCROW_EVENT |
+               BTCP_TIMEOUT | GENESIS_COMMITMENT | RESURRECTION |
+               NEGATIVE_SPACE | INSTITUTIONAL_BHV | ECOSYSTEM_HEALTH | BOOTSTRAP
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
     from core.master.signal_factory import (
-        SignalType, build_signal,
+        SignalType, build_signal, RULING_NAME_ALIASES,
+        RULING_CLOSED_SET_27,
         build_valuation, build_silence, build_manipulation_alert,
         build_genesis, build_resurrection, build_fork_divergence,
         build_trajectory, build_negative_space, build_phase_transition,
         build_systemic_risk, build_liquidity_health, build_governance_signal,
         build_cross_chain_coherence, build_stablecoin_health, build_mev_exposure,
         build_institutional_bhv, build_regulatory_bhv, build_ecosystem_health,
-        build_bootstrap,
+        build_bootstrap, build_sovereign_behavioral, build_energy_participation,
+        build_biological_capital, build_btcp_route, build_consensus_adaptation,
+        build_behavioral_truth, build_shadow_chain, build_liquidity_ocean,
+        build_chain_reliability, build_btcp_escrow_event, build_btcp_timeout,
+        build_genesis_commitment,
+        BTCP_ESCROW_STATES, SHADOW_SOURCE_TYPES, REJOIN_PHASES,
+        GENESIS_PATHWAYS,
     )
 
+    # Ruling (whitepaper) spellings resolve to the internal enum names.
     tn = type_name.upper()
+    tn = RULING_NAME_ALIASES.get(tn, tn)
     base    = _compute_signal(entity_id)
     h       = hashlib.sha3_256(entity_id.encode()).digest()
+    # Chained digests — h is 32 bytes, the payloads below need more bytes
+    # than that (the same derivation pattern the GOVERNANCE_SIGNAL branch
+    # established).
+    hx      = hashlib.sha3_256(h).digest()
+    h2      = hashlib.sha3_256(hx).digest()
     vol     = _market_volatility()
     # COLD_START signals carry no plane_breakdown (no FAISS sediment yet) —
     # same defensive access as the /planes consumers below; per-plane 0.0
@@ -6117,9 +6211,8 @@ def signal_by_type(type_name: str, entity_id: str):
             gs = round(0.30 + (h[28]/255.0)*0.65, 4)
             hhi_g = round(800 + (h[29]/255.0)*6000, 1)
             quorum_reached = h[30] > 100
-            # h is a 32-byte sha3-256 digest — bytes 32..34 live in a chained
-            # digest (same derivation pattern as the generation hashes below).
-            hx = hashlib.sha3_256(h).digest()
+            # h is a 32-byte sha3-256 digest — bytes 32..34 live in the
+            # chained digest hx derived above (same pattern as h2).
             # AUDIT-3 G4 fix: prior code `awa_enforced=hhi_g > 3500` was INVERTED
             # (True when HHI dangerously high). Per WP2 §17 and core/governance/awa.py
             # AWA_HHI_MAX=4000, AWA_QUORUM=2/3, AWA_GRATITUDE_MIN=1.0,
@@ -6209,12 +6302,139 @@ def signal_by_type(type_name: str, entity_id: str):
                     "anima": pb.get("anima", 0.0) > 0.11,
                 },
                 estimated_blocks_to_full=max(0, int((obs_need - obs_cur) * 100)))
+        elif tn == "SOVEREIGN_BEHAVIORAL":
+            sba = round(0.25 + (h[17]/255.0)*0.70, 4)
+            sig = build_sovereign_behavioral(entity_id, coh,
+                sba_score=sba,
+                jurisdiction=["EU","US","APAC","GLOBAL"][h[18] % 4],
+                policy_stated=round(0.40 + (h[19]/255.0)*0.50, 4),
+                policy_observed=round(0.10 + (h[20]/255.0)*0.80, 4),
+                divergence_index=round((h[21]/255.0)*0.90, 4),
+                capital_flow_entropy=round(0.20 + (h[22]/255.0)*0.75, 4),
+                threat_level="ELEVATED" if sba > 0.60 else "LOW")
+        elif tn == "ENERGY_PARTICIPATION":
+            ep = round(0.30 + (h[23]/255.0)*0.65, 4)
+            sig = build_energy_participation(entity_id, coh,
+                ep_score=ep,
+                validator_count=int(20 + h[24] % 80),
+                participation_ratio=round(0.40 + (h[25]/255.0)*0.55, 4),
+                decentralization_coefficient=round(0.30 + (h[26]/255.0)*0.65, 4),
+                energy_source_diversity=round(0.25 + (h[27]/255.0)*0.70, 4),
+                carbon_intensity=round((h[28]/255.0)*450.0, 1))
+        elif tn == "BIOLOGICAL_CAPITAL":
+            bc = round(0.35 + (h[29]/255.0)*0.60, 4)
+            sig = build_biological_capital(entity_id, coh,
+                bc_score=bc,
+                ecosystem_id=entity_id[:16].upper() + "_ECO",
+                species_at_risk=int(h[30] % 200),
+                keystone_health=round(0.30 + (h[31]/255.0)*0.65, 4),
+                resilience_index=round(0.25 + (hx[0]/255.0)*0.70, 4),
+                interdependence_score=round(0.30 + (hx[1]/255.0)*0.60, 4),
+                xsl_aggregate=round(0.20 + (hx[2]/255.0)*0.75, 4))
+        elif tn == "BTCP_ROUTE":
+            btcp = round(0.40 + (hx[3]/255.0)*0.55, 4)
+            sig = build_btcp_route(entity_id, coh,
+                btcp_score=btcp,
+                continuity_score=round(0.30 + (hx[4]/255.0)*0.65, 4),
+                route_chain_ids=[1, 42161, 421614],
+                optimal_route=["DIRECT","NETTING","BATCH","BRIDGE"][hx[5] % 4],
+                mev_exposure_on_route=round((hx[6]/255.0)*0.30, 4),
+                batch_opportunity=hx[7] > 128,
+                estimated_gas_saved=round((hx[8]/255.0)*0.9 + 0.1, 4),
+                mempool_archetype=["NORMAL","AGGRESSIVE","STEALTH","FLOW_TRADER"][hx[9] % 4])
+        elif tn == "CONSENSUS_ADAPTATION":
+            adapt = round(0.30 + (hx[10]/255.0)*0.60, 4)
+            sig = build_consensus_adaptation(entity_id, coh,
+                adaptation_score=adapt,
+                previous_consensus_mode="DW_BFT_TIER_0",
+                new_consensus_mode=f"DW_BFT_TIER_{1 + hx[11] % 2}",
+                trigger_event=["HHI_THRESHOLD_CROSSING","VALIDATOR_COMPOSITION_CHANGE",
+                               "COORDINATION_COLLAPSE"][hx[12] % 3],
+                validator_diversity_index=round(0.30 + (hx[13]/255.0)*0.60, 4),
+                hhi_pre=round(1200 + (hx[14]/255.0)*3000, 1),
+                hhi_post=round(800 + (hx[15]/255.0)*2500, 1),
+                degradation_tier=int(hx[16] % 3))
+        elif tn == "BEHAVIORAL_TRUTH":
+            # plane_results: TRUE/FALSE per plane, 7 planes (D3-150) —
+            # hash-derived demo verdicts, honestly labeled below.
+            plane_results = [b > 128 for b in h[:7]]
+            sig = build_behavioral_truth(entity_id, coh,
+                coherence_score=round(0.40 + (h[7]/255.0)*0.55, 4),
+                public_commitment="0x" + hx.hex(),
+                plane_results=plane_results)
+        elif tn == "SHADOW_CHAIN":
+            n_sources = int(1 + hx[12] % 5)
+            sig = build_shadow_chain(entity_id, coh,
+                shadow_confidence=round(0.30 + (hx[13]/255.0)*0.60, 4),
+                hostile_chain="hostile-chain-" + hx[14:18].hex(),
+                source_types=list(SHADOW_SOURCE_TYPES[:n_sources]),
+                source_count=int(1 + hx[11] % 20),
+                rejoin_phase=REJOIN_PHASES[hx[15] % 4],
+                dead_zone=hx[16] < 26)
+        elif tn == "LIQUIDITY_OCEAN":
+            ocean = round(0.10 + (hx[17]/255.0)*0.90, 4)
+            sig = build_liquidity_ocean(entity_id, coh,
+                ocean_score=ocean,
+                asset="0x" + h[:20].hex(),
+                form_breakdown={
+                    "native":      round(ocean * 0.40, 4),
+                    "wrapped":     round(ocean * 0.25, 4),
+                    "pooled_lp":   round(ocean * 0.20, 4),
+                    "lending_amt": round(ocean * 0.15, 4),
+                },
+                best_form_path="native→pooled_lp",
+                estimated_slippage=round((hx[18]/255.0)*0.02, 6))
+        elif tn == "CHAIN_RELIABILITY":
+            rel = round(0.50 + (hx[19]/255.0)*0.45, 4)
+            sig = build_chain_reliability(entity_id, coh,
+                reliability_score=rel,
+                chain_id=[421614, 1, 84532, 11155420, 5000, 59144][hx[20] % 6],
+                failure_rate=round(1.0 - rel, 4),
+                cause_classification="EXTERNAL_CAUSE" if hx[21] < 128 else "ENTITY_CAUSE",
+                beo_impact=["0x" + h[:20].hex()],
+                nl_at_failure=round((hx[22]/255.0)*0.20, 4))
+        elif tn == "BTCP_ESCROW_EVENT":
+            sig = build_btcp_escrow_event(entity_id, coh,
+                escrow_id="ESC-" + hx[23:27].hex(),
+                event=BTCP_ESCROW_STATES[hx[24] % 3],
+                amount=round(100.0 + (hx[25]/255.0)*9900.0, 2),
+                route_id="ROUTE-" + hx[26:30].hex())
+        elif tn == "BTCP_TIMEOUT":
+            lock_blk  = int(1e7 + (hx[27]/255.0)*5e7)
+            to_blocks = int(100 + hx[28] % 900)
+            cur_blk   = lock_blk + to_blocks + int(hx[29] % 200)
+            sig = build_btcp_timeout(entity_id, coh,
+                escrow_id="ESC-" + hx[30:34].hex(),
+                lock_block=lock_blk,
+                timeout_blocks=to_blocks,
+                current_block=cur_blk,
+                intent="cross-chain transfer intent " + entity_id[:12])
+        elif tn == "GENESIS_COMMITMENT":
+            pathway = GENESIS_PATHWAYS[hx[31] % len(GENESIS_PATHWAYS)]
+            sponsor = None
+            sponsor_bond = None
+            if pathway == "SPONSORED_GENESIS":
+                sponsor = "0x" + h2[:20].hex()
+                sponsor_bond = round(100.0 + (h2[20]/255.0)*9900.0, 2)
+            sig = build_genesis_commitment(entity_id, coh,
+                commitment_score=round(0.35 + (h2[21]/255.0)*0.60, 4),
+                genesis_pathway=pathway,
+                commitment_hash="0x" + h2.hex(),
+                null_state=["LIQUIDITY_NULL_STATE","BEHAVIORAL_NULL_STATE","NONE"][h2[23] % 3],
+                sponsor=sponsor,
+                sponsor_bond=sponsor_bond)
         else:
             return jsonify({
                 "error":       f"Unknown signal type: {type_name}",
-                "valid_types": [t.name for t in __import__("core.master.signal_factory",
-                                fromlist=["SignalType"]).SignalType],
-                "whitepaper":  "Section 11",
+                # The M-073 closed set (ruling spellings) plus the registry
+                # spellings this route still accepts (V2 extended + the two
+                # internal drift names resolved above).
+                "valid_types": sorted(
+                    set(RULING_CLOSED_SET_27)
+                    | {"NEGATIVE_SPACE", "INSTITUTIONAL_BHV",
+                       "ECOSYSTEM_HEALTH", "BOOTSTRAP",
+                       "REGULATORY_BHV", "MEV_EXPOSURE"}),
+                "whitepaper":  "Section 11 (M-073: 19 base + 10 BTCP-family = 29)",
             }), 400
 
         sig["is_synthetic"] = True
