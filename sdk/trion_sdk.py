@@ -29,17 +29,39 @@ except ImportError:
 
 # ── Signal type constants ────────────────────────────────────────────────────
 
+# M-073 canonical taxonomy (owner ruling): 29 types = 19 base (D1 §11) +
+# 10 BTCP-family (BTCP master spec §2's six new signals + §14.2's four
+# event-signals). BTCP_ROUTE and CONSENSUS_ADAPTATION sit in both families
+# (the ruling's own note), so the closed set below holds 27 distinct names
+# while the taxonomy count is 29. Names use the internal enum spellings
+# (REGULATORY_BHV / MEV_EXPOSURE / INSTITUTIONAL_BHV); the whitepaper
+# spellings are accepted through SIGNAL_TYPE_ALIASES below.
 SIGNAL_TYPES = [
     "VALUATION", "SILENCE", "MANIPULATION_ALERT", "GENESIS", "RESURRECTION",
     "FORK_DIVERGENCE", "TRAJECTORY", "NEGATIVE_SPACE", "PHASE_TRANSITION",
     "SYSTEMIC_RISK", "LIQUIDITY_HEALTH", "GOVERNANCE_SIGNAL",
     "CROSS_CHAIN_COHERENCE", "STABLECOIN_HEALTH", "MEV_EXPOSURE",
     "INSTITUTIONAL_BHV", "REGULATORY_BHV", "ECOSYSTEM_HEALTH", "BOOTSTRAP",
+    "SOVEREIGN_BEHAVIORAL", "ENERGY_PARTICIPATION", "BIOLOGICAL_CAPITAL",
+    "CONSENSUS_ADAPTATION",
     # BTCP signal type (canonical 19, whitepaper §11).
     # SECURITY FIX (P1, verification matrix #19): BTCP_ROUTE was missing here
     # (present in sdk/TrionSDK.ts, sdk/src/index.ts and core SignalType = 22).
     "BTCP_ROUTE",
+    # BTCP-family additions (M-073): the seven §2/§14.2 names carried as
+    # typed sub-payloads on canonical carriers by core/master/
+    # signal_factory (signal_subtype) — classified + emittable, while the
+    # id space stays fork-gated at 24 (wasm/rust/on-chain parity).
+    "BEHAVIORAL_TRUTH", "SHADOW_CHAIN", "LIQUIDITY_OCEAN",
+    "CHAIN_RELIABILITY", "BTCP_ESCROW_EVENT", "BTCP_TIMEOUT",
+    "GENESIS_COMMITMENT",
 ]
+
+# Whitepaper spellings accepted for the two internally drifted names.
+SIGNAL_TYPE_ALIASES = {
+    "REGULATORY_BEHAVIORAL": "REGULATORY_BHV",
+    "MEV_BEHAVIORAL":        "MEV_EXPOSURE",
+}
 
 EVENT_TYPES = [
     "TRANSFER", "SWAP", "LIQUIDITY", "STAKE", "UNSTAKE", "GOVERNANCE",
@@ -299,12 +321,18 @@ class TRIONClient:
 
     def get_signal_by_type(self, entity_id: str, signal_type: str) -> Dict:
         """
-        Emit a specific TRIONSignal type (one of 19 whitepaper types).
-        signal_type: VALUATION | SILENCE | GENESIS | MANIPULATION_ALERT | ...
+        Emit a specific TRIONSignal type.
+        signal_type: any name from SIGNAL_TYPES (the M-073 closed set — the
+        19 whitepaper §11 types plus the BTCP-family additions; whitepaper
+        spellings of the two drifted names resolve through
+        SIGNAL_TYPE_ALIASES). The server route /api/v1/signal/type/<type>
+        currently pins the 19 §11 types; the BTCP-family names classify
+        and emit through the core signal factory on the caller side.
         """
-        if signal_type.upper() not in SIGNAL_TYPES:
+        canonical = SIGNAL_TYPE_ALIASES.get(signal_type.upper(), signal_type.upper())
+        if canonical not in SIGNAL_TYPES:
             raise ValueError(f"Unknown signal_type '{signal_type}'. Valid: {SIGNAL_TYPES}")
-        return self._http.get(f"/api/v1/signal/type/{signal_type.upper()}/{entity_id}")
+        return self._http.get(f"/api/v1/signal/type/{canonical}/{entity_id}")
 
     def get_signal_batch(self, entity_ids: List[str]) -> List[Dict]:
         """

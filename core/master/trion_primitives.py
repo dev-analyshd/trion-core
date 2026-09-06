@@ -211,7 +211,7 @@ class TRIONPrimitives:
         return [
             {"name": "Master Equation C(t)",               "status": "IMPLEMENTED", "file": "core/master/coherence.py"},
             {"name": "BRT Scheduler (observed timing)",     "status": "IMPLEMENTED", "file": "anima-service/brt_scheduler.py"},
-            {"name": "Signal Factory (all 19 types)",       "status": "IMPLEMENTED", "file": "core/master/signal_factory.py"},
+            {"name": "Signal Factory (29-type canonical taxonomy)", "status": "IMPLEMENTED", "file": "core/master/signal_factory.py"},
             {"name": "Evolutionary Fitness F=PA·ICE·AS·Love","status":"IMPLEMENTED","file": "core/primitives/evolutionary_fitness.py"},
             {"name": "BEO Entity Resolution",               "status": "IMPLEMENTED", "file": "core/primitives/entity_resolution.py"},
             {"name": "Observer Effect / Reflexivity",       "status": "IMPLEMENTED", "file": "core/mental/anima/reflexivity.py"},

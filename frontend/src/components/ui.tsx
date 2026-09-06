@@ -693,7 +693,7 @@ export function ArchitectureFlow({ compact: compactMode }: { compact?: boolean }
       <g>
         <rect x="650" y="170" width="140" height="60" rx="8" fill="url(#grad1)" stroke="#8b5cf6" strokeOpacity="0.6" filter="url(#glow)" />
         <text x="720" y="195" textAnchor="middle" className="fill-foreground text-[11px] font-semibold">SIGNAL FACTORY</text>
-        <text x="720" y="215" textAnchor="middle" className="fill-muted-foreground text-[9px]">24 signal types</text>
+        <text x="720" y="215" textAnchor="middle" className="fill-muted-foreground text-[9px]">29 signal types</text>
       </g>
 
       <line x1="610" y1="200" x2="650" y2="200" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#arrow)" className="text-muted-foreground" />

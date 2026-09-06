@@ -1,10 +1,68 @@
 # TRION Protocol -- Signal Types Specification
 
 > **Reference:** TRION Whitepaper, Section 12 (Signal Catalog).
-> This document enumerates all 24 canonical signal types emitted by a TRION chain.
+> This document enumerates the 29-type canonical taxonomy (M-073 owner
+> ruling) and the 24 registry ids that carry it on-chain and cross-language.
 
 ## Scope
-> **SUPERSEDED IN PART (S23 acronym); COUNT CONFIRMED CANONICAL (K4):** see WHITEPAPER_MD.txt §11 / BTCP_SPEC title — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K4/K5). K5: **BTCP = Behavioral Transaction Continuity Protocol** (BTCP_SPEC governs; the S23 expansion “Behavioral Trusted Channel Protocol” is an error). K4: the canonical signal set is 24 = MD §11's 19 canonical + 5 V2 extended types — exactly what this registry and `core/master/signal_factory.py` implement (ids 0–23 dense, new types require a protocol fork); BTCP §14.2's 10 names are classifiable as typed sub-payloads on canonical carriers.
+> **SUPERSEDED IN PART (S23 acronym); COUNT CONFIRMED CANONICAL (K4):** see WHITEPAPER_MD.txt §11 / BTCP_SPEC title — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K4/K5). K5: **BTCP = Behavioral Transaction Continuity Protocol** (BTCP_SPEC governs; the S23 expansion “Behavioral Trusted Channel Protocol” is an error). K4: the canonical signal set is 24 = MD §11's 19 canonical + 5 V2 extended types — exactly what this registry and `core/master/signal_factory.py` implement (ids 0–23 dense, new types require a protocol fork); BTCP §14.2's 10 names are classifiable as typed sub-payloads on canonical carriers. (K4's count is the **registry id-space** view; at the taxonomy level the M-073 ruling below supersedes it — 29 canonical types on the 24 fork-gated ids.)
+>
+> **M-073 RULING (owner decision, recorded):** the signal-taxonomy
+> contradiction (19 per D1/D2 vs 24 in the repo registry vs +10 per the
+> BTCP master spec) is resolved — the **canonical taxonomy is 29 signal
+> types**: the 19 base types (D1 §11) plus the BTCP-family additions from
+> the BTCP master spec (§2 new signals: BEHAVIORAL_TRUTH, SHADOW_CHAIN,
+> LIQUIDITY_OCEAN, CHAIN_RELIABILITY; §14.2 event-signals:
+> BTCP_ESCROW_EVENT, BTCP_TIMEOUT, GENESIS_COMMITMENT, RESURRECTION).
+> BTCP_ROUTE and CONSENSUS_ADAPTATION already sit in the 19, so the
+> taxonomy counts 19 + 10 = 29 while the closed set holds 27 distinct
+> names. The registry id space stays fork-gated at 24 (ids 0–23, wasm /
+> rust / on-chain parity — see Canonical Taxonomy below); the seven
+> BTCP-family names that are not enum members ride their closest
+> canonical carrier as typed sub-payloads (`signal_subtype`), each with a
+> spec-faithful builder in `core/master/signal_factory.py`.
+
+## Canonical Taxonomy (M-073 Ruling -- 29 Types)
+
+```
+29  =  19 base types (D1 §11)
+    + 10 BTCP-family types (BTCP master spec §2 + §14.2)
+       BTCP_ROUTE and CONSENSUS_ADAPTATION are counted in BOTH families
+       (the ruling's own note) → 27 distinct closed-set names.
+```
+
+Base 19 (D1 §11): VALUATION, SILENCE, LIQUIDITY_HEALTH, MANIPULATION_ALERT,
+TRAJECTORY, SYSTEMIC_RISK, GOVERNANCE_SIGNAL, CROSS_CHAIN_COHERENCE,
+STABLECOIN_HEALTH, PHASE_TRANSITION, FORK_DIVERGENCE, GENESIS,
+REGULATORY_BEHAVIORAL, SOVEREIGN_BEHAVIORAL, MEV_BEHAVIORAL,
+ENERGY_PARTICIPATION, BIOLOGICAL_CAPITAL, BTCP_ROUTE, CONSENSUS_ADAPTATION.
+
+BTCP family 10 (§2 + §14.2): BTCP_ROUTE, BEHAVIORAL_TRUTH, SHADOW_CHAIN,
+LIQUIDITY_OCEAN, CONSENSUS_ADAPTATION, CHAIN_RELIABILITY, BTCP_ESCROW_EVENT,
+BTCP_TIMEOUT, GENESIS_COMMITMENT, RESURRECTION.
+
+Registry realization (id parity, fork-gated at 24):
+
+```
+name                 enum id   carrier (id)         builder in signal_factory.py
+──────────────────────────────────────────────────────────────────────────────────────────
+BTCP_ROUTE           22        itself               build_btcp_route
+CONSENSUS_ADAPTATION 23        itself               build_consensus_adaptation
+RESURRECTION          4        itself               build_resurrection
+BEHAVIORAL_TRUTH     subtype   VALUATION (0)        build_behavioral_truth
+SHADOW_CHAIN         subtype   SYSTEMIC_RISK (9)    build_shadow_chain
+LIQUIDITY_OCEAN      subtype   LIQUIDITY_HEALTH(10) build_liquidity_ocean
+CHAIN_RELIABILITY    subtype   CROSS_CHAIN_COH(12)  build_chain_reliability
+BTCP_ESCROW_EVENT    subtype   BTCP_ROUTE (22)      build_btcp_escrow_event
+BTCP_TIMEOUT         subtype   BTCP_ROUTE (22)      build_btcp_timeout
+GENESIS_COMMITMENT   subtype   GENESIS (3)          build_genesis_commitment
+```
+
+The registry view (`signal_registry()`) reports the ruling counts
+(`canonical_total` 29, `closed_set_27`) alongside the id-space view
+(`canonical_24`, `total_classifiable` 31). `classify_signal()` accepts
+the whitepaper spellings REGULATORY_BEHAVIORAL / MEV_BEHAVIORAL (the two
+internally drifted names) and records `btcp_family` for every type.
 
 
 Every signal carries a mandatory envelope and trigger conditions. Signals are
@@ -236,7 +294,7 @@ Emitter      : L6
 ### S23 BTCP_ROUTE
 
 ```
-Trigger      : BTCP (Behavioral Trusted Channel Protocol) route established or broken
+Trigger      : BTCP (Behavioral Transaction Continuity Protocol) route established or broken
 Mandatory    : route_id, peer_chain, latency, trust_score, route_state
 Severity     : info | warning
 Emitter      : L9
@@ -267,7 +325,12 @@ Emitter      : L5 | L3
 
 ## Invariants
 
-- Exactly 24 signal types are defined; new types require a protocol fork.
+- The canonical taxonomy is closed at 29 types (M-073 ruling: 19 base + 10
+  BTCP family; 27 distinct closed-set names — BTCP_ROUTE and
+  CONSENSUS_ADAPTATION hold membership in both families).
+- Exactly 24 registry ids are defined (S1–S24, dense 0–23); new ids require
+  a protocol fork (wasm `signal_type_count() == 24`, rust
+  `SIGNAL_TYPE_COUNT == 24`, on-chain type ids 0–23 — cross-language parity).
 - A signal without a valid `emitter_layer` MUST be rejected by the consensus boundary.
 - `expires_at` MUST be `<= timestamp + 30 epochs` for non-critical signals,
   `<= timestamp + 90 epochs` for critical signals.

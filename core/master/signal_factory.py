@@ -1,16 +1,32 @@
 """
 TRION Protocol — Complete Signal System
-24 signal types: 19 canonical (whitepaper Section 11) + 5 extended (L6–L9 planes).
+Canonical taxonomy: 29 types (M-073 owner ruling) over a 24-member registry.
 
-Canonical 19 (whitepaper Section 11):
+Canonical taxonomy, M-073 resolution (owner ruling):
+  29 = 19 base types (D1 §11) + 10 BTCP-family types (BTCP master spec §2's
+  six new signals + §14.2's four event-signals). BTCP_ROUTE and
+  CONSENSUS_ADAPTATION sit in BOTH families (the ruling's own note), so the
+  closed set holds 27 distinct names while the taxonomy count is 29.
+
+Base 19 (whitepaper Section 11):
   VALUATION, SILENCE, LIQUIDITY_HEALTH, MANIPULATION_ALERT, TRAJECTORY,
   SYSTEMIC_RISK, GOVERNANCE_SIGNAL, CROSS_CHAIN_COHERENCE, STABLECOIN_HEALTH,
   PHASE_TRANSITION, FORK_DIVERGENCE, GENESIS, REGULATORY_BHV,
   SOVEREIGN_BEHAVIORAL, MEV_BEHAVIORAL (alias: MEV_EXPOSURE),
   ENERGY_PARTICIPATION, BIOLOGICAL_CAPITAL, BTCP_ROUTE, CONSENSUS_ADAPTATION.
 
-Extended 5 (beyond canonical 19, retained for coverage breadth):
+Extended 5 (beyond base 19, retained for coverage breadth):
   RESURRECTION, NEGATIVE_SPACE, INSTITUTIONAL_BHV, ECOSYSTEM_HEALTH, BOOTSTRAP.
+
+Registry parity: the SignalType enum below stays EXACTLY 24 members with
+  dense ids 0–23 — a hard cross-language constraint (wasm
+  signal_type_count()==24, rust SIGNAL_TYPE_COUNT==24, on-chain type ids
+  0–23, spec/signal_types.md "new types require a protocol fork"; contracts
+  are deployment-gated). The seven BTCP-family names that are not enum
+  members ride their closest canonical carrier as typed sub-payloads
+  (signal_subtype), and RESURRECTION/BTCP_ROUTE/CONSENSUS_ADAPTATION already
+  are enum members — so every one of the 27 closed-set names is classifiable
+  and emittable while the id space stays fork-gated at 24.
 
 Every signal includes: CI_95 always, biological_time,
 full provenance chain, coherence breakdown.
@@ -143,9 +159,67 @@ V2_EXTENDED_5_TYPES = [
 ]
 
 
+# ─── M-073 resolution (owner ruling): the 29-type canonical taxonomy ─────────
+#
+# The closed contradiction "taxonomy 19 (D1/D2) vs 24 (repo registry) vs +10
+# (BTCP master spec)" is resolved by the owner ruling: the canonical taxonomy
+# is 29 signal types = the 19 base types (D1 §11) plus the BTCP-family
+# additions (spec §2 new signals + §14.2 event-signals). The family lists
+# share BTCP_ROUTE and CONSENSUS_ADAPTATION with the base 19 (the ruling
+# notes this explicitly), so the count is 19 + 10 = 29 while the closed set
+# of distinct names is 27. See also spec/signal_types.md (taxonomy section).
+CANONICAL_29_TOTAL = 29
+
+# The 19 base types exactly as the ruling (D1 §11) names them. Two names
+# drifted in the internal enum and map through RULING_NAME_ALIASES below.
+RULING_BASE_19_TYPES = [
+    "VALUATION", "SILENCE", "LIQUIDITY_HEALTH", "MANIPULATION_ALERT",
+    "TRAJECTORY", "SYSTEMIC_RISK", "GOVERNANCE_SIGNAL",
+    "CROSS_CHAIN_COHERENCE", "STABLECOIN_HEALTH", "PHASE_TRANSITION",
+    "FORK_DIVERGENCE", "GENESIS", "REGULATORY_BEHAVIORAL",
+    "SOVEREIGN_BEHAVIORAL", "MEV_BEHAVIORAL", "ENERGY_PARTICIPATION",
+    "BIOLOGICAL_CAPITAL", "BTCP_ROUTE", "CONSENSUS_ADAPTATION",
+]
+
+# The BTCP family, exactly as the BTCP master spec lists it: §2's six new
+# signals (BTCP_ROUTE, BEHAVIORAL_TRUTH, SHADOW_CHAIN, LIQUIDITY_OCEAN,
+# CONSENSUS_ADAPTATION, CHAIN_RELIABILITY) + §14.2's four event-signals
+# (BTCP_ESCROW_EVENT, BTCP_TIMEOUT, GENESIS_COMMITMENT, RESURRECTION).
+BTCP_FAMILY_10_TYPES = [
+    "BTCP_ROUTE", "BEHAVIORAL_TRUTH", "SHADOW_CHAIN", "LIQUIDITY_OCEAN",
+    "CONSENSUS_ADAPTATION", "CHAIN_RELIABILITY", "BTCP_ESCROW_EVENT",
+    "BTCP_TIMEOUT", "GENESIS_COMMITMENT", "RESURRECTION",
+]
+
+# Ruling (whitepaper) name → internal SignalType enum name where the enum
+# drifted. classify_signal() resolves these, so every closed-set name is
+# classifiable in its ruling spelling as well as the internal one.
+RULING_NAME_ALIASES = {
+    "REGULATORY_BEHAVIORAL": "REGULATORY_BHV",
+    "MEV_BEHAVIORAL":        "MEV_EXPOSURE",
+}
+
+# The two names shared between the base 19 and the BTCP family 10 — the
+# ruling's "already sit in the 19" note; the taxonomy counts them once per
+# family (19 + 10 = 29) while the closed set holds them once.
+DUAL_FAMILY_TYPES = ["BTCP_ROUTE", "CONSENSUS_ADAPTATION"]
+
+# The closed set of distinct type names (27 = 19 base + 8 BTCP-only).
+RULING_CLOSED_SET_27 = sorted(
+    set(RULING_BASE_19_TYPES) | set(BTCP_FAMILY_10_TYPES)
+)
+
+
 def signal_registry() -> dict:
-    """Complete registry view: canonical 24 + BTCP §14.2 domain extension."""
+    """Complete registry view: M-073 29-type taxonomy + canonical 24 + domain extension."""
     return {
+        # ── M-073 owner ruling (canonical taxonomy) ──
+        "canonical_total":   CANONICAL_29_TOTAL,
+        "ruling_base_19":    list(RULING_BASE_19_TYPES),
+        "btcp_family_10":    list(BTCP_FAMILY_10_TYPES),
+        "dual_family_2":     list(DUAL_FAMILY_TYPES),
+        "closed_set_27":     list(RULING_CLOSED_SET_27),
+        # ── registry implementation view (id-space parity) ──
         "canonical_24": [t.name for t in SignalType],
         "canonical_19": CANONICAL_19_TYPES,
         "v2_extended_5": V2_EXTENDED_5_TYPES,
@@ -158,17 +232,26 @@ def classify_signal(name_or_type) -> dict:
     """Emission classification for any canonical or BTCP-domain signal name.
 
     Returns {type_name, signal_type_id, domain, carrier, severity,
-    emitter_layer, ttl_class}. Unknown names raise KeyError (fail-closed:
-    an unclassifiable type must not be emitted — signal_types.md envelope
-    rule "A signal without a valid emitter_layer MUST be rejected").
+    emitter_layer, ttl_class, btcp_family, ruling_name}. Unknown names
+    raise KeyError (fail-closed: an unclassifiable type must not be emitted
+    — signal_types.md envelope rule "A signal without a valid emitter_layer
+    MUST be rejected").
+
+    M-073: ruling (whitepaper) spellings resolve through
+    RULING_NAME_ALIASES (REGULATORY_BEHAVIORAL → REGULATORY_BHV,
+    MEV_BEHAVIORAL → MEV_EXPOSURE), and every classification records
+    whether the type belongs to the BTCP family of the 29-type taxonomy.
     """
     if isinstance(name_or_type, SignalType):
         st = name_or_type
     else:
+        raw = str(name_or_type).upper()
+        # Ruling spelling of a drifted internal name (M-073 closed set).
+        raw = RULING_NAME_ALIASES.get(raw, raw)
         try:
-            st = SignalType[str(name_or_type).upper()]
+            st = SignalType[raw]
         except KeyError:
-            name = str(name_or_type).upper()
+            name = raw
             if name in BTCP_DOMAIN_SIGNALS:
                 meta = BTCP_DOMAIN_SIGNALS[name]
                 carrier = SignalType[meta["carrier"]]
@@ -182,6 +265,8 @@ def classify_signal(name_or_type) -> dict:
                     "severity":        meta["severity"],
                     "emitter_layer":   meta["layer"],
                     "ttl_class":       meta["ttl_class"],
+                    "btcp_family":     True,
+                    "ruling_name":     name,
                 }
             raise KeyError(
                 f"unclassifiable signal type {name_or_type!r} — not in the "
@@ -195,6 +280,9 @@ def classify_signal(name_or_type) -> dict:
         domain = "v2_extended_5"
     else:  # pragma: no cover — enum is exactly 19 + 5
         raise KeyError(f"signal type {name} not in the canonical lists")
+    # Ruling (whitepaper) spelling for the two internally drifted names —
+    # the closed-set name this type carries in the 29-type taxonomy.
+    internal_to_ruling = {v: k for k, v in RULING_NAME_ALIASES.items()}
     return {
         "type_name":      name,
         "signal_type_id": int(st),
@@ -204,6 +292,8 @@ def classify_signal(name_or_type) -> dict:
         "severity":       "critical" if name in ("MANIPULATION_ALERT", "SYSTEMIC_RISK") else "info",
         "emitter_layer":  "L1",
         "ttl_class":      "critical" if name in ("MANIPULATION_ALERT", "SYSTEMIC_RISK") else "non_critical",
+        "btcp_family":    name in BTCP_FAMILY_10_TYPES,
+        "ruling_name":    internal_to_ruling.get(name, name),
     }
 
 
@@ -1716,6 +1806,379 @@ def build_btcp_domain_signal(
     )
 
 
+# ─── M-073 spec-faithful BTCP-family builders (Wave 5) ───────────────────────
+#
+# One builder per BTCP §2/§14.2 type that is not already a canonical enum
+# member, each carrying exactly the payload fields the BTCP master spec
+# states (D3 extraction anchors noted per builder). Values are ALWAYS
+# caller/engine-supplied — the factory assembles, validates and documents,
+# never fabricates. Constants below are the spec-stated thresholds, in the
+# repo's named-constant style.
+
+# D3-150: BEHAVIORAL_TRUTH carries plane_results for SEVEN planes.
+SENSING_PLANE_COUNT = 7
+# D3-152: example shadow-source confidence weight (cross-chain transfers).
+SHADOW_TRANSFER_SOURCE_CONFIDENCE = 0.7
+# D3-154: the ultra-light hostile-chain node processes ~80 bytes per block.
+ULTRA_LIGHT_NODE_BYTES_PER_BLOCK = 80
+# D3-144/D3-158: LIQUIDITY_OCEAN_SCORE > 0 means routable liquidity exists
+# (only zero is thermodynamic death — total ecosystem value zero).
+LIQUIDITY_OCEAN_ROUTABLE_MIN = 0.0
+# D3-179: failure classifier NL collapse threshold (external-cause marker).
+NL_COLLAPSE_THRESHOLD = 0.10
+
+# §14.2: BTCP_ESCROW_EVENT states (HOLDING | RELEASED | REVERTED).
+BTCP_ESCROW_STATES = ("HOLDING", "RELEASED", "REVERTED")
+# D3-152: the five shadow-source classes collect_shadow_sources() gathers.
+SHADOW_SOURCE_TYPES = (
+    "CROSS_CHAIN_TRANSFER", "ORACLE_UPDATE", "BRIDGE_EVENT",
+    "DEX_TRADE", "GOVERNANCE_REF",
+)
+# D3-156: break-rejoin phases (NONE = hostile, not requesting integration).
+REJOIN_PHASES = (
+    "NONE", "SHADOW_BASELINE", "CHANNEL6_OBSERVATION", "FULL_INTEGRATION",
+)
+# D3-158/D3-159/D3-160: genesis pathways (asset + identity + sponsored).
+GENESIS_PATHWAYS = (
+    "PROOF_OF_WORK_MINTING", "PROTOCOL_ISSUANCE",
+    "SYNTHETIC_OVERCOLLATERALIZED",
+    "STAKE_COMMITMENT", "SIGNATURE_REGISTRATION", "SOCIAL_PROOF",
+    "SPONSORED_GENESIS",
+)
+# D3-157: the two null states the Null-State Theorem covers.
+GENESIS_NULL_STATES = ("LIQUIDITY_NULL_STATE", "BEHAVIORAL_NULL_STATE", "NONE")
+
+
+def build_behavioral_truth(
+    entity_id, coherence_result: dict,
+    coherence_score: float,
+    public_commitment: str,
+    plane_results: list,
+) -> dict:
+    """§7.1 Sensing Oracle output — BEHAVIORAL_TRUTH (D3-150).
+
+    Schema (exactly the spec's present fields): entity_id (the BEO id, for
+    routing), public_commitment (hash-of-hash — no behavior content),
+    coherence_score (0.0–1.0), plane_results (TRUE/FALSE × 7 planes).
+    The five content fields are ABSENT BY CONSTRUCTION — the builder takes
+    no parameter that could carry them, and the payload records the Dark
+    Field guarantee (D3-147/D3-149: TRION stores the commitment ONLY).
+
+    TRION senses (all three recorded, caller-verified): commitment coherent
+    with historical pattern, magnitude within normal behavioral range,
+    timing shows no manipulation fingerprint — plus the 7-plane coherence
+    check result.
+    """
+    if not 0.0 <= coherence_score <= 1.0:
+        raise ValueError("coherence_score must be within [0.0, 1.0]")
+    if len(plane_results) != SENSING_PLANE_COUNT:
+        raise ValueError(
+            f"plane_results must carry TRUE/FALSE for {SENSING_PLANE_COUNT} "
+            f"planes (D3-150), got {len(plane_results)}"
+        )
+    if not all(isinstance(p, bool) for p in plane_results):
+        raise ValueError("plane_results entries must be booleans (TRUE/FALSE per plane)")
+    return build_btcp_domain_signal(
+        "BEHAVIORAL_TRUTH",
+        entity_id,
+        coherence_result,
+        signal_value=coherence_score,
+        detail={
+            "public_commitment":  public_commitment,
+            "coherence_score":     coherence_score,
+            "plane_results":       list(plane_results),
+            "planes_checked":      SENSING_PLANE_COUNT,
+            "coherent_7_plane":    all(plane_results),
+            "senses": [
+                "commitment_coherent_with_history",
+                "magnitude_within_normal_range",
+                "timing_no_manipulation_fingerprint",
+            ],
+            "dark_field_guarantee": (
+                "behavior_content, amount, counterparty, protocol, chain: "
+                "ABSENT — never stored, never transmitted (D3-150)"
+            ),
+        },
+    )
+
+
+def build_shadow_chain(
+    entity_id, coherence_result: dict,
+    shadow_confidence: float,
+    hostile_chain: str,
+    source_types: list,
+    source_count: int,
+    rejoin_phase: str = "NONE",
+    dead_zone: bool = False,
+) -> dict:
+    """§8 Break-Rejoin — SHADOW_CHAIN (D3-068, D3-152..156).
+
+    Hostile/unintegrated chain shadow confidence: the mean confidence of the
+    shadow sources (D3-153 — Σ confidence_weights / len(sources)), the
+    source classes observed, the ~80-byte-per-block ultra-light node cost
+    (D3-154), and the current rejoin phase (D3-156). A completely isolated
+    chain is a Dead Zone — economically irrelevant until it seeks relevance
+    (D3-155).
+    """
+    if not 0.0 <= shadow_confidence <= 1.0:
+        raise ValueError("shadow_confidence must be within [0.0, 1.0]")
+    if rejoin_phase not in REJOIN_PHASES:
+        raise ValueError(f"rejoin_phase must be one of {REJOIN_PHASES}")
+    if source_count < 0:
+        raise ValueError("source_count must be non-negative")
+    detail = {
+        "hostile_chain":   hostile_chain,
+        "shadow_confidence": shadow_confidence,
+        "source_types":    list(source_types),
+        "source_count":    source_count,
+        "ultra_light_node_bytes_per_block": ULTRA_LIGHT_NODE_BYTES_PER_BLOCK,
+        "rejoin_phase":    rejoin_phase,
+        "dead_zone":       dead_zone,
+    }
+    if dead_zone:
+        detail["dead_zone_note"] = (
+            "Hostile chain completely isolated — economically irrelevant; "
+            "the moment it seeks relevance, the shadow exists (D3-155)."
+        )
+    if rejoin_phase != "NONE":
+        detail["rejoin_note"] = (
+            "Break-rejoin active: shadow history becomes the Genesis "
+            "baseline (D(t) starts from shadow, not zero); bone heals "
+            "stronger at the break point (D3-156)."
+        )
+    return build_btcp_domain_signal(
+        "SHADOW_CHAIN", entity_id, coherence_result,
+        signal_value=shadow_confidence, detail=detail,
+    )
+
+
+def build_liquidity_ocean(
+    entity_id, coherence_result: dict,
+    ocean_score: float,
+    asset: str,
+    form_breakdown: dict,
+    best_form_path: str,
+    estimated_slippage: float,
+) -> dict:
+    """§6.1 Liquidity Ocean — LIQUIDITY_OCEAN (D3-145, D3-143).
+
+    Fields per D3-145: asset, ocean_score, form_breakdown, best_form_path,
+    estimated_slippage. LIQUIDITY_OCEAN_SCORE = Σ_forms VALUE ×
+    SHIFT_COST⁻¹ × SHIFT_TIME⁻¹ × BEHAVIORAL_HEALTH (D3-143); an asset with
+    score > 0 has routable liquidity in some value-equivalent form — only
+    zero is thermodynamic death (D3-144).
+    """
+    if ocean_score < 0.0:
+        raise ValueError("ocean_score (LIQUIDITY_OCEAN_SCORE) must be non-negative")
+    routable = ocean_score > LIQUIDITY_OCEAN_ROUTABLE_MIN
+    return build_btcp_domain_signal(
+        "LIQUIDITY_OCEAN",
+        entity_id,
+        coherence_result,
+        signal_value=ocean_score,
+        detail={
+            "asset":               asset,
+            "ocean_score":         ocean_score,
+            "form_breakdown":      dict(form_breakdown),
+            "best_form_path":      best_form_path,
+            "estimated_slippage":  estimated_slippage,
+            "routable_liquidity":  routable,
+            "routability_note": (
+                "LIQUIDITY_OCEAN_SCORE > 0 → routable liquidity exists in a "
+                "value-equivalent form (D3-144); only zero is thermodynamic "
+                "death — total ecosystem value zero."
+            ) if routable else (
+                "LIQUIDITY_OCEAN_SCORE == 0 — no routable form anywhere in "
+                "the ecosystem (thermodynamic death, D3-144)."
+            ),
+        },
+    )
+
+
+def build_chain_reliability(
+    entity_id, coherence_result: dict,
+    reliability_score: float,
+    chain_id: int,
+    failure_rate: float,
+    cause_classification: str,
+    beo_impact: list,
+    nl_at_failure: Optional[float] = None,
+) -> dict:
+    """§11 failure classifier — CHAIN_RELIABILITY (D3-071, D3-230, D3-179).
+
+    Failure-rate warning for routing decisions: per-chain reliability score,
+    the EXTERNAL_CAUSE vs ENTITY_CAUSE classification (external when the
+    chain is down, NL at failure < 0.10, reorg depth > SAFE_CONFIRMATIONS,
+    or an MF spike — D3-179), and the affected BEOs. The nl_collapse flag
+    is set only when the caller supplies the NL-at-failure figure.
+    """
+    if cause_classification not in ("EXTERNAL_CAUSE", "ENTITY_CAUSE"):
+        raise ValueError("cause_classification must be EXTERNAL_CAUSE or ENTITY_CAUSE (D3-179)")
+    if not 0.0 <= reliability_score <= 1.0:
+        raise ValueError("reliability_score must be within [0.0, 1.0]")
+    if failure_rate < 0.0:
+        raise ValueError("failure_rate must be non-negative")
+    detail = {
+        "chain_id":              chain_id,
+        "reliability_score":     reliability_score,
+        "failure_rate":          failure_rate,
+        "cause_classification":  cause_classification,
+        "beo_impact":            list(beo_impact),
+        "routing_recommendation": (
+            "EXTERNAL_CAUSE — chain-side failure; routing may resume after "
+            "the chain recovers (D3-179)."
+            if cause_classification == "EXTERNAL_CAUSE" else
+            "ENTITY_CAUSE — entity-side failure; reassess the BEO before "
+            "routing (D3-179)."
+        ),
+    }
+    if nl_at_failure is not None:
+        detail["nl_at_failure"] = nl_at_failure
+        detail["nl_collapse"] = nl_at_failure < NL_COLLAPSE_THRESHOLD
+    return build_btcp_domain_signal(
+        "CHAIN_RELIABILITY", entity_id, coherence_result,
+        signal_value=reliability_score, detail=detail,
+    )
+
+
+def build_btcp_escrow_event(
+    entity_id, coherence_result: dict,
+    escrow_id: str,
+    event: str,
+    amount: float,
+    route_id: Optional[str] = None,
+) -> dict:
+    """§14.2 escrow lifecycle — BTCP_ESCROW_EVENT.
+
+    Escrow state transitions (§14.2): HOLDING | RELEASED | REVERTED — the
+    BTCPEscrow state machine the behavioral state channel settles through
+    (D3-228). Fails closed on any other state name.
+    """
+    if event not in BTCP_ESCROW_STATES:
+        raise ValueError(f"escrow event must be one of {BTCP_ESCROW_STATES}")
+    state_notes = {
+        "HOLDING":  "Intent locked — funds held until behavioral proof or timeout.",
+        "RELEASED": "Behavioral proof verified — funds released to the counterparty.",
+        "REVERTED": "Escrow reverted — funds returned to the entity.",
+    }
+    return build_btcp_domain_signal(
+        "BTCP_ESCROW_EVENT",
+        entity_id,
+        coherence_result,
+        signal_value=1.0,
+        detail={
+            "escrow_id":   escrow_id,
+            "escrow_state": event,
+            "amount":      amount,
+            "route_id":    route_id,
+            "state_note":  state_notes[event],
+        },
+    )
+
+
+def build_btcp_timeout(
+    entity_id, coherence_result: dict,
+    escrow_id: str,
+    lock_block: int,
+    timeout_blocks: int,
+    current_block: int,
+    intent: str,
+) -> dict:
+    """§14.2 escrow timeout — BTCP_TIMEOUT (D3 escrow §14.3 semantics).
+
+    Escrow timeout with the intent preserved: timeout_reached mirrors the
+    BTCPEscrow.vy revert_on_timeout assert (block.number > lock_block +
+    timeout_blocks — D3-224/D3-225). On timeout the funds revert to the
+    entity and the intent survives for re-routing; the event is recorded in
+    the Akashic Index by the relayer.
+    """
+    if timeout_blocks <= 0:
+        raise ValueError("timeout_blocks must be positive")
+    if current_block < 0 or lock_block < 0:
+        raise ValueError("block numbers must be non-negative")
+    blocks_elapsed  = max(0, current_block - lock_block)
+    timeout_reached = current_block > lock_block + timeout_blocks
+    return build_btcp_domain_signal(
+        "BTCP_TIMEOUT",
+        entity_id,
+        coherence_result,
+        signal_value=min(1.0, blocks_elapsed / timeout_blocks),
+        detail={
+            "escrow_id":        escrow_id,
+            "lock_block":       lock_block,
+            "timeout_blocks":   timeout_blocks,
+            "current_block":    current_block,
+            "blocks_elapsed":   blocks_elapsed,
+            "timeout_reached":  timeout_reached,
+            "intent":           intent,
+            "intent_preserved": True,
+            "timeout_note": (
+                "Escrow timed out — funds returned to the entity, intent "
+                "preserved for re-routing; BTCP_TIMEOUT recorded in the "
+                "Akashic Index by the relayer (revert_on_timeout semantics)."
+            ),
+        },
+    )
+
+
+def build_genesis_commitment(
+    entity_id, coherence_result: dict,
+    commitment_score: float,
+    genesis_pathway: str,
+    commitment_hash: str,
+    null_state: str = "NONE",
+    sponsor: Optional[str] = None,
+    sponsor_bond: Optional[float] = None,
+) -> dict:
+    """§9 Null-State Theorem — GENESIS_COMMITMENT (D3-157..160).
+
+    New entity/asset genesis commitment: the pathway taken (asset genesis
+    via proof-of-work minting / protocol issuance / synthetic
+    overcollateralized minting — D3-158; identity genesis via stake
+    commitment / signature registration / social proof — D3-159; sponsored
+    genesis with bond + accountability window — D3-160), the commitment
+    hash, and the null state being resolved (D3-157). Asset genesis enters
+    the Liquidity Ocean: score > 0 → BTCP routing becomes available.
+    """
+    if genesis_pathway not in GENESIS_PATHWAYS:
+        raise ValueError(f"genesis_pathway must be one of {GENESIS_PATHWAYS}")
+    if null_state not in GENESIS_NULL_STATES:
+        raise ValueError(f"null_state must be one of {GENESIS_NULL_STATES}")
+    if not 0.0 <= commitment_score <= 1.0:
+        raise ValueError("commitment_score must be within [0.0, 1.0]")
+    asset_pathways = (
+        "PROOF_OF_WORK_MINTING", "PROTOCOL_ISSUANCE",
+        "SYNTHETIC_OVERCOLLATERALIZED",
+    )
+    detail = {
+        "genesis_pathway":  genesis_pathway,
+        "commitment_hash":  commitment_hash,
+        "commitment_score": commitment_score,
+        "null_state":       null_state,
+        "null_state_note": (
+            "Without a genesis mechanism, any routing system fails at scale "
+            "with probability 1 (Null-State Theorem, D3-157)."
+        ) if null_state != "NONE" else None,
+    }
+    if genesis_pathway in asset_pathways:
+        detail["liquidity_ocean_entry"] = (
+            "First instance of the asset: enters the Liquidity Ocean → "
+            "LIQUIDITY_OCEAN_SCORE > 0 → BTCP routing available (D3-158)."
+        )
+    if sponsor is not None:
+        detail["sponsor"] = sponsor
+        detail["sponsor_bond"] = sponsor_bond
+        detail["sponsored_note"] = (
+            "Sponsored Genesis: sponsor stakes a bond; manipulation by the "
+            "new entity partially slashes it, honesty returns it — "
+            "confidence grows independently (D3-160)."
+        )
+    return build_btcp_domain_signal(
+        "GENESIS_COMMITMENT", entity_id, coherence_result,
+        signal_value=commitment_score, detail=detail,
+    )
+
+
 # ─── Self-test ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1847,5 +2310,73 @@ if __name__ == "__main__":
     except KeyError:
         pass
 
+    # ── M-073 ruling: spec-faithful BTCP-family builders (Wave 5) ──────────
+    spec_sigs = {
+        "BEHAVIORAL_TRUTH": build_behavioral_truth(
+            entity, coherence, 0.84, "0xcommitment_hash_of_hash",
+            [True, True, True, True, True, True, False],
+        ),
+        "SHADOW_CHAIN": build_shadow_chain(
+            entity, coherence, 0.68, "hostile-chain-x",
+            ["CROSS_CHAIN_TRANSFER", "BRIDGE_EVENT", "DEX_TRADE"], 3,
+            rejoin_phase="SHADOW_BASELINE",
+        ),
+        "LIQUIDITY_OCEAN": build_liquidity_ocean(
+            entity, coherence, 1_250_000.0, "USDC",
+            {"aUSDC": 500_000.0, "cUSDC": 300_000.0, "LP_USDC/ETH": 450_000.0},
+            "USDC→aUSDC", 0.004,
+        ),
+        "CHAIN_RELIABILITY": build_chain_reliability(
+            entity, coherence, 0.93, 42161, 0.07, "EXTERNAL_CAUSE",
+            ["beo_1", "beo_2"], nl_at_failure=0.08,
+        ),
+        "BTCP_ESCROW_EVENT": build_btcp_escrow_event(
+            entity, coherence, "0xescrow_1", "HOLDING", 12_500.0, "route_7",
+        ),
+        "BTCP_TIMEOUT": build_btcp_timeout(
+            entity, coherence, "0xescrow_1", 1_800_000, 7200, 1_800_001,
+            "intent_9a3f",
+        ),
+        "GENESIS_COMMITMENT": build_genesis_commitment(
+            entity, coherence, 0.80, "SPONSORED_GENESIS", "0xcommit_abc",
+            null_state="BEHAVIORAL_NULL_STATE",
+            sponsor="beo_sponsor_1", sponsor_bond=1_000.0,
+        ),
+    }
+    assert set(spec_sigs) == set(BTCP_DOMAIN_SIGNALS) == set(BTCP_FAMILY_10_TYPES) - set(DUAL_FAMILY_TYPES) - {"RESURRECTION"}
+    for name, sig in spec_sigs.items():
+        assert sig["signal_subtype"] == name
+        assert sig["btcp_domain"] is True
+        assert "ci_95" in sig and sig["provenance"]
+    # spec-stated field spot-checks (full pinning lives in test_signal_registry)
+    assert spec_sigs["BEHAVIORAL_TRUTH"]["plane_results"] == [True] * 6 + [False]
+    assert spec_sigs["BEHAVIORAL_TRUTH"]["planes_checked"] == SENSING_PLANE_COUNT
+    for absent in ("behavior_content", "amount", "counterparty", "protocol", "chain"):
+        assert absent not in spec_sigs["BEHAVIORAL_TRUTH"], f"{absent} must be ABSENT (D3-150)"
+    assert spec_sigs["SHADOW_CHAIN"]["ultra_light_node_bytes_per_block"] == 80
+    assert spec_sigs["LIQUIDITY_OCEAN"]["routable_liquidity"] is True
+    assert spec_sigs["CHAIN_RELIABILITY"]["nl_collapse"] is True  # 0.08 < 0.10 (D3-179)
+    assert spec_sigs["BTCP_ESCROW_EVENT"]["escrow_state"] == "HOLDING"
+    assert spec_sigs["BTCP_TIMEOUT"]["timeout_reached"] is False  # 1_800_001 ≤ 1_800_000 + 7_200
+    assert spec_sigs["GENESIS_COMMITMENT"]["sponsor"] == "beo_sponsor_1"
+
+    # M-073 taxonomy arithmetic: 19 base + 10 BTCP family = 29 (the two
+    # dual-family names counted once per family), 27 distinct closed set.
+    assert CANONICAL_29_TOTAL == 29
+    assert len(RULING_BASE_19_TYPES) == 19 and len(BTCP_FAMILY_10_TYPES) == 10
+    assert 19 + 10 == CANONICAL_29_TOTAL
+    assert set(DUAL_FAMILY_TYPES) <= set(RULING_BASE_19_TYPES) & set(BTCP_FAMILY_10_TYPES)
+    assert len(RULING_CLOSED_SET_27) == 27
+    reg = signal_registry()
+    assert reg["canonical_total"] == 29 and len(reg["closed_set_27"]) == 27
+    # every closed-set name (ruling spelling) classifies
+    for name in RULING_CLOSED_SET_27:
+        cls = classify_signal(name)
+        assert cls["ruling_name"] == name
+        assert cls["btcp_family"] == (name in BTCP_FAMILY_10_TYPES)
+
     print(f"\nPHASE 15 PASS — all {len(sigs)}/24 signal types built with full provenance")
     print(f"                + {len(btcp_domain)}/7 BTCP §14.2 domain subtypes classifiable")
+    print(f"                + {len(spec_sigs)} spec-faithful BTCP-family builders (M-073)")
+    print( "                + M-073 canonical taxonomy: 19 base + 10 BTCP family = 29 "
+           f"(closed set {len(RULING_CLOSED_SET_27)} distinct names)")
