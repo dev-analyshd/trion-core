@@ -6,6 +6,10 @@
 .env
 .env.*
 !.env.example
+# SEC-22: .env.railway is a local working copy (formerly git-tracked with only
+# placeholders — now untracked; the tracked template is .env.railway.example)
+.env.railway
+!.env.railway.example
 envfile.env
 envfile.env.*
 

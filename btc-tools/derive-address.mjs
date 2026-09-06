@@ -128,15 +128,30 @@ function bech32Encode(hrp, witver, witprog) {
   return hrp + '1' + combined.map(v => charset[v]).join('');
 }
 
+// ── SEC-02 (key hygiene): raw secrets (EVM private key, WIF) are NEVER
+// printed to stdout — stdout is captured by CI logs, terminal scrollback,
+// `tee`, and log aggregators, and the WIF equals the same secp256k1 secret
+// in BTC encoding (one leak, two ecosystems). Only derived public artifacts
+// (public key, pubkey hash, addresses) go to stdout. Debug opt-in
+// (discouraged): DEBUG_KEYS=1 prints the raw key/WIF to stderr with a
+// warning.
+const debugKeys = process.env.DEBUG_KEYS === '1';
+
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  Bitcoin Testnet Address Derivation                       ');
 console.log('═══════════════════════════════════════════════════════════');
-console.log(`  EVM Private Key:  ${evmPrivateKey}`);
-console.log(`  Bitcoin WIF:      ${wif}`);
+console.log(`  EVM Private Key:  ${debugKeys ? '[printed to stderr — DEBUG_KEYS=1]' : '[REDACTED — set DEBUG_KEYS=1 to print to stderr]'}`);
+console.log(`  Bitcoin WIF:      ${debugKeys ? '[printed to stderr — DEBUG_KEYS=1]' : '[REDACTED]'}`);
 console.log(`  Public Key:       ${pubKeyBuffer.toString('hex')}`);
 console.log(`  Pubkey Hash:     ${pubkeyHash.toString('hex')}`);
 console.log(`  P2WPKH (Bech32):  ${bech32Address}`);
 console.log(`  P2PKH (Legacy):   ${p2pkhAddress}`);
 console.log('═══════════════════════════════════════════════════════════');
+
+if (debugKeys) {
+  console.error('  ⚠ DEBUG_KEYS=1 — printing raw key material to stderr (discouraged: CI/shared terminals capture stderr too)');
+  console.error(`  EVM Private Key:  ${evmPrivateKey}`);
+  console.error(`  Bitcoin WIF:      ${wif}`);
+}
 
 export { bech32Address as p2wpkhAddress, p2pkhAddress, wif, privateKeyBuffer, pubKeyBuffer, pubkeyHash };
