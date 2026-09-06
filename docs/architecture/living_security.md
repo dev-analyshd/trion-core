@@ -27,7 +27,7 @@ antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
 This mirrors DNA sense/antisense strand pairing. The antisense is verifiable
 without storing the payload.
 
-### Bootstrap
+### Bootstraps
 
 At genesis (D=0), GK is seeded from:
 ```
