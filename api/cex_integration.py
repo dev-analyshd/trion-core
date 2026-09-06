@@ -45,6 +45,13 @@ from flask import Blueprint, jsonify, request
 
 from api.faiss_client import faiss_headers
 
+# Canonical EventType (whitepaper L0.1 §2 — 20 types, byte value = enum id).
+# Read-only import of the authoritative map: core/primitives/behavioral_hash
+# .EventType is the single source of truth (mirrored by the FAISS endpoint's
+# EVENT_NAMES re-derivation in add_tx_bh_batch) — keep this table in sync by
+# construction, never by hand-copying.
+from core.primitives.behavioral_hash import EventType
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 FAISS_URL = os.environ.get("FAISS_SERVICE_URL", "http://127.0.0.1:8000")
 # /index/* writes require X-API-Key — resolved by api.faiss_client with the
@@ -61,33 +68,31 @@ CEX_CHAIN_IDS = {
     "GENERIC":  90000,
 }
 
-# EventType byte → name (canonical 20 types from whitepaper L0.1)
-EVENT_TYPES = {
-    0:  "TRANSFER",       1:  "SWAP",           2:  "LIQUIDITY",
-    3:  "BORROW",         4:  "REPAY",           5:  "STAKE",
-    6:  "UNSTAKE",        7:  "GOVERNANCE",      8:  "DEPLOY",
-    9:  "BRIDGE",         10: "FLASH_LOAN",      11: "ORACLE_UPDATE",
-    12: "AIRDROP",        13: "CLAIM",           14: "MINT",
-    15: "BURN",           16: "MEV_CAPTURE",     17: "PROPOSAL",
-    18: "UPGRADE",        19: "LIQUIDATION",
-}
+# EventType byte → name (canonical 20 types from whitepaper L0.1 — derived
+# from core.primitives.behavioral_hash.EventType, the authoritative map).
+EVENT_TYPES = {int(et): et.name for et in EventType}
 
-# CEX data_type + sub-signal → canonical EventType byte
+# CEX data_type + sub-signal → canonical EventType byte. The byte now lands
+# on the canonical type the comment names (the pre-canonical table drifted:
+# e.g. WASH was byte 5, which canonical L0.1 reads as GOVERNANCE). The
+# endpoint re-derives the event name from the byte with its own canonical
+# table, so verification is unaffected — the ledger's event_name column and
+# the cex_bh_ledger display now show canonical names.
 CEX_EVENT_MAP = {
     ("ORDER_FLOW_ANON",     "BUY"):          1,   # SWAP
     ("ORDER_FLOW_ANON",     "SELL"):         0,   # TRANSFER
     ("ORDER_FLOW_ANON",     "LARGE_SELL"):   16,  # MEV_CAPTURE
     ("ORDER_FLOW_ANON",     "LARGE_BUY"):    16,  # MEV_CAPTURE
-    ("ORDER_FLOW_ANON",     "WASH"):         5,   # STAKE (flagged)
-    ("LIQUIDATION_EVENTS",  "LONG"):         4,   # REPAY
-    ("LIQUIDATION_EVENTS",  "SHORT"):        15,  # BURN
-    ("LIQUIDATION_EVENTS",  "CASCADE"):      10,  # FLASH_LOAN
-    ("VOLUME_STATS",        "HIGH"):         7,   # GOVERNANCE (market signal)
+    ("ORDER_FLOW_ANON",     "WASH"):         3,   # STAKE (flagged)
+    ("LIQUIDATION_EVENTS",  "LONG"):         8,   # REPAY
+    ("LIQUIDATION_EVENTS",  "SHORT"):        14,  # BURN
+    ("LIQUIDATION_EVENTS",  "CASCADE"):      17,  # FLASH_LOAN
+    ("VOLUME_STATS",        "HIGH"):         5,   # GOVERNANCE (market signal)
     ("VOLUME_STATS",        "LOW"):          0,   # TRANSFER
     ("VOLUME_STATS",        "SPIKE"):        16,  # MEV_CAPTURE
-    ("SPREAD_METRICS",      "WIDE"):         11,  # ORACLE_UPDATE
+    ("SPREAD_METRICS",      "WIDE"):         15,  # ORACLE_UPDATE
     ("SPREAD_METRICS",      "NARROW"):       0,   # TRANSFER
-    ("SPREAD_METRICS",      "VOLATILE"):     11,  # ORACLE_UPDATE
+    ("SPREAD_METRICS",      "VOLATILE"):     15,  # ORACLE_UPDATE
 }
 
 # Context flags (CEX-specific, packed into 8 context bytes)
@@ -212,13 +217,14 @@ def _entity_id_bytes(cex_name: str, asset: str) -> bytes:
     return hashlib.sha3_256(f"{cex_name}:{asset}".encode()).digest()
 
 
-def _magnitude_norm(usd_value: float) -> int:
-    """log10 normalisation → nano-integer (8 bytes)."""
+def _magnitude_norm(usd_value: float) -> float:
+    """log10(USD) normalisation → magnitude in [0, 1] (the canonical L0.1
+    magnitude_norm input; the 93-byte payload encodes it at the canonical
+    1e9 nano scale in _build_cex_bh)."""
     if usd_value <= 0:
-        return 0
+        return 0.0
     norm = math.log10(usd_value + 1) / math.log10(MAX_MAGNITUDE_USD + 1)
-    norm = min(1.0, norm)
-    return int(norm * (2**63 - 1))
+    return min(1.0, norm)
 
 
 def _build_cex_bh(
@@ -237,12 +243,29 @@ def _build_cex_bh(
     Payload layout (same as on-chain L0.1):
       entity_id(32) || event_type(1) || magnitude_nano(8) || context(8) ||
       timestamp(8)  || chain_id(4)   || block_hash(32)
+
+    Canonical L0.1 alignment (R-20): the payload is built exactly the way the
+    FAISS endpoint's canonical_bh() recomputes it on /index/add_tx_bh_batch —
+      - magnitude: int(max(0, min(1, magnitude_norm)) * 1e9) — the canonical
+        1e9 nano scale (NOT 2^63, which no canonical builder reproduces, so
+        forwarded rows never verified);
+      - context: 8 zero bytes — every canonical builder (Rust canonical_bh,
+        core compute_bh, faiss_service canonical_bh) passes 0.  The CEX
+        classification flags stay ledger-side metadata (cex_bh_ledger row +
+        alerting); they are NOT part of the canonical payload;
+      - the forwarded magnitude_norm float is this exact value — the endpoint
+        re-derives mag_nano from it with the same expression, so it must not
+        be rounded on the way out.
     """
     entity_id = _entity_id_bytes(cex_name, asset)
-    magnitude_nano = _magnitude_norm(usd_value)
+    magnitude_norm = _magnitude_norm(usd_value)
+    # Canonical L0.1 nano scale — clamp + truncate, byte-identical to the
+    # expression faiss_service.canonical_bh() applies to magnitude_norm.
+    magnitude_nano = int(max(0.0, min(1.0, magnitude_norm)) * 1_000_000_000.0)
 
-    # Pack context flags into 8 bytes (big-endian uint64)
-    context_bytes = struct.pack(">Q", context_flags & 0xFFFFFFFFFFFFFFFF)
+    # Canonical L0.1 context: reserved 8-byte field, always 0 (R-20) — the
+    # CEX context_flags classification is ledger metadata only.
+    context_bytes = struct.pack(">Q", 0)
 
     # Timestamp as 8 bytes (big-endian int64)
     ts_bytes = struct.pack(">q", ts)
@@ -276,9 +299,11 @@ def _build_cex_bh(
         "entity_id_hex":   entity_id.hex(),
         "event_type":      event_type,
         "event_name":      EVENT_TYPES.get(event_type, "UNKNOWN"),
-        "magnitude_norm":  round(magnitude_nano / (2**63 - 1), 6),
+        # unrounded on purpose — the endpoint re-derives mag_nano from this
+        # exact float (round() would desync int(mag*1e9) from the payload)
+        "magnitude_norm":  magnitude_norm,
         "magnitude_nano":  magnitude_nano,
-        "context_flags":   context_flags,
+        "context_flags":   context_flags,  # ledger-side CEX classification
         "ts":              ts,
         "chain_id":        chain_id,
         "block_hash_hex":  block_hash.hex(),
