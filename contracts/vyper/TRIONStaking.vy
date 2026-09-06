@@ -16,6 +16,19 @@
 #     TRIONToken.slash_validator — this contract only computes the
 #     slash_amount and emits the slash event).
 #
+# M-180 / D3 §11 Fix 4 — Validator Fee Structure (Vyper split):
+#   - total_reward = base_signal_reward + coverage_bonus + btcp_route_reward
+#     − coverage_cost_offset (D3-184)
+#   - coverage_bonus = Σ_chains [ BASE_RATE × rarity × volume × uptime ],
+#     rarity = total_validators / validators_covering_chain (D3-185/D3-278)
+#   - btcp_route_reward = Σ_routes route.value × BTCP_ROUTE_FEE_RATE,
+#     split 60% anchor-chain / 40% execution-chain validators (D3-186/D3-279)
+#   All fee functions are pure computations over caller-supplied live
+#   network statistics (same explicit-input contract as the Rust
+#   validator_fee_calculator.rs — the oracle supplies the numbers, the
+#   contract never invents them). Constants mirror the Rust reference
+#   values (BASE_RATE 100.0 → BASE_REWARD 100e18; fee 0.001 → 10 bps).
+#
 # @author TRION Protocol — Originator: Hudu Yusuf (Analys)
 # @license CC0
 
@@ -94,6 +107,26 @@ DISPUTE_WINDOW: constant(uint256) = 259200   # 72 hours in seconds
 CHALLENGE_BOND_BPS: constant(uint256) = 500  # 5% of slashed amount
 
 PUBLIC_GOOD_BPS: constant(uint256) = 1500    # 15% of fees to public good pool
+
+# ── Constants — Validator Fee Structure (D3 §11 Fix 4, M-180) ────────────────
+
+# Base signal reward per period (D3-185 BASE_RATE; the doc leaves the value
+# unspecified — the repo's Rust reference chose 100.0, mirrored here at the
+# 1e18 scale). Denominated in TRION wei like every other amount here.
+BASE_REWARD: constant(uint256) = 100 * 10**18
+
+# BTCP route reward split (D3-186/D3-279): 60% to anchor-chain validators,
+# 40% to execution-chain validators — in basis points.
+BTCP_ROUTE_SPLIT_ANCHOR_BPS: constant(uint256) = 6000   # 60% anchor
+BTCP_ROUTE_SPLIT_EXEC_BPS:    constant(uint256) = 4000   # 40% execution
+
+# BTCP route fee rate (D3-186; value unspecified in the doc — the Rust
+# reference chose 0.001 = 0.1% = 10 bps of certified route value).
+BTCP_ROUTE_FEE_RATE_BPS: constant(uint256) = 10         # 0.1%
+
+# Coverage cost offset: small operational cost per chain covered (RPC,
+# indexer, ...) — Rust parity (1.0 reward units per chain).
+COVERAGE_COST_PER_CHAIN: constant(uint256) = 10**18
 
 # ── Storage ───────────────────────────────────────────────────────────────────
 
@@ -484,6 +517,100 @@ def distribute_reward(
     self.public_good_pool += public_good_contribution
 
     log DiversityBonusAwarded(validator, validator_reward, d_j)
+
+# ── Validator Fee Structure (D3 §11 Fix 4 — M-180 Vyper split) ──────────────
+#
+# Pure formula functions: every input is caller-supplied live network
+# statistics (the Akashic oracle / fee calculator feeds them, exactly like
+# the Rust validator_fee_calculator.rs NetworkStats contract) — the contract
+# computes the spec formulas and never fabricates figures.
+
+@external
+@pure
+def rarity_factor(total_validators: uint256, validators_covering_chain: uint256) -> uint256:
+    """
+    D3-185/D3-278: rarity = total_validators / validators_covering_chain,
+    scaled 1e18. A chain covered by 5% of validators → rarity = 20e18
+    (20×) — economic incentive flows automatically to underserved chains.
+    """
+    assert validators_covering_chain > 0, "TRION: zero covering validators"
+    return total_validators * 10**18 / validators_covering_chain
+
+@external
+@pure
+def coverage_bonus(
+    total_validators: uint256,
+    validators_covering_chain: uint256,
+    route_volume_share: uint256,   # 1e18-scaled: routes through chain / total
+    uptime: uint256,               # 1e18-scaled: verified / expected observations
+    chains_covered: uint256,
+) -> uint256:
+    """
+    D3-185: coverage_bonus = Σ_chains [ BASE_RATE × rarity × volume × uptime ].
+    Explicit-parameter form (single-chain rate × chains covered), mirroring
+    rust compute_coverage_bonus — the caller supplies the live per-period
+    statistics; zero covering validators or zero chains → bonus 0 (never
+    invented).
+    """
+    if validators_covering_chain == 0 or chains_covered == 0:
+        return 0
+    rarity: uint256 = total_validators * 10**18 / validators_covering_chain
+    per_chain: uint256 = (
+        BASE_REWARD * rarity / 10**18
+        * route_volume_share / 10**18
+        * uptime / 10**18
+    )
+    return per_chain * chains_covered
+
+@external
+@pure
+def btcp_route_reward(certified_route_value: uint256) -> uint256:
+    """
+    D3-186: btcp_route_reward = Σ_routes route.value × BTCP_ROUTE_FEE_RATE
+    (0.1% of the value of the routes this validator certified in the period).
+    """
+    return certified_route_value * BTCP_ROUTE_FEE_RATE_BPS / 10_000
+
+@external
+@pure
+def btcp_route_reward_split(certified_route_value: uint256) -> (uint256, uint256):
+    """
+    D3-186/D3-279: the route reward splits 60% to ANCHOR-chain validators
+    and 40% to EXECUTION-chain validators. Returns (anchor_share, exec_share);
+    the two shares always sum to btcp_route_reward(certified_route_value).
+    """
+    total: uint256 = certified_route_value * BTCP_ROUTE_FEE_RATE_BPS / 10_000
+    anchor: uint256 = total * BTCP_ROUTE_SPLIT_ANCHOR_BPS / 10_000
+    return anchor, total - anchor
+
+@external
+@pure
+def coverage_cost_offset(chains_covered: uint256) -> uint256:
+    """
+    Small operational cost deduction per chain covered (RPC, indexer, ...)
+    — the coverage_cost_offset term of D3-184, rust parity (1.0 units/chain).
+    """
+    return chains_covered * COVERAGE_COST_PER_CHAIN
+
+@external
+@pure
+def total_validator_reward(
+    base_signal_reward: uint256,
+    coverage_bonus_amount: uint256,
+    btcp_route_reward_amount: uint256,
+    coverage_cost_offset_amount: uint256,
+) -> uint256:
+    """
+    D3-184: total_reward(validator, period) = base_signal_reward +
+    coverage_bonus + btcp_route_reward − coverage_cost_offset.
+
+    Fails closed on a negative composition (uint256 cannot underflow
+    silently): a period whose cost offset exceeds the gross reward is a
+    configuration error, not a payout.
+    """
+    gross: uint256 = base_signal_reward + coverage_bonus_amount + btcp_route_reward_amount
+    assert gross >= coverage_cost_offset_amount, "TRION: cost offset exceeds rewards"
+    return gross - coverage_cost_offset_amount
 
 # ── AWA Enforcement ──────────────────────────────────────────────────────────
 
