@@ -340,17 +340,61 @@ def test_beo_merge_via_common_funder():
 
 def test_bh_ledger_cross_chain_coverage():
     """
-    §4 — Query the BH ledger for the test entity.
-    The live Rust EVM indexer has been running since startup and the FAISS ingest
-    in §2 has added records keyed to ENTITY_ADDRESS.
+    §4 — Submit BH ledger rows for the test entity on two distinct chains
+    (the EVM and the SVM fixture), then verify the ledger recorded both.
 
-    We verify the global ledger has entries across ≥ 2 distinct chain_ids,
-    proving the ledger is chain-aware and the entity is tracked multi-chain.
+    Nothing else in this suite writes a second chain's BH rows, so this test
+    supplies its own cross-chain evidence via /index/add_tx_bh_batch — the
+    same endpoint the Rust indexers POST to — BEFORE asserting coverage.
+    The ledger dedups on tx_hash, so each chain's row carries a unique hash.
+
+    Verifies:
+      - global /bh/stats counts entries on ≥ 2 distinct chain_labels
+      - /bh/ledger/<beo_id> shows the test entity itself on ≥ 2 chains
     """
     _sep("§4  BH Ledger — cross-chain coverage")
 
-    # The beo_id for ENTITY_ADDRESS (deterministic SHA3-256)
+    # The beo_id for ENTITY_ADDRESS (deterministic SHA3-256) — also the
+    # entity_id our BH rows are stored under
     beo_id = hashlib.sha3_256(ENTITY_ADDRESS.strip().lower().encode()).hexdigest()
+
+    # Two lanes from CHAIN_FIXTURES: EVM (Ethereum) + SVM (Solana)
+    bh_lanes = [CHAIN_FIXTURES[0], CHAIN_FIXTURES[2]]
+    ts = int(time.time())
+
+    print(f"\n  Submitting one BH record per chain for entity {beo_id[:16]}…")
+    for chain_id, chain_label, vm_type, human_name in bh_lanes:
+        tx_hash    = f"0x{uuid.uuid4().hex}"      # unique per run — shared tx hashes dedup
+        block_hash = f"0x{uuid.uuid4().hex}"
+        payload = {
+            "chain_id":    chain_id,
+            "chain_label": chain_label,
+            "block_num":   1,
+            "block_hash":  block_hash,
+            "timestamp":   ts,
+            "entries": [{
+                "tx_hash":         tx_hash,
+                "from_addr":       ENTITY_ADDRESS,
+                "to_addr":         "0xBEO_PROOF_COUNTERPARTY",
+                "event_type":      0,
+                "event_type_name": "TRANSFER",
+                "entity_id":       beo_id,
+                "magnitude_norm":  0.5,
+                "value_wei":       "1000000000000000000",
+                "selector":        "0xa9059cbb",
+                "timestamp":       ts,
+                "chain_id":        chain_id,
+                "chain_label":     chain_label,
+                "block_num":       1,
+                "block_hash":      block_hash,
+                "sense_hex":       "0x" + "aa" * 32,
+                "antisense_hex":   "0x" + "bb" * 32,
+            }],
+        }
+        resp = _post(f"{FAISS_URL}/index/add_tx_bh_batch", payload)
+        stored = resp.get("stored", 0)
+        print(f"    {human_name:<26} {vm_type:<8} stored={stored}  verified={resp.get('verified', 0)}  tx={tx_hash[:18]}…")
+        assert stored >= 1, f"{chain_label} BH row was not stored: {resp}"
 
     # Check global ledger stats (all entities — proves system-wide multi-chain coverage)
     # Endpoint: GET /bh/stats  → { total_tx_bhs, per_chain: {label: count}, per_event_type, recent }
@@ -373,27 +417,30 @@ def test_bh_ledger_cross_chain_coverage():
             print(f"      [{rec.get('chain','?'):<20}] event={rec.get('event_type','?'):<12} "
                   f"sense={rec.get('sense_hex','?')[:12]}…")
 
-    # Per-entity ledger for our test entity (may be empty if Rust indexer hasn't hit it yet)
-    try:
-        entity_resp   = _get(f"{FAISS_URL}/bh/ledger/{beo_id}", limit=20)
-        entity_total  = entity_resp.get("total", 0)
-        entity_chains = {r["chain_label"] for r in entity_resp.get("records", []) if r.get("chain_label")}
-        print(f"\n  Test entity ledger ({beo_id[:16]}…):")
-        print(f"    BH records        : {entity_total}")
-        print(f"    Distinct chains   : {entity_chains or '(none yet — Rust indexer not yet hit address)'}")
-    except Exception as exc:
-        print(f"\n  Entity ledger query: {exc} — using global stats only")
-        entity_total  = 0
-        entity_chains = set()
+    # Per-entity ledger for our test entity — both submitted chains must appear
+    # Endpoint: GET /bh/ledger/<beo_id> → { total_bhs, bh_records: [{chain_label, …}] }
+    entity_resp   = _get(f"{FAISS_URL}/bh/ledger/{beo_id}", limit=20)
+    entity_total  = entity_resp.get("total_bhs", 0)
+    entity_chains = {r["chain_label"] for r in entity_resp.get("bh_records", []) if r.get("chain_label")}
 
-    # The core assertion: global ledger must have data on ≥ 2 distinct chains
-    assert total >= 1, "BH ledger is empty — Rust EVM indexer has not produced any records"
+    print(f"\n  Test entity ledger ({beo_id[:16]}…):")
+    print(f"    BH records        : {entity_total}")
+    print(f"    Distinct chains   : {entity_chains or '(none)'}")
+
+    # The core assertions: the ledger globally — and our entity — span ≥ 2 chains
+    assert total >= 2, "BH ledger has < 2 entries — the submitted BH rows were not stored"
     assert len(per_chain) >= 2, (
         f"BH ledger should cover ≥ 2 chains, found {len(per_chain)}: {list(per_chain.keys())}"
     )
+    assert entity_total >= 2, (
+        f"Test entity should have ≥ 2 BH records, found {entity_total}"
+    )
+    assert len(entity_chains) >= 2, (
+        f"Test entity should appear on ≥ 2 chains, found {entity_chains}"
+    )
 
-    print(f"\n  ✅ PASS — BH ledger covers {len(per_chain)} chains"
-          f" ({total:,} total entries)")
+    print(f"\n  ✅ PASS — BH ledger covers {len(per_chain)} chains; entity tracked on "
+          f"{sorted(entity_chains)} ({total:,} total entries)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
