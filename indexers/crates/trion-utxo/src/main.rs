@@ -189,9 +189,19 @@ async fn index_chain(chain: &UtxoChain, faiss: &FaissClient, state: &mut Indexer
     // depending on ingestion moment. 0 = unknown, never wall-clock.
     let ts_u64    = block["timestamp"].as_u64().unwrap_or(0);
     let ts        = ts_u64 as f64;
-    let block_hash = block["hash"].as_str()
-        .map(|h| h.to_string())
-        .unwrap_or_else(|| bh_id(&format!("utxo_block:{}:{}", chain.label, target)));
+    // SEC-05 / SWEEP-B D3 — pass the REAL chain block hash VERBATIM
+    // (BlockCypher /blocks/{h} returns the real UTXO block `hash` — the
+    // same identifier Bitcoin's getblockhash returns directly and the
+    // Python streamer's blockchain.com path resolves). Genuinely-missing →
+    // warn + honest "0x0" (32 zero bytes), never the old synthetic
+    // bh_id("utxo_block:…") substitution.
+    let block_hash = match block["hash"].as_str() {
+        Some(h) if !h.is_empty() => h.to_string(),
+        _ => {
+            warn!("[{}] block {}: no block hash from BlockCypher — zero block hash", chain.label, target);
+            "0x0".to_string()
+        }
+    };
 
     let payload = BatchPayload {
         vectors: vec![VectorEntry {

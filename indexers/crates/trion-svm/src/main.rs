@@ -240,9 +240,19 @@ async fn main() -> Result<()> {
             // 0 = unknown. Never wall-clock (same tx must always hash the same).
             let ts_u64   = block["blockTime"].as_u64().unwrap_or(0);
             let ts       = ts_u64 as f64;
-            let blockhash = block["blockhash"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("sol_slot:{}:{}", label, cur_slot)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL Solana blockhash VERBATIM
+            // (getBlock's `blockhash` field — the same field the Python
+            // streamer's Solana fetcher reads, with the same "0x0"
+            // convention there). Genuinely-missing → warn + honest "0x0"
+            // (32 zero bytes), never the old synthetic
+            // bh_id("sol_slot:…") substitution.
+            let blockhash = match block["blockhash"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] slot {}: no blockhash from Solana RPC — zero block hash", label, cur_slot);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

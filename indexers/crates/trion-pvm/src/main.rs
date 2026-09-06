@@ -88,9 +88,15 @@ async fn rpc_fetch_latest(client: &reqwest::Client, url: &str) -> Result<u64> {
     Ok(num)
 }
 
-async fn rpc_fetch_block(client: &reqwest::Client, url: &str, num: u64) -> Result<Value> {
+async fn rpc_fetch_block(client: &reqwest::Client, url: &str, num: u64) -> Result<(Value, String)> {
     let hash = rpc_call(client, url, "chain_getBlockHash", json!([num])).await?;
-    rpc_call(client, url, "chain_getBlock", json!([hash])).await
+    // Keep the REAL chain_getBlockHash string: chain_getBlock's own response
+    // does not echo the block's hash (only parentHash), so this is the only
+    // place RPC mode sees it — the same call the Python streamer's PVM
+    // fetcher (bh_streamer fetch_polkadot_block) uses for the block hash.
+    let block_hash = hash.as_str().unwrap_or("").to_string();
+    let block = rpc_call(client, url, "chain_getBlock", json!([hash])).await?;
+    Ok((block, block_hash))
 }
 
 // ── Feature extractors ─────────────────────────────────────────────────────────
@@ -320,12 +326,15 @@ async fn main() -> Result<()> {
         let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
 
         for block_num in from..=latest {
-            let (features, block_data, mode_label) = if !use_rpc_mode {
+            let (features, block_data, mode_label, fetched_hash) = if !use_rpc_mode {
                 let sidecar = SIDECAR_URLS[sidecar_idx % SIDECAR_URLS.len()];
                 match sidecar_fetch_block(&client, sidecar, block_num).await {
                     Ok(b) => {
+                        // sidecar /blocks/{n} echoes the block hash as `hash`
+                        // (the same chain_getBlockHash value RPC mode fetches)
+                        let h = b["hash"].as_str().unwrap_or("").to_string();
                         let f = extract_features_sidecar(&b);
-                        (f, b, "sidecar")
+                        (f, b, "sidecar", h)
                     }
                     Err(e) => {
                         warn!("[{}] sidecar block {} error: {} — rotating", CHAIN_LBL, block_num, e);
@@ -338,9 +347,9 @@ async fn main() -> Result<()> {
             } else {
                 let rpc = RPC_URLS[rpc_idx % RPC_URLS.len()];
                 match rpc_fetch_block(&client, rpc, block_num).await {
-                    Ok(b) => {
+                    Ok((b, h)) => {
                         let f = extract_features_rpc(&b, block_num);
-                        (f, b, "rpc")
+                        (f, b, "rpc", h)
                     }
                     Err(e) => {
                         warn!("[{}] RPC block {} error: {} — rotating", CHAIN_LBL, block_num, e);
@@ -360,7 +369,18 @@ async fn main() -> Result<()> {
             // streamer's polkadot fetcher (no timestamp key → 0).
             let ts_u64    = 0u64;
             let ts        = ts_u64 as f64;
-            let block_hash = bh_id(&format!("pvm_block:{}:{}", CHAIN_LBL, block_num));
+            // SEC-05 / SWEEP-B D3 — pass the REAL Substrate block hash
+            // VERBATIM: sidecar /blocks/{n} echoes it as `hash`; RPC mode
+            // re-uses the same chain_getBlockHash value the Python streamer's
+            // PVM fetcher reads (bh_streamer fetch_polkadot_block).
+            // Genuinely-missing → warn + honest "0x0" (32 zero bytes), never
+            // the old synthetic bh_id("pvm_block:…") substitution.
+            let block_hash = if fetched_hash.is_empty() {
+                warn!("[{}] block {}: no block hash from {} — zero block hash", CHAIN_LBL, block_num, mode_label);
+                "0x0".to_string()
+            } else {
+                fetched_hash
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

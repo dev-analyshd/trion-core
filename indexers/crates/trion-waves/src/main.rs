@@ -66,11 +66,11 @@ fn classify_waves(tx: &Value) -> u8 {
         13 => 6,   // SetAssetScript → GOVERNANCE
         14 => 12,  // SponsorFee → UPGRADE
         15 => 13,  // Alias → MINT (identity creation)
-        16 => 12,  // Burn → UPGRADE-ish; use BURN=14
+        16 => 14,  // Burn — canonical BURN byte 14 (12 is UPGRADE)
         _ => {
-            // 16 is Burn in modern numbering; check explicit
+            // Smart-asset variants (e.g. type 103 BurnSmartAsset) fall through
+            // here and are caught by the explicit burnedTokens marker below.
             if tx.get("burnedTokens").is_some() { 14 }
-            else if ttype == 16 { 14 } // Burn
             else if ttype == 17 { 0 }  // Reissue
             else if ttype == 3 { 13 }  // Issue → MINT
             else if ttype == 6 { 2 }   // Alias (legacy) → LIQUIDITY placeholder
@@ -278,10 +278,19 @@ async fn main() -> Result<()> {
             let eid      = block_entity_id(CHAIN_LBL, height);
             let bh       = bh_id(&eid);
             let vector   = build_vector(&features, &format!("{}:{}", CHAIN_LBL, height));
+            // SEC-05 / SWEEP-B D3 — the Waves block identifier is the node's
+            // `signature` field (the same field the Python streamer reads
+            // via data.get("signature", "0x0") and passes to its own
+            // lenient decoder); pass it VERBATIM through the §9 lenient
+            // decoder inside canonical_bh — the old bh_id(signature)
+            // pre-hash was exactly the silent SHA3 substitution §9 forbids.
+            // Genuinely-missing → warn + honest "0x0" (32 zero bytes),
+            // never a synthetic id.
             let block_hash_hex = if signature.is_empty() {
-                bh_id(&format!("waves_block:{}:{}", CHAIN_LBL, height))
+                warn!("[{}] block {}: no block signature from Waves node — zero block hash", CHAIN_LBL, height);
+                "0x0".to_string()
             } else {
-                bh_id(signature)
+                signature.to_string()
             };
 
             let payload = BatchPayload {

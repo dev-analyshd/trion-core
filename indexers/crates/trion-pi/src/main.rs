@@ -230,7 +230,18 @@ async fn main() -> Result<()> {
                 .map(trion_common::iso8601_to_epoch)
                 .unwrap_or(0);
             let ts        = ts_u64 as f64;
-            let block_hash = bh_id(&format!("pi_ledger:{}:{}", CHAIN_LBL, ledger_num));
+            // SEC-05 — REAL Horizon ledger hash (GET /ledgers/{seq} → hash),
+            // never a synthetic bh_id("pi_ledger:…"). Genuinely missing →
+            // honest zero (§9: chains with no hash in the fetched payload
+            // write 0x0), with a loud warning — never a fabricated id.
+            let block_hash = horizon_get(&client, &horizon, &format!("/ledgers/{}", ledger_num)).await
+                .ok()
+                .and_then(|v| v["hash"].as_str().map(|s| s.to_string()))
+                .filter(|h| !h.is_empty())
+                .unwrap_or_else(|| {
+                    warn!("[{}] ledger {}: no ledger hash from Horizon — zero block hash", CHAIN_LBL, ledger_num);
+                    "0x0".to_string()
+                });
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

@@ -195,6 +195,13 @@ async fn main() -> Result<()> {
             Err(e) => { warn!("TON getMasterchainInfo: {}", e); sleep(Duration::from_millis(poll_ms)).await; continue; }
         };
         let latest = master["last"]["seqno"].as_u64().unwrap_or(0);
+        // Real masterchain tip root hash — toncenter v2 getMasterchainInfo
+        // returns it at result.last.root_hash (shape per live_beo_proof.py,
+        // which also tolerates a flat result.root_hash).
+        let tip_root_hash = master["last"]["root_hash"].as_str()
+            .or_else(|| master["root_hash"].as_str())
+            .unwrap_or("")
+            .to_string();
         let last   = state.last_block();
         let from   = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
 
@@ -228,7 +235,34 @@ async fn main() -> Result<()> {
             // (toncenter); 0 = unknown. Never wall-clock.
             let ts_u64    = txs.first().and_then(|t| t["utime"].as_u64()).unwrap_or(0);
             let ts        = ts_u64 as f64;
-            let block_hash = bh_id(&format!("ton_block:{}:{}", label, seqno));
+            // SEC-05 — REAL chain block hash (toncenter root_hash), never a
+            // synthetic bh_id("ton_block:…"): the tip hash is already in
+            // getMasterchainInfo; catch-up blocks fetch their own header via
+            // GET /getBlockHeader (the same call genesis_backfill_ton.py
+            // uses). Toncenter v2 returns root_hash as hex or base64 — it is
+            // passed through the canonical §9 lenient decoder verbatim,
+            // exactly like the Python TON fetcher, so both pipelines derive
+            // identical bytes from the same chain string.
+            let block_hash = {
+                let root = if seqno == latest && !tip_root_hash.is_empty() {
+                    tip_root_hash.clone()
+                } else {
+                    ton_get(&client, "getBlockHeader",
+                        &[("workchain", "-1".into()), ("shard", "8000000000000000".into()), ("seqno", seqno.to_string())]
+                    ).await
+                        .ok()
+                        .and_then(|hdr| hdr["root_hash"].as_str().map(|s| s.to_string()))
+                        .unwrap_or_default()
+                };
+                if root.is_empty() {
+                    // Genuinely missing → honest zero (§9: chains with no hash
+                    // in the fetched payload write 0x0), never a fabricated id.
+                    warn!("[{}] seqno {}: no root_hash from toncenter — zero block hash", label, seqno);
+                    "0x0".to_string()
+                } else {
+                    root
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

@@ -245,10 +245,18 @@ async fn main() -> Result<()> {
             // 0 = unknown. Never wall-clock.
             let ts_u64    = block["header"]["timestamp"].as_u64().unwrap_or(0) / 1_000_000_000;
             let ts        = ts_u64 as f64;
-            // Use block hash from NEAR block data, or derive synthetic hash
-            let block_hash_hex = block["header"]["hash"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("near_block:{}:{}", cfg.label, block_num)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL NEAR block hash VERBATIM
+            // (`header.hash` from the block RPC — the same field the Python
+            // streamer's NEAR fetcher reads). Genuinely-missing → warn +
+            // honest "0x0" (32 zero bytes), never the old synthetic
+            // bh_id("near_block:…") substitution.
+            let block_hash_hex = match block["header"]["hash"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] block {}: no block hash from NEAR RPC — zero block hash", cfg.label, block_num);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

@@ -267,9 +267,18 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
             .map(trion_common::iso8601_to_epoch)
             .unwrap_or(0);
         let ts        = ts_u64 as f64;
-        let block_hash = block["block_id"]["hash"].as_str()
-            .map(|h| h.to_string())
-            .unwrap_or_else(|| bh_id(&format!("cosmos_block:{}:{}", chain.label, height)));
+        // SEC-05 / SWEEP-B D3 — pass the REAL tendermint block hash
+        // VERBATIM (the LCD /blocks/{h} response carries `block_id.hash`,
+        // the same identifier the tendermint RPC /block endpoint returns).
+        // Genuinely-missing → warn + honest "0x0" (32 zero bytes), never
+        // the old synthetic bh_id("cosmos_block:…") substitution.
+        let block_hash = match block["block_id"]["hash"].as_str() {
+            Some(h) if !h.is_empty() => h.to_string(),
+            _ => {
+                warn!("[{}] height {}: no block hash from LCD — zero block hash", chain.label, height);
+                "0x0".to_string()
+            }
+        };
 
         let payload = BatchPayload {
             vectors: vec![VectorEntry {
@@ -285,20 +294,32 @@ async fn index_one_chain(chain: &CosmosChain, faiss: &FaissClient, state: &mut I
         match faiss.add_batch(&payload).await {
             Ok(added) => {
                 let mut tx_batch = cosmos_bh_batch(&txs_resp, chain, height, &block_hash, ts_u64);
-                // Fallback: when txs endpoint fails (500/400), emit one block-level BH from proposer
+                // SEC-19 fallback: when the txs endpoint fails, emit one
+                // block-level BH from the REAL proposer — with an honest
+                // magnitude 0.0 (no fabricated 0.5; trion-utxo's coinbase
+                // pseudo-row uses 0.0 for the same reason) and no synthetic
+                // proposer id (skip + warn when the proposer is absent).
                 if tx_batch.entries.is_empty() {
-                    let fallback_id = format!("{}:{}", chain.label, height);
-                    let proposer = block["block"]["header"]["proposer_address"].as_str().unwrap_or(&fallback_id);
-                    let eid = bh_id(proposer);
-                    let (sense_hex, antisense_hex) = canonical_bh(&eid, 6u8, 0.5, 0, ts_u64, chain.chain_id, &block_hash);
-                    tx_batch.entries.push(TxBhEntry {
-                        tx_hash: block_hash.clone(), from_addr: proposer.to_string(), to_addr: String::new(),
-                        event_type: 6, event_type_name: "GOVERNANCE".into(),
-                        entity_id: eid, magnitude_norm: 0.5, value_wei: "0".into(),
-                        selector: "block_proposer".into(), timestamp: ts_u64,
-                        chain_id: chain.chain_id, chain_label: chain.label.to_string(),
-                        block_num: height, block_hash: block_hash.clone(), sense_hex, antisense_hex,
-                    });
+                    match block["block"]["header"]["proposer_address"].as_str() {
+                        Some(proposer) if !proposer.is_empty() => {
+                            let eid = bh_id(proposer);
+                            let (sense_hex, antisense_hex) = canonical_bh(
+                                &eid, 6u8, 0.0, 0, ts_u64, chain.chain_id, &block_hash,
+                            );
+                            tx_batch.entries.push(TxBhEntry {
+                                tx_hash: block_hash.clone(), from_addr: proposer.to_string(), to_addr: String::new(),
+                                event_type: 6, event_type_name: event_type_name(6u8).to_string(),
+                                entity_id: eid, magnitude_norm: 0.0, value_wei: "0".into(),
+                                selector: "block_proposer".into(), timestamp: ts_u64,
+                                chain_id: chain.chain_id, chain_label: chain.label.to_string(),
+                                block_num: height, block_hash: block_hash.clone(), sense_hex, antisense_hex,
+                            });
+                        }
+                        _ => warn!(
+                            "[{}] height {}: no tx-level data and no proposer address — BH ledger entry skipped",
+                            chain.label, height
+                        ),
+                    }
                 }
                 let bh_stored = faiss.add_tx_bh_batch(&tx_batch).await.unwrap_or(0);
                 info!("[{}] height={} φ={:.4} added={} bh_stored={}", chain.label, height, phi, added, bh_stored);

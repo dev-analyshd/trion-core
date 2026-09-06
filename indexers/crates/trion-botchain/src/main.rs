@@ -185,7 +185,9 @@ fn build_tx_bh_batch(
         let base_fee = hex_to_u64(block["baseFeePerGas"].as_str().unwrap_or("0x1"));
         let mev_ratio = max_prio as f64 / base_fee.max(1) as f64;
         let et_byte = if mev_ratio > 5.0 && (et_byte == 1 || et_byte == 0) {
-            17u8 // MEV_CAPTURE
+            // must stay in sync with hash_dna's event byte map:
+            // 16 = MEV_CAPTURE (17 is FLASH_LOAN) — same as trion-evm
+            16u8
         } else {
             et_byte
         };
@@ -400,5 +402,32 @@ async fn main() -> Result<()> {
             error!("[{}] indexer error: {}", BOT_CHAIN.label, e);
         }
         sleep(Duration::from_millis(poll_ms)).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // SEC-17 regression: MEV detection must emit canonical byte 16
+    // (MEV_CAPTURE), never 17 (FLASH_LOAN) — see the event byte map in
+    // trion-common/src/hash_dna.rs.
+    #[test]
+    fn mev_detection_uses_canonical_byte_16() {
+        let block = serde_json::json!({
+            "baseFeePerGas": "0x1",
+            "transactions": [{
+                "hash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "from": "0x0000000000000000000000000000000000000001",
+                "to":   "0x0000000000000000000000000000000000000002",
+                "value": "0x0",
+                "input": "0x",
+                "maxPriorityFeePerGas": "0x64"
+            }]
+        });
+        let batch = build_tx_bh_batch(&block, &BOT_CHAIN, 1_700_000_000, 1, "0x00");
+        assert_eq!(batch.entries.len(), 1);
+        assert_eq!(batch.entries[0].event_type, 16);
+        assert_eq!(batch.entries[0].event_type_name, "MEV_CAPTURE");
     }
 }

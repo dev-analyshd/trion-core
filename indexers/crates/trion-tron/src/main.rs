@@ -234,10 +234,19 @@ async fn main() -> Result<()> {
             // (ms → s); 0 = unknown. Never wall-clock.
             let ts_u64    = block["block_header"]["raw_data"]["timestamp"].as_u64().unwrap_or(0) / 1000;
             let ts        = ts_u64 as f64;
-            // Derive block hash from blockID field
-            let block_hash = block["blockID"].as_str()
-                .map(|h| h.to_string())
-                .unwrap_or_else(|| bh_id(&format!("tron_block:{}:{}", CHAIN_LBL, block_num)));
+            // SEC-05 / SWEEP-B D3 — pass the REAL Tron blockID VERBATIM
+            // (the /wallet/getblockbynum `blockID` field — the same field
+            // the Python streamer's fetch_tron_block reads, with the same
+            // "0x0" convention there). Genuinely-missing → warn + honest
+            // "0x0" (32 zero bytes), never the old synthetic
+            // bh_id("tron_block:…") substitution.
+            let block_hash = match block["blockID"].as_str() {
+                Some(h) if !h.is_empty() => h.to_string(),
+                _ => {
+                    warn!("[{}] block {}: no blockID from Tron API — zero block hash", CHAIN_LBL, block_num);
+                    "0x0".to_string()
+                }
+            };
 
             let payload = BatchPayload {
                 vectors: vec![VectorEntry {

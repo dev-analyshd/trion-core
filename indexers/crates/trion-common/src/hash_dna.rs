@@ -482,6 +482,7 @@ mod tests {
         assert_eq!(event_type_name(7),  "BORROW");
         assert_eq!(event_type_name(9),  "LIQUIDATE");
         assert_eq!(event_type_name(15), "ORACLE_UPDATE");
+        assert_eq!(event_type_name(16), "MEV_CAPTURE"); // SEC-17: 16 is MEV, 17 is FLASH_LOAN
         assert_eq!(event_type_name(17), "FLASH_LOAN");
         assert_eq!(event_type_name(19), "CLAIM");
         assert_eq!(event_type_name(20), "TRANSFER"); // out-of-range → default
