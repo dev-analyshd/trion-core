@@ -96,6 +96,24 @@ CHAIN_NAMES = {
 }
 
 
+def _faiss_headers() -> dict:
+    """
+    X-API-Key for the FAISS service (SEC-01) — same resolution order as
+    faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+    TRION_API_KEY.  Empty/unset → header omitted (the GET then fails
+    closed on the service side, which is the safe posture: epigenetic
+    drift falls back to 0.0).  Kept local like core/realtime/bh_streamer.py's
+    resolver — core must not import from the api/ package above it.
+    """
+    key = (
+        os.environ.get("FAISS_API_KEY")
+        or os.environ.get("FAISS_SERVICE_API_KEY")
+        or os.environ.get("TRION_API_KEY")
+        or ""
+    ).strip()
+    return {"X-API-Key": key} if key else {}
+
+
 class ContractAuditor:
     def __init__(self, faiss_url: str = "http://127.0.0.1:8000"):
         self.faiss_url = faiss_url
@@ -342,7 +360,7 @@ class ContractAuditor:
                                    address: str, chain_id: int) -> float:
         # Compare to FAISS baseline if available
         try:
-            r = requests.get(f"{self.faiss_url}/api/v1/planes/{address}/physical", timeout=4)
+            r = requests.get(f"{self.faiss_url}/api/v1/planes/{address}/physical", timeout=4, headers=_faiss_headers())
             if r.status_code == 200:
                 data = r.json()
                 baseline = data.get("phi_vector") or data.get("features", {})

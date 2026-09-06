@@ -17,6 +17,7 @@ This module is the daemon that:
 
 import asyncio
 import httpx
+import os
 import time
 from typing import Optional
 
@@ -34,12 +35,28 @@ class TRIONSignalFeed:
         self.entities     = watch_entities or []
         self._last_signals: dict = {}
         self._signal_log:   list = []
+        # X-API-Key for the FAISS service (SEC-01) — same resolution order as
+        # faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+        # TRION_API_KEY.  Empty → None → header omitted (the GET then fails
+        # closed on the service side, which is the safe posture).  Resolved
+        # once here like core/realtime/bh_streamer.py's FAISSAccumulator —
+        # core must not import from the api/ package above it.
+        self._faiss_api_key = (
+            os.environ.get("FAISS_API_KEY")
+            or os.environ.get("FAISS_SERVICE_API_KEY")
+            or os.environ.get("TRION_API_KEY")
+            or ""
+        ).strip() or None
+
+    def _faiss_headers(self) -> dict:
+        return {"X-API-Key": self._faiss_api_key} if self._faiss_api_key else {}
 
     async def fetch_signal(self, entity_id: str) -> Optional[dict]:
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.get(
-                    f"{self.faiss_url}/api/v1/trading/signal/{entity_id}"
+                    f"{self.faiss_url}/api/v1/trading/signal/{entity_id}",
+                    headers=self._faiss_headers(),
                 )
                 if r.status_code == 200:
                     return r.json()
@@ -114,7 +131,7 @@ class TRIONSignalFeed:
         print(f"[FEED] API: {self.faiss_url}")
         try:
             async with httpx.AsyncClient(timeout=5) as c:
-                r = await c.get(f"{self.faiss_url}/health")
+                r = await c.get(f"{self.faiss_url}/health", headers=self._faiss_headers())
                 print(f"[FEED] FAISS health: {r.json().get('status', 'ok')}")
         except Exception:
             print("[FEED] Warning: FAISS not reachable — will retry")

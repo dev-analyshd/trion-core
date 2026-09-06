@@ -17,6 +17,7 @@ Output consumed by AI agent via REST or FAISS vector comparison.
 """
 
 import numpy as np
+import os
 import time
 import sys
 sys.path.insert(0, '.')
@@ -30,13 +31,29 @@ class TradingSignalEngine:
 
     def __init__(self, faiss_url: str = "http://127.0.0.1:8000"):
         self.faiss_url = faiss_url
+        # X-API-Key for the FAISS service (SEC-01) — same resolution order as
+        # faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+        # TRION_API_KEY.  Empty → None → header omitted (the GET then fails
+        # closed on the service side, which is the safe posture).  Resolved
+        # once here like core/realtime/bh_streamer.py's FAISSAccumulator —
+        # core must not import from the api/ package above it.
+        self._faiss_api_key = (
+            os.environ.get("FAISS_API_KEY")
+            or os.environ.get("FAISS_SERVICE_API_KEY")
+            or os.environ.get("TRION_API_KEY")
+            or ""
+        ).strip() or None
+
+    def _faiss_headers(self) -> dict:
+        return {"X-API-Key": self._faiss_api_key} if self._faiss_api_key else {}
 
     async def fetch_entity_vector(self, entity_id: str) -> dict:
         import httpx
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 r = await client.get(
-                    f"{self.faiss_url}/api/v1/signal/{entity_id}"
+                    f"{self.faiss_url}/api/v1/signal/{entity_id}",
+                    headers=self._faiss_headers(),
                 )
                 if r.status_code == 200:
                     return r.json()

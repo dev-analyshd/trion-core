@@ -54,6 +54,7 @@ import math
 import time
 import logging
 import threading
+import os
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
@@ -67,6 +68,26 @@ logger = logging.getLogger(__name__)
 ORACLE_API_URL  = "http://127.0.0.1:5000"
 FAISS_API_URL   = "http://127.0.0.1:8000"
 REQUEST_TIMEOUT = 6
+
+
+def _faiss_headers() -> dict:
+    """
+    X-API-Key for the FAISS service (SEC-01) — same resolution order as
+    faiss_service.py itself: FAISS_API_KEY → FAISS_SERVICE_API_KEY →
+    TRION_API_KEY.  Empty/unset → header omitted (the GET then fails
+    closed on the service side, which is the safe posture: the BTV
+    computation falls back to its behavioral defaults).  Kept local like
+    core/realtime/bh_streamer.py's resolver — core must not import from
+    the api/ package above it.
+    """
+    key = (
+        os.environ.get("FAISS_API_KEY")
+        or os.environ.get("FAISS_SERVICE_API_KEY")
+        or os.environ.get("TRION_API_KEY")
+        or ""
+    ).strip()
+    return {"X-API-Key": key} if key else {}
+
 
 # Known DEX pool entity IDs for coherence lookup (SHA3-256 of pool address, first 8 hex)
 # These are real Arbitrum mainnet Uniswap V3 and Camelot pool addresses
@@ -264,7 +285,7 @@ def _fetch_bh_stats() -> dict:
             return entry
 
     try:
-        r = requests.get(f"{FAISS_API_URL}/bh/stats", timeout=3)
+        r = requests.get(f"{FAISS_API_URL}/bh/stats", timeout=3, headers=_faiss_headers())
         if r.status_code == 200:
             data = r.json()
             with _bh_stats_lock:
