@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 //   TRION Protocol — Starknet BTCP Contract Suite
-//   All modules compile via `pub mod cairo;` in src/lib.cairo
+//   Module root: every contract below compiles from src/lib.cairo
 // ═══════════════════════════════════════════════════════════
 
 // ─── Core oracle + identity ─────────────────────────────────
