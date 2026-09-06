@@ -3,9 +3,10 @@
 //   Chain ID: SN_SEPOLIA (0x534e5f5345504f4c4941)
 // ═══════════════════════════════════════════════════════════
 
-// Full BTCP contract suite (escrow/intent/route/BIRP) lives in src/cairo/
-// and compiles as part of this crate.
-pub mod cairo;
+// The full BTCP contract suite (escrow/intent/route/BIRP) lives in the
+// canonical crate at contracts/starknet/src/ — the duplicate src/cairo/
+// copies were removed in the dedup cleanup, and this crate carries only
+// the Sepolia-deployed trio below.
 
 // ─── Shared structs ─────────────────────────────────────────
 

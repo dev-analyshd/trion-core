@@ -8,11 +8,14 @@
  *   1. Fetch BEO score from TRION oracle (off-chain)
  *   2. Compute commitment = poseidon_hash(beo_id_felt, salt)
  *   3. Determine tier from C(t) and behavioral signals
- *   4. Submit commitment + tier on-chain to BIRPAttestation contract
+ *   4. Sign Poseidon('BIRP-ATT-V1', commitment, tier, confidence_bp,
+ *      attestation_nonce) with the oracle's STARK-curve key
+ *      (BIRP_ORACLE_PRIVATE_KEY — its public key is pinned in the
+ *      contract) and submit the signed proof on-chain
  *   5. Return proof receipt
  */
 
-import { RpcProvider, Account, Contract, cairo, hash, num, stark } from "starknet";
+import { RpcProvider, Account, Contract, cairo, hash, num, stark, ec, shortString } from "starknet";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import { getWorkingProvider } from "./provider.js";
@@ -32,11 +35,12 @@ const BIRP_ABI = [
     name: "submit_proof",
     type: "function",
     inputs: [
-      { name: "commitment",    type: "core::felt252" },
-      { name: "tier",          type: "core::integer::u8"  },
-      { name: "confidence_bp", type: "core::integer::u64" },
-      { name: "oracle_sig_r",  type: "core::felt252" },
-      { name: "oracle_sig_s",  type: "core::felt252" },
+      { name: "commitment",        type: "core::felt252" },
+      { name: "tier",              type: "core::integer::u8"  },
+      { name: "confidence_bp",     type: "core::integer::u64" },
+      { name: "attestation_nonce", type: "core::integer::u64" },
+      { name: "oracle_sig_r",      type: "core::felt252" },
+      { name: "oracle_sig_s",      type: "core::felt252" },
     ],
     outputs: [],
     state_mutability: "external",
@@ -68,17 +72,58 @@ const BIRP_ABI = [
 ];
 
 export interface BIRPResult {
-  entity_id:     string;
-  commitment:    string;
-  salt:          string;
-  tier:          number;
-  tier_label:    string;
-  confidence_bp: number;
-  c_score:       number;
-  threshold:     number;
-  tx_hash?:      string;
-  submitted:     boolean;
-  error?:        string;
+  entity_id:         string;
+  commitment:        string;
+  salt:              string;
+  tier:              number;
+  tier_label:        string;
+  confidence_bp:     number;
+  c_score:           number;
+  threshold:         number;
+  attestation_nonce?: string;
+  tx_hash?:          string;
+  submitted:         boolean;
+  error?:            string;
+}
+
+/** felt("BIRP-ATT-V1") — the contract's attestation digest domain. */
+const BIRP_DOMAIN_FELT = shortString.encodeShortString("BIRP-ATT-V1");
+
+/**
+ * Sign the BIRP attestation digest with the oracle's STARK-curve key.
+ * Mirrors BIRPAttestation.cairo attestation_digest:
+ *   Poseidon('BIRP-ATT-V1', commitment, tier, confidence_bp, attestation_nonce)
+ * (hash.computePoseidonHashOnElements is the starknet.js twin of Cairo's
+ * poseidon_hash_span.)
+ */
+function signAttestation(
+  commitment: string,
+  tier: number,
+  confidence_bp: number,
+  attestationNonce: bigint,
+  oraclePrivateKey: string,
+): { r: string; s: string } {
+  const digest = hash.computePoseidonHashOnElements([
+    BIRP_DOMAIN_FELT,
+    commitment,
+    tier,
+    confidence_bp,
+    attestationNonce,
+  ]);
+  const sig = ec.starkCurve.sign(digest, oraclePrivateKey);
+  return {
+    r: "0x" + sig.r.toString(16),
+    s: "0x" + sig.s.toString(16),
+  };
+}
+
+/**
+ * Fresh oracle attestation id — unique per submission attempt (ms clock +
+ * sub-ms jitter). Uniqueness is enforced on-chain by the used_nonces map;
+ * a collision simply reverts and the oracle retries.
+ */
+function freshAttestationNonce(): bigint {
+  return BigInt(Date.now()) * 1000n + BigInt(Math.floor(Math.random() * 1000));
 }
 
 /**
@@ -159,10 +204,19 @@ export async function generateBIRPProof(
     return result;
   }
 
-  // 3. Submit commitment on-chain
+  // 3. Submit the oracle-signed commitment on-chain
   const privateKey = process.env.STARKNET_PRIVATE_KEY;
   if (!privateKey) {
     result.error = "STARKNET_PRIVATE_KEY not set";
+    return result;
+  }
+
+  // The contract verifies the oracle's STARK-curve signature over the
+  // attestation digest — without the oracle key there is nothing to submit
+  // (fail-closed; no unsigned/placeholder proofs).
+  const oraclePrivateKey = process.env.BIRP_ORACLE_PRIVATE_KEY;
+  if (!oraclePrivateKey) {
+    result.error = "BIRP_ORACLE_PRIVATE_KEY not set — the contract only accepts oracle-signed attestations";
     return result;
   }
 
@@ -172,19 +226,23 @@ export async function generateBIRPProof(
     const account  = new Account(provider, accountAddress, privateKey);
     const contract = new Contract(BIRP_ABI, BIRP_ADDRESS, account);
 
-    // Oracle sig placeholders (0,0) — verifier trusts relayer key in current impl
+    const attestationNonce = freshAttestationNonce();
+    const sig = signAttestation(commitment, tier, confidence_bp, attestationNonce, oraclePrivateKey);
+
     const tx = await contract.invoke("submit_proof", [
       commitment,
       cairo.felt(tier),
-      cairo.uint256(confidence_bp).low,
-      "0x0",
-      "0x0",
+      cairo.felt(BigInt(confidence_bp)),
+      cairo.felt(attestationNonce),
+      sig.r,
+      sig.s,
     ]);
 
     await provider.waitForTransaction(tx.transaction_hash);
     result.tx_hash  = tx.transaction_hash;
+    result.attestation_nonce = "0x" + attestationNonce.toString(16);
     result.submitted = true;
-    console.log(`[BIRP] Proof submitted: commitment=${commitment} tier=${tier_label} tx=${tx.transaction_hash}`);
+    console.log(`[BIRP] Proof submitted: commitment=${commitment} tier=${tier_label} nonce=${result.attestation_nonce} tx=${tx.transaction_hash}`);
   } catch (err: unknown) {
     result.error    = `Starknet submit failed: ${String(err)}`;
     result.submitted = false;

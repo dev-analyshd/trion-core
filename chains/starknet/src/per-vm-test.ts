@@ -17,7 +17,17 @@ const VM = process.argv[2] || 'BaseSepolia';
 const ROUNDS = parseInt(process.env.ROUNDS_OVERRIDE || '5');
 
 const SN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'starknet_sepolia_deployments.json'), 'utf-8'));
-const EVM = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'evm-tools', 'evm_sepolia_deployments.json'), 'utf-8'));
+
+// EVM deployment records live in docs/deployments/ (evm-tools/ never carried
+// them). Skip with a clear message when the records are absent rather than
+// crashing on load.
+const EVM_PATH = path.join(__dirname, '..', '..', '..', 'docs', 'deployments', 'evm_sepolia.json');
+if (!fs.existsSync(EVM_PATH)) {
+  console.log(`SKIP: EVM deployment records not found at ${EVM_PATH}`);
+  console.log('      the EVM legs of this per-VM test need the self-reported records under docs/deployments/');
+  process.exit(0);
+}
+const EVM = JSON.parse(fs.readFileSync(EVM_PATH, 'utf-8'));
 function snAddr(n) { return SN.contracts.find(c => c.name === n).address; }
 function evmAddr(n) { const c = EVM.contracts.find(c => c.name === n); return c ? c.address : null; }
 
