@@ -128,6 +128,11 @@ pub struct TxBhResponse {
 pub struct FaissClient {
     client:   Client,
     base_url: String,
+    /// X-API-Key for the FAISS service (SEC-01).  Resolved once from the
+    /// `FAISS_API_KEY` env var at construction; `None` (var unset/empty)
+    /// sends no header — reads against a fail-closed service keep working,
+    /// writes are refused there, which is the safe posture.
+    api_key:  Option<String>,
 }
 
 impl FaissClient {
@@ -135,14 +140,26 @@ impl FaissClient {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(20))
             .build()?;
-        Ok(Self { client, base_url: base_url.trim_end_matches('/').to_string() })
+        let api_key = std::env::var("FAISS_API_KEY")
+            .map(|k| k.trim().to_string())
+            .ok()
+            .filter(|k| !k.is_empty());
+        Ok(Self {
+            client,
+            base_url: base_url.trim_end_matches('/').to_string(),
+            api_key,
+        })
     }
 
     /// POST a block-level vector batch to /index/add_batch.
     /// Returns number of vectors added.
     pub async fn add_batch(&self, payload: &BatchPayload) -> Result<u64> {
         let url = format!("{}/index/add_batch", self.base_url);
-        let resp = self.client.post(&url).json(payload).send().await?;
+        let mut req = self.client.post(&url).json(payload);
+        if let Some(ref key) = self.api_key {
+            req = req.header("X-API-Key", key.as_str());
+        }
+        let resp = req.send().await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -166,7 +183,11 @@ impl FaissClient {
             return Ok(0);
         }
         let url = format!("{}/index/add_tx_bh_batch", self.base_url);
-        let resp = self.client.post(&url).json(batch).send().await?;
+        let mut req = self.client.post(&url).json(batch);
+        if let Some(ref key) = self.api_key {
+            req = req.header("X-API-Key", key.as_str());
+        }
+        let resp = req.send().await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
