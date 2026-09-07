@@ -31,7 +31,7 @@ export async function makeExec(provider, account, accountAddr) {
   }
 
   async function exec(call, label, expectRevert = false) {
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 15; attempt++) {
       try {
         if (nextNonce === null) nextNonce = await provider.getNonceForAddress(accountAddr);
         const tx = await account.execute(call, { maxFee: 0x10000000000n, skipValidate: true, nonce: nextNonce });
@@ -63,9 +63,9 @@ export async function makeExec(provider, account, accountAddr) {
           nextNonce = await provider.getNonceForAddress(accountAddr);
           await new Promise(r => setTimeout(r, 2000)); continue;
         }
-        // Transient RPC errors
-        if (attempt < 5 && /estimateFee|fetch failed|429|503|RESOURCE_BUSY|Block not found/i.test(msg)) {
-          await new Promise(r => setTimeout(r, 2000 * attempt)); continue;
+        // Transient RPC errors — retry with longer delays for Alchemy fee estimation issues
+        if (attempt < 15 && /estimateFee|fetch failed|429|503|RESOURCE_BUSY|Block not found|Insufficient transaction data/i.test(msg)) {
+          await new Promise(r => setTimeout(r, 10000 * attempt)); continue;
         }
         throw e;
       }

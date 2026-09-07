@@ -1,0 +1,107 @@
+{
+  "test": "GREEN PASS — Full E2E",
+  "startedAt": "2026-09-07T19:00:52.491Z",
+  "steps": [
+    {
+      "id": "S1",
+      "label": "Deploy BTCPEscrowV3",
+      "pass": true,
+      "evidence": "0x2b297f9ea0eef6c7a3f041ed9932697fe383e770182cd9991e0df733ebe38ab"
+    },
+    {
+      "id": "S2",
+      "label": "Deploy BTCPDeFiPool",
+      "pass": true,
+      "evidence": "0x7b4754a158dd84fd2986e3ec36ad10360fc0ec20d3d7b683c105478f48783ed"
+    },
+    {
+      "id": "S3",
+      "label": "Set SPV verifier",
+      "pass": true,
+      "evidence": "0x6510323e3ddd0c91d7c021200ec62c91605f528d1873eface5c0dc6258616c1"
+    },
+    {
+      "id": "S4",
+      "label": "Set escrow on pool",
+      "pass": true,
+      "evidence": "0x2b297f9ea0eef6c7a3f041ed9932697fe383e770182cd9991e0df733ebe38ab"
+    },
+    {
+      "id": "S7",
+      "label": "Register validators (quorum=1)",
+      "pass": true,
+      "evidence": "quorum=1"
+    },
+    {
+      "id": "S8",
+      "label": "Fresh BTC tx fetched",
+      "pass": true,
+      "evidence": "txid=62bfe73fab5ac18c6479... block=5128449"
+    },
+    {
+      "id": "S10",
+      "label": "Lock with SPV verify_anchor",
+      "pass": true,
+      "evidence": "tx=0x610b196545e8412b status=SUCCEEDED"
+    },
+    {
+      "id": "S11",
+      "label": "Validators attest",
+      "pass": true,
+      "evidence": "quorum=1 attestation(s) submitted"
+    },
+    {
+      "id": "S12",
+      "label": "Release with re-verify anchor + quorum",
+      "pass": true,
+      "evidence": "tx=0x4d0530e0e0a8dbc2 status=SUCCEEDED"
+    },
+    {
+      "id": "S13",
+      "label": "DeFi deposit on released escrow",
+      "pass": true,
+      "evidence": "tx=0x7883d41892394e0e status=SUCCEEDED"
+    },
+    {
+      "id": "S14",
+      "label": "DeFi borrow against BTC-anchored credit",
+      "pass": true,
+      "evidence": "tx=0x6abb6ed9ba13c7f4 status=SUCCEEDED"
+    },
+    {
+      "id": "S15",
+      "label": "Mutated anchor_bh REVERTS",
+      "pass": true,
+      "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\",\n      \"calldata\": [\n   "
+    },
+    {
+      "id": "S16",
+      "label": "Release without quorum REVERTS",
+      "pass": true,
+      "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\",\n      \"calldata\": [\n   "
+    },
+    {
+      "id": "S17",
+      "label": "Report spend invalidates escrow",
+      "pass": true,
+      "evidence": "tx=0x6e1aa1ecff2b493d status=SUCCEEDED"
+    }
+  ],
+  "endedAt": "2026-09-07T19:03:44.867Z",
+  "v3Address": "0x2b297f9ea0eef6c7a3f041ed9932697fe383e770182cd9991e0df733ebe38ab",
+  "poolAddress": "0x7b4754a158dd84fd2986e3ec36ad10360fc0ec20d3d7b683c105478f48783ed",
+  "validators": [
+    {
+      "address": null,
+      "publicKey": "0x680790e7d06f6348357ea2c563f27abaad3951d6186c3e8a3b42bc9681ff7a2"
+    },
+    {
+      "address": null,
+      "publicKey": "0x7be00970e5e919536d9797ee3ec6c759d6f3550d74baf099340116cb5dd0a86"
+    },
+    {
+      "address": null,
+      "publicKey": "0x67ea37122aa92c3d3bcc7459b6b7caeeb98c56ec5290fb380986aec9491eb33"
+    }
+  ]
+}

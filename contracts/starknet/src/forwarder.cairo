@@ -22,7 +22,10 @@ pub mod Forwarder {
         syscalls::call_contract_syscall,
     };
     use core::array::ArrayTrait;
+<<<<<<< HEAD
     use core::array::SpanTrait;
+=======
+>>>>>>> a914c8e (feat(btcp-v3): fix all 4 limitations — SPV-wired escrow + DeFi pool)
     use starknet::SyscallResultTrait;
 
     #[storage]

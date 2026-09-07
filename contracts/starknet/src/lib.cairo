@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 //   TRION Protocol — Starknet BTCP Contract Suite
-//   Module root: every contract below compiles from src/lib.cairo
+//   All modules compile via `pub mod cairo;` in src/lib.cairo
 // ═══════════════════════════════════════════════════════════
 
 // ─── Core oracle + identity ─────────────────────────────────
@@ -13,13 +13,10 @@ pub mod BIRPAttestation;
 pub mod btcp_escrow;
 pub mod btcp_intent;
 pub mod btcp_route;
-
-// ─── Canonical certificate, family 3 (C-04 fix) ─────────────
-// trion_certificate: the CANONICAL_CERTIFICATE §3.2 felt-chunk
-// library (Poseidon domain felt + core::ecdsa); pure, no
-// storage, no authority. trion_epoch_registry: the §10.2
-// per-epoch validator-set registrar the escrow consults for
-// epoch membership, weights, D_consensus and the quorum tier.
-pub mod trion_certificate;
-pub mod trion_epoch_registry;
+pub mod btc_spv_verifier;
+pub mod sha256_test;
+pub mod btcp_escrow_v2;
+pub mod btcp_escrow_v3;
+pub mod btcp_defi_pool;
+pub mod attestor_proxy;
 pub mod forwarder;
