@@ -1,0 +1,24 @@
+{
+  "contractName": "BTCSPVVerifier (FINAL — PoW + Chain Linkage verified on-chain)",
+  "contractAddress": "0x3e0493d4fb68f93fd9fcf52c4e2be78d853f1d99d75bc987e0ee61a149704b9",
+  "network": "starknet-sepolia",
+  "voyager": "https://sepolia.voyager.online/contract/0x3e0493d4fb68f93fd9fcf52c4e2be78d853f1d99d75bc987e0ee61a149704b9",
+  "version": "FINAL — PoW + Chain Linkage verified on-chain",
+  "deployedAt": "2026-09-07T00:00:00.000Z",
+  "whatItVerifies": [
+    "1. PoW: double_sha256(header) computed on-chain, target from bits field, hash < target asserted",
+    "2. Chain linkage: prev_blockhash in header == stored chain_tip asserted",
+    "3. Merkle root extracted from header and stored for verify_anchor Merkle proof checks",
+    "4. Genesis tip (trusted checkpoint) set via owner-only set_genesis_tip — the single trust assumption"
+  ],
+  "testResult": {
+    "blockSubmitted": "0x00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "blockHeight": 5128449,
+    "powVerified": true,
+    "chainLinkageVerified": true,
+    "merkleRootStored": "0xeff94d83ff6e9a81a21515e1a03451fdb3a27dfa866b5374013c759fced2d65e",
+    "merkleRootMatches": true,
+    "status": "FULLY VERIFIED ON-CHAIN"
+  },
+  "trustModel": "Only the genesis/checkpoint block hash is trusted. Every subsequent block verified via PoW + chain linkage + Merkle proof."
+}

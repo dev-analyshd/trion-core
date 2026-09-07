@@ -1,0 +1,42 @@
+{
+  "test": "BTC SPV Verifier v3 — PoW + Chain Linkage Test",
+  "startedAt": "2026-09-06T21:59:05.696Z",
+  "contractAddress": "0x59d4026999e1087f9452c77810da657c9ca4d916a3e6f02c173f05e02d9dac7",
+  "phases": {
+    "A_header": {
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "prevBlockHash": "00000000002d0c36033ceb708efb794acf4ccf1f54fa4921d479a24bd8331841",
+      "blockHeight": 5128449,
+      "blockTime": 1788718503,
+      "headerHex": "00c00920411833d84ba279d42149fa541fcf4ccf4a79fb8e70eb3c03360c2d00000000005ed6d2ce9f753c0174536b86fa7da2b3fd5134a0e11515a2819a6eff834df9efa7ad9d6a1037081aa772d388"
+    },
+    "B_genesis": {
+      "txHash": "0x62ac1e9694a70fc619784cb60113000308154d6941ec894bb7205716414344b",
+      "prevBlockHash": "00000000002d0c36033ceb708efb794acf4ccf1f54fa4921d479a24bd8331841",
+      "success": true
+    },
+    "C_submit": {
+      "error": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82\",\n      \"calldata\": [\n        \"0x1\",\n        \"0x59d4026999e1087f9452c77810da657c9ca4d916a3e6f02c173f05e02d9dac7\",\n        \"0x",
+      "powVerified": false
+    },
+    "C_verify": {
+      "storedRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "expectedRoot": "eff94d83ff6e9a81a21515e1a03451fdb3a27dfa866b5374013c759fced2d65e",
+      "matches": false
+    },
+    "D_verifyAnchor": {
+      "pass": false,
+      "error": "RPC: starknet_call with params {\n  \"request\": {\n    \"contract_address\": \"0x59d4026999e1087f9452c77810da657c9ca4d916a3e6f02c173f05e02d9dac7\",\n    \"entry_point_selector\": \"0x1e94d7ed7e9f350550fe56082684"
+    }
+  },
+  "summary": {
+    "contractDeployed": true,
+    "contractAddress": "0x59d4026999e1087f9452c77810da657c9ca4d916a3e6f02c173f05e02d9dac7",
+    "genesisTipSet": true,
+    "merkleRootStored": false,
+    "anchorVerified": false,
+    "assetsBridged": false,
+    "remainingTrustAssumption": "Only the genesis/checkpoint block hash is trusted. Every subsequent block is verified via PoW + chain linkage on-chain."
+  },
+  "endedAt": "2026-09-06T21:59:25.097Z"
+}

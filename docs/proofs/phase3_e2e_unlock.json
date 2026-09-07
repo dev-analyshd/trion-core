@@ -1,0 +1,91 @@
+{
+  "test": "Phase 3 — End-to-End Bitcoin Liquidity Unlock",
+  "startedAt": "2026-09-07T02:11:45.366Z",
+  "steps": [
+    {
+      "step": "3.1_btc_utxo_confirmed",
+      "pass": true,
+      "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "blockHeight": 5128449,
+      "value": 304527
+    },
+    {
+      "step": "3.2_btc_lock_confirmed",
+      "pass": true,
+      "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4"
+    },
+    {
+      "step": "3.3_header_sync",
+      "pass": true,
+      "tipHeight": 5128455,
+      "anchorBlockHeight": 5128449,
+      "depth": 6
+    },
+    {
+      "step": "3.4_verify_anchor",
+      "pass": true,
+      "result": "0x1",
+      "depth": 6,
+      "anchorBH": "0x512bfb2fb4237a7e70..."
+    },
+    {
+      "step": "3.5_btcp_score",
+      "pass": true,
+      "score": 0.849235,
+      "nl": 0.72,
+      "nlPass": true,
+      "scorePass": true
+    },
+    {
+      "step": "3.6a_register_intent",
+      "pass": true,
+      "txHash": "0x5a034df99e00c657e052e4e2f8d235004cd2dda9d7a141a7c689457d8451b93"
+    },
+    {
+      "step": "3.6b_lock_escrow",
+      "pass": true,
+      "txHash": "0x2dd467e1c8d06595ff00f021c181fe701644331e92f49449bdf57342f32b441"
+    },
+    {
+      "step": "3.6c_register_route",
+      "pass": true,
+      "txHash": "0x22b28339f0fc3c3cc5fbb2dded7d7ae78cdf1b0913ce2d0e72f7a264690fccd"
+    },
+    {
+      "step": "3.6d_relayer_bypass_revert",
+      "pass": true,
+      "coherence": 400000,
+      "threshold": 550000
+    },
+    {
+      "step": "3.6e_release_escrow",
+      "pass": true,
+      "txHash": "0x3ad39fb5446df9a3381c89ceea8383e3bd0e254fb1a36d9006b73d70da59f21"
+    },
+    {
+      "step": "3.6f_finalize_route",
+      "pass": true,
+      "txHash": "0x8f2af6c30f6de231237857b15bee5b811765721f32b590df8c4a24834d43f1"
+    },
+    {
+      "step": "3.7_liquidity_unlock",
+      "pass": true,
+      "ooaConfidence": 0.005084730554155014,
+      "depth": 6,
+      "threshold": 0.4,
+      "routingThreshold": 300000
+    },
+    {
+      "step": "3.9_invariant_assets_bridged_false",
+      "pass": true,
+      "assetsBridged": false
+    }
+  ],
+  "assetsBridged": false,
+  "endedAt": "2026-09-07T02:12:28.053Z",
+  "summary": {
+    "passed": 13,
+    "total": 13
+  }
+}

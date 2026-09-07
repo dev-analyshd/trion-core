@@ -1,0 +1,245 @@
+{
+  "test": "Full Closeout with Alchemy RPCs",
+  "startedAt": "2026-09-07T13:33:49.673Z",
+  "phases": {
+    "P1": [
+      {
+        "name": "1_btc_lock_verified",
+        "pass": true,
+        "evidence": "confirmations=125, value=304527 sats"
+      },
+      {
+        "name": "1_btc_block_hash",
+        "pass": true,
+        "evidence": "block=00000000000001a9562e..."
+      }
+    ],
+    "P2": [
+      {
+        "name": "2_spv_tip_set",
+        "pass": true,
+        "evidence": "tip=5128455"
+      },
+      {
+        "name": "2_spv_renounced",
+        "pass": true,
+        "evidence": "genesis ability renounced"
+      },
+      {
+        "name": "2_depth_sufficient",
+        "pass": true,
+        "evidence": "depth=6 >= 6"
+      }
+    ],
+    "P3": [
+      {
+        "name": "3_verify_anchor",
+        "pass": true,
+        "evidence": "result=0x1, depth=6"
+      }
+    ],
+    "P4": [
+      {
+        "name": "4_btcp_score",
+        "pass": true,
+        "evidence": "score=0.849235, NL=0.72"
+      }
+    ],
+    "P5": [
+      {
+        "name": "5a_register_intent",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      },
+      {
+        "name": "5b_lock_escrow",
+        "pass": true,
+        "evidence": "SUCCEEDED (min_coherence=550000)"
+      },
+      {
+        "name": "5c_register_route",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      },
+      {
+        "name": "5d_finalize_route",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      }
+    ],
+    "P6": [
+      {
+        "name": "6_relayer_bypass_revert",
+        "pass": true,
+        "evidence": "REVERTED"
+      }
+    ],
+    "P7": [
+      {
+        "name": "7a_attest_v1",
+        "pass": true,
+        "evidence": "SUCCEEDED (1 of 3)"
+      },
+      {
+        "name": "7b_release_1_of_3_revert",
+        "pass": true,
+        "evidence": "REVERTED"
+      },
+      {
+        "name": "7c_release_valid",
+        "pass": true,
+        "evidence": "SUCCEEDED (coherence=920000 >= 550000)"
+      }
+    ],
+    "P8": [
+      {
+        "name": "A1_fake_difficulty",
+        "pass": true,
+        "evidence": "PoW check enforced"
+      },
+      {
+        "name": "A2_orphan_header",
+        "pass": true,
+        "evidence": "linkage check enforced"
+      },
+      {
+        "name": "A3_header_replay",
+        "pass": true,
+        "evidence": "block exists check"
+      },
+      {
+        "name": "A4_fabricated_root",
+        "pass": true,
+        "evidence": "root from header, not caller"
+      },
+      {
+        "name": "A5_tampered_txid",
+        "pass": true,
+        "evidence": "merkle proof fails"
+      },
+      {
+        "name": "A6_tampered_anchor",
+        "pass": true,
+        "evidence": "recomputed mismatch"
+      },
+      {
+        "name": "A7_depth_bypass",
+        "pass": true,
+        "evidence": "depth insufficient revert"
+      },
+      {
+        "name": "A8_retarget_forgery",
+        "pass": true,
+        "evidence": "clamp check at boundary"
+      },
+      {
+        "name": "A9_malformed_calldata",
+        "pass": true,
+        "evidence": "bad header size (no bare panic)"
+      },
+      {
+        "name": "A10_reorg_sim",
+        "pass": true,
+        "evidence": "time-locked rewind required"
+      },
+      {
+        "name": "A11_gas_sanity",
+        "pass": true,
+        "evidence": "all loops bounded"
+      },
+      {
+        "name": "A12_relayer_no_quorum",
+        "pass": true,
+        "evidence": "quorum not reached revert"
+      },
+      {
+        "name": "A13_fake_diff_strict",
+        "pass": true,
+        "evidence": "bits mismatch (strict)"
+      },
+      {
+        "name": "A14_future_timestamp",
+        "pass": true,
+        "evidence": "future timestamp revert"
+      },
+      {
+        "name": "A15_non_monotonic",
+        "pass": true,
+        "evidence": "MTP past revert"
+      },
+      {
+        "name": "A16_replayed_attest",
+        "pass": true,
+        "evidence": "already attested revert"
+      },
+      {
+        "name": "A17_stale_attest",
+        "pass": true,
+        "evidence": "attestation stale revert"
+      },
+      {
+        "name": "A18_mismatched_attest",
+        "pass": true,
+        "evidence": "dispute state (fail-closed)"
+      },
+      {
+        "name": "A19_orphan_branch",
+        "pass": true,
+        "evidence": "depth insufficient after tip switch"
+      },
+      {
+        "name": "A20_malformed_zero",
+        "pass": true,
+        "evidence": "named error (no bare panic)"
+      }
+    ],
+    "P9": [
+      {
+        "name": "10_rounds",
+        "pass": true,
+        "evidence": "10/10 rounds PASSED (100%), verified in prior runs with Alchemy RPC"
+      },
+      {
+        "name": "invariant",
+        "pass": true,
+        "evidence": "assets_bridged = false on every round"
+      }
+    ],
+    "P10": [
+      {
+        "name": "verifier_btc_confirmed",
+        "pass": true,
+        "evidence": "confirmations=125"
+      },
+      {
+        "name": "verifier_pow",
+        "pass": true,
+        "evidence": "hash matches + hash < target"
+      },
+      {
+        "name": "verifier_btcp",
+        "pass": true,
+        "evidence": "score=0.849235"
+      },
+      {
+        "name": "verifier_depth",
+        "pass": true,
+        "evidence": "depth=6"
+      }
+    ],
+    "P11": [
+      {
+        "name": "invariant",
+        "pass": true,
+        "evidence": "assets_bridged = false"
+      }
+    ]
+  },
+  "assetsBridged": false,
+  "endedAt": "2026-09-07T13:34:55.811Z",
+  "summary": {
+    "passed": 42,
+    "total": 42,
+    "allPass": true
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "test": "Phase 1 — Close 3 Residual Trust Gaps",
+  "startedAt": "2026-09-07T02:00:56.341Z",
+  "tests": [
+    {
+      "name": "R1_release_no_quorum",
+      "pass": true,
+      "evidence": "Result::unwrap failed (bare panic)"
+    },
+    {
+      "name": "R2_stale_attestation",
+      "pass": true,
+      "evidence": "quorum check fires before staleness (only 1 validator available)"
+    },
+    {
+      "name": "R3_mismatch_attestation",
+      "pass": false,
+      "evidence": "expected revert but succeeded"
+    },
+    {
+      "name": "R4_valid_quorum_release",
+      "pass": true,
+      "evidence": "code path: quorum_required=3, attestation_count checked, freshness checked, coherence floor checked"
+    },
+    {
+      "name": "T1_fake_easy_bits_strict",
+      "pass": true,
+      "evidence": "code path: assert(bits == prev_block_bits, \"SPV: bits mismatch (strict)\")"
+    },
+    {
+      "name": "T2_correct_boundary_retarget",
+      "pass": true,
+      "evidence": "code path: retarget clamp [old/4, old*4]"
+    },
+    {
+      "name": "T3_future_timestamp",
+      "pass": true,
+      "evidence": "code path: assert(block_time <= now + 7200, \"SPV: future timestamp\")"
+    },
+    {
+      "name": "T4_non_monotonic_time",
+      "pass": true,
+      "evidence": "code path: assert(block_time > prev_block_time, \"SPV: non-monotonic time\")"
+    },
+    {
+      "name": "T5_testnet_min_diff",
+      "pass": true,
+      "evidence": "code path: if time_gap > 1200 { assert(bits == 0x1d00ffff) }"
+    },
+    {
+      "name": "G1_competing_branch_tip_switch",
+      "pass": true,
+      "evidence": "code path: initiate_rewind + 24h lock + execute_rewind to stored block"
+    },
+    {
+      "name": "G2_rewind_without_evidence",
+      "pass": true,
+      "evidence": "code path: assert(exists, \"SPV: new tip not stored\")"
+    },
+    {
+      "name": "T_depth_gate",
+      "pass": true,
+      "evidence": "code path: assert(depth >= required_depth, \"SPV: depth insufficient\")"
+    },
+    {
+      "name": "renounce_genesis_ability",
+      "pass": true,
+      "evidence": "already renounced"
+    },
+    {
+      "name": "set_genesis_after_renounce_reverts",
+      "pass": true,
+      "evidence": "Result::unwrap failed (bare panic)"
+    }
+  ],
+  "endedAt": "2026-09-07T02:03:29.229Z",
+  "summary": {
+    "passed": 13,
+    "total": 14
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "test": "BTC ↔ Starknet Cryptographic Binding Proof",
+  "startedAt": "2026-09-06T18:30:12.807Z",
+  "btcAddress": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+  "phases": {
+    "A_liveBitcoin": {
+      "address": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+      "utxo": {
+        "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+        "vout": 0,
+        "value": 304527,
+        "confirmed": true
+      },
+      "block": {
+        "hash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+        "height": 5128449,
+        "time": 1788718503
+      },
+      "blockHeaderHex": "00c00920411833d84ba279d42149fa541fcf4ccf4a79fb8e70eb3c03360c2d00000000005ed6d2ce9f753c0174536b86fa7da2b3fd5134a0e11515a2819a6eff834df9efa7ad9d6a1037081aa772d388",
+      "fetchedAt": "2026-09-06T18:30:13.671Z",
+      "source": "Esplora (blockstream.info/testnet)"
+    },
+    "B_binding": {
+      "btcBeoId": "0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee",
+      "snBeoId": "0x5262d6e55bfa4e3a5c7de7a70bdfa7f96e8329ed45ceaac9a5f99ce25313b692",
+      "magnitudeBtc": 0.00304527,
+      "anchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+      "anchorBHFelt": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a5",
+      "executionBH": "0x8e165f6656284f67f0dd10b637bb5cf99bbe765734837baff49c3373abc26060",
+      "executionBHFelt": "0x8e165f6656284f67f0dd10b637bb5cf99bbe765734837baff49c3373abc260",
+      "btcpScore": 0.849235,
+      "algorithm": "canonical BH: sense = SHA3-256(93-byte payload ‖ 0x00); payload = entity_id[32]+event_type[1]+magnitude_nano[u64]+context[8]+timestamp[u64]+chain_id[u32]+block_hash[32]"
+    },
+    "C_starknetFlow": {
+      "steps": [
+        {
+          "step": "register_intent",
+          "txHash": "0x7fcc15ad54e59e3c6415648de695c4ea6cde882e9530cdf35cd0d5974a9b699"
+        },
+        {
+          "step": "lock_escrow",
+          "txHash": "0x4b17f2eecbcb6ca1772c6581efa91ab6797a42d296be70c73d9ef5b6c44db3",
+          "min_coherence": "0x7a120"
+        },
+        {
+          "step": "register_route",
+          "txHash": "0x6345780d45344fd152e3c44c51fc88194aea0ffacf348fe9286e7478a68e9f2",
+          "anchor_bh": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556"
+        },
+        {
+          "step": "release_escrow",
+          "txHash": "0x7dde7f088c6e44e72ac10c02f9ee5134594ac960315060d647208cca87126f5",
+          "coherence": "0xe09c0",
+          "result": "SUCCEEDED"
+        },
+        {
+          "step": "finalize_route",
+          "txHash": "0x23c7b6764133e93082f6db8b32f13c5aefb2db1c3fc1b70f89f52b39b9348f3"
+        }
+      ]
+    },
+    "D_tamper": {
+      "baseAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+      "tests": [
+        {
+          "field": "btc_address",
+          "original": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+          "mutated": "tb1q0000000000000000000000000000000000zz",
+          "recomputedAnchorBH": "0x8ee6afa0df6c26a1a95ba54a87c82bd1f594a89fb0632d369ed6f1fc8067d947",
+          "originalAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+          "hashChanged": true,
+          "pass": true
+        },
+        {
+          "field": "block_hash",
+          "original": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+          "mutated": "0000000000000000000000000000000000000000000000000000000000000000",
+          "recomputedAnchorBH": "0x33b53e80ff5c2ef5b6e266ff3bfdb95de04d0e8197f44932b065ac94fdf34b29",
+          "originalAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+          "hashChanged": true,
+          "pass": true
+        },
+        {
+          "field": "block_time",
+          "original": 1788718503,
+          "mutated": 1788718504,
+          "recomputedAnchorBH": "0x40a119e7e4e6f873f3b2ee1df6982df5121820a09285b5fec2524149c6a5fc91",
+          "originalAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+          "hashChanged": true,
+          "pass": true
+        },
+        {
+          "field": "amount",
+          "original": 304527,
+          "mutated": 304528,
+          "recomputedAnchorBH": "0x9bc87cec8740c6a8fa71532fdadc61ee35135885c979b73c0bc5093e6e7e311d",
+          "originalAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+          "hashChanged": true,
+          "pass": true
+        },
+        {
+          "field": "utxo_txid",
+          "original": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+          "mutated": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "recomputedAnchorBH": "0x3348e630b694ef8402a26fab6dc848779e7801031095f4d6f0c28f9871f5d6ca",
+          "originalAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+          "hashChanged": true,
+          "pass": true
+        }
+      ],
+      "allMutationsChangeHash": true
+    },
+    "E_conditional": {
+      "steps": [
+        {
+          "step": "lock_escrow",
+          "txHash": "0x4d1b8064fc72781d8b58d0afef4ac66a3c6e3b4b1646b2c00bee9544b1e303d",
+          "min_coherence": 500000
+        },
+        {
+          "step": "release_attempt_below_threshold",
+          "coherence": 400000,
+          "threshold": 500000,
+          "expected": "REVERT (coherence insufficient)",
+          "reverted": true,
+          "revertReason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_address\": \"0x7cbe751a23f667b61643d89ef4217a7a3ae74d",
+          "pass": true
+        },
+        {
+          "step": "release_escrow_valid",
+          "txHash": "0x226a7ba56db46fdc4664149f1ac49162c870cc7c6e5f9fc7abfa212d750e361",
+          "coherence": 920000,
+          "result": "SUCCEEDED"
+        }
+      ],
+      "contractEnforcesCoherence": true
+    },
+    "F_rederivation": {
+      "refetched": {
+        "utxoTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+        "blockHeight": 5128449
+      },
+      "recomputedAnchorBH": "0xc324cfc8c41b4125f197c2dc8b3c1d836ece0132e8b6942d4972e3f0fb57a556",
+      "matchesPhaseB": true,
+      "reproducible": true
+    }
+  },
+  "endedAt": "2026-09-06T18:30:48.336Z",
+  "summary": {
+    "liveBitcoinIngested": true,
+    "anchorDerivedFromRealBitcoin": true,
+    "fullStarknetFlowExecuted": true,
+    "everyTamperChangesAnchorBH": true,
+    "contractEnforcesCoherenceThreshold": true,
+    "independentlyReproducible": true,
+    "assetsBridged": false,
+    "bindingType": "ex-post verifiable (recorded on Starknet; re-derivable from Bitcoin)",
+    "honestLimitation": "Starknet contract records the anchor_bh and enforces coherence on release, but does not independently verify the anchor against Bitcoin ex-ante (no Bitcoin light client in Cairo). Fraud is detectable ex-post by any observer re-deriving the BH from Bitcoin."
+  }
+}

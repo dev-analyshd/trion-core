@@ -1,0 +1,89 @@
+{
+  "test": "Phase 4 — BTCP Formula & Route Wiring Verification",
+  "startedAt": "2026-09-07T00:28:01.047Z",
+  "checks": [
+    {
+      "id": "F1",
+      "name": "weights sum to 1.0",
+      "pass": true,
+      "sum": 1,
+      "weights": [
+        0.25,
+        0.2,
+        0.2,
+        0.15,
+        0.2
+      ]
+    },
+    {
+      "id": "F2",
+      "name": "healthy passes, stressed fails both gates",
+      "pass": true,
+      "healthyScore": "0.859950",
+      "stressedScore": "0.135000",
+      "healthyPass": true,
+      "stressedFail": true
+    },
+    {
+      "id": "F3",
+      "name": "MF monotonic sweep, unsafe crossing at 0.50",
+      "pass": true,
+      "mfScores": [
+        "0.8755",
+        "0.7879",
+        "0.6566",
+        "0.4377",
+        "0.1751"
+      ],
+      "unsafeAt050": true,
+      "perfectAt080": "0.2000",
+      "perfectUnsafe": true
+    },
+    {
+      "id": "F4",
+      "name": "GasNorm clamp: 0/50=1.0, 25/50=0.5, 50/50=0.0, 60/50=0.0",
+      "pass": true,
+      "g0": 1,
+      "g25": 0.5,
+      "g50": 0,
+      "g60": 0
+    },
+    {
+      "id": "F5",
+      "name": "BITP match (0.8,0.7,0.9,0.6) = 0.77",
+      "pass": true,
+      "result": "0.7700",
+      "expected": 0.77
+    },
+    {
+      "id": "F6",
+      "name": "Liquidity Ocean: zero-direct-liquidity routes via conversion",
+      "pass": true,
+      "zeroDirectLiquidity": 0,
+      "formEquivalentLiquidity": 50000,
+      "threshold": 0.4,
+      "routingThreshold": 300000
+    },
+    {
+      "id": "F7",
+      "name": "Route types: NETTING, SPLIT, PARALLEL, BITP, IAP, BLO, BSC, OOA",
+      "pass": true,
+      "routeTypes": [
+        "NETTING",
+        "SPLIT",
+        "PARALLEL",
+        "BITP",
+        "IAP",
+        "BLO",
+        "BSC",
+        "OOA"
+      ],
+      "count": 8
+    }
+  ],
+  "endedAt": "2026-09-07T00:28:01.050Z",
+  "summary": {
+    "passed": 7,
+    "total": 7
+  }
+}

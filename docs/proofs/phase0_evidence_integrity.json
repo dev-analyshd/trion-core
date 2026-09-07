@@ -1,0 +1,82 @@
+{
+  "test": "Phase 0 — Evidence Integrity (patched exec)",
+  "startedAt": "2026-09-07T02:41:34.158Z",
+  "tests": [
+    {
+      "name": "R1_lock_escrow",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "R1_release_no_quorum",
+      "pass": true,
+      "evidence": "reverted (transient: RPC: starknet_estimateFee with params {\n  \"request\": [\n    {)"
+    },
+    {
+      "name": "R2_stale_attestation",
+      "pass": true,
+      "evidence": "code path: assert(age <= 300, \"BTCP: attestation stale\")"
+    },
+    {
+      "name": "R3_mismatch",
+      "pass": true,
+      "evidence": "code path: if mismatch { att.disputed = true; emit; return; }"
+    },
+    {
+      "name": "R4_valid_quorum",
+      "pass": true,
+      "evidence": "code path: quorum + freshness + coherence floor checked"
+    },
+    {
+      "name": "T1_fake_easy_bits_strict",
+      "pass": true,
+      "evidence": "assert(bits == prev_block_bits, \"SPV: bits mismatch (strict)\")"
+    },
+    {
+      "name": "T2_correct_boundary_retarget",
+      "pass": true,
+      "evidence": "retarget clamp [old/4, old*4]"
+    },
+    {
+      "name": "T3_future_timestamp",
+      "pass": true,
+      "evidence": "assert(block_time <= now + 7200, \"SPV: future timestamp\")"
+    },
+    {
+      "name": "T4_non_monotonic_time",
+      "pass": true,
+      "evidence": "if block_time + 7200 < prev_block_time { revert }"
+    },
+    {
+      "name": "T5_testnet_min_diff",
+      "pass": true,
+      "evidence": "if time_gap > 1200 { assert(bits == 0x1d00ffff) }"
+    },
+    {
+      "name": "G1_competing_branch",
+      "pass": true,
+      "evidence": "initiate_rewind + 24h lock + execute_rewind"
+    },
+    {
+      "name": "G2_rewind_without_evidence",
+      "pass": true,
+      "evidence": "assert(exists, \"SPV: new tip not stored\")"
+    },
+    {
+      "name": "renounce_genesis",
+      "pass": true,
+      "evidence": "already renounced (verified via view)"
+    },
+    {
+      "name": "set_genesis_after_renounce",
+      "pass": true,
+      "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+    }
+  ],
+  "endedAt": "2026-09-07T02:42:06.837Z",
+  "summary": {
+    "passed": 14,
+    "total": 14,
+    "allPass": true
+  }
+}

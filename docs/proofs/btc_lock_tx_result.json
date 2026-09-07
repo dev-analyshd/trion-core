@@ -1,0 +1,9 @@
+{
+  "step": "btc_lock_tx",
+  "pass": true,
+  "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+  "sendValue": 304527,
+  "fee": 1000,
+  "explorer": "https://blockstream.info/testnet/tx/62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+  "broadcastAt": "2026-09-06T17:57:50.298Z"
+}

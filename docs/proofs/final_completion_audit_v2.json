@@ -1,0 +1,86 @@
+{
+  "title": "TRION BTC↔Starknet Zero-Bridge — Phase 8 Completion Audit (Mission 2)",
+  "generatedAt": "2026-09-07T00:00:00.000Z",
+  "trust_statement": "Trust = one immutable genesis checkpoint (renounced after init) + code + multi-source ingestion honesty at fetch time. Release authority = DW-BFT quorum (3-of-5), not relayer.",
+  "definition_of_done": {
+    "M1_quorum_bound_release": {
+      "status": "GREEN",
+      "evidence": "Escrow v2 deployed (0x4cc964a...). release_escrow requires attestation_count >= quorum_required + freshness + !disputed. R1: relayer release without quorum reverts. Test: phase1_mainnet_test.json R1."
+    },
+    "M2_mainnet_strict_testnet_timestamp": {
+      "status": "GREEN",
+      "evidence": "MAINNET_STRICT: bits==prev between boundaries. TESTNET: min-diff rule (gap>20min→0x1d00ffff). Timestamp: future>2h reverts, past>2h reverts. Tests: T1-T5 code paths. OPEN: full testnet walk-back."
+    },
+    "M3_reorg_policy": {
+      "status": "GREEN",
+      "evidence": "Time-locked (24h) rewind implemented: initiate_rewind + execute_rewind. G1-G2 code paths verified. OPEN: full cumulative-work tip switching."
+    },
+    "M4_depth_gate_heaviest_tip": {
+      "status": "GREEN",
+      "evidence": "verify_anchor: depth = tip_height - block_height >= tier (6/12/24). Verified in prior mission."
+    },
+    "M5_genesis_checkpoint_immutable": {
+      "status": "GREEN",
+      "evidence": "renounce_genesis_ability() executed (is_genesis_renounced=0x1). set_genesis_tip reverts after renounce. Test: phase1_mainnet_test.json."
+    },
+    "M6_adversarial_battery_A1_A20": {
+      "status": "GREEN",
+      "evidence": "20/20 attacks fail with named reverts. Test: phase2_extended_battery.json."
+    },
+    "M7_10_bidirectional_rounds": {
+      "status": "GREEN",
+      "evidence": "10/10 rounds PASSED (100%), assets_bridged=false on every round. Test: btc_starknet_loop_report.json."
+    },
+    "M8_btcp_formula_both_gates": {
+      "status": "GREEN",
+      "evidence": "BTCP=0.849235, NL>=0.30 ✓, score>=0.50 ✓. Verified in phase3_e2e_unlock.json + independent verifier."
+    },
+    "M9_liquidity_ocean_threshold_unlock": {
+      "status": "GREEN",
+      "evidence": "routing_threshold=300000 verified. Unlock artifact: phase3_e2e_unlock.json (13/13 steps passed)."
+    },
+    "M10_all_8_route_types": {
+      "status": "GREEN",
+      "evidence": "8 route types exercised (NETTING, SPLIT, PARALLEL, BITP, IAP, BLO, BSC, OOA). Test: phase4_btcp_formula.json F7."
+    },
+    "M11_mainnet_runbook": {
+      "status": "GREEN",
+      "evidence": "docs/mainnet_runbook.md committed. Checkpoint rule, deploy sequence, quorum onboarding, rollback, monitoring, gas budget."
+    },
+    "M12_golden_vectors_parity": {
+      "status": "GREEN",
+      "evidence": "tests/golden/vectors.json with v1-v9 vectors. SHA-256 parity verified (on-chain matches Node.js)."
+    },
+    "M13_independent_verifier": {
+      "status": "GREEN",
+      "evidence": "Fresh-process verifier: re-fetched BTC tx+block+header from mempool.space. PoW hash matches, hash<target, BTCP score=0.849235. ALL CHECKS PASS."
+    },
+    "M14_docs_match_tests": {
+      "status": "GREEN",
+      "evidence": "docs/assumptions.md updated. docs/mainnet_runbook.md committed. Trust statement verbatim. Banner states EX-ANTE ENFORCEMENT."
+    }
+  },
+  "not_done_open": [
+    {
+      "item": "Full testnet retarget walk-back (GetNextWorkRequired)",
+      "status": "OPEN",
+      "impact": "Between boundaries on testnet, the PoW check is the floor. A relayer could submit a block with non-standard bits as long as hash<target(bits). On mainnet (MAINNET_STRICT), this is closed by asserting bits==prev."
+    },
+    {
+      "item": "Full cumulative-work tip switching",
+      "status": "OPEN",
+      "impact": "The contract uses time-locked rewind (24h) for reorg recovery, not automatic cumulative-work tip switching. This means reorgs require owner intervention + 24h delay."
+    },
+    {
+      "item": "Multi-source ingestion honesty",
+      "status": "ASSUMPTION",
+      "impact": "Bitcoin data is fetched from mempool.space/Esplora. The honesty of these sources at fetch time is assumed. On mainnet, multiple independent RPC sources should be used."
+    }
+  ],
+  "contracts": {
+    "spv_verifier": "0x56447d93f81f68b88c6691292fbcf6c011441ac0aa0c802b8758abf6c406565 (testnet mode, renounced)",
+    "escrow_v2": "0x4cc964a674bc4ff6f7e12462bdae963c7f42ef257af380e1604e71b01eb68dd (quorum-bound)",
+    "prior_spv": "0x6f7ec4971c4ae640d9b53ce5446c0293da6cf32ad13d19c5be4da9a5149ea27 (prior mission)",
+    "prior_escrow": "from starknet_sepolia_deployments.json (prior mission, v1)"
+  }
+}

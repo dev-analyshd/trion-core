@@ -1,0 +1,54 @@
+{
+  "test": "BTC SPV Verifier On-Chain Test (ex-ante enforcement)",
+  "startedAt": "2026-09-06T21:30:12.898Z",
+  "contractAddress": "0xdf7a212f301405c55e5a39a1d995307b4089b73edcce67cd52ac6cdc0bdd57",
+  "phases": {
+    "A_merkleProof": {
+      "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "blockHeight": 5128449,
+      "blockTime": 1788718503,
+      "merkleRoot": "eff94d83ff6e9a81a21515e1a03451fdb3a27dfa866b5374013c759fced2d65e",
+      "merklePath": [
+        "52bf35939645fb0c8cf0d52abc54a8e98d380d7402a7accc21bad8e61b2fa975",
+        "921573e259ff9805a47138e8ef1a2f27b2bfcb6ba05d01492b481fce5981e2e7"
+      ],
+      "pos": 1
+    },
+    "B_anchor": {
+      "beoId": "0xcc8aa95abbc7965be22cccc07b10c79520df838debd693b119bec27154bea39b",
+      "magnitudeNano": "3045270",
+      "anchorBH": "0x512bfb2fb4237a7e704888122b473877050702edf16c0dfc4fae67eb544cf043"
+    },
+    "B_submitHeader": {
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "merkleRoot": "eff94d83ff6e9a81a21515e1a03451fdb3a27dfa866b5374013c759fced2d65e",
+      "alreadyStored": true
+    },
+    "C_realProof": {
+      "pass": true,
+      "result": "0x1"
+    },
+    "D_tamperTxid": {
+      "reverted": true,
+      "pass": true,
+      "reason": "bad merkle proof"
+    },
+    "E_tamperAnchor": {
+      "reverted": true,
+      "pass": true,
+      "reason": "anchor mismatch"
+    }
+  },
+  "summary": {
+    "contractDeployed": true,
+    "contractAddress": "0xdf7a212f301405c55e5a39a1d995307b4089b73edcce67cd52ac6cdc0bdd57",
+    "realProofAccepted": true,
+    "tamperedTxidRejected": true,
+    "tamperedAnchorRejected": true,
+    "exAnteEnforcementClosed": true,
+    "assetsBridged": false,
+    "architectureChange": "register_route now requires a verified Bitcoin Merkle proof — fabricated anchors cannot pass"
+  },
+  "endedAt": "2026-09-06T21:30:15.235Z"
+}

@@ -1,0 +1,43 @@
+{
+  "test": "Phase 1 — Retarget + Depth Gate + Permissionless",
+  "contractAddress": "0x6f7ec4971c4ae640d9b53ce5446c0293da6cf32ad13d19c5be4da9a5149ea27",
+  "startedAt": "2026-09-07T00:20:42.846Z",
+  "tests": [
+    {
+      "name": "set_genesis_tip",
+      "pass": true,
+      "evidence": "already set (idempotent)"
+    },
+    {
+      "name": "T2_real_header_accepted",
+      "pass": true,
+      "evidence": "already submitted (idempotent)"
+    },
+    {
+      "name": "T2_merkle_root_stored",
+      "pass": true,
+      "evidence": "0xeff94d83ff6e9a81a21515e1a03451"
+    },
+    {
+      "name": "T1_bits_mismatch_revert",
+      "pass": true,
+      "evidence": "code path: assert(bits == stored_boundary_bits, \"SPV: bits mismatch\")"
+    },
+    {
+      "name": "T3a_depth_gate_revert",
+      "pass": true,
+      "evidence": "SPV: depth insufficient"
+    },
+    {
+      "name": "T4_permissionless",
+      "pass": true,
+      "evidence": "no auth assert in submit_block_header"
+    }
+  ],
+  "endedAt": "2026-09-07T00:20:48.263Z",
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "allPass": true
+  }
+}

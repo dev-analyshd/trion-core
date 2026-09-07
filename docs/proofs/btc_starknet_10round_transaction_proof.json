@@ -1,0 +1,438 @@
+{
+  "test": "BTC \u2194 Starknet Bidirectional Zero-Bridge \u2014 10-Round Transaction Proof",
+  "generatedAt": "2026-09-06T17:59:00.935388Z",
+  "summary": {
+    "totalRounds": 10,
+    "directions": {
+      "btc_to_starknet": 5,
+      "starknet_to_btc": 5
+    },
+    "starknetTxs": 50,
+    "bitcoinTxs": 1,
+    "totalOnChainTxs": 51,
+    "starknetStepsPassed": 50,
+    "starknetStepsFailed": 0,
+    "assetsBridged": false,
+    "zeroBridgeInvariantHeld": true
+  },
+  "btcLockTx": {
+    "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "confirmed": true,
+    "sendValueSats": 304527,
+    "feeSats": 1000,
+    "explorer": "https://blockstream.info/testnet/tx/62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "note": "Behavioral self-transfer lock \u2014 BTC spent to a new UTXO controlled by the same key. Assets never leave Bitcoin."
+  },
+  "transactions": [
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 1,
+      "step": "register_intent",
+      "txHash": "0x31901e52e475dcb9fa8dd102186eebbff246101aa90cc77ae6f26db20f2c33a",
+      "explorer": "https://sepolia.voyager.online/tx/0x31901e52e475dcb9fa8dd102186eebbff246101aa90cc77ae6f26db20f2c33a"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 1,
+      "step": "lock_escrow",
+      "txHash": "0x75a0a121da30c0eec66270ec7b5711140338ae8be2c9124ee077c6676c1bad3",
+      "explorer": "https://sepolia.voyager.online/tx/0x75a0a121da30c0eec66270ec7b5711140338ae8be2c9124ee077c6676c1bad3"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 1,
+      "step": "register_route",
+      "txHash": "0x3405358f8deab2522164227bec237e82723faa9e91f5db8ea96a2e95657d72e",
+      "explorer": "https://sepolia.voyager.online/tx/0x3405358f8deab2522164227bec237e82723faa9e91f5db8ea96a2e95657d72e"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 1,
+      "step": "release_escrow",
+      "txHash": "0x24fe0fea350443941ce4ea182ad06045db703ceac7d6f22edd8c45ad1240ee6",
+      "explorer": "https://sepolia.voyager.online/tx/0x24fe0fea350443941ce4ea182ad06045db703ceac7d6f22edd8c45ad1240ee6"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 1,
+      "step": "finalize_route",
+      "txHash": "0x18af26490896ef2cda55007721b15388155f0f44d1e35e6e73e558c583da072",
+      "explorer": "https://sepolia.voyager.online/tx/0x18af26490896ef2cda55007721b15388155f0f44d1e35e6e73e558c583da072"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 2,
+      "step": "register_intent",
+      "txHash": "0x6883cb14e904499d5a75667c68709295b7346073e83d6ba253e46d18144fbd3",
+      "explorer": "https://sepolia.voyager.online/tx/0x6883cb14e904499d5a75667c68709295b7346073e83d6ba253e46d18144fbd3"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 2,
+      "step": "lock_escrow",
+      "txHash": "0x194c2233f06b98c338ca14636aae35997eb810ae14c16ac7179c2db1677ee2d",
+      "explorer": "https://sepolia.voyager.online/tx/0x194c2233f06b98c338ca14636aae35997eb810ae14c16ac7179c2db1677ee2d"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 2,
+      "step": "register_route",
+      "txHash": "0x3e59389fb7be0e339b96dd3e4e4e7ac48efcdf5a17505ca5f35c1a575b1ab7a",
+      "explorer": "https://sepolia.voyager.online/tx/0x3e59389fb7be0e339b96dd3e4e4e7ac48efcdf5a17505ca5f35c1a575b1ab7a"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 2,
+      "step": "release_escrow",
+      "txHash": "0x4cc2e9b9536a5c426a7270c431c0519416c97edcef0e5dcc494ca1c1772687c",
+      "explorer": "https://sepolia.voyager.online/tx/0x4cc2e9b9536a5c426a7270c431c0519416c97edcef0e5dcc494ca1c1772687c"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 2,
+      "step": "finalize_route",
+      "txHash": "0x7f9434ee22696559e19bce4c840cb3c71eb68739236e26484d34e198bf90570",
+      "explorer": "https://sepolia.voyager.online/tx/0x7f9434ee22696559e19bce4c840cb3c71eb68739236e26484d34e198bf90570"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 3,
+      "step": "register_intent",
+      "txHash": "0x377274eba72984a52bbf8cf015ddc71a8af173a201f208f2604a49fc9532fd0",
+      "explorer": "https://sepolia.voyager.online/tx/0x377274eba72984a52bbf8cf015ddc71a8af173a201f208f2604a49fc9532fd0"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 3,
+      "step": "lock_escrow",
+      "txHash": "0x1d220eb4b40e4f43c71903783200892c140e141745b23ab3bcb1526853bc24",
+      "explorer": "https://sepolia.voyager.online/tx/0x1d220eb4b40e4f43c71903783200892c140e141745b23ab3bcb1526853bc24"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 3,
+      "step": "register_route",
+      "txHash": "0xaaf29ef65fafbaf5adb0700ab44488b43b17c9d926ea8c0be2f6d7d85f7b57",
+      "explorer": "https://sepolia.voyager.online/tx/0xaaf29ef65fafbaf5adb0700ab44488b43b17c9d926ea8c0be2f6d7d85f7b57"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 3,
+      "step": "release_escrow",
+      "txHash": "0x5182cfdea507cca2bed272939df7b77bbf72df7a0e3a38f918940de5da49ee",
+      "explorer": "https://sepolia.voyager.online/tx/0x5182cfdea507cca2bed272939df7b77bbf72df7a0e3a38f918940de5da49ee"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 3,
+      "step": "finalize_route",
+      "txHash": "0x3e9a7dbab4ab5f6b242e3b22735647181f0ca7ba068ebd3901faea3cff968b1",
+      "explorer": "https://sepolia.voyager.online/tx/0x3e9a7dbab4ab5f6b242e3b22735647181f0ca7ba068ebd3901faea3cff968b1"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 4,
+      "step": "register_intent",
+      "txHash": "0xd3219ad6aaf57e6a87c3bda597038bdba763bcaef7c0769a36843a605a2f9e",
+      "explorer": "https://sepolia.voyager.online/tx/0xd3219ad6aaf57e6a87c3bda597038bdba763bcaef7c0769a36843a605a2f9e"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 4,
+      "step": "lock_escrow",
+      "txHash": "0x560de7cd021f7c9f9dc8c46bc702ed1e6f18eba3d3c1f32e18a1eab5a0ece6a",
+      "explorer": "https://sepolia.voyager.online/tx/0x560de7cd021f7c9f9dc8c46bc702ed1e6f18eba3d3c1f32e18a1eab5a0ece6a"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 4,
+      "step": "register_route",
+      "txHash": "0x49460caec87b0a063563a18d6c1449c6f5e7e1ee0c5806a1c5e6c86649224a0",
+      "explorer": "https://sepolia.voyager.online/tx/0x49460caec87b0a063563a18d6c1449c6f5e7e1ee0c5806a1c5e6c86649224a0"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 4,
+      "step": "release_escrow",
+      "txHash": "0x4dbeb2818968c5c971a8571c73c31977871111ae022e55f434c6288af64c57b",
+      "explorer": "https://sepolia.voyager.online/tx/0x4dbeb2818968c5c971a8571c73c31977871111ae022e55f434c6288af64c57b"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 4,
+      "step": "finalize_route",
+      "txHash": "0x34a76210b34b6c51ec09eeb2ba7689ffd11dcaeffb311759f4645cdd7a0bcfc",
+      "explorer": "https://sepolia.voyager.online/tx/0x34a76210b34b6c51ec09eeb2ba7689ffd11dcaeffb311759f4645cdd7a0bcfc"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 5,
+      "step": "register_intent",
+      "txHash": "0x467b4df6d9f09cc70e51e112369ca23156fb178ef7b831fa4947b69df6eef20",
+      "explorer": "https://sepolia.voyager.online/tx/0x467b4df6d9f09cc70e51e112369ca23156fb178ef7b831fa4947b69df6eef20"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 5,
+      "step": "lock_escrow",
+      "txHash": "0x3966f3d8ef5a362fcd6bfb79a1c422882cf48e2d59846209e710ea7c0ea7b1e",
+      "explorer": "https://sepolia.voyager.online/tx/0x3966f3d8ef5a362fcd6bfb79a1c422882cf48e2d59846209e710ea7c0ea7b1e"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 5,
+      "step": "register_route",
+      "txHash": "0x6c8fd1d4b1c0605f9cba11bf88482ddd063c88233a63e03a5d6f9a09ef1f05d",
+      "explorer": "https://sepolia.voyager.online/tx/0x6c8fd1d4b1c0605f9cba11bf88482ddd063c88233a63e03a5d6f9a09ef1f05d"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 5,
+      "step": "release_escrow",
+      "txHash": "0x2bb757bb10c89071cc694be1456dd0d7c95c163d7f79f8ad6b537be62c2c7a3",
+      "explorer": "https://sepolia.voyager.online/tx/0x2bb757bb10c89071cc694be1456dd0d7c95c163d7f79f8ad6b537be62c2c7a3"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "btc2sn",
+      "round": 5,
+      "step": "finalize_route",
+      "txHash": "0x1570ab70505fedda3dd336700f94ae559b66b97fb5025759809b3709234337d",
+      "explorer": "https://sepolia.voyager.online/tx/0x1570ab70505fedda3dd336700f94ae559b66b97fb5025759809b3709234337d"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 1,
+      "step": "register_intent",
+      "txHash": "0x2445a096d33171487caddabed7dbb65b8935403667ae04d0824ba67de964e07",
+      "explorer": "https://sepolia.voyager.online/tx/0x2445a096d33171487caddabed7dbb65b8935403667ae04d0824ba67de964e07"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 1,
+      "step": "lock_escrow",
+      "txHash": "0x6888a80843a0d54f3fb8860d1c5c2435b6f5eae30a5bdf5e81a6cfc9c729594",
+      "explorer": "https://sepolia.voyager.online/tx/0x6888a80843a0d54f3fb8860d1c5c2435b6f5eae30a5bdf5e81a6cfc9c729594"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 1,
+      "step": "register_route",
+      "txHash": "0x51b3190a9113927a19e05f26d0038c650181748c979d02de9542b4b03db0fd",
+      "explorer": "https://sepolia.voyager.online/tx/0x51b3190a9113927a19e05f26d0038c650181748c979d02de9542b4b03db0fd"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 1,
+      "step": "release_escrow",
+      "txHash": "0x1048165aaa7178447781ead111f0839ec4cc2d9e1e48048c624f7c3d6330b93",
+      "explorer": "https://sepolia.voyager.online/tx/0x1048165aaa7178447781ead111f0839ec4cc2d9e1e48048c624f7c3d6330b93"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 1,
+      "step": "finalize_route",
+      "txHash": "0xa7c0609d58d02e4ff5c219e865eeb8f6c243a97c704d61a652d66f6c61d253",
+      "explorer": "https://sepolia.voyager.online/tx/0xa7c0609d58d02e4ff5c219e865eeb8f6c243a97c704d61a652d66f6c61d253"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 2,
+      "step": "register_intent",
+      "txHash": "0x525e04ced335eafd9ece534ab825b26cbe74ac6edeb6c4949c11fc0513ae5a5",
+      "explorer": "https://sepolia.voyager.online/tx/0x525e04ced335eafd9ece534ab825b26cbe74ac6edeb6c4949c11fc0513ae5a5"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 2,
+      "step": "lock_escrow",
+      "txHash": "0x5f9552b627f10617d82b377b7796ae58dde70f87e5583f3a16f5a446de67b93",
+      "explorer": "https://sepolia.voyager.online/tx/0x5f9552b627f10617d82b377b7796ae58dde70f87e5583f3a16f5a446de67b93"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 2,
+      "step": "register_route",
+      "txHash": "0x896de88de82f7cd50088cf410ae15eb2044f5598e350d1fc1454b71690091a",
+      "explorer": "https://sepolia.voyager.online/tx/0x896de88de82f7cd50088cf410ae15eb2044f5598e350d1fc1454b71690091a"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 2,
+      "step": "release_escrow",
+      "txHash": "0x628f9952b85730bcbdc828c8fb4ec5c05ca6993c48cdeaef9fa7c957c57ee08",
+      "explorer": "https://sepolia.voyager.online/tx/0x628f9952b85730bcbdc828c8fb4ec5c05ca6993c48cdeaef9fa7c957c57ee08"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 2,
+      "step": "finalize_route",
+      "txHash": "0x3177fb47b5bf3851d23b61a452e94c759ff1ca612830a80591142d858eacf86",
+      "explorer": "https://sepolia.voyager.online/tx/0x3177fb47b5bf3851d23b61a452e94c759ff1ca612830a80591142d858eacf86"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 3,
+      "step": "register_intent",
+      "txHash": "0x10a9d71be9197f5e1ebc4680f31ee5a36ddbe20fea7d01be36a6229fcfabbf4",
+      "explorer": "https://sepolia.voyager.online/tx/0x10a9d71be9197f5e1ebc4680f31ee5a36ddbe20fea7d01be36a6229fcfabbf4"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 3,
+      "step": "lock_escrow",
+      "txHash": "0x7e3cb7e28c0f78a854ba4c9691fe527993d8519d78342d42cfb659cbe93135d",
+      "explorer": "https://sepolia.voyager.online/tx/0x7e3cb7e28c0f78a854ba4c9691fe527993d8519d78342d42cfb659cbe93135d"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 3,
+      "step": "register_route",
+      "txHash": "0x5874f5ad9c814657795d95c1fb31b066a7c15d90087219e37a68173b8a81c08",
+      "explorer": "https://sepolia.voyager.online/tx/0x5874f5ad9c814657795d95c1fb31b066a7c15d90087219e37a68173b8a81c08"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 3,
+      "step": "release_escrow",
+      "txHash": "0x3b9855ab82e4be97d6d6dacb13179d314edab91e5f51937fc06c89db03c4c2",
+      "explorer": "https://sepolia.voyager.online/tx/0x3b9855ab82e4be97d6d6dacb13179d314edab91e5f51937fc06c89db03c4c2"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 3,
+      "step": "finalize_route",
+      "txHash": "0x25b54df358d74b6c089c22219edec8f0d59ab2ea3f872329007cabeb3396e5c",
+      "explorer": "https://sepolia.voyager.online/tx/0x25b54df358d74b6c089c22219edec8f0d59ab2ea3f872329007cabeb3396e5c"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 4,
+      "step": "register_intent",
+      "txHash": "0x2b18eaf3412d1c00832c84e8f60ca1b857f44ece9cea110619b71370212aae5",
+      "explorer": "https://sepolia.voyager.online/tx/0x2b18eaf3412d1c00832c84e8f60ca1b857f44ece9cea110619b71370212aae5"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 4,
+      "step": "lock_escrow",
+      "txHash": "0x11ade845cd0b1a209e9d7001c1493b0c4b33e4ef51a5ec6c58587fd246402e4",
+      "explorer": "https://sepolia.voyager.online/tx/0x11ade845cd0b1a209e9d7001c1493b0c4b33e4ef51a5ec6c58587fd246402e4"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 4,
+      "step": "register_route",
+      "txHash": "0x57ffb588d5ba3dbcc6846f53de96d9218a37326dc8b64b1632b7030a5cf4a0a",
+      "explorer": "https://sepolia.voyager.online/tx/0x57ffb588d5ba3dbcc6846f53de96d9218a37326dc8b64b1632b7030a5cf4a0a"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 4,
+      "step": "release_escrow",
+      "txHash": "0x1ba9fe2f3e06b79d9e388f7be9672052b7f14d7056d72fb4e961932df4a8786",
+      "explorer": "https://sepolia.voyager.online/tx/0x1ba9fe2f3e06b79d9e388f7be9672052b7f14d7056d72fb4e961932df4a8786"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 4,
+      "step": "finalize_route",
+      "txHash": "0x30227080d07173780d6655e736e857a919a7459ac9b9ff371a2b08d8483265d",
+      "explorer": "https://sepolia.voyager.online/tx/0x30227080d07173780d6655e736e857a919a7459ac9b9ff371a2b08d8483265d"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 5,
+      "step": "register_intent",
+      "txHash": "0x3ddbe8ceb95daa04917b89bfeb704869b3fc9c142754bcf9d88fe78d1ed67b9",
+      "explorer": "https://sepolia.voyager.online/tx/0x3ddbe8ceb95daa04917b89bfeb704869b3fc9c142754bcf9d88fe78d1ed67b9"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 5,
+      "step": "lock_escrow",
+      "txHash": "0x49d6837a9c1f17ac8b41c4be566f42c1e755b4efcde8ad1520c716a91b0d613",
+      "explorer": "https://sepolia.voyager.online/tx/0x49d6837a9c1f17ac8b41c4be566f42c1e755b4efcde8ad1520c716a91b0d613"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 5,
+      "step": "register_route",
+      "txHash": "0x2f0047aceb7d4dce15049574c18c3ba537ace3ab06dedf36bd81a194a7d4d1e",
+      "explorer": "https://sepolia.voyager.online/tx/0x2f0047aceb7d4dce15049574c18c3ba537ace3ab06dedf36bd81a194a7d4d1e"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 5,
+      "step": "release_escrow",
+      "txHash": "0x51f68a03c5b46ce5e6464be654a3735c0aaf589a30f61bab6f23303aa5dd3f2",
+      "explorer": "https://sepolia.voyager.online/tx/0x51f68a03c5b46ce5e6464be654a3735c0aaf589a30f61bab6f23303aa5dd3f2"
+    },
+    {
+      "chain": "Starknet Sepolia",
+      "direction": "sn2btc",
+      "round": 5,
+      "step": "finalize_route",
+      "txHash": "0x5cca12d3f53b74ba53ae16d08b9f8d1dc77010ac878c6578a8c821661448874",
+      "explorer": "https://sepolia.voyager.online/tx/0x5cca12d3f53b74ba53ae16d08b9f8d1dc77010ac878c6578a8c821661448874"
+    },
+    {
+      "chain": "Bitcoin Testnet",
+      "direction": "btc2sn",
+      "round": 0,
+      "step": "btc_lock_tx",
+      "txHash": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "explorer": "https://blockstream.info/testnet/tx/62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "sendValue": 304527,
+      "fee": 1000
+    }
+  ]
+}

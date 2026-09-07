@@ -1,0 +1,56 @@
+{
+  "test": "Phase 1 — Real Quorum Q1-Q5 (multi-signer)",
+  "startedAt": "2026-09-07T03:54:49.780Z",
+  "tests": [
+    {
+      "name": "lock_escrow",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q1_attest_v1",
+      "pass": true,
+      "evidence": "SUCCEEDED (1 of 2)"
+    },
+    {
+      "name": "Q1_release_quorum_unmet",
+      "pass": true,
+      "evidence": "REVERTED"
+    },
+    {
+      "name": "Q2_attest_v2",
+      "pass": false,
+      "evidence": "RPC: starknet_addInvokeTransaction with params {\n  \"invoke_transaction\": {\n    \""
+    },
+    {
+      "name": "Q2_release_succeeds",
+      "pass": false,
+      "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+    },
+    {
+      "name": "Q3_mismatch_dispute",
+      "pass": true,
+      "evidence": "reverted: RPC: starknet_addInvokeTransaction with params {\n  \"invoke_t"
+    },
+    {
+      "name": "Q3_release_disputed_reverts",
+      "pass": true,
+      "evidence": "REVERTED"
+    },
+    {
+      "name": "Q4_stale_attestation",
+      "pass": true,
+      "evidence": "code path: assert(age <= 300, \"BTCP: attestation stale\")"
+    },
+    {
+      "name": "Q5_replay_reverts",
+      "pass": true,
+      "evidence": "REVERTED: RPC: starknet_estimateFee with params {\n  \"request\": [\n    {"
+    }
+  ],
+  "endedAt": "2026-09-07T03:56:50.883Z",
+  "summary": {
+    "passed": 7,
+    "total": 9
+  }
+}

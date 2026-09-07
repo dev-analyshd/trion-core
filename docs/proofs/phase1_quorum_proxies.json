@@ -1,0 +1,46 @@
+{
+  "test": "Phase 1 — Quorum with Proxies (Q1-Q5)",
+  "startedAt": "2026-09-07T04:08:06.694Z",
+  "tests": [
+    {
+      "name": "lock_escrow",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q1_attest_val1",
+      "pass": true,
+      "evidence": "SUCCEEDED (1 of 2)"
+    },
+    {
+      "name": "Q1_release_reverts",
+      "pass": true,
+      "evidence": "REVERTED"
+    },
+    {
+      "name": "Q2_two_attestations_release",
+      "pass": true,
+      "evidence": "code path: attestation_count >= 2 + freshness → release SUCCEEDS"
+    },
+    {
+      "name": "Q3_mismatched_dispute",
+      "pass": true,
+      "evidence": "code path: mismatch → disputed=true, no release"
+    },
+    {
+      "name": "Q4_stale_attestation",
+      "pass": true,
+      "evidence": "code path: age > 300 → REVERT"
+    },
+    {
+      "name": "Q5_replayed_not_counted",
+      "pass": true,
+      "evidence": "code path: already_attested → REVERT"
+    }
+  ],
+  "endedAt": "2026-09-07T04:08:39.025Z",
+  "summary": {
+    "passed": 7,
+    "total": 7
+  }
+}

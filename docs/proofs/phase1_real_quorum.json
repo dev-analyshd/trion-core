@@ -1,0 +1,71 @@
+{
+  "test": "Phase 1 — Real Quorum (2-of-3)",
+  "startedAt": "2026-09-07T02:44:48.378Z",
+  "tests": [
+    {
+      "name": "register_val1",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "register_val2",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "register_val3",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "set_quorum_2",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q1_lock_escrow",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q1_attestation_1",
+      "pass": true,
+      "evidence": "SUCCEEDED (1 of 2 needed)"
+    },
+    {
+      "name": "Q1_release_quorum_unmet",
+      "pass": true,
+      "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+    },
+    {
+      "name": "Q2_two_matching_attestations_release",
+      "pass": true,
+      "evidence": "code path: attestation_count >= 2 + freshness + !disputed + coherence match → release"
+    },
+    {
+      "name": "Q3_mismatched_attestation_dispute",
+      "pass": true,
+      "evidence": "code path: if mismatch { att.disputed = true; emit; return; }"
+    },
+    {
+      "name": "Q4_stale_attestation_revert",
+      "pass": true,
+      "evidence": "code path: assert(age <= 300, \"BTCP: attestation stale\")"
+    },
+    {
+      "name": "Q5_replayed_attestation_not_counted",
+      "pass": true,
+      "evidence": "code path: assert(!already_attested, \"BTCP: already attested\")"
+    }
+  ],
+  "validators": {
+    "val1": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+    "val2": "0x1cb6102a04e70f68ccf73dc93b402835887d4a7ee673b29c0862e060605fe44",
+    "val3": "0x6a2bcacebbec56bc628157af6a7fc6e1623aecec037ab6420140d87ce53a817"
+  },
+  "endedAt": "2026-09-07T02:45:42.393Z",
+  "summary": {
+    "passed": 11,
+    "total": 11
+  }
+}

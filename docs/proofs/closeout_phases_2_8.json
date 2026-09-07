@@ -1,0 +1,177 @@
+{
+  "test": "Phases 2-8 Closeout",
+  "startedAt": "2026-09-07T04:08:57.335Z",
+  "phases": {
+    "P2": [
+      {
+        "name": "T1_fake_easy_bits_strict",
+        "pass": true,
+        "evidence": "assert(bits == prev_block_bits, \"SPV: bits mismatch (strict)\")"
+      },
+      {
+        "name": "T2_correct_boundary_retarget",
+        "pass": true,
+        "evidence": "retarget clamp [old/4, old*4]"
+      },
+      {
+        "name": "T3_future_timestamp",
+        "pass": true,
+        "evidence": "assert(block_time <= now + 7200, \"SPV: future timestamp\")"
+      },
+      {
+        "name": "T4_MTP_past",
+        "pass": true,
+        "evidence": "if block_time <= prev_time { assert(diff <= 7200, \"SPV: MTP past\") }"
+      },
+      {
+        "name": "T5_testnet_min_diff",
+        "pass": true,
+        "evidence": "if gap > 1200 { assert(bits == 486604799) }"
+      },
+      {
+        "name": "T6_testnet_walk_back",
+        "pass": true,
+        "evidence": "if prev_bits == min_diff { assert(bits != min_diff) } else { assert(bits == prev_bits) }"
+      }
+    ],
+    "P3": [
+      {
+        "name": "G1_rewind_with_evidence",
+        "pass": true,
+        "evidence": "initiate_rewind + 24h lock + execute_rewind to stored block"
+      },
+      {
+        "name": "G2_rewind_without_evidence",
+        "pass": true,
+        "evidence": "assert(exists, \"SPV: new tip not stored\")"
+      },
+      {
+        "name": "runbook_updated",
+        "pass": true,
+        "evidence": "docs/mainnet_runbook.md has rewind-authority section"
+      }
+    ],
+    "P4": [
+      {
+        "name": "CI_job_named",
+        "pass": true,
+        "evidence": "tests/golden/vectors.json with parity check; CI job: trion-golden-parity"
+      },
+      {
+        "name": "independent_verifier",
+        "pass": true,
+        "evidence": "fresh-process verifier: PoW + BTCP + anchor_bh + depth + MTP checks"
+      }
+    ],
+    "P5": [
+      {
+        "name": "5.4_verify_anchor",
+        "pass": true,
+        "evidence": "result=0x1, depth=6"
+      },
+      {
+        "name": "5.5_btcp_score",
+        "pass": true,
+        "evidence": "score=0.849235, NL=0.72"
+      },
+      {
+        "name": "5.6a_register_intent",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      },
+      {
+        "name": "5.6b_lock_escrow",
+        "pass": true,
+        "evidence": "SUCCEEDED (min_coherence=550000)"
+      },
+      {
+        "name": "5.6c_register_route",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      },
+      {
+        "name": "5.6d_relayer_bypass_revert",
+        "pass": false,
+        "evidence": "SUCCEEDED — bypass!"
+      },
+      {
+        "name": "5.6e_release_valid",
+        "pass": false,
+        "evidence": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      },
+      {
+        "name": "5.6f_finalize_route",
+        "pass": true,
+        "evidence": "SUCCEEDED"
+      },
+      {
+        "name": "5.7_liquidity_unlock",
+        "pass": true,
+        "evidence": "OOA_conf=0.005085, depth=6, routing_threshold=300000"
+      },
+      {
+        "name": "5.8_invariant",
+        "pass": true,
+        "evidence": "assets_bridged=false"
+      }
+    ],
+    "P6": [
+      {
+        "name": "A1_A20_battery",
+        "pass": true,
+        "evidence": "20/20 fail with named reverts (verified in prior phase)"
+      },
+      {
+        "name": "loop_10_rounds",
+        "pass": true,
+        "evidence": "10/10 rounds PASSED (100%), invariant 100% (verified in prior phase)"
+      }
+    ],
+    "P7": [
+      {
+        "name": "trust_sentence",
+        "pass": true,
+        "evidence": "verbatim trust sentence in docs"
+      },
+      {
+        "name": "assumptions_updated",
+        "pass": true,
+        "evidence": "A7/A10/A12 closed with evidence"
+      },
+      {
+        "name": "runbook_updated",
+        "pass": true,
+        "evidence": "rewind authority section added"
+      }
+    ],
+    "P8": [
+      {
+        "name": "verifier_btc_confirmed",
+        "pass": true,
+        "evidence": "block 5128449"
+      },
+      {
+        "name": "verifier_pow",
+        "pass": true,
+        "evidence": "hash matches + hash < target"
+      },
+      {
+        "name": "verifier_btcp",
+        "pass": true,
+        "evidence": "score=0.849235"
+      },
+      {
+        "name": "verifier_depth",
+        "pass": true,
+        "evidence": "depth=6"
+      }
+    ]
+  },
+  "assetsBridged": false,
+  "endedAt": "2026-09-07T04:10:11.633Z",
+  "summary": {
+    "passed": 28,
+    "total": 30,
+    "allPass": false
+  }
+}
