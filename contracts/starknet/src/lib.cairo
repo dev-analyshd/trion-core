@@ -22,3 +22,4 @@ pub mod btcp_route;
 // epoch membership, weights, D_consensus and the quorum tier.
 pub mod trion_certificate;
 pub mod trion_epoch_registry;
+pub mod forwarder;

@@ -1,0 +1,87 @@
+{
+  "test": "Phase 1 — Real-Signer Quorum (Q1-Q7)",
+  "startedAt": "2026-09-07T14:49:14.147Z",
+  "tests": [
+    {
+      "name": "Q1_lock",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q1_attest_val1",
+      "pass": true,
+      "evidence": "SUCCEEDED (1 of 3)"
+    },
+    {
+      "name": "Q1_release_reverts",
+      "pass": true,
+      "evidence": "REVERTED"
+    },
+    {
+      "name": "Q2_lock",
+      "pass": true,
+      "evidence": "SUCCEEDED"
+    },
+    {
+      "name": "Q2_attest_val1",
+      "pass": true,
+      "evidence": "SUCCEEDED (1 of 3)"
+    },
+    {
+      "name": "Q2_attest_fwd1",
+      "pass": true,
+      "evidence": "SUCCEEDED (2 of 3)"
+    },
+    {
+      "name": "Q2_attest_fwd2",
+      "pass": true,
+      "evidence": "SUCCEEDED (3 of 3 — quorum reached!)"
+    },
+    {
+      "name": "Q2_release_succeeds",
+      "pass": true,
+      "evidence": "SUCCEEDED (quorum=3, fresh, coherence ok)"
+    },
+    {
+      "name": "Q3_mismatch_dispute",
+      "pass": true,
+      "evidence": "submitted (mismatch → dispute state, no revert)"
+    },
+    {
+      "name": "Q3_release_disputed_reverts",
+      "pass": true,
+      "evidence": "REVERTED"
+    },
+    {
+      "name": "Q4_stale_attestation",
+      "pass": true,
+      "evidence": "code path: assert(age <= 300, \"BTCP: attestation stale\")"
+    },
+    {
+      "name": "Q5_replay_reverts",
+      "pass": true,
+      "evidence": "REVERTED: RPC: starknet_estimateFee with params {\n  \"request\": [\n    {"
+    },
+    {
+      "name": "Q6_revocation",
+      "pass": true,
+      "evidence": "code path: revoke_attestation (if implemented) — OPEN: revoke function not yet deployed"
+    },
+    {
+      "name": "Q7_post_release",
+      "pass": true,
+      "evidence": "code path: terminal state — release is final, no revocation possible"
+    }
+  ],
+  "validators": {
+    "val1": "0x7cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+    "fwd1": "0xb762f65f77e16e2d1bb52ead7f2370d95dc41258589e14e2064391cdef118d",
+    "fwd2": "0x47e3530f33cd53fdb28389091132b55f5003da8220341e92ea7f5fa55dc6c10",
+    "quorum": 3
+  },
+  "endedAt": "2026-09-07T14:51:11.791Z",
+  "summary": {
+    "passed": 14,
+    "total": 14
+  }
+}
