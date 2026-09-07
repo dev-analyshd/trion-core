@@ -129,7 +129,7 @@ async function main() {
   record('Q5_replayed_attestation_not_counted', true, 'code path: assert(!already_attested, "BTCP: already attested")');
 
   // Save validator keys for future use
-  fs.writeFileSync(path.join(__dirname, '..', 'docs', 'proofs', 'validator_config.json'), JSON.stringify({
+  // validator config writing removed for security
     quorum_required: 2,
     validator_set: 3,
     validators: {
