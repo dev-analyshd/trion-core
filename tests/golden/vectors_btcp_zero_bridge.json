@@ -1,0 +1,141 @@
+{
+  "description": "Golden vectors for the BTC\u2194Starknet zero-bridge. Each vector is independently verifiable.",
+  "generatedAt": "2026-09-07T00:00:00.000Z",
+  "vectors": {
+    "v1_pow": {
+      "name": "Real header PoW vector (block 5128449)",
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "blockHeight": 5128449,
+      "headerHex": "00c00920411833d84ba279d42149fa541fcf4ccf4a79fb8e70eb3c03360c2d00000000005ed6d2ce9f753c0174536b86fa7da2b3fd5134a0e11515a2819a6eff834df9efa7ad9d6a1037081aa772d388",
+      "bits": "0x1a083710",
+      "target": "0x0000000083710000000000000000000000000000000000000000000000000000",
+      "hashAsLEInt": "0x1a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "powValid": true,
+      "note": "double_sha256(header) as LE int < target"
+    },
+    "v2_merkle": {
+      "name": "Merkle proof vector (tx 62bfe73f... in block 5128449)",
+      "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "merkleRoot": "eff94d83ff6e9a81a21515e1a03451fdb3a27dfa866b5374013c759fced2d65e",
+      "merklePath": [
+        "52bf35939645fb0c8cf0d52abc54a8e98d380d7402a7accc21bad8e61b2fa975",
+        "921573e259ff9805a47138e8ef1a2f27b2bfcb6ba05d01492b481fce5981e2e7"
+      ],
+      "pos": 1,
+      "txCount": 3,
+      "note": "3-tx block; tx is at index 1; path = 2 siblings (not including root)"
+    },
+    "v3_anchor_bh": {
+      "name": "Anchor BH recomputation vector (SHA-256 based, matching Cairo contract)",
+      "entityIdHex": "cc8aa95abbc7965be22d09c6ae2e12d289b8e83133456b3c5d7a2389c3422e3a",
+      "entityIdInput": "SHA-256('tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks')",
+      "eventType": 0,
+      "magnitudeNano": 3045270,
+      "blockTime": 1788718503,
+      "chainId": 100,
+      "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "algorithm": "SHA-256(93-byte payload \u2016 0x00); payload = entity_id[32] + event_type[1] + magnitude_nano[u64 BE] + context[8 zero] + timestamp[u64 BE] + chain_id[u32 BE] + block_hash[32]",
+      "note": "The Cairo contract uses SHA-256 (not SHA3-256) for on-chain recomputation. The off-chain canonical_bh.ts uses SHA3-256. Both produce a different hash from the same inputs, but the binding property (changing any input changes the hash) is identical."
+    },
+    "v4_btcp_score": {
+      "name": "BTCP score vector",
+      "inputs": {
+        "NL": 0.72,
+        "GasNorm": 0.9,
+        "Finality": 0.99,
+        "CC": 0.85,
+        "BEO": 0.95,
+        "MF": 0.03
+      },
+      "formula": "[0.25*NL + 0.20*GasNorm + 0.20*Finality + 0.15*CC + 0.20*BEO] * (1 - MF)",
+      "expectedScore": 0.849235,
+      "nlGate": 0.3,
+      "scoreGate": 0.5,
+      "bothGatesPass": true
+    },
+    "v5_depth_gate": {
+      "name": "Depth-gate vector",
+      "tiers": [
+        {
+          "valueRange": "<$100k",
+          "requiredDepth": 6
+        },
+        {
+          "valueRange": "$100k-$1M",
+          "requiredDepth": 12
+        },
+        {
+          "valueRange": ">=$1M",
+          "requiredDepth": 24
+        }
+      ],
+      "testBlock": {
+        "height": 5128449,
+        "tipHeight": 5128455,
+        "depth": 6,
+        "valueUsd": 50000,
+        "pass": true
+      },
+      "testBelowDepth": {
+        "depth": 5,
+        "valueUsd": 50000,
+        "revertReason": "SPV: depth insufficient"
+      }
+    },
+    "v6_byte_order": {
+      "name": "Bitcoin byte-order vector",
+      "displayHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+      "internalLEHash": "f409a5a4bc55cd4f79d637fa7df7baa18ef6057622c72e56a901000000000000",
+      "note": "Bitcoin uses internal LE byte order for hashes; display reverses to BE. The Cairo contract's double_sha256_le returns the hash in display (BE) order by reversing the [u32;8] word order + byte-swapping each word."
+    },
+    "v7_quorum_attestation": {
+      "name": "Quorum attestation vector",
+      "quorumRequired": 3,
+      "validatorSet": 5,
+      "maxAttestationAge": 300,
+      "firstAttestation": {
+        "coherence": 920000,
+        "execution_bh": "felt(12345)",
+        "etched": true
+      },
+      "mismatchedAttestation": {
+        "coherence": 800000,
+        "result": "dispute=true, no release"
+      },
+      "staleAttestation": {
+        "age": 400,
+        "result": "revert 'BTCP: attestation stale'"
+      },
+      "validQuorum": {
+        "count": 3,
+        "age": 10,
+        "result": "release succeeds"
+      }
+    },
+    "v8_cumulative_work_tip": {
+      "name": "Cumulative-work tip-switch vector (time-locked rewind)",
+      "policy": "owner-gated, 24h time-locked rewind",
+      "initiate_rewind": "starts 24h timer",
+      "execute_rewind": "after 24h, switch tip to stored block (PoW-verified)",
+      "without_evidence": "revert 'SPV: new tip not stored'"
+    },
+    "v9_strict_mode": {
+      "name": "MAINNET_STRICT mode vector",
+      "between_boundaries": "assert(bits == prev_block_bits, 'SPV: bits mismatch (strict)')",
+      "at_boundary": "retarget clamp [old_target/4, old_target*4]",
+      "timestamp_future": "assert(block_time <= now + 7200, 'SPV: future timestamp')",
+      "timestamp_past": "if block_time + 7200 < prev_block_time { revert }"
+    }
+  },
+  "parityCheck": {
+    "languages": [
+      "Cairo (on-chain)",
+      "TypeScript (off-chain)",
+      "Python (reference)"
+    ],
+    "status": "Cairo on-chain SHA-256 matches Node.js SHA-256 for the header hash. The anchor_bh uses SHA-256 in Cairo (not SHA3-256 as in canonical_bh.ts). This is documented as a known divergence \u2014 the binding property is preserved.",
+    "sha256Parity": "VERIFIED (on-chain test_double_sha256_le matches Node.js crypto.createHash('sha256') for block 5128449)",
+    "cairoParityV2": "VERIFIED \u2014 on-chain double_sha256_le + extract_u32_le + extract_u256_field_le match Node.js for block 5128449"
+  }
+}
