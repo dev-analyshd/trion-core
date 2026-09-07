@@ -1,12 +1,12 @@
 {
   "test": "Full Closeout with Alchemy RPCs",
-  "startedAt": "2026-09-07T13:33:49.673Z",
+  "startedAt": "2026-09-07T15:16:38.867Z",
   "phases": {
     "P1": [
       {
         "name": "1_btc_lock_verified",
         "pass": true,
-        "evidence": "confirmations=125, value=304527 sats"
+        "evidence": "confirmations=137, value=304527 sats"
       },
       {
         "name": "1_btc_block_hash",
@@ -209,7 +209,7 @@
       {
         "name": "verifier_btc_confirmed",
         "pass": true,
-        "evidence": "confirmations=125"
+        "evidence": "confirmations=137"
       },
       {
         "name": "verifier_pow",
@@ -236,7 +236,7 @@
     ]
   },
   "assetsBridged": false,
-  "endedAt": "2026-09-07T13:34:55.811Z",
+  "endedAt": "2026-09-07T15:17:47.493Z",
   "summary": {
     "passed": 42,
     "total": 42,
