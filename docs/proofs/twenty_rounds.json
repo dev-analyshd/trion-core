@@ -1,0 +1,571 @@
+{
+  "startedAt": "2026-09-08T04:10:23.776Z",
+  "rounds": [
+    {
+      "round": 1,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "startedAt": "2026-09-08T04:10:25.734Z",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x18eccc2d97473b7ad8574bb3b0c224485b52fcb24f3805b2ed6c21caa08fa89"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x5496ffa4bf0f63778511e02a2567d9cc84a30abcb5bf902914f976b082fa598"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x6b5b30a8880ef4f01a5c52d9b7f0224a80743cc6df0ac4d387cf6998993c470"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x7e99996640ec4b034cf09d4c230b854d743a289693dac9296dd463be5b04cf7"
+      },
+      "lock2": {
+        "status": "SUCCEEDED",
+        "hash": "0x3cdca710af6d17b5ba52582aaa94a7f75f89b2d6e1b5c582aebffcf775f95ef"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x7c1303e29f52daeb9eb3ebb1860aef03f7e1f3b68e3e436b425bb7c7a27fffe"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVOKE\",\n      \"sender_a"
+      },
+      "endedAt": "2026-09-08T04:18:36.330Z"
+    },
+    {
+      "round": 2,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x6c86c90af383a7f0229013c105597f9cd37ef8f693c17d8f902ab51a9aefa86"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0xa4b880f4b761c292c53b94145fc0d771f68dd47493fbe29bb58924b9efdba1"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x5075c909d9a53f0a0485b5c91e32455ca77e95da877153de428024b24e8a55b"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x3a8bd69f9f242652896d51aa487dee0fac2d9d419e6f6e1e3a47bba041ddfba"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x450e79997439b65d8f5c4c1fd7e3ffabc1cb680efcc1fd7616672271894d089"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 2,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x638c5f676c738574d6aed936220bd21fa11209a12c1eace3021cc01dd5a1fd4"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x73cbb94ca64e6cdb7c4ad326cc2b2f7acd57ce8e57fc70396619820465238e5"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x7b33d800b3c9b9569f8d92e439bea5dad7613faf72a7843559b62b1a3978bd1"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x4e840110fff9511dc48fce3854ffffea59ff1f8eb90f94491c7ff30e9595951"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x40f008f2e0ce662fbe38167ca37f63dac13a59e3cc98b2588d06493c83b3c23"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 4,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0xbcc0c6c5bf2f2addc38abd6ad30143903e703186196c94c0cf98aaca93ad97"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x697301a420f204ea348865867f73db01a62c4a828dcb07d152581eee9f0b0cc"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x1042aa1bf2f1edf221ed838fd77b5e2ce25d1ae2618da4dbea1c4c3aa51af06"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x10331851b8ad4ba7a328682ba17f287bc1ecbd963c4df4310187c99b1e3c367"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x617a0fac54377056dcd026f3a78502b9b97881f225b1afa00cfb76b3a644845"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 5,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x86ae89544f06c397705eca30c7bc5718db3b99a6dfb205aa7873b083ac896f"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x280e5c252845ba6444aade7c7740704283188dfd9ef91edf668fa8fe8258b94"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x839f96e6a9b649eea7b5c0385bd41d725608c48cf74f6352694f1a971e6cd2"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x5dd6c93ab43b6b3cde1ca178751f767a19393e2887fe0503ae8bfa5ba4de121"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x1c3fb05cf36b2b966b4a49ddaf81df869a07ba760f59e92b1f068ce04ea0093"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 6,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x1629473cdaf38c39163257427565b248f7f0b7b01c949d5d86a191ffa7a9a38"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x334837241ef27cba16a462a63449fa9766d50d12d22fb8a6dd726a898500b62"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x52a82a75b603758790a66f17f701ee9c1e1b9a1bf817a62d14365086276102d"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x36141a7f9bce6ba0791cc69038368f0d418b3a0073f7ba922543f5e0ccf1e32"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x6e3d343134a36c2db66f0c50325df060bc54972246ddcd9a0bf78b4d1031d2c"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 7,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0xb59aeaaa19be73e5fa74f272eac2fbc3f7525f7d765fa86378d603589d8414"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x3032aa5d16f69c885f84b385563bd19f4660da341a625be6fd7cab7a121c9e2"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x6731217eae38bf8892fb2ff5dff8ea386a544f0f22711e78d4160366526ab75"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x15ccb938f30dbd2e326c4f96ef93e3af739ce6a9e44d6fc2d9a9c36a45510c1"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x24ca887d9e2cdb3a50d0912bd02217e08ccbfa6bb12fdcda917ef2c757c26ec"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 8,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x2a7ac160e00c1daca8cac0809762b83ea74396bd9065e1f42ece9395767056"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x339a5c5531cbd25de32e4fdc3f81e5e18cbf6e6d854230f8534c237efbb3dd"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x31685ad8d7e4fc2404a649fc5134a24c40d6eecb7b1d084ffee4c791d0e2ca8"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x34fa954fbd32fd395189f52f85e46c5fc1622bbc9d42619ae95e27875bd3f23"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x66281bb042b22ed0b2774e4550d63158426bc58e00a431d245dddecd31691e4"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 9,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x2ae75389b6393dd56b5951e49c3d122e5fb7dbcd09ee4c6ef0ddda06ef439f"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x40a0b16b93a2785c726c2cd91196cc7de274222519154b7e703ebd16822a58f"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x5744a0776cd2e80218fa33462fc8c885933c7ba43440a38c7d09f1ba9206153"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x3c4102b0c661a9603e7a074cb1169264feb0c84e9591f672e6adc0aef4305d0"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x192e3dd8f6641c109f404f1776b93e3ff087d6f2678eb4786b5cff7704df50e"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 10,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x3ab4614d2f566ac7f65c2eab7ce62d1e55b81f0ba5f63e294ddf4baee315c3a"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x5e0372b36cda23974b353177323f2edbf90d4ae8041fddc16eac3c6cbfa3b5b"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x7f2672f4b28fecdbdf182547e4346671dbbd574b077cc770811d43bc4bfd49"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x20c059e564ef002db42a2eaddd012225d3f52d05ecec9fbbe4410c91477f84d"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x594eafd54daf6b9343ecdce1a7f82e5e894b0d9024284f742e3b2b4e25cefa3"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 11,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x76f0b159a672ffb4af33f4ffe653a1148f0b9de9fcbc5ae31d2dd825d67f84c"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x19ab43045427bb50768604396c36261fcd7789b5c0517e92137529bbf98ffd9"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x2327c77d8c9ef449e232bd4ffeecdbe70fee17d8d569aaa5af9cdc85666344d"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x557d3a6f80c0cb6f01629a6692895fe2b949f4ee43b242cf48fc59e697145f9"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x4ed909b2eda9c45d6e772b58823ffabe6e535bf0f8a61a6807f28f264cd5427"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 12,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x432ca997e6edcfa5c3ba65eade3358d385284c38b7f7723f1d58bd54e5d7f7"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x5c36efc094cca83ad1791cfe6cc9777f8140beb207779f96d2e17d3e256b6d7"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x24c010ae8302ae5780ab3ef91a9125fc65aad8ae848c2f0b472f5dd97837aff"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x9d563dd8bf0054a6168e5ed6cfe5a5f330fd31b37e92de1998e0973cca64b1"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x2ef0fcede2e313a1ee72d69623e21335712b241b2b4cfe873fcca638f9f350d"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 13,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x1186f7f9a703bab28925273223573c91df90df89d3bb28b8f4647f160b30ac2"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x43cb1a17f21d6dfbbc2d6f74d1569710017b8d59ecd1e77ad2a77bcd404bf3"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x589afd3a583fb430c0f5df46543ae03027fdf83bff03f33611f7ce5ca315be2"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x4ec939558bcae6d4dbb23e14cb4742ed4abd10ebe36e2a99b3992d754127968"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x7e14d6471e9b0edba01bb880c96ec9bb73475eef4f2adc0c3b77d1b038ea5f7"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 14,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x6560b1d200b2c9f53b6d548cbac5f73a4d4d2fe6c80e7abc7bbf19ceed6ab54"
+      },
+      "attest": {
+        "status": "ERR",
+        "reason": "RPC: starknet_addInvokeTransaction with params {\n  \"invoke_transaction\": {\n    \""
+      },
+      "release": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x33d8e556d1916d1a6435fe80dc9b43ea726788e11c4369ecec17d0e0b2e47f2"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x1ad99bbb1a95a3e47a42fe0b7ff4c943667ef07680247cff2eca937e82604d9"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 15,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x458ec786c1f6372eadd16879ff85184afed549451b86212ef1638fd0257bd27"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x13b4e5875e9a7049fbf009d032ebef69106291df26da5341e813c0ad97ea9bd"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0xb97e10f7e3dbf5218c72f16ac949bebb2dedf817f36ada8b4fbda7cc8f4fe5"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0xff5fb7c2afc6cacc96831292714d7b08a81d6eb020ae7c951e6234e8af6d51"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x55b6bdd69f4ca2f6f11655a68452f7d851c70ed0c3b84728565df1de38e782b"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 16,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x1f0610d0ce66875b7ecb12721b348a90e579324939bb74cbfd689ea66f5388"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x6954243655871a289f2bce4dc2c90acc5de7b1cc184e57dcfdf80bea355dab4"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x5212f0f58a85a12de3f96cec2b13295c101d4d2ea73f65c3bd61c6da4bf1ef7"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x7195206b0c94dd4b6e4d51027be49dd9af4bee88958703a4bdc77da28ecfd0d"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x4e8073b0b115488f2f8fd81efb272d62403a6bee7064339033f13e944f8cfb4"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 17,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x4ea479ae416d9239cd25cce405e0ae6fdac3d0ed474b5e32464ff946e2fe2af"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x65583a55cc40da85edfded127d728ca96d900cbc2824f01c436731f1511bb7f"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x3a0c078b7a4073d2dec7fc696e88258c6c8ec9215b24547dd6699d9319815e9"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x52bde936e2c35948bce1be2bc6e36a8d7a55b12ee46883ed3910470fe6f7eb"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x75ebc0077c015b055d0d53c59e5d304bb4ba70dab52eff3d21a51a5c032f902"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 18,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x3c39095faf40b73e89d3c0b8cf769b7f5d7395064def74909b49beede0a6855"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x40027ab0c2520a0213b5b4e31b9370e16b95e3a1b458b9175d6c4608fef3efa"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x32c26fb90ed8561e84e0aa59ca0b1ad239e5535120903d8e73cf1aa069abdde"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x2449406927fceae81579528c7d69315c10d9ed4209fe34769a836106316fe13"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x682687a26ec87d9a9728f10ba4f8f956f387006172cd246fe468e4ff78e2938"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 19,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x4a8897f63b0690ffbe92074a30b7ce7261cb5f4977fe3b38052ebb5301562c8"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0xa5b43e1c991b6fda299944a568455f3e8ef7e77caaf0289c195eac699ffcce"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x6715bbf3eea9cb9a48f2e155bd744d180fc8ef0f92fbb385efa85b4571127de"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x39121ce96ec6259ccd12c3e36520ac0bc34957eed86dc30528565db1e9f8117"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x1c816716fd3bd9a8b764c5ccdfbd0cf9a64ec2afaea9d5c47c122401cf2cb8f"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    },
+    {
+      "round": 20,
+      "btcTxid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+      "lock": {
+        "status": "SUCCEEDED",
+        "hash": "0x756ae8b9b4f109ec8098247028260f1df58d586518d3c2cffcaaa7dc12ea34"
+      },
+      "attest": {
+        "status": "SUCCEEDED",
+        "hash": "0x2b09336af648683585654420fe337a18c275781d304d1b5e3e09050d64d9d62"
+      },
+      "release": {
+        "status": "SUCCEEDED",
+        "hash": "0x59f7710bc95968ff0215006ee3567675812cb5957565e640d7876c7d892133d"
+      },
+      "btcpScore": {
+        "status": "SUCCEEDED",
+        "hash": "0x21cf3a356944ed96ce848ac56a30802a796317e9a32ee6638288c9216bd8d34"
+      },
+      "verifyEscrowAnchor": {
+        "status": "SUCCEEDED",
+        "hash": "0x6cd33339632337e0548f1882acca1521376e40ea314c6535c63539af6c6d956"
+      },
+      "reportSpendProof": {
+        "status": "ERR",
+        "reason": "RPC: starknet_estimateFee with params {\n  \"request\": [\n    {\n      \"type\": \"INVO"
+      }
+    }
+  ]
+}
