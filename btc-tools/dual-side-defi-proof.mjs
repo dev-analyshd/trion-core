@@ -17,8 +17,8 @@ import { RpcProvider, Account, CallData, uint256 } from 'starknet';
 import { makeExec } from './lib_patched_exec.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const STARKNET_RPC = process.env.STARKNET_RPC || 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<REDACTED>';
-const BITCOIN_RPC = process.env.BITCOIN_RPC || 'https://bitcoin-testnet.g.alchemy.com/v2/<REDACTED>';
+const STARKNET_RPC = process.env.STARKNET_RPC || 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<YOUR_API_KEY>';
+const BITCOIN_RPC = process.env.BITCOIN_RPC || 'https://bitcoin-testnet.g.alchemy.com/v2/<YOUR_API_KEY>';
 const SPV = '0x6510323e3ddd0c91d7c021200ec62c91605f528d1873eface5c0dc6258616c1';
 const ESC = '0x4cc964a674bc4ff6f7e12462bdae963c7f42ef257af380e1604e71b01eb68dd';
 const SN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'chains', 'starknet', 'starknet_sepolia_deployments.json'), 'utf-8'));

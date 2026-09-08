@@ -27,7 +27,7 @@ import { RpcProvider, Account, CallData } from 'starknet';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const STARKNET_RPC = 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<REDACTED>';
+const STARKNET_RPC = 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<YOUR_API_KEY>';
 const BTC_CHAIN_ID = 100;
 const STARKNET_CHAIN_ID = 1300;
 const ROUNDS_PER_DIRECTION = 5;
@@ -45,7 +45,7 @@ let snAccount = new Account({ provider: snProvider, address: snAccountAddr, sign
 
 // Retry wrapper with exponential backoff for transient RPC errors (estimateFee, rate-limit, nonce)
 const RPC_ENDPOINTS = [
-  'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<REDACTED>',
+  'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<YOUR_API_KEY>',
   'https://free-rpc.nethermind.io/sepolia-juno',
   'https://rpc.pathfinder.equilibrium.co/sepolia',
 ];

@@ -20,7 +20,7 @@ const config = JSON.parse(fs.readFileSync('/tmp/forwarder_config.json', 'utf-8')
 const ESC = config.escrow;
 const FWD1 = config.fwd1;
 const FWD2 = config.fwd2;
-const provider = new RpcProvider({ nodeUrl: 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<REDACTED>' });
+const provider = new RpcProvider({ nodeUrl: 'https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<YOUR_API_KEY>' });
 const mainAccount = new Account({ provider, address: process.env.STARKNET_ACCOUNT_ADDRESS, signer: process.env.STARKNET_PRIVATE_KEY });
 const { exec, resetNonce } = await makeExec(provider, mainAccount, process.env.STARKNET_ACCOUNT_ADDRESS);
 
