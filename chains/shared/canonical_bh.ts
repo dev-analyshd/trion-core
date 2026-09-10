@@ -4,7 +4,7 @@
  *
  * 93-byte payload layout (big-endian):
  *   [0..32]  entity_id_bytes  — 32 bytes (SHA3-256 of normalised address)
- *   [32]     event_type       — 1 byte (0-19 per whitepaper §2)
+ *   [32]     event_type       — 1 byte (0-19 per specification §2)
  *   [33..41] magnitude_nano   — u64 BE: magnitude_norm × 1e9
  *   [41..49] context          — u64 BE: venue/layer flags
  *   [49..57] timestamp_secs   — u64 BE
@@ -18,7 +18,7 @@
 
 import { createHash } from "node:crypto";
 
-// ── EventType byte encoding (whitepaper L0.1 §2 — 20 canonical types) ────────
+// ── EventType byte encoding (specification L0.1 §2 — 20 canonical types) ────────
 // CANONICAL order — must match src/core/behavioral_hash.py (EventType enum)
 // and rust-indexers/crates/trion-common/src/hash_dna.rs (event_type_name).
 // A single cross-language test vector is defined in bh_schema_v1.json.
@@ -97,7 +97,7 @@ export function entityIdFromAddr(addr: string): string {
 }
 
 /**
- * Compute the canonical BH per whitepaper L0.1 §3.1.
+ * Compute the canonical BH per specification L0.1 §3.1.
  * Output is identical to Rust `canonical_bh()` for the same inputs.
  */
 export function canonicalBH(

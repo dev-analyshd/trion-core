@@ -2,7 +2,7 @@
 TRION Protocol — L3.4a ANIMA SEC EDGAR Fetcher
 ===============================================
 
-Whitepaper §3 (ANIMA plane) specifies "1,000+ concurrent crawlers" and
+specification §3 (ANIMA plane) specifies "1,000+ concurrent crawlers" and
 explicitly mentions SEC EDGAR as a primary data source for off-chain
 behavioral signals.
 

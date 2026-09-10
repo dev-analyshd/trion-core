@@ -120,8 +120,8 @@ def preflight(chain_name: str, key_env: str) -> bool:
         check(f"contract source present: {c}",
               os.path.exists(os.path.join(sol_dir, c)))
 
-    # ── 5. Bootstrap gate (whitepaper §14.1) — informational ───────────────
-    print(f"\n  ── Whitepaper bootstrap gate (§14.1) — informational ──")
+    # ── 5. Bootstrap gate (specification §14.1) — informational ───────────────
+    print(f"\n  ── specification bootstrap gate (§14.1) — informational ──")
     try:
         with urllib.request.urlopen("http://127.0.0.1:5000/api/v1/bootstrap/status",
                                     timeout=4) as r:

@@ -8,7 +8,7 @@ Dynamic threshold:
 Θ(t) = Θ_min + (Θ_max - Θ_min) × V(t)
 Θ_min = 0.55, Θ_max = 0.92
 
-WEIGHT PROFILES (per whitepaper L5.2):
+WEIGHT PROFILES (per specification L5.2):
 DEFAULT_BALANCED:    α=0.25, β=0.30, γ=0.25, δ=0.10, ε=0.10
 NEW_TOKEN (<90d):    α=0.40, β=0.15, γ=0.30, δ=0.10, ε=0.05
 MATURE_PROTOCOL:     α=0.20, β=0.30, γ=0.20, δ=0.15, ε=0.15
@@ -37,7 +37,7 @@ class AssetProfile(str, Enum):
     GOVERNANCE   = "GOVERNANCE_TOKEN"
     BRIDGE       = "BRIDGE_ASSET"
     WRAPPED      = "WRAPPED_ASSET"
-    # ── Named weight profiles (whitepaper L5.2 — query-mode variants) ─────────
+    # ── Named weight profiles (specification L5.2 — query-mode variants) ─────────
     SPEED        = "SPEED"         # Maximize physical signal velocity
     INTELLIGENCE = "INTELLIGENCE"  # Maximize ANIMA + mental inference
     CERTAINTY    = "CERTAINTY"     # Maximize spiritual (consensus) weight

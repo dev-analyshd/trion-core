@@ -165,7 +165,7 @@ async fn main() -> Result<()> {
         let last = state.last_block();
         let from = if last == 0 { latest.saturating_sub(1) } else { last + 1 };
 
-        for height in from..=latest.min(from + 1) {
+        for height in from..=latest {
             let body = format!("{{\"_block_heights\":[{}]}}", height);
             let txs = match koios_post(&client, &base, "/tx_info", &body).await {
                 Ok(v) => v.as_array().cloned().unwrap_or_default(),

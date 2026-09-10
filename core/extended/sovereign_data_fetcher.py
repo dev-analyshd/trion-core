@@ -6,7 +6,7 @@ Real fetchers for the macroeconomic / governance data sources that feed the
 Economic Stability (E) and Institutional Integrity (I) components of the
 Sovereign Behavioral Assessment (SBA) — see ``sovereign_behavioral.py``.
 
-Wires the public APIs used in the whitepaper's F11 falsification condition:
+Wires the public APIs used in the specification's F11 falsification condition:
 
   - IMF DataMapper API        → GDP real growth (NGDP_RPCH)
   - World Bank API            → GDP current USD (NY.GDP.MKTP.CD)

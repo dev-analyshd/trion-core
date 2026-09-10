@@ -1,5 +1,5 @@
 """
-BTCP_ESCROW.vy — whitepaper §14.3 compliance test (real EVM execution).
+BTCP_ESCROW.vy — specification §14.3 compliance test (real EVM execution).
 
 Deploys a MockTRIONOracle + BTCP_ESCROW (both compiled with vyper 0.3.10)
 on py-evm via eth-tester and exercises the full two-state lifecycle:
@@ -468,7 +468,7 @@ def main():
     if FAILED:
         print("FAILED:", FAILED)
         sys.exit(1)
-    print("BTCP_ESCROW.vy complies with whitepaper §14.3 semantics on real EVM execution.")
+    print("BTCP_ESCROW.vy complies with specification §14.3 semantics on real EVM execution.")
     print("M-03 CLOSED: release quorum derives from the oracle's live validator state; "
           "interface mismatch fails closed.")
 

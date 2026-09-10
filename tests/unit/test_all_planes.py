@@ -1,6 +1,6 @@
 """
 TRION Protocol — Complete Test Suite
-Tests every whitepaper claim that is implemented.
+Tests every specification claim that is implemented.
 """
 import pytest
 import sys
@@ -844,7 +844,7 @@ def test_living_security_product():
 
 def test_brt_phases_match_spec():
     from core.extended.biological_rhythm import compute_brt, RHYTHM_PERIODS
-    # Whitepaper L6.2: phase = (t mod T) / T for all four rhythms
+    # specification L6.2: phase = (t mod T) / T for all four rhythms
     for t in (0, 43200, 86400, 2551442, 31557600):
         brt = compute_brt(t)
         assert abs(brt.circadian_phase - (t % 86400) / 86400) < 1e-12
@@ -871,7 +871,7 @@ def test_brt_gas_correlation_significant():
 
 def test_brt_gas_correlation_noise_falls_back_to_anima():
     from core.extended.biological_rhythm import compute_brt_gas_correlation
-    # Whitepaper rule: p > 0.05 → fall back to ANIMA forecast
+    # specification rule: p > 0.05 → fall back to ANIMA forecast
     rng = np.random.RandomState(42)
     ts = rng.uniform(0, 86400 * 30, 500)
     gas = rng.normal(50.0, 10.0, 500)  # pure noise, no rhythm link

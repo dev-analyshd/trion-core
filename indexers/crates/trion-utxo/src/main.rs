@@ -38,6 +38,8 @@ const CHAINS: &[UtxoChain] = &[
     UtxoChain { label: "LTC_MAINNET",  chain_id: 21004, api_base: "https://api.blockcypher.com/v1/ltc/main" },
     UtxoChain { label: "DOGE_MAINNET", chain_id: 21003, api_base: "https://api.blockcypher.com/v1/doge/main" },
     UtxoChain { label: "DASH_MAINNET", chain_id: 21005, api_base: "https://api.blockcypher.com/v1/dash/main" },
+    UtxoChain { label: "BCH_MAINNET", chain_id: 21001, api_base: "https://api.blockcypher.com/v1/bch/main" },
+    UtxoChain { label: "BTC_TESTNET4", chain_id: 21006, api_base: "https://api.blockcypher.com/v1/btc/test3" },
 ];
 
 async fn bc_get(client: &reqwest::Client, url: &str) -> Result<Value> {
@@ -61,32 +63,99 @@ async fn get_block_full(client: &reqwest::Client, base: &str, block_hash: &str) 
 }
 
 fn extract_features(block_detail: &Value) -> [f64; 9] {
-    let txs = match block_detail["txids"].as_array().or_else(|| block_detail["txs"].as_array()) {
-        Some(a) => a.clone(), None => return [0.5f64; 9],
+    let txs = match block_detail["txs"].as_array() {
+        Some(a) => a.clone(),
+        None => {
+            // Fallback to txids if full tx data not available
+            let txids = match block_detail["txids"].as_array() {
+                Some(a) => a.clone(), None => return [0.5f64; 9],
+            };
+            if txids.is_empty() { return [0.5f64; 9]; }
+            let n_tx = txids.len() as f64;
+            let total = block_detail["total"].as_u64().unwrap_or(0) as f64;
+            let fees = block_detail["fees"].as_u64().unwrap_or(0) as f64;
+            let size = block_detail["size"].as_u64().unwrap_or(1) as f64;
+            let fee_per_byte = fees / size.max(1.0);
+            let avg_value = total / n_tx.max(1.0);
+            let f1 = histogram_entropy(&[n_tx], 4);
+            let f2 = histogram_entropy(&[n_tx], 4);
+            let f3 = histogram_entropy(&[fee_per_byte], 4);
+            let f4 = histogram_entropy(&[avg_value], 8);
+            let f5 = 0.5f64; // script types unknown without full tx data
+            let f6 = 0.0f64; // OP_RETURN density unknown
+            let f7 = histogram_entropy(&[size as f64], 8);
+            let f8 = ratio_entropy(1, 2);
+            let f9 = 0.5f64;
+            return [f1, f2, f3, f4, f5, f6, f7, f8, f9];
+        }
     };
     if txs.is_empty() { return [0.5f64; 9]; }
 
-    let n_tx    = txs.len() as f64;
-    let total   = block_detail["total"].as_u64().unwrap_or(0) as f64;
-    let fees    = block_detail["fees"].as_u64().unwrap_or(0) as f64;
-    let size    = block_detail["size"].as_u64().unwrap_or(1) as f64;
+    let n_tx = txs.len() as f64;
+    let total = block_detail["total"].as_u64().unwrap_or(0) as f64;
+    let fees = block_detail["fees"].as_u64().unwrap_or(0) as f64;
+    let size = block_detail["size"].as_u64().unwrap_or(1) as f64;
+
+    // Per-tx real data for entropy features
+    let mut input_counts: Vec<f64> = Vec::new();
+    let mut output_counts: Vec<f64> = Vec::new();
+    let mut output_values: Vec<f64> = Vec::new();
+    let mut script_types: Vec<String> = Vec::new();
+    let mut op_return_count = 0u64;
+    let mut tx_sizes: Vec<f64> = Vec::new();
+    let mut locktime_present = 0u64;
+    let mut consolidation_count = 0u64;
+
+    for tx in &txs {
+        let inputs = tx["inputs"].as_array().map(|a| a.len()).unwrap_or(0);
+        let outputs = tx["outputs"].as_array().map(|a| a.len()).unwrap_or(0);
+        input_counts.push(inputs as f64);
+        output_counts.push(outputs as f64);
+
+        // Output values + script types
+        if let Some(outs) = tx["outputs"].as_array() {
+            for out in outs {
+                let val = out["value"].as_u64().unwrap_or(0);
+                output_values.push(val as f64);
+                let script = out["script"].as_str().unwrap_or("");
+                let addr_type = out["addresses"].as_array()
+                    .and_then(|a| a.first())
+                    .and_then(|a| a.as_str())
+                    .unwrap_or("");
+                if script.starts_with("76a914") { script_types.push("p2pkh".into()); }
+                else if script.starts_with("a914") { script_types.push("p2sh".into()); }
+                else if script.starts_with("0014") { script_types.push("p2wpkh".into()); }
+                else if script.starts_with("0020") { script_types.push("p2wsh".into()); }
+                else if script.starts_with("5120") { script_types.push("p2tr".into()); }
+                else if script.starts_with("6a") { op_return_count += 1; script_types.push("op_return".into()); }
+                else { script_types.push("other".into()); }
+                let _ = addr_type;
+            }
+        }
+
+        // TX size
+        let tx_size = tx["size"].as_u64().unwrap_or(0);
+        tx_sizes.push(tx_size as f64);
+
+        // Locktime
+        let locktime = tx["locktime"].as_u64().unwrap_or(0);
+        if locktime > 0 { locktime_present += 1; }
+
+        // Consolidation: more inputs than outputs
+        if inputs > outputs { consolidation_count += 1; }
+    }
 
     let fee_per_byte = fees / size.max(1.0);
-    let avg_value    = total / n_tx.max(1.0);
 
-    let fee_bins:  Vec<f64> = vec![fee_per_byte];
-    let val_bins:  Vec<f64> = vec![avg_value];
-    let size_bins: Vec<f64> = vec![size];
-
-    let f1 = histogram_entropy(&[n_tx / 10.0, n_tx / 5.0], 4);
-    let f2 = histogram_entropy(&[n_tx / 8.0, n_tx / 4.0], 4);
-    let f3 = histogram_entropy(&fee_bins, 4);
-    let f4 = histogram_entropy(&val_bins, 8);
-    let f5 = 0.7f64;
-    let f6 = 0.05f64;
-    let f7 = histogram_entropy(&size_bins, 8);
-    let f8 = ratio_entropy(1, 2);
-    let f9 = 0.5f64;
+    let f1 = histogram_entropy(&input_counts, 8);
+    let f2 = histogram_entropy(&output_counts, 8);
+    let f3 = histogram_entropy(&[fee_per_byte], 8);
+    let f4 = histogram_entropy(&output_values, 16);
+    let f5 = freq_entropy(&script_types);
+    let f6 = op_return_count as f64 / n_tx.max(1.0);
+    let f7 = histogram_entropy(&tx_sizes, 8);
+    let f8 = ratio_entropy(locktime_present, n_tx as u64);
+    let f9 = ratio_entropy(consolidation_count, n_tx as u64);
 
     [f1, f2, f3, f4, f5, f6, f7, f8, f9]
 }

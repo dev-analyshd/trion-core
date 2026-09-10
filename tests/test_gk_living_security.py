@@ -1,7 +1,7 @@
 """
 TRION Living Security — Genomic Key (GK) Full Proof Test
 =========================================================
-Whitepaper §6.2 / L5.1 — 8-Component DNA-Mimetic Architecture
+specification §6.2 / L5.1 — 8-Component DNA-Mimetic Architecture
 
 Proves that Genomic Key authentication is a structural replacement for
 passwords and static security tokens, exercising all 8 components.

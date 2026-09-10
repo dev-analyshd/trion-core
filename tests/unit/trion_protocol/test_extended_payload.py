@@ -1,8 +1,8 @@
 """
 Phase 3 — Extended BH Payload v2 Tests
 =======================================
-Verifies the optional 176-byte extended BH payload (whitepaper "Protocol
-Whitepaper" format) with:
+Verifies the optional 176-byte extended BH payload (specification "Protocol
+specification" format) with:
   - DOMAIN_SEPARATOR ("TRON" magic) for cross-protocol domain separation
   - counterparty_id for bilateral behavioral tracking
   - protocol_id for protocol-level identification

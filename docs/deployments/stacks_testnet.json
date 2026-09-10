@@ -1,0 +1,15 @@
+{
+  "network": "stacks-testnet",
+  "chainId": 2147483648,
+  "api": "https://api.testnet.hiro.so",
+  "deployedAt": "2026-09-10T08:39:44.979Z",
+  "deployer": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z",
+  "contracts": [
+    {
+      "name": "btcspvverifier",
+      "status": "failed",
+      "error": "timeout",
+      "txId": "0x7af41c0b23703e439bd7f05909ca435a81237c5b5dfc44791382bef14ddb18ab"
+    }
+  ]
+}

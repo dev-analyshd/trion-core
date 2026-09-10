@@ -68,8 +68,8 @@ class TestSignalTypesCanonicalView:
         j = r.get_json()
         assert j["total"] == 29
         assert len(j["signal_types"]) == 29
-        assert j["canonical_per_whitepaper"] == 19
-        assert j["extended_beyond_whitepaper"] == 10
+        assert j["canonical_per_specification"] == 19
+        assert j["extended_beyond_specification"] == 10
         assert j["closed_set_distinct"] == 27
         assert j["dual_family"] == ["BTCP_ROUTE", "CONSENSUS_ADAPTATION"]
         assert "dual_family_note" in j and "27" in j["dual_family_note"]
@@ -80,8 +80,8 @@ class TestSignalTypesCanonicalView:
         base = [t for t in rows if t["family"] == "base_19"]
         family = [t for t in rows if t["family"] == "btcp_family_10"]
         assert len(base) == 19 and len(family) == 10
-        # Base rows carry the §11 (ruling) spelling as whitepaper_name.
-        assert {t["whitepaper_name"] for t in base} == set(signal_registry()["ruling_base_19"])
+        # Base rows carry the §11 (ruling) spelling as specification_name.
+        assert {t["specification_name"] for t in base} == set(signal_registry()["ruling_base_19"])
         # Family rows cite the BTCP master spec — §2's six + §14.2's four.
         assert [t["source"] for t in family[:6]] == ["BTCP master spec §2"] * 6
         assert [t["source"] for t in family[6:]] == ["BTCP master spec §14.2"] * 4
@@ -119,19 +119,19 @@ class TestSignalTypesCanonicalView:
     def test_backward_compat_response_shape(self, cold_client):
         """The pre-29 keys all survive (dynamic frontend consumers)."""
         j = cold_client.get("/api/v1/signal/types").get_json()
-        for key in ("total", "canonical_per_whitepaper", "extended_beyond_whitepaper",
-                    "signal_types", "name_drift", "parity_note", "whitepaper",
+        for key in ("total", "canonical_per_specification", "extended_beyond_specification",
+                    "signal_types", "name_drift", "parity_note", "specification",
                     "timestamp"):
             assert key in j, key
         # Every row keeps the fields the Signal Type Catalog table renders.
         for t in j["signal_types"]:
-            for key in ("id", "name", "whitepaper_name", "source", "description"):
+            for key in ("id", "name", "specification_name", "source", "description"):
                 assert key in t, (t["name"], key)
         # The §11 ↔ internal drift translation is unchanged.
         assert j["name_drift"] == [
-            {"whitepaper_name": "REGULATORY_BEHAVIORAL",
+            {"specification_name": "REGULATORY_BEHAVIORAL",
              "internal_name": "REGULATORY_BHV", "id": 16},
-            {"whitepaper_name": "MEV_BEHAVIORAL",
+            {"specification_name": "MEV_BEHAVIORAL",
              "internal_name": "MEV_EXPOSURE", "id": 14},
         ]
 

@@ -2,8 +2,8 @@
 
 **Every formula. Every invariant. Every language. One reference.**
 
-This document is the canonical mapping of whitepaper mathematics to implementation.
-Each formula lists: the whitepaper source, the exact form, the implementing module(s),
+This document is the canonical mapping of specification mathematics to implementation.
+Each formula lists: the specification source, the exact form, the implementing module(s),
 and the verification test that enforces it.
 
 ---
@@ -285,7 +285,7 @@ Bootstrap: SEC_boot = e^(−0.0001·D)·0.85 + (1−e^(−0.0001·D))·SEC_livin
 
 | Implementation | `core/spiritual/living_security/pqc_layer.py` (kyber-py/dilithium-py/pyspx) |
 |---|---|
-| Verification | master suite + test_whitepaper_gaps (PQC L3 = 0.90 exact) |
+| Verification | master suite + test_specification_gaps (PQC L3 = 0.90 exact) |
 
 ---
 

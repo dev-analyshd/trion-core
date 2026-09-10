@@ -7,8 +7,8 @@
 //! All 19 required Rust modules are provided, coexisting with the Python
 //! reference implementation without breaking it.
 //!
-//! GAP-RUST additions (whitepaper-mandated gaps closed):
-//! - `master_equation` — L5 five-plane C(t), Θ(t), T(t) (whitepaper §3;
+//! GAP-RUST additions (specification-mandated gaps closed):
+//! - `master_equation` — L5 five-plane C(t), Θ(t), T(t) (specification §3;
 //!   port of core/master/coherence.py + master_equation.py; wasm parity)
 //! - `signal_emitter` — §14.2 signal emissions (24-type registry + the
 //!   [C≥Θ] master-equation gate; port of core/master/signal_factory.py ids)
@@ -44,7 +44,7 @@ pub mod adapters;
 // Re-exports for convenient access
 pub use types::*;
 
-// GAP-RUST: five-plane master equation (whitepaper §3)
+// GAP-RUST: five-plane master equation (specification §3)
 pub use master_equation::{coherence, emits, master_equation, threshold};
 pub use master_equation::{
     AssetProfile, FivePlanes, PlaneWeights, MAX_MOAT_EXPONENT, THETA_MAX, THETA_MIN,

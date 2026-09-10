@@ -114,7 +114,7 @@ class BIBLOutput:
     cross_chain_health: Optional[dict]
 
 
-# ── Gas Preference Profile (Whitepaper Section 18) ────────────────────────────
+# ── Gas Preference Profile (specification Section 18) ────────────────────────────
 
 class TimingIntelligenceMode(str, Enum):
     USE_BRT    = "USE_BRT"       # use Biological Rhythm Timer phase
@@ -152,7 +152,7 @@ class MemoryDeference(str, Enum):
 @dataclass
 class GasPreferenceProfile:
     """
-    Whitepaper Section 18 — User-configurable BIBL routing preferences.
+    specification Section 18 — User-configurable BIBL routing preferences.
     Allows users to tune the speed-cost-safety tradeoff for cross-chain execution.
 
     Defaults: balanced profile (speed=5, ANIMA intelligence, auto-route, detect MEV,

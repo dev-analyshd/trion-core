@@ -512,11 +512,11 @@ if __name__ == "__main__":
     print("PHASE 0.1 PASS — Hash_DNA formal specification implemented")
 
 
-# ── Dual-Strand Hash_DNA (Whitepaper L0.1 spec) ──────────────────────────────
+# ── Dual-Strand Hash_DNA (specification L0.1 spec) ──────────────────────────────
 
 def hash_dna_dual_strand(input_bytes: bytes) -> Dict[str, bytes]:
     """
-    L0.1 — Hash_DNA dual-strand output per whitepaper specification.
+    L0.1 — Hash_DNA dual-strand output per specification specification.
 
     sense     = SHA3-256(input || 0x00)
     antisense = SHA3-256(input || 0xFF) XOR complement_transform(sense)
@@ -584,7 +584,7 @@ def verify_dual_strand(sense: bytes, antisense: bytes) -> bool:
 def hash_dna_64(input_bytes: bytes) -> bytes:
     """
     Convenience: returns 64-byte dual-strand Hash_DNA (sense + antisense).
-    This is the whitepaper-canonical output for components that need full
+    This is the specification-canonical output for components that need full
     dual-strand verification (Genomic Key, BIRP, BTCP route proofs).
     """
     return hash_dna_dual_strand(input_bytes)['full']

@@ -103,7 +103,7 @@
   },
   "notes": [
     "The 93-byte payload is the CANONICAL production schema (v1).",
-    "The expanded whitepaper payload (with DOMAIN_SEPARATOR, counterparty_id, protocol_id, etc.) is a future v2 extension.",
+    "The expanded specification payload (with DOMAIN_SEPARATOR, counterparty_id, protocol_id, etc.) is a future v2 extension.",
     "All implementations (Python, Rust, TypeScript, Solidity) MUST use the 93-byte v1 schema.",
     "Cross-language consistency is verified by bh_cross_language_vector.py test.",
     "Version field is implicit in the schema_version of this file."

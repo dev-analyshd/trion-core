@@ -3,7 +3,7 @@ TRION Protocol — Comprehensive Stress Test
 Exercises BH generation, all 5 planes, FAISS indexing, Living Security,
 and Oracle API signal emission under concurrent load.
 
-Whitepaper targets from Part 10 Build Guide:
+specification targets from Part 10 Build Guide:
 - BH collision resistance proved
 - EVM indexer verified 1M+ events
 - Feature extraction <10ms per asset per block
@@ -107,7 +107,7 @@ def test_bh_tamper_detection():
 
 
 def test_bh_performance():
-    """BH generation must be <10ms per event (whitepaper Part 10 L1 target)."""
+    """BH generation must be <10ms per event (specification Part 10 L1 target)."""
     n = 1000
     start = time.perf_counter()
     for i in range(n):
@@ -331,11 +331,11 @@ def test_concurrent_lss():
 
 def test_phi_healthy_vs_manipulated():
     """
-    Whitepaper Part 10 L1 target:
+    specification Part 10 L1 target:
     Φ(healthy_asset) > 0.70 on test set.
     Φ_adj(manipulated_asset) < 0.30.
 
-    Nine behavioral entropy dimensions (whitepaper L1.1):
+    Nine behavioral entropy dimensions (specification L1.1):
     f1=volume, f2=counterparty, f3=gas_price, f4=contract_interaction,
     f5=value_flow, f6=sender, f7=erc20_defi, f8=gas_usage, f9=mev_pattern
     Φ = (1/9) · Σ H(f_i) — normalized to [0,1].
@@ -391,7 +391,7 @@ def test_api_endpoints_live():
         "/api/v1/emergence/uniswap",
         "/api/v1/living_index/uniswap",
         "/api/v1/phases",
-        "/api/v1/whitepaper/coverage",
+        "/api/v1/specification/coverage",
         "/api/v1/bh/stats",
         "/api/v1/moat",
     ]
@@ -412,7 +412,7 @@ def test_api_endpoints_live():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# T7: Information conservation (whitepaper L9.2)
+# T7: Information conservation (specification L9.2)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_information_conservation():

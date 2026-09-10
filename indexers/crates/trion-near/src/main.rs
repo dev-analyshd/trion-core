@@ -113,7 +113,7 @@ fn extract_features(block: &Value, chunks: &[Value]) -> [f64; 9] {
 /// The rolling session-max tracker was removed: it made the BH of a fixed
 /// transaction depend on what else the process had observed (canonical
 /// violation — the same tx must always produce the same BH).
-fn near_magnitude(yocto: u64) -> f64 {
+fn near_magnitude(yocto: u128) -> f64 {
     let human = yocto as f64 / 1e24;
     if human <= 0.0 { return 0.0; }
     ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)
@@ -129,7 +129,7 @@ fn classify_near_event(actions: &[Value]) -> u8 {
         match kind.as_str() {
             "Transfer"       => return 0,   // TRANSFER
             "DeployContract" => return 11,  // DEPLOY
-            // Canonical event types per whitepaper L0.1 §2:
+            // Canonical event types per specification L0.1 §2:
             //   3=STAKE, 4=UNSTAKE, 7=BORROW, 8=REPAY, 9=LIQUIDATE
             "Stake"          => return 3,   // STAKE
             "FunctionCall"   => {
@@ -180,10 +180,10 @@ async fn near_bh_batch(client: &reqwest::Client, rpc: &str, chunk_headers: &[Val
             let receiver = tx["receiver_id"].as_str().unwrap_or("").to_string();
             let actions: Vec<Value> = tx["actions"].as_array().cloned().unwrap_or_default();
             let et = classify_near_event(&actions);
-            let yocto = actions.iter()
+            let yocto: u128 = actions.iter()
                 .flat_map(|a| [
-                    a["FunctionCall"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
-                    a["Transfer"]["deposit"].as_str().and_then(|s| s.parse::<u64>().ok()),
+                    a["FunctionCall"]["deposit"].as_str().and_then(|s| s.parse::<u128>().ok()),
+                    a["Transfer"]["deposit"].as_str().and_then(|s| s.parse::<u128>().ok()),
                 ])
                 .flatten()
                 .max()

@@ -10,7 +10,7 @@ Covers every system component:
   6. BH Ledger — 137k+ per-tx BHs, 13 chains
   7. Attack Library — 32 simulations
   8. Chain Coverage — every indexed chain confirmed in BH ledger
-  9. Whitepaper — 65 formulas verified
+  9. specification — 65 formulas verified
  10. Relayer — publish receipts on active chains
 
 USAGE (standalone script — requires running Oracle API on port 5000):
@@ -598,9 +598,9 @@ else:
          "FAISS HTTP unavailable — confirmed via vector DB")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# §10  GOVERNANCE & WHITEPAPER COMPLETENESS
+# §10  GOVERNANCE & SPECIFICATION COMPLETENESS
 # ══════════════════════════════════════════════════════════════════════════════
-section("§10  Governance, Whitepaper Formulas & Advanced Components")
+section("§10  Governance, specification Formulas & Advanced Components")
 
 WP_ENDPOINTS = [
     ("/api/v1/governance/awa",             "AWA State Machine (4 conditions)"),
@@ -618,16 +618,16 @@ WP_ENDPOINTS = [
     ("/api/v1/genesis/ETH",               "Genesis conf = 1-e^(-0.001·D)"),
     ("/api/v1/token/distribution",         "TRION Token L10.7 1B supply"),
     ("/api/v1/phases",                     "10-Phase Roadmap L10.8"),
-    ("/api/v1/whitepaper/coverage",        "65 formulas L0–L10"),
+    ("/api/v1/specification/coverage",        "65 formulas L0–L10"),
 ]
 for ep, desc in WP_ENDPOINTS:
     s, d = get(f"{BASE_FLASK}{ep}")
     check(f"{ep.split('/')[-1][:22]:22s} — {desc[:40]}", s == 200)
 
-s, d = get(f"{BASE_FLASK}/api/v1/whitepaper/coverage")
+s, d = get(f"{BASE_FLASK}/api/v1/specification/coverage")
 formula_count = d.get("total_formulas", d.get("formula_count", 0))
 wp_cov = d.get("coverage_pct", d.get("coverage", 0))
-check(f"Whitepaper: {formula_count} formulas implemented",
+check(f"specification: {formula_count} formulas implemented",
       int(formula_count or 0) >= 65, f"coverage={wp_cov}%")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -793,7 +793,7 @@ print(f"  {INFO} BH Ledger:   {total_bh:,} per-tx BHs | 137k canonical dual-stra
 print(f"  {INFO} Chains:      13 EVM chains live in BH ledger (35 total indexed)")
 print(f"  {INFO} Attack DB:   {attack_count} attacks | ${total_prot/1e9:.1f}B protected | CRISPR={crispr_cnt}")
 print(f"  {INFO} 0G Mainnet:  block={block:,} (chain 16661) | ExecutionGate active")
-print(f"  {INFO} Whitepaper:  {formula_count} formulas L0–L10 (100% coverage)")
+print(f"  {INFO} specification:  {formula_count} formulas L0–L10 (100% coverage)")
 print(f"  {INFO} FAISS:       {vec_count:,} 128-dim behavioral vectors")
 print()
 

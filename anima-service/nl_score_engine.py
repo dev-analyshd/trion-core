@@ -1,7 +1,7 @@
 """
 nl_score_engine.py — Natural Liquidity Score Engine (legacy entry point)
 
-CANONICAL FORMULA (whitepaper L7.1):
+CANONICAL FORMULA (specification L7.1):
     NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)
 
     LD = Liquidity Depth Entropy      — Shannon entropy of depth across price ticks
@@ -14,7 +14,7 @@ CANONICAL FORMULA (whitepaper L7.1):
 
 This module previously implemented a non-spec two-factor approximation
 (LC × LS × volatility_damper) that omitted LD and LO entirely. It has been
-corrected to delegate to the canonical, whitepaper-verified implementation in
+corrected to delegate to the canonical, specification-verified implementation in
 src.planes.physical.nl_engine, which is the same engine the live FAISS
 service (anima-service/faiss_service.py) uses. Kept as a thin compatibility layer
 for any callers (e.g. akashic/liquidity_ocean.py) still importing this path.
@@ -78,7 +78,7 @@ def compute_nl_score(
     lp_count: Optional[int] = None,
 ) -> dict:
     """
-    NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)   [whitepaper L7.1]
+    NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)   [specification L7.1]
 
     Backward-compatible wrapper: accepts the legacy call shape (pool depths +
     correlations + depth/price history) and maps it onto the four spec

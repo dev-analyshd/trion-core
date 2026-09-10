@@ -170,7 +170,7 @@ def build_trajectory_signal(
     """
     Build a TRAJECTORY signal payload.
     Contains full probability distribution — NOT a point prediction.
-    reflexivity_flag included per whitepaper spec.
+    reflexivity_flag included per specification spec.
     """
     return {
         "signal_type":              "TRAJECTORY",

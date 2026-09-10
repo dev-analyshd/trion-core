@@ -1,7 +1,7 @@
 --- Page 1 ---
 # BTCP — BEHAVIORAL TRANSACTION CONTINUITY PROTOCOL
 ## Complete Implementation Specification & Codebase Gap Analysis
-### Merged from: BTCP Master Spec · Water Principle Improvements · TRION Whitepaper
+### Merged from: BTCP Master Spec · Water Principle Improvements · TRION specification
 **Author:** Hudu Yusuf (Analys) | TRION Protocol
 **Date:** April 2026 | **License:** CC0
 **Repo:** github.com/dev-analyshd/TRION-Protocol
@@ -141,7 +141,7 @@ history)
 - AttackSimulator: `0xc4b9F5668EA620F773517964270a4607DD66E9F8`
 ---
 #### ❌ MISSING — Required for BTCP
-The following components are specified in the whitepaper and Water Principle documents but **do
+The following components are specified in the specification and Water Principle documents but **do
 not exist in the codebase**. This section is the primary output of the codebase gap analysis.
 ```
 CONTRACTS (Vyper/Solidity) — MISSING:

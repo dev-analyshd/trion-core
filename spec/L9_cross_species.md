@@ -1,6 +1,6 @@
 # TRION Protocol -- L9 Cross-Species Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 11 (Cross-Species Liquidity and the
+> **Reference:** TRION specification, Section 11 (Cross-Species Liquidity and the
 > TRION Information Conservation Law). L9 governs interoperability across
 > heterogeneous chains and species of value.
 

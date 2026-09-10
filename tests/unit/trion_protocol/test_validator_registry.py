@@ -2,7 +2,7 @@
 Phase 6 — Validator Registry tests
 ==================================
 Verifies the ValidatorRegistry that tracks registered validators and
-enforces the whitepaper §4 launch threshold (100 validators across
+enforces the specification §4 launch threshold (100 validators across
 4 continents).
 """
 import os

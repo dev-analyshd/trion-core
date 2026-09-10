@@ -20,7 +20,7 @@ XSL ∈ [0, 1]
   0.40–0.70  BRIDGE_LIQUIDITY — partial cross-species function
   < 0.40  SPECIES_ISOLATED — entity confined to single behavioral niche
 
-Biological analogy (whitepaper L9.1):
+Biological analogy (specification L9.1):
   In ecological systems, keystone species provide liquidity that benefits
   many other species. XSL measures the DeFi equivalent: entities that
   provide liquidity across protocol and chain "species" boundaries.

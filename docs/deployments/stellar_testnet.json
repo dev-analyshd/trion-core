@@ -1,0 +1,42 @@
+{
+  "network": "stellar-testnet",
+  "deployer": "GBYDMVBXNU7O2VIJBGTSSLBEQLBP4IHA54XFUJAOBDYZGP2BLRTOSE2V",
+  "deployedAt": "2026-09-10T19:31:24.969Z",
+  "contracts": [
+    {
+      "name": "btc-spv-verifier",
+      "txHash": "7a1b6f4e646494cffb220aa12dba9d3030fb7b95046139a4771b5e15f98d0a0b",
+      "status": "deployed",
+      "ledger": 4609015,
+      "contractId": "CB227OHD3EU2LPOJXJE3JM6YHWUGLFFPVMNB52S5YOFG2L37U4ZWU65U"
+    },
+    {
+      "name": "btcp-escrow",
+      "txHash": "60098401c4e31a9472ec58a9a318fb414fc316852b69aa68492ec25cd14d10f2",
+      "status": "deployed",
+      "ledger": 4609016,
+      "contractId": "CDIDK2VXFTZMV7F2RY3YTFIRCOQYKHPJTRMIWVOB5FUPPNAI5AA6ZCJ2"
+    },
+    {
+      "name": "btcp-intent",
+      "txHash": "df8f0a48382c6ae67d4d7bdd39be9fc9497553e58fc2cd156249a1c23cd2e1b7",
+      "status": "deployed",
+      "ledger": 4609017,
+      "contractId": "CCQJJ53GAWJXS6HZYJYY3IO2OA6ACJTMQBLX264NXEB5V432UH5CX45X"
+    },
+    {
+      "name": "btcp-route",
+      "txHash": "ff56ca520daecb70dbd845da0b5bcbc080a8f4dbe3521767989c3b50dae4a6b6",
+      "status": "deployed",
+      "ledger": 4609018,
+      "contractId": "CAXPANIURX7EYYCXGMUMAPKADTTQFB24L4JNU64T3G5LNX5YTD2EAJ74"
+    },
+    {
+      "name": "liquidity-ocean",
+      "txHash": "a2ba1c926064e226a52790519997cb0bc436a1757485769be7d825c59d272ee5",
+      "status": "deployed",
+      "ledger": 4609019,
+      "contractId": "CDCOJTBVMSI3OLTWP2XBWFX5ORC65MUKPZCITSHBSC5UEBI2ZWR4XVIG"
+    }
+  ]
+}

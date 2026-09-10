@@ -37,7 +37,7 @@ go run ./cmd/trion-validator               # mesh + 4-validator TCP consensus se
 
 - **`internal/consensus`** — Tendermint-family BFT ("The Latest Gossip on BFT
   Consensus") with TRION's diversity-weighted effective power `s_j·d_j`
-  (whitepaper L4.1–4.2; the diversity factor reuses `p2p.ComputeDiversityWeight`,
+  (specification L4.1–4.2; the diversity factor reuses `p2p.ComputeDiversityWeight`,
   `d_j = 1 − corr(M_j, M̄)`).
   - `engine.go` — the state machine: propose/prevote/precommit steps,
     lock-on-precommit, valid-round tracking, view-change with per-round

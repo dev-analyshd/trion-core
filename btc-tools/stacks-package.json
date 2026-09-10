@@ -1,0 +1,11 @@
+{
+  "name": "trion-stacks-tools",
+  "version": "1.0.0",
+  "description": "TRION Stacks/Clarity deployment and testing tools",
+  "type": "module",
+  "dependencies": {
+    "@stacks/transactions": "^7.0.0",
+    "@stacks/network": "^7.0.0",
+    "@stacks/encryption": "^7.0.0"
+  }
+}

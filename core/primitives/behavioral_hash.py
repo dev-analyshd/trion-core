@@ -16,7 +16,7 @@ Canonical magnitude (deterministic fixed scale, CANONICAL_BH.md §4):
   amount_human   = raw_native_amount / 10^decimals
   M_norm         = min(1, log10(amount_human + 1) / log10(1001))
   magnitude_nano = trunc(M_norm × 10^9)
-(The WHITEPAPER_V2 log10(USD)/log10(max_90d) form is a display/analysis
+(The SPECIFICATION_V2 log10(USD)/log10(max_90d) form is a display/analysis
 path — returned as `magnitude_normalized_usd` when usd_value is supplied —
 and never enters the canonical payload: a rolling 90-day max would make the
 BH of a fixed tx change over time, violating Akashic immutability.)
@@ -25,7 +25,7 @@ Canonical field normalization (§9): entity_id and block_hash are leniently
 decoded to exactly 32 bytes (left-aligned, truncated, zero-padded, invalid
 nibbles = 0) so the payload is always 93 bytes regardless of input shape.
 
-EventType (whitepaper L0.1 §2 — 20 canonical types):
+EventType (specification L0.1 §2 — 20 canonical types):
   0  TRANSFER         8  REPAY           16 MEV_CAPTURE
   1  SWAP             9  LIQUIDATE       17 FLASH_LOAN
   2  LIQUIDITY       10  BRIDGE          18 AIRDROP
@@ -76,7 +76,7 @@ class EventType(IntEnum):
         return None
 
 
-# Backward-compat name aliases (used by indexers written before whitepaper alignment)
+# Backward-compat name aliases (used by indexers written before specification alignment)
 LIQUIDITY_ADD    = EventType.LIQUIDITY
 LIQUIDITY_REMOVE = EventType.LIQUIDITY
 GOVERNANCE_VOTE  = EventType.GOVERNANCE
@@ -204,12 +204,12 @@ def normalize_magnitude(raw: int, decimals: int, max_90d: int,
                         usd_value: Optional[float] = None,
                         usd_max_90d: Optional[float] = None) -> float:
     """
-    Whitepaper L0.1 §3.2 — log10 magnitude normalization:
+    specification L0.1 §3.2 — log10 magnitude normalization:
       M_norm = log10(USD_value + 1) / log10(max_observed_90d + 1)
 
     Falls back to token-unit linear ratio when USD data unavailable.
     """
-    # Primary path: USD log10 formula (whitepaper-exact)
+    # Primary path: USD log10 formula (specification-exact)
     if usd_value is not None and usd_max_90d is not None and usd_max_90d > 0:
         denom = math.log10(usd_max_90d + 1)
         if denom > 0:
@@ -232,7 +232,7 @@ def compute_behavioral_hash(event: BehavioralEvent,
                             usd_value: Optional[float] = None,
                             usd_max_90d: Optional[float] = None) -> dict:
     """
-    Compute BH(entity, t) per whitepaper L0.1 — CANONICAL 93-byte v1 payload
+    Compute BH(entity, t) per specification L0.1 — CANONICAL 93-byte v1 payload
     (docs/protocol/CANONICAL_BH.md):
 
       entity_id(32) || event_type(1) || magnitude_nano(8) ||
@@ -245,7 +245,7 @@ def compute_behavioral_hash(event: BehavioralEvent,
         `min(1, log10(human+1)/log10(1001))` — identical to the Rust indexers
         and the Python streamer for the same logical event;
       - `magnitude_normalized` in the result is the value actually encoded in
-        the payload. The WHITEPAPER_V2 USD / 90d-window forms remain available
+        the payload. The SPECIFICATION_V2 USD / 90d-window forms remain available
         as an explicit non-canonical display path (`usd_value` given) and are
         returned separately as `magnitude_normalized_usd` — they never enter
         the canonical payload.
@@ -311,7 +311,7 @@ def bh_from_rust_hex(hex_payload: str) -> dict:
     Rust L0 indexers and all Python consumers without any field-translation
     or re-encoding that could produce a divergent hash.
 
-    Canonical layout (whitepaper L0.1 §3.1, big-endian throughout):
+    Canonical layout (specification L0.1 §3.1, big-endian throughout):
         entity_id(32) || event_type(1) || magnitude_norm(8) ||
         context(8)    || timestamp(8)  || chain_id(4)       || block_hash(32)
         ─────────────────────────────────────────────────────────────────────

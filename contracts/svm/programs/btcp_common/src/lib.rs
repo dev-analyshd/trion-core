@@ -236,7 +236,7 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
-    /// Valid status transitions per whitepaper BTCP §4.1
+    /// Valid status transitions per specification BTCP §4.1
     pub fn can_transition_to(&self, next: Self) -> bool {
         match self {
             // PENDING → ROUTING, FAILED, EXPIRED

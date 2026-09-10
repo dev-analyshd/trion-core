@@ -259,7 +259,7 @@ BEO_COOCCURRENCE_THRESHOLD = 3
 # dI_gained = magnitude × entropy; dS_entropy_cost ≈ 0.1 (constant per indexed vector)
 SIGNAL_SELECTION_THETA = 0.5   # signals with gain/cost ratio < θ not indexed
 
-# L0.1 BASE_PRESENCE floor — whitepaper: zero-ETH DeFi/contract/governance transactions
+# L0.1 BASE_PRESENCE floor — specification: zero-ETH DeFi/contract/governance transactions
 # carry genuine behavioral information even with no ETH transferred.
 # BASE_PRESENCE = 0.02 ensures every confirmed on-chain action contributes to depth.
 BASE_PRESENCE = 0.02
@@ -268,11 +268,11 @@ NLIST, M, NBITS  = 100, 32, 8
 NUM_ARCHETYPES   = 64   # K-means target clusters — covers >90% behavioral space
 
 # L2.3 Genesis Confidence — λ for depth-based growth: conf_genesis = 1 - e^(-λ·D)
-# Whitepaper: conf_genesis(0)=0 (zero data, fully archetype) → conf_genesis(∞)=1
+# specification: conf_genesis(0)=0 (zero data, fully archetype) → conf_genesis(∞)=1
 GENESIS_LAMBDA = 0.5   # reaches 0.99 at D ≈ 9.2
 
 # L2.4 Dormancy Decay κ per dormancy type (Resurrection Inference)
-# Whitepaper L2.4: ABANDONED=0.008, HIBERNATION=0.003, MIGRATION=0.000,
+# specification L2.4: ABANDONED=0.008, HIBERNATION=0.003, MIGRATION=0.000,
 #                  REGULATORY_PAUSE=0.001, EXPLOIT_RECOVERY=0.005
 KAPPA = {
     "ABANDONED":         0.008,  # >365 days absent — fast decay, hostile takeover risk
@@ -329,13 +329,13 @@ warm_store: Dict[str, List[dict]] = defaultdict(list)
 
 # L2.7 Genesis confidence locks: entity_id -> bool
 # Set True when MANIPULATION_ALERT fires; conf_genesis stops growing until cleared.
-# Whitepaper L2.7: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
+# specification L2.7: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
 genesis_locks: Dict[str, bool]  = {}
 # Frozen conf_genesis value at lock-engagement time (the actual ceiling while locked)
 genesis_lock_values: Dict[str, float] = {}
 
 # ── L0.1 magnitude_normalized — rolling 90-day max tracker ─────────────────────
-# Whitepaper: magnitude_normalized = log10(USD_value+1) / log10(max_observed_90d+1)
+# specification: magnitude_normalized = log10(USD_value+1) / log10(max_observed_90d+1)
 # Phase 1: using ETH value as USD proxy (no external price feed).
 _mag_window_90d: List[Tuple[float, float]] = []  # (timestamp, raw_eth_value)
 _mag_max_90d: float = 1.0                        # initialised to 1.0 to avoid log10(0)
@@ -383,7 +383,7 @@ async def _get_ts_pool():
     return _ts_pool
 
 # ── L0.2 BEO confidence scoring state ───────────────────────────────────────────
-# Whitepaper L0.2: BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP + w_GX·GX) / Σw
+# specification L0.2: BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP + w_GX·GX) / Σw
 # CF: common funding source, ST: synchronized timing, SC: shared contract,
 # BP: behavioral pattern match, GX: transaction graph co-occurrence
 beo_funding_map: Dict[str, str]         = {}  # address.lower() → funding_source
@@ -415,7 +415,7 @@ component_fitness: Dict[str, dict] = {}
 # L1.1 Phase 2 — Learned Φ(t) feature weights
 # Initially uniform (1/9 each). Updated by _maybe_learn_phi_weights() when
 # enough Akashic depth has accumulated (>= PHI_LEARN_MIN_VECTORS).
-# Whitepaper: weights learned from correlation of f_i with signal accuracy.
+# specification: weights learned from correlation of f_i with signal accuracy.
 phi_weights: List[float] = [1/9] * 9
 PHI_LEARN_MIN_VECTORS = 500    # minimum indexed vectors before Phase 2 activates
 PHI_LEARN_INTERVAL    = 100    # recompute weights every N add_batch calls
@@ -989,7 +989,7 @@ def _maybe_learn_phi_weights():
     """
     L1.1 Phase 2 — Learn Φ(t) feature weights from Akashic history.
 
-    Whitepaper: weights w_i learned from historical correlation of f_i with
+    specification: weights w_i learned from historical correlation of f_i with
     signal accuracy / convergence.  Once PHI_LEARN_MIN_VECTORS are indexed,
     this function queries the block_features table and computes feature-to-
     convergence Pearson correlations, normalising them to positive weights
@@ -1158,7 +1158,7 @@ def _tsdb_write_bh(beo_id: str, record: dict, block_num: int = 0, chain_id: int 
         # are identical to what the Rust indexers and src/core/behavioral_hash.py
         # produce — fixes P2 non-interoperability finding in TRION_AUDIT_REPORT.md.
         # We reconstruct a best-effort 93-byte payload from the available record
-        # fields; missing fields default to zero-bytes per the whitepaper §3.1.
+        # fields; missing fields default to zero-bytes per the specification §3.1.
         block_hash_hex = record.get("block_hash", beo_id)  # fallback: entity id
         sense_hex, antisense_hex = canonical_bh(
             entity_id_hex=beo_id,
@@ -1528,7 +1528,7 @@ _maybe_auto_train_archetypes()
 # pipe-delimited UTF-8 string, which produced a DIFFERENT hash than Rust
 # for the same event — see TRION_AUDIT_REPORT.md finding C1 (now fixed).
 
-# EventType byte encoding — whitepaper L0.1 §2 (20 canonical types), must
+# EventType byte encoding — specification L0.1 §2 (20 canonical types), must
 # stay in exact lockstep with hash_dna.rs::event_type_name().
 EVENT_TYPE_BYTE = {
     "TRANSFER": 0, "SWAP": 1, "LIQUIDITY": 2, "STAKE": 3, "UNSTAKE": 4,
@@ -1562,7 +1562,7 @@ def canonical_bh(entity_id_hex: str, event_type: int, magnitude_norm: float,
                   context: int, timestamp_secs: int, chain_id: int,
                   block_hash_hex: str) -> Tuple[str, str]:
     """
-    L0.1 — whitepaper-exact canonical Behavioral Hash. Byte-identical to
+    L0.1 — specification-exact canonical Behavioral Hash. Byte-identical to
     Rust's canonical_bh() for the same logical inputs.
 
     93-byte payload (all big-endian):
@@ -1651,7 +1651,7 @@ def verify_bh_complementarity(sense_hex: str, antisense_hex: str,
 def update_magnitude_window(raw_eth_value: float, ts: float):
     """
     Maintain rolling 90-day window of ETH values for magnitude_normalized denominator.
-    Whitepaper L0.1: max_observed_90d used as normalization ceiling.
+    specification L0.1: max_observed_90d used as normalization ceiling.
     """
     global _mag_window_90d, _mag_max_90d
     now    = datetime.now(timezone.utc).timestamp()
@@ -1685,7 +1685,7 @@ def _beo_confidence(addr1: str, addr2: str,
                     vec2: Optional[np.ndarray]) -> float:
     """
     L0.2 — BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP + w_GX·GX) / Σweights
-    w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10, w_GX=0.10 (extended from whitepaper L0.2)
+    w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10, w_GX=0.10 (extended from specification L0.2)
 
     CF: Common Funding Source    — 1.0 if both addresses share a tracked funding origin
     ST: Synchronized Timing      — Pearson correlation of inter-tx spacing patterns
@@ -1720,7 +1720,7 @@ def _beo_confidence(addr1: str, addr2: str,
     else:
         st = 0.0
 
-    # SC component: Shared Contract Ownership (whitepaper L0.2 w_SC = 0.25)
+    # SC component: Shared Contract Ownership (specification L0.2 w_SC = 0.25)
     # ACTIVE: beo_deployer_map populated by /beo/deployer endpoint and L0 daemon DEPLOY events.
     # sc = 1.0 when: sibling contracts (same deployer), or one is the deployer of the other.
     d_of_a1 = beo_deployer_map.get(a1)
@@ -2001,7 +2001,7 @@ def train_archetypes() -> dict:
 
 def get_archetype(vector: np.ndarray) -> Tuple[int, float]:
     """
-    L2.2 — Archetype similarity via cosine metric (whitepaper spec):
+    L2.2 — Archetype similarity via cosine metric (specification spec):
       sim(G, A_k) = (G · A_k) / (‖G‖ · ‖A_k‖)
     Returns (archetype_id, cosine_similarity ∈ [-1,1] clamped to [0,1]).
     """
@@ -2024,7 +2024,7 @@ def get_archetype(vector: np.ndarray) -> Tuple[int, float]:
 def genesis_confidence(entity_id: str) -> dict:
     """
     L2.3 — conf_genesis(t) = 1 - e^(-λ · D_asset(t))
-    Whitepaper formula: grows with accumulated Akashic Depth for NEW assets.
+    specification formula: grows with accumulated Akashic Depth for NEW assets.
       conf_genesis(0)  = 0   → fully archetype-dependent, zero direct data
       conf_genesis(∞)  = 1   → fully data-driven, archetype retires
 
@@ -2033,7 +2033,7 @@ def genesis_confidence(entity_id: str) -> dict:
 
     L2.7 override: if genesis_locks[entity_id] is True (MANIPULATION_ALERT active),
     conf_genesis is frozen at its current value — it does NOT grow until the anomaly is resolved.
-    Whitepaper L2.7: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
+    specification L2.7: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
     """
     beo_id = resolve_beo(entity_id)
     depth  = calculate_depth(beo_id)
@@ -2041,7 +2041,7 @@ def genesis_confidence(entity_id: str) -> dict:
     locked = genesis_locks.get(beo_id, False)
 
     # L2.7 enforcement: when locked, return the frozen value stored at lock-time.
-    # This is the actual whitepaper requirement: "stops growing until anomaly resolved".
+    # This is the actual specification requirement: "stops growing until anomaly resolved".
     # The frozen value is the conf_genesis at the moment MANIPULATION_ALERT fired.
     if locked and beo_id in genesis_lock_values:
         conf = genesis_lock_values[beo_id]     # frozen — cannot grow
@@ -2069,7 +2069,7 @@ def dormancy_decay(entity_id: str,
     L2.4 helper — dormancy confidence e^(-κ·T) per dormancy type.
     Used by resurrection_inference() to compute the decay factor.
 
-    KAPPA per whitepaper L2.4 (all five types must be selectable):
+    KAPPA per specification L2.4 (all five types must be selectable):
       ABANDONED=0.008         >365 days silent, no team signing — hostile takeover risk
       HIBERNATION=0.003       30–365 days, team still signing — moderate decay
       MIGRATION=0.000         cross-chain move — zero decay, continuity preserved
@@ -2116,8 +2116,8 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
                            dormancy_type: str = "HIBERNATION") -> dict:
     """
     L2.4 — Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
-    Uses cosine similarity (whitepaper L2.2/L2.4 consistency).
-    Classification outcomes per whitepaper:
+    Uses cosine similarity (specification L2.2/L2.4 consistency).
+    Classification outcomes per specification:
       sim >= 0.80 → GENUINE_CONTINUATION
       sim >= 0.50 → NEW_ENTITY_OLD_SHELL
       sim < 0.50 and low depth  → ZOMBIE
@@ -2152,7 +2152,7 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
     kappa = KAPPA.get(dormancy_type, KAPPA["HIBERNATION"])
     decay = math.exp(-kappa * dormant_days)
 
-    # Classification per whitepaper L2.4 / Part 7.2
+    # Classification per specification L2.4 / Part 7.2
     depth = calculate_depth(entity_id)
     if sim >= SIM_CONTINUATION:
         classification = "GENUINE_CONTINUATION"
@@ -2163,7 +2163,7 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
     else:
         classification = "HOSTILE_TAKEOVER"   # adversarial signature
 
-    # ── Full whitepaper L2.4 formula ──────────────────────────────────────────
+    # ── Full specification L2.4 formula ──────────────────────────────────────────
     # Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
     #
     # w_d: depth weight — higher depth = more confident the resurrection is meaningful
@@ -2231,13 +2231,13 @@ def convergence_score(entity_id: str, query_vector: np.ndarray) -> dict:
     Estimators: Cosine archetype similarity (L2.2), Depth normalised, Genesis confidence, Archetype match.
     ConvergenceScore = 1 - std(estimators)   [higher = more confident truth]
 
-    Whitepaper L2.2 mandates cosine similarity: sim(G, A_k) = (G·A_k)/(‖G‖·‖A_k‖).
-    The legacy L2-distance approximation (1 - dist/100) is NOT whitepaper-compliant and
+    specification L2.2 mandates cosine similarity: sim(G, A_k) = (G·A_k)/(‖G‖·‖A_k‖).
+    The legacy L2-distance approximation (1 - dist/100) is NOT specification-compliant and
     is not used here. Estimator 1 uses centroids cosine similarity (same metric as L2.2).
     """
     estimators = []
 
-    # Estimator 1: Cosine similarity to nearest archetype centroid (L2.2 whitepaper metric)
+    # Estimator 1: Cosine similarity to nearest archetype centroid (L2.2 specification metric)
     # Uses the same get_archetype() cosine computation — consistent with L2.2.
     if centroids is not None and len(centroids) > 0:
         v_norm = np.linalg.norm(query_vector)
@@ -2282,7 +2282,7 @@ def convergence_score(entity_id: str, query_vector: np.ndarray) -> dict:
 def fork_resolution(entity_a: str, entity_b: str,
                     cc_a: Optional[float] = None, cc_b: Optional[float] = None) -> dict:
     """
-    L2.6 — Fork Resolution Protocol (whitepaper L2.6).
+    L2.6 — Fork Resolution Protocol (specification L2.6).
 
     Both forks inherit identical pre-fork Akashic history at fork_block.
 
@@ -2302,7 +2302,7 @@ def fork_resolution(entity_a: str, entity_b: str,
     resolution_method  = "depth_comparison"
 
     if cc_a is not None and cc_b is not None:
-        # Whitepaper L2.6 — holder-continuity based depth inheritance
+        # specification L2.6 — holder-continuity based depth inheritance
         resolution_method = "holder_continuity"
         if cc_a > cc_b + 0.10:           # Fork A clearly dominant
             winner = entity_a
@@ -2382,7 +2382,7 @@ def trajectory_anomaly(entity_id: str, current_vector: np.ndarray) -> dict:
         genesis_lock = False
 
     # L2.7 ENFORCE the lock: persist to genesis_locks so genesis_confidence() obeys it.
-    # Whitepaper: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
+    # specification: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
     # MANIPULATION_ALERT → lock engaged with frozen value; NORMAL → lock lifted.
     beo_id = resolve_beo(entity_id)
     if genesis_lock:
@@ -2515,7 +2515,7 @@ def _register_bh_leaf(bh_id: str, ts: float):
 
 # ── L6.2  Biological Rhythm Timer ─────────────────────────────────────────────
 #
-# Whitepaper BRT(t) — four continuous [0,1] phases:
+# specification BRT(t) — four continuous [0,1] phases:
 #   circadian_phase:  (t mod 86400)   / 86400      (24 h)
 #   ultradian_phase:  (t mod 5400)    / 5400        (90 min — basic rest–activity cycle)
 #   lunar_phase:      (t mod 2551442) / 2551442     (29.5 days synodic)
@@ -2813,8 +2813,8 @@ def get_similarity(entity_id: str):
     """
     Original similarity endpoint — preserved for backward compatibility.
 
-    METRIC NOTE: Returns `mental_m` via cosine archetype similarity (L2.2 whitepaper spec).
-    The prior implementation used L2-distance (1 - dist/100), which is NOT whitepaper-
+    METRIC NOTE: Returns `mental_m` via cosine archetype similarity (L2.2 specification spec).
+    The prior implementation used L2-distance (1 - dist/100), which is NOT specification-
     compliant. This endpoint now delegates to the same cosine path as /api/v1/mental_confidence/.
     """
     beo_id = resolve_beo(entity_id)
@@ -2824,7 +2824,7 @@ def get_similarity(entity_id: str):
 
     records = entity_history.get(beo_id, [])
     if not records:
-        # Whitepaper L3.1 neutral prior: no behavioral history → M(t) is undefined → 0.5
+        # specification L3.1 neutral prior: no behavioral history → M(t) is undefined → 0.5
         return {
             "entity_id":         entity_id,
             "mental_m":          0.5,
@@ -2838,7 +2838,7 @@ def get_similarity(entity_id: str):
 
     query_vec = np.array(records[-1]["vector"], dtype="float32")
 
-    # L2.2 cosine similarity — whitepaper-compliant metric
+    # L2.2 cosine similarity — specification-compliant metric
     arch_id, arch_sim = get_archetype(query_vec)
 
     # k-NN for context (informational, not used for mental_m)
@@ -2878,7 +2878,7 @@ def get_volatility(entity_id: str):
     """
     L5.1 — Behavioral Volatility V(t) ∈ [0,1] for dynamic threshold Θ(t).
 
-    Whitepaper: Θ(t) = Θ_min + (Θ_max − Θ_min) · V(t)
+    specification: Θ(t) = Θ_min + (Θ_max − Θ_min) · V(t)
     V(t) = normalized magnitude variance from recent behavioral records.
 
     Magnitude variance (coefficient of variation) captures genuine behavioral
@@ -2935,7 +2935,7 @@ def get_volatility(entity_id: str):
 def get_mental_confidence(entity_id: str):
     """
     L3.1 — Mental confidence M(t) ∈ [0,1].
-    Whitepaper: M(t) = 1 − (PI_t / PI_baseline)
+    specification: M(t) = 1 − (PI_t / PI_baseline)
 
     PI_t is the within-entity prediction interval width — the standard deviation
     of archetype-similarity scores across the last N behavioral vectors.  High
@@ -2989,9 +2989,9 @@ def get_mental_confidence(entity_id: str):
 
         mental_m = arch_sim * m_pi
     else:
-        # No history — whitepaper L3.1 neutral prior.
+        # No history — specification L3.1 neutral prior.
         # M(t) = 1 − PI_t/PI_baseline.  With zero behavioral records, PI_t is
-        # undefined (no calibration exists).  The whitepaper's genesis inference
+        # undefined (no calibration exists).  The specification's genesis inference
         # (L2.3) substitutes archetype-derived values for missing direct data;
         # until we have a real behavioral vector to match, the neutral prior is
         # M = 0.5 — the midpoint between full confidence and full uncertainty.
@@ -3201,7 +3201,7 @@ async def resolve_fork(payload: ForkPayload):
     """
     L2.6 — Determine canonical branch from two forked entity histories.
     Optionally supply cc_a/cc_b (holder continuity proportions) for full
-    whitepaper-compliant depth inheritance weighting.
+    specification-compliant depth inheritance weighting.
     """
     beo_a = resolve_beo(payload.entity_a)
     beo_b = resolve_beo(payload.entity_b)
@@ -3222,7 +3222,7 @@ async def check_trajectory(entity_id: str, payload: VectorPayload):
 
 # ── L4.4  HashDNA Complementarity Verification ────────────────────────────────
 #
-# Whitepaper formula (L4.4):
+# specification formula (L4.4):
 #   sense     = SHA3-256(signal_id ‖ 0x00)
 #   antisense = SHA3-256(signal_id ‖ 0xFF) XOR NOT(sense)
 #
@@ -3232,7 +3232,7 @@ async def check_trajectory(entity_id: str, payload: VectorPayload):
 # This is the unique invariant that proves the two strands were generated from
 # the same signal_id.  Any record that fails this check has been tampered with.
 #
-# Bug caught by whitepaper audit:
+# Bug caught by specification audit:
 #   WRONG  →  sense XOR antisense == NOT(sense)   (always false for valid records)
 #   RIGHT  →  sense XOR antisense == NOT(SHA3-256(signal_id ‖ 0xFF))
 
@@ -3266,7 +3266,7 @@ def verify_complementarity(signal_id: str, sense_hex: str, antisense_hex: str) -
     # Recompute sha3_ff from the original signal_id
     sha3_ff = hashlib.sha3_256(data + bytes([0xFF])).digest()
 
-    # Whitepaper invariant: sense XOR antisense == NOT(sha3_ff)
+    # specification invariant: sense XOR antisense == NOT(sha3_ff)
     actual_xor   = bytes(s ^ a for s, a in zip(sense, antisense))
     expected_xor = bytes(~b & 0xFF for b in sha3_ff)       # bitwise NOT
 
@@ -3671,7 +3671,7 @@ def add_vector_batch(payload: BatchVectorPayload):
         elif item.bh_id and len(item.bh_id) == 64:
             bh_for_leaf = item.bh_id
         else:
-            # Compute canonical BH using available fields (whitepaper-aligned fallback)
+            # Compute canonical BH using available fields (specification-aligned fallback)
             _sense, _ = compute_hash_dna(
                 effective_entity_id,
                 ["TRANSFER","SWAP","LIQUIDITY","STAKE","UNSTAKE",
@@ -3892,7 +3892,7 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
         "total_in":    len(payload.entries),
         "block_num":   payload.block_num,
         "chain_label": payload.chain_label,
-        "whitepaper":  "L0.1",
+        "specification":  "L0.1",
     }
 
 
@@ -4069,7 +4069,7 @@ def get_bh_ledger(entity_id: str, limit: int = 50, chain_id: Optional[int] = Non
         "returned":   len(records),
         "limit":      limit,
         "bh_records": records,
-        "whitepaper": "L0.1 §3.1 — per-transaction canonical BH",
+        "specification": "L0.1 §3.1 — per-transaction canonical BH",
     }
 
 
@@ -4105,7 +4105,7 @@ def get_bh_stats():
              "sense_hex": r[3][:16] + "...", "ts": r[4]}
             for r in recent
         ],
-        "whitepaper": "L0.1 — per-transaction canonical BH dual-strand",
+        "specification": "L0.1 — per-transaction canonical BH dual-strand",
         "payload_bytes": 93,
         "formula": "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
     }
@@ -4113,10 +4113,10 @@ def get_bh_stats():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L1.2 — Manipulation Fingerprint Detection (7 types)
-# Whitepaper: MF_score ∈ [0,1]; Φ_adj(t) = Φ(t) · (1 − MF_score)
+# specification: MF_score ∈ [0,1]; Φ_adj(t) = Φ(t) · (1 − MF_score)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Fingerprint weights sum to 1.0 (whitepaper L1.2 — weighted mean)
+# Fingerprint weights sum to 1.0 (specification L1.2 — weighted mean)
 FINGERPRINT_WEIGHTS: Dict[str, float] = {
     "WASH_TRADING":       0.25,
     "COORDINATED_PUMP":   0.20,
@@ -4127,7 +4127,7 @@ FINGERPRINT_WEIGHTS: Dict[str, float] = {
     "FAKE_VOLUME":        0.05,
 }
 
-# Thresholds (whitepaper L1.2 commentary)
+# Thresholds (specification L1.2 commentary)
 WASH_CV_NATURAL   = 0.50   # natural trading CV floor
 MEV_ENTROPY_MAX   = 0.25   # entropy below this = MEV signature
 FAKE_VOL_ENT_MAX  = 0.20   # high-volume with entropy below this = fake
@@ -4267,12 +4267,12 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
         "FAKE_VOLUME":        _fp_fake_volume(records),
     }
 
-    # Whitepaper L1.2: each type has a built-in scale coefficient, and
+    # specification L1.2: each type has a built-in scale coefficient, and
     # MF_score = min(1.0, max(all active type contributions)).
-    # "Active contribution" = raw_score × whitepaper_coefficient.
+    # "Active contribution" = raw_score × specification_coefficient.
     # Taking the MAX (not sum) means the single worst-detected fraud type
     # determines the MF_score — one confirmed attack pattern is enough.
-    WHITEPAPER_SCALES = {
+    SPECIFICATION_SCALES = {
         "WASH_TRADING":       0.70,   # 0.70 × cyclic_flow_ratio
         "COORDINATED_PUMP":   0.85,   # 0.85 × sync_buy_ratio
         "ORACLE_ATTACK":      1.00,   # 1.00  automatic when detected
@@ -4281,7 +4281,7 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
         "MEV_EXTRACTION":     0.40,   # 0.40 × (mev_rate-0.005)/0.045
         "FAKE_VOLUME":        0.80,   # 0.80 × (1-vol_entropy/H_baseline)
     }
-    scaled_scores    = {k: v * WHITEPAPER_SCALES[k] for k, v in scores.items()}
+    scaled_scores    = {k: v * SPECIFICATION_SCALES[k] for k, v in scores.items()}
     mf_score         = round(min(1.0, max(scaled_scores.values())), 6)
     dominant_type    = max(scaled_scores, key=scaled_scores.get)
     dominant_score   = scaled_scores[dominant_type]
@@ -4337,7 +4337,7 @@ def get_manipulation_fingerprint(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.2 — Observer Effect OE_factor
-# Whitepaper: OE_factor = corr(signal_publication_events, behavioral_change_post_pub)
+# specification: OE_factor = corr(signal_publication_events, behavioral_change_post_pub)
 # M_adj(t) = M(t) · (1 − OE_factor)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -4422,14 +4422,14 @@ def record_publication(entity_id: str, entropy: float = 0.5):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.3 — ANIMA Score A(t) = PCR × HA × CA
-# Whitepaper: Pattern Completion Rate × Historical Accuracy × Cross-plane Agreement
+# specification: Pattern Completion Rate × Historical Accuracy × Cross-plane Agreement
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def compute_anima_score(entity_id: str) -> dict:
     """
     L3.3 — ANIMA Score A(t) = PCR(t) × HA(t) × CA(t) ∈ [0,1].
 
-    Delegates entirely to anima_engine which implements the full whitepaper spec:
+    Delegates entirely to anima_engine which implements the full specification spec:
       PCR — Sequence-window pattern completion vs archetype (20-record rolling window)
       HA  — Rolling 90-day time-delayed outcome verification (not circular calibration)
       CA  — CRED-weighted cross-source agreement (SEC, GitHub, News, Regulatory, arXiv)
@@ -4692,21 +4692,21 @@ def get_akashic_index(entity_id: str):
             "M_factor": m_mean,   # (1 + M(τ)) multiplier
             "C_proxy":  c_mean,   # time-weight proxy for C(τ)
         },
-        "formula": "D(t) = Σ A(τ)·(1+M(τ))·C(τ) per whitepaper §2.1",
+        "formula": "D(t) = Σ A(τ)·(1+M(τ))·C(τ) per specification §2.1",
         "status":         "ok" if (n + len(warm)) > 0 else "no_data",
     }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L7.1 — Natural Liquidity Score NL(t)
-# Whitepaper: NL measures organic liquidity depth from behavioral data
+# specification: NL measures organic liquidity depth from behavioral data
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def compute_liquidity_health(entity_id: str) -> dict:
     """
     L7.1 — Natural Liquidity Score NL(t) ∈ [0,1].
 
-    Whitepaper formula (multiplicative):
+    specification formula (multiplicative):
       NL(asset, t) = LD(a,t) · LO(a,t) · LC(a,t) · LS(a,t)
 
     LD = Liquidity Depth Entropy
@@ -4724,7 +4724,7 @@ def compute_liquidity_health(entity_id: str) -> dict:
     LS = Liquidity Stress Resilience = LD(during_market_stress) / LD(normal_conditions)
          Proxy: mean entropy during high-magnitude (stress) records vs all records
 
-    Multiplicative: any factor → 0 collapses NL → 0. This is the whitepaper's intent —
+    Multiplicative: any factor → 0 collapses NL → 0. This is the specification's intent —
     genuine liquidity requires depth AND organic origin AND consistency AND stress resilience.
     """
     beo_id  = resolve_beo(entity_id)
@@ -4802,7 +4802,7 @@ def compute_liquidity_health(entity_id: str) -> dict:
     else:
         ls = 0.80   # neutral prior — no clear stress periods identified
 
-    # ── NL = LD · LO · LC · LS (multiplicative — whitepaper L7.1) ─────────────
+    # ── NL = LD · LO · LC · LS (multiplicative — specification L7.1) ─────────────
     nl_score = round(float(ld * lo * lc * ls), 6)
 
     last_ts  = max(r["ts"] for r in records)
@@ -4841,12 +4841,12 @@ def get_liquidity_health(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L5.2 — Asset-Type Profile Detection (6 profiles)
-# Whitepaper: Different α/β/γ/δ/ε weights per asset type
+# specification: Different α/β/γ/δ/ε weights per asset type
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Coherence weight profiles: (alpha=Φ, beta=M, gamma=S, delta=K, epsilon=A)
 # Must sum to 1.0 per profile.
-# Values are exact per whitepaper L5.2 table.
+# Values are exact per specification L5.2 table.
 ASSET_TYPE_PROFILES: Dict[str, Dict[str, float]] = {
     "NEW_TOKEN":        {"alpha": 0.40, "beta": 0.15, "gamma": 0.30, "delta": 0.10, "epsilon": 0.05},
     "MATURE_PROTOCOL":  {"alpha": 0.20, "beta": 0.30, "gamma": 0.20, "delta": 0.15, "epsilon": 0.15},
@@ -4974,7 +4974,7 @@ def get_asset_profile(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L4 — SPIRITUAL PLANE: TRION-BFT Consensus Engine
-# Whitepaper §4.1: Σ(t) = Σ(w_j·v_j) / Σ(w_j)
+# specification §4.1: Σ(t) = Σ(w_j·v_j) / Σ(w_j)
 # w_j = stake_j × d_j    (diversity-weighted voting power)
 # d_j = 1 − region_share_j  (penalises geographic concentration)
 # Validators who coordinate are automatically down-weighted via the coordination
@@ -5194,7 +5194,7 @@ def compute_bft_sigma(entity_id: str, signal_value: float = 0.0, v_t: float = 0.
     sigma = (numerator / denominator) if denominator > 0 else v_bar
 
     # ── L4.8 — HHI Enforcement: apply sigma_discount before returning ─────────
-    # Whitepaper: DANGER → discount Σ by 20%; CRITICAL → freeze Σ at 0.50.
+    # specification: DANGER → discount Σ by 20%; CRITICAL → freeze Σ at 0.50.
     # Applied here so every caller of compute_bft_sigma gets enforced sigma.
     # _compute_region_hhi() already returns a value in [0,1] (sum of squared
     # market-share fractions), so no further normalization is needed.
@@ -5339,7 +5339,7 @@ def get_crawl_cache(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L8 — CONSCIOUS PLANE: Human Annotation Network
-# Whitepaper §8: K(t) = weighted mean of all active annotations for the entity.
+# specification §8: K(t) = weighted mean of all active annotations for the entity.
 # Weight = annotator_reputation × annotation_stake × self_confidence.
 # Unresolved annotations within CHALLENGE_PERIOD contribute at face value.
 # Challenged annotations frozen until resolution.
@@ -5703,7 +5703,7 @@ def list_elders(system_id: Optional[str] = None):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L4.4 — POST-QUANTUM CRYPTOGRAPHY (PQC) Layer
-# Whitepaper §4.4: CRYSTALS-Kyber (KEM) + CRYSTALS-Dilithium (signing).
+# specification §4.4: CRYSTALS-Kyber (KEM) + CRYSTALS-Dilithium (signing).
 # Real NIST FIPS 204 (ML-DSA / Dilithium) signatures via `dilithium-py` —
 # genuine lattice-based keygen/sign/verify, not a hash approximation.
 #
@@ -5846,7 +5846,7 @@ def get_pqc_public_key():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L4.6 — CRISPR ACTIVE DEFENSE (Attack Signature Registry)
-# Whitepaper §4.6: The CRISPR layer maintains a registry of known exploit patterns.
+# specification §4.6: The CRISPR layer maintains a registry of known exploit patterns.
 # Incoming entity behavioral vectors are screened against the registry.
 # If a match is found: CRISPR_ALERT is emitted and the Spiritual plane is frozen.
 # Pattern types:
@@ -6375,7 +6375,7 @@ def compute_threat_scan(
         "scoring_formula":      "0.50×mf_score + 0.35×min(1,crispr_hits/3) + 0.15×entropy_spike",
         "tier_thresholds":      TIER_THRESHOLDS,
         "timestamp":            t_start.isoformat(),
-        "whitepaper":           "L1.2 MF + L4.6 CRISPR + L1.1 Entropy — composite pre-attack fingerprint",
+        "specification":           "L1.2 MF + L4.6 CRISPR + L1.1 Entropy — composite pre-attack fingerprint",
         "source":               "BH_LEDGER_PHASE1 + ENTITY_HISTORY_PHASE2",
     }
 
@@ -6432,7 +6432,7 @@ def threat_scan_post(
 # ═══════════════════════════════════════════════════════════════════════════════
 # L5.1 — LIVING SECURITY: Complete 8-Component DNA-Mimetic Architecture
 #
-# Whitepaper §6.2 defines 8 components:
+# specification §6.2 defines 8 components:
 #   1. Genomic Key Evolution    GK(entity,t) = Hash_DNA(GK(t-1) ‖ BE(t) ‖ TM(t) ‖ CV(t))
 #   2. Complementary Strand     sense/antisense  ← already implemented (L4.4 / compute_hash_dna)
 #   3. Immune System            INNATE pattern library + ADAPTIVE learning + MEMORY (permanent)
@@ -6505,7 +6505,7 @@ def get_gk_endpoint(entity_id: str):
 #        MEMORY = permanent, never decays   |  Security improves with every survived attack.
 
 _immune_memory: Dict[str, dict] = {}   # pattern_hash[:16] → record
-_IMMUNE_MEMORY_PERMANENT = True        # whitepaper: MEMORY never decays
+_IMMUNE_MEMORY_PERMANENT = True        # specification: MEMORY never decays
 
 _INNATE_THREAT_PATTERNS: List[dict] = [
     {"name": "REPLAY_ATTACK",      "description": "Vector almost identical to a recent vector",
@@ -6852,7 +6852,7 @@ def living_security_report(entity_id: str) -> dict:
 
     # 2 — Complementary Strand (HashDNA)
     # Use beo_id as the signal_id, matching verify_complementarity's internal derivation exactly.
-    # Whitepaper formula: antisense = SHA3-256(signal_id ‖ 0xFF) XOR NOT(sense)
+    # specification formula: antisense = SHA3-256(signal_id ‖ 0xFF) XOR NOT(sense)
     # Invariant:          sense XOR antisense == NOT(SHA3-256(signal_id ‖ 0xFF))
     # Critical: use .encode() + bytes([0x00/0xFF]) to avoid UTF-8 multi-byte expansion of \xff
     _c2_data          = beo_id.encode()
@@ -7042,7 +7042,7 @@ def register_deployer(req: BeoDeployerRequest):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L0.3 — Behavioral Resonance
-# Whitepaper: Two BEOs "communicate" via TRION when they share a resonant frequency
+# specification: Two BEOs "communicate" via TRION when they share a resonant frequency
 # (both show significant activity on the same event-type dimension index > threshold).
 # Resonant frequency index i is active when mean(vector[i]) > 0.1 across all records.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -7092,7 +7092,7 @@ def beo_resonance(entity_a: str, entity_b: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L0.4 — Thermodynamic Information Conservation
-# Whitepaper: I_total(t) = I_total(t-1) + ΔI_consumed - ΔI_transformed
+# specification: I_total(t) = I_total(t-1) + ΔI_consumed - ΔI_transformed
 # Invariant: ΔI_transformed >= 0 (information cannot be destroyed, only transformed)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -7125,7 +7125,7 @@ def conservation_status():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L0.6 — Evolutionary Fitness
-# Whitepaper: F = PA × ICE × AS × Love
+# specification: F = PA × ICE × AS × Love
 # PA: Prediction Accuracy, ICE: Information Compression Efficiency,
 # AS: Adaptability Score, Love: Signal Integrity (0 → F=0)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -7135,7 +7135,7 @@ class FitnessUpdateRequest(BaseModel):
     PA:           float   # Prediction Accuracy ∈ [0,1]
     ICE:          float   # Information Compression Efficiency ∈ [0,1]
     AS:           float   # Adaptability Score ∈ [0,1]
-    Love:         float   # Signal Integrity ∈ [0,1]; Love=0 → F=0 (whitepaper hard rule)
+    Love:         float   # Signal Integrity ∈ [0,1]; Love=0 → F=0 (specification hard rule)
     note:         Optional[str] = None
 
 
@@ -7144,14 +7144,14 @@ def fitness_update(req: FitnessUpdateRequest):
     """
     L0.6 — Update Evolutionary Fitness for a TRION component.
     F = PA × ICE × AS × Love
-    Love = 0 forces F = 0 regardless of other factors (whitepaper spec: Love=0 → F=0).
+    Love = 0 forces F = 0 regardless of other factors (specification spec: Love=0 → F=0).
     """
     pa    = max(0.0, min(1.0, req.PA))
     ice   = max(0.0, min(1.0, req.ICE))
     as_   = max(0.0, min(1.0, req.AS))
     love  = max(0.0, min(1.0, req.Love))
 
-    # Whitepaper hard rule: Love = 0 → Fitness = 0
+    # specification hard rule: Love = 0 → Fitness = 0
     fitness = pa * ice * as_ * love
 
     component_fitness[req.component] = {
@@ -7195,7 +7195,7 @@ def fitness_list():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L1.4 — Transduction Integrity
-# Whitepaper: TI(sensor, t) = Calibration(s,t) · Drift_correction(s,t) · Cross_verification(s,t)
+# specification: TI(sensor, t) = Calibration(s,t) · Drift_correction(s,t) · Cross_verification(s,t)
 # TI = 0: uncalibrated — sensor excluded entirely
 # TI = 1: fully calibrated and cross-verified
 # Applied in oracle.rs: if TI < 0.90 → 15% additional penalty on Φ_adj
@@ -7206,7 +7206,7 @@ from collections import deque as _deque  # noqa: E402
 _TI_WINDOW:    int   = 100   # rolling window size for calibration tracking
 _TI_DRIFT_CAP: float = 0.30  # max allowed drift relative to ensemble before TI degrades
 _TI_CROSS_TOL: float = 0.10  # cross-verification tolerance ±10%
-_TI_THRESHOLD: float = 0.90  # whitepaper degradation threshold
+_TI_THRESHOLD: float = 0.90  # specification degradation threshold
 
 _TI_SOURCES = ["l0_physical", "mental_plane", "anima", "spiritual", "conscious"]
 _ti_tracker: Dict[str, dict] = {
@@ -7292,7 +7292,7 @@ def get_system_transduction_integrity():
     """
     L1.4 — Transduction Integrity scores for all TRION sensor sources.
     Returns per-sensor TI breakdown and system-wide minimum TI.
-    System TI < 0.90 triggers a 15% Φ_adj penalty in oracle.rs (whitepaper spec).
+    System TI < 0.90 triggers a 15% Φ_adj penalty in oracle.rs (specification spec).
     """
     sensors: dict = {}
     system_ti = 1.0
@@ -7320,7 +7320,7 @@ def record_sensor_observation(source: str, value: float = 0.0, error: bool = Fal
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.6 — Predictive Completeness Limit
-# Whitepaper: PC_limit(t) = 1 - H_irreducible / H(future) < 1 always, for all t
+# specification: PC_limit(t) = 1 - H_irreducible / H(future) < 1 always, for all t
 # Perfect prediction is impossible. Chaos theory + quantum mechanics impose hard floors.
 # TRION approaches PC_limit asymptotically — never reaches it.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -7369,7 +7369,7 @@ def get_predictive_completeness_limit():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L1.1 Phase 2 — Φ(t) Weight Learning
-# Whitepaper: Φ(t) = (1/N) · Σ [w_i · H(f_i(t))]
+# specification: Φ(t) = (1/N) · Σ [w_i · H(f_i(t))]
 # Weights learned from Akashic history: w_i = corr(f_i, convergence) normalised
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -7421,7 +7421,7 @@ def coherence_trend_route(entity_id: str, threshold: float = 0.65, window: int =
     """
     L5.1 SILENCE metadata — compute per-entity coherence trend and ETA to threshold.
 
-    Whitepaper SILENCE fields: gap (Θ−C), limiting_plane (in oracle), trend, eta.
+    specification SILENCE fields: gap (Θ−C), limiting_plane (in oracle), trend, eta.
 
     Uses archetype similarity (arch_sim) from entity_history as the coherence proxy —
     arch_sim ∈ [0,1] represents how closely the entity's current behavior matches its
@@ -7496,7 +7496,7 @@ def coherence_trend_route(entity_id: str, threshold: float = 0.65, window: int =
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.4 — Source Credibility Evolution SC(t)
-# Whitepaper: credibility score tracking per-signal data source accuracy.
+# specification: credibility score tracking per-signal data source accuracy.
 # SC(t) = Σ(confirmed_signals) / Σ(total_signals) × recency_weight
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -7577,7 +7577,7 @@ def record_source_credibility(entity_id: str, predicted: float = 0.5, confirmed:
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.5 — ANIMA Reflexivity Dampening ARD(t)
-# Whitepaper: when observer effect > 0.30, apply dampening factor to ANIMA score.
+# specification: when observer effect > 0.30, apply dampening factor to ANIMA score.
 # ARD(t) = 1 − min(OE_factor, 0.50)  so max dampening is 50%.
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -7626,7 +7626,7 @@ def get_anima_reflexivity(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L6.1 — Biological Capital Index BC(t)
-# Whitepaper §6.1: BC(ecosystem, t) = Flow(e,t) · Resilience(e,t) · Uniqueness(e,t) · Interdependence(e,t)
+# specification §6.1: BC(ecosystem, t) = Flow(e,t) · Resilience(e,t) · Uniqueness(e,t) · Interdependence(e,t)
 #
 # Behavioral proxies for on-chain ecosystem primitives:
 #   Flow           = net behavioral throughput rate (events/depth) × archetype absorption
@@ -7639,7 +7639,7 @@ def compute_biological_capital(entity_id: str) -> dict:
     """
     L6.1 — Biological Capital Index BC(t) ∈ [0,1].
 
-    Whitepaper formula (multiplicative — ecological capital model):
+    specification formula (multiplicative — ecological capital model):
       BC = Flow · Resilience · Uniqueness · Interdependence
 
     Flow(e,t)           = net primary productivity rate × biomass density
@@ -7655,7 +7655,7 @@ def compute_biological_capital(entity_id: str) -> dict:
     records = entity_history.get(beo_id, [])
     depth   = calculate_depth(beo_id)
 
-    # ── REAL ecological calibration (whitepaper L6.1: "Calibration source:
+    # ── REAL ecological calibration (specification L6.1: "Calibration source:
     #    IUCN Red List, peer-reviewed ecosystem surveys") ─────────────────────
     #    GBIF occurrences (with iucnRedListCategory) anchor the BC components
     #    in observed ecology; behavioral proxies below only fill gaps.
@@ -7770,14 +7770,14 @@ def get_biological_capital(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L7.2 — Energy Participation Index EP(t)
-# Whitepaper: EP(asset, t) = VC(a,t) · PA(a,t) · DC(a,t)
+# specification: EP(asset, t) = VC(a,t) · PA(a,t) · DC(a,t)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def compute_energy_participation(entity_id: str) -> dict:
     """
     L7.2 — Energy Participation Index EP(t) ∈ [0,1].
 
-    Whitepaper formula (multiplicative):
+    specification formula (multiplicative):
       EP(asset, t) = VC(a,t) · PA(a,t) · DC(a,t)
 
     VC = Value Creation Ratio
@@ -7794,7 +7794,7 @@ def compute_energy_participation(entity_id: str) -> dict:
          Proxy: archetype coherence stability — consistent contributor base shows low
          variance in arch_sim (proxy for core-team tenure) normalized to [0,1]
 
-    EP ∈ [0,1]; normalized against 90-day baseline (whitepaper spec).
+    EP ∈ [0,1]; normalized against 90-day baseline (specification spec).
     EP feeds into Φ(t) as behavioral feature f10 in protocol v2.
     """
     beo_id  = resolve_beo(entity_id)
@@ -7870,7 +7870,7 @@ def compute_energy_participation(entity_id: str) -> dict:
     else:
         dc = 0.70   # neutral prior
 
-    # ── EP = VC · PA · DC (whitepaper L7.2 multiplicative) ───────────────────
+    # ── EP = VC · PA · DC (specification L7.2 multiplicative) ───────────────────
     ep = round(float(vc * pa * dc), 6)
 
     return {
@@ -7894,7 +7894,7 @@ def get_energy_participation(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L8.1 — Sovereign Behavioral Assessment SBA(t)
-# Whitepaper:
+# specification:
 #   SBA(nation, t) = w_E·E(n,t) + w_I·I(n,t) + w_S·S(n,t) + w_G·G(n,t) + w_C·C(n,t)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -7902,7 +7902,7 @@ def compute_sovereign_assessment(entity_id: str) -> dict:
     """
     L8.1 — Sovereign Behavioral Assessment SBA(t) ∈ [0,1].
 
-    Whitepaper formula (weighted sum):
+    specification formula (weighted sum):
       SBA = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C
 
     E = Economic Behavioral Signal (w_E = 0.30)
@@ -7928,7 +7928,7 @@ def compute_sovereign_assessment(entity_id: str) -> dict:
 
     SBA ∈ [0,1]. Mandatory metadata: uncertainty_bounds (CI_95), cultural_context_vector,
     appeal_mechanism, data_sources — these are attached to every sovereign signal
-    (Sovereignty Dignity Protocol, whitepaper §8.1).
+    (Sovereignty Dignity Protocol, specification §8.1).
     """
     beo_id  = resolve_beo(entity_id)
     records = entity_history.get(beo_id, [])
@@ -8019,7 +8019,7 @@ def compute_sovereign_assessment(entity_id: str) -> dict:
     total_count   = max(len(records[-90:]), 1)
     C = min(1.0, inflow_count / total_count)
 
-    # ── SBA = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C (whitepaper L8.1) ──────
+    # ── SBA = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C (specification L8.1) ──────
     w_E, w_I, w_S, w_G, w_C = 0.30, 0.25, 0.20, 0.15, 0.10
     sba = round(w_E * E + w_I * I + w_S * S + w_G * G + w_C * C, 6)
 
@@ -8056,13 +8056,13 @@ def compute_sovereign_assessment(entity_id: str) -> dict:
 
 @app.get("/api/v1/sovereign_assessment/{entity_id}")
 def get_sovereign_assessment(entity_id: str):
-    """L8.1 — Sovereign Behavioral Assessment SBA(t) per whitepaper weighted sum ∈ [0,1]."""
+    """L8.1 — Sovereign Behavioral Assessment SBA(t) per specification weighted sum ∈ [0,1]."""
     return compute_sovereign_assessment(entity_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L8.1 — Sovereignty Dignity Protocol: appeal mechanism
-# Whitepaper §8.1: every SBA signal MUST expose an appeal endpoint.
+# specification §8.1: every SBA signal MUST expose an appeal endpoint.
 # Nations/entities may challenge the oracle's assessment. All appeals are logged
 # and returned in subsequent SBA signals as part of mandatory metadata.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -8082,7 +8082,7 @@ def submit_sovereign_appeal(entity_id: str, req: SovereignAppealRequest):
     """
     L8.1 Sovereignty Dignity Protocol — Submit a formal appeal against an SBA score.
 
-    Whitepaper §8.1 (mandatory): Every SBA signal must expose an appeal mechanism.
+    specification §8.1 (mandatory): Every SBA signal must expose an appeal mechanism.
     Appeals are recorded and associated with the entity's assessment history.
     All future SBA responses will reference open_appeals_count in sovereignty_dignity.
 
@@ -8144,7 +8144,7 @@ def get_sovereign_appeal_status(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L9.1 — Cross-Species Liquidity XSL(t)
-# Whitepaper §9.1:
+# specification §9.1:
 #   XSL(species, t) = TerritoryViability(s,t) · FoodSecurity(s,t) · ReproductionRate(s,t)
 #                     / (1 + ThreatPressure(s,t))
 #
@@ -8167,7 +8167,7 @@ def compute_cross_species_liquidity(entity_id: str) -> dict:
     """
     L9.1 — Cross-Species Liquidity XSL(t) ∈ [0,∞) normalized to [0,1].
 
-    Whitepaper formula:
+    specification formula:
       XSL = TerritoryViability · FoodSecurity · ReproductionRate / (1 + ThreatPressure)
 
     High XSL = broad, stable multi-protocol behavioral territory with low threat exposure.
@@ -8177,7 +8177,7 @@ def compute_cross_species_liquidity(entity_id: str) -> dict:
     records = entity_history.get(beo_id, [])
     depth   = calculate_depth(beo_id)
 
-    # ── REAL ecological calibration (whitepaper L9.1: IUCN-habitat based
+    # ── REAL ecological calibration (specification L9.1: IUCN-habitat based
     #    ThreatPressure calibration) via GBIF species occurrences ───────────
     species = None
     try:
@@ -8288,7 +8288,7 @@ def get_cross_species_liquidity(entity_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L3.7 — Intelligence Maintenance Protocol (IM)
-# Whitepaper: detect degradation in oracle prediction accuracy over time.
+# specification: detect degradation in oracle prediction accuracy over time.
 # IM_score(t) = prediction_accuracy_ema × freshness_factor × stability_factor
 # Degradation alert when IM_score < 0.50 for 3+ consecutive windows.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -8353,7 +8353,7 @@ def get_intelligence_maintenance():
     persistent_degradation = _im_degradation_count >= 3
 
     # ── L3.7 Auto-Retraining Protocol ─────────────────────────────────────────
-    # Whitepaper: when IM_score < 0.50 for 3+ consecutive windows the system
+    # specification: when IM_score < 0.50 for 3+ consecutive windows the system
     # MUST re-train its archetype centroids from the accumulated Akashic history.
     # A 1-hour cooldown prevents thrashing (index rebuilds are CPU-intensive).
     retrain_triggered = False
@@ -8448,7 +8448,7 @@ def record_im_outcome(predicted: float = 0.5, actual: float = 0.5):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L4.8 — HHI Validator Concentration Enforcement Tiers
-# Whitepaper: 4-tier enforcement based on Herfindahl-Hirschman Index.
+# specification: 4-tier enforcement based on Herfindahl-Hirschman Index.
 # HEALTHY   HHI < 0.15  → no action
 # WARNING   0.15 ≤ HHI < 0.25 → emit warning, request validator diversification
 # DANGER    0.25 ≤ HHI < 0.35 → discount Σ by 20%, block new validators in region
@@ -8487,7 +8487,7 @@ def get_hhi_enforcement():
     Returns current HHI, tier classification, prescribed action, and
     sigma_discount to be applied to the Spiritual plane Σ(t).
 
-    Whitepaper thresholds:
+    specification thresholds:
       HEALTHY   HHI < 0.15  — no action
       WARNING   HHI < 0.25  — warn, request diversification
       DANGER    HHI < 0.35  — discount Σ 20%, block new regional validators
@@ -8550,7 +8550,7 @@ def get_hhi_enforcement_history(limit: int = 50):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # L4.9 — Slashing Conditions + 72h Dispute Resolution
-# Whitepaper: validators that submit outlier signals are subject to slashing.
+# specification: validators that submit outlier signals are subject to slashing.
 # Dispute window: 72h (259200s). Dispute resolved by BFT supermajority (67%).
 # Slashing conditions:
 #   1. Signal deviation > 3σ from weighted consensus → SLASH_OUTLIER (5%)
@@ -8789,7 +8789,7 @@ def get_validator_slashes(validator_id: str):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TRION SIGNAL EMISSION ENGINE — All 19 Signal Types
-# Whitepaper Part 5: every signal contains every field. No field optional.
+# specification Part 5: every signal contains every field. No field optional.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 SIGNAL_TTL_SECONDS: Dict[str, int] = {
@@ -8815,7 +8815,7 @@ SIGNAL_TTL_SECONDS: Dict[str, int] = {
 }
 
 ALL_SIGNAL_TYPES = list(SIGNAL_TTL_SECONDS.keys())
-COHERENCE_BASE_THRESHOLD = 0.65   # Θ(t) base value — per whitepaper
+COHERENCE_BASE_THRESHOLD = 0.65   # Θ(t) base value — per specification
 
 
 def _dynamic_threshold(beo_id: str) -> float:
@@ -8959,7 +8959,7 @@ def _five_plane_coherence(phi_adj: float, m_adj: float, sigma: float,
              profile.get("gamma", 0.25), profile.get("delta", 0.10),
              profile.get("epsilon", 0.10)]
     else:
-        # L5.2 Whitepaper "Default balanced": α=0.25 β=0.30 γ=0.25 δ=0.10 ε=0.10
+        # L5.2 specification "Default balanced": α=0.25 β=0.30 γ=0.25 δ=0.10 ε=0.10
         w = [0.25, 0.30, 0.25, 0.10, 0.10]
     total = sum(w)
     w     = [x / total for x in w]
@@ -9172,9 +9172,9 @@ def build_trion_signal(entity_id: str,
     TRION Signal Emission Engine.
 
     Assembles the complete TRIONSignal object for any entity by calling every
-    active computation layer (L0–L9) and packing the canonical whitepaper schema.
+    active computation layer (L0–L9) and packing the canonical specification schema.
 
-    Whitepaper Part 5: every field present in every signal, no partial signals,
+    specification Part 5: every field present in every signal, no partial signals,
     no optional fields.  Auto-classifies signal type when override_type is None.
     Pass extra={} to inject type-specific fields (fork CC values, cascade data, etc.).
     """
@@ -9204,12 +9204,12 @@ def build_trion_signal(entity_id: str,
     # ── Plane 3: Spiritual Σ (BFT diversity-weighted consensus) ──────────────
     bft_data = compute_bft_sigma(entity_id, signal_value=phi_adj)
     # Use "sigma" (post-exclusion, HHI-enforced BFT consensus), not "weighted_mean"
-    # (the pre-exclusion pass-1 mean).  Whitepaper Σ(t) is the outlier-cleaned value.
+    # (the pre-exclusion pass-1 mean).  specification Σ(t) is the outlier-cleaned value.
     sigma    = round(bft_data.get("sigma", 0.50), 6)
 
     # ── Planes 4 & 5: Conscious K + ANIMA A ──────────────────────────────────
     # Wire L6.1 BC, L9.1 XSL, L6.2 BRT as cross-domain signals into ANIMA CA
-    # Whitepaper: "BC feeds into ANIMA as a cross-domain signal" (L6.1)
+    # specification: "BC feeds into ANIMA as a cross-domain signal" (L6.1)
     #             "XSL feeds into ANIMA as a cross-domain signal" (L9.1)
     #             "BRT enables ANIMA to detect behavioral shifts" (L6.2)
     _bc_data  = compute_biological_capital(entity_id)
@@ -9221,7 +9221,7 @@ def build_trion_signal(entity_id: str,
         xsl_score = float(_xsl_data.get("xsl_score", 0.70)),
         brt       = _brt_pre,
     )
-    # Whitepaper L3.5: C(t) must use A_adj (reflexivity-dampened), never raw A(t)
+    # specification L3.5: C(t) must use A_adj (reflexivity-dampened), never raw A(t)
     anima_res = compute_anima_score(entity_id)
     if isinstance(anima_res, dict):
         # Prefer a_adj (reflexivity-dampened per L3.5); fall back to raw anima_score
@@ -9285,7 +9285,7 @@ def build_trion_signal(entity_id: str,
     # not the 2-byte UTF-8 encoding that "\xff".encode() produces.
     _sense_bytes  = hashlib.sha3_256(_sig_seed_b + bytes([0x00])).digest()
     _sha3_ff      = hashlib.sha3_256(_sig_seed_b + bytes([0xFF])).digest()
-    # Whitepaper Living Security invariant: sense XOR antisense == NOT(sha3_ff)
+    # specification Living Security invariant: sense XOR antisense == NOT(sha3_ff)
     # ⟹ antisense = sha3_ff XOR NOT(sense)   [not merely NOT(sha3_ff)]
     _antisense_bytes = bytes(_sha3_ff[i] ^ (~_sense_bytes[i] & 0xFF) for i in range(32))
     sense_hex     = _sense_bytes.hex()
@@ -9548,7 +9548,7 @@ def get_signal_schema():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# BIBL — Behavioral Inter-Block Layer (Whitepaper §L1.1 BTCP)
+# BIBL — Behavioral Inter-Block Layer (specification §L1.1 BTCP)
 # Cross-chain routing intelligence: ranks candidate pools by behavioral score
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -9884,7 +9884,7 @@ def get_diversity_report():
 # ═══════════════════════════════════════════════════════════════════════════════
 # Semi-Immutability: Epigenetic-Adjusted Signal Endpoint
 # Returns C(t) with epigenetic threshold modifier applied
-# Whitepaper Primitive 1: same bytecode, different expression via EL_state
+# specification Primitive 1: same bytecode, different expression via EL_state
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/v1/semi_immutable/signal/{entity_id}")
@@ -9939,7 +9939,7 @@ def semi_immutable_signal(entity_id: str):
     return base_signal
 
 
-# ── Phase 23: Canonical API endpoints (all whitepaper claims) ──────────────────
+# ── Phase 23: Canonical API endpoints (all specification claims) ──────────────────
 
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
@@ -9969,7 +9969,7 @@ _bibl_engine = _BIBLEngine()
 @app.get("/api/v1/system/bootstrap")
 async def system_bootstrap():
     """
-    Honest bootstrap phase disclosure per whitepaper.
+    Honest bootstrap phase disclosure per specification.
     Σ=0.25, K=0.10, A=0.10 — all three planes disclose bootstrap status.
     """
     depth = index.ntotal if index is not None else 0
@@ -9987,7 +9987,7 @@ async def system_bootstrap():
             "sigma": (
                 "Σ plane at bootstrap baseline (0.25). "
                 "Diversity-weighted BFT validator network deploys at mainnet. "
-                "Architecture fully implemented per whitepaper."
+                "Architecture fully implemented per specification."
             ),
             "k": (
                 "K plane at bootstrap baseline (0.10). "
@@ -10206,7 +10206,7 @@ async def planes_mental(entity_id: str):
         "m_base":       result.get("m_base", m_adj),
         "m_adj":        round(m_adj, 6),
         "formula":      "M(t) = 1 - (PI_t / PI_baseline); M_adj = M_base * (1 - OE_factor)",
-        "whitepaper":   "L3.1",
+        "specification":   "L3.1",
         "timestamp":    int(_time.time()),
     }
 
@@ -10230,7 +10230,7 @@ async def planes_spiritual(entity_id: str):
         "hhi":              round(hhi, 2),
         "delta_t":          result.get("delta_t", 0.10),
         "formula":          "Σ(t) = Σ_j[s_j·d_j·1(|v_j-M̄|≤δ)] / Σ_j[s_j·d_j]",
-        "whitepaper":       "L4.1",
+        "specification":       "L4.1",
         "timestamp":        int(_time.time()),
     }
 
@@ -10249,7 +10249,7 @@ async def planes_conscious(entity_id: str):
         "annotator_count": 0,
         "majority_needed": 3,
         "formula":         "K(t) = human_annotation_score × stake_weight × temporal_consistency",
-        "whitepaper":      "L4.2",
+        "specification":      "L4.2",
         "timestamp":       int(_time.time()),
     }
 
@@ -10275,7 +10275,7 @@ async def planes_anima(entity_id: str):
         "d_minimum":    10_000,
         "disclosure":   f"ANIMA {'active' if depth >= 10_000 else f'bootstrap (D={depth:,} < 10,000)'}.",
         "formula":      "A(t) = PCR(t) × HA(t) × CA(t)",
-        "whitepaper":   "L6.1",
+        "specification":   "L6.1",
         "timestamp":    int(_time.time()),
     }
 
@@ -10401,7 +10401,7 @@ async def liquidity_nl_score(asset_address: str):
     nl_result["asset_address"] = asset_address
     nl_result["signal_coherence"] = phi_val
     # L4 fix: machine-readable synthetic flag alongside the prose disclosure
-    # (the /api/v1/whitepaper/coverage map counts this endpoint, so its
+    # (the /api/v1/specification/coverage map counts this endpoint, so its
     # approximated inputs must carry the same is_synthetic key as the other
     # hash-seeded endpoints).
     nl_result["is_synthetic"] = True

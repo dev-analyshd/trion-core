@@ -3,7 +3,7 @@
  *
  * Every chain-specific crate links this and only implements the
  * `ChainIndexer` trait.  Common handles:
- *   - Shannon entropy + histogram helpers (whitepaper L1.1)
+ *   - Shannon entropy + histogram helpers (specification L1.1)
  *   - 128-dim vector construction (9 entropy features + deterministic padding)
  *   - HashDNA BH-ID generation (L0.1)
  *   - FAISS /index/add_batch HTTP client

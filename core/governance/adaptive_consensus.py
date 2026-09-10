@@ -2,7 +2,7 @@
 TRION Protocol — L4.5a Adaptive Consensus Parameter Recommendations
 ====================================================================
 
-Whitepaper §L4.5 specifies that TRION should emit consensus parameter
+specification §L4.5 specifies that TRION should emit consensus parameter
 recommendations to consuming chains based on observed behavioral
 patterns.  This module implements those recommendations.
 
@@ -30,7 +30,7 @@ from typing import Dict, List, Optional
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-# Baseline values (per whitepaper §L4.5)
+# Baseline values (per specification §L4.5)
 DEFAULT_BLOCK_SIZE:     int   = 30_000_000   # gas
 DEFAULT_GAS_LIMIT:      int   = 30_000_000
 DEFAULT_FINALITY:       int   = 32           # blocks (Ethereum finality)

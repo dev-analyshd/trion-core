@@ -85,7 +85,7 @@ def btcp_hash_dna():
             "currency_id": event.magnitude_currency_id.hex(),
             "magnitude_normalized": event.magnitude_normalized,
             "payload_fields": 14,
-            "whitepaper": "Gap 7 Resolution",
+            "specification": "Gap 7 Resolution",
             "timestamp": int(time.time()),
         })
     except Exception as e:
@@ -133,7 +133,7 @@ def btcp_coherence_7plane():
                 for r in results
             ],
             "weights": {p.name: w for p, w in PLANE_WEIGHTS.items()},
-            "whitepaper": "Gap 2 Resolution — 7 Planes of Behavioral Truth",
+            "specification": "Gap 2 Resolution — 7 Planes of Behavioral Truth",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -183,7 +183,7 @@ def btcp_mf_score():
                 for r in results
             ],
             "weights": {f"T{t}": w for t, w in MF_WEIGHTS.items()},
-            "whitepaper": "BTCP_15 Gap 3 Resolution",
+            "specification": "BTCP_15 Gap 3 Resolution",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -218,7 +218,7 @@ def btcp_route():
                 "route": None,
                 "btcp_score": 0.0,
                 "reason": "no_valid_route",
-                "whitepaper": "K1 Resolution",
+                "specification": "K1 Resolution",
             })
         return jsonify({
             "route": {
@@ -245,7 +245,7 @@ def btcp_route():
                          "/api/v1/btcp/orchestrate + on-chain certificate "
                          "verification"),
             },
-            "whitepaper": "K1 Resolution",
+            "specification": "K1 Resolution",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -271,7 +271,7 @@ def btcp_bibl_snapshot():
         "tier_2_latency_target_ms": 50,
         "tier_3_latency_target_ms": 150,
         "total_bibl_latency_target_ms": 200,
-        "whitepaper": "D3 Resolution — BIBL Three-Tier",
+        "specification": "D3 Resolution — BIBL Three-Tier",
         "timestamp": int(time.time()),
     })
 
@@ -319,7 +319,7 @@ def btcp_proof():
             "3. Check validator_key_version was valid at certification_block",
             "4. If valid: execute natively — no bridge, no wrapped token",
         ],
-        "whitepaper": "A3 Resolution",
+        "specification": "A3 Resolution",
     })
 
 
@@ -351,7 +351,7 @@ def btcp_modules():
         ],
         "total_modules": 18,
         "implemented": 18,
-        "whitepaper": "BTCP Master Spec Phase 2",
+        "specification": "BTCP Master Spec Phase 2",
     })
 
 
@@ -537,7 +537,7 @@ def btcp_bitp_match():
             "candidates_considered": len(candidates),
             "price_tolerance": price_tolerance,
             "price_tolerance_cap": MATCH_TOLERANCE_MAX,
-            "whitepaper": "Module 2.5 — BITP Matcher",
+            "specification": "Module 2.5 — BITP Matcher",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -574,7 +574,7 @@ def btcp_netting():
             "tolerance": tolerance,
             "tolerance_cap": MATCH_TOLERANCE_MAX,
             "candidates_considered": len(candidates),
-            "whitepaper": "Module 2.6 — Netting Engine",
+            "specification": "Module 2.6 — Netting Engine",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -607,7 +607,7 @@ def btcp_aggregate():
             "min_intents": IntentAggregator.MIN_INTENTS,
             "window_blocks": window_blocks,
             "intents_considered": len(intents),
-            "whitepaper": "Module 2.7 — Intent Aggregator",
+            "specification": "Module 2.7 — Intent Aggregator",
         }
         if pool_found and data.get("total_gas") is not None:
             total_gas = float(data.get("total_gas"))
@@ -706,7 +706,7 @@ def btcp_failure_classify():
                 "AMBIGUOUS": ("first two = EXTERNAL benefit of doubt; "
                               "third within 90 days = ENTITY"),
             },
-            "whitepaper": "Module 2.11 — Failure Classifier",
+            "specification": "Module 2.11 — Failure Classifier",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -737,7 +737,7 @@ def btcp_version():
                             "parsed": list(vh.parse_semver(minimum))},
             "compatible": vh.is_compatible(verifier, minimum),
             "adapter_version_bonus": VersionHandler.ADAPTER_VERSION_BONUS,
-            "whitepaper": "Module 2.16 — Version Handler",
+            "specification": "Module 2.16 — Version Handler",
         }
         if (old_version is None) != (new_version is None):
             raise ValueError("old_version and new_version must be supplied together")
@@ -805,7 +805,7 @@ def btcp_validator_fee():
             },
             "coverage_bonus": coverage_bonus,
             "total_validators": total_validators,
-            "whitepaper": "Module 2.17 — Validator Fee Calculator (Fix 4)",
+            "specification": "Module 2.17 — Validator Fee Calculator (Fix 4)",
         }
         if data.get("total_route_reward") is not None:
             total_route_reward = float(data.get("total_route_reward"))
@@ -892,7 +892,7 @@ def btcp_sybil():
                 "min_spacing_base_days": SybilResistance.MIN_SPACING_BASE_DAYS,
                 "similarity_threshold": SybilResistance.SIMILARITY_THRESHOLD,
             },
-            "whitepaper": "Module 2.18 — Sybil Resistance (Fix 5)",
+            "specification": "Module 2.18 — Sybil Resistance (Fix 5)",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -921,7 +921,7 @@ def btcp_integration_status():
             "Phase 3: Private BIBL computation (threshold homomorphic)",
             "Phase 4: Route selection + execution (zero front-running)",
         ],
-        "whitepaper": "Gap 9 Resolution — Private BIBL",
+        "specification": "Gap 9 Resolution — Private BIBL",
     })
 
 
@@ -971,7 +971,7 @@ def btcp_private_bibl():
                 "max_gas": decrypted[3],
                 "min_nl_score": decrypted[4],
             },
-            "whitepaper": "Gap 9 Resolution",
+            "specification": "Gap 9 Resolution",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1006,7 +1006,7 @@ def continuum_engines():
         },
         "total_engines": 5,
         "implemented": 5,
-        "whitepaper": "CONTINUUM Protocol Phase 4",
+        "specification": "CONTINUUM Protocol Phase 4",
     })
 
 
@@ -1030,7 +1030,7 @@ def continuum_bid():
             "depth_factor": round(result.depth_factor, 4),
             "pretrade_match": round(result.pretrade_match, 4),
             "feature_delta": result.feature_delta,
-            "whitepaper": "CONTINUUM 4.1 — BID",
+            "specification": "CONTINUUM 4.1 — BID",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1060,7 +1060,7 @@ def continuum_cme():
                 "beo_independence": round(result.beo_independence, 4),
                 "liquidity_sufficiency": round(result.liquidity_sufficiency, 4),
             },
-            "whitepaper": "CONTINUUM 4.2 — CME",
+            "specification": "CONTINUUM 4.2 — CME",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1090,7 +1090,7 @@ def continuum_pmo():
             "complement_id_hex": pmo.complement_id.hex(),
             "valid_blocks": pmo.valid_blocks,
             "status": pmo.status,
-            "whitepaper": "CONTINUUM 4.3 — PMO",
+            "specification": "CONTINUUM 4.3 — PMO",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1113,7 +1113,7 @@ def continuum_bdc():
             "consistency_ratio": round(result["consistency_ratio"], 4),
             "confidence_multiplier": round(result["confidence_multiplier"], 4),
             "depth_d": result["depth_d"],
-            "whitepaper": "CONTINUUM 4.4 — BDC",
+            "specification": "CONTINUUM 4.4 — BDC",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1215,7 +1215,7 @@ def continuum_settlement():
                          "evidence, not TRION-verified values; the trigger "
                          "verdict below is a computation on that evidence"),
             },
-            "whitepaper": "CONTINUUM 4.5 — Thermodynamic Settlement",
+            "specification": "CONTINUUM 4.5 — Thermodynamic Settlement",
         }
         if route_lookup is not None:
             out["route_verification"] = route_lookup
@@ -1247,7 +1247,7 @@ def continuum_ccp():
             "ccp_validators": round(result["ccp_validators"], 2),
             "ccp_protocol": round(result["ccp_protocol"], 2),
             "split": {"a": 0.40, "b": 0.40, "validators": 0.12, "protocol": 0.08},
-            "whitepaper": "CONTINUUM — CCP",
+            "specification": "CONTINUUM — CCP",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -1299,7 +1299,7 @@ def btcp_pipeline_status():
         },
         "total_tests": 210,
         "all_passing": True,
-        "whitepaper": "BTCP Master Implementation Spec — All 6 Phases",
+        "specification": "BTCP Master Implementation Spec — All 6 Phases",
         "timestamp": int(time.time()),
     })
 
@@ -1316,7 +1316,7 @@ def btcp_mainnet_bootstrap():
         **status,
         "chains": [c.to_dict() for c in chains[:20]],  # first 20 for display
         "total_chains_in_registry": len(chains),
-        "whitepaper": "BTCP Master Spec Phase 6 — Bootstrap & Mainnet Launch",
+        "specification": "BTCP Master Spec Phase 6 — Bootstrap & Mainnet Launch",
         "timestamp": int(time.time()),
     })
 
@@ -1663,7 +1663,7 @@ def btcp_orchestrate():
             },
             "errors": result.errors,
             "execution_time_ms": round(result.execution_time_ms, 2),
-            "whitepaper": "BTCP six-step orchestration — L7 BTCP Cross-Chain Protocol",
+            "specification": "BTCP six-step orchestration — L7 BTCP Cross-Chain Protocol",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400

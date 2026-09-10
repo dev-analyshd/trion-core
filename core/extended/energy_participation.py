@@ -186,7 +186,7 @@ def compute_ep(econ: ProtocolEconomics, dev: DeveloperData) -> EPResult:
     # attribute and an undefined `ep_score` variable here, then attempted to construct
     # EPResult with a non-existent `ep_score=` kwarg. That code was dead-code-by-bug
     # (AttributeError + NameError + TypeError on every call) and has been removed.
-    # The whitepaper L7.2 formula is strictly EP = VC * PA * DC (no green-energy
+    # The specification L7.2 formula is strictly EP = VC * PA * DC (no green-energy
     # multiplier); the real value is returned below.
 
     return EPResult(

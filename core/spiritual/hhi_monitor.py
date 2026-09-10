@@ -157,7 +157,7 @@ def compute_hhi_enforcement(
         validators, total_eff
     )
 
-    # Classify tier — whitepaper L4.8 four response tiers:
+    # Classify tier — specification L4.8 four response tiers:
     #   HHI < 1500 HEALTHY | 1500–2500 WARNING | 2500–4000 DANGER | > 4000 CRITICAL
     if hhi > 4000:
         tier = HHITier.CRITICAL

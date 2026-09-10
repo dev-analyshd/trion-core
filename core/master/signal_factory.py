@@ -8,7 +8,7 @@ Canonical taxonomy, M-073 resolution (owner ruling):
   CONSENSUS_ADAPTATION sit in BOTH families (the ruling's own note), so the
   closed set holds 27 distinct names while the taxonomy count is 29.
 
-Base 19 (whitepaper Section 11):
+Base 19 (specification Section 11):
   VALUATION, SILENCE, LIQUIDITY_HEALTH, MANIPULATION_ALERT, TRAJECTORY,
   SYSTEMIC_RISK, GOVERNANCE_SIGNAL, CROSS_CHAIN_COHERENCE, STABLECOIN_HEALTH,
   PHASE_TRANSITION, FORK_DIVERGENCE, GENESIS, REGULATORY_BHV,
@@ -31,7 +31,7 @@ Registry parity: the SignalType enum below stays EXACTLY 24 members with
 Every signal includes: CI_95 always, biological_time,
 full provenance chain, coherence breakdown.
 
-Provenance (whitepaper Section 11 — previously always empty, fixed):
+Provenance (specification Section 11 — previously always empty, fixed):
   Every signal carries a non-empty `provenance` list recording the actual
   computation sources: caller-supplied source records (e.g. behavioral-hash
   ids backing the signal) plus auto-recorded entries for the coherence
@@ -104,7 +104,7 @@ class SignalType(IntEnum):
     REGULATORY_BHV        = 16
     ECOSYSTEM_HEALTH      = 17
     BOOTSTRAP             = 18
-    # ── Extended signals (whitepaper original Section 11 — L6–L9 planes) ─────
+    # ── Extended signals (specification original Section 11 — L6–L9 planes) ─────
     SOVEREIGN_BEHAVIORAL  = 19   # L8.1 SBA — sovereign entity behavioral divergence
     ENERGY_PARTICIPATION  = 20   # L7.2 EP  — energy participation index signal
     BIOLOGICAL_CAPITAL    = 21   # L6.1 BC  — biological capital ecosystem health
@@ -191,7 +191,7 @@ BTCP_FAMILY_10_TYPES = [
     "BTCP_TIMEOUT", "GENESIS_COMMITMENT", "RESURRECTION",
 ]
 
-# Ruling (whitepaper) name → internal SignalType enum name where the enum
+# Ruling (specification) name → internal SignalType enum name where the enum
 # drifted. classify_signal() resolves these, so every closed-set name is
 # classifiable in its ruling spelling as well as the internal one.
 RULING_NAME_ALIASES = {
@@ -237,7 +237,7 @@ def classify_signal(name_or_type) -> dict:
     — signal_types.md envelope rule "A signal without a valid emitter_layer
     MUST be rejected").
 
-    M-073: ruling (whitepaper) spellings resolve through
+    M-073: ruling (specification) spellings resolve through
     RULING_NAME_ALIASES (REGULATORY_BEHAVIORAL → REGULATORY_BHV,
     MEV_BEHAVIORAL → MEV_EXPOSURE), and every classification records
     whether the type belongs to the BTCP family of the 29-type taxonomy.
@@ -280,7 +280,7 @@ def classify_signal(name_or_type) -> dict:
         domain = "v2_extended_5"
     else:  # pragma: no cover — enum is exactly 19 + 5
         raise KeyError(f"signal type {name} not in the canonical lists")
-    # Ruling (whitepaper) spelling for the two internally drifted names —
+    # Ruling (specification) spelling for the two internally drifted names —
     # the closed-set name this type carries in the 29-type taxonomy.
     internal_to_ruling = {v: k for k, v in RULING_NAME_ALIASES.items()}
     return {
@@ -372,7 +372,7 @@ import hashlib as _hashlib
 def _genomic_signature(entity_id_str: str, generation: int = 0) -> str:
     """
     Compute genomic_signature: bytes64 (128 hex chars) from sense+antisense strands.
-    Whitepaper L0.1 dual-strand DNA schema:
+    specification L0.1 dual-strand DNA schema:
       sense     = SHA3-256(payload || 0x00)
       antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
 
@@ -708,9 +708,9 @@ def build_signal(
     theta_selection:      float = 1.0,
 ) -> dict:
     """
-    Build a complete TRIONSignal object with all whitepaper-mandated fields.
+    Build a complete TRIONSignal object with all specification-mandated fields.
 
-    Whitepaper-specified mandatory fields (Section 11):
+    specification-specified mandatory fields (Section 11):
       signal_id, signal_type, entity_id, signal_value, ci_95 (always present),
       coherence, threshold, biological_time (BRT 4 phases), genomic_signature,
       immune_clearance, security_generation, provenance, validator_count,
@@ -2218,7 +2218,7 @@ if __name__ == "__main__":
         build_bootstrap(entity, coherence, 0.34, 100, 34, {"sigma": False, "k": False, "anima": False}, 660),
     ]
 
-    # Extended signals (types 19–23 from whitepaper original Section 11)
+    # Extended signals (types 19–23 from specification original Section 11)
     sigs += [
         build_sovereign_behavioral(entity, coherence, 0.62, "EU", 0.70, 0.45, 0.38, 1.22, "MEDIUM"),
         build_energy_participation(entity, coherence, 0.75, 512, 0.82, 0.71, 0.60, 0.12),
@@ -2293,7 +2293,7 @@ if __name__ == "__main__":
         print(f"  [{s['signal_type_id']:2d}] {s['signal_type']:28s} C={s['coherence']:.2f}  CI=[{s['ci_95'][0]:.2f},{s['ci_95'][1]:.2f}]"
               f"  prov={len(s['provenance'])} records{star}")
 
-    print(f"\n  * = extended signals (whitepaper Section 11 original — L6–L9 planes)")
+    print(f"\n  * = extended signals (specification Section 11 original — L6–L9 planes)")
     # BTCP §14.2 domain signals (typed sub-payloads on canonical carriers)
     btcp_domain = [
         build_btcp_domain_signal(sub, entity, coherence, 0.7)

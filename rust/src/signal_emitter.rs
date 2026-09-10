@@ -12,7 +12,7 @@
 //!   - `sdk/src/wasm/signal_processor.wat` globals `$ST_VALUATION` …
 //!     `$ST_CONSENSUS_ADAPT` (0–23) — byte-identical ids.
 //!
-//! Emission gate (whitepaper §3, BTCP spec §14.2):
+//! Emission gate (specification §3, BTCP spec §14.2):
 //!   T(t) = [C(t) ≥ Θ(t)] · S(t) · e^(M_moat · t)
 //!   [C ≥ Θ] = 1 → VALUATION emits (payload = T(t))
 //!   [C ≥ Θ] = 0 → SILENCE emits (payload = coherence gap Θ − C)
@@ -241,7 +241,7 @@ impl Signal {
     }
 }
 
-/// Signal emitter applying the whitepaper §3 master-equation gate:
+/// Signal emitter applying the specification §3 master-equation gate:
 /// T(t) = [C ≥ Θ] · S · e^(M·t).
 ///
 /// Five-plane C(t) enters as input (computed via

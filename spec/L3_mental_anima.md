@@ -1,6 +1,6 @@
 # TRION Protocol -- L3 Mental / ANIMA Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 5 (Mental Confidence and the Observer Effect).
+> **Reference:** TRION specification, Section 5 (Mental Confidence and the Observer Effect).
 > L3 models the chain's internal mental state, observer effects, and ANIMA scoring.
 
 ## Scope

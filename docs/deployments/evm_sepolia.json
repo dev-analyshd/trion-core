@@ -5,10 +5,10 @@
   "deployer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
   "deployer_source": "Same EOA in proof-ledger/deploy_*_sepolia.json and spec/BTCP_SPEC.txt (self-consistent tooling default; no signed-tx evidence in repo).",
   "corroborated_oracles": {
-    "note": "The only Sepolia EVM addresses with real repo corroboration (relayer tooling / whitepaper spec / live code). These are TRIONOracleV3 deployments, NOT the BTCP contracts listed below, and are kept here because they are the verified relay targets:",
+    "note": "The only Sepolia EVM addresses with real repo corroboration (relayer tooling / specification spec / live code). These are TRIONOracleV3 deployments, NOT the BTCP contracts listed below, and are kept here because they are the verified relay targets:",
     "TRIONOracleV3@ArbitrumSepolia": {
       "address": "0xb819c63c02Ed5aB49017C0f3f2568A14624658b3",
-      "corroboration": "spec/BTCP_SPEC.txt (whitepaper spec), core/trading/live_feed.py watch-list, backtest/publish_proof.js + backtest/results/onchain_proof.json, relayer/relayer.js addrDefault — strongest corroboration in the repo"
+      "corroboration": "spec/BTCP_SPEC.txt (specification spec), core/trading/live_feed.py watch-list, backtest/publish_proof.js + backtest/results/onchain_proof.json, relayer/relayer.js addrDefault — strongest corroboration in the repo"
     },
     "TRIONOracleV3@EthSepolia": {
       "address": "0xB07AD89a10f94B6D3bF2ab0B3a37988b1F37Db39",

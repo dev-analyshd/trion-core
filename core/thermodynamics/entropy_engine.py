@@ -1,7 +1,7 @@
 """
 TRION Protocol — L0.4 / L9.2: Behavioral Entropy Engine
 =========================================================
-Whitepaper L0.4 defines the Behavioral Entropy (BE) as a measure of
+specification L0.4 defines the Behavioral Entropy (BE) as a measure of
 informational disorder in an entity's transaction sequence.  L9.2 integrates
 entropy into the Economic Moat as the "thermodynamic floor" of the coherence
 score: when entropy is pathologically low (artificially ordered behavior) or

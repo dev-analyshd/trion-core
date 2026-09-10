@@ -71,7 +71,7 @@ def detect_wash_trading(
     min_counterparties: int = 5,
 ) -> MFResult:
     """
-    WASH_TRADING (Whitepaper L1.2 TYPE 1):
+    WASH_TRADING (specification L1.2 TYPE 1):
     MF = 0.70 × cyclic_flow_ratio
     Threshold: cyclic_flow_ratio > 0.60 AND counterparty_count < 5
     """
@@ -112,7 +112,7 @@ def detect_sybil_liquidity(
     share_threshold: float = 0.80,
 ) -> MFResult:
     """
-    SYBIL_LIQUIDITY (Whitepaper L1.2 TYPE 4):
+    SYBIL_LIQUIDITY (specification L1.2 TYPE 4):
     MF = 0.60 × funding_concentration
     Threshold: top_5_LP_providers > 80% pool AND funded from < 3 sources
     """
@@ -152,7 +152,7 @@ def detect_governance_capture(
     min_proposal_age_hours: float = 48.0,
 ) -> MFResult:
     """
-    GOVERNANCE_CAPTURE (Whitepaper L1.2 TYPE 5):
+    GOVERNANCE_CAPTURE (specification L1.2 TYPE 5):
     Trigger: vote_HHI > 4000 AND proposal_age_at_vote < 48h
     Score:   0.50 × (vote_HHI - 2500) / 7500
     Beanstalk scenario: same-block governance execution (HHI → 10000).
@@ -194,7 +194,7 @@ def detect_mev_extraction(
     max_ratio: float = 0.05,
 ) -> MFResult:
     """
-    MEV_EXTRACTION_SUSTAINED (Whitepaper L1.2 TYPE 6):
+    MEV_EXTRACTION_SUSTAINED (specification L1.2 TYPE 6):
     mev_rate = extracted_value / total_volume (30-day rolling)
     Trigger: mev_rate > 0.5% sustained > 7 days
     Score:   0.40 × (mev_rate - 0.005) / 0.045
@@ -241,7 +241,7 @@ def detect_coordinated_pump(
     min_entities: int = 3,
 ) -> MFResult:
     """
-    COORDINATED_PUMP (Whitepaper L1.2 TYPE 2):
+    COORDINATED_PUMP (specification L1.2 TYPE 2):
     MF = 0.85 × sync_buy_ratio
     Threshold: high_sync_entities >= 3 AND avg_sync_buy_ratio > 0.85
     Mango Markets scenario: correlated buying across 4 wallets.
@@ -286,7 +286,7 @@ def detect_fake_volume(
     threshold_ratio: float = 0.40,
 ) -> MFResult:
     """
-    FAKE_VOLUME_PROTOCOL (Whitepaper L1.2 TYPE 7):
+    FAKE_VOLUME_PROTOCOL (specification L1.2 TYPE 7):
     MF = 0.80 × (1 - vol_entropy / H_baseline)
     Threshold: (1 - vol_entropy/H_baseline) > 0.40 OR volume_spike > 5x
     When vol_entropy not available, use round_trip_ratio as proxy.

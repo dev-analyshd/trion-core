@@ -1,9 +1,9 @@
 //! master_equation.rs — L5 Five-Plane Coherence C(t) and the Master Equation
-//! TRION Whitepaper §3 (Master Equation, lines 129–161) — Rust port of the
+//! TRION specification §3 (Master Equation, lines 129–161) — Rust port of the
 //! canonical Python reference `core/master/coherence.py` (C(t), Θ(t), weight
 //! profiles) and `core/master/master_equation.py` (T(t), moat exponent clamp).
 //!
-//! Whitepaper §3:
+//! specification §3:
 //!   C(t)  = α·Φ_adj(t) + β·M_adj(t) + γ·Σ(t) + δ·K(t) + ε·A(t)
 //!   Θ(t)  = Θ_min + (Θ_max − Θ_min)·V(t),  Θ_min = 0.55, Θ_max = 0.92
 //!   T(t)  = [C(t) ≥ Θ(t)] · S(t) · e^(M_moat · t)
@@ -17,17 +17,17 @@
 //!   - Weight profiles mirror `WEIGHT_PROFILES` in `core/master/coherence.py`
 //!     exactly (7 asset profiles; the 4 query-mode profiles SPEED /
 //!     INTELLIGENCE / CERTAINTY / FULL_SPECTRUM are NOT ported here — the
-//!     7 asset profiles are the ones required by the whitepaper L5.2 table).
+//!     7 asset profiles are the ones required by the specification L5.2 table).
 //!   - T(t) mirrors `MasterEquation.compute` in
 //!     `core/master/master_equation.py`: moat exponent clamped at
 //!     MAX_MOAT_EXPONENT = 36.0 (e^36 ≈ 4.3e15 — decades of compounding
 //!     without overflow), negative time clamped to 0, and silence = no
 //!     output at all (represented as `None`).
 
-/// Θ_min — minimum dynamic threshold (whitepaper §3, coherence.py, wasm).
+/// Θ_min — minimum dynamic threshold (specification §3, coherence.py, wasm).
 pub const THETA_MIN: f64 = 0.55;
 
-/// Θ_max — maximum dynamic threshold (whitepaper §3, coherence.py, wasm).
+/// Θ_max — maximum dynamic threshold (specification §3, coherence.py, wasm).
 pub const THETA_MAX: f64 = 0.92;
 
 /// Numerical-stability clamp for the moat exponent (master_equation.py):
@@ -169,7 +169,7 @@ impl PlaneWeights {
 }
 
 /// Asset-type calibration profile selecting a weight set
-/// (whitepaper L5.2 table — mirrors `AssetProfile` in
+/// (specification L5.2 table — mirrors `AssetProfile` in
 /// `core/master/coherence.py`, asset-type entries only).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssetProfile {
@@ -244,7 +244,7 @@ pub fn threshold(volatility: f64) -> f64 {
 }
 
 /// The Heaviside gate [C(t) ≥ Θ(t)]: `true` → signal emits, `false` →
-/// SILENCE. Boundary is inclusive (C == Θ emits), per whitepaper §3
+/// SILENCE. Boundary is inclusive (C == Θ emits), per specification §3
 /// "[C(t) >= Θ(t)] = 1 → signal emits" and `emits = C >= theta` in
 /// `core/master/coherence.py`.
 pub fn emits(c: f64, theta: f64) -> bool {
@@ -436,7 +436,7 @@ mod tests {
         assert!((t.unwrap() - 0.75).abs() < 1e-12);
     }
 
-    /// Inclusive boundary: C == Θ emits (whitepaper "[C >= Θ] = 1").
+    /// Inclusive boundary: C == Θ emits (specification "[C >= Θ] = 1").
     /// Construction chosen for exact f64 equality (verified against
     /// Python): all planes 0.55 → C == 0.55 exactly; Θ(0) == 0.55 exactly.
     #[test]

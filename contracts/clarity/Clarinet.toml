@@ -1,0 +1,24 @@
+# Clarinet project configuration — chain-agnostic TRION BTCP contracts.
+# Contracts are deployed per-chain; see docs/deployments/*.json for addresses.
+[project]
+name = "trion-btcp"
+description = "TRION BTCP Zero-Bridge — chain-agnostic Clarity contracts"
+requirements = []
+
+[contracts.btcspvverifier]
+path = "BTCSPVVerifier.clar"
+
+[contracts.btcpescrow]
+path = "BTCPEscrow.clar"
+
+[contracts.btcpintent]
+path = "BTCPIntent.clar"
+
+[contracts.btcproute]
+path = "BTCPRoute.clar"
+
+[contracts.liquidityocean]
+path = "LiquidityOcean.clar"
+
+[contracts.behaviorallimitorder]
+path = "BehavioralLimitOrder.clar"

@@ -3,7 +3,7 @@ TRION Protocol — L8.1 Sovereign Behavioral Assessment (SBA)
 
 SBA(nation, t) = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C
 
-Weights (from whitepaper):
+Weights (from specification):
     w_E = 0.30  Economic stability component
     w_I = 0.25  Institutional integrity component  [KEY: I = corr(stated_policy, onchain_enforcement)]
     w_S = 0.20  Social cohesion component
@@ -154,7 +154,7 @@ def apply_economic_snapshot(
     """
     Merge a live IMF / World Bank economic snapshot into the SBA inputs.
 
-    Performs two rewirings required by the whitepaper's I-component
+    Performs two rewirings required by the specification's I-component
     (``I = corr(stated_policy, onchain_enforcement)``):
 
       1. ``stated_policy_scores`` is overwritten with the GDP-growth proxy

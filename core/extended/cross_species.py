@@ -286,7 +286,7 @@ def species_data_to_profile(
     failed (count=0), the profile is built from conservative defaults
     (mid-range values) so XSL still computes a non-zero estimate.
 
-    The mapping follows the whitepaper's XSL formula:
+    The mapping follows the specification's XSL formula:
       XSL = TerritoryViability · FoodSecurity · ReproductionRate
             / (1 + ThreatPressure)
 
@@ -533,7 +533,7 @@ def compute_xsl(
             # Decompose the GBIF threat_pressure across the 5 additive sub-
             # components expected by compute_threat_pressure. The decomposition
             # is conservative — habitat + climate carry the largest weights
-            # per the whitepaper, so they receive the GBIF threat aggregate.
+            # per the specification, so they receive the GBIF threat aggregate.
             if tp_proxy > 0:
                 per_component = min(1.0, tp_proxy / 1.5)
             else:

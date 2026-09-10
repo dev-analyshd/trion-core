@@ -39,11 +39,11 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BIN_DIR =
   process.env.TRION_INDEXER_BIN_DIR || join(ROOT, "indexers", "target", "release");
-const FAISS_URL = process.env.FAISS_URL || "http://127.0.0.1:8000";
+const FAISS_URL = process.env.FAISS_SERVICE_URL || process.env.FAISS_URL || "http://127.0.0.1:8000";
 
 // Canonical VM-family → indexer binary map (mirrors indexers/crates/*)
 const FAMILIES = {
-  evm:         { bin: "trion-evm",         chains: 55, note: "Ethereum + L2s + alt-EVM (EIP-155 IDs)" },
+  evm:         { bin: "trion-evm",         chains: 73, note: "Ethereum + L2s + alt-EVM + testnets (EIP-155 IDs)" },
   svm:         { bin: "trion-svm",         chains: 1,  note: "Solana mainnet/devnet (chain 900/901)" },
   starknet:    { bin: "trion-starknet",    chains: 1,  note: "Cairo VM (chain 24000)" },
   sui:         { bin: "trion-sui",         chains: 1,  note: "Move VM — Sui (chain 20100)" },
@@ -63,7 +63,7 @@ const FAMILIES = {
   vechain:     { bin: "trion-vechain",     chains: 1,  note: "VeChainThor EVM (chain 29000)" },
   waves:       { bin: "trion-waves",       chains: 1,  note: "Waves RIDE (chain 30000)" },
   xrpl:        { bin: "trion-xrpl",        chains: 1,  note: "XRPL (chain 31000)" },
-  botchain:    { bin: "trion-botchain",    chains: 1,  note: "TRION BOT Chain (chain 677)" },
+
 };
 
 // Python genesis backfills (historical bootstrap)
@@ -125,12 +125,23 @@ function startFamily(name) {
   }
   console.log(`→ starting ${name} indexer (${f.bin}) — ${f.note}`);
   const child = spawn(bin, [], {
-    env: { ...process.env, FAISS_URL },
+    env: { ...process.env, FAISS_SERVICE_URL: FAISS_URL },
     stdio: ["ignore", "inherit", "inherit"],
   });
-  child.on("exit", (code) =>
-    console.log(`  ${name} indexer exited with code ${code}`)
-  );
+  // Restart loop: if the indexer crashes, restart it after 5s
+  child.on("exit", (code) => {
+    console.log(`  ${name} indexer exited with code ${code} — restarting in 5s`);
+    setTimeout(() => {
+      const restarted = spawn(bin, [], {
+        env: { ...process.env, FAISS_SERVICE_URL: FAISS_URL },
+        stdio: ["ignore", "inherit", "inherit"],
+      });
+      restarted.on("exit", () => {
+        console.log(`  ${name} indexer exited again — restarting in 10s`);
+        // Further restarts handled by the supervisor if running under one
+      });
+    }, 5000);
+  });
   return child;
 }
 
@@ -143,7 +154,7 @@ function runBackfills() {
       continue;
     }
     console.log(`→ backfill ${script}`);
-    const child = spawn(process.executable || "python3", [path], {
+    const child = spawn("python3", [path], {
       cwd: svc,
       stdio: "inherit",
     });

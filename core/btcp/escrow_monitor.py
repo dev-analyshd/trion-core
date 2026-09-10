@@ -71,7 +71,7 @@ AKASHIC_RECOVERY_SECONDS = 24 * 3600       # 24 hours
 # may pass their own ``min_coherence`` only to TIGHTEN the gate — never to
 # loosen it below this floor (which mirrors BTCPProofBuilder's
 # DEFAULT_COHERENCE_THRESHOLD, core/btcp/modules.py: the Σ(t) > 0.55
-# whitepaper §4.3 gate is one number everywhere).  Previously a caller
+# specification §4.3 gate is one number everywhere).  Previously a caller
 # could pass min_coherence=0.0 and release on an incoherent verdict.
 MIN_COHERENCE_FLOOR = 0.55
 

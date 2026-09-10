@@ -6,7 +6,7 @@ against HEAD 3f6ce2e after the sibling Wave 1 commits (A's spec matrix, B's
 canonical BH + golden vectors, F's BTCP invariants) landed mid-audit —
 F's INV-012 quorum-claim hardening is reflected in §2.2 and H-04.
 **Normative reference:** `docs/protocol/CANONICAL_CERTIFICATE.md` (§ refs below
-point at that document). Spec cites: WHITEPAPER_MD.txt (MD), WHITEPAPER_V2.txt
+point at that document). Spec cites: SPECIFICATION_MD.txt (MD), SPECIFICATION_V2.txt
 (V2), BTCP_SPEC.txt (BTCP), L4_spiritual_security.md (L4), novel_primitives.md
 (P3), DD_REPORT.txt (DD).
 **Purpose:** the Wave 2 work order. Each finding names the exact file:line, the

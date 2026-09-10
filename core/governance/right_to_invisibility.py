@@ -2,7 +2,7 @@
 TRION Protocol — Right to Invisibility Enforcement
 ===================================================
 
-Whitepaper §17 specifies that any entity may petition for "invisibility"
+specification §17 specifies that any entity may petition for "invisibility"
 — the right to have their behavioral data excluded from TRION's public
 analytics.  This is a fundamental privacy right.
 

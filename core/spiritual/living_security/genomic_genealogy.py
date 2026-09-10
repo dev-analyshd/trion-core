@@ -9,7 +9,7 @@ This module tracks the genealogy DAG of validator keys:
   - Lineage distance between validators informs trust weighting
   - Byzantine validators' offspring inherit reduced trust
 
-Genomic Key Evolution Rule (from whitepaper Primitive 2):
+Genomic Key Evolution Rule (from specification Primitive 2):
   Key_gen_N = H(Key_gen_{N-1} || rotation_trigger || block_hash || validator_sig)
 
 Genealogy properties:
@@ -95,7 +95,7 @@ class GenomicGenealogyGraph:
         block_number:  int = 0,
     ) -> GenomicKeyNode:
         """Register a genesis key (generation 0) for a new validator."""
-        # L4.3 Genomic Key Evolution — dual-strand Hash_DNA per whitepaper
+        # L4.3 Genomic Key Evolution — dual-strand Hash_DNA per specification
         # GK(entity, t) = Hash_DNA(GK(t-1) || BE(t) || TM(t) || CV(t))
         genesis_input = key_material + validator_id.encode() + b"GENESIS"
         dna_result = hash_dna_dual_strand(genesis_input)

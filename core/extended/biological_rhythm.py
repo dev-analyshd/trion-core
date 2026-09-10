@@ -10,11 +10,11 @@ BRT is included in every TRIONSignal object as biological_time field.
 Enables ANIMA to detect when human behavioral patterns shift relative to
 natural rhythms — a known precursor to market regime changes.
 
-BRT–gas correlation (whitepaper F14, CONJECTURE):
+BRT–gas correlation (specification F14, CONJECTURE):
   compute_brt_gas_correlation() measures the circular-linear correlation
   between a BRT phase (circadian/ultradian/lunar/seasonal) and observed
   on-chain gas prices, using Mardia's circular-linear correlation with an
-  exact chi-square (df=2) significance test. Whitepaper rule: if the
+  exact chi-square (df=2) significance test. specification rule: if the
   correlation p-value > 0.05, the rhythm carries no validated timing
   signal and consumers must fall back to the ANIMA forecast — this is
   reported via the `anima_fallback` field on the result.
@@ -38,13 +38,13 @@ except ImportError:  # pragma: no cover — numpy is a core dependency
     _np = None  # type: ignore[assignment]
 
 
-# ── Constants (whitepaper L6.2) ────────────────────────────────────────────
+# ── Constants (specification L6.2) ────────────────────────────────────────────
 CIRCADIAN_SECONDS = 86400      # 24 hours
 ULTRADIAN_SECONDS = 5400       # 90 minutes
 LUNAR_SECONDS = 2551442        # 29.53059 days ≈ synodic month
 SEASONAL_SECONDS = 31557600    # 365.25 days ≈ tropical year
 
-# Whitepaper F14: significance level for the BRT–gas correlation. If
+# specification F14: significance level for the BRT–gas correlation. If
 # p > ALPHA the BRT phase carries no validated timing signal and the
 # caller must fall back to the ANIMA forecast.
 BRT_GAS_ALPHA = 0.05
@@ -59,7 +59,7 @@ RHYTHM_PERIODS: Dict[str, float] = {
 
 @dataclass
 class BiologicalRhythm:
-    """Complete BRT phase state per whitepaper L6.2."""
+    """Complete BRT phase state per specification L6.2."""
     timestamp: float
     circadian_phase: float    # (t mod 86400) / 86400   ∈ [0, 1]
     ultradian_phase: float    # (t mod 5400) / 5400     ∈ [0, 1]
@@ -90,7 +90,7 @@ def compute_brt(timestamp: Optional[float] = None) -> BiologicalRhythm:
     """
     Compute Biological Rhythm Timer phases for a given timestamp.
 
-    Whitepaper L6.2 formula:
+    specification L6.2 formula:
       circadian_phase = (t mod 86400) / 86400
       ultradian_phase = (t mod 5400) / 5400
       lunar_phase     = (t mod 2551442) / 2551442
@@ -174,14 +174,14 @@ def _circular_mean_and_strength(angles: Sequence[float]) -> Tuple[float, float]:
     return mean, strength
 
 
-# ── BRT–gas correlation (whitepaper F14) ────────────────────────────────────
+# ── BRT–gas correlation (specification F14) ────────────────────────────────────
 
 @dataclass
 class BRTGasCorrelation:
     """
     Result of the BRT phase ↔ gas-price correlation test (F14).
 
-    Whitepaper rule: if p_value > alpha the BRT phase carries no
+    specification rule: if p_value > alpha the BRT phase carries no
     statistically significant timing signal and consumers must fall back
     to the ANIMA forecast (`anima_fallback = True`).
     """
@@ -232,7 +232,7 @@ def compute_brt_gas_correlation(
     with 2 degrees of freedom, whose survival function is exactly
     exp(−n·r²/2) — no scipy required.
 
-    Whitepaper rule: p_value > 0.05 (alpha) → `anima_fallback = True`
+    specification rule: p_value > 0.05 (alpha) → `anima_fallback = True`
     (fall back to the ANIMA forecast; the BRT phase has no validated
     predictive power for gas in this sample).
 
@@ -240,7 +240,7 @@ def compute_brt_gas_correlation(
         timestamps: observed Unix timestamps (seconds), paired with gas_prices.
         gas_prices: observed gas prices (same length as timestamps).
         rhythm: one of circadian/ultradian/lunar/seasonal.
-        alpha: significance level (default 0.05 per whitepaper).
+        alpha: significance level (default 0.05 per specification).
         min_samples: minimum paired samples before the test is run
             (below this the result is INSUFFICIENT_SAMPLES with fallback).
 
@@ -339,7 +339,7 @@ def detect_circadian_anomaly(current_pattern: Dict,
 
 # ── Convenience aliases for backward compatibility ───────────────────────
 def BRT(timestamp: Optional[float] = None) -> BiologicalRhythm:
-    """Alias for compute_brt — matches whitepaper naming convention."""
+    """Alias for compute_brt — matches specification naming convention."""
     return compute_brt(timestamp)
 
 
@@ -367,7 +367,7 @@ if __name__ == "__main__":
 
     print("=== Biological Rhythm Timer (BRT) Self-test ===\n")
 
-    # 1. Phase computation matches whitepaper L6.2 exactly
+    # 1. Phase computation matches specification L6.2 exactly
     brt = compute_brt(43200)
     assert abs(brt.circadian_phase - 0.5) < 1e-9
     assert abs(brt.ultradian_phase - (43200 % 5400) / 5400) < 1e-9
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     gas_noise = np_test.random.RandomState(11).normal(50.0, 10.0, ts_arr.size)
     res_noise = compute_brt_gas_correlation(ts_arr.tolist(), gas_noise.tolist())
     assert res_noise.p_value > 0.05, f"expected non-significant, p={res_noise.p_value}"
-    assert res_noise.anima_fallback, "whitepaper rule: p > 0.05 → ANIMA forecast"
+    assert res_noise.anima_fallback, "specification rule: p > 0.05 → ANIMA forecast"
     print(f"✓ Noise → ANIMA fallback: r={res_noise.correlation:.4f} "
           f"p={res_noise.p_value:.3f} → anima_fallback={res_noise.anima_fallback}")
 

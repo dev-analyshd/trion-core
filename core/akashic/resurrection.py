@@ -179,7 +179,7 @@ def compute_resurrection(
     """
     Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
 
-    Spec (whitepaper L2.4): the composition is MULTIPLICATIVE — every component
+    Spec (specification L2.4): the composition is MULTIPLICATIVE — every component
     participates as a factor, so any single collapsed component (zero context,
     zero behavioral similarity, full decay) collapses the whole score. This is
     the semantic that separates GENUINE_CONTINUATION from ZOMBIE.

@@ -299,7 +299,7 @@ signed_power = Σ_j w_j over VERIFIED SIGNERS       # recomputed by the verifier
 Formula authority: BTCP_SPEC §12.2 (`w_j_effective = s_j · d_j`) and the MD
 formula appendix (`d_j = 1 - corr(M_j, M)`, `w_j_effective = s_j · d_j`).
 **Conflict resolved (see §12):** L4.1/P3 also define `P_j = stake_j · (1 +
-δ·d_j)`. Hierarchy rule: the whitepaper (level 1) and BTCP_SPEC (governs BTCP
+δ·d_j)`. Hierarchy rule: the specification (level 1) and BTCP_SPEC (governs BTCP
 absolutely) both state `s_j · d_j`; the layer doc's bonus form is the
 chain-internal voting-power variant. Certificate verification uses
 `w_j = s_j · d_j` — the form the Coordination Collapse Theorem (§12.2) is
@@ -599,10 +599,10 @@ compute it from time, they read the registry.
 
 Normative inputs (per the master worklog hierarchy):
 
-1. **MD whitepaper** — TRION-BFT 2/3 diversity-weighted (§6/L2.1); BH
+1. **MD specification** — TRION-BFT 2/3 diversity-weighted (§6/L2.1); BH
    domain-separation pattern incl. version+nonce (L0.1); AWA freeze (§17);
    formula appendix `w_j_effective = s_j · d_j`.
-2. **V2 whitepaper** — L4.1-4.2 DW-BFT + dynamic window; L4.8 HHI tiers;
+2. **V2 specification** — L4.1-4.2 DW-BFT + dynamic window; L4.8 HHI tiers;
    L4.9 slashing + dispute flow (72 h); Part 5 signal object
    (timestamp/ttl/validator_count/validator_hhi); §9.2 100 validators /
    4 continents.

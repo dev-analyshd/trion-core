@@ -2,7 +2,7 @@
 TRION Protocol — Elder Wisdom Protocol
 =======================================
 
-Whitepaper §19 specifies an "Elder Wisdom Protocol" — a mechanism for
+specification §19 specifies an "Elder Wisdom Protocol" — a mechanism for
 long-tenured TRION annotators (elders) to provide cultural context
 that overrides algorithmic scoring in edge cases.
 
@@ -37,7 +37,7 @@ from typing import Dict, List, Optional
 
 DB_PATH: str = os.path.join("akashic", "elder_wisdom.db")
 
-# Whitepaper §19 elder admission criteria
+# specification §19 elder admission criteria
 MIN_TENURE_SECONDS:    int   = 365 * 24 * 3600   # 12 months
 MIN_PREDICTION_ACC:    float = 0.65              # above-median
 ELDER_STAKE_MULTIPLIER: float = 3.0              # 3× stake weight

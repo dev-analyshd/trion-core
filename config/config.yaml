@@ -214,3 +214,17 @@ contract_addresses:
 # timescaledb:
 #   enabled: true
 #   url: "postgres://user:pass@host:port/dbname?sslmode=require"
+
+  stacks:
+    mainnet:
+      chain_id: 26000
+      api: https://api.hiro.so
+      vm_type: STACKS
+      poll_interval_ms: 15000
+      safe_lag: 3
+    testnet:
+      chain_id: 26001
+      api: https://api.testnet.hiro.so
+      vm_type: STACKS
+      poll_interval_ms: 15000
+      safe_lag: 3

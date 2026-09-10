@@ -1,10 +1,10 @@
 """
 TRION Protocol — 5 Open Research Questions for the Scientific Community
-Whitepaper Section 20.
+specification Section 20.
 
 These questions are explicitly posed to cryptographers, information theorists,
 consensus researchers, and the broader academic community. They represent the
-honest boundaries of what the whitepaper claims vs. what requires further research.
+honest boundaries of what the specification claims vs. what requires further research.
 
 This module tracks the status of each question and any published responses.
 
@@ -54,7 +54,7 @@ class OpenResearchQuestion:
     context:     str
     implications: str
     status:      QuestionStatus
-    falsification_link: Optional[str]   # links to whitepaper falsification condition if any
+    falsification_link: Optional[str]   # links to specification falsification condition if any
     responses:   List[ResearchResponse] = field(default_factory=list)
     opened_at:   float = field(default_factory=time.time)
     resolved_at: Optional[float] = None
@@ -73,7 +73,7 @@ OPEN_RESEARCH_QUESTIONS: List[OpenResearchQuestion] = [
         context=(
             "The Behavioral Causal Key security bound is: "
             "K(H(TRION,t)) >= Ω(t · N_chains · N_validators · H_environment). "
-            "The whitepaper argues this grows without bound as t→∞ and H_environment > 0. "
+            "The specification argues this grows without bound as t→∞ and H_environment > 0. "
             "A compression attack would find a description shorter than Ω(t·...), "
             "which would undermine the claim that causal history is ontologically irreproducible."
         ),
@@ -101,7 +101,7 @@ OPEN_RESEARCH_QUESTIONS: List[OpenResearchQuestion] = [
             "potentially containing years of per-block behavioral events. "
             "Standard Groth16/PLONK circuits scale with witness size. "
             "Multi-year behavioral records may exceed practical circuit limits. "
-            "Specific circuit construction noted as NOT YET COMPLETED in the whitepaper."
+            "Specific circuit construction noted as NOT YET COMPLETED in the specification."
         ),
         implications=(
             "Direct blocker for BIRP and Behavioral ZK Sovereignty (Primitive 6, Primitive 4). "
@@ -181,7 +181,7 @@ OPEN_RESEARCH_QUESTIONS: List[OpenResearchQuestion] = [
             "The recovery threshold is DELTA_RECOVERY = 0.15 cosine distance. "
             "Behavioral patterns legitimately drift: people's on-chain activity changes "
             "as markets change, protocols evolve, and user behavior matures. "
-            "The whitepaper acknowledges: 'False negative rate under behavioral drift "
+            "The specification acknowledges: 'False negative rate under behavioral drift "
             "requires empirical validation and threshold-setting [CONJECTURE].' "
             "No formal drift model exists yet."
         ),

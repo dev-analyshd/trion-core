@@ -4,7 +4,7 @@ The Master Equation combines coherence, threshold, signal value, and moat
 into a single output signal strength T(t). This is the final output of the
 TRION engine that gets published on-chain via the oracle contracts.
 
-Formula (whitepaper L5.4):
+Formula (specification L5.4):
   T(t) = [C(t) ≥ Θ(t)] · S(t) · e^(M_moat(t) · t)
 
 Where:
@@ -66,7 +66,7 @@ class MasterEquation:
         """
         Compute T(t) from a coherence engine result.
 
-        T(t) = [C≥Θ] · S(t) · e^(M_moat·t)   (whitepaper L5.4)
+        T(t) = [C≥Θ] · S(t) · e^(M_moat·t)   (specification L5.4)
 
         Args:
             coherence_result: Output from CoherenceEngine.compute_coherence()

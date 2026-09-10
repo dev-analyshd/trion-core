@@ -16,7 +16,7 @@ Components:
   C = Currency Behavior Alignment
       alignment between stated monetary policy and onchain FX/stablecoin flows
 
-Weights (whitepaper L8.1):
+Weights (specification L8.1):
   w_E=0.30, w_I=0.25, w_S=0.20, w_G=0.15, w_C=0.10   (sum=1.00)
 
 SBA ∈ [0, 1]
@@ -165,7 +165,7 @@ def compute_sba(
     """
     SBA(nation, t) = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C
 
-    Returns full breakdown for whitepaper compliance.
+    Returns full breakdown for specification compliance.
     """
     sba = (w_e * e_score + w_i * i_score + w_s * s_score
            + w_g * g_score + w_c * c_score)

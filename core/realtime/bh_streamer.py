@@ -124,7 +124,7 @@ def classify_event(selector: str, value: int, has_input: bool) -> int:
     et = SELECTOR_MAP.get(sel)
     if et is not None:
         return et
-    # Unknown selector: EVENT_TYPES (whitepaper 0–19, fixed by the 93-byte
+    # Unknown selector: EVENT_TYPES (specification 0–19, fixed by the 93-byte
     # cross-language BH spec) has no UNKNOWN/GENERIC code, so — honestly —
     # unmapped selectors fall back to TRANSFER (0), the same default the
     # Rust indexer uses. SELECTOR_MAP needs a fuller selector table before
@@ -1120,7 +1120,7 @@ def fetch_cardano_block(rpc_url, block_height):
     Behavioral model: each block is attributed to its PRODUCER (the stake pool
     in the `pool` field) — a real, continuously-observable entity whose block
     production rhythm is the behavioral signal (validator-behavior tracking
-    per whitepaper L4). Magnitude = the block's tx_count. Koios no longer
+    per specification L4). Magnitude = the block's tx_count. Koios no longer
     exposes per-tx input addresses in tx_info, so per-transaction sender
     extraction remains the trion-cardano Rust indexer's dedicated job.
     """

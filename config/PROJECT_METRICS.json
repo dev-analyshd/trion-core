@@ -22,7 +22,7 @@
     "chains_indexed_live": 40,
     "test_files": 42,
     "falsifiability_conditions": 15,
-    "whitepaper_formulas": 57,
+    "specification_formulas": 57,
     "formal_proofs": 9,
     "backtest_exploits": 30,
     "backtest_value_at_risk_usd": 3315800000,
@@ -37,6 +37,7 @@
     "starknet_verification_checks": 32,
     "github_workflows_passing": 10
   },
-  "note": "This is the single source of truth for all numerical claims. All docs should reference this file. Chain/VM counts (chains_supported, vm_families, chains_indexed_live) are derived from config/chain_registry.json — the canonical chain registry — and must be recomputed from it, never hand-edited: 129 chains, 18 VM families, 40 integrated (live indexer + oracle). [2026-09-06 correction, Task 12-b: chains_indexed_live was 41 — drift vs the registry's integrated_chains=40; recomputed programmatically from config/chain_registry.json (129 total / 40 integrated / 18 vm_family values) and fixed.]",
-  "last_updated": "2026-09-04"
+  "note": "This is the single source of truth for all numerical claims. All docs should reference this file. Chain/VM counts (chains_supported, vm_families, chains_indexed_live) are derived from config/chain_registry.json \u2014 the canonical chain registry \u2014 and must be recomputed from it, never hand-edited: 129 chains, 18 VM families, 40 integrated (live indexer + oracle). [2026-09-06 correction, Task 12-b: chains_indexed_live was 41 \u2014 drift vs the registry's integrated_chains=40; recomputed programmatically from config/chain_registry.json (129 total / 40 integrated / 18 vm_family values) and fixed.]",
+  "last_updated": "2026-09-04",
+  "indexer_crates": 21
 }

@@ -33,7 +33,7 @@ from typing import Dict, List, Optional
 
 
 # ── ANIMA Stream 3: Supported NLP Language Registry ───────────────────────────
-# Whitepaper Section 8.2 / Channel 14: "1,000+ crawlers, 50+ languages"
+# specification Section 8.2 / Channel 14: "1,000+ crawlers, 50+ languages"
 # Full ISO 639-1 enumeration of all 54 supported languages.
 # Crawlers are weighted by source credibility (CRED score per language corpus).
 

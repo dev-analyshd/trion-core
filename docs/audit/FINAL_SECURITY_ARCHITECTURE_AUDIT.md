@@ -4,7 +4,7 @@
 **Audit window:** commits `d7ca82e .. 49f368e` (the canonical reconstruction), on top of the
 Task 0–21 remediation history recorded in `docs/audit/AUTONOMOUS_MASTER_WORKLOG.md`
 and the engineering worklog.
-**Method:** specification-first hierarchy (whitepaper > BTCP spec > canonical math >
+**Method:** specification-first hierarchy (specification > BTCP spec > canonical math >
 canonical security requirements > implementation > tests > docs > engineering judgment),
 multi-agent role fleet per Part 12, red-team/fix cycles until pinned defense.
 
@@ -46,10 +46,10 @@ Final battery: **1022 unit + 9 skipped · 134 golden vectors · 221 BTCP ·
   frozen ⇒ every publication surface (route + 0G DA) returns 503
   `silence: true` (MD §17 "silence is information").
 
-## 3. Whitepaper compliance
+## 3. specification compliance
 
 `docs/audit/CANONICAL_SPEC_MATRIX.md`: 107 normative requirements extracted
-from the authoritative spec set (WHITEPAPER_MD Mar-2026 > WHITEPAPER_V2 Feb-2026
+from the authoritative spec set (SPECIFICATION_MD Mar-2026 > SPECIFICATION_V2 Feb-2026
 implementation spec > BTCP_SPEC > L0–L9), each with source section, math
 definition, implementations, compliance rating, deviations, security impact,
 remediation, and verification method. 22 internal spec conflicts (K1–K22)

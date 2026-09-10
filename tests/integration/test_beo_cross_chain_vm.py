@@ -4,7 +4,7 @@ TRION BEO Cross-Chain / Cross-VM Proof Test
 Proves that a single real-world entity operating across multiple chains and VM
 families is recognised as one unified Behavioral Entity Object (BEO).
 
-Whitepaper reference: L0.2
+specification reference: L0.2
   BEO_confidence = w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP
   threshold: BEO_confidence ≥ 0.75 → same_entity = True
 

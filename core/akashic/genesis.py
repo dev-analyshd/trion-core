@@ -2,7 +2,7 @@
 TRION Protocol — L2.2: Genesis Inference
 For assets with no behavioral history — priced from archetype similarity.
 
-Whitepaper Section 6 — Genesis Inference: Valuing the Unvalued from Block Zero
+specification Section 6 — Genesis Inference: Valuing the Unvalued from Block Zero
 
 Genesis Fingerprint: 6-dimensional snapshot at t=0
   1. Liquidity seeding structure (amount, concentration, LP wallet history)
@@ -18,7 +18,7 @@ Archetype Matching:
 Genesis Valuation:
   V₀ = Σₖ sim(G, Aₖ) · Vₖ(stage=0) / Σₖ sim(G, Aₖ)
 
-Confidence Convergence (variable λ per whitepaper §6.4):
+Confidence Convergence (variable λ per specification §6.4):
   conf(t) = 1 − e^(−λ · A(t))
   λ = Σₖ sim(G, Aₖ) · λₖ / Σₖ sim(G, Aₖ)   (archetype-matched convergence rate)
 
@@ -125,8 +125,8 @@ def query_faiss_archetype_similarities(
 @dataclass
 class GenesisFingerprint:
     """
-    Whitepaper §6.2 — Full 6-dimension Genesis Fingerprint captured at t=0.
-    Each dimension maps directly to a whitepaper-specified input.
+    specification §6.2 — Full 6-dimension Genesis Fingerprint captured at t=0.
+    Each dimension maps directly to a specification-specified input.
     """
     # Dimension 1: Liquidity seeding structure
     liquidity_seed_amount_usd:      float = 0.0       # USD value seeded at launch
@@ -282,7 +282,7 @@ class Archetype:
     feature_vector:     np.ndarray
     base_value:         float
     convergence_rate:   float = 0.001   # λₖ — asset-class specific convergence rate
-    genesis_stage_value: float = 0.0    # Vₖ(stage=0) per whitepaper §6.3
+    genesis_stage_value: float = 0.0    # Vₖ(stage=0) per specification §6.3
 
 
 # ── Core Functions ────────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ def archetype_matched_lambda(
     archetypes: List[Archetype],
 ) -> float:
     """
-    Whitepaper §6.4 — Variable λ estimated from matched archetypes' convergence rates.
+    specification §6.4 — Variable λ estimated from matched archetypes' convergence rates.
     λ = Σₖ sim(G, Aₖ) · λₖ / Σₖ sim(G, Aₖ)
 
     Fast-moving asset classes (e.g. memecoins with high early activity) have
@@ -313,7 +313,7 @@ def archetype_matched_lambda(
 
 
 def genesis_confidence(D_asset: float, lam: float = GENESIS_LAMBDA_DEFAULT) -> float:
-    """conf(t) = 1 − e^(−λ · A(t))  with variable λ per whitepaper §6.4."""
+    """conf(t) = 1 − e^(−λ · A(t))  with variable λ per specification §6.4."""
     return 1.0 - math.exp(-lam * D_asset)
 
 
@@ -324,7 +324,7 @@ def infer_genesis_value(
     _use_v2:    bool = True,   # attempt transformer path if available
 ) -> dict:
     """
-    Full Genesis Inference per whitepaper §6.3–6.4.
+    Full Genesis Inference per specification §6.3–6.4.
 
     V₀ = Σₖ sim(G, Aₖ) · Vₖ(stage=0) / Σₖ sim(G, Aₖ)
     λ  = archetype-matched convergence rate (variable, not fixed)
@@ -362,7 +362,7 @@ def infer_genesis_value(
 
     if faiss_results is not None and len(faiss_results) > 0:
         # FAISS returned centroid similarities.  Map them onto the caller-supplied
-        # Archetype list so the whitepaper formulas (V₀, λ) still use the
+        # Archetype list so the specification formulas (V₀, λ) still use the
         # per-class metadata (base_value, convergence_rate, genesis_stage_value).
         # Strategy: for each local Archetype find the FAISS centroid whose vector
         # is most cosine-similar, then weight by that centroid's FAISS score.
@@ -396,7 +396,7 @@ def infer_genesis_value(
 
     total_sim  = sum(sims)
 
-    # ── Step 2: archetype-matched λ (variable per whitepaper §6.4) ───────────
+    # ── Step 2: archetype-matched λ (variable per specification §6.4) ───────────
     lam = archetype_matched_lambda(sims, archetypes)
 
     if total_sim <= 0:

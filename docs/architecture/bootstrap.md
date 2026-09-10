@@ -31,7 +31,7 @@ The Physical plane (Φ) and Mental plane (M) are **fully live** from block 1.
 ### Spiritual (Σ)
 - **Activation condition**: Mainnet validator network deployed
 - **Current status**: Bootstrap (0.25 = neutral uncertainty baseline)
-- **Architecture**: Fully implemented per whitepaper (diversity-weighted BFT)
+- **Architecture**: Fully implemented per specification (diversity-weighted BFT)
 - **Formula**: `Σ = Σ_j [s_j · d_j · 1(|v_j - M̄| ≤ δ(t))] / Σ_j [s_j · d_j]`
 
 ### Conscious (K)

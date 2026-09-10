@@ -1,6 +1,6 @@
 # TRION Protocol -- L7 Natural Liquidity Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 9 (Natural Liquidity and Energy Participation).
+> **Reference:** TRION specification, Section 9 (Natural Liquidity and Energy Participation).
 > L7 distinguishes natural, organic liquidity from synthetic or manipulated flow.
 
 ## Scope
@@ -114,7 +114,7 @@ LH <= 0.30            ->  collapsed (price discovery halted)
 ### Invariants
 
 - `LH_composite` is the primary input to the `Phi` plane for Currency assets (P1).
-  > **SUPERSEDED (K21):** see WHITEPAPER_MD.txt/V2 L1.1 — canonical resolution recorded
+  > **SUPERSEDED (K21):** see SPECIFICATION_MD.txt/V2 L1.1 — canonical resolution recorded
   > in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K21). Φ = physical behavioral entropy
   > (V2 f1–f9), NOT LH_composite; the substitution below is non-canonical engineering
   > guidance and is not implemented as such.

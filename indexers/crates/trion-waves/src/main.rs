@@ -65,7 +65,7 @@ fn classify_waves(tx: &Value) -> u8 {
         12 => 19,  // DataTransaction → CLAIM (state claim)
         13 => 6,   // SetAssetScript → GOVERNANCE
         14 => 12,  // SponsorFee → UPGRADE
-        15 => 13,  // Alias → MINT (identity creation)
+        15 => 12,  // SetAssetScript → UPGRADE (script modification)
         16 => 14,  // Burn — canonical BURN byte 14 (12 is UPGRADE)
         _ => {
             // Smart-asset variants (e.g. type 103 BurnSmartAsset) fall through
@@ -73,7 +73,7 @@ fn classify_waves(tx: &Value) -> u8 {
             if tx.get("burnedTokens").is_some() { 14 }
             else if ttype == 17 { 0 }  // Reissue
             else if ttype == 3 { 13 }  // Issue → MINT
-            else if ttype == 6 { 2 }   // Alias (legacy) → LIQUIDITY placeholder
+            else if ttype == 6 { 6 }   // CreateAlias → GOVERNANCE (identity registration)
             else if ttype == 18 || ttype == 103 || ttype == 104 { 1 } // Exchange / scripts → SWAP
             else if ttype == 22 { 2 }  // UpdateAssetInfo
             else { 0 }                 // TRANSFER fallback

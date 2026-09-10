@@ -1,7 +1,7 @@
 """
 TRION ANIMA Intelligence Engine — L3.3 through L3.7 Complete
 =============================================================
-Implements the full ANIMA intelligence layer as specified in the TRION whitepaper.
+Implements the full ANIMA intelligence layer as specified in the TRION specification.
 
   L3.3  ANIMA Score  A(t) = PCR(t) × HA(t) × CA(t)
   L3.4  Source Credibility  CRED(s,t) with daily decay and event updates
@@ -47,7 +47,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Constants — whitepaper-aligned
+# Constants — specification-aligned
 # ─────────────────────────────────────────────────────────────────────────────
 
 CRED_DECAY_DAILY        = 0.99      # L3.4: CRED(s,t) = CRED(s,t-1) × 0.99 per day
@@ -430,7 +430,7 @@ def get_all_cred_status() -> List[Dict]:
 
 _EDGAR_UA = "TRION-Protocol research@trion.io"
 
-# NLP lexicons for EDGAR filing body text — whitepaper gap analysis spec
+# NLP lexicons for EDGAR filing body text — specification gap analysis spec
 _EDGAR_HIGH_RISK = [
     "investigation", "material weakness", "going concern", "enforcement action",
     "subpoena", "fraud", "violation", "cease and desist", "sanctions",
@@ -942,7 +942,7 @@ def _crawl_arxiv(entity_id: str) -> Dict:
 
 def _crawl_forums(entity_id: str) -> Dict:
     """
-    Technical-forum intelligence (whitepaper Part 8: 'technical forums').
+    Technical-forum intelligence (specification Part 8: 'technical forums').
 
     Sources (public, no API key):
       - StackExchange Ethereum site: question volume + answer rate
@@ -1006,7 +1006,7 @@ def _crawl_forums(entity_id: str) -> Dict:
 
 def _crawl_gdelt(entity_id: str) -> Dict:
     """
-    GDELT multilingual news intelligence (whitepaper Part 8: 'NLP, 50+
+    GDELT multilingual news intelligence (specification Part 8: 'NLP, 50+
     languages'). GDELT's DOC API monitors global news in 65+ languages.
     """
     try:
@@ -1208,7 +1208,7 @@ def _compute_ha(entity_id: str) -> Tuple[float, int]:
         conn.close()
 
     if not rows:
-        return 0.80, 0  # neutral prior — L3.3 whitepaper spec
+        return 0.80, 0  # neutral prior — L3.3 specification spec
 
     correct = sum(1 for r in rows if r["error"] is not None and r["error"] <= HA_CORRECT_TOLERANCE)
     ha      = correct / len(rows)
@@ -1339,7 +1339,7 @@ def _source_id_map(sid: str) -> str:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cross-domain signal injection — L6.1 BC, L9.1 XSL, L6.2 BRT
-# Whitepaper: "BC feeds into ANIMA as a cross-domain signal" (L6.1)
+# specification: "BC feeds into ANIMA as a cross-domain signal" (L6.1)
 #             "XSL feeds into ANIMA as a cross-domain signal" (L9.1)
 #             "BRT enables ANIMA to detect human behavioral shifts" (L6.2)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1433,7 +1433,7 @@ def get_anima_score(entity_id: str, entity_history: Dict) -> Dict:
     a_adj         = round(anima_score * (1.0 - REFLEXIVITY_BETA * reflexivity["reflexivity"]), 6)
     reflexivity_flag = reflexivity["reflexivity"] > REFLEXIVITY_FLAG_THR
 
-    # ── Whitepaper §3.3: ANIMA output MUST be PROBABILITY_DISTRIBUTION not POINT_PREDICTION
+    # ── specification §3.3: ANIMA output MUST be PROBABILITY_DISTRIBUTION not POINT_PREDICTION
     # std_dev: uncertainty grows when HA < 1.0 and CA < 1.0 and reflexivity is present
     uncertainty   = round(max(0.02, (1.0 - ha) * 0.3 + (1.0 - ca) * 0.2
                                + reflexivity["reflexivity"] * 0.1), 6)
@@ -1444,7 +1444,7 @@ def get_anima_score(entity_id: str, entity_history: Dict) -> Dict:
         "entity_id":        entity_id,
         "anima_score":      anima_score,
         "a_adj":            a_adj,          # A_adj(t) after reflexivity dampening (L3.5)
-        # Whitepaper §3.3 mandatory probability distribution format
+        # specification §3.3 mandatory probability distribution format
         "probability_distribution": {
             "type":        "PROBABILITY_DISTRIBUTION",
             "mean":        a_adj,

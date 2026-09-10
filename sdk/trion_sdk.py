@@ -34,7 +34,7 @@ except ImportError:
 # event-signals). BTCP_ROUTE and CONSENSUS_ADAPTATION sit in both families
 # (the ruling's own note), so the closed set below holds 27 distinct names
 # while the taxonomy count is 29. Names use the internal enum spellings
-# (REGULATORY_BHV / MEV_EXPOSURE / INSTITUTIONAL_BHV); the whitepaper
+# (REGULATORY_BHV / MEV_EXPOSURE / INSTITUTIONAL_BHV); the specification
 # spellings are accepted through SIGNAL_TYPE_ALIASES below.
 SIGNAL_TYPES = [
     "VALUATION", "SILENCE", "MANIPULATION_ALERT", "GENESIS", "RESURRECTION",
@@ -44,7 +44,7 @@ SIGNAL_TYPES = [
     "INSTITUTIONAL_BHV", "REGULATORY_BHV", "ECOSYSTEM_HEALTH", "BOOTSTRAP",
     "SOVEREIGN_BEHAVIORAL", "ENERGY_PARTICIPATION", "BIOLOGICAL_CAPITAL",
     "CONSENSUS_ADAPTATION",
-    # BTCP signal type (canonical 19, whitepaper §11).
+    # BTCP signal type (canonical 19, specification §11).
     # SECURITY FIX (P1, verification matrix #19): BTCP_ROUTE was missing here
     # (present in sdk/TrionSDK.ts, sdk/src/index.ts and core SignalType = 22).
     "BTCP_ROUTE",
@@ -57,7 +57,7 @@ SIGNAL_TYPES = [
     "GENESIS_COMMITMENT",
 ]
 
-# Whitepaper spellings accepted for the two internally drifted names.
+# specification spellings accepted for the two internally drifted names.
 SIGNAL_TYPE_ALIASES = {
     "REGULATORY_BEHAVIORAL": "REGULATORY_BHV",
     "MEV_BEHAVIORAL":        "MEV_EXPOSURE",
@@ -296,7 +296,7 @@ class TRIONClient:
     """
 
     SDK_VERSION = "1.0.0"
-    WHITEPAPER  = "TRION Protocol — Hudu Yusuf (Analys), February 2026, CC0"
+    SPECIFICATION  = "TRION Protocol — Hudu Yusuf (Analys), February 2026, CC0"
 
     def __init__(self, base_url: str = "http://localhost:5000", timeout: int = 10):
         self._http    = _HTTP(base_url, timeout)
@@ -306,7 +306,7 @@ class TRIONClient:
 
     def get_signal(self, entity_id: str) -> TRIONSignal:
         """
-        Fetch the full TRIONSignal for an entity (all 34 whitepaper §11 fields).
+        Fetch the full TRIONSignal for an entity (all 34 specification §11 fields).
         Returns SILENCE struct when C(t) < Θ(t).
         """
         data = self._http.get(f"/api/v1/signal/{entity_id}")
@@ -323,7 +323,7 @@ class TRIONClient:
         """
         Emit a specific TRIONSignal type.
         signal_type: any name from SIGNAL_TYPES (the M-073 closed set — the
-        19 whitepaper §11 types plus the BTCP-family additions; whitepaper
+        19 specification §11 types plus the BTCP-family additions; specification
         spellings of the two drifted names resolve through
         SIGNAL_TYPE_ALIASES). The server route /api/v1/signal/type/<type>
         currently pins the 19 §11 types; the BTCP-family names classify
@@ -475,9 +475,9 @@ class TRIONClient:
         """10-Phase implementation roadmap — completion status per phase."""
         return self._http.get("/api/v1/phases")
 
-    def get_whitepaper_coverage(self) -> Dict:
-        """All whitepaper formulas (L0–L10) with status and endpoint mapping."""
-        return self._http.get("/api/v1/whitepaper/coverage")
+    def get_specification_coverage(self) -> Dict:
+        """All specification formulas (L0–L10) with status and endpoint mapping."""
+        return self._http.get("/api/v1/specification/coverage")
 
     # ── Moat + Coherence ─────────────────────────────────────────────────────
 

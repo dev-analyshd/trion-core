@@ -13,4 +13,3 @@ solana-program = "1.18"
 
 [features]
 no-entrypoint = []
-

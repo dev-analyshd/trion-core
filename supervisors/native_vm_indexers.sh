@@ -107,3 +107,17 @@ log "Native VM Rust indexers started: trion-near(23000) trion-ton(22000) trion-p
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"
+
+# Stacks Mainnet  (chain_id 26000) — trion-stacks
+# Stacks Testnet  (chain_id 26001) — set STACKS_NETWORK=testnet
+if build_if_needed "trion-stacks"; then
+    restart_process "trion-stacks" \
+        "$BIN_DIR/trion-stacks" &
+fi
+
+# Stellar Mainnet  (chain_id 27000) — trion-stellar
+# Stellar Testnet  (chain_id 27001) — set STELLAR_NETWORK=testnet
+if build_if_needed "trion-stellar"; then
+    restart_process "trion-stellar" \
+        "$BIN_DIR/trion-stellar" &
+fi

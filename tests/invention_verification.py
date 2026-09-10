@@ -1,9 +1,9 @@
 """
 TRION Protocol — Invention Verification Suite
 ===============================================
-Verifies ALL inventions from the whitepapers are present and functioning.
+Verifies ALL inventions from the specifications are present and functioning.
 
-36 inventions from the whitepapers:
+36 inventions from the specifications:
   1.  HashDNA (dual-strand BH)
   2.  Thermodynamic Deletion
   3.  Genomic Key (GK)

@@ -5,7 +5,7 @@
 > document is the CONTRACT subsequent waves implement and audit against.
 >
 > Compiled at HEAD f91a19b (Wave 1 open) from a full line-by-line read of every
-> authoritative source (spec/WHITEPAPER_MD.txt, spec/WHITEPAPER_V2.txt,
+> authoritative source (spec/SPECIFICATION_MD.txt, spec/SPECIFICATION_V2.txt,
 > spec/BTCP_SPEC.txt, spec/L0–L9 *.md, spec/signal_types.md, spec/novel_primitives.md,
 > spec/falsifiability_registry.md, spec/communication_channels.md; spec/DD_REPORT.txt
 > used as audit input only) cross-referenced against the implementation tree
@@ -14,9 +14,9 @@
 
 ## Specification hierarchy (fixed at freeze)
 
-1. **spec/WHITEPAPER_MD.txt** (Feb 2026, updated Mar 2026) — canonical protocol
+1. **spec/SPECIFICATION_MD.txt** (Feb 2026, updated Mar 2026) — canonical protocol
    semantics. **Wins semantic conflicts.** Cited as **MD**.
-2. **spec/WHITEPAPER_V2.txt** (Feb 2026) — complete implementation spec. **Wins
+2. **spec/SPECIFICATION_V2.txt** (Feb 2026) — complete implementation spec. **Wins
    where MD is silent.** Cited as **V2**.
 3. **spec/BTCP_SPEC.txt** (Apr 2026) — governs BTCP absolutely. Cited as **BTCP**.
 4. **spec/L0–L9 *.md + signal_types.md + novel_primitives.md +
@@ -732,13 +732,13 @@ Canonical: MD §11, §13, §15; V2 Part 5, Part 6; signal_types.md/novel_primiti
 - **specification section**: MD L4.3 "[NOVEL PRIMITIVE] Behavioral Causal Key Security Bound".
 - **mathematical definition**: Kolmogorov-complexity lower bound on the system history.
 - **canonical data structure**: complexity check fields.
-- **canonical implementation**: complexity-bound checker in `core/spiritual/living_security/` (tested via test_whitepaper_gaps complexity-bound tests).
-- **all implementations**: `core/spiritual/living_security/`; `tests/unit/test_whitepaper_gaps.py` (test_complexity_bound_fields, test_sha3_key_within_bound); novel_primitives.md P2 (KDF/Argon2id form — a different construction: `BCK = KDF(BH(t0)‖…‖BH(tn))`).
+- **canonical implementation**: complexity-bound checker in `core/spiritual/living_security/` (tested via test_specification_gaps complexity-bound tests).
+- **all implementations**: `core/spiritual/living_security/`; `tests/unit/test_specification_gaps.py` (test_complexity_bound_fields, test_sha3_key_within_bound); novel_primitives.md P2 (KDF/Argon2id form — a different construction: `BCK = KDF(BH(t0)‖…‖BH(tn))`).
 - **current compliance**: **RESEARCH-ONLY** (the bound is modeled and unit-tested as arithmetic; novel_primitives P2's Argon2id BCK is NOT implemented — no KDF-based BCK in code).
 - **deviations**: P2's concrete BCK derivation MISSING.
 - **security impact**: High claim, low current exposure (no production keys rely on BCK).
 - **required remediation**: Either implement P2's KDF construction in `core/novel/` or mark P2 as deferred in spec.
-- **verification method**: `tests/unit/test_whitepaper_gaps.py`; **MUST-CREATE** if implemented: BCK derivation vectors.
+- **verification method**: `tests/unit/test_specification_gaps.py`; **MUST-CREATE** if implemented: BCK derivation vectors.
 
 #### R-SG-05 — Primitive 2: Semi-immutability
 - **requirement**: `bytecode(P,t) = bytecode(P,t′) ∀t>t′` AND `expression(P,t) = f(bytecode(P), EL_state(t))` with `EL_state = g(Threat_level, Network_entropy, Validator_health)`; g defined by deployed bytecode (range immutably bounded); differs from proxy patterns (no governance vote, no new address).
@@ -851,12 +851,12 @@ Canonical: MD §8 (L4.1–L4.7); V2 Part 6 (8 DNA components) + L4.3–4.9.
 - **mathematical definition**: component-wise construction (each has its own formula below).
 - **canonical data structure**: `LivingSecuritySystem{genomic, strands, crispr, epigenetic, recombination, noise, mito}`.
 - **canonical implementation**: `core/spiritual/living_security/__init__.py::LivingSecuritySystem`.
-- **all implementations**: `core/spiritual/living_security/__init__.py` (all 8 classes); `core/spiritual/living_security/genomic_genealogy.py`; `core/spiritual/living_security/pqc_layer.py`; `core/akashic/epigenetics.py` (persistent expression); `anima-service` crispr_adaptive.db; `tests/test_gk_living_security.py`; `tests/unit/test_whitepaper_gaps.py` (SEC/LSS/PQC tests).
+- **all implementations**: `core/spiritual/living_security/__init__.py` (all 8 classes); `core/spiritual/living_security/genomic_genealogy.py`; `core/spiritual/living_security/pqc_layer.py`; `core/akashic/epigenetics.py` (persistent expression); `anima-service` crispr_adaptive.db; `tests/test_gk_living_security.py`; `tests/unit/test_specification_gaps.py` (SEC/LSS/PQC tests).
 - **current compliance**: **COMPLIANT** (all 8 components as classes with health checks; DD's "fabricated attack library" concern: the CRISPR library ships historical-attack signatures — labeled; live ADAPTIVE characterization 24h loop is operational only with live traffic).
 - **deviations**: None structural.
 - **security impact**: Critical (LSS underwrites SEC(t) and F4).
 - **required remediation**: Keep the "simulated 2026 attacks" labeling (DD S8) — do not cite them as external evidence.
-- **verification method**: `tests/test_gk_living_security.py`; `tests/unit/test_whitepaper_gaps.py`.
+- **verification method**: `tests/test_gk_living_security.py`; `tests/unit/test_specification_gaps.py`.
 
 #### R-LS-02 — Genomic Key evolution
 - **requirement**: `GK(entity,t) = Hash_DNA(GK(entity,t−1) ∥ BE(t) ∥ TM(t) ∥ CV(t))` (behavioral events, threat map, consensus validator state per block); dual-strand verification; stolen snapshot outdated at next block.
@@ -893,12 +893,12 @@ Canonical: MD §8 (L4.1–L4.7); V2 Part 6 (8 DNA components) + L4.3–4.9.
 - **mathematical definition**: Product of three sub-scores; `P(break SEC) = P(LSS)·P(PQC)·P(CC)`.
 - **canonical data structure**: `PQCScore`, `ClassicalCryptoScore`, SEC result.
 - **canonical implementation**: `core/spiritual/living_security/__init__.py` (sec functions) + `pqc_layer.py`.
-- **all implementations**: `core/spiritual/living_security/pqc_layer.py`; `tests/unit/test_whitepaper_gaps.py` (test_pqc_all_schemes_active, test_pqc_nist_levels, test_sec_product_formula, test_sec_range).
+- **all implementations**: `core/spiritual/living_security/pqc_layer.py`; `tests/unit/test_specification_gaps.py` (test_pqc_all_schemes_active, test_pqc_nist_levels, test_sec_product_formula, test_sec_range).
 - **current compliance**: **PARTIAL** — formula and scheme registry complete; PQC crypto itself depends on optional kyber-py/dilithium-py (absent in sandbox — 4 tests skip; environmental, pre-proven).
 - **deviations**: None (optional-dependency boundary documented).
 - **security impact**: High (quantum-resistance claim).
 - **required remediation**: Install PQC libs in CI image so the 4 tests run.
-- **verification method**: `tests/unit/test_whitepaper_gaps.py` PQC block (currently env-skipped).
+- **verification method**: `tests/unit/test_specification_gaps.py` PQC block (currently env-skipped).
 
 #### R-LS-05 — Security bootstrap protocol
 - **requirement**: `bootstrap_weight(t) = e^(−λ_boot·D(t))`; `SEC_boot = w·SEC_classical + (1−w)·SEC_living`; classical = multi-sig 7-of-12 + rate limit + human oversight; at D_minimum living security fully active, classical retired; transition permanently logged.
@@ -912,7 +912,7 @@ Canonical: MD §8 (L4.1–L4.7); V2 Part 6 (8 DNA components) + L4.3–4.9.
 - **deviations**: 7-of-12 multisig wrapper MISSING.
 - **security impact**: Medium (during bootstrap, classical protections are the actual control).
 - **required remediation**: Instantiate a 7-of-12 multisig authority for the bootstrap phase or document its deferral.
-- **verification method**: `tests/unit/test_whitepaper_gaps.py` (bootstrap weight decay test).
+- **verification method**: `tests/unit/test_specification_gaps.py` (bootstrap weight decay test).
 
 #### R-LS-06 — Conscious plane (K) — human annotation network
 - **requirement**: `K(t) = human_annotation_score × stake_weight × temporal_consistency`; 5 annotators per review, 3-of-5 majority; pseudonymous identities; 12-month terms (max 24); commit-reveal voting; 6 anti-capture protections; K CANNOT override Akashic record or reverse settled transactions.

@@ -142,7 +142,7 @@ fn extract_features(txs: &[Value]) -> [f64; 9] {
 /// transaction depend on what else the process had observed (canonical
 /// violation — the same tx must always produce the same BH).
 fn hbar_magnitude(wei: u128) -> f64 {
-    let w = (wei as u64).min(u64::MAX / 2);
+    let w = wei.min(u64::MAX as u128) as u64;
     let human = w as f64 / HBAR_DECIMALS;
     if human <= 0.0 { return 0.0; }
     ((human + 1.0).log10() / (1001.0_f64).log10()).min(1.0)

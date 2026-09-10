@@ -33,7 +33,7 @@ _IK_DB_PATH = os.path.normpath(_IK_DB_PATH)
 _ik_lock = threading.Lock()
 
 # ── Elder annotation elevated weight (distinct from standard 1.0 default) ────
-ELDER_STAKE_WEIGHT_MULTIPLIER = 2.5   # Whitepaper: elder/knowledge-holder epistemic primacy
+ELDER_STAKE_WEIGHT_MULTIPLIER = 2.5   # specification: elder/knowledge-holder epistemic primacy
 
 
 # ── SQLite connection ─────────────────────────────────────────────────────────

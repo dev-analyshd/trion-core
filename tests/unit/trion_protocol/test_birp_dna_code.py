@@ -1,7 +1,7 @@
 """
 Phase 4 — BIRP DNA_Code user-defined secret tests
 =================================================
-Verifies the whitepaper §16 "user-defined secret sequence with time-based
+Verifies the specification §16 "user-defined secret sequence with time-based
 rotation" extension to the BIRP Phase 1 DNA verification.
 
 The DNA_Code:
@@ -236,7 +236,7 @@ class TestPhase1WithDNACode:
 # ── Constants tests ────────────────────────────────────────────────────────────
 
 class TestBIRPConstants:
-    """Verify the whitepaper-mandated constants are unchanged."""
+    """Verify the specification-mandated constants are unchanged."""
 
     def test_quarantine_is_7_days(self):
         assert QUARANTINE_SECONDS == 7 * 24 * 3600

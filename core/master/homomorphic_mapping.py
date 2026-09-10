@@ -1,6 +1,6 @@
 """
 TRION Protocol — Homomorphic Behavioral Mapping + Adaptive Layer
-Whitepaper v0.4, Section 4 + Section 5
+specification v0.4, Section 4 + Section 5
 
 PROBLEM (Section 2.7):
 A Bitcoin UTXO coin-days-destroyed metric and an EVM token velocity metric cannot

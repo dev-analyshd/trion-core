@@ -1,6 +1,6 @@
 /*!
  * TRION Living Security System — L4.3-4.6 + Part 6
- * Eight DNA-mimetic security components, whitepaper-exact.
+ * Eight DNA-mimetic security components, specification-exact.
  *
  * SEC(t) = LSS(t) · PQC(t) · CC(t)
  *
@@ -43,7 +43,7 @@ fn now_secs() -> u64 {
 
 // ── Component 2: Complementary Strand Verification ───────────────────────────
 
-/// Dual-strand DNA hash — whitepaper L0.1.
+/// Dual-strand DNA hash — specification L0.1.
 /// sense     = SHA3-256(payload || 0x00)
 /// antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
 /// Invariant: sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
@@ -194,7 +194,7 @@ impl GenomicKeyEvolver {
         self.keys.get(entity_id)
     }
 
-    /// Kolmogorov Complexity lower bound (whitepaper L4.3):
+    /// Kolmogorov Complexity lower bound (specification L4.3):
     /// K(H(TRION, t)) >= Ω(t · N_chains · N_validators · H_environment)
     /// Returns an approximate lower bound using current state.
     pub fn kolmogorov_bound(&self, n_chains: u64, n_validators: u64, t_secs: u64) -> f64 {
@@ -556,7 +556,7 @@ impl MitochondrialCore {
 
 // ── SEC(t) = LSS(t) · PQC(t) · CC(t) ────────────────────────────────────────
 
-/// Post-Quantum Cryptography score (whitepaper L4.5).
+/// Post-Quantum Cryptography score (specification L4.5).
 /// CRYSTALS-Kyber + CRYSTALS-Dilithium + SPHINCS+
 /// In production: use actual PQC libraries. Here: structural representation.
 #[derive(Clone, Debug)]
@@ -575,7 +575,7 @@ impl PQCScore {
     pub fn all_active() -> Self { Self::new(true, true, true) }
 }
 
-/// Classical Cryptography score (whitepaper L4.5).
+/// Classical Cryptography score (specification L4.5).
 /// SHA-3 + AES-256 + ZK proofs
 #[derive(Clone, Debug)]
 pub struct ClassicalCryptoScore {

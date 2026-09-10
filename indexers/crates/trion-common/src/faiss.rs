@@ -31,7 +31,7 @@ pub struct VectorEntry {
     /// Block hash (hex string) — used in canonical BH computation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_hash_hex:   Option<String>,
-    /// Dominant event type for this block (0-19, whitepaper L0.1).
+    /// Dominant event type for this block (0-19, specification L0.1).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type:       Option<u8>,
     /// Canonical BH sense strand (64 hex chars) — L0.1 dual-strand.
@@ -56,7 +56,7 @@ pub struct BatchPayload {
 
 // ── Per-transaction BH batch ─────────────────────────────────────────────────
 
-/// A single per-transaction BH entry (whitepaper L0.1 exact).
+/// A single per-transaction BH entry (specification L0.1 exact).
 /// Computed for every transaction in a block.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TxBhEntry {
@@ -66,7 +66,7 @@ pub struct TxBhEntry {
     pub from_addr:      String,
     /// Receiver address or contract (0x-prefixed).
     pub to_addr:        String,
-    /// Canonical whitepaper EventType byte (0-19).
+    /// Canonical specification EventType byte (0-19).
     pub event_type:     u8,
     /// EventType name string (e.g. "SWAP").
     pub event_type_name: String,

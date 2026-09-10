@@ -1,7 +1,7 @@
 """
 TRION Protocol — THE GOLDEN TEST
 =================================
-The complete end-to-end workflow verification (whitepaper Phase 9):
+The complete end-to-end workflow verification (specification Phase 9):
 
   1. Boot FAISS + Oracle (in-process)
   2. Verify BEO identity across chains
@@ -282,7 +282,7 @@ print("\n── STEP 10: All 20 Communication Channels ──")
 # ══════════════════════════════════════════════════════════════════════════
 
 from core.master.channel_architecture import CHANNELS, channel_summary
-check("20 communication channels defined (whitepaper §15)", len(CHANNELS) == 20)
+check("20 communication channels defined (specification §15)", len(CHANNELS) == 20)
 summary = channel_summary()
 active = sum(1 for ch in CHANNELS.values() if ch.status in ("ACTIVE", "MAINNET"))
 check(f"Channels ACTIVE or MAINNET: {active}/20", active >= 15)

@@ -18,7 +18,7 @@ Architecture:
     estimate_gas(), get_chain_id(), format_address()
   - VMAdapterFactory provides unified access by chain_id or VM type
 
-Whitepaper reference: L7.2 Cross-VM Translation Layer, L7.4 VM Abstraction
+specification reference: L7.2 Cross-VM Translation Layer, L7.4 VM Abstraction
 """
 
 import os

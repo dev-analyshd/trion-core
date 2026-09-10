@@ -1,0 +1,118 @@
+{
+  "spvContract": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.spv-v2",
+  "verifyAnchor": {
+    "ok": true,
+    "txHash": "0x01c3bdb45dd562b5affcad7621b9cfefa9977c819c62311dd8b2c9bb3a110d03",
+    "anchorBH": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "blockHeight": 5128449
+  },
+  "rounds": {
+    "passed": 20,
+    "total": 20,
+    "txs": [
+      {
+        "round": 1,
+        "ok": true,
+        "txHash": "0x7b5f8095aedad7917091905a66d6e0d94516228fd46a7f6f2c83f4bb936085d9"
+      },
+      {
+        "round": 2,
+        "ok": true,
+        "txHash": "0x21dcb33d9e2d650761f30403d3f505bbc583dd1c8367e22d98aa4f1f4ae66717"
+      },
+      {
+        "round": 3,
+        "ok": true,
+        "txHash": "0x12681353abef63d1bcef7b049b34d01d12026421e1a98ac589a3bc9442964171"
+      },
+      {
+        "round": 4,
+        "ok": true,
+        "txHash": "0x33c7875e79eda9d2b73b384bdd4760741ce3add1262b74998babc93a2553060a"
+      },
+      {
+        "round": 5,
+        "ok": true,
+        "txHash": "0xb62a3903922028c5eb6a3ca46d2c322f6d6fa2bc116b7c37d080ddf8fc27a132"
+      },
+      {
+        "round": 6,
+        "ok": true,
+        "txHash": "0xda6813afe63ba54322c57d2c8ac16d70f1d973f788c8a32a948f9229efe99987"
+      },
+      {
+        "round": 7,
+        "ok": true,
+        "txHash": "0x07362e3047a816480337fd144977776d5cbc8b3607070d110ddd3226fde1262b"
+      },
+      {
+        "round": 8,
+        "ok": true,
+        "txHash": "0xeac1d0839d2297cb702cd9e3d3486ba6de51287bb8b5349eec1e1dfdae1be83d"
+      },
+      {
+        "round": 9,
+        "ok": true,
+        "txHash": "0x4a487f5940a7a0248b9560a14c1e586891811a100cd9029c2fbdf5a82c979452"
+      },
+      {
+        "round": 10,
+        "ok": true,
+        "txHash": "0x34b2817443b79c62b27548f9187a7e3caf25293cc8a53bc2bd6038e802689b68"
+      },
+      {
+        "round": 11,
+        "ok": true,
+        "txHash": "0xaccbb1fd3429a0f54e9ecc955645edda9b961fcb68fbddab3a74c1a8f19a20c9"
+      },
+      {
+        "round": 12,
+        "ok": true,
+        "txHash": "0xc54c2515c2ab94e68fc8a784f340ace0930d55dc7a37ccf513cb4089869ec338"
+      },
+      {
+        "round": 13,
+        "ok": true,
+        "txHash": "0x4d12364abd99dc06e3dfea221e4a8822fd7505c01dc547e67e59db30c3b4f902"
+      },
+      {
+        "round": 14,
+        "ok": true,
+        "txHash": "0xcf7cd70f2ada4e6dbb5774af1e2cb7cf7cb732294772124c1c5c14877b035ccb"
+      },
+      {
+        "round": 15,
+        "ok": true,
+        "txHash": "0x8eb63e097cb901db5424905ee3c5aab210e2cf34cb5c26a66a7d9c26f5f87043"
+      },
+      {
+        "round": 16,
+        "ok": true,
+        "txHash": "0x1b8aaef47ac0306b0921bee942210953b2b5f2b868ca0f72744df47f4c167b46"
+      },
+      {
+        "round": 17,
+        "ok": true,
+        "txHash": "0xa96be2b38c7bfea033d4bb5c2f336670959f1b214e276981433e9e1a0d26b8aa"
+      },
+      {
+        "round": 18,
+        "ok": true,
+        "txHash": "0xc2557e7a3ff4248b7640c36a312a2160a8593840f72ae0069e0a6b92dfdbc117"
+      },
+      {
+        "round": 19,
+        "ok": true,
+        "txHash": "0x92074973568a06b3b41a88b49c72faa101c85da0bc25a0ef26e9a70e4a65168d"
+      },
+      {
+        "round": 20,
+        "ok": true,
+        "txHash": "0xa3a01cf90016005b370f007a5e8442c4c5cd2468381e6fb6ecff24538f38f7ea"
+      }
+    ]
+  },
+  "invariant": "assets_bridged=false",
+  "timestamp": "2026-09-10T10:29:07.749Z"
+}

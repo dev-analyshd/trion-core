@@ -69,7 +69,7 @@ npm run export:verifiers
 
 ## Statement proven — why Poseidon
 
-The spec's `H_intent = Hash_DNA(...)` is SHA3-256 over a byte layout (93-byte whitepaper / 420-byte BTCP formal spec). SHA3 is not SNARK-friendly (each hash ≈ tens of thousands of constraints). The circuits use the standard ZK practice: **Poseidon over BN254 field elements** (~320 constraints per 8-input hash) for in-circuit commitments, with the field-element layout documented per circuit. Cross-system binding to the on-chain `HashDNA.sol` digests happens via the public `intent_hash`/`behavioral_hash` inputs, which the off-chain prover maps from the SHA3 domain. The spec's ~50k-constraint estimate for `zk_complementarity_proof` corresponds to the full Hash_DNA/Merkle variant; the Poseidon shape here is the recommended v1.
+The spec's `H_intent = Hash_DNA(...)` is SHA3-256 over a byte layout (93-byte specification / 420-byte BTCP formal spec). SHA3 is not SNARK-friendly (each hash ≈ tens of thousands of constraints). The circuits use the standard ZK practice: **Poseidon over BN254 field elements** (~320 constraints per 8-input hash) for in-circuit commitments, with the field-element layout documented per circuit. Cross-system binding to the on-chain `HashDNA.sol` digests happens via the public `intent_hash`/`behavioral_hash` inputs, which the off-chain prover maps from the SHA3 domain. The spec's ~50k-constraint estimate for `zk_complementarity_proof` corresponds to the full Hash_DNA/Merkle variant; the Poseidon shape here is the recommended v1.
 
 ## Integration points
 

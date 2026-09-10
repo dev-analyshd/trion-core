@@ -2,7 +2,7 @@
 TRION Protocol — Love Protocol (Fitness Function Coefficient)
 ==============================================================
 
-Whitepaper §20 specifies the "Love Protocol" — the F coefficient in the
+specification §20 specifies the "Love Protocol" — the F coefficient in the
 master moat equation M_moat = D · Q · R · X · F · N.
 
 F = 0 if Love = 0
@@ -21,7 +21,7 @@ that fails its ethical commitments has no durable moat.
 
 The Love coefficient is computed as the minimum of these six sub-scores
 (not the average) — the weakest link determines the protocol's moral
-authority, which is the whitepaper's intent.
+authority, which is the specification's intent.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -128,7 +128,7 @@ class LoveProtocol:
         if moat_collapse:
             rationale = (
                 f"Moat collapse: pillar '{weakest_pillar}' score is 0. "
-                f"Per whitepaper §20: F = 0 if Love = 0. "
+                f"Per specification §20: F = 0 if Love = 0. "
                 f"The entire moat M_moat collapses to 0."
             )
         else:

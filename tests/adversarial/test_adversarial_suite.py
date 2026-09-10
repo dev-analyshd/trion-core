@@ -656,7 +656,7 @@ class TestBoundaries:
     def test_awa_hhi_above_4000_not_enforced(self):
         """AWA with validator_hhi > 4000 → status=EMERGENCY, enforced=False."""
         from core.governance.awa import AWAEnforcer, AWA_HHI_MAX
-        assert AWA_HHI_MAX == 4000, "AWA_HHI_MAX must be 4000 per whitepaper"
+        assert AWA_HHI_MAX == 4000, "AWA_HHI_MAX must be 4000 per specification"
         import core.governance.awa as _awa
         _orig = _awa._emission_gate
         _awa._emission_gate = _awa.EmissionGate()  # isolate the global gate

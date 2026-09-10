@@ -37,7 +37,7 @@
 ✓ BTCPRoute         .route_count            = 0x3 (3 routes registered)
 ✓ BTCPEscrow        .escrow_count           = 0x3 (3 escrows locked+released)
 ✓ LiquidityOcean    .get_owner              = 0x7cbe751a...1b7f82 (deployer)
-✓ LiquidityOcean    .get_routing_threshold  = 0x493e0 (300000 = 0.30×1e6, per whitepaper L7.1)
+✓ LiquidityOcean    .get_routing_threshold  = 0x493e0 (300000 = 0.30×1e6, per specification L7.1)
 ✓ LiquidityOcean    .get_chain_count        = 0x0
 ✓ LiquidityOcean    .get_ocean_score        = 0x0
 ```
@@ -224,7 +224,7 @@ The BTCP Zero-Bridge enables cross-chain exchange **without assets ever leaving 
 ### Key Formulas Verified On-Chain
 
 - **BTCP Score:** `[0.25×NL + 0.20×gas + 0.20×finality + 0.15×CC + 0.20×BEO] × (1−MF) = 0.8274`
-- **Liquidity Ocean routing threshold:** `300000` (0.30 ×1e6, per whitepaper L7.1)
+- **Liquidity Ocean routing threshold:** `300000` (0.30 ×1e6, per specification L7.1)
 - **BTCFiGuard safe threshold:** `1` (CAUTION tier)
 - **Escrow release condition:** `coherence (0.92) ≥ min_coherence (0.50)` → RELEASED
 

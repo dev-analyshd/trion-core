@@ -39,7 +39,7 @@ export type SignalType =
     // 27 distinct names while the taxonomy count is 29. The literals below
     // complete the closed set (13 base names); REGULATORY_BHV/MEV_EXPOSURE
     // are the internal enum spellings the oracle API emits for the two
-    // drifted whitepaper names. TEMPORAL_ANOMALY/UNKNOWN above are legacy
+    // drifted specification names. TEMPORAL_ANOMALY/UNKNOWN above are legacy
     // literals outside the canonical 29.
     | 'LIQUIDITY_HEALTH'
     | 'TRAJECTORY'

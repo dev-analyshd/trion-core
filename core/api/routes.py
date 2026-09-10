@@ -53,6 +53,6 @@ API_SPEC = {
 # Import-time diagnostics go to the module logger at DEBUG level (silenced
 # by default) instead of stdout — a bare print() here fired on every import.
 logger.debug(
-    "API surface: %d endpoints across all whitepaper sections",
+    "API surface: %d endpoints across all specification sections",
     len(API_SPEC["endpoints"]),
 )

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TRION Akashic Index — Genesis Bootstrap / Historical Backfill
-Whitepaper mandate: Full EVM history from genesis, zero gaps.
+specification mandate: Full EVM history from genesis, zero gaps.
 
 Usage:
     python genesis_backfill.py --start-block 0 --end-block latest --rpc <url>

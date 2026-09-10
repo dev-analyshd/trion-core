@@ -32,13 +32,19 @@ const VM_TYPE:   &str = "TVM";
 
 const TRON_APIS: &[&str] = &[
     "https://api.trongrid.io",
-    "https://api.shasta.trongrid.io",
 ];
 
-#[allow(dead_code)]
+/// Get TRON API key from env (optional — free tier works without it).
+fn tron_api_key() -> String {
+    std::env::var("TRON_API_KEY").unwrap_or_default()
+}
+
 async fn tron_get(client: &reqwest::Client, base: &str, path: &str) -> Result<Value> {
     let url  = format!("{}{}", base.trim_end_matches('/'), path);
-    let resp = client.get(&url).header("TRON-PRO-API-KEY", "").send().await?;
+    let key = tron_api_key();
+    let mut req = client.get(&url);
+    if !key.is_empty() { req = req.header("TRON-PRO-API-KEY", &key); }
+    let resp = req.send().await?;
     if !resp.status().is_success() { anyhow::bail!("TRON HTTP {}", resp.status()); }
     Ok(resp.json().await?)
 }

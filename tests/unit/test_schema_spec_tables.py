@@ -154,7 +154,7 @@ class TestCanonicalEventEnum:
 
     def test_behavioral_event_type_is_the_canonical_20(self, schema):
         """schema.sql's enum must carry exactly the authoritative 20 names
-        in id order (whitepaper L0.1 §2 / core.primitives.behavioral_hash)."""
+        in id order (specification L0.1 §2 / core.primitives.behavioral_hash)."""
         m = re.search(r"CREATE TYPE behavioral_event_type AS ENUM \((.*?)\)", schema, re.S)
         assert m, "behavioral_event_type enum missing"
         enum_names = re.findall(r"'(\w+)'", m.group(1))
