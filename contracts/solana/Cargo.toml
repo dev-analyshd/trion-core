@@ -1,0 +1,18 @@
+[workspace]
+members = [
+    "programs/btc_spv_verifier",
+    "programs/btcp_escrow",
+    "programs/btcp_intent",
+    "programs/btcp_route",
+    "programs/liquidity_ocean",
+]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[workspace.dependencies]
+anchor-lang = "0.30"
+solana-program = "1.18"

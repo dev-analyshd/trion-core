@@ -1,0 +1,16 @@
+[package]
+name = "btcp_route"
+version = "0.1.0"
+description = "TRION BTCP Zero-Bridge — chain-agnostic Solana program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+anchor-lang = "0.30"
+solana-program = "1.18"
+
+[features]
+no-entrypoint = []
+

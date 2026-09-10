@@ -1,0 +1,26 @@
+[provider]
+cluster = "Devnet"
+wallet = "/tmp/solana-keypair.json"
+
+[programs.devnet]
+btc_spv_verifier = "BtcSpvVerif1111111111111111111111111111111"
+btcp_escrow = "BtcpEscrow11111111111111111111111111111111111"
+btcp_intent = "BtcpIntent11111111111111111111111111111111111"
+btcp_route = "BtcpRoute1111111111111111111111111111111111111"
+liquidity_ocean = "LiqOcean11111111111111111111111111111111111111"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+
+[workspace]
+members = [
+    "programs/btc_spv_verifier",
+    "programs/btcp_escrow",
+    "programs/btcp_intent",
+    "programs/btcp_route",
+    "programs/liquidity_ocean",
+]
