@@ -22,7 +22,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 use trion_common::{
     bh_id, block_entity_id, build_vector, canonical_bh, event_type_name,
-    histogram_entropy,
+    histogram_entropy, freq_entropy,
     entropy::ratio_entropy, BatchPayload, FaissClient, IndexerState, TxBhBatch, TxBhEntry, VectorEntry,
 };
 
