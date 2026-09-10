@@ -1246,23 +1246,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trion-botchain"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "hex",
- "reqwest",
- "serde",
- "serde_json",
- "sha3",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "trion-common",
-]
-
-[[package]]
 name = "trion-cardano"
 version = "1.0.0"
 dependencies = [
@@ -1414,7 +1397,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "trion-stacks"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
 name = "trion-starknet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trion-common",
+]
+
+[[package]]
+name = "trion-stellar"
 version = "0.1.0"
 dependencies = [
  "anyhow",
