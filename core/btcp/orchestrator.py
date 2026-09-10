@@ -28,15 +28,19 @@ from enum import IntEnum
 _workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _workspace_root)
 
-from zk import (
-    ZKProofSystem,
-    IntentWitness,
-    ComplementarityWitness,
-    BehavioralCredentialWitness,
-    TravelRuleWitness,
-    IAPShareWitness,
-    CircuitType,
-)
+try:
+    from zk import (
+        ZKProofSystem,
+        IntentWitness,
+        ComplementarityWitness,
+        BehavioralCredentialWitness,
+        TravelRuleWitness,
+        IAPShareWitness,
+        CircuitType,
+    )
+except ImportError:
+    pass  # zk-circuits optional
+
 from adapters import (
     VMAdapterFactory,
     VMType,
@@ -620,7 +624,11 @@ class PrivacyRouter:
         all_valid = True
         errors = []
         
-        from zk import ZKProof, CircuitType
+        try:
+            from zk import ZKProof, CircuitType
+        except ImportError:
+            ZKProof = None
+            CircuitType = None  # zk-circuits optional
         
         circuit_map = {
             "intent_commitment": CircuitType.INTENT_COMMITMENT,
@@ -1300,7 +1308,10 @@ class ProofAggregator:
     
     def aggregate(self) -> Dict[str, Any]:
         """Compute the aggregate Merkle root of all proofs."""
-        from zk import merkle_root
+        try:
+            from zk import merkle_root
+        except ImportError:
+            merkle_root = None  # zk-circuits optional
         
         if not self._merkle_leaves:
             return {

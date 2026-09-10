@@ -1,7 +1,7 @@
 {
   "version": "2.1.0",
   "generated_by": "P3-CONSOLIDATE chain-registry unification (base: FIX-2 vm-chain-implementer)",
-  "total_chains": 133,
+  "total_chains": 129,
   "integrated_chains": 44,
   "vm_families": 18,
   "vm_distribution": {
@@ -1713,58 +1713,6 @@
       "nativeToken": "ETH",
       "decimals": 18,
       "notes": "merged from anima-service/chains_registry_evm.json (P3-CONSOLIDATE); zkEVM L2"
-    },
-    {
-      "name": "Stacks",
-      "vm": "STACKS",
-      "chainId": 26000,
-      "rpc": "https://api.hiro.so",
-      "finalitySec": 600,
-      "gasUsd": 0.01,
-      "integrated": true,
-      "explorer": "https://explorer.hiro.so",
-      "nativeToken": "STX",
-      "decimals": 6,
-      "notes": "Clarity VM; Bitcoin-anchored L2"
-    },
-    {
-      "name": "Stacks Testnet",
-      "vm": "STACKS",
-      "chainId": 26001,
-      "rpc": "https://api.testnet.hiro.so",
-      "finalitySec": 60,
-      "gasUsd": 0.001,
-      "integrated": true,
-      "explorer": "https://explorer.hiro.so/txid?chain=testnet",
-      "nativeToken": "STX",
-      "decimals": 6,
-      "notes": "Clarity VM; testnet"
-    },
-    {
-      "name": "Stellar",
-      "vm": "STELLAR",
-      "chainId": 27000,
-      "rpc": "https://horizon.stellar.org",
-      "finalitySec": 5,
-      "gasUsd": 1e-05,
-      "integrated": true,
-      "explorer": "https://stellar.expert/explorer/public",
-      "nativeToken": "XLM",
-      "decimals": 7,
-      "notes": "Soroban VM"
-    },
-    {
-      "name": "Stellar Testnet",
-      "vm": "STELLAR",
-      "chainId": 27001,
-      "rpc": "https://horizon-testnet.stellar.org",
-      "finalitySec": 5,
-      "gasUsd": 1e-05,
-      "integrated": true,
-      "explorer": "https://stellar.expert/explorer/testnet",
-      "nativeToken": "XLM",
-      "decimals": 7,
-      "notes": "Soroban VM testnet"
     }
   ],
   "sources": [
