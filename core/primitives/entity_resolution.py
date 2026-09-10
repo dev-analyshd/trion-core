@@ -3,7 +3,7 @@ TRION Protocol — L0.2: Behavioral Entity Object (BEO)
 Entity Resolution — multi-wallet to canonical BEO identity.
 
 BEO_confidence = w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP
-w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (whitepaper L0.2 — 4 components, sum=1.00)
+w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (specification L0.2 — 4 components, sum=1.00)
 threshold: BEO_confidence >= 0.75 → same entity
 """
 
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 # ─── BEO BP component (Behavioral Pattern match) ─────────────────────────────
-# Whitepaper L0.2 spec:
+# specification L0.2 spec:
 #   BP = behavioral pattern match score from FAISS 128-dim space.
 #
 # FAISS is not always available (dev / lightweight deployments). We provide a
@@ -128,7 +128,7 @@ def compute_bp_score(wallets: List["WalletActivity"]) -> float:
     """
     BP = mean pairwise cosine similarity of behavioral fingerprints.
 
-    Whitepaper L0.2: BP is the behavioral pattern match score (cosine sim in
+    specification L0.2: BP is the behavioral pattern match score (cosine sim in
     128-dim feature space). When FAISS is unavailable this hash-based
     fingerprint is used as a deterministic fallback. Returns 0.0 if fewer than
     2 wallets (no pairwise comparison possible).
@@ -192,7 +192,7 @@ def compute_sc_score(wallets: List[WalletActivity]) -> float:
     return chains.count(most_common_chain) / len(wallets)
 
 
-BEO_CONFIDENCE_THRESHOLD = 0.75  # whitepaper L0.2: BEO_valid iff BEO_confidence > 0.75
+BEO_CONFIDENCE_THRESHOLD = 0.75  # specification L0.2: BEO_valid iff BEO_confidence > 0.75
 
 
 def resolve_entity(
@@ -206,7 +206,7 @@ def resolve_entity(
     """
     Resolve multiple wallets to a canonical BEO identity.
 
-    Whitepaper L0.2 exact formula:
+    specification L0.2 exact formula:
       BEO_confidence = w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP
       w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (sum=1.00)
       threshold: BEO_valid iff BEO_confidence > 0.75 (strict)

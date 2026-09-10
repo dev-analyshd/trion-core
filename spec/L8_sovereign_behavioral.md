@@ -1,6 +1,6 @@
 # TRION Protocol -- L8 Sovereign Behavioral Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 10 (Sovereign Behavioral Assessment and
+> **Reference:** TRION specification, Section 10 (Sovereign Behavioral Assessment and
 > the Sovereignty Dignity Protocol). L8 governs interactions with sovereign actors
 > (central banks, sovereign wealth funds, regulated entities).
 

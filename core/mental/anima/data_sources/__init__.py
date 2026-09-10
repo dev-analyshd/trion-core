@@ -13,7 +13,7 @@ Each module implements one fetcher backed by a real public API:
 Shared infrastructure (caching, rate limiting, HTTP helpers) lives in the
 ``_base`` module so each fetcher can stay focused on its domain logic.
 
-Whitepaper §8.2 (ANIMA plane) calls for "1,000+ concurrent crawlers" backed
+specification §8.2 (ANIMA plane) calls for "1,000+ concurrent crawlers" backed
 by real data sources. The fetchers here are the single-source building blocks;
 an :class:`~core.mental.anima.data_streams.ANIMADataAggregator` orchestrates
 them into the unified :class:`~core.mental.anima.data_streams.ANIMADataStreamBundle`.

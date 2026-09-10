@@ -11,7 +11,7 @@
 ///   AND freshness (block_time - attestation_time <= 300s).
 /// - Relayer self-attested coherence alone CANNOT release.
 ///
-/// Whitepaper BTCP §4.3 + §11 + DW-BFT quorum binding.
+/// specification BTCP §4.3 + §11 + DW-BFT quorum binding.
 
 #[starknet::interface]
 pub trait IBTCPEscrowV2<TContractState> {

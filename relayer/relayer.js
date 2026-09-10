@@ -810,7 +810,7 @@ async function main() {
   console.log("");
 
   // ── Wallet / signer creation ──────────────────────────────────────────────
-  // Whitepaper Finding #10: "HSM (Thales Luna 7 / YubiHSM 2) — NON-NEGOTIABLE"
+  // specification Finding #10: "HSM (Thales Luna 7 / YubiHSM 2) — NON-NEGOTIABLE"
   // The relayer now uses the KMS abstraction layer to support:
   //   KMS_PROVIDER=env (dev)        — RELAYER_PRIVATE_KEY plaintext
   //   KMS_PROVIDER=aws (production) — AWS KMS

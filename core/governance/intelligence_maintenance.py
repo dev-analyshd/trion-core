@@ -1,6 +1,6 @@
 """
 TRION Protocol — L3.7: Intelligence Maintenance Protocol (IMP)
-Whitepaper Chapter 8: ANIMA Intelligence Layer
+specification Chapter 8: ANIMA Intelligence Layer
 
 The Intelligence Maintenance Protocol monitors ANIMA's ongoing accuracy
 and triggers automatic retraining when performance degrades below threshold.
@@ -11,7 +11,7 @@ IM Threshold:
   IM < IM_THRESHOLD → trigger retraining cycle
   IM < IM_CRITICAL  → ANIMA output marked UNRELIABLE, signal degraded
 
-Monitoring Metrics (whitepaper §8.4):
+Monitoring Metrics (specification §8.4):
   1. Prediction Accuracy (PA):    HA tracker from anima_engine.py
   2. Calibration Score (CS):      Distribution calibration quality
   3. Pattern Coherence Ratio (PCR): Fraction of patterns with current coherence
@@ -38,7 +38,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 
-# ── Thresholds (whitepaper L3.7) ──────────────────────────────────────────────
+# ── Thresholds (specification L3.7) ──────────────────────────────────────────────
 
 IM_THRESHOLD  = 0.55    # IM < 0.55 → trigger retraining
 IM_CRITICAL   = 0.40    # IM < 0.40 → ANIMA output marked UNRELIABLE

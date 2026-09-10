@@ -823,7 +823,7 @@ def s19_api_1000(pool):
         "/api/v1/trion/aave","/api/v1/immune/uniswap",
         "/api/v1/immune/aave","/api/v1/emergence/uniswap",
         "/api/v1/living_index/uniswap","/api/v1/phases",
-        "/api/v1/whitepaper/coverage","/api/v1/bh/stats",
+        "/api/v1/specification/coverage","/api/v1/bh/stats",
         "/api/v1/moat","/api/v1/health","/api/v1/faiss/health",
     ]
     per = max(1, 1000//len(oracle_eps))

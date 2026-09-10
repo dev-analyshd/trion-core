@@ -12,6 +12,8 @@
   "type": "commonjs",
   "dependencies": {
     "@noble/secp256k1": "^3.2.0",
+    "@stacks/network": "^7.6.0",
+    "@stacks/transactions": "^7.6.0",
     "axios": "^1.20.0",
     "bip32": "^5.0.1",
     "bip39": "^3.1.0",

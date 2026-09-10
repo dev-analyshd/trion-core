@@ -4,7 +4,7 @@
 /// Aggregates Natural Liquidity (NL) scores across all integrated chains
 /// to compute a global Liquidity Ocean score for BTCP routing decisions.
 ///
-/// Whitepaper BTCP §6 — The Liquidity Ocean:
+/// specification BTCP §6 — The Liquidity Ocean:
 ///   L_ocean = Σ(NL_k × W_k × availability) / Σ W_k
 
 #[starknet::interface]

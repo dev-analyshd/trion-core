@@ -26,7 +26,7 @@
  *   f8 — Gas usage entropy             H(gas_used bins)
  *   f9 — MEV pattern entropy           H(miner_tip / base_fee ratio bins)
  *
- * Per-transaction BH uses canonical 93-byte payload (whitepaper L0.1 §3.1):
+ * Per-transaction BH uses canonical 93-byte payload (specification L0.1 §3.1):
  *   entity_id(32) || event_type(1) || magnitude_nano(8) || context(8) ||
  *   timestamp(8)  || chain_id(4)   || block_hash(32)
  */
@@ -527,6 +527,76 @@ const CHAINS: &[EvmChain] = &[
             "https://rpc.newton.0g.ai",
         ],
     },
+
+    // ── Testnets & additional mainnets (registry gap fill) ─────────────────────
+    EvmChain {
+        label: "ARB_SEPOLIA", chain_id: 421614,
+        rpcs: &["https://sepolia-rollup.arbitrum.io/rpc", "https://arbitrum-sepolia-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "BASE_SEPOLIA", chain_id: 84532,
+        rpcs: &["https://sepolia.base.org", "https://base-sepolia-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "OP_SEPOLIA", chain_id: 11155420,
+        rpcs: &["https://sepolia.optimism.io", "https://optimism-sepolia-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "ETH_SEPOLIA", chain_id: 11155111,
+        rpcs: &["https://ethereum-sepolia-rpc.publicnode.com", "https://rpc.sepolia.org"],
+    },
+    EvmChain {
+        label: "HOLESKY", chain_id: 17000,
+        rpcs: &["https://ethereum-holesky-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "ETC", chain_id: 61,
+        rpcs: &["https://etc.rivet.link", "https://rpc.etcchain.com"],
+    },
+    EvmChain {
+        label: "BNB_TESTNET", chain_id: 97,
+        rpcs: &["https://data-seed-prebsc-1-s1.bnbchain.org:8545"],
+    },
+    EvmChain {
+        label: "FUJI", chain_id: 43113,
+        rpcs: &["https://api.avax-test.network/ext/bc/C/rpc"],
+    },
+    EvmChain {
+        label: "ASTAR_EVM", chain_id: 592,
+        rpcs: &["https://evm.astar.network", "https://astar-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "BOBA_NETWORK", chain_id: 288,
+        rpcs: &["https://mainnet.boba.network"],
+    },
+    EvmChain {
+        label: "MOONRIVER", chain_id: 1285,
+        rpcs: &["https://rpc.api.moonriver.moonbeam.network"],
+    },
+    EvmChain {
+        label: "FLARE", chain_id: 14,
+        rpcs: &["https://flare-api.flare.network/ext/C/rpc"],
+    },
+    EvmChain {
+        label: "OPTOPIA", chain_id: 62249,
+        rpcs: &["https://mainnet.optopia.ai"],
+    },
+    EvmChain {
+        label: "POLYGON_AMOY", chain_id: 80002,
+        rpcs: &["https://rpc-amoy.polygon.technology"],
+    },
+    EvmChain {
+        label: "POLYGON_ZKEVM", chain_id: 1101,
+        rpcs: &["https://zkevm-rpc.com", "https://polygon-zkevm-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "KAVA_EVM", chain_id: 2222,
+        rpcs: &["https://evm.kava.io", "https://kava-evm-rpc.publicnode.com"],
+    },
+    EvmChain {
+        label: "BOTANIX", chain_id: 3636,
+        rpcs: &["https://rpc.botanixlabs.dev"],
+    },
 ];
 
 // ── RPC helpers ───────────────────────────────────────────────────────────────
@@ -586,7 +656,7 @@ fn extract_features(block: &Value) -> [f64; 9] {
     [f1, f2, f3, f4, f5, f6, f7, f8, f9]
 }
 
-// ── Per-transaction BH generation (whitepaper L0.1 §3.1) ─────────────────────
+// ── Per-transaction BH generation (specification L0.1 §3.1) ─────────────────────
 
 /// CANONICAL_BH.md §4 — deterministic magnitude normalization:
 ///   human = raw / 10^18 (ETH); M = min(1, log10(human + 1) / log10(1001))
@@ -822,7 +892,7 @@ async fn index_chain(chain: &EvmChain, faiss: &FaissClient, state: &mut IndexerS
             Err(e)    => warn!("[{}] FAISS ingest failed for block {}: {}", chain.label, block_num, e),
         }
 
-        // ── 2. Per-transaction canonical BH (whitepaper L0.1 §3.1) ──────────
+        // ── 2. Per-transaction canonical BH (specification L0.1 §3.1) ──────────
         let tx_batch = build_tx_bh_batch(&block, chain, timestamp, block_num, block_hash);
         let tx_count = tx_batch.entries.len();
         if tx_count > 0 {

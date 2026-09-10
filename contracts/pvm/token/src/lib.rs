@@ -75,7 +75,7 @@ mod trion_token {
         ///
         /// The deployer (`admin`) receives NOTHING at genesis — the previous
         /// behaviour (100% to deployer) contradicted every other
-        /// implementation and the whitepaper.
+        /// implementation and the specification.
         #[ink(constructor)]
         pub fn new(
             public_good_reserve: AccountId,

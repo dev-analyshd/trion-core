@@ -3,7 +3,7 @@
 **Status:** canonical reference (single source of truth for TRION token supply,
 decimals, genesis distribution and deflation mechanics).
 **Resolves:** due-diligence finding **C8 / 5.4 — "one supply, three stories"**
-(token contracts contradicted each other and the whitepaper; no distribution
+(token contracts contradicted each other and the specification; no distribution
 existed anywhere in the contract layer).
 **Implementations governed by this document:**
 
@@ -14,7 +14,7 @@ existed anywhere in the contract layer).
 | TON | `contracts/ton/token.fc` (mirror: `chains/ton/contracts/token.fc`) |
 | Polkadot PVM (ink!) | `contracts/pvm/token/src/lib.rs` |
 
-**Whitepaper basis — Part 15.3 (TRION Token Utility), verbatim:**
+**specification basis — Part 15.3 (TRION Token Utility), verbatim:**
 
 > "Token supply: fixed at genesis. No inflation mechanism."
 > "Token deflationary: consumption bonding burns small fraction on each use."
@@ -100,7 +100,7 @@ allocator_amount    = TOTAL_SUPPLY - public_good_amount
 
 ## 3. Burn-on-use (deflationary mechanism)
 
-Whitepaper Part 15.3 specifies the mechanism but **no numeric burn rate**
+specification Part 15.3 specifies the mechanism but **no numeric burn rate**
 ("consumption bonding burns small fraction on each use"). The rate is fixed
 by this document:
 

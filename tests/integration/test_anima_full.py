@@ -85,7 +85,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 #   * LiquidityOcean        → anima-service/liquidity_ocean.py
 #   * ZK/jurisdiction       → anima-service/anima_regulatory.py
 try:
-    # Canonical engine of record (whitepaper L7.1: NL = LD·LO·LC·LS).
+    # Canonical engine of record (specification L7.1: NL = LD·LO·LC·LS).
     from core.extended.natural_liquidity import (
         compute_nl as _canonical_compute_nl,
         NL_ALERT_THRESHOLD as NL_ALERT_THRESHOLD_TEST,
@@ -94,7 +94,7 @@ try:
     from nl_score_engine import compute_nl_score, apply_oe_correction
     _NL_OK = True
 except Exception:
-    NL_ALERT_THRESHOLD_TEST = 0.30   # whitepaper L7.1 default
+    NL_ALERT_THRESHOLD_TEST = 0.30   # specification L7.1 default
     _NL_OK = False
 
 try:
@@ -875,7 +875,7 @@ class TestNLFormula:
     @pytest.mark.skipif(not _NL_OK, reason="nl_score_engine not importable")
     def test_nl_canonical_engine_contract(self):
         sep("§12f — canonical engine (core/extended/natural_liquidity.py) contract")
-        # Real engine of record: NL = LD · LO · LC · LS (whitepaper L7.1).
+        # Real engine of record: NL = LD · LO · LC · LS (specification L7.1).
         # Simulated AAVE-2026 test vector (synthetic input, not a real event).
         hostile = _canonical_compute_nl(
             depth_per_tick=[1000, 50, 20, 10, 5],

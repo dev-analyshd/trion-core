@@ -1,7 +1,7 @@
 """
 TRION Protocol — L14.1 Initialization Ceremony (INIT_valid)
 
-Whitepaper §14.1: TRION does not emit signals before INIT_valid = TRUE.
+specification §14.1: TRION does not emit signals before INIT_valid = TRUE.
 
 INIT_valid iff all_of:
     N_validators >= 100

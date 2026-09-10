@@ -1,5 +1,5 @@
 /*!
- * Shannon entropy helpers — whitepaper L1.1 Φ(t) feature extraction.
+ * Shannon entropy helpers — specification L1.1 Φ(t) feature extraction.
  *
  * All entropy values are normalised to [0, 1] by dividing by log₂(k)
  * where k is the number of non-zero probability bins.

@@ -62,7 +62,7 @@
 
 | File | What it proves |
 |------|----------------|
-| `TRION_AUDIT_REPORT.md` | Full whitepaper-vs-implementation audit (697 lines). |
+| `TRION_AUDIT_REPORT.md` | Full specification-vs-implementation audit (697 lines). |
 | `AUDIT_RESOLUTION_REPORT.md` | 30 findings, 24/30 fixed in 9-phase remediation. |
 | `FULL_COMPLETION_CHANGELOG.md` | v2.1 changelog — 10 sections of completed work. |
 

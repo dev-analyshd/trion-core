@@ -1,6 +1,6 @@
 """
 TRION Protocol — L5.3: Consensus Degradation Tiers
-Whitepaper Section 9, L5.3.
+specification Section 9, L5.3.
 
 When coherence C(t) falls below threshold Θ(t) the system does not crash —
 it enters one of two degradation tiers with specific behavioral guarantees.
@@ -56,7 +56,7 @@ class DegradationState:
     @property
     def fund_safety_guarantee(self) -> bool:
         """
-        Whitepaper guarantee: entity funds are NEVER at risk during degradation.
+        specification guarantee: entity funds are NEVER at risk during degradation.
         This is always True — it is a protocol invariant, not a condition.
         """
         return True
@@ -73,7 +73,7 @@ def classify_degradation(
     """
     Classify the current degradation tier from five-plane coherence C(t) and Θ(t).
 
-    Tier rules (whitepaper L5.3):
+    Tier rules (specification L5.3):
       NOMINAL:   coherence >= threshold
       TIER_1:    0.5 × threshold <= coherence < threshold
       TIER_2:    coherence < 0.5 × threshold

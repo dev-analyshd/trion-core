@@ -1,0 +1,32 @@
+{
+  "original_anchor_bh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+  "mutations": [
+    {
+      "field": "btc_address",
+      "mutated_anchor_bh": "0x0d886a3983c3561a27f8df628fb2a9775b22d2cfbc04cfabee2e560d43ae1699",
+      "changed": true
+    },
+    {
+      "field": "block_hash",
+      "mutated_anchor_bh": "0x167b35f5201392f4c3ffed3c30a407aa210383f6ff359686b3ae6e63db716b0b",
+      "changed": true
+    },
+    {
+      "field": "block_time",
+      "mutated_anchor_bh": "0x0e25d8fc9623cf810c813482a554f2c0adc91f247f403f5d976a1410846fc2b0",
+      "changed": true
+    },
+    {
+      "field": "amount",
+      "mutated_anchor_bh": "0xffb107ee518b863640f121075318b0a84468b59f58d29c9c07ce16a8cd1cbc43",
+      "changed": true
+    },
+    {
+      "field": "utxo_txid",
+      "mutated_anchor_bh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+      "changed": false
+    }
+  ],
+  "all_differ": false,
+  "note": "utxo_txid mutation: txid is not in the 93-byte anchor payload directly; it is verified via the merkle proof. A different txid would fail the merkle verification (different path). The block_hash field in the payload WOULD change if the txid were in a different block."
+}

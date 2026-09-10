@@ -33,7 +33,7 @@ def compute_ld(depth_per_tick: List[float]) -> float:
 def compute_lo(top5_lp_share: float, lp_count: int) -> float:
     """
     LO = 1 - Sybil_LP_ratio where Sybil_LP_ratio = top_5_share / (BEO_count / 5)
-    (whitepaper L7.1). lp_count is the number of INDEPENDENT LP entities
+    (specification L7.1). lp_count is the number of INDEPENDENT LP entities
     (BEO-resolved), not raw wallet count.
     """
     if lp_count <= 0:
@@ -63,7 +63,7 @@ def compute_lc(
     recent_ld_history: Optional[List[float]] = None,
 ) -> float:
     """
-    LC = corr(LD_current, LD_90d_baseline) — whitepaper L7.1.
+    LC = corr(LD_current, LD_90d_baseline) — specification L7.1.
 
     High: stable pattern over time (genuine market-maker behavior).
     Low:  pattern recently changed (possible manipulation preparation).
@@ -170,7 +170,7 @@ def compute_nl(
 #     `ocean_score` ∈ [0, 1]: the value-weighted fraction of the asset's total
 #     form-value that is readily routable, with each form's cost/time efficiency
 #     capped at 1 against the reference constants below (implementation
-#     constants, not whitepaper values).
+#     constants, not specification values).
 #   * The literal spec pseudocode guards division by zero by zeroing the term
 #     (`1.0/shift_cost if shift_cost > 0 else 0`), so a zero-cost / zero-time
 #     form contributes 0 to the raw sum. This edge is preserved verbatim.
@@ -472,7 +472,7 @@ def build_liquidity_ocean_signal(
     constraint — spec/signal_types.md invariant ("Exactly 24 signal types are
     defined; new types require a protocol fork"), the wasm signal processor's
     signal_type_count() == 24, and the on-chain signal type ids all mirror the
-    same 24. The whitepaper 6.x LIQUIDITY_OCEAN emission is therefore carried
+    same 24. The specification 6.x LIQUIDITY_OCEAN emission is therefore carried
     as a typed sub-payload (signal_subtype "LIQUIDITY_OCEAN") on
     LIQUIDITY_HEALTH — the liquidity signal family — instead of registering a
     25th type that would break parity.

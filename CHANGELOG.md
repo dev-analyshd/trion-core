@@ -8,7 +8,7 @@ labels wherever a component is research/partial/external. Append-only record:
 
 ### Wave 1 — Foundation (d7ca82e…298a1d6)
 - `docs/audit/CANONICAL_SPEC_MATRIX.md`: 107 requirements + 22 spec conflicts
-  (K1–K22) resolved against the authoritative set (WHITEPAPER_MD, WHITEPAPER_V2,
+  (K1–K22) resolved against the authoritative set (SPECIFICATION_MD, SPECIFICATION_V2,
   BTCP_SPEC, L0–L9 + supporting tables).
 - `docs/protocol/CANONICAL_BH.md`: canonical 93-byte BH layout; py/TS/rust
   builder parity fixes (deterministic rust magnitude + timestamps across 21
@@ -79,7 +79,7 @@ All notable changes to TRION Protocol are documented here.
 ## [2.2.0] — 2026-09-02 — Master Agent Command: Phase 0-4 Execution
 
 Autonomous protocol-architect session per TRION_MASTER_AGENT_COMMAND: spec-first
-audit (BTCP Master Implementation Spec + TRION Whitepapers read completely),
+audit (BTCP Master Implementation Spec + TRION specifications read completely),
 then Security → Correctness → Completeness → Consolidation → Verification.
 
 ### Phase 0 — Environment & Safety
@@ -108,7 +108,7 @@ then Security → Correctness → Completeness → Consolidation → Verificatio
   refunded at settlement (CEI preserved, new refund-failure events).
 - **TRIONGuardV3**: 24h bypass was re-armable (~96% firewall-off time) — capped
   at 3 lifetime re-arms (fail-closed exhaustion).
-- **NL score engine verified spec-exact** (whitepaper L7.1): LD entropy, LO
+- **NL score engine verified spec-exact** (specification L7.1): LD entropy, LO
   sybil ratio, LC Pearson-vs-baseline, LS stress ratio; simulated March 12 2026
   AAVE scenario (synthetic test vector, not a real event) NL=0.000 < 0.30 →
   alert fires (matrix #13 PASS).
@@ -169,7 +169,7 @@ All notable changes to TRION Protocol are documented here.
 
 ## [2.1.0] — 2026-09-01 — Master Agent Audit & Remediation
 
-### Independent Master-Command Audit (source: BTCP Master Spec + whitepapers)
+### Independent Master-Command Audit (source: BTCP Master Spec + specifications)
 Spec Compliance Matrix verified against the PDFs: five-plane C(t), NL(LD·LO·LC·LS),
 BTCP_score weights, Θ(t), all 21 BTCP Rust modules, all BTCP contracts, ZK
 scaffolds, and the 25-table schema are REAL and present — the BTCP spec §2
@@ -262,7 +262,7 @@ operational path-rot and honesty gaps, all fixed below.
 - `tests/` restructured into `unit/` + `integration/` + `adversarial/`
 
 ### New Components
-- 14 `spec/` files with canonical specifications from whitepapers
+- 14 `spec/` files with canonical specifications from specifications
 - `Makefile` for top-level build/test orchestration
 - `CONTRIBUTING.md` and `CHANGELOG.md`
 - `core/pyproject.toml`

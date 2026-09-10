@@ -2,7 +2,7 @@
 TRION Protocol — L0.1 Extended Behavioral Hash Payload (v2)
 ============================================================
 
-Whitepaper "Protocol Whitepaper" specifies an OPTIONAL extended payload
+specification "Protocol specification" specifies an OPTIONAL extended payload
 format with replay protection and cross-chain domain separation:
 
     DOMAIN_SEPARATOR || entity_id || event_type_id || magnitude_normalized ||

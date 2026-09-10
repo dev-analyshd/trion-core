@@ -5,7 +5,7 @@
 /// Each route links an anchor behavioral hash (chain A) to an execution
 /// behavioral hash (chain B) with consensus proof.
 ///
-/// Whitepaper BTCP §3 — Route ID tracking with anchor BH -> execution BH linkage.
+/// specification BTCP §3 — Route ID tracking with anchor BH -> execution BH linkage.
 
 #[starknet::interface]
 pub trait IBTCPRoute<TContractState> {

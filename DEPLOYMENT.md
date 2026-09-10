@@ -121,7 +121,7 @@ go run .            # or: go build -o health_monitor . && ./health_monitor
 - Relation to the Python stack: Flask `/readyz` already gates on FAISS
   reachability and `/api/v1/health` reports deep state — the Go monitor
   independently re-checks those two PLUS external chain RPCs from a
-  separate process and language (whitepaper Part 11 network layer). Keep
+  separate process and language (specification Part 11 network layer). Keep
   it as an independent cross-check plane; it is NOT started by any deploy
   entrypoint (compose/systemd/Railway all leave it to the operator).
 - Code drift status: FIXED by the 21-e pass — chain ids are the canonical

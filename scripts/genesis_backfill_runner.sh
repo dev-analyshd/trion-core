@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TRION Genesis Backfill Runner — all integrated L1/L2s and VMs, from genesis,
-# per whitepaper mandate. Thin wrapper so the workflow command stays stable;
+# per specification mandate. Thin wrapper so the workflow command stays stable;
 # all chain logic lives in scripts/genesis_backfill_runner.py.
 set -uo pipefail
 cd "$(dirname "$0")/.."

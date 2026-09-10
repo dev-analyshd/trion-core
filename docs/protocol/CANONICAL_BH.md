@@ -38,7 +38,7 @@ payload (93 bytes, ALL fields big-endian):
   61+32 = 93 bytes total
 ```
 
-Dual-strand construction (DNA-mimetic, whitepaper L0.1):
+Dual-strand construction (DNA-mimetic, specification L0.1):
 
 ```
 sense     = SHA3-256(payload || 0x00)
@@ -77,7 +77,7 @@ Python `int(...)`, Rust `as u64`, TypeScript `BigInt(Math.trunc(...))`.
   `tests/golden/vectors.json`). Changing it would break every pinned digest,
   the Rust↔Python↔TS parity guarantees, the BH ledger, and FAISS index keys.
 
-  > Engineering decision (hierarchy level 8, recorded): the whitepaper MD
+  > Engineering decision (hierarchy level 8, recorded): the specification MD
   > sketched a v2 payload with `DOMAIN_SEPARATOR ||
   > keccak256("TRION_BEHAVIORAL_HASH_V1" || chain_id || contract_address)`.
   > We deliberately did NOT retrofit a domain tag into the 93-byte v1 payload:
@@ -86,7 +86,7 @@ Python `int(...)`, Rust `as u64`, TypeScript `BigInt(Math.trunc(...))`.
 
 * **v2 (extended, 176 bytes): OPT-IN, NOT the default.** Implemented by
   `core/primitives/extended_payload.py` and exposed at
-  `POST /api/v1/bh/v2/extended`. It is the whitepaper-MD-shaped layout with a
+  `POST /api/v1/bh/v2/extended`. It is the specification-MD-shaped layout with a
   real domain tag and replay protection:
 
   ```
@@ -170,14 +170,14 @@ magnitude_nano = trunc(magnitude_norm × 10^9)            # §1 truncation rule
 * **Reference scale R = 1000 human units** (i.e. `log10(1001)` denominator) is
   the FIXED normalization scale for all chains.
 
-> Spec-provenance note (hierarchy): WHITEPAPER_V2 L0.1 defines
+> Spec-provenance note (hierarchy): SPECIFICATION_V2 L0.1 defines
 > `log10(USD_value+1) / log10(max_observed_90d+1)`. A rolling 90-day max is
 > **not a pure function of the transaction**: the same tx would hash
 > differently as the window evolves, which contradicts the Akashic
 > append-only identity of a BH (L0.4) and the cross-language parity
 > requirement. V2's USD path is therefore **not canonical**; it survives only
 > as an optional display/analysis layer (`compute_behavioral_hash(usd_value=…)`
-> fallback). WHITEPAPER_MD's `raw_amount × 10^(18−asset_decimals)` is honored
+> fallback). SPECIFICATION_MD's `raw_amount × 10^(18−asset_decimals)` is honored
 > in spirit via the per-chain decimals scaling to human units. The fixed
 > R = 1000 scale, uniform across chains, is the documented engineering
 > resolution (level 8) first adopted in Task 20 commit 19decc3 and now pinned
@@ -253,7 +253,7 @@ entity_id = SHA3-256(utf8(normalise(sender)))      # 32 bytes, hex-encoded = 64 
 ```
 
 * This is the Task 20 decision (commit 19decc3), verified against the spec:
-  WHITEPAPER_V2 L0.2 mandates "`entity_id` in BH = BEO identifier, not raw
+  SPECIFICATION_V2 L0.2 mandates "`entity_id` in BH = BEO identifier, not raw
   address" — the SHA3-256 of the normalised address IS the BEO routing
   identifier (`bh_id`) used by the FAISS primary key and the Akashic ledger,
   so both ingestion pipelines hash the same 32-byte BEO key for the same
@@ -364,17 +364,17 @@ A canonical BH record is:
 Per the hierarchy of truth (spec > math > security > implementation > tests >
 docs > judgment):
 
-1. **WHITEPAPER_MD.txt L0.1 (newest, protocol semantics)** defines the BH as
+1. **SPECIFICATION_MD.txt L0.1 (newest, protocol semantics)** defines the BH as
    an ABI-encoded 14-field payload with DOMAIN_SEPARATOR (counterparty,
    protocol, currency, version, nonce…). This is the **v2 direction**, not the
    deployed form.
-2. **WHITEPAPER_V2.txt L0.1** defines the 7-field core
+2. **SPECIFICATION_V2.txt L0.1** defines the 7-field core
    (`entity_id || event_type || magnitude_normalized || context || timestamp ||
    chain_id || block_hash`) and the dual-strand construction — this is exactly
    the v1 field set, and the dual-strand algebra is implemented verbatim.
 3. The **deployed canonical** is the 93-byte binary v1 (schema
    `config/bh_schema_v1.json`, "The 93-byte payload is the CANONICAL
-   production schema (v1). The expanded whitepaper payload … is a future v2
+   production schema (v1). The expanded specification payload … is a future v2
    extension.") — pinned by cross-language golden vectors in Rust, Python and
    TypeScript since before Task 20, and by the BH ledger + FAISS keys.
 4. Where MD and V2 disagree (domain tag, ABI vs fixed binary, rolling-max

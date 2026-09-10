@@ -1,7 +1,7 @@
 /*!
  * 128-dimensional behavioral vector construction.
  *
- * Layout (whitepaper L1.1):
+ * Layout (specification L1.1):
  *   [0..9]   — 9 normalised Shannon entropy features f1…f9
  *   [9..18]  — mirrored f1…f9 (complementary strand, L4.4 dual-strand)
  *   [18..27] — pairwise products f_i * f_{i+1} (cross-correlations)

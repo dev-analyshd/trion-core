@@ -166,7 +166,7 @@ class TestM073RulingTaxonomy:
             assert cls["severity"] in ("info", "warning", "critical")
             assert cls["emitter_layer"].startswith("L")
 
-    def test_whitepaper_spellings_resolve(self):
+    def test_specification_spellings_resolve(self):
         """The two drifted names classify in their ruling spelling too."""
         for ruling_name, internal in RULING_NAME_ALIASES.items():
             cls = classify_signal(ruling_name)

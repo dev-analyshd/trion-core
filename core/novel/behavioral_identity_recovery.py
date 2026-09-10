@@ -19,7 +19,7 @@ Recovery Flow:
       → New key commitment issued; old key commitment invalidated
       → Epigenetic layer records the recovery event (semi-immutable)
 
-Behavioral features extracted (per whitepaper Primitive 6):
+Behavioral features extracted (per specification Primitive 6):
   - Timing rhythm vector (circadian/ultradian autocorrelations)
   - Gas distribution fingerprint (mean, std, p10, p50, p90, p99)
   - Interaction graph topology (degree sequence, clustering coefficient)
@@ -224,7 +224,7 @@ class BehavioralCommitment:
     enrolled_at:     float
     feature_version: str
     public_hint:     str     # H(entity_id || enrolled_at) — public enrollment anchor
-    # L16 BIRP anchor (whitepaper p.24): Hash_DNA(BEO_baseline ||
+    # L16 BIRP anchor (specification p.24): Hash_DNA(BEO_baseline ||
     # Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed),
     # dual-strand, hex-encoded. Intended for permanent storage in the
     # Akashic Index. None only for legacy commitments constructed directly.

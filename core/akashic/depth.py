@@ -1,6 +1,6 @@
 """
 TRION Protocol — L2: Akashic Depth D(t)
-Phase 9 implementation per whitepaper Section 4, L2.
+Phase 9 implementation per specification Section 4, L2.
 
 D(t) ∝ ∫₀ᵗ [ A(τ) · (1 + M(τ)) · C(τ) ] dτ
 D(t=0) = EVM genesis history (bootstrap)

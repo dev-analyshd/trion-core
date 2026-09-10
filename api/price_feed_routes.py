@@ -529,7 +529,7 @@ def behavioral_true_value(base: str, quote: str = "USD"):
         return jsonify({
             "status":     "ok",
             "engine":     "TRION Behavioral True Value v1.0",
-            "whitepaper": "L0.7 — Inverted Truth Hierarchy / BTV formula",
+            "specification": "L0.7 — Inverted Truth Hierarchy / BTV formula",
             **data,
         })
     except Exception as e:
@@ -562,7 +562,7 @@ def inverted_truth_hierarchy():
         return jsonify({
             "status":     "ok",
             "engine":     "TRION Inverted Truth Hierarchy Analyzer",
-            "whitepaper": "Section 2.1–2.2 — Behavioral Truth vs CEX-Derived Oracles",
+            "specification": "Section 2.1–2.2 — Behavioral Truth vs CEX-Derived Oracles",
             "thesis": (
                 "CEXes sit at the top of the information hierarchy despite opaque matching "
                 "and documented manipulation histories. Current oracles (Chainlink, Pyth) "

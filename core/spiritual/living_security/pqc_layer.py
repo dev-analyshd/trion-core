@@ -462,7 +462,7 @@ class GeoEnforcementResult:
     """
     L4.8 HHI Geographic Enforcement result.
 
-    Whitepaper conditions (ALL must hold):
+    specification conditions (ALL must hold):
       N_continents ≥ 4
       max_region_share < 0.40
       max_jurisdiction_share < 0.30

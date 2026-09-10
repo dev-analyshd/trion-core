@@ -176,7 +176,7 @@ class BIBLState:
 
 
 # BEO bootstrap continuity for chains with no Akashic BEO history yet.
-# Per the whitepaper the BEO continuity factor should come from the Akashic
+# Per the specification the BEO continuity factor should come from the Akashic
 # memory layer (BEO entity resolution); until an entity has ≥1 indexed epoch
 # of history we fall back to this documented bootstrap prior.
 BEO_BOOTSTRAP_DEFAULT = 0.8

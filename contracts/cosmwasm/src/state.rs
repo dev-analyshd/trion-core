@@ -74,7 +74,7 @@ pub struct Escrow {
     pub locked_by:      Addr,
 }
 
-/// Intent action types (whitepaper BTCP §4.1).
+/// Intent action types (specification BTCP §4.1).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Intent {
     pub intent_hash:   Vec<u8>,
@@ -94,7 +94,7 @@ pub struct Intent {
     pub submitter:     Addr,
 }
 
-/// Route record (whitepaper BTCP §3).
+/// Route record (specification BTCP §3).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Route {
     pub route_id:           Vec<u8>,

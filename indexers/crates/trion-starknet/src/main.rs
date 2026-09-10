@@ -67,7 +67,7 @@ fn extract_features(block: &Value) -> [f64; 9] {
     let mut fee_tokens:    Vec<String> = Vec::new();
     let mut l1_gas_bounds: Vec<f64>    = Vec::new();
     let mut call_counts:   Vec<f64>    = Vec::new();
-    let (mut succeeded, reverted) = (0u64, 0u64);
+    let (mut succeeded, mut reverted) = (0u64, 0u64);
     let mut event_counts:  Vec<f64>    = Vec::new();
 
     for tx in txs {
@@ -92,8 +92,17 @@ fn extract_features(block: &Value) -> [f64; 9] {
         } else {
             call_counts.push(1.0);
         }
-        succeeded += 1;
-        event_counts.push(0.0);
+        // Track execution status: v3 txs have execution_status field
+        // For v1/v2 txs without explicit status, assume success
+        let exec_status = tx["execution_status"].as_str();
+        if exec_status == Some("REVERTED") {
+            reverted += 1;
+        } else {
+            succeeded += 1;
+        }
+        // Track event count from the tx's events array if present
+        let ev_count = tx["events"].as_array().map(|a| a.len()).unwrap_or(0) as f64;
+        event_counts.push(ev_count);
     }
 
     let tx_count = txs.len() as f64;

@@ -1,11 +1,11 @@
 # TRION Protocol -- Signal Types Specification
 
-> **Reference:** TRION Whitepaper, Section 12 (Signal Catalog).
+> **Reference:** TRION specification, Section 12 (Signal Catalog).
 > This document enumerates the 29-type canonical taxonomy (M-073 owner
 > ruling) and the 24 registry ids that carry it on-chain and cross-language.
 
 ## Scope
-> **SUPERSEDED IN PART (S23 acronym); COUNT CONFIRMED CANONICAL (K4):** see WHITEPAPER_MD.txt §11 / BTCP_SPEC title — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K4/K5). K5: **BTCP = Behavioral Transaction Continuity Protocol** (BTCP_SPEC governs; the S23 expansion “Behavioral Trusted Channel Protocol” is an error). K4: the canonical signal set is 24 = MD §11's 19 canonical + 5 V2 extended types — exactly what this registry and `core/master/signal_factory.py` implement (ids 0–23 dense, new types require a protocol fork); BTCP §14.2's 10 names are classifiable as typed sub-payloads on canonical carriers. (K4's count is the **registry id-space** view; at the taxonomy level the M-073 ruling below supersedes it — 29 canonical types on the 24 fork-gated ids.)
+> **SUPERSEDED IN PART (S23 acronym); COUNT CONFIRMED CANONICAL (K4):** see SPECIFICATION_MD.txt §11 / BTCP_SPEC title — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K4/K5). K5: **BTCP = Behavioral Transaction Continuity Protocol** (BTCP_SPEC governs; the S23 expansion “Behavioral Trusted Channel Protocol” is an error). K4: the canonical signal set is 24 = MD §11's 19 canonical + 5 V2 extended types — exactly what this registry and `core/master/signal_factory.py` implement (ids 0–23 dense, new types require a protocol fork); BTCP §14.2's 10 names are classifiable as typed sub-payloads on canonical carriers. (K4's count is the **registry id-space** view; at the taxonomy level the M-073 ruling below supersedes it — 29 canonical types on the 24 fork-gated ids.)
 >
 > **M-073 RULING (owner decision, recorded):** the signal-taxonomy
 > contradiction (19 per D1/D2 vs 24 in the repo registry vs +10 per the
@@ -61,7 +61,7 @@ GENESIS_COMMITMENT   subtype   GENESIS (3)          build_genesis_commitment
 The registry view (`signal_registry()`) reports the ruling counts
 (`canonical_total` 29, `closed_set_27`) alongside the id-space view
 (`canonical_24`, `total_classifiable` 31). `classify_signal()` accepts
-the whitepaper spellings REGULATORY_BEHAVIORAL / MEV_BEHAVIORAL (the two
+the specification spellings REGULATORY_BEHAVIORAL / MEV_BEHAVIORAL (the two
 internally drifted names) and records `btcp_family` for every type.
 
 

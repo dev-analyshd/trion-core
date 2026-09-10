@@ -2,7 +2,7 @@
  * TRION Protocol — Relayer KMS Abstraction Layer
  * ===============================================
  *
- * Whitepaper mandate (Finding #10 in audit):
+ * specification mandate (Finding #10 in audit):
  *   "HSM (Thales Luna 7 / YubiHSM 2) — NON-NEGOTIABLE"
  *
  * This module abstracts the wallet-creation path so the relayer can use:

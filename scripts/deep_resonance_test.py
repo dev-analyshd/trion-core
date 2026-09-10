@@ -415,13 +415,13 @@ ok("Channel 9 exists in registry", ch9 is not None)
 ok("Channel 9 is MATHEMATICAL_RESONANCE layer", ch9.layer == ChannelLayer.MATHEMATICAL_RESONANCE)
 ok("Channel 9 is ACTIVE", ch9.status == ChannelStatus.ACTIVE)
 ok("Channel 9 formula contains Comm(A,B) predicate", "Comm(A,B)" in ch9.formula)
-ok("Channel 9 whitepaper ref is L0.3", "L0.3" in ch9.whitepaper)
+ok("Channel 9 specification ref is L0.3", "L0.3" in ch9.specification)
 
 ok("Channel 10 exists in registry", ch10 is not None)
 ok("Channel 10 is MATHEMATICAL_RESONANCE layer", ch10.layer == ChannelLayer.MATHEMATICAL_RESONANCE)
 ok("Channel 10 is ACTIVE", ch10.status == ChannelStatus.ACTIVE)
 ok("Channel 10 formula contains 128-dim cosine similarity", "128" in ch10.formula or "128" in ch10.description)
-ok("Channel 10 whitepaper ref is L2.2", "L2.2" in ch10.whitepaper)
+ok("Channel 10 specification ref is L2.2", "L2.2" in ch10.specification)
 
 # Count all MATHEMATICAL_RESONANCE channels
 mr_channels = [c for c in CHANNELS.values() if c.layer == ChannelLayer.MATHEMATICAL_RESONANCE]
@@ -520,8 +520,8 @@ ok("R(A,B) == |corr| · TC_A · TC_B (formula proof)",
    abs(resp_api.get("resonance",0) - r_manual) < 1e-4)
 ok("in_resonance == (R >= 0.50)",
    resp_api.get("in_resonance") == in_res_manual)
-ok("Whitepaper reference is L0.3",
-   resp_api.get("whitepaper") == "L0.3")
+ok("specification reference is L0.3",
+   resp_api.get("specification") == "L0.3")
 
 # ── §14 FAISS live resonance — dimensional frequencies ────────────────────────
 section(14, "FAISS Live Resonance — Dimensional Frequency Endpoint")
@@ -812,7 +812,7 @@ try:
         f"{ORACLE}/api/v1/resonance/0xLP_provider_defi/0xGov_voter_dao", timeout=5
     ).json()
     ok("Oracle API end-to-end returns valid resonance object",
-       "resonance" in resp_e2e and "formula" in resp_e2e and resp_e2e.get("whitepaper") == "L0.3")
+       "resonance" in resp_e2e and "formula" in resp_e2e and resp_e2e.get("specification") == "L0.3")
     print(f"  Oracle R(LP,GOV): {resp_e2e.get('resonance'):.6f}  in_resonance={resp_e2e.get('in_resonance')}")
 except Exception as e:
     ok("Oracle API end-to-end", False, str(e))
@@ -825,24 +825,24 @@ try:
 except Exception as e:
     ok("FAISS end-to-end", False, str(e))
 
-# Verify whitepaper formula registration
+# Verify specification formula registration
 try:
-    whitepaper_resp = requests.get(f"{ORACLE}/api/v1/whitepaper/formulas", timeout=5).json()
-    formulas = whitepaper_resp if isinstance(whitepaper_resp, list) else whitepaper_resp.get("formulas", [])
+    specification_resp = requests.get(f"{ORACLE}/api/v1/specification/formulas", timeout=5).json()
+    formulas = specification_resp if isinstance(specification_resp, list) else specification_resp.get("formulas", [])
     l03_present = any(
         (isinstance(f, dict) and f.get("id","") == "L0.3") or
         (isinstance(f, str) and "L0.3" in f)
         for f in formulas
     )
-    ok("L0.3 Resonance formula registered in whitepaper coverage endpoint",
+    ok("L0.3 Resonance formula registered in specification coverage endpoint",
        l03_present, "not found in formula registry")
 except Exception as e:
     # Try alternate endpoint
     try:
-        resp2 = requests.get(f"{ORACLE}/api/v1/whitepaper/coverage", timeout=5).json()
-        ok("Whitepaper coverage endpoint reachable", resp2.get("status") == "ok" or "coverage" in str(resp2))
+        resp2 = requests.get(f"{ORACLE}/api/v1/specification/coverage", timeout=5).json()
+        ok("specification coverage endpoint reachable", resp2.get("status") == "ok" or "coverage" in str(resp2))
     except:
-        ok("Whitepaper/formulas endpoint", False, str(e))
+        ok("specification/formulas endpoint", False, str(e))
 
 # ── FINAL SUMMARY ─────────────────────────────────────────────────────────────
 print(f"\n\n{'═'*76}")

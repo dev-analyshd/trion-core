@@ -655,7 +655,7 @@ def test_fork_resistance():
         err(f"Fork resolution API call failed: {e}"); all_pass = False
 
     # ── 3.3  Holder-continuity fork resolution (CC values) ────────────────────
-    info("3.3  Fork resolution with holder-continuity values (L2.6 whitepaper)…")
+    info("3.3  Fork resolution with holder-continuity values (L2.6 specification)…")
     try:
         r = requests.post(f"{FAISS_URL}/api/v1/fork_resolution", json={
             "entity_a": fork_a,
@@ -672,7 +672,7 @@ def test_fork_resistance():
         if result.get("cc_a") == 0.85 and result.get("cc_b") == 0.15:
             ok(f"CC values accepted: cc_a=0.85, cc_b=0.15")
         if method == "holder_continuity":
-            ok(f"Resolution method: holder_continuity (L2.6 whitepaper)")
+            ok(f"Resolution method: holder_continuity (L2.6 specification)")
         else:
             info(f"Resolution method: {method}")
 

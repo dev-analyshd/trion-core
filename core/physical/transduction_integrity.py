@@ -14,7 +14,7 @@ inventing a parallel system:
 Honesty note: this computes a real, reproducible coherence score from live
 operational signals. It is NOT a claim of omniscience or omnipotence — it is
 bounded exactly like every other measurement in the system: proxies are
-approximations of the whitepaper's f1-f9 features, not the literal chain-by-
+approximations of the specification's f1-f9 features, not the literal chain-by-
 chain entropy computation that exists for indexed EVM/SVM wallets. Where a
 signal is unavailable, it is scored neutrally (0.5) and flagged, never
 silently assumed.

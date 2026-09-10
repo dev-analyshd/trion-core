@@ -40,7 +40,7 @@ pub trait IBTCPDeFiPool<TContractState> {
     fn clawback(ref self: TContractState, escrow_id: felt252);
 
     /// FIX LIMITATION 4: Check if an escrow has sufficient BTCP score for DeFi operations.
-    /// Requires score >= 500000 (0.50) per whitepaper L1.1.
+    /// Requires score >= 500000 (0.50) per specification L1.1.
     fn check_btcp_score(self: @TContractState, escrow_id: felt252) -> bool;
 
     /// View: credit balance of a user.
@@ -306,7 +306,7 @@ pub mod BTCPDeFiPool {
             );
             let result_span = result.unwrap_syscall();
             let score: u64 = (*result_span.at(0_usize)).try_into().unwrap();
-            // Whitepaper L1.1: BTCP_score >= 0.50 → approved for routing
+            // specification L1.1: BTCP_score >= 0.50 → approved for routing
             score >= 500_000_u64
         }
 

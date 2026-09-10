@@ -1,7 +1,7 @@
 """
 TRION Protocol — L9 Economic Moat Engine
 =========================================
-Whitepaper Section L9 / L0.5 (referenced from L5 master equation):
+specification Section L9 / L0.5 (referenced from L5 master equation):
 
     M_moat(t) = D(t) · Q(t) · R(t) · X(t) · F(t) · N(t)
 
@@ -36,7 +36,7 @@ from dataclasses import dataclass
 F_REGISTRY_BASELINE: float = 0.90
 
 # Time-scaling constant for the Network factor N(t).
-# Whitepaper §2.3 — exponential saturation (asymptotic compounding):
+# specification §2.3 — exponential saturation (asymptotic compounding):
 #   N(t) = 1 − e^(−t / τ)
 # At genesis (t=0):  N = 0   (no network moat yet)
 # At t = τ ≈ 3 yr:  N ≈ 0.632 (inflection point)
@@ -157,7 +157,7 @@ class MoatEngine:
         """
         N — Network / durability factor.
 
-        Whitepaper §2.3 canonical formula (exponential saturation):
+        specification §2.3 canonical formula (exponential saturation):
             N(t) = 1 − e^(−t / τ)
 
         Encodes compounding trust: the protocol moat asymptotically approaches

@@ -1,6 +1,6 @@
 """
 TRION Protocol — Falsifiability Registry (F1-F15)
-Canonical source: TRION Whitepaper #2 §20 "Formal Proofs and Falsification Conditions"
+Canonical source: TRION specification #2 §20 "Formal Proofs and Falsification Conditions"
 
 The 15 falsifiability conditions that would invalidate the TRION model.
 Each F-condition is an empirically testable claim with a precise metric,

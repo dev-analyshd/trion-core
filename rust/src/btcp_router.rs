@@ -76,7 +76,7 @@ pub struct BTCPRouter {
 /// Route-selection thresholds (BTCP Master Spec §4.2, §5.1, §5.5, §5.8)
 pub mod route_policy {
     /// NL below this on the destination ⇒ pair treated as illiquid ⇒ BITP
-    /// (matches the LIQUIDITY_HEALTH alert threshold, whitepaper L7.1)
+    /// (matches the LIQUIDITY_HEALTH alert threshold, specification L7.1)
     pub const NL_ILLIQUID: f64 = 0.30;
     /// NL above this qualifies a chain as a Parallel split leg
     pub const NL_PARALLEL_LEG: f64 = 0.60;

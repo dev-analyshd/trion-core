@@ -20,7 +20,7 @@ DC(t) = 0.0  → current activity is completely unlike baseline (anomaly)
 Attack detection: a flash-loan exploit typically shifts P_current to
 >80% FLASH_LOAN / LIQUIDATE from a baseline of ~5-10%, driving DC toward 0.
 
-References: whitepaper §4.2 (Mental Plane), §6.3 (Protocol Coherence Extension)
+References: specification §4.2 (Mental Plane), §6.3 (Protocol Coherence Extension)
 """
 
 from __future__ import annotations

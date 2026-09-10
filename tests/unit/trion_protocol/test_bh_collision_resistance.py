@@ -1,5 +1,5 @@
 """
-TRION Protocol — L0 Whitepaper Criterion: BH Collision Resistance
+TRION Protocol — L0 specification Criterion: BH Collision Resistance
 Empirical stress test for the dual-strand Behavioral Hash (BH) construction.
 
 Construction (behavioral_hash.py):
@@ -184,7 +184,7 @@ def test_birthday_bound_expectation():
 
 def test_bh_collision_resistance_stress():
     """
-    L0 whitepaper criterion: BH collision resistance.
+    L0 specification criterion: BH collision resistance.
 
     Generates 2,000,000 distinct realistic canonical payloads covering all
     20 event types, 10 production chain IDs, 1001 magnitude steps, 16

@@ -11,7 +11,7 @@ route builds its coherence_result dict from that base.  Two pre-existing
   * the GOVERNANCE_SIGNAL branch indexed h[32]/h[33]/h[34] of a 32-byte
     sha3-256 digest — IndexError on every governance signal request.
 
-Both are now pinned: all 19 whitepaper §11 signal types must answer 200
+Both are now pinned: all 19 specification §11 signal types must answer 200
 with a parseable JSON body for a cold entity, and the governance payload
 fields the digest-overflow bytes feed must be well-formed.
 
@@ -28,7 +28,7 @@ from api.app import app  # noqa: E402
 
 COLD_ENTITY = "0x" + "9a" * 20
 
-# The 19 whitepaper §11 signal types accepted by /api/v1/signal/type/*
+# The 19 specification §11 signal types accepted by /api/v1/signal/type/*
 # (the route's documented type list — Section 11).
 SECTION_11_TYPES = (
     "VALUATION", "SILENCE", "MANIPULATION_ALERT", "GENESIS", "RESURRECTION",

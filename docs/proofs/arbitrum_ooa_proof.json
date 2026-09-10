@@ -1,0 +1,12 @@
+{
+  "spvVerifier": "0x4D07Fa95e5467647d3661dB341865882e302a17F",
+  "registry": "0x20430De1fAb5D31E9f1dDa5c54e5D97cCAE7958E",
+  "routeId": "0xa009309e5e96015b8cfefa49205df81e53264210f1395d7c58603692018056f7",
+  "btc": {
+    "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "anchorBh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "blockHeight": 5128449
+  },
+  "timestamp": "2026-09-10T02:56:09.759Z"
+}

@@ -1,7 +1,7 @@
 """
 TRION Protocol — Signal Packing for On-Chain Publication
 
-Implements the 256-bit thermodynamic signal encoding specified in the whitepaper:
+Implements the 256-bit thermodynamic signal encoding specified in the specification:
 
   bits [0..7]    status       (1=NOMINAL, 2=WARN, 3=COLLAPSE, 4=HOSTILE)
   bits [8..39]   coherence    (C(t) × 1e6, 32 bits)
@@ -61,7 +61,7 @@ def pack_signal(
     limiting_plane: int = PLANE_PHYSICAL,
 ) -> int:
     """
-    Pack a thermodynamic signal into a single uint256 per whitepaper spec.
+    Pack a thermodynamic signal into a single uint256 per specification spec.
 
     Args:
         coherence: C(t) coherence score [0, 1]

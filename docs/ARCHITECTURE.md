@@ -330,6 +330,6 @@ research reference, not an oracle of record; ZK circuits = software simulation
 ---
 
 *TRION Protocol v2.0.0 — Architecture Specification*
-*Based on whitepaper V1 + BTCP Master Implementation Spec; conformance layer
+*Based on specification V1 + BTCP Master Implementation Spec; conformance layer
 reconstructed Waves 1–3 (canonical docs in `docs/protocol/`, `docs/security/`,
 `docs/audit/CANONICAL_SPEC_MATRIX.md`)*

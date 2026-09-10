@@ -1,6 +1,6 @@
 # TRION Protocol — Deep Senior Architect Audit
 **Date**: 2026-06-01 | **Auditor**: Replit Agent (Senior Architect Mode)
-**Scope**: Full whitepaper (2,293 lines, 84 formulas) vs. codebase — zero assumptions, zero marketing
+**Scope**: Full specification (2,293 lines, 84 formulas) vs. codebase — zero assumptions, zero marketing
 
 ---
 
@@ -8,13 +8,13 @@
 
 **TRION is the most comprehensively implemented behavioral oracle protocol in existence.**
 
-The codebase is not a demo. It is not a whitepaper prototype. It is a working multi-chain behavioral intelligence system with:
+The codebase is not a demo. It is not a specification prototype. It is a working multi-chain behavioral intelligence system with:
 - 84 formulas implemented across 15+ Python modules + 13 Rust crates
 - 37 chains indexed live (14 EVM + Solana + NEAR + TON + 11 non-EVM)
 - Smart contracts deployed and live on 0G Mainnet (chain 16661)
 - Production tests: 328 passed, 24 skipped
 
-The honest gaps are **5 open research questions** (explicitly documented as such in the whitepaper) and **3 external dependency stubs** waiting on live data sources. There are no hidden gaps.
+The honest gaps are **5 open research questions** (explicitly documented as such in the specification) and **3 external dependency stubs** waiting on live data sources. There are no hidden gaps.
 
 ---
 
@@ -62,7 +62,7 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 | L3.2 | Observer Effect Correction on intent consistency | ✅ LIVE | `src/planes/anima/anima_data_streams.py` |
 | L3.3 | `CRED(source,t) = CRED·α + verification·β_update` | ✅ LIVE | `src/planes/anima/anima_data_streams.py` — +1 verified, -2 falsified |
 | L3.4 | Regulatory Behavioral Signal (SEC EDGAR, on-chain compliance pattern) | ✅ LIVE | `api/app.py` — REGULATORY_BHV signal |
-| L3.5 | 59-language NLP pipeline (whitepaper mandates ≥50 languages) | ✅ LIVE | `src/planes/anima/anima_data_streams.py` — SUPPORTED_NLP_LANGUAGES, 59 entries |
+| L3.5 | 59-language NLP pipeline (specification mandates ≥50 languages) | ✅ LIVE | `src/planes/anima/anima_data_streams.py` — SUPPORTED_NLP_LANGUAGES, 59 entries |
 | L3.6 | `PC_limit = Σ_i P(C_i) · w_i < 1.0` (information capacity bound) | ✅ LIVE | `src/core/coherence_engine.py` — PC_limit computed, 11 weight profiles |
 
 ### Build Level L4: Spiritual/Security Planes (9 formulas)
@@ -108,7 +108,7 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 
 ## PART II — 19 SIGNAL TYPES + 5 EXTENDED
 
-| ID | Signal Type | Whitepaper | Status | Builder |
+| ID | Signal Type | specification | Status | Builder |
 |----|------------|-----------|--------|---------|
 | 0 | VALUATION | §11, canonical | ✅ | `build_valuation()` |
 | 1 | SILENCE | §11, canonical | ✅ | `build_silence()` — carries coherence_gap, limiting_plane, eta |
@@ -122,7 +122,7 @@ The honest gaps are **5 open research questions** (explicitly documented as such
 | 11 | STABLECOIN_HEALTH | §11, canonical | ✅ | `build_stablecoin_health()` |
 | 12 | PHASE_TRANSITION | §11, canonical | ✅ | `build_phase_transition()` |
 | 13 | FORK_DIVERGENCE | §11, canonical | ✅ | `build_fork_divergence()` |
-| 14 | MEV_EXPOSURE (= MEV_BEHAVIORAL) | §11, canonical | ✅ | `build_mev_exposure()` — whitepaper alias in docstring |
+| 14 | MEV_EXPOSURE (= MEV_BEHAVIORAL) | §11, canonical | ✅ | `build_mev_exposure()` — specification alias in docstring |
 | 16 | REGULATORY_BHV | §11, canonical | ✅ | `build_regulatory_bhv()` |
 | 19 | SOVEREIGN_BEHAVIORAL | §11, canonical | ✅ | `build_sovereign_behavioral()` |
 | 20 | ENERGY_PARTICIPATION | §11, canonical | ✅ | `build_energy_participation()` |
@@ -325,7 +325,7 @@ These are published to the research community. Status: all OPEN.
 
 ### WHAT TRION WOULD HAVE BLOCKED
 
-Per the whitepaper: **$44B+ in historical DeFi exploits** would have been blocked by `TRIONExecutionGate.checkExecution()` — the pre-trade behavioral firewall detecting manipulation fingerprints BEFORE execution. This is not a claim. It is a falsifiable condition (F1, F2) under active monitoring.
+Per the specification: **$44B+ in historical DeFi exploits** would have been blocked by `TRIONExecutionGate.checkExecution()` — the pre-trade behavioral firewall detecting manipulation fingerprints BEFORE execution. This is not a claim. It is a falsifiable condition (F1, F2) under active monitoring.
 
 ### READINESS BY DIMENSION
 
@@ -341,11 +341,11 @@ Per the whitepaper: **$44B+ in historical DeFi exploits** would have been blocke
 
 ### QUESTIONS A CRITICAL INVESTOR WILL ASK — AND THE ANSWERS
 
-**Q: "Is this just a whitepaper?"**
-A: No. 328 tests passing. 15 contracts deployed. Live on 0G mainnet. 37 chains indexed. Run `curl http://127.0.0.1:5000/api/v1/health` and `curl http://127.0.0.1:5000/api/v1/whitepaper/coverage`.
+**Q: "Is this just a specification?"**
+A: No. 328 tests passing. 15 contracts deployed. Live on 0G mainnet. 37 chains indexed. Run `curl http://127.0.0.1:5000/api/v1/health` and `curl http://127.0.0.1:5000/api/v1/specification/coverage`.
 
 **Q: "What happens if the system is wrong?"**
-A: F1–F15 are explicit falsification conditions. F3 is the most direct: "C(t)<0.55 must predict underperformance >20%." If it doesn't, the model is wrong and the whitepaper says so.
+A: F1–F15 are explicit falsification conditions. F3 is the most direct: "C(t)<0.55 must predict underperformance >20%." If it doesn't, the model is wrong and the specification says so.
 
 **Q: "Who controls the system?"**
 A: AWA condition `no_single_entity_controls_weights = True` is enforced at the governance level. TRIONToken minting is frozen when AWA is SUSPENDED. The founder cannot mint their way out of governance failure.
@@ -386,7 +386,7 @@ A: CC0 is the trust architecture. No IP to sue over = no capture. The moat is th
 - [x] 9 Shannon entropy features over normalized tx flow
 
 **ANIMA Plane A(t)**
-- [x] 59 ISO 639-1 languages with LANGUAGE_TIER_WEIGHTS (whitepaper requires ≥50)
+- [x] 59 ISO 639-1 languages with LANGUAGE_TIER_WEIGHTS (specification requires ≥50)
 - [x] Observer Effect Correction on intent consistency
 - [x] CRED source credibility scoring with decay
 - [x] Regulatory Behavioral Signal (SEC EDGAR / on-chain compliance)
@@ -521,7 +521,7 @@ A: CC0 is the trust architecture. No IP to sue over = no capture. The moat is th
 
 ## PART XII — HONEST DISCLOSURE SUMMARY
 
-**The whitepaper makes exactly these claims that require further evidence:**
+**The specification makes exactly these claims that require further evidence:**
 
 1. `F14` — BRT circadian rhythm correlates with gas prices. Labeled CONJECTURE. Being monitored.
 2. `Q2` — ZK proof construction for multi-year behavioral time series. Labeled NOT YET COMPLETED. Research question published.
@@ -537,7 +537,7 @@ The difference between TRION and 99% of DeFi projects is this: TRION tells you e
 
 | Category | Completed | Total | % |
 |---------|-----------|-------|---|
-| Whitepaper formulas | 84 | 84 | **100%** |
+| specification formulas | 84 | 84 | **100%** |
 | Canonical signal types | 19 | 19 | **100%** |
 | Extended signal types | 5 | 5 | **100%** |
 | Primitives (full) | 6 | 7 | **86%** (P4 ZK pending Q2) |
@@ -554,5 +554,5 @@ The difference between TRION and 99% of DeFi projects is this: TRION tells you e
 ---
 
 *TRION Protocol — CC0 — This knowledge belongs to everyone*
-*Whitepaper v1.0 — 84 formulas — 100% live coverage*
+*specification v1.0 — 84 formulas — 100% live coverage*
 *Author: Hudu Yusuf (Analys)*

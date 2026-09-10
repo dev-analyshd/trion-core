@@ -1,7 +1,7 @@
 """
 TRION CEX Integration Module — api/cex_integration.py
 =============================================================
-Bidirectional CEX ↔ TRION feed exchange (Whitepaper §7.3).
+Bidirectional CEX ↔ TRION feed exchange (specification §7.3).
 
 CEX → TRION: Ingest trade/order/liquidation data → canonical 93-byte BH pipeline
 TRION → CEX: Live signal feed, hostile-entity inverted feed, webhook alerts
@@ -45,7 +45,7 @@ from flask import Blueprint, jsonify, request
 
 from api.faiss_client import faiss_headers
 
-# Canonical EventType (whitepaper L0.1 §2 — 20 types, byte value = enum id).
+# Canonical EventType (specification L0.1 §2 — 20 types, byte value = enum id).
 # Read-only import of the authoritative map: core/primitives/behavioral_hash
 # .EventType is the single source of truth (mirrored by the FAISS endpoint's
 # EVENT_NAMES re-derivation in add_tx_bh_batch) — keep this table in sync by
@@ -68,7 +68,7 @@ CEX_CHAIN_IDS = {
     "GENERIC":  90000,
 }
 
-# EventType byte → name (canonical 20 types from whitepaper L0.1 — derived
+# EventType byte → name (canonical 20 types from specification L0.1 — derived
 # from core.primitives.behavioral_hash.EventType, the authoritative map).
 EVENT_TYPES = {int(et): et.name for et in EventType}
 
@@ -446,7 +446,7 @@ def cex_status():
 
     return jsonify({
         "protocol":             "TRION ↔ CEX Bidirectional Feed",
-        "whitepaper":           "§7.3 CEX Integration Architecture",
+        "specification":           "§7.3 CEX Integration Architecture",
         "cex_registry":         CEX_REGISTRY,
         "live_bh_ledger": {
             "total_cex_bhs":    total_bhs,
@@ -519,7 +519,7 @@ def cex_ingest():
         return jsonify({
             "accepted": False,
             "reason": f"Unknown data_type '{data_type}'. Accepted: {sorted(ACCEPTED)}",
-            "whitepaper": "§7.3 CEX Integration",
+            "specification": "§7.3 CEX Integration",
             "timestamp": int(time.time()),
         }), 400
 
@@ -653,7 +653,7 @@ def cex_ingest():
                       "must treat unauthenticated feeds accordingly (guard "
                       "this route with TRION_API_KEY in untrusted networks)"),
         },
-        "whitepaper":       "§7.3 CEX → TRION — L0.1 canonical BH pipeline",
+        "specification":       "§7.3 CEX → TRION — L0.1 canonical BH pipeline",
         "timestamp":        ts,
     })
 
@@ -734,7 +734,7 @@ def cex_feed():
     return jsonify({
         "feed_version":    "2.0",
         "feed_type":       "TRION_TO_CEX",
-        "whitepaper":      "§7.3 CEX Integration Architecture",
+        "specification":      "§7.3 CEX Integration Architecture",
         "signals":         signals,
         "summary": {
             "total_assets": len(signals),
@@ -872,7 +872,7 @@ def hostile_feed():
 
     return jsonify({
         "feed_type":      "INVERTED — hostile entity watchlist",
-        "whitepaper":     "§7.3 CEX Integration + L2.1 Manipulation Fingerprint",
+        "specification":     "§7.3 CEX Integration + L2.1 Manipulation Fingerprint",
         "query": {
             "lookback_hours": hours,
             "min_mf_score":   min_mf,
@@ -1118,7 +1118,7 @@ def cex_stats():
         "bh_formula":            "sense=SHA3-256(93-byte||0x00); antisense=SHA3-256(93-byte||0xFF)⊕NOT(sense)",
         "payload_bytes":         93,
         "cex_chain_ids":         CEX_CHAIN_IDS,
-        "whitepaper":            "§7.3 CEX Integration — L0.1 canonical BH pipeline",
+        "specification":            "§7.3 CEX Integration — L0.1 canonical BH pipeline",
         "timestamp":             int(time.time()),
     })
 

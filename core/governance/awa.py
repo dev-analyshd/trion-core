@@ -700,7 +700,7 @@ _awa_enforcer.gratitude.record_disclosure(
     entity_id="trion_genesis_node",
     vulnerability_id="VUL-001-BOOTSTRAP",
     severity="HIGH",
-    description="Voluntary disclosure: bootstrap phase first-mover vulnerability acknowledged in whitepaper §14.",
+    description="Voluntary disclosure: bootstrap phase first-mover vulnerability acknowledged in specification §14.",
     verified=True,
     credit=1.5,
 )

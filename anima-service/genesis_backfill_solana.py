@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TRION Akashic Index — Solana Genesis Bootstrap / Historical Backfill
-Whitepaper mandate: Full chain history from genesis, zero gaps.
+specification mandate: Full chain history from genesis, zero gaps.
 
 Mirrors akashic/genesis_backfill.py but walks Solana slots via getBlock
 instead of EVM eth_getBlockByNumber. Ingests every Solana block into the

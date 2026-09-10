@@ -1,14 +1,19 @@
-[package]
-name = "trion-soroban"
-version = "2.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = [
+    "btc-spv-verifier",
+    "btcp-escrow",
+    "btcp-intent",
+    "btcp-route",
+    "liquidity-ocean",
+]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
-soroban-sdk = "20.0.0"
+[workspace.dependencies]
+soroban-sdk = "22"
 
 [profile.release]
-opt-level = 3
-debug = false
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+codegen-units = 1

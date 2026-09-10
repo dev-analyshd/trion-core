@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # TRION Rust Indexer Supervisor — EVM + SVM core chains
-# Manages trion-evm (55 EVM chains — 54 mainnet + ZG Newton testnet),
-# trion-svm (Solana) and trion-botchain.
+# Manages trion-evm (73 EVM chains incl testnets) and trion-svm (Solana).
 # All other VMs are handled by native_vm_indexers.sh and
 # extended_vm_indexers.sh (also Rust binaries).
 # Usage: FAISS_SERVICE_URL=http://127.0.0.1:8000 bash supervisors/rust_indexers.sh
@@ -56,7 +55,6 @@ wait_faiss
 INDEXERS=(
     "trion-evm"
     "trion-svm"
-    "trion-botchain"
 )
 
 pids=()
@@ -70,7 +68,7 @@ for indexer in "${INDEXERS[@]}"; do
     sleep 0.3
 done
 
-log "Core Rust indexers started (trion-evm: 54 EVM mainnets + ZG Newton testnet; trion-svm: Solana mainnet; trion-botchain). PIDs: ${pids[*]}"
+log "Core Rust indexers started (trion-evm: 73 EVM chains; trion-svm: Solana). PIDs: ${pids[*]}"
 log "Logs: $LOG_DIR/"
 
 wait "${pids[@]}"

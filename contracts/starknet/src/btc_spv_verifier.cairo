@@ -32,7 +32,7 @@
 ///      reference a real transaction in a real block, and the anchor
 ///      must be correctly derived from it.
 ///
-/// Whitepaper BTCP §4 — Zero-Bridge with cryptographic ex-ante binding.
+/// specification BTCP §4 — Zero-Bridge with cryptographic ex-ante binding.
 #[starknet::interface]
 trait IBTCSPVVerifier<TContractState> {
     /// Owner sets the trusted genesis/checkpoint tip + initial retarget period.

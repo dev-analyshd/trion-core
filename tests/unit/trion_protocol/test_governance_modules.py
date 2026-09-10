@@ -1,7 +1,7 @@
 """
 Phase 7 — Tests for new governance modules
 ============================================
-Tests for the 4 new whitepaper-feature modules:
+Tests for the 4 new specification-feature modules:
   - Adaptive Consensus recommendations
   - Right to Invisibility enforcement
   - Elder Wisdom Protocol

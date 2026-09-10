@@ -245,7 +245,7 @@ def build(out_path):
     story += section_header("2  BEO Formula & Six-VM Identity Merge", ST)
     story.append(Paragraph(
         "One actor's wallets across six VM families were submitted to FAISS ANIMA. "
-        "The BEO confidence formula (whitepaper L0.2) was evaluated; "
+        "The BEO confidence formula (specification L0.2) was evaluated; "
         "all six resolve to an identical <code>beo_id</code> — a single canonical identity.",
         ST["body"]
     ))
@@ -271,7 +271,7 @@ def build(out_path):
         ["BP", "Behavioral Pattern",  "0.10", "0.5000", "0.0500"],
         ["", "BEO_confidence (≥ 0.75 → same_entity = True)", "", "", "0.7500 ✓"],
     ]
-    story.append(Paragraph("BEO confidence breakdown (whitepaper formula L0.2):", ST["subsection"]))
+    story.append(Paragraph("BEO confidence breakdown (specification formula L0.2):", ST["subsection"]))
     ft = tbl(formula_data, [14*mm, 64*mm, 18*mm, 20*mm, 28*mm], extra_styles=[
         ("TEXTCOLOR", (4,5), (4,5), GREEN),
         ("FONTNAME",  (4,5), (4,5), "Helvetica-Bold"),

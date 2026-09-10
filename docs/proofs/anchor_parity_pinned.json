@@ -1,0 +1,17 @@
+{
+  "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+  "block_hash_le": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+  "block_height": 5128449,
+  "block_time": 1788718503,
+  "amount_sats": 304527,
+  "btc_addr": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+  "chain_id": 100,
+  "entity_id_hex": "0xcc8aa95abbc7965be22cccc07b10c79520df838debd693b119bec27154bea39b",
+  "magnitude_nano": 304527000000000,
+  "payload_hex_93": "cc8aa95abbc7965be22cccc07b10c79520df838debd693b119bec27154bea39b00000114f737a8d6000000000000000000000000006a9dada70000006400000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+  "anchor_bh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+  "expected_anchor_bh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+  "parity_confirmed": true,
+  "hash_algorithm": "SHA-256 (sense = SHA-256(93-byte payload || 0x00))",
+  "note": "Esplora value field is already in satoshis (integer), no conversion needed."
+}

@@ -2,7 +2,7 @@
 TRION Protocol — L4.1a Validator Registry
 ==========================================
 
-Whitepaper §4 specifies "minimum 100 validators across minimum 4 continents
+specification §4 specifies "minimum 100 validators across minimum 4 continents
 at launch."  Until mainnet launch, Σ returns a disclosed bootstrap value
 of 0.25 (see core/spiritual/sigma_engine.py).
 
@@ -15,7 +15,7 @@ Registry persistence:
   - Validators are persisted to `akashic/validator_registry.db` (SQLite)
   - State survives process restarts
   - Bootstrap disclosure is included in the response until the
-    whitepaper launch threshold is met (100 validators, 4 continents)
+    specification launch threshold is met (100 validators, 4 continents)
 
 Geographic distribution:
   Each validator declares its continent (Africa, Antarctica, Asia,
@@ -46,7 +46,7 @@ from core.spiritual.sigma_engine import (
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-# Whitepaper §4 launch threshold
+# specification §4 launch threshold
 MIN_VALIDATORS_LAUNCH:    int = 100
 MIN_CONTINENTS_LAUNCH:    int = 4
 
@@ -262,7 +262,7 @@ class ValidatorRegistry:
     # ── Launch readiness ────────────────────────────────────────────────────
 
     def is_launch_ready(self) -> bool:
-        """True iff the registry meets the whitepaper launch thresholds."""
+        """True iff the registry meets the specification launch thresholds."""
         return (
             len(self.active_validators()) >= MIN_VALIDATORS_LAUNCH
             and self.continent_count() >= MIN_CONTINENTS_LAUNCH

@@ -39,7 +39,7 @@
 /// • Cascade revert: `parent_escrow_id` + cascade loop so dependent child
 ///   escrows revert together with their parent (Solidity Gap 9 Resolution).
 ///
-/// Whitepaper BTCP §4.3 (Six-Step Execution) + §11 (Five Final Fixes);
+/// specification BTCP §4.3 (Six-Step Execution) + §11 (Five Final Fixes);
 /// BTCP_STATE_MACHINE.md M2 (E1 lock, E3 release, E5 revert, E6 emergency,
 /// E7 cascade). Pause blocks NEW LOCKS only — settlements are never
 /// pausable (M2 E3: "pause never blocks settling escrows").
@@ -149,7 +149,7 @@ pub mod BTCPEscrow {
     const STATE_REVERTED:   u8 = 2;
     const STATE_EMERGENCY_REVERTED: u8 = 3;  // Gap 8: 7-day escape terminal state
 
-    /// Revert reasons (whitepaper BTCP §11) — mirrors the Solidity enum.
+    /// Revert reasons (specification BTCP §11) — mirrors the Solidity enum.
     const REASON_TIMEOUT:           u8 = 0;
     const REASON_COHERENCE_FAILURE: u8 = 1;
     const REASON_ROUTE_INVALID:     u8 = 2;

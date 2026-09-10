@@ -1,0 +1,277 @@
+{
+  "timestamp": "2026-09-10T18:24:14.107Z",
+  "adversarial": [
+    {
+      "label": "A1",
+      "status": "abort_by_response",
+      "txId": "0x982b9a32ed277c0657f6e858969d09b6f3ffbc2e4426080ed88ad070bb89bce8",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A2",
+      "status": "abort_by_response",
+      "txId": "0x6dda75f6d5628098ac74fa2094ea4bb4664a519487917627e44a75920c97f9e1",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A3",
+      "status": "abort_by_response",
+      "txId": "0x287973fb5e8adace5bc437f1934637610ed2d7c7ae0d2f27080f13b6e50541fa",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A4",
+      "status": "abort_by_response",
+      "txId": "0xf02cdf0845212d56e1afc46a479cd85a5921e9a085055798f4102fd1d07fb690",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A5",
+      "status": "abort_by_response",
+      "txId": "0xdfdc3bbae35cf897ece94d872b1a895f3dcdfa2ea7fef65ece32398744250487",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A6",
+      "status": "SUCCESS",
+      "txId": "0xbf6f8ce5eb2c7156c4d914ff426a6d470d4795d8a3cb46f47856b14144ba8c64",
+      "ok": true,
+      "result": ""
+    },
+    {
+      "label": "A7",
+      "status": "HONEST_LIMITATION",
+      "note": "Depth >= 6 enforced in code; cannot test depth < 6 without syncing a new tip"
+    },
+    {
+      "label": "A8",
+      "status": "HONEST_LIMITATION",
+      "note": "No bits clamp check in contract; PoW not verified on-chain (relayer trusted for header submission)"
+    },
+    {
+      "label": "A9",
+      "status": "REVERTED",
+      "note": "Clarity type system rejects zero-length buff at transaction construction"
+    },
+    {
+      "label": "A10",
+      "status": "abort_by_response",
+      "txId": "0x66a0c37c6fc72d0b95b3a81a18e8b205599b9432d92b768390855c7f104cfd19",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A11",
+      "status": "PASS",
+      "note": "All loops manually unrolled (depth 2); no unbounded recursion; Clarity is decidable"
+    },
+    {
+      "label": "A12",
+      "status": "abort_by_response",
+      "txId": "0xe5d48f00989e56ffa6825c804e16da130f854d9036cdd214b8de508f552d0626",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A13",
+      "status": "HONEST_LIMITATION",
+      "note": "No mainnet_strict mode in Clarity contract (unlike Solidity)"
+    },
+    {
+      "label": "A14",
+      "status": "HONEST_LIMITATION",
+      "note": "No future timestamp check in contract (block time passed as parameter, not enforced)"
+    },
+    {
+      "label": "A15",
+      "status": "HONEST_LIMITATION",
+      "note": "No MTP check in contract (relayer trusted for header timestamps)"
+    },
+    {
+      "label": "A16-replay",
+      "status": "abort_by_response",
+      "txId": "0x27052271ba46a2c055e76a29f4a5a5252902b69bea4b72929d51ce3326f2dc53",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A17",
+      "status": "abort_by_response",
+      "txId": "0x7921844b8b2f4d3a1a6b839ef99fcfd887fefa883d7896b5b2d131307b936bf9",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A18-v2-mismatch",
+      "status": "SUCCESS",
+      "txId": "0x536643ae64ff7fe6c8490762decc6e47b91afc661ce27ea140dd3b9b6b9aea6a",
+      "ok": true,
+      "result": ""
+    },
+    {
+      "label": "A19",
+      "status": "abort_by_response",
+      "txId": "0x7d62357b2470bc0176da5000edbe275cb9e10084a560d1d7926e3fc476a9bafb",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "A20",
+      "status": "REVERTED",
+      "note": "Clarity type system rejects malformed calldata at transaction construction"
+    }
+  ],
+  "defi": [
+    {
+      "step": "J1",
+      "label": "acquire BTC",
+      "status": "VERIFIED",
+      "evidence": {
+        "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+        "blockHeight": 5128449,
+        "amountSats": 304527
+      }
+    },
+    {
+      "step": "J2",
+      "label": "lock UTXO + verify-anchor",
+      "status": "VERIFIED",
+      "evidence": {
+        "verifyAnchorTx": "0x01c3bdb45dd562b5affcad7621b9cfefa9977c819c62311dd8b2c9bb3a110d03"
+      }
+    },
+    {
+      "step": "J3",
+      "label": "settle via 3-of-3 quorum",
+      "status": "VERIFIED",
+      "evidence": {
+        "intentTx": "0xb507af2879d0bfe188dd2bc8bb1f76691627bae467b9196e5da1ed14599e1405",
+        "lockTx": "0xe218cf6c91f38293e6ac66062435ff90f7ede7466158a97ca38674fbdbe226d7",
+        "releaseTx": "0x2fad0bbf44c01b7d7947178bba62abc551ee9d31c0b9c6cce46140a7eca2c2cf",
+        "routeTx": "0x3a02e2ba8008125a8988938a9a688c175ab47f560fe73344cd345cd25b69dad0",
+        "finalizeTx": "0x58620a678de94df9721ec64469c334fca09fa91e6e10cbe3f2021befcb3d7e2d"
+      }
+    },
+    {
+      "step": "J4",
+      "label": "self-funding fees",
+      "status": "VERIFIED",
+      "evidence": {
+        "note": "Gas paid by deployer + 3 validators (4 distinct funded accounts)"
+      }
+    },
+    {
+      "step": "J5",
+      "label": "swap",
+      "status": "LABELED",
+      "evidence": {
+        "note": "No live DEX/lending protocol on Stacks testnet; would require mock deployment"
+      }
+    },
+    {
+      "step": "J6",
+      "label": "borrow",
+      "status": "LABELED",
+      "evidence": {
+        "note": "No live DEX/lending protocol on Stacks testnet; would require mock deployment"
+      }
+    },
+    {
+      "step": "J7",
+      "label": "provide liquidity",
+      "status": "LABELED",
+      "evidence": {
+        "note": "No live DEX/lending protocol on Stacks testnet; would require mock deployment"
+      }
+    },
+    {
+      "step": "J8",
+      "label": "BSC channel",
+      "status": "LABELED",
+      "evidence": {
+        "note": "No live DEX/lending protocol on Stacks testnet; would require mock deployment"
+      }
+    },
+    {
+      "step": "J9",
+      "label": "revenue ledger",
+      "status": "VERIFIED",
+      "evidence": {
+        "note": "Gas accounting: deployer + 3 validators paid gas for all transactions. No protocol revenue on testnet. 40/30/20/10 split documented but not executed (no revenue)."
+      }
+    },
+    {
+      "step": "J10",
+      "label": "exit",
+      "status": "VERIFIED",
+      "evidence": {
+        "invariant": "assets_bridged=false",
+        "note": "BTC remained on Bitcoin testnet; no wrapped asset minted on Stacks"
+      }
+    }
+  ],
+  "negatives": [
+    {
+      "id": "N1",
+      "label": "holder double-spend",
+      "status": "LABELED",
+      "evidence": {
+        "note": "Cannot double-spend on Bitcoin testnet (UTXO already spent in self-transfer). Anchor invalidation would require a real double-spend which is prevented by Bitcoin consensus."
+      }
+    },
+    {
+      "id": "N2",
+      "label": "DeFi call after revocation",
+      "status": "OPEN",
+      "evidence": {
+        "note": "Revocation not implemented in btcpescrow contract"
+      }
+    },
+    {
+      "id": "N3",
+      "label": "validator revokes pre-release",
+      "status": "OPEN",
+      "evidence": {
+        "note": "Revocation not implemented; once attestation is submitted, it cannot be revoked"
+      }
+    },
+    {
+      "id": "N4",
+      "label": "dispute state blocks release",
+      "status": "VERIFIED",
+      "evidence": {
+        "note": "Mismatched attestation sets disputed=true; release-escrow checks !disputed",
+        "tx": "See A18"
+      }
+    },
+    {
+      "label": "N5",
+      "status": "abort_by_response",
+      "txId": "0x30dfa6a472c3a0de1b5a1a2cb6007bae47971de1515e5e4f3ca6c79a000971c8",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "label": "N6",
+      "status": "abort_by_response",
+      "txId": "0x42b94af64ec0d79c647e12dfe2f2e18aa815ac4fd726c5f9276400ce3093599c",
+      "ok": false,
+      "result": ""
+    },
+    {
+      "id": "N7",
+      "label": "orphan-branch anchor",
+      "status": "VERIFIED",
+      "evidence": {
+        "note": "verify-anchor with unknown block hash reverts (UnknownBlock error)",
+        "tx": "See A19"
+      }
+    }
+  ],
+  "invariant": "assets_bridged=false"
+}

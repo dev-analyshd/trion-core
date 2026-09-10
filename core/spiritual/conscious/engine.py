@@ -26,8 +26,8 @@ class AnnotationType(IntEnum):
     DISPUTE_RESOLVE  = 4
 
 
-# ── L4.2: 6 Anti-Regulatory-Capture Protections (Whitepaper Section 8, L4.2) ──
-# The whitepaper mandates 6 structural protections that prevent any single
+# ── L4.2: 6 Anti-Regulatory-Capture Protections (specification Section 8, L4.2) ──
+# The specification mandates 6 structural protections that prevent any single
 # regulatory actor from capturing the human annotation network.
 
 ANTI_CAPTURE_PROTECTIONS = [
@@ -155,7 +155,7 @@ K_BOOTSTRAP = {
     "disclosure": (
         "K plane (Conscious) at bootstrap baseline (0.10). "
         "Annotation network onboarding begins at mainnet. "
-        "Architecture fully implemented per whitepaper."
+        "Architecture fully implemented per specification."
     ),
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TRION Genesis Backfill Runner (all chains) — per whitepaper mandate:
+TRION Genesis Backfill Runner (all chains) — per specification mandate:
 every integrated L1/L2 and every VM, walked from genesis, zero gaps.
 
 Order: Ethereum -> Solana -> Arbitrum -> [remaining ~60 EVM mainnets] ->

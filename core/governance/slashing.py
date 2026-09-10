@@ -1,6 +1,6 @@
 """
 TRION Protocol — L4.9: Slashing Engine + 7-Step Dispute Resolution
-Whitepaper Chapter 14: Governance Architecture — Validator Accountability
+specification Chapter 14: Governance Architecture — Validator Accountability
 
 Five Slashing Conditions:
   S1. Double-signing:           slash 50% of stake, permanent ban

@@ -56,13 +56,20 @@ restart_process() {
 wait_faiss
 
 # ── Extended VM Rust Indexers ────────────────────────────────
-# UTXO     (BTC/LTC/DOGE/DASH)        — trion-utxo
-# Cosmos   (Hub/Kava/Inj/SEI/dYdX/Initia) — trion-cosmos
-# Aptos    (Move VM, chain_id 5001)   — trion-aptos
-# Movement (Move VM, chain_id 5002)   — trion-movement  ← NEW Rust L0
-# SUI      (Sui Mainnet)              — trion-sui
-# TRON     (TRON Mainnet)             — trion-tron
-# PI       (Pi Network/Stellar)       — trion-pi
+# UTXO        (BTC/LTC/DOGE/DASH)        — trion-utxo
+# Cosmos      (Hub/Kava/Inj/SEI/dYdX/Initia) — trion-cosmos
+# Aptos       (Move VM, chain_id 5001)   — trion-aptos
+# Movement    (Move VM, chain_id 5002)   — trion-movement
+# SUI         (Sui Mainnet)              — trion-sui
+# TRON        (TRON Mainnet)             — trion-tron
+# PI          (Pi Network/Stellar)       — trion-pi
+# Hedera      (HBAR)                     — trion-hedera
+# VeChain     (VET)                      — trion-vechain
+# Waves       (WAVES)                    — trion-waves
+# XRPL        (XRP Ledger)               — trion-xrpl
+# MultiversX  (eGLD)                     — trion-multiversx
+# Algorand    (ALGO)                     — trion-algorand
+# Cardano     (ADA)                      — trion-cardano
 
 INDEXERS=(
     "trion-utxo"
@@ -72,6 +79,13 @@ INDEXERS=(
     "trion-sui"
     "trion-tron"
     "trion-pi"
+    "trion-hedera"
+    "trion-vechain"
+    "trion-waves"
+    "trion-xrpl"
+    "trion-multiversx"
+    "trion-algorand"
+    "trion-cardano"
 )
 
 pids=()

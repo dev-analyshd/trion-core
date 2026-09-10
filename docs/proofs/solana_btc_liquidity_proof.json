@@ -1,0 +1,131 @@
+{
+  "mission": "SOLANA BITCOIN OOA \u2014 DUAL-SIDE PROOF WITH ANCHOR (SVM) PROGRAMS",
+  "timestamp": "2026-09-10T21:07:25.288374Z",
+  "network": "solana-devnet",
+  "deployer": "3f2qpAkVFfRGrp9h1F6AJyVyvMqoivMrxaD92R4waEmh",
+  "balance": "0.336 SOL (airdrop rate-limited; insufficient for last 2 programs)",
+  "programs": {
+    "btc_spv_verifier": {
+      "programId": "CaNUsKS1sTn6GBRrFY9yM8fcj9gpoygtkUj7MahLpC2Y",
+      "deploySignature": "3UJcwquPQqPymXXVQvhvxoAr21WQRbuDo27v8ew7YpcF78b7eJcuDrPRsW8oS56NRUy6ytertx4UjjCJajdGJP4h",
+      "status": "DEPLOYED",
+      "explorer": "https://explorer.solana.com/address/CaNUsKS1sTn6GBRrFY9yM8fcj9gpoygtkUj7MahLpC2Y?cluster=devnet"
+    },
+    "btcp_escrow": {
+      "programId": "HZbbZZaFF6q4RtzeEfCgiMAW45qCpZFRKhsrGxNmJBVU",
+      "deploySignature": "2eygVznuUM9NmvpBh2s9RQ33kjbnfpX73x8nzY8yYy1fSYqPR7Jm8fh2C4qLSeNa5V6LqA99V8gWPDv8aabJ5hS8",
+      "status": "DEPLOYED",
+      "explorer": "https://explorer.solana.com/address/HZbbZZaFF6q4RtzeEfCgiMAW45qCpZFRKhsrGxNmJBVU?cluster=devnet"
+    },
+    "btcp_intent": {
+      "programId": "9wzLywYUQXuNY2wDjvAvrRt9wUmqM9pzNBT64vjeJT3Q",
+      "deploySignature": "4HJPvGLBGMqEkRcPtE3eybQ1sZFtkNfAEUuksQFomwAWiQKxGD52vCBLUACkwTH8xVkf5SY4LEFCCjgJ66Jh9DQ7",
+      "status": "DEPLOYED",
+      "explorer": "https://explorer.solana.com/address/9wzLywYUQXuNY2wDjvAvrRt9wUmqM9pzNBT64vjeJT3Q?cluster=devnet"
+    },
+    "btcp_route": {
+      "programId": "AdnFwj8SVMBSQyw5rrEZKbp9D6Qw7UUEtEVyUa7T5fXk",
+      "status": "BLOCKED (insufficient SOL for deploy \u2014 airdrop rate-limited)",
+      "compiled": "cargo build-sbf clean (260KB .so)"
+    },
+    "liquidity_ocean": {
+      "programId": "8xgTsPcKc24hdfQQvDw7FFyBPHY8nrNUyNRUxwQYfX8E",
+      "status": "BLOCKED (insufficient SOL for deploy \u2014 airdrop rate-limited)",
+      "compiled": "cargo build-sbf clean (260KB .so)"
+    }
+  },
+  "bitcoin": {
+    "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "block_hash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "block_height": 5128449,
+    "anchor_bh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a"
+  },
+  "parity_sextuple": {
+    "python": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "cairo_starknet": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "solidity_arbitrum": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "clarity_stacks": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "soroban_stellar": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "svm_solana": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "all_byte_identical": true,
+    "note": "6-WAY PARITY: anchor_bh byte-identical across Python, Cairo (Starknet), Solidity (Arbitrum), Clarity (Stacks), Soroban (Stellar), and SVM (Solana). The SVM computation uses solana_program::hash::hashv (sol_sha256 syscall) which is byte-identical to Python hashlib.sha256."
+  },
+  "d1_d16_status": {
+    "D1": {
+      "status": "YES",
+      "desc": "3/5 programs deployed; 2 blocked by airdrop rate-limit (compiled clean)"
+    },
+    "D2": {
+      "status": "PARTIAL",
+      "desc": "Genesis renounce implemented in code; not executed on-chain (insufficient SOL for full test)"
+    },
+    "D3": {
+      "status": "YES",
+      "desc": "Root parsed from header in code; merkle proof verification enforced"
+    },
+    "D4": {
+      "status": "NO",
+      "desc": "Pair matrix not executed (blocked by SOL shortage)"
+    },
+    "D5": {
+      "status": "NO",
+      "desc": "Quorum tests not executed (need 3 funded keypairs)"
+    },
+    "D6": {
+      "status": "NO",
+      "desc": "DeFi journey not executed"
+    },
+    "D7": {
+      "status": "NO",
+      "desc": "Negatives not executed"
+    },
+    "D8": {
+      "status": "NO",
+      "desc": "Adversarial battery not executed on-chain"
+    },
+    "D9": {
+      "status": "YES",
+      "desc": "6-WAY PARITY sextuple byte-identical (0xae9775361e4acf32...)"
+    },
+    "D10": {
+      "status": "YES",
+      "desc": "Math tables documented (same as prior missions)"
+    },
+    "D11": {
+      "status": "PARTIAL",
+      "desc": "CU bench: solana_program::hash::hashv ~1 CU per hash; not measured on-chain"
+    },
+    "D12": {
+      "status": "NO",
+      "desc": "Rounds not executed"
+    },
+    "D13": {
+      "status": "PARTIAL",
+      "desc": "3/5 programs deployed verified; 2/5 blocked"
+    },
+    "D14": {
+      "status": "YES",
+      "desc": "Proof JSON committed"
+    },
+    "D15": {
+      "status": "YES",
+      "desc": "Conventional commits (author dev-analyshd)"
+    },
+    "D16": {
+      "status": "NO",
+      "desc": "8 items still NO/PARTIAL; AGREEMENT STATEMENT not emitted"
+    }
+  },
+  "honest_limitations": [
+    "L1: Devnet airdrop rate-limited \u2014 only 3/5 programs deployed (insufficient SOL for last 2). Balance: 0.336 SOL.",
+    "L2: On-chain tests (quorum, adversarial, DeFi, negatives) not executed \u2014 insufficient SOL for transaction fees.",
+    "L3: All 5 programs compile clean (cargo build-sbf) and the logic is verified at code level.",
+    "L4: 6-way parity proven off-chain (anchor_bh byte-identical across 6 VMs).",
+    "L5: btcp_route and liquidity_ocean are simple record-keeping contracts (same pattern as the other 3 generic contracts).",
+    "L6: Solana already has a TRION indexer (svm_indexer, chain 900); this mission adds the settlement/verification layer."
+  ],
+  "trust_statement": "Trust = 3/5 SVM programs deployed on Solana devnet (btc_spv_verifier, btcp_escrow, btcp_intent) + 6-way anchor parity proven (Python/Cairo/Solidity/Clarity/Soroban/SVM = 0xae9775361e4acf32...) + assets_bridged = false. 2 programs (btcp_route, liquidity_ocean) compiled but blocked by devnet airdrop rate-limit. All programs use PDA state accounts, require! custom errors, sol_sha256 for double-SHA-256. No chain prefixes in program names.",
+  "invariant": "assets_bridged=false",
+  "agreement_statement": "NOT EMITTED \u2014 8 items still NO/PARTIAL due to airdrop rate-limit blocker.",
+  "provenance_note": "This deployment replaces the previously purged fabricated Solana devnet record. The prior record (program ID 54r6REJKQ3d2MSV7zYikwiPmck3h7QRaeG44vnRHetWZ) was identified as fabricated and removed. This new deployment uses real program IDs generated via solana-keygen and deployed via solana program deploy to api.devnet.solana.com."
+}

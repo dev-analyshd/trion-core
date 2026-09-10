@@ -20,7 +20,7 @@ Observer Effect (L3.6):
     OE_factor = corr(signal_publication(t-1), behavioral_change(t))
     M_adj(t)  = M_base(t) · (1 - OE_factor(t))
 
-This is the whitepaper's acknowledged first-mover vulnerability:
+This is the specification's acknowledged first-mover vulnerability:
 "First-mover window before sufficient OE accumulation is genuinely vulnerable."
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)

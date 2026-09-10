@@ -3,7 +3,7 @@
 //! Anchor BH -> execution BH route tracking with integrated two-state
 //! atomic escrow (HOLDING -> RELEASED | REVERTED).
 //!
-//! Whitepaper: BTCP §4.3 (Six-Step Execution) and §11 (Five Final Fixes).
+//! specification: BTCP §4.3 (Six-Step Execution) and §11 (Five Final Fixes).
 //!
 //! Funds stay on the source Polkadot parachain at all times. No cross-chain
 //! asset movement occurs — this is the BTCP zero-bridge paradigm.
@@ -26,7 +26,7 @@ mod btcp_route {
         EmergencyReverted,
     }
 
-    /// Revert reasons (whitepaper BTCP §11)
+    /// Revert reasons (specification BTCP §11)
     #[derive(scale::Encode, scale::Decode, Clone, Copy, PartialEq, Eq, Debug)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum RevertReason {

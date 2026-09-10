@@ -1,12 +1,12 @@
 # TRION Protocol -- Falsifiability Registry Specification
 
-> **Reference:** TRION Whitepaper, Section 15 (Falsifiability Conditions).
+> **Reference:** TRION specification, Section 15 (Falsifiability Conditions).
 > This document enumerates the 15 falsifiability conditions F1-F15. Each condition
 > is an empirically testable claim with a precise metric, threshold, and observation
 > window. If any condition is violated, the corresponding TRION claim is falsified.
 
 ## Scope
-> **SUPERSEDED:** see WHITEPAPER_MD.txt §20 / V2 Part 13 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K13). The MD/V2 F1–F15 set (manipulation resistance, contradictory signals, CI calibration, …) is canonical and is what `core/governance/falsifiability_registry.py` implements. The F1–F15 numbering below is a DIFFERENT per-layer condition set — valuable operational monitors, but they must be renumbered (e.g. R-F1…R-F15) to remove the collision.
+> **SUPERSEDED:** see SPECIFICATION_MD.txt §20 / V2 Part 13 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K13). The MD/V2 F1–F15 set (manipulation resistance, contradictory signals, CI calibration, …) is canonical and is what `core/governance/falsifiability_registry.py` implements. The F1–F15 numbering below is a DIFFERENT per-layer condition set — valuable operational monitors, but they must be renumbered (e.g. R-F1…R-F15) to remove the collision.
 
 
 A scientific protocol must specify in advance the conditions under which it would

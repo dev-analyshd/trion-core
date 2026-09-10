@@ -1,6 +1,6 @@
 """
 TRION Protocol — The 20-Channel Communication Architecture
-Whitepaper Section 15.
+specification Section 15.
 
 TRION uses smart contracts for exactly two things:
   1. Publishing output signals TO chains (Solidity)
@@ -48,7 +48,7 @@ class CommunicationChannel:
     id:           int
     layer:        ChannelLayer
     name:         str
-    whitepaper:   str            # whitepaper section reference
+    specification:   str            # specification section reference
     description:  str
     status:       ChannelStatus
     impl_paths:   List[str]      # implementation file(s)
@@ -63,7 +63,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=1,
         layer=ChannelLayer.PHYSICAL_REALITY,
         name="Physical Cosmological Communication",
-        whitepaper="L6.2 / Section 15, Ch.1",
+        specification="L6.2 / Section 15, Ch.1",
         description="GPS/NTP → circadian, ultradian, lunar, seasonal BRT phases. "
                     "Every TRIONSignal includes biological_time with all 4 phases.",
         status=ChannelStatus.ACTIVE,
@@ -77,7 +77,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=2,
         layer=ChannelLayer.PHYSICAL_REALITY,
         name="Ecological Signal Communication",
-        whitepaper="L6.1, L9.1 / Section 15, Ch.2",
+        specification="L6.1, L9.1 / Section 15, Ch.2",
         description="IUCN Red List, ecosystem surveys, satellite habitat monitoring → "
                     "BC (Biological Capital) and XSL (Cross-Species Liquidity) signals.",
         status=ChannelStatus.STUB,
@@ -91,7 +91,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=3,
         layer=ChannelLayer.PHYSICAL_REALITY,
         name="Hardware Sensor Communication",
-        whitepaper="L1.4, L4.3 / Section 15, Ch.3",
+        specification="L1.4, L4.3 / Section 15, Ch.3",
         description="HSM entropy (Thales Luna 7 / YubiHSM 2) → feeds Genomic Key "
                     "security bound K(H(TRION,t)) >= Ω(t · N_chains · N_validators · H_environment).",
         status=ChannelStatus.STUB,
@@ -107,7 +107,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=4,
         layer=ChannelLayer.INFORMATION_THEORY,
         name="Thermodynamic Information Flow",
-        whitepaper="L0.4, L9.2 / Section 15, Ch.4",
+        specification="L0.4, L9.2 / Section 15, Ch.4",
         description="Landauer's erasure principle applied to Akashic Index. "
                     "Information enters and is never destroyed — append-only ledger.",
         status=ChannelStatus.ACTIVE,
@@ -119,7 +119,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=5,
         layer=ChannelLayer.INFORMATION_THEORY,
         name="Signal Selection by Entropy Budget",
-        whitepaper="L0.5 / Section 15, Ch.5",
+        specification="L0.5 / Section 15, Ch.5",
         description="TRION listens only where information gain exceeds entropy cost. "
                     "BIBL applies this in the inter-block window.",
         status=ChannelStatus.ACTIVE,
@@ -132,7 +132,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=6,
         layer=ChannelLayer.DIRECT_CHAIN,
         name="Direct Chain Event Indexing",
-        whitepaper="L0.1 / Section 15, Ch.6",
+        specification="L0.1 / Section 15, Ch.6",
         description="Block-level reading below contract layer. The Rust indexer crates produce "
                     "canonical 93-byte BH per tx across the registered chains.",
         status=ChannelStatus.ACTIVE,
@@ -147,7 +147,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=7,
         layer=ChannelLayer.DIRECT_CHAIN,
         name="Pattern-Based Entity Inference",
-        whitepaper="L0.2 / Section 15, Ch.7",
+        specification="L0.2 / Section 15, Ch.7",
         description="BEO resolution: multi-wallet entity clustering via 128-dim behavioral "
                     "cosine similarity + funding/timing/ownership signals.",
         status=ChannelStatus.ACTIVE,
@@ -160,7 +160,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=8,
         layer=ChannelLayer.DIRECT_CHAIN,
         name="Pre-Execution Transaction Interception",
-        whitepaper="L4.6 / Section 15, Ch.8",
+        specification="L4.6 / Section 15, Ch.8",
         description="CRISPR Defense: mempool-layer interception before contracts see a tx. "
                     "Exact attack signatures matched, transaction neutralized pre-execution.",
         status=ChannelStatus.ACTIVE,
@@ -177,7 +177,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=9,
         layer=ChannelLayer.MATHEMATICAL_RESONANCE,
         name="Resonance-Based Cross-Chain Communication",
-        whitepaper="L0.3 / Section 15, Ch.9",
+        specification="L0.3 / Section 15, Ch.9",
         description="Shared behavioral event types = shared resonant frequency. "
                     "EVM SWAP = SVM SWAP = Cosmos SWAP. No bridge. No wrapped token.",
         status=ChannelStatus.ACTIVE,
@@ -190,7 +190,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=10,
         layer=ChannelLayer.MATHEMATICAL_RESONANCE,
         name="Vector Space Behavioral Communication",
-        whitepaper="L2.2 / Section 15, Ch.10",
+        specification="L2.2 / Section 15, Ch.10",
         description="128-dimensional FAISS cosine similarity for archetype matching, "
                     "genesis inference, and BEO clustering.",
         status=ChannelStatus.ACTIVE,
@@ -204,7 +204,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=11,
         layer=ChannelLayer.CRYPTOGRAPHIC_LIVING,
         name="Genomic Key as Living Communication Channel",
-        whitepaper="L4.3 / Section 15, Ch.11",
+        specification="L4.3 / Section 15, Ch.11",
         description="Genomic Key absorbs behavioral history every block, evolves continuously. "
                     "Stolen key at block N is outdated at block N+1.",
         status=ChannelStatus.ACTIVE,
@@ -216,7 +216,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=12,
         layer=ChannelLayer.CRYPTOGRAPHIC_LIVING,
         name="Self-Verifying Cryptographic Communication",
-        whitepaper="L0.1, L4.3 / Section 15, Ch.12",
+        specification="L0.1, L4.3 / Section 15, Ch.12",
         description="Dual-strand complementarity: sense XOR antisense == expected_complement. "
                     "No external reference needed. Tamper detection is self-contained.",
         status=ChannelStatus.ACTIVE,
@@ -230,7 +230,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=13,
         layer=ChannelLayer.CRYPTOGRAPHIC_LIVING,
         name="Immune Memory Communication",
-        whitepaper="L4.4, L4.6 / Section 15, Ch.13",
+        specification="L4.4, L4.6 / Section 15, Ch.13",
         description="Living Immune System: INNATE (pattern matching), ADAPTIVE (new attack → "
                     "signature), MEMORY (permanent, never decays). Threat library ↔ CRISPR Defense.",
         status=ChannelStatus.ACTIVE,
@@ -244,8 +244,8 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=14,
         layer=ChannelLayer.INTELLIGENCE_ABSORPTION,
         name="Cross-Domain Intelligence Absorption",
-        whitepaper="L3.1–L3.4 / Section 15, Ch.14",
-        description="ANIMA: 1,000+ concurrent crawlers, 59 languages (whitepaper mandates 50+). "
+        specification="L3.1–L3.4 / Section 15, Ch.14",
+        description="ANIMA: 1,000+ concurrent crawlers, 59 languages (specification mandates 50+). "
                     "SEC EDGAR, regulatory filings, academic preprints, developer repositories.",
         status=ChannelStatus.ACTIVE,
         impl_paths=["src/planes/anima/anima_data_streams.py",
@@ -258,7 +258,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=15,
         layer=ChannelLayer.INTELLIGENCE_ABSORPTION,
         name="Source Credibility as Communication Weight",
-        whitepaper="L3.3 / Section 15, Ch.15",
+        specification="L3.3 / Section 15, Ch.15",
         description="CRED behavioral track record: sources that predict correctly gain weight, "
                     "sources that mislead lose weight permanently.",
         status=ChannelStatus.ACTIVE,
@@ -272,7 +272,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=16,
         layer=ChannelLayer.CONSENSUS,
         name="Independence-Weighted Validator Communication",
-        whitepaper="L4.1 / Section 15, Ch.16",
+        specification="L4.1 / Section 15, Ch.16",
         description="Diversity-weighted BFT: d_j = 1 - corr(M_j, M̄). "
                     "Byzantine coordination is provably self-defeating (Coordination Collapse Theorem).",
         status=ChannelStatus.ACTIVE,
@@ -285,7 +285,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=17,
         layer=ChannelLayer.CONSENSUS,
         name="P2P Validator Mesh Communication",
-        whitepaper="Section 15, Ch.17",
+        specification="Section 15, Ch.17",
         description="Go goroutine-based direct P2P networking between validators. "
                     "Not chain-mediated. HHI enforcement. Geographic distribution requirements.",
         status=ChannelStatus.MAINNET,
@@ -300,7 +300,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=18,
         layer=ChannelLayer.TYPE_SYSTEM,
         name="Type System Enforced Communication",
-        whitepaper="Section 15, Ch.18",
+        specification="Section 15, Ch.18",
         description="Compiler prevents SILENCE from being used as VALUATION. "
                     "SILENCE ≠ VALUATION is enforced at compile time in TypeScript SDK and Haskell proofs.",
         status=ChannelStatus.ACTIVE,
@@ -316,7 +316,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=19,
         layer=ChannelLayer.EPIGENETIC,
         name="Environmental Signal Communication",
-        whitepaper="L4.5, L5.3 / Section 15, Ch.19",
+        specification="L4.5, L5.3 / Section 15, Ch.19",
         description="Epigenetic Layer reads Threat_level, Validator_health, Network_entropy "
                     "and changes behavioral expression without changing bytecode (semi-immutability).",
         status=ChannelStatus.ACTIVE,
@@ -331,7 +331,7 @@ CHANNELS: Dict[int, CommunicationChannel] = {
         id=20,
         layer=ChannelLayer.MATHEMATICAL_PROOF,
         name="Mathematical Resonance Communication",
-        whitepaper="Section 15, Ch.20 / Section 20",
+        specification="Section 15, Ch.20 / Section 20",
         description="Haskell theorems as types (7 invariants). Julia scale-invariance verification. "
                     "Proofs compile — they cannot be deployed broken.",
         status=ChannelStatus.ACTIVE,

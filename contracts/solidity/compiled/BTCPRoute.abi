@@ -1,0 +1,453 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldRelayer",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newRelayer",
+        "type": "address"
+      }
+    ],
+    "name": "RelayerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "executionBH",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasSaved",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "beoContinuity",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ccCoherence",
+        "type": "uint256"
+      }
+    ],
+    "name": "RouteFinalized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "anchorBH",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "anchorChain",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "executionChain",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "routeType",
+        "type": "uint8"
+      }
+    ],
+    "name": "RoutePublished",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "executionBH",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "gasSavedVsBridge",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "beoContinuity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ccCoherence",
+        "type": "uint256"
+      }
+    ],
+    "name": "finalizeRoute",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getRoute",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "routeId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "intentHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "anchorBH",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "executionBH",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "anchorChain",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "executionChain",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "entityId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "gasSavedVsBridge",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "beoContinuity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ccCoherence",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "routeType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "isVerified",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "finalizedAt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BTCPRoute.Route",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRouteList",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "anchorBH",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "anchorChain",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "executionChain",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "entityId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "routeType",
+        "type": "uint8"
+      }
+    ],
+    "name": "publishRoute",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "relayer",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "routeCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "routeList",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "routes",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "anchorBH",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "executionBH",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "anchorChain",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "executionChain",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "entityId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "gasSavedVsBridge",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "beoContinuity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ccCoherence",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "routeType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "isVerified",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "finalizedAt",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newRelayer",
+        "type": "address"
+      }
+    ],
+    "name": "setRelayer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

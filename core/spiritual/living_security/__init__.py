@@ -1,6 +1,6 @@
 """
 TRION Protocol — Living Security System (L4.3–4.6 + Part 6)
-All eight DNA-mimetic security components, whitepaper-exact.
+All eight DNA-mimetic security components, specification-exact.
 
 SEC(t) = LSS(t) · PQC(t) · CC(t)
 
@@ -38,7 +38,7 @@ def _xor(a: bytes, b: bytes) -> bytes:
 
 def hash_dna(payload: bytes) -> Tuple[bytes, bytes]:
     """
-    Dual-strand DNA hash (whitepaper L0.1).
+    Dual-strand DNA hash (specification L0.1).
     sense     = SHA3-256(payload || 0x00)
     antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
     Invariant: sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
@@ -191,7 +191,7 @@ class AttackSignature:
 class CRISPRDefense:
     """
     Exact attack signatures — pattern library, adaptive response, permanent memory.
-    Library never decays (whitepaper Part 6 §6.2 Component 3).
+    Library never decays (specification Part 6 §6.2 Component 3).
     """
     # ── Full cross-chain attack signature library (CRISPR Defense)
     # Organised by VM family. Each entry: (id, canonical_signature_bytes, description, pattern_type)
@@ -983,7 +983,7 @@ class MitochondrialCore:
 class PQCScore:
     """
     CRYSTALS-Kyber (ML-KEM) + CRYSTALS-Dilithium (ML-DSA) + SPHINCS+ (SLH-DSA)
-    (whitepaper L4.5). Flags reflect a REAL cryptographic round-trip performed
+    (specification L4.5). Flags reflect a REAL cryptographic round-trip performed
     via `src/security/pqc_layer.py` (kyber-py / dilithium-py / pyspx) — not a
     static simulation. The round-trip runs once at construction; call
     `refresh()` to re-verify.
@@ -1021,7 +1021,7 @@ class PQCScore:
 
 @dataclass
 class ClassicalCryptoScore:
-    """SHA-3 + AES-256 + ZK proofs (whitepaper L4.5)."""
+    """SHA-3 + AES-256 + ZK proofs (specification L4.5)."""
     sha3_active: bool = True
     aes256_active: bool = True
     zk_proofs_active: bool = True
@@ -1128,7 +1128,7 @@ class LivingSecuritySystem:
                + mito_integrity * 0.20 + crispr_coverage * 0.15)
         lss = max(0.0, min(1.0, lss))
 
-        # P(break LSS) monotonically decreasing per whitepaper L4.5
+        # P(break LSS) monotonically decreasing per specification L4.5
         p_break = math.exp(-gk.generation * 0.01)
 
         # Full SEC
@@ -1213,7 +1213,7 @@ class LivingSecuritySystem:
                 "phase": "BOOTSTRAP" if akashic_depth < 10000 else
                          "TRANSITIONING" if akashic_depth < 50000 else "LIVING_SECURITY",
             },
-            "whitepaper": "L4.3-4.6 + Part 6 §6.2 — all 8 components",
+            "specification": "L4.3-4.6 + Part 6 §6.2 — all 8 components",
         }
 
     def innate_check(self, entity_id: str, tx_data: bytes) -> dict:

@@ -1,13 +1,13 @@
 """
 TRION Protocol — §16: BIRP — Behavioral Identity Recovery Protocol
 ===================================================================
-Whitepaper Section 16 specifies BIRP as a five-phase behavioral identity
+specification Section 16 specifies BIRP as a five-phase behavioral identity
 recovery protocol.  When an entity undergoes a sudden behavioral shift
 (compromise, key handover, entity resurrection after dormancy) BIRP provides
 a cryptographically provable path to recover or deny behavioral identity
 continuity without disrupting the rest of the oracle.
 
-Five mandatory phases (whitepaper §16):
+Five mandatory phases (specification §16):
   Phase 1 — DNA Verification       : dual-strand sense/antisense integrity check
   Phase 2 — Behavioral Proof       : Merkle proof of historical behavioral claims
   Phase 3 — Temporal Cluster       : FAISS nearest-neighbour cluster alignment
@@ -57,7 +57,7 @@ CONSCIOUS_QUORUM_FRACTION: float = 0.67   # 2/3 majority
 TEMPORAL_CLUSTER_MAX_DISTANCE: float = 0.30
 
 # ── § 16.1a  DNA_Code user-defined secret rotation ────────────────────────────
-# Whitepaper §16: "DNA_Code: User-defined secret sequence with time-based
+# specification §16: "DNA_Code: User-defined secret sequence with time-based
 # rotation."  Each entity may register a personal DNA_Code — a byte sequence
 # they alone know — that is mixed into the dual-strand hash during Phase 1
 # DNA verification.  The code rotates on a fixed schedule (default 90 days)
@@ -129,7 +129,7 @@ def _complement(data: bytes) -> bytes:
 
 
 def _hash_dna(payload: bytes):
-    """Whitepaper L0.1 dual-strand construction."""
+    """specification L0.1 dual-strand construction."""
     sense    = hashlib.sha3_256(payload + b'\x00').digest()
     sha3ff   = hashlib.sha3_256(payload + b'\xFF').digest()
     antisense = bytes(a ^ b for a, b in zip(sha3ff, _complement(sense)))
@@ -237,7 +237,7 @@ def verify_dna_code(
     """
     Verify a submitted DNA_Code against the stored per-epoch commitment chain.
 
-    Commitment chain (whitepaper §16 time-based rotation):
+    Commitment chain (specification §16 time-based rotation):
 
         code_0   = initial secret                  (never stored)
         code_n   = SHA3-256(code_{n-1} || n)       — one-way hash rotation
@@ -256,7 +256,7 @@ def verify_dna_code(
     (loop) and advancing ``code_commitment`` to ``commit_n``.  Because
     each rotation is a one-way hash, a replayed older code (including the
     initial code) no longer matches the advanced commitment — this
-    realises the whitepaper property "stolen DNA_Code at time T is
+    realises the specification property "stolen DNA_Code at time T is
     permanently invalid at T + interval": an attacker holding ``code_m``
     cannot derive ``code_n``.
 
@@ -346,7 +346,7 @@ def phase1_dna_verification(
     internally consistent via the XOR-complement invariant.
 
     If a DNA_Code registration is provided, the submitted DNA_Code is
-    also verified against the stored commitment (whitepaper §16
+    also verified against the stored commitment (specification §16
     "user-defined secret sequence with time-based rotation").
 
     The submitter must provide:
@@ -378,7 +378,7 @@ def phase1_dna_verification(
     sense_match   = exp_sense   == sense
     antisense_match = exp_anti  == antisense
 
-    # ── DNA_Code user-defined secret verification (whitepaper §16) ──────────
+    # ── DNA_Code user-defined secret verification (specification §16) ──────────
     dna_code_ok = True
     dna_code_epoch = 0
     dna_code_msg = "no DNA_Code registration supplied — secret verification skipped"

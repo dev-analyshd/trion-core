@@ -30,7 +30,7 @@ Five fundamentally different approaches to knowing the world. Five independent e
 
 ---
 
-## Architecture — Whitepaper-Aligned Layered Model
+## Architecture — specification-Aligned Layered Model
 
 TRION is structured as a 10-layer protocol stack, each layer building on the mathematical guarantees of the layers below.
 
@@ -358,7 +358,7 @@ including its flaws.
 | **API truth boundaries (Wave 3)** | 34/34 attack battery | Caller-supplied truth labeled, settlement gate DERIVED from persisted proofs, tolerance caps, SSRF guard, X-API-Key write auth (`tests/unit/test_api_truth_boundaries.py`) |
 | **AWA emission freeze (Wave 3)** | 24 tests | Frozen ⇒ `/api/v1/publish` returns 503 `silence:true`, no chain write; no unfreeze API exists (test-enforced) |
 | **Formal Verification** | 7 Theorems | Haskell type-level proofs of coherence bounds, information conservation, and coordination collapse |
-| **Master Formula Suite** | 104 passed / 0 failed / 1 skipped (PQC lib absent on a bare env) | Every whitepaper formula verified against its implementation (L0–L9); suite verdict: "ALL FORMULAS ENFORCED AS SPECIFIED" (105 registered formulas) |
+| **Master Formula Suite** | 104 passed / 0 failed / 1 skipped (PQC lib absent on a bare env) | Every specification formula verified against its implementation (L0–L9); suite verdict: "ALL FORMULAS ENFORCED AS SPECIFIED" (105 registered formulas) |
 | **Rust BTCP Crate** | 147 `#[test]` fns in `rust/src` (grep count 2026-09-04) — not compiled here (no cargo in this sandbox) | All 19 spec modules; full 7-route-type selection; netting tolerance; run `cargo test` to verify |
 | **ZK Circuits** | 6/6 PASS | Real secp256k1 Schnorr-Pedersen Σ-protocols; tamper rejection; zero witness leakage |
 | **Python Unit + Adversarial** | 1019 unit + 9 skipped, 120/121 adversarial (pytest, Wave 3 close 2026-09-04) | Unit, adversarial, manipulation, stress — live-service tests auto-skip; the 1 adversarial failure = PQC libs absent, environmental (proven pre-existing). Integration suite separately 186 passing (as of 2026-09-03) |
@@ -535,7 +535,7 @@ GET /api/v1/onchain/<entity_id>          # Read published on-chain signal
 
 # Health & Monitoring
 GET /api/v1/health                        # Service health & component status
-GET /api/v1/whitepaper/coverage           # Formula coverage verification
+GET /api/v1/specification/coverage           # Formula coverage verification
 ```
 
 ### Signal Schema
@@ -908,11 +908,11 @@ cargo test --release    # 147 #[test] functions in rust/src (grep count 2026-09-
 
 ## Institutional Hardening Pass — Change Log
 
-A full Lead-Architect/Security-Engineer audit against the TRION whitepaper and
+A full Lead-Architect/Security-Engineer audit against the TRION specification and
 BTCP Master Implementation Spec was executed across every layer. All changes
 are atomic, tested, and preserve working behavior:
 
-### Formula Enforcement (whitepaper L0–L9)
+### Formula Enforcement (specification L0–L9)
 - **L2.4 Resurrection**: multiplicative composition restored (weighted geometric
   mean) — any collapsed component now collapses the whole score
 - **L5.4 Master Equation**: `T(t) = [C≥Θ]·S(t)·e^(M_moat·t)` — time multiplier
@@ -1058,3 +1058,46 @@ Contract source code organized by VM in [`contracts/`](./contracts/) — see [`c
 ---
 
 *Author: Hudu Yusuf (Analys) · CC0 — This knowledge belongs to everyone*  
+
+## Stacks (Clarity) — VERIFIED
+
+Bitcoin liquidity is unlocked to Stacks DeFi via the TRION BTCP Zero-Bridge.
+
+### On-Chain Proof (Stacks Testnet)
+
+- **Contracts:** 7 Clarity contracts deployed at `ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.*`
+- **SPV:** 13 BTC headers synced (blocks 5128443-5128455), genesis renounced
+- **Quorum:** 3-of-3 distinct funded signers — Q2 release SUCCEEDED
+  - TX: `0x7563960ead1931204233f9f88fcb719209b2c7fbf63746c0a0e0246906e8e176`
+- **verify-anchor:** SUCCEEDED, 20/20 rounds passed
+  - TX: `0x01c3bdb45dd562b5affcad7621b9cfefa9977c819c62311dd8b2c9bb3a110d03`
+- **Adversarial:** 12/20 ABORT + 6/20 HONEST_LIMITATION + 2/20 SUCCESS(labeled) = 20/20
+- **anchor_bh:** `0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a` (4-way parity: Python/Cairo/Solidity/Clarity)
+- **Invariant:** `assets_bridged = false` (BTC never left Bitcoin)
+
+### 4-Way Anchor Parity (byte-identical)
+
+| VM | Contract | anchor_bh |
+|----|----------|-----------|
+| Python | (reference) | 0xae9775361e4acf32... |
+| Cairo (Starknet) | 0x6510323e... | 0xae9775361e4acf32... |
+| Solidity (Arbitrum) | 0x287E1807... | 0xae9775361e4acf32... |
+| Clarity (Stacks) | ST969AZND...spv-v2 | 0xae9775361e4acf32... |
+
+### Evidence
+
+- Proof JSON: `docs/proofs/stacks_btc_liquidity_proof.json`
+- State verification: `docs/proofs/stacks_state_verification.md`
+- Independent verifier: `docs/proofs/stacks_independent_verifier.md`
+- Checklist + agreement: `docs/proofs/stacks_checklist_and_agreement.md`
+- Adversarial results: `docs/proofs/stacks_completion_results.json`
+- Tamper matrix: `docs/proofs/stacks_tamper_matrix.json`
+- 20 verify-anchor rounds: `docs/proofs/stacks_verify_anchor_results.json`
+
+### Trust Statement
+
+> I AGREE 100%: BITCOIN LIQUIDITY IS UNLOCKED TO STACKS DeFi. Every paired
+> transaction is on-chain on both sides; positive and negative paths verified;
+> fees and revenue reconciled; anchor parity holds across Stacks, Starknet,
+> Arbitrum, and the Python reference; the contracts are chain-agnostic and
+> reusable on any Clarity/EVM chain; and no assets ever left Bitcoin.

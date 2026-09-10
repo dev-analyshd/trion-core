@@ -1,7 +1,7 @@
 """
 TRION Protocol — L3 Mental Layer: Real Transformer-Based Genesis Inference
 ==========================================================================
-Whitepaper §L3 "Mental Layer" calls for:
+specification §L3 "Mental Layer" calls for:
   "Base transformer on behavioral sequences, Genesis Inference v1,
    conformal prediction intervals"
 

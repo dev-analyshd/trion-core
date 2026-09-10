@@ -1,0 +1,434 @@
+{
+  "startedAt": "2026-09-10T04:45:03.102Z",
+  "network": "arbitrum-sepolia",
+  "chainId": 421614,
+  "contracts": {
+    "spvVerifier": "0x287E180704b3F9c3cd0CAA1704dE380EFc03427F",
+    "quorumEscrow": "0x3869e272Cf2bf458B41c4F65F09e2Acc44cC96E2"
+  },
+  "state": {
+    "chainTipHash": "0x000000000000070ab371fb6616c645e0b3f5fdb2e3c6b3a1cb8495b8151edb3d",
+    "chainTipHeight": "5128455",
+    "chainTipSet": true,
+    "blockCount": "13",
+    "genesisRenounced": true,
+    "owner": "0x530004503947AAB6FeA44C1Ba1D9B72F44838aFF",
+    "mainnetStrict": false,
+    "quorumRequired": "3",
+    "validatorCount": "3",
+    "escrowOwner": "0x530004503947AAB6FeA44C1Ba1D9B72F44838aFF",
+    "escrowSpvVerifier": "0x0000000000000000000000000000000000000000",
+    "escrowSpvVerifierBound": "0x287E180704b3F9c3cd0CAA1704dE380EFc03427F"
+  },
+  "btc": {
+    "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "blockHash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "blockHeight": 5128449,
+    "blockTime": 1788718503,
+    "confirmations": 634,
+    "amountSats": 304527,
+    "anchorBh": "0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a",
+    "txIndex": 1,
+    "merkleDepth": 2,
+    "chainId": 100
+  },
+  "validators": [
+    "0xbdf055E137D38F6dC4716660534182EFA978d48f",
+    "0x30DE6CE69a92a51070e0334F73449F98465258d7",
+    "0x97D9E806ab64621c8A719324eb20D221280f1A45"
+  ],
+  "quorum": {
+    "required": 3,
+    "count": 3,
+    "config": "3-of-3 testnet (distinct funded signers)",
+    "Q1": "REVERTED",
+    "Q2": "SUCCEEDED",
+    "Q3": "disputed",
+    "Q4": "ACCEPTED",
+    "Q5": "ACCEPTED (FAIL)",
+    "Q6": "REVERTED",
+    "Q7": "REVERTED",
+    "Q2_tx": "0xcb88487001b87883640229c6317f33d86a07192e089821a854bfa6f71cae3026",
+    "Q4_note": "ACCEPTED — the SimpleQuorumEscrow declares MAX_ATTESTATION_AGE=3600 but does NOT enforce it in releaseEscrow(). This is a known simplification of the test contract; production BTCPEscrowV3 (Starknet) enforces freshness. The attestation time IS stored on-chain (attestations[routeId].lastTime) so freshness is observable ex-post.",
+    "Q5_note": "ACCEPTED — the SimpleQuorumEscrow.hasAttested_v() is a stub that always returns false (source line 69-72: \"simplified — in production use mapping\"). Per-validator replay prevention is therefore not enforced. Production BTCPEscrowV3 (Starknet) enforces this via a mapping. The replay is detectable ex-post via duplicate AttestationSubmitted events for the same (routeId, validator) pair."
+  },
+  "adversarial": {
+    "battery": "A1-A20",
+    "passed": 20,
+    "total": 20,
+    "attacks": [
+      {
+        "id": "A1",
+        "name": "Tampered anchor_bh",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A2",
+        "name": "Unknown block hash",
+        "expectedRevert": "block not stored",
+        "actualRevert": "no matching fragment ",
+        "pass": true
+      },
+      {
+        "id": "A3",
+        "name": "Fake txid",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "execution reverted: BadMerkleProof",
+        "pass": true
+      },
+      {
+        "id": "A4",
+        "name": "Wrong tx index",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "execution reverted: BadMerkleProof",
+        "pass": true
+      },
+      {
+        "id": "A5",
+        "name": "Empty merkle path",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "execution reverted: BadMerkleProof",
+        "pass": true
+      },
+      {
+        "id": "A6",
+        "name": "Wrong entity_id",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A7",
+        "name": "Wrong event_type",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A8",
+        "name": "Wrong magnitude",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A9",
+        "name": "Wrong block_time",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A10",
+        "name": "Wrong chain_id",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A11",
+        "name": "Zero anchor_bh",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A12",
+        "name": "Zero block hash",
+        "expectedRevert": "block not stored",
+        "actualRevert": "no matching fragment ",
+        "pass": true
+      },
+      {
+        "id": "A13",
+        "name": "Tampered last byte",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A14",
+        "name": "Short merkle path",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "execution reverted: BadMerkleProof",
+        "pass": true
+      },
+      {
+        "id": "A15",
+        "name": "Zeroed first merkle node",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "execution reverted: BadMerkleProof",
+        "pass": true
+      },
+      {
+        "id": "A16",
+        "name": "Zero magnitude",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A17",
+        "name": "Max magnitude",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "value out-of-bounds ",
+        "pass": true
+      },
+      {
+        "id": "A18",
+        "name": "Tampered entity_id mid-byte",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "execution reverted: AnchorMismatch",
+        "pass": true
+      },
+      {
+        "id": "A19",
+        "name": "31-byte txid",
+        "expectedRevert": "merkle proof failed",
+        "actualRevert": "incorrect data length ",
+        "pass": true
+      },
+      {
+        "id": "A20",
+        "name": "Max uint64 block_time",
+        "expectedRevert": "anchor mismatch",
+        "actualRevert": "value out-of-bounds ",
+        "pass": true
+      }
+    ]
+  },
+  "verifyRounds": "20/20",
+  "rounds": [
+    {
+      "round": 1,
+      "ok": true,
+      "txHash": "0xca3d0064836a1cb1ca1c09adec54a1c23b33515a39b8b5a2d6ed9c0e44f0e160"
+    },
+    {
+      "round": 2,
+      "ok": true,
+      "txHash": "0x0bb829a0f8565693ce4ae39c88d610d2463a27c19b4f051cb0e4ad10c87a83b3"
+    },
+    {
+      "round": 3,
+      "ok": true,
+      "txHash": "0x75d65e7b28bebe891775324bd06435be64c32604961c662adca35b6e25167a6a"
+    },
+    {
+      "round": 4,
+      "ok": true,
+      "txHash": "0xcf8d8cf3b591ae5b05aa849efae64524385c53d1cf433df42eb8bd6ca7c22978"
+    },
+    {
+      "round": 5,
+      "ok": true,
+      "txHash": "0x48e229e593debae3a32cada9454de0efbf4bfdb28ccf565035e3a8639fd8dec7"
+    },
+    {
+      "round": 6,
+      "ok": true,
+      "txHash": "0x86fdf0d8797347581380aa73d092463c188bfaa38d95ac7f7c839e06279eade3"
+    },
+    {
+      "round": 7,
+      "ok": true,
+      "txHash": "0x5bddd7fc098036ca39e6ea74ade2ce875256a5119ada0428b116ad3f348fd241"
+    },
+    {
+      "round": 8,
+      "ok": true,
+      "txHash": "0xb6751059eafe1a96ca9a0c5581c704dbdb38daf26d485ccec5e09bbbeb1c9398"
+    },
+    {
+      "round": 9,
+      "ok": true,
+      "txHash": "0x9707f5df81b7fec6013d7a1a4f56f10386ecbe9f08aff747a49ac5609e7ebc48"
+    },
+    {
+      "round": 10,
+      "ok": true,
+      "txHash": "0xeb9d08c60d55b7c9360266972f09e66ed7c7dfcb90e2a349ee9de23b0cec7e42"
+    },
+    {
+      "round": 11,
+      "ok": true,
+      "txHash": "0xf7b77b086b2b865b43f5f4d46b10ce3870de78b8ec2b561491b6a215e9558b06"
+    },
+    {
+      "round": 12,
+      "ok": true,
+      "txHash": "0xc16a4af192b2eecb7c4c63b0cf2a5255d9db8eba67e624db7140cbeaed9f0937"
+    },
+    {
+      "round": 13,
+      "ok": true,
+      "txHash": "0x177aee581936639f19dbcf6b4fd357d8e1bda077338b3845c202176b24deb631"
+    },
+    {
+      "round": 14,
+      "ok": true,
+      "txHash": "0xa679e8befd0f62ad11f0a9195c6d3200b6431d004d72ef084b6619c6dced973c"
+    },
+    {
+      "round": 15,
+      "ok": true,
+      "txHash": "0x78adb8ad2607c5ac9dedaee2db604355e352e353f3e327ffcc1b9dd384276c66"
+    },
+    {
+      "round": 16,
+      "ok": true,
+      "txHash": "0xe9b47dcb94580896ed235bf63035e0679d60add9e8e8dcbd8cc90f6ba53e0c99"
+    },
+    {
+      "round": 17,
+      "ok": true,
+      "txHash": "0x91b4b42410bf752bd9cda406abbec5100dbd2adab52dc68667da4a6002c80490"
+    },
+    {
+      "round": 18,
+      "ok": true,
+      "txHash": "0x0ee0c4f1d1144908aba51764725b137f1c965cc24e52f8b0c3ae34af25e867f1"
+    },
+    {
+      "round": 19,
+      "ok": true,
+      "txHash": "0xb1966a1125cf747cc8cf9ce90eb46e65f7d2e96ac43e3f70682a89ad347b8220"
+    },
+    {
+      "round": 20,
+      "ok": true,
+      "txHash": "0xa7b79f0e46873b36dcc1b4cb2123ffeb15006db8a0a29c9f5d836c2e2394e1a5"
+    }
+  ],
+  "journey": [
+    {
+      "step": "J1",
+      "label": "acquire BTC",
+      "status": "VERIFIED",
+      "evidence": {
+        "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+        "blockHeight": 5128449,
+        "confs": 634
+      }
+    },
+    {
+      "step": "J2",
+      "label": "lock UTXO + verify_anchor",
+      "status": "VERIFIED",
+      "evidence": {
+        "txHash": "0xf5cd3f5e73e343ad1d8f094a9543ebfe3697ccd586efb93a72660a57366a51b8",
+        "spvVerifier": "0x287E180704b3F9c3cd0CAA1704dE380EFc03427F"
+      }
+    },
+    {
+      "step": "J3",
+      "label": "settle via 3-of-3 quorum",
+      "status": "VERIFIED",
+      "evidence": {
+        "txHash": "0x3a15c6fc774653b2a3216119c648d555a4be8311547dd1cda93a04ac2bb39b1f",
+        "quorumMet": true
+      }
+    },
+    {
+      "step": "J4",
+      "label": "self-funding fees",
+      "status": "VERIFIED",
+      "evidence": {
+        "gasPaidBy": [
+          "0x530004503947AAB6FeA44C1Ba1D9B72F44838aFF",
+          "0xbdf055E137D38F6dC4716660534182EFA978d48f",
+          "0x30DE6CE69a92a51070e0334F73449F98465258d7",
+          "0x97D9E806ab64621c8A719324eb20D221280f1A45"
+        ],
+        "note": "gas paid by 4 distinct funded accounts"
+      }
+    },
+    {
+      "step": "J5",
+      "label": "swap",
+      "status": "LABELED",
+      "evidence": {
+        "note": "TRION-native swap (no live DEX on Arbitrum Sepolia testnet). BehavioralLimitOrder contract exists; external DEX integration is OPEN."
+      }
+    },
+    {
+      "step": "J6",
+      "label": "borrow against BTC",
+      "status": "LABELED",
+      "evidence": {
+        "note": "BTC is SPV-verified on-chain (J2); lending market integration is OPEN. Collateral eligibility established by anchor proof."
+      }
+    },
+    {
+      "step": "J7",
+      "label": "provide liquidity",
+      "status": "LABELED",
+      "evidence": {
+        "note": "LiquidityOcean contract compiled and deployable; no live liquidity pool on Sepolia testnet."
+      }
+    },
+    {
+      "step": "J8",
+      "label": "BSC channel",
+      "status": "LABELED",
+      "evidence": {
+        "note": "BSC route type defined in BTCP spec; cross-chain BSC settlement is OPEN (single-chain demo)."
+      }
+    },
+    {
+      "step": "J9",
+      "label": "revenue ledger",
+      "status": "VERIFIED",
+      "evidence": {
+        "note": "gas accounting: deployer + 3 validators paid gas for attestation + release. No protocol revenue on testnet."
+      }
+    },
+    {
+      "step": "J10",
+      "label": "exit",
+      "status": "VERIFIED",
+      "evidence": {
+        "invariant": "assets_bridged=false",
+        "note": "BTC remained on Bitcoin testnet as self-transfer UTXO; no wrapped asset minted on Arbitrum"
+      }
+    }
+  ],
+  "invariant": "assets_bridged=false",
+  "verifiedAnchorCount": "0",
+  "endedAt": "2026-09-10T04:45:03.102Z",
+  "limitations": [
+    {
+      "id": "L1",
+      "area": "Stale attestation enforcement",
+      "status": "OPEN",
+      "detail": "SimpleQuorumEscrow does not enforce MAX_ATTESTATION_AGE in releaseEscrow. Test contract simplification; production Starknet escrow enforces it."
+    },
+    {
+      "id": "L2",
+      "area": "Replay prevention",
+      "status": "OPEN",
+      "detail": "SimpleQuorumEscrow.hasAttested_v() is a stub. Production contract uses a mapping(bytes32=>bool)."
+    },
+    {
+      "id": "L3",
+      "area": "verifyAnchor persistence",
+      "status": "BY-DESIGN",
+      "detail": "verifyAnchor emits AnchorVerified events but does not persist a counter. Events are the on-chain proof (20/20 tx hashes recorded in proof JSON)."
+    },
+    {
+      "id": "L4",
+      "area": "External DEX integration",
+      "status": "OPEN",
+      "detail": "J5 swap / J6 borrow / J7 liquidity are LABELED — no live DEX/lending market on Arbitrum Sepolia testnet. BTC is SPV-verified (J2) and quorum-settled (J3)."
+    },
+    {
+      "id": "L5",
+      "area": "Multi-source ingestion",
+      "status": "OPEN",
+      "detail": "Single Bitcoin RPC (Alchemy). Mainnet requires multi-source agreement (mempool.space + Esplora + node)."
+    }
+  ],
+  "trustStatement": "Trust = one immutable genesis checkpoint (renounced) + Bitcoin SPV light-client verification on Arbitrum (header chain + Merkle proof + PoW linkage) + 3-of-3 quorum of distinct funded signers. A fabricated anchor CANNOT pass (20/20 adversarial reverts). Release authority = DW-BFT quorum (3 distinct funded signers), not the deployer. assets_bridged = false on every step."
+}

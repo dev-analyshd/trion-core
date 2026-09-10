@@ -3,10 +3,10 @@
  *
  * TWO separate concepts:
  *
- * 1. `bh_id(address)` — stable entity routing key (NOT the whitepaper BH).
+ * 1. `bh_id(address)` — stable entity routing key (NOT the specification BH).
  *    = SHA3-256(normalise(address))  →  64 hex chars.
  *
- * 2. `canonical_bh(...)` — whitepaper-exact L0.1 Behavioral Hash.
+ * 2. `canonical_bh(...)` — specification-exact L0.1 Behavioral Hash.
  *    93-byte payload:
  *      entity_id(32) || event_type(1) || magnitude_nano(8) ||
  *      context(8)    || timestamp(8)  || chain_id(4) || block_hash(32)
@@ -15,9 +15,9 @@
  *    Invariant: sense XOR antisense == NOT(SHA3-256(payload || 0xFF))
  *
  * 3. `classify_event_type(selector)` — maps EVM 4-byte method selector to the
- *    canonical whitepaper EventType byte (0-19).
+ *    canonical specification EventType byte (0-19).
  *
- * EventType byte encoding (whitepaper L0.1 §2 — 20 canonical types):
+ * EventType byte encoding (specification L0.1 §2 — 20 canonical types):
  *   0=TRANSFER  1=SWAP       2=LIQUIDITY  3=STAKE     4=UNSTAKE
  *   5=GOVERNANCE 6=PROPOSAL  7=BORROW     8=REPAY     9=LIQUIDATE
  *  10=BRIDGE   11=DEPLOY    12=UPGRADE   13=MINT     14=BURN
@@ -32,7 +32,7 @@ use sha3::{Digest, Sha3_256};
 // ── EventType classification ──────────────────────────────────────────────────
 
 /// Classify an EVM method selector (first 8 hex chars of tx `input`) into
-/// the canonical whitepaper EventType byte (0-19).
+/// the canonical specification EventType byte (0-19).
 ///
 /// `selector` should be 8 lowercase hex chars (e.g. "38ed1739").
 /// Returns 0 (TRANSFER) when selector is empty or unknown.
@@ -158,7 +158,7 @@ pub fn classify_event_type(selector: &str) -> u8 {
         "23b872dd"   // ERC20 transferFrom
             => 0,
 
-        // NOTE on the two remaining whitepaper types (finding S2):
+        // NOTE on the two remaining specification types (finding S2):
         //   DEPLOY (11)       — has no method selector at all (empty `to`/`input`
         //                       on contract creation); classified by the caller
         //                       via input-length/`to==None` check, not here.
@@ -177,7 +177,7 @@ pub fn classify_event_type(selector: &str) -> u8 {
     }
 }
 
-/// Map event type byte to its canonical whitepaper name.
+/// Map event type byte to its canonical specification name.
 pub fn event_type_name(et: u8) -> &'static str {
     match et {
         0  => "TRANSFER",
@@ -204,9 +204,9 @@ pub fn event_type_name(et: u8) -> &'static str {
     }
 }
 
-// ── Canonical BH (whitepaper L0.1 §3.1) ──────────────────────────────────────
+// ── Canonical BH (specification L0.1 §3.1) ──────────────────────────────────────
 
-/// Compute the whitepaper-canonical Behavioral Hash for a single transaction
+/// Compute the specification-canonical Behavioral Hash for a single transaction
 /// event.
 ///
 /// 93-byte payload layout (all big-endian):
@@ -226,7 +226,7 @@ pub fn event_type_name(et: u8) -> &'static str {
 /// Returns (sense_hex, antisense_hex) — each 64 lowercase hex chars.
 pub fn canonical_bh(
     entity_id_hex:  &str,   // 64 hex chars (or shorter — zero-padded to 32 bytes)
-    event_type:     u8,     // 0-19 per whitepaper §2
+    event_type:     u8,     // 0-19 per specification §2
     magnitude_norm: f64,    // [0.0, 1.0] — encoded as nanounit
     context:        u64,    // 8-byte venue/layer flags
     timestamp_secs: u64,
@@ -297,7 +297,7 @@ pub fn hex_to_32bytes(s: &str) -> [u8; 32] {
 // ── Simple entity routing ID ──────────────────────────────────────────────────
 
 /// Stable entity-routing key: SHA3-256(normalise(address)).
-/// This is NOT the whitepaper BH — it is the entity lookup key used as the
+/// This is NOT the specification BH — it is the entity lookup key used as the
 /// primary FAISS index key and BEO canonical ID.
 pub fn bh_id(raw: &str) -> String {
     let normalised = normalise(raw);

@@ -1,7 +1,7 @@
 """
 TRION Protocol — L4.9 Slashing Conditions + Dispute Resolution
 
-Slashing conditions (from whitepaper L4.9):
+Slashing conditions (from specification L4.9):
 
 COORDINATED_ATTACK_CONFIRMED:  50% of stake. Permanent exclusion.
     Triggered: d_j → 0 over sustained period (≥ 10 blocks).

@@ -200,7 +200,7 @@ class BTCPProofBuilder:
     # ── FIX-2: Consensus wiring (AUDIT-1 gap #5) ──────────────────────────────
 
     # Default threshold for Σ(t) — the BTCP proof is only valid if coherence
-    # exceeds this. Whitepaper §4.3 specifies 2/3 BFT threshold; the
+    # exceeds this. specification §4.3 specifies 2/3 BFT threshold; the
     # coherence form Σ(t) > 0.55 mirrors the spiritual plane default.
     DEFAULT_COHERENCE_THRESHOLD = 0.55
 

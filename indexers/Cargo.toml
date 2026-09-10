@@ -22,7 +22,8 @@ members = [
     "crates/trion-movement",
     "crates/trion-pi",
     "crates/trion-starknet",
-    "crates/trion-botchain",
+    "crates/trion-stacks",
+    "crates/trion-stellar",
 ]
 
 [workspace.dependencies]

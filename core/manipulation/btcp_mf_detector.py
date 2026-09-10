@@ -48,7 +48,7 @@ class MFType(IntEnum):
     T7_STATISTICAL       = 7
 
 
-# Whitepaper-mandated weights (sum to 1.0)
+# specification-mandated weights (sum to 1.0)
 MF_WEIGHTS: Dict[MFType, float] = {
     MFType.T1_SANDWICH:        0.20,
     MFType.T2_WASH_TRADING:    0.15,

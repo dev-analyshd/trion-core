@@ -1,6 +1,6 @@
 /**
  * TRION Protocol — TypeScript SDK
- * Full client for all whitepaper-defined signal types.
+ * Full client for all specification-defined signal types.
  *
  * Usage:
  *   import { TRIONClient } from './trion';

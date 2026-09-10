@@ -54,7 +54,7 @@ class PlaneType(IntEnum):
     STATISTICAL  = 6   # Plane 7
 
 
-# Whitepaper-mandated weights (sum to 1.0)
+# specification-mandated weights (sum to 1.0)
 PLANE_WEIGHTS: Dict[PlaneType, float] = {
     PlaneType.MAGNITUDE:    0.20,
     PlaneType.TEMPORAL:     0.10,

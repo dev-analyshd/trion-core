@@ -2,7 +2,7 @@
 """
 TRION L0-SVM — Solana Behavioral Indexer
 =========================================
-Polls Solana mainnet RPC slot-by-slot, computes whitepaper L1.1 Φ-features
+Polls Solana mainnet RPC slot-by-slot, computes specification L1.1 Φ-features
 (Shannon entropies of program-id, fee, compute-unit, account-touch and
 instruction-type distributions) for each block, and POSTs a 128-dim behavioral
 vector batch to the FAISS service with vm_type="SVM".

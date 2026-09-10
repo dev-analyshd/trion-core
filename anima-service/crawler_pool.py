@@ -3,7 +3,7 @@ TRION Protocol — ANIMA Concurrent Crawler Pool
 ==============================================
 
 Implements the "1,000+ concurrent crawlers" scaling target from the
-whitepaper §8.2 (ANIMA plane). Built on top of the 6 real data source
+specification §8.2 (ANIMA plane). Built on top of the 6 real data source
 connectors in ``core.mental.anima.data_sources``:
 
   - github_activity  → GitHub Events API

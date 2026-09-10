@@ -129,7 +129,7 @@ fn sol_magnitude(lamports: u64) -> f64 {
 
 fn classify_sol_event(tx: &Value, account_keys: &[String]) -> u8 {
     let meta = &tx["meta"];
-    // Canonical whitepaper event types (L0.1 §2):
+    // Canonical specification event types (L0.1 §2):
     // 0 TRANSFER, 1 SWAP, 2 LIQUIDITY, 3 STAKE, 4 UNSTAKE, 5 GOVERNANCE,
     // 6 PROPOSAL, 7 BORROW, 8 REPAY, 9 LIQUIDATE, 10 BRIDGE, 11 DEPLOY,
     // 12 UPGRADE, 13 MINT, 14 BURN, 15 ORACLE_UPDATE, 16 MEV_CAPTURE,

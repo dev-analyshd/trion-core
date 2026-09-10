@@ -1,6 +1,6 @@
 # TRION Protocol -- L5 TRION Master Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 7 (TRION Master: Dynamic Thresholds and
+> **Reference:** TRION specification, Section 7 (TRION Master: Dynamic Thresholds and
 > Five-Plane Coherence). L5 is the apex consensus controller.
 
 ## Scope
@@ -25,7 +25,7 @@ Where:
 
 - `V(t)` is volatility in `[0, 1]`, computed from L1.1 feature variance.
 - `Theta_min = 0.55` (permissive floor).
-- `Theta_max = 0.92` (strict ceiling — matches whitepaper §7 and
+- `Theta_max = 0.92` (strict ceiling — matches specification §7 and
   `core/master/coherence.py::THETA_MAX`; corrected from 0.90 per July 2026 audit).
 
 ### Volatility Computation
@@ -46,7 +46,7 @@ Where `sigma(f_i)` is the rolling standard deviation of feature `i` over the las
 ---
 
 ## L5.2 Five-Plane Coherence
-> **SUPERSEDED:** see WHITEPAPER_MD.txt §8/§9, V2 §2.2 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K7). MD wins: **Σ = diversity-weighted validator consensus, K = Conscious human-annotation plane, A = ANIMA, Φ = physical, M = mental** (`core/spiritual/sigma_engine.py`, `core/spiritual/conscious/`). This draft's Σ-as-akashic / K-as-knowledge-plane assignment is NON-CANONICAL (obsolete draft). Also K21: Φ = physical behavioral entropy (V2 f1–f9), not PR_scalar.
+> **SUPERSEDED:** see SPECIFICATION_MD.txt §8/§9, V2 §2.2 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K7). MD wins: **Σ = diversity-weighted validator consensus, K = Conscious human-annotation plane, A = ANIMA, Φ = physical, M = mental** (`core/spiritual/sigma_engine.py`, `core/spiritual/conscious/`). This draft's Σ-as-akashic / K-as-knowledge-plane assignment is NON-CANONICAL (obsolete draft). Also K21: Φ = physical behavioral entropy (V2 f1–f9), not PR_scalar.
 
 
 The Master Coherence score fuses five orthogonal planes.
@@ -136,7 +136,7 @@ T3 -> T0 : requires 3 consecutive epochs at C >= Theta (manual review)
 ---
 
 ## L5.4 Master Equation
-> **SUPERSEDED:** see WHITEPAPER_V2.txt §2.3 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K16). V2 wins: `M_moat = D·Q·R·X·F·N` six multiplicative factors (`core/master/moat.py`). The archetype-count moat (capped 0.02/epoch) below is non-canonical.
+> **SUPERSEDED:** see SPECIFICATION_V2.txt §2.3 — canonical resolution recorded in `docs/audit/CANONICAL_SPEC_MATRIX.md` (K16). V2 wins: `M_moat = D·Q·R·X·F·N` six multiplicative factors (`core/master/moat.py`). The archetype-count moat (capped 0.02/epoch) below is non-canonical.
 
 
 The TRION Master Equation defines the canonical survival value of the chain.

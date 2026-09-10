@@ -10,7 +10,7 @@ Components:
   3. CrossVMGateway — Unified gateway for all VM adapter operations
   4. ProofAggregator — Collects and verifies proofs across chains
 
-Whitepaper reference: L7 BTCP Cross-Chain Protocol
+specification reference: L7 BTCP Cross-Chain Protocol
 """
 
 import os

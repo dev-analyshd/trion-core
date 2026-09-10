@@ -29,7 +29,7 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "bh_sch
 def compute_bh(entity_id_hex: str, event_type: int, magnitude_norm: float,
                context: int, timestamp_secs: int, chain_id: int,
                block_hash_hex: str) -> tuple[str, str]:
-    """Compute dual-strand BH per whitepaper L0.1 §3.1."""
+    """Compute dual-strand BH per specification L0.1 §3.1."""
     entity  = bytes.fromhex(entity_id_hex.lstrip("0x").zfill(64))[:32]
     blk     = bytes.fromhex(block_hash_hex.lstrip("0x").zfill(64))[:32]
     mag_nano = int(max(0.0, min(1.0, magnitude_norm)) * 1_000_000_000)

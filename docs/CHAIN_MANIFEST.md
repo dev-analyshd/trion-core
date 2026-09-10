@@ -9,7 +9,7 @@ the repo's single source of truth for chain/VM coverage (129 chains across
 dedicated Rust indexer crate (or the multi-chain `trion-evm` crate for EVM)
 using **public keyless RPC endpoints** with fallback.
 All indexers produce the canonical 93-byte dual-strand Behavioral Hash and
-128-dimensional entropy-feature vectors per the whitepaper L0.1/L1.1.
+128-dimensional entropy-feature vectors per the specification L0.1/L1.1.
 
 ---
 
@@ -111,3 +111,18 @@ Every indexer, regardless of VM family, emits:
 
 All 22 crates verified against this table (event-type drift fixed across
 SVM, Cosmos, Aptos, Movement, TRON, PVM, NEAR, TON indexers).
+
+## Stacks (Clarity VM)
+
+| Network | Chain ID | API | VM | Integrated |
+|---------|----------|-----|----|-----------:|
+| Stacks Mainnet | 26000 | https://api.hiro.so | STACKS | ✓ |
+| Stacks Testnet | 26001 | https://api.testnet.hiro.so | STACKS | ✓ |
+
+- **Indexer**: `indexers/crates/trion-stacks/` (Rust binary, polls Hiro API)
+- **Contracts**: `contracts/clarity/` (6 chain-agnostic Clarity contracts)
+- **BTCP contracts**: BTCSPVVerifier.clar, BTCPEscrow.clar, BTCPIntent.clar, BTCPRoute.clar, LiquidityOcean.clar, BehavioralLimitOrder.clar
+- **Native token**: STX (6 decimals)
+- **Block time**: ~10-60s (Bitcoin-anchored)
+- **Finality**: ~600s mainnet, ~60s testnet
+- **Deployed**: BTCSPVVerifier + BTCPEscrow live on Stacks testnet (SPV headers synced, verify-anchor passing, 3-of-3 quorum verified)

@@ -222,7 +222,7 @@ def ecosystem_data_to_profile(
     (mid-range values) and ``used_real_data`` is False — callers can fall
     back to a hand-authored profile if they prefer.
 
-    The mapping follows the whitepaper's BC formula:
+    The mapping follows the specification's BC formula:
       - flow_proxy           → NPP×biomass proxy (mapped via NPP_MAX_REFERENCE)
       - diversity_score      → resilience proxy (diverse = resilient)
       - species_count       → endemic_species_count
@@ -464,7 +464,7 @@ def compute_bc(
 def bc_to_ecosystem_health_signal(bc_result: BiologicalCapitalResult) -> dict:
     """
     Build ECOSYSTEM_HEALTH signal from BC computation.
-    BC and EP components included per whitepaper signal specification.
+    BC and EP components included per specification signal specification.
     """
     return {
         "signal_type":    "ECOSYSTEM_HEALTH",

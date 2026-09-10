@@ -5,7 +5,7 @@
 /// Full intent object stored off-chain in Akashic Index; on-chain stores
 /// only the intent hash + minimal routing metadata.
 ///
-/// Whitepaper BTCP §4.1 — Intent lifecycle: PENDING -> ROUTING -> EXECUTING
+/// specification BTCP §4.1 — Intent lifecycle: PENDING -> ROUTING -> EXECUTING
 ///   -> COMPLETED  |  FAILED -> RESURRECTED  |  EXPIRED.
 
 #[starknet::interface]
@@ -114,7 +114,7 @@ pub mod BTCPIntent {
         self.intent_count.write(0);
     }
 
-    /// Valid status transitions per whitepaper BTCP §4.1.
+    /// Valid status transitions per specification BTCP §4.1.
     fn valid_transition(from: u8, to: u8) -> bool {
         // PENDING -> ROUTING, FAILED, EXPIRED
         if (from == STATUS_PENDING) {

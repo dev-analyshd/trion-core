@@ -9,7 +9,7 @@ pattern contributes to PCR's numerator.
 PCR = Pattern Coherence Ratio
     = (patterns with current coherence > θ_PCR) / (total patterns tracked)
 
-Pattern sources (from whitepaper Part 8.2):
+Pattern sources (from specification Part 8.2):
   - Onchain behavioral sequences
   - Structured offchain signals (regulatory, SEC, earnings)
   - Unstructured NLP sequences (developer commits, news)

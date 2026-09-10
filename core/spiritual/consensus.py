@@ -74,7 +74,7 @@ class BFTConsensusResult:
     diversity_results:       List[DiversityResult]
     byzantine_effective_weight: float       # how much weight byzantine have
     self_defeating_proof:    str            # formal statement
-    whitepaper_formula:      str
+    specification_formula:      str
 
 
 def _pearson_corr(x: List[float], y: List[float]) -> float:
@@ -139,7 +139,7 @@ def compute_diversity_weights(validators: List[Validator]) -> List[DiversityResu
     return results
 
 
-# ── Dynamic consensus window (whitepaper L4.2) ────────────────────────────────
+# ── Dynamic consensus window (specification L4.2) ────────────────────────────────
 DELTA_BASE = 0.05   # δ_base — consensus agreement band at zero volatility
 
 
@@ -156,7 +156,7 @@ def compute_dynamic_delta(delta_base: float, volatility: float) -> float:
 
 def classify_hhi(hhi: float) -> str:
     """
-    Whitepaper L4.8 — four response tiers (automatic, not governance-dependent):
+    specification L4.8 — four response tiers (automatic, not governance-dependent):
         HHI < 1500          HEALTHY  — no action
         HHI 1500–2500       WARNING  — 2× reward for underrepresented architectures
         HHI 2500–4000       DANGER   — weight cap: no cluster > 15% effective weight
@@ -196,7 +196,7 @@ def compute_dw_bft_consensus(
             validator_count=0, validators_in_consensus=0,
             diversity_results=[], byzantine_effective_weight=0.0,
             self_defeating_proof="No validators.",
-            whitepaper_formula="Σ(t) = Σⱼ [sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ [sⱼ·dⱼ]",
+            specification_formula="Σ(t) = Σⱼ [sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ)] / Σⱼ [sⱼ·dⱼ]",
         )
 
     # Step 1: diversity weights
@@ -212,7 +212,7 @@ def compute_dw_bft_consensus(
             for v, r in zip(validators, div_results)
         ) / total_eff
 
-    # Dynamic consensus window (whitepaper L4.2): δ(t) = δ_base · (1 + V(t))
+    # Dynamic consensus window (specification L4.2): δ(t) = δ_base · (1 + V(t))
     effective_delta = compute_dynamic_delta(delta, volatility) if volatility is not None else delta
 
     # Step 3: consensus window membership 𝟙(|vⱼ − v̄| ≤ δ(t))
@@ -280,7 +280,7 @@ def compute_dw_bft_consensus(
         diversity_results        = div_results,
         byzantine_effective_weight = round(byzantine_eff, 6),
         self_defeating_proof     = proof,
-        whitepaper_formula       = (
+        specification_formula       = (
             "L4.1: d_j = 1 − corr(M_j, M̄)  |  "
             "L4.2: Σ(t) = Σⱼ[sⱼ·dⱼ·𝟙(|vⱼ−v̄|≤δ(t))] / Σⱼ[sⱼ·dⱼ], δ(t)=δ_base·(1+V)  |  "
             "L4.3: Safety iff Σ_honest sⱼ·dⱼ > (2/3)·Σ_all sⱼ·dⱼ"

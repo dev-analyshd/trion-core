@@ -137,7 +137,7 @@ Tests run individually to avoid OOM under 9-workflow load:
 | Test file | Passed | Skipped | Notes |
 |-----------|--------|---------|-------|
 | `test_all_planes.py` | 52 | 0 | Five-plane C(t) assembly, Θ(t), Silence logic |
-| `test_whitepaper_gaps.py` + `test_chain_integrations.py` | 148 | 5 | 84 formulas, 37 chains |
+| `test_specification_gaps.py` + `test_chain_integrations.py` | 148 | 5 | 84 formulas, 37 chains |
 | `test_trading_signals.py` | 8 | 0 | BTV, price feed, CEX signals |
 | `test_deep_vm_and_zg.py` | 33 | 19 | NEAR/TON/SVM/StarkNet/PVM; 0G integration |
 | `test_stress.py` | 17 | 0 | Concurrency, throughput, resilience |
@@ -159,8 +159,8 @@ Tests run individually to avoid OOM under 9-workflow load:
 curl http://127.0.0.1:5000/api/v1/health
 → status: healthy, chain_connected: true, network: arbitrum-sepolia
 
-# Whitepaper coverage — 84/84 formulas LIVE
-curl http://127.0.0.1:5000/api/v1/whitepaper/coverage
+# specification coverage — 84/84 formulas LIVE
+curl http://127.0.0.1:5000/api/v1/specification/coverage
 → coverage_pct: 100.0, chains_indexed: 37, falsifiability_conditions: 15
 
 # FAISS ANIMA — 22,080 indexed vectors, 22,074 entities
@@ -208,8 +208,8 @@ curl http://127.0.0.1:5000/api/v1/zg/integration
 | Q5: Do falsifiability conditions have real sample counts? | ✅ Fixed | F1/F7 = 353,413; F15 = 67,891 |
 | Q6: Is BH ledger staleness surfaced? | ✅ Fixed | `data_staleness_s` field live |
 | Q7: Does the full test suite pass? | ✅ Confirmed | 337 passed, 24 skipped, 0 failures |
-| Q8: Is whitepaper formula coverage complete? | ✅ Confirmed | 84/84 formulas LIVE, 100% |
-| Q9: Are all 37 chains indexed? | ✅ Confirmed | `chains_indexed: 37` in whitepaper/coverage |
+| Q8: Is specification formula coverage complete? | ✅ Confirmed | 84/84 formulas LIVE, 100% |
+| Q9: Are all 37 chains indexed? | ✅ Confirmed | `chains_indexed: 37` in specification/coverage |
 | Q10: Is the 0G integration operational? | ✅ Confirmed | 5-component integration live; DA offline (external DNS) with correct local fallback |
 
 ---

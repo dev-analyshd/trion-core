@@ -121,10 +121,10 @@ fn classify_ton_event(in_msg: &Value) -> u8 {
     let op = in_msg["op_code"].as_str().unwrap_or("0x0");
     // Well-known TON DeFi op codes
     match op {
-        "0x7362d09c" | "0xf8a7ea5"  => 0,   // token transfer / transfer notification
+        "0x7362d09c" | "0x0f8a7ea5" => 0,   // jetton transfer / transfer notification
         "0x595f07bc" | "0xad3029e3" => 1,   // DEX swap (TON jetton AMM ops)
         "0x47d54391" | "0x7bdd97de" => 2,   // add/remove liquidity
-        // Canonical STAKE=3 (was 8 — fixed to match whitepaper L0.1 §2)
+        // Canonical STAKE=3 (was 8 — fixed to match specification L0.1 §2)
         // Note: 0x47d54391 also matched staking in old code; removed duplicate.
         "0xa7fb58f8"                 => 4,   // unstake (was 9 — canonical UNSTAKE=4)
         "0xb5de5f9e" | "0x42a0fb43" => 5,   // governance / voting (canonical GOVERNANCE=5)

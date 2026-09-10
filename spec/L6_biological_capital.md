@@ -1,6 +1,6 @@
 # TRION Protocol -- L6 Biological Capital Layer Specification
 
-> **Reference:** TRION Whitepaper, Section 8 (Biological Capital and Rhythms).
+> **Reference:** TRION specification, Section 8 (Biological Capital and Rhythms).
 > L6 quantifies living-system capital and aligns consensus with biological rhythms.
 
 ## Scope

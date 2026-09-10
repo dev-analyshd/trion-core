@@ -1,10 +1,10 @@
 """
 TRION Protocol — Master Formula Verification Suite
 ====================================================
-WHITEPAPER ENFORCEMENT: every mathematical formula from the three whitepapers
+SPECIFICATION ENFORCEMENT: every mathematical formula from the three specifications
 is tested here against its code implementation with exact expected values.
 
-Formula index (per whitepaper):
+Formula index (per specification):
   L0.1  Behavioral Hash (93-byte dual-strand)
   L0.2  BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σw
   L0.3  Resonance: Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0
@@ -76,7 +76,7 @@ def approx(a, b, tol=1e-9):
 
 
 print("═" * 70)
-print("TRION MASTER FORMULA VERIFICATION — WHITEPAPER ENFORCEMENT")
+print("TRION MASTER FORMULA VERIFICATION — SPECIFICATION ENFORCEMENT")
 print("═" * 70)
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -3,7 +3,7 @@ TRION Institutional-Grade Dashboard Routes
 ==========================================
 
 Blueprint serving the comprehensive multi-section dashboard. Each section
-maps to a whitepaper concept and pulls live data from the existing Oracle
+maps to a specification concept and pulls live data from the existing Oracle
 API and FAISS ANIMA engine.
 
 Sections:
