@@ -939,4 +939,320 @@ mod tests {
             "value must be bound into the commitment"
         );
     }
+
+    // ── PASTE phase: dual-adapter call + clipboard persistence ─────────────────
+    //
+    // SYNTHETIC-DEMO (R-LABELS): the following tests use stub adapters and
+    // an in-memory clipboard store to assert the C2 §5.1 PASTE behavior
+    // off-chain. No real chain interaction occurs.
+
+    /// Helper: build a complementary intent pair (entity_A on chain 1 with
+    /// USDC↔SOL, entity_B on chain 900 with SOL↔USDC).
+    fn complementary_pair() -> (BITPIntentData, BITPIntentData) {
+        let a = BITPIntentData::new(
+            H256::sha3(b"entity_A"),
+            b"USDC".to_vec(),
+            b"SOL".to_vec(),
+            1000.0,
+            1,
+            1787141851,
+            H256::sha3(b"proof_root_A"),
+            1,
+        );
+        let b = BITPIntentData::new(
+            H256::sha3(b"entity_B"),
+            b"SOL".to_vec(),
+            b"USDC".to_vec(),
+            5.0,
+            900,
+            1787141851,
+            H256::sha3(b"proof_root_B"),
+            2,
+        );
+        (a, b)
+    }
+
+    /// SYNTHETIC-DEMO — the canonical PASTE test:
+    /// 1. Calls `ChainAdapter::execute_transfer` on BOTH sides (chain_A + chain_B).
+    /// 2. Persists one `bitp_clipboard` row per side (counterparty_hash +
+    ///    matched_at + blo_created=FALSE per schema.sql L489-L506).
+    /// 3. Receipts are confirmed on both sides; matcher clipboard is empty.
+    /// 4. NO forbidden primitive (`lock` / `mint` / `wrap` / `bridge`) appears
+    ///    in the execute_paste function body (the source-grep sibling test
+    ///    asserts that statically).
+    #[test]
+    fn test_paste_calls_both_adapters_and_persists_clipboard() {
+        let mut matcher = BITPMatcher::new();
+        let (intent_a, intent_b) = complementary_pair();
+        let now = 1787141000;
+
+        let comm_a = matcher.execute_cut(&intent_a);
+        let comm_b = matcher.execute_cut(&intent_b);
+        assert_eq!(matcher.clipboard_size(), 2);
+
+        let adapter_a = RecordingAdapter::new(intent_a.chain_id);
+        let adapter_b = RecordingAdapter::new(intent_b.chain_id);
+        let mut store = InMemoryClipboardStore::new();
+
+        let outcome = matcher.execute_paste(
+            &comm_a, &comm_b, &adapter_a, &adapter_b, &mut store, now,
+        );
+
+        // 1. Success — both native transfers emitted + confirmed.
+        let (receipt_a, receipt_b) = match outcome {
+            PasteOutcome::Success { receipt_a, receipt_b } => (receipt_a, receipt_b),
+            other => panic!("expected Success, got {:?}", other),
+        };
+        assert_eq!(receipt_a.chain_id, intent_a.chain_id);
+        assert_eq!(receipt_b.chain_id, intent_b.chain_id);
+        assert_eq!(receipt_a.status, ExecutionStatus::Confirmed);
+        assert_eq!(receipt_b.status, ExecutionStatus::Confirmed);
+
+        // 2. Both adapters invoked exactly once, with the right chain routing.
+        assert_eq!(adapter_a.call_count(), 1);
+        assert_eq!(adapter_b.call_count(), 1);
+        let a_call = &adapter_a.transfer_calls()[0];
+        let b_call = &adapter_b.transfer_calls()[0];
+        assert_eq!(a_call.1, 1,  "chain_A transfer source = entity_A home chain");
+        assert_eq!(a_call.2, 900, "chain_A transfer dest = entity_B home chain");
+        assert_eq!(a_call.3, "USDC", "asset_X released on chain_A");
+        assert_eq!(a_call.4, "SOL",  "asset_Y is the counterparty commitment");
+        assert_eq!(b_call.1, 900, "chain_B transfer source = entity_B home chain");
+        assert_eq!(b_call.2, 1,   "chain_B transfer dest = entity_A home chain");
+        assert_eq!(b_call.3, "SOL",  "asset_Y released on chain_B");
+        assert_eq!(b_call.4, "USDC", "asset_X is the counterparty commitment");
+
+        // 3. Clipboard emptied — both commitments consumed by PASTE.
+        assert_eq!(matcher.clipboard_size(), 0);
+
+        // 4. Persistence: one row per side, counterparty_hash symmetric,
+        //    matched_at = `now`, blo_created = FALSE (BLO is the no-match
+        //    scheduler's responsibility per spec §5.1).
+        assert_eq!(store.rows().len(), 2);
+        let (row_a, row_b) = (&store.rows()[0], &store.rows()[1]);
+        assert_eq!(row_a.commitment_hash, comm_a);
+        assert_eq!(row_a.counterparty_hash, comm_b);
+        assert_eq!(row_a.matched_at, now);
+        assert!(!row_a.blo_created, "BLO must NOT be created on PASTE success");
+        assert_eq!(row_b.commitment_hash, comm_b);
+        assert_eq!(row_b.counterparty_hash, comm_a);
+        assert_eq!(row_b.matched_at, now);
+        assert!(!row_b.blo_created);
+    }
+
+    /// R-FAILCLOSED: real `EvmAdapter` (honestly `NotConnected` in this
+    /// crate — no RPC dependency) on chain_A surfaces a named
+    /// `AdapterAFailed(NotConnected)` variant. Matcher rolls back so a
+    /// retry is possible once the RPC wiring is added.
+    #[test]
+    fn test_paste_failclosed_when_chain_a_adapter_not_connected() {
+        let mut matcher = BITPMatcher::new();
+        let (intent_a, intent_b) = complementary_pair();
+        let now = 1787141000;
+
+        let comm_a = matcher.execute_cut(&intent_a);
+        let comm_b = matcher.execute_cut(&intent_b);
+
+        let real_evm_a = EvmAdapter::new(intent_a.chain_id);
+        let stub_b = RecordingAdapter::new(intent_b.chain_id);
+        let mut store = InMemoryClipboardStore::new();
+
+        let outcome = matcher.execute_paste(
+            &comm_a, &comm_b, &real_evm_a, &stub_b, &mut store, now,
+        );
+        match outcome {
+            PasteOutcome::AdapterAFailed(AdapterError::NotConnected { chain_id, .. }) => {
+                assert_eq!(chain_id, intent_a.chain_id);
+            }
+            other => panic!("expected AdapterAFailed(NotConnected), got {:?}", other),
+        }
+
+        // Fail-closed: matcher state rolled back; store untouched.
+        assert_eq!(matcher.clipboard_size(), 2, "matcher rolls back on adapter A failure");
+        assert_eq!(stub_b.call_count(), 0, "chain_B adapter never reached");
+        assert!(store.rows().is_empty(), "no clipboard row persisted on failure");
+    }
+
+    /// R-FAILCLOSED: chain_B adapter fails — A succeeded but the matcher
+    /// rolls back BOTH commitments so the operator can retry the pair
+    /// atomically (the chain_A receipt is real and must be reconciled
+    /// off-chain by the caller — surfaced via the named variant).
+    #[test]
+    fn test_paste_failclosed_when_chain_b_adapter_not_connected() {
+        let mut matcher = BITPMatcher::new();
+        let (intent_a, intent_b) = complementary_pair();
+        let now = 1787141000;
+
+        let comm_a = matcher.execute_cut(&intent_a);
+        let comm_b = matcher.execute_cut(&intent_b);
+
+        let stub_a = RecordingAdapter::new(intent_a.chain_id);
+        let real_evm_b = EvmAdapter::new(intent_b.chain_id);
+        let mut store = InMemoryClipboardStore::new();
+
+        let outcome = matcher.execute_paste(
+            &comm_a, &comm_b, &stub_a, &real_evm_b, &mut store, now,
+        );
+        match outcome {
+            PasteOutcome::AdapterBFailed(AdapterError::NotConnected { chain_id, .. }) => {
+                assert_eq!(chain_id, intent_b.chain_id);
+            }
+            other => panic!("expected AdapterBFailed(NotConnected), got {:?}", other),
+        }
+
+        // A's receipt is lost on rollback — the caller reconciles off-chain.
+        // Matcher state is consistent: both commitments still resolvable.
+        assert_eq!(matcher.clipboard_size(), 2, "matcher rolls back on adapter B failure");
+        assert_eq!(stub_a.call_count(), 1, "chain_A adapter was reached (then rolled back)");
+        assert!(store.rows().is_empty(), "no clipboard row persisted on failure");
+    }
+
+    /// R-FAILCLOSED: stale or already-PASTEd commitments surface as a named
+    /// `CommitmentNotFound` variant — never a silent `false`.
+    #[test]
+    fn test_paste_failclosed_when_commitment_missing() {
+        let mut matcher = BITPMatcher::new();
+        let (intent_a, _intent_b) = complementary_pair();
+        let now = 1787141000;
+
+        // Only A is posted — B was never CUT (or already PASTEd).
+        let comm_a = matcher.execute_cut(&intent_a);
+        let bogus_comm_b = H256::sha3(b"never_posted");
+
+        let adapter_a = RecordingAdapter::new(intent_a.chain_id);
+        let adapter_b = RecordingAdapter::new(900);
+        let mut store = InMemoryClipboardStore::new();
+
+        let outcome = matcher.execute_paste(
+            &comm_a, &bogus_comm_b, &adapter_a, &adapter_b, &mut store, now,
+        );
+        assert!(matches!(outcome, PasteOutcome::CommitmentNotFound));
+
+        // A is still in the clipboard (rolled back); no adapter was called.
+        assert_eq!(matcher.clipboard_size(), 1);
+        assert_eq!(adapter_a.call_count(), 0);
+        assert_eq!(adapter_b.call_count(), 0);
+        assert!(store.rows().is_empty());
+    }
+
+    /// R-FAILCLOSED: persistence layer rejects the write → named variant.
+    /// Matcher state is rolled back; the partial store row is surfaced.
+    #[test]
+    fn test_paste_failclosed_when_persistence_rejects() {
+        struct BrokenStore;
+        impl ClipboardPersistence for BrokenStore {
+            fn record_paste(
+                &mut self,
+                _commitment_hash: &H256,
+                _counterparty_hash: &H256,
+                _matched_at: u64,
+                _blo_created: bool,
+            ) -> Result<(), ClipboardPersistError> {
+                Err(ClipboardPersistError::WriteFailed { reason: "test-injected failure" })
+            }
+        }
+
+        let mut matcher = BITPMatcher::new();
+        let (intent_a, intent_b) = complementary_pair();
+        let now = 1787141000;
+        let comm_a = matcher.execute_cut(&intent_a);
+        let comm_b = matcher.execute_cut(&intent_b);
+
+        let adapter_a = RecordingAdapter::new(intent_a.chain_id);
+        let adapter_b = RecordingAdapter::new(intent_b.chain_id);
+        let mut broken = BrokenStore;
+
+        let outcome = matcher.execute_paste(
+            &comm_a, &comm_b, &adapter_a, &adapter_b, &mut broken, now,
+        );
+        match outcome {
+            PasteOutcome::PersistFailed(ClipboardPersistError::WriteFailed { reason }) => {
+                assert!(reason.contains("test-injected"));
+            }
+            other => panic!("expected PersistFailed(WriteFailed), got {:?}", other),
+        }
+        // Both adapters fired (transfers were emitted), but persistence
+        // failed → matcher rolls back so the caller can reconcile.
+        assert_eq!(adapter_a.call_count(), 1);
+        assert_eq!(adapter_b.call_count(), 1);
+        assert_eq!(matcher.clipboard_size(), 2, "matcher rolls back on persist failure");
+    }
+
+    /// ZERO-BRIDGE INVARIANT — static source-grep test (R-LABELS: this
+    /// test is labelled STATIC-SOURCE-GREP). Reads `bitp_matcher.rs` at
+    /// compile time via `include_str!` and asserts the `execute_paste`
+    /// function body contains NO method or function call of the form
+    /// `lock(` / `mint(` / `wrap(` / `bridge(` — these are the FORBIDDEN
+    /// primitives of the BTCP zero-bridge protocol (no asset ever leaves
+    /// its native chain).
+    ///
+    /// This test runs at unit-test time but reads the source statically
+    /// (no filesystem access at runtime). It will fail the moment a
+    /// forbidden call is introduced into `execute_paste`.
+    #[test]
+    fn test_execute_paste_body_has_no_forbidden_primitives() {
+        let src = include_str!("bitp_matcher.rs");
+
+        // Locate the execute_paste function and its body (matched-brace scan).
+        let fn_start = src
+            .find("pub fn execute_paste(")
+            .expect("execute_paste function not found in source");
+        let body_open = src[fn_start..]
+            .find('{')
+            .expect("execute_paste body open brace found")
+            + fn_start
+            + 1;
+        let bytes = src.as_bytes();
+        let mut depth: i32 = 1;
+        let mut i = body_open;
+        while depth > 0 && i < bytes.len() {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                _ => {}
+            }
+            i += 1;
+        }
+        assert!(depth == 0, "execute_paste body braces balance");
+        let body = &src[body_open..i - 1];
+
+        // The forbidden primitive call-forms. Substring scan suffices: a
+        // method call `adapter.lock(` and a bare function `lock(` both
+        // contain the literal `lock(`. We deliberately do NOT ban the
+        // bare words `lock` / `mint` / `wrap` / `bridge` — only the call
+        // form — so doc-comments mentioning the words remain legal.
+        let forbidden_call_forms = [".lock(", ".mint(", ".wrap(", ".bridge("];
+        for token in forbidden_call_forms {
+            assert!(
+                !body.contains(token),
+                "FORBIDDEN call form `{}` found in execute_paste body — BTCP zero-bridge invariant violated",
+                token
+            );
+        }
+        // Also ban bare function-form calls (no receiver), guarded by a
+        // word-boundary check via the preceding char being non-ident.
+        for bare in ["lock(", "mint(", "wrap(", "bridge("] {
+            // find every occurrence; ensure each is preceded by an identifier
+            // char (which would make it a method call already covered above)
+            // OR is itself a forbidden bare call.
+            let mut from = 0usize;
+            while let Some(idx) = body[from..].find(bare) {
+                let abs = from + idx;
+                let preceding = if abs == 0 { b' ' } else { body.as_bytes()[abs - 1] };
+                // If the preceding char is an identifier-continuation
+                // (alnum or underscore), this is a method call already
+                // checked above (e.g. `adapter.lock(`). Reject only when
+                // it is a bare function call: preceding char is NOT an
+                // identifier char.
+                let is_ident_char = preceding.is_ascii_alphanumeric() || preceding == b'_';
+                if !is_ident_char {
+                    panic!(
+                        "FORBIDDEN bare call `{}` in execute_paste body at offset {} — zero-bridge invariant",
+                        bare, abs
+                    );
+                }
+                from = abs + bare.len();
+            }
+        }
+    }
 }
