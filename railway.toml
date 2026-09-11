@@ -1,5 +1,5 @@
 # =============================================================================
-# TRION Protocol — Railway Deployment Configuration (TOML)
+# TRION Protocol — Railway Deployment Configuration v9.0
 #
 # Deploy to Railway:
 #   1. Install Railway CLI: npm i -g @railway/cli
@@ -29,7 +29,6 @@ FAISS_SERVICE_URL = "http://127.0.0.1:8000"
 FAISS_URL = "http://127.0.0.1:8000"
 ORACLE_API_URL = "http://127.0.0.1:5000"
 FLASK_URL = "http://127.0.0.1:5000"
-NODE_ENV = "production"
 PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
 TRION_ENABLE_STREAMER = "1"

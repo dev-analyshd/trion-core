@@ -1,0 +1,47 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.6.
+--
+-- see: https://github.com/sol/hpack
+
+name:           trion-formal
+version:        1.0.0
+synopsis:       TRION Protocol formal verification — 9 theorems as types
+license:        CC0
+build-type:     Simple
+
+library
+  exposed-modules:
+      TRION.Theorems
+  other-modules:
+      Theorems
+      Paths_trion_formal
+  hs-source-dirs:
+      src/TRION
+  build-depends:
+      base >=4.14 && <5
+  default-language: Haskell2010
+
+executable trion-verify
+  main-is: Main.hs
+  other-modules:
+      Paths_trion_formal
+  hs-source-dirs:
+      app
+  build-depends:
+      base >=4.14 && <5
+    , trion-formal
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_trion_formal
+  hs-source-dirs:
+      test
+  build-depends:
+      base >=4.14 && <5
+    , hspec
+    , trion-formal
+  default-language: Haskell2010

@@ -1,39 +1,22 @@
 # =============================================================================
-# TRION Protocol — Railway Dockerfile v8.0  (Full-stack, all components)
+# TRION Protocol — Railway Dockerfile v9.0  (Full-stack, all components)
 # =============================================================================
 #
 # Builds and deploys ALL TRION components:
-#   - Flask Oracle API (port 5000)
+#   - Flask Oracle API + Frontend (port $PORT — public, via serve.py)
 #   - FAISS ANIMA Engine (port 8000)
-#   - Next.js Frontend (port $PORT — public)
 #   - BH Streamer (real-time behavioral hash ingestion)
 #   - All source code: Python, Rust, Go, C++, Haskell, Julia, Solidity, Cairo
 #
 # Build: docker build -f Dockerfile.railway -t trion-protocol .
 # Run:   docker run -p 10000:10000 -e PORT=10000 trion-protocol
 #
-# Build time: ~8 minutes | Image size: ~1.2GB
+# Build time: ~5 minutes | Image size: ~900MB
 # =============================================================================
 
-# ─── Stage 1: Build Next.js frontend ─────────────────────────────────────────
-FROM node:20-slim AS next-builder
-
-WORKDIR /build
-
-# Copy frontend package.json and install deps
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --legacy-peer-deps --silent
-
-# Copy frontend source
-COPY frontend/ ./
-
-# Build Next.js standalone
-ENV NEXT_PUBLIC_API_BASE=""
-ENV FLASK_URL="http://127.0.0.1:5000"
-RUN npm run build 2>&1 | tail -20
-
-# Verify standalone output exists
-RUN test -f /build/.next/standalone/server.js && echo "OK: standalone build" || { echo "FATAL: no standalone"; exit 1; }
+# NOTE: v9.0 removes the Next.js frontend stage — the repo uses serve.py
+# (Flask + static files) as the unified server on $PORT. No separate
+# Node.js frontend build needed.
 
 # ─── Stage 2: Runtime (Python + Node.js + all languages) ───────────────────
 FROM python:3.11-slim
@@ -47,23 +30,12 @@ LABEL version="8.0.0"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl bash tini ca-certificates gnupg libssl3 libpq5 \
         gcc g++ python3-dev cmake pkg-config \
-        golang \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-       | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] \
-       https://deb.nodesource.com/node_20.x nodistro main" \
-       > /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs \
+        golang sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# ── Next.js standalone build ─────────────────────────────────────────────────
-COPY --from=next-builder /build/.next/standalone /app/frontend/
-COPY --from=next-builder /build/.next/static /app/frontend/.next/static
-COPY --from=next-builder /build/public /app/frontend/public
+# (v9.0: no Next.js frontend — serve.py handles all serving)
 
 # ── Python dependencies ──────────────────────────────────────────────────────
 COPY api/requirements.txt ./api/requirements.txt
@@ -80,12 +52,10 @@ RUN pip install --no-cache-dir \
 COPY api/             ./api/
 COPY anima-service/   ./anima-service/
 COPY core/            ./core/
-COPY zk/              ./zk/
 COPY zk-circuits/     ./zk-circuits/
 COPY adapters/        ./adapters/
 COPY relayer/         ./relayer/
 COPY chains/          ./chains/
-COPY trion-0g/        ./trion-0g/
 COPY contracts/       ./contracts/
 COPY supervisors/     ./supervisors/
 COPY scripts/         ./scripts/
@@ -93,7 +63,6 @@ COPY config/          ./config/
 COPY shared/          ./shared/
 COPY math/            ./math/
 COPY sdk/             ./sdk/
-COPY proof-ledger/    ./proof-ledger/
 COPY serve.py         ./serve.py
 COPY main.py          ./main.py
 COPY zg/              ./zg/
@@ -123,7 +92,6 @@ COPY docs/            ./docs/
 # Akashic state storage
 COPY akashic/         ./akashic/
 # Continuum state machine
-COPY continuum/       ./continuum/
 # Network health monitor (Go)
 COPY network/         ./network/
 # Formal specification documents
@@ -148,7 +116,7 @@ COPY railway-entrypoint.sh ./railway-entrypoint.sh
 RUN chmod +x ./railway-entrypoint.sh
 
 # Runtime dirs
-RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data
+RUN mkdir -p /tmp/trion-logs anima-service/data /app/akashic /app/data /app/frontend
 
 # ── Environment ───────────────────────────────────────────────────────────────
 # NOTE: only toggles the railway entrypoint actually gates on are set here
@@ -168,26 +136,21 @@ ENV HOSTNAME=0.0.0.0 \
     FLASK_URL=http://127.0.0.1:5000 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    NODE_ENV=production \
     TRION_ENABLE_STREAMER=1 \
     TRION_MAX_CHAINS=12 \
     TRION_ENABLE_VALIDATOR=0 \
     TRION_ENABLE_SIGNAL_PROCESSING=0 \
     DATABASE_URL="" \
     TIMESCALEDB_URL="" \
-    BH_LEDGER_DB="/app/bh_ledger.db" \
-    ZG_NETWORK=mainnet \
-    ZG_CHAIN_ID=16661 \
-    ZERO_G_RPC=https://evmrpc.0g.ai \
-    ZG_EXECUTION_GATE_ADDR=0xA85B49C73B5710d9ddB1CB5a94c52D0F33c4199b
+    BH_LEDGER_DB="/app/bh_ledger.db"
 
 # Railway injects PORT at runtime. Default to 10000 for local docker runs.
 EXPOSE 10000
 
-# Healthcheck uses /readyz (not /api/v1/health) so the container is "healthy"
-# only when the whole chain — Next.js → Flask → FAISS — is ready to serve.
+# Healthcheck: serve.py runs on $PORT, Flask on 5000, FAISS on 8000.
+# /readyz is served by Flask (which probes FAISS).
 HEALTHCHECK --interval=30s --timeout=15s --start-period=300s --retries=5 \
-    CMD curl -fs http://localhost:${PORT:-10000}/readyz || exit 1
+    CMD curl -fs http://localhost:${PORT:-10000}/readyz || curl -fs http://localhost:5000/readyz || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/app/railway-entrypoint.sh"]
