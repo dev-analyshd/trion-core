@@ -24,6 +24,7 @@
       "PYTHONDONTWRITEBYTECODE": "1",
       "PYTHONPATH": "/app",
 
+      "TRION_FORCE_LEAN": "1",
       "TRION_ENABLE_STREAMER": "0",
       "TRION_FAISS_LOAD_INDEX": "0",
       "TRION_ENABLE_BACKFILL": "0",
