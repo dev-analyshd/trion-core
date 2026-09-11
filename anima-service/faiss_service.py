@@ -559,12 +559,26 @@ def _load_or_init_index():
     global index, centroids
     if not FAISS_AVAILABLE:
         return
-    if os.path.exists(INDEX_PATH):
+    # ── Memory guard for constrained deployments (Railway, Render free tier) ──
+    # Loading a pre-existing 195K-vector index consumes ~600-800 MB of RAM.
+    # On Railway's default plan this causes OOM kill alongside serve.py.
+    # Set TRION_FAISS_LOAD_INDEX=0 to start with an empty index (the streamer
+    # and /index/add_batch endpoints will repopulate it at runtime).
+    _load_existing = os.environ.get("TRION_FAISS_LOAD_INDEX", "1") == "1"
+    if _load_existing and os.path.exists(INDEX_PATH):
         logger.info("Loading existing FAISS index from %s", INDEX_PATH)
         index = faiss.read_index(INDEX_PATH)
         logger.info("FAISS index loaded — %d vectors indexed.", index.ntotal)
     else:
-        logger.info("No existing index at %s. Initialising empty flat L2 index (dim=%d).", INDEX_PATH, DIMENSION)
+        if not _load_existing and os.path.exists(INDEX_PATH):
+            _size_mb = os.path.getsize(INDEX_PATH) / (1024 * 1024)
+            logger.info("TRION_FAISS_LOAD_INDEX=0 — skipping preload of %s "
+                        "(file is %.1f MB on disk). Starting with empty index; "
+                        "streamer / /index/add_batch will repopulate at runtime.",
+                        INDEX_PATH, _size_mb)
+        else:
+            logger.info("No existing index at %s. Initialising empty flat L2 index (dim=%d).",
+                        INDEX_PATH, DIMENSION)
         index = faiss.IndexFlatL2(DIMENSION)
     if os.path.exists(CENTROIDS_PATH):
         centroids = np.load(CENTROIDS_PATH)

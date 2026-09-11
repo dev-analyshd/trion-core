@@ -1,22 +1,40 @@
 #!/usr/bin/env bash
 # =============================================================================
-# TRION Protocol — Railway / Container Entrypoint v5 (LEAN, ALL toolchains)
+# TRION Protocol — Railway / Container Entrypoint v6 (MEMORY-SAFE LEAN)
 #
-# v5 CHANGE: Go self-test no longer runs `go test ./...` at runtime (that
-# needs network + compilation time + memory). It now verifies the toolchain
-# is present and logs it. Same best-effort posture as C++/Haskell/Julia.
+# v6 CHANGE LOG — fixes Railway runtime OOM:
+#   ROOT CAUSE: v5 started 3 heavy processes concurrently (FAISS loading a
+#   195K-vector ~600MB index, serve.py with web3 + 48 chains, BH streamer
+#   with 48 chain sockets + 8K-record queue) plus a 60s-delayed backfill
+#   of 85K entities. Total peak > 2 GB → Linux OOM killer SIGKILL'd both
+#   FAISS and serve.py at T+87s, causing a crash loop.
+#
+#   FIX (v6):
+#     - TRION_ENABLE_STREAMER default 0 (was 1) — was the #3 memory hog
+#       and the source of "database is locked" contention with serve.py.
+#     - TRION_FAISS_LOAD_INDEX default 0 (new) — skip preloading the
+#       195K-vector index. FAISS starts empty; /index/add_batch + streamer
+#       repopulate at runtime.
+#     - Auto-backfill now gated on TRION_ENABLE_STREAMER=1 AND
+#       TRION_ENABLE_BACKFILL=1 (was unconditional).
+#     - Non-critical self-tests (Julia/Haskell/C++/Rust/Go/Signal) default
+#       OFF — they consume memory at boot for no operational benefit.
+#     - Memory guard log at startup prints cgroup limit + recommended plan.
+#     - Watchdog on serve.py death: still exits 1 (so Railway restarts the
+#       container and frees all leaked memory), but logs the death cause.
 #
 # STARTUP ORDER (each step gates the next where critical):
-#   0.  Preflight (env / storage sanity)
+#   0.  Preflight (env / storage sanity) + memory guard
 #   1.  BH ledger DB init
-#   2.  FAISS ANIMA Engine (port $FAISS_PORT)
+#   2.  FAISS ANIMA Engine (port $FAISS_PORT) — empty index by default
 #   3.  Unified Server: serve.py (Flask + SocketIO on $PORT — public)
-#   4.  BH Streamer (background)
-#   5.  Rust indexers (supervisor — background, best-effort, skipped if unbuilt)
-#   6.  Go validator mesh — toolchain presence check (fast, no network)
-#   7.  C++ FFT signal processing self-test (skipped if unbuilt)
-#   8.  Haskell formal verification self-test (skipped if no GHC)
-#   9.  Julia math module self-test
+#   4.  BH Streamer (background, OPT-IN via TRION_ENABLE_STREAMER=1)
+#   4b. Auto-backfill (delayed, OPT-IN via TRION_ENABLE_BACKFILL=1)
+#   5.  Rust indexers (background, OPT-IN, skipped if unbuilt)
+#   6.  Go validator mesh — toolchain presence check (off by default)
+#   7.  C++ FFT signal processing self-test (off by default)
+#   8.  Haskell formal verification self-test (off by default)
+#   9.  Julia math module self-test (off by default)
 #  10.  Environment status summary
 # =============================================================================
 set -u
@@ -37,6 +55,35 @@ export PATH="/root/.cargo/bin:/opt/julia-1.9.4/bin:${PATH}"
 
 log()  { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
 warn() { echo "[entrypoint $(date +%H:%M:%S)] WARN: $*" >&2; }
+
+# ── Memory guard: log cgroup limit + warn if constrained ────────────────────
+_mem_limit_kb=""
+if [ -r /sys/fs/cgroup/memory.max ]; then
+    _mem_limit_kb=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+elif [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+    _mem_limit_kb=$(( $(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null) / 1024 ))
+fi
+if [ -n "$_mem_limit_kb" ] && [ "$_mem_limit_kb" != "max" ]; then
+    _mem_limit_mb=$(( _mem_limit_kb / 1024 ))
+    log "Memory limit (cgroup): ${_mem_limit_mb} MB"
+    if [ "$_mem_limit_mb" -lt 1500 ]; then
+        warn "Memory limit < 1.5 GB — running in LEAN MODE (streamer/backfill/non-critical self-tests OFF)."
+        warn "To enable full stack, upgrade Railway plan OR set TRION_ENABLE_STREAMER=1 TRION_FAISS_LOAD_INDEX=1."
+        # Force lean defaults if operator did not explicitly opt in
+        : "${TRION_ENABLE_STREAMER:=0}"
+        : "${TRION_FAISS_LOAD_INDEX:=0}"
+        : "${TRION_ENABLE_BACKFILL:=0}"
+        : "${TRION_ENABLE_JULIA_MATH:=0}"
+        : "${TRION_ENABLE_HASKELL_VERIFY:=0}"
+        : "${TRION_ENABLE_SIGNAL_PROCESSING:=0}"
+        : "${TRION_ENABLE_RUST_INDEXERS:=0}"
+        : "${TRION_ENABLE_VALIDATOR:=0}"
+        export TRION_ENABLE_STREAMER TRION_FAISS_LOAD_INDEX TRION_ENABLE_BACKFILL \
+               TRION_ENABLE_JULIA_MATH TRION_ENABLE_HASKELL_VERIFY \
+               TRION_ENABLE_SIGNAL_PROCESSING TRION_ENABLE_RUST_INDEXERS \
+               TRION_ENABLE_VALIDATOR
+    fi
+fi
 
 # ── 0. Preflight ───────────────────────────────────────────────────────────
 log "Running preflight checks..."
@@ -80,16 +127,21 @@ for i in $(seq 1 60); do
     sleep 1
 done
 
-# ── 4. BH Streamer ──────────────────────────────────────────────────────────
+# ── 4. BH Streamer (OPT-IN — default OFF to avoid SQLite contention + memory) ─
 BH_PID=""
-if [ "${TRION_ENABLE_STREAMER:-1}" = "1" ]; then
-    log "Starting BH Streamer..."
+if [ "${TRION_ENABLE_STREAMER:-0}" = "1" ]; then
+    log "Starting BH Streamer (TRION_ENABLE_STREAMER=1)..."
     python3 /app/scripts/run_bh_streamer.py 2>/dev/null &
     BH_PID=$!
     log "BH Streamer PID: $BH_PID"
+else
+    log "BH Streamer: DISABLED (TRION_ENABLE_STREAMER=0). Set =1 to enable live chain ingestion."
 fi
 
-# ── 4b. Auto-backfill (delayed) ─────────────────────────────────────────────
+# ── 4b. Auto-backfill (delayed, OPT-IN via TRION_ENABLE_BACKFILL=1) ─────────
+# Only runs when streamer is also enabled (backfill without a live streamer
+# produces a stale snapshot). Also gated by TRION_ENABLE_BACKFILL (default 0).
+if [ "${TRION_ENABLE_STREAMER:-0}" = "1" ] && [ "${TRION_ENABLE_BACKFILL:-0}" = "1" ]; then
 (
     sleep 60
     log "Running BH → FAISS backfill..."
@@ -102,6 +154,9 @@ fi
         log "Backfill started (PID $!)"
     fi
 ) &
+else
+    log "Auto-backfill: DISABLED (TRION_ENABLE_BACKFILL=0 or streamer off)."
+fi
 
 # ── 5. Rust indexers (background, best-effort) ──────────────────────────────
 # NOTE (v12): The Dockerfile no longer runs `cargo build --release` at image
@@ -198,7 +253,7 @@ fi
 # ── 10. Environment status summary ───────────────────────────────────────────
 log ""
 log "========================================"
-log "  TRION FULL SYSTEM — STATUS SUMMARY (v12.0 LEAN)"
+log "  TRION FULL SYSTEM — STATUS SUMMARY (v12.1 MEMORY-SAFE LEAN)"
 log "========================================"
 log "  Python API (serve.py):  PID $SERVE_PID on :${PORT}   [CRITICAL PATH]"
 log "  FAISS ANIMA Engine:     PID $FAISS_PID on :${FAISS_PORT}   [CRITICAL PATH]"
@@ -236,6 +291,16 @@ log ""
 log "  BUILD MODE: lean (toolchains present, compile-time builds skipped)."
 log "  The /healthz endpoint is served by serve.py — independent of all"
 log "  compiled-language components."
+log ""
+log "  Memory/feature toggles (env vars):"
+log "    TRION_ENABLE_STREAMER=${TRION_ENABLE_STREAMER:-0}     (live chain ingestion)"
+log "    TRION_FAISS_LOAD_INDEX=${TRION_FAISS_LOAD_INDEX:-1}    (preload 195K-vector index on boot)"
+log "    TRION_ENABLE_BACKFILL=${TRION_ENABLE_BACKFILL:-0}     (BH → FAISS bulk import)"
+log "    TRION_ENABLE_JULIA_MATH=${TRION_ENABLE_JULIA_MATH:-0}    (self-test)"
+log "    TRION_ENABLE_HASKELL_VERIFY=${TRION_ENABLE_HASKELL_VERIFY:-0}    (self-test)"
+log "    TRION_ENABLE_SIGNAL_PROCESSING=${TRION_ENABLE_SIGNAL_PROCESSING:-0}    (self-test)"
+log "    TRION_ENABLE_RUST_INDEXERS=${TRION_ENABLE_RUST_INDEXERS:-0}    (background indexers)"
+log "    TRION_ENABLE_VALIDATOR=${TRION_ENABLE_VALIDATOR:-0}       (Go self-test)"
 log "========================================"
 
 # ── Trap: clean shutdown ──────────────────────────────────────────────────────
@@ -254,17 +319,33 @@ trap cleanup SIGTERM SIGINT
     while true; do
         sleep 30
         if ! kill -0 "$FAISS_PID" 2>/dev/null; then
-            warn "FAISS died — restarting..."
+            # Detect OOM kill (exit 137 = 128+SIGKILL, 139 = 128+SIGSEGV)
+            wait "$FAISS_PID" 2>/dev/null
+            _faiss_rc=$?
+            if [ "$_faiss_rc" -eq 137 ] || [ "$_faiss_rc" -eq 139 ]; then
+                warn "FAISS was OOM-killed (exit $_faiss_rc). Restarting with TRION_FAISS_LOAD_INDEX=0."
+                export TRION_FAISS_LOAD_INDEX=0
+            else
+                warn "FAISS died (exit $_faiss_rc) — restarting..."
+            fi
             cd /app/anima-service
             OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
             PORT="${FAISS_PORT}" FAISS_API_KEY="${FAISS_API_KEY}" \
+            TRION_FAISS_LOAD_INDEX="${TRION_FAISS_LOAD_INDEX:-0}" \
             python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port "${FAISS_PORT}" --workers 1 &
             FAISS_PID=$!
             cd /app
             log "FAISS restarted (PID $FAISS_PID)"
         fi
         if ! kill -0 "$SERVE_PID" 2>/dev/null; then
-            warn "serve.py died — exiting for Railway restart"
+            wait "$SERVE_PID" 2>/dev/null
+            _serve_rc=$?
+            if [ "$_serve_rc" -eq 137 ] || [ "$_serve_rc" -eq 139 ]; then
+                warn "serve.py was OOM-killed (exit $_serve_rc). Container will restart to free memory."
+                warn "If this recurs: set TRION_ENABLE_STREAMER=0 and TRION_FAISS_LOAD_INDEX=0 in Railway env."
+            else
+                warn "serve.py died (exit $_serve_rc) — exiting for Railway restart"
+            fi
             exit 1
         fi
     done

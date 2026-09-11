@@ -1,12 +1,15 @@
 # =============================================================================
-# TRION Protocol — Railway Deployment Configuration v12.0 (LEAN BUILD)
+# TRION Protocol — Railway Deployment Configuration v12.1 (MEMORY-SAFE LEAN)
+#
+# v12.1 fixes runtime OOM: streamer + backfill + FAISS index preload + all
+# non-critical self-tests are OFF by default. The entrypoint also auto-detects
+# cgroup memory < 1.5 GB and forces these off regardless of operator settings.
+#
+# To re-enable any component on a higher-RAM plan, set the corresponding
+# TRION_ENABLE_* or TRION_FAISS_LOAD_INDEX env var to "1" in Railway Variables.
 #
 # NOTE: railway.json is the primary config (Railway prefers it). This file
-# is kept for compatibility with tooling that reads the TOML format. Both
-# files are kept in sync. The Dockerfile.railway v12.0 no longer runs
-# compile-time builds for Rust/Go/C++/Haskell — only Python deps are
-# installed at build time. All other toolchains are present at runtime
-# for best-effort self-tests but are NOT on the /healthz critical path.
+# is kept for compatibility. Both files are kept in sync.
 # =============================================================================
 
 [build]
@@ -30,13 +33,18 @@ FAISS_URL = "http://127.0.0.1:8000"
 FAISS_API_KEY = "trion-railway-key"
 PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
-TRION_ENABLE_STREAMER = "1"
-TRION_ENABLE_VALIDATOR = "1"
-TRION_ENABLE_SIGNAL_PROCESSING = "1"
-TRION_ENABLE_RUST_INDEXERS = "1"
-TRION_ENABLE_HASKELL_VERIFY = "1"
-TRION_ENABLE_JULIA_MATH = "1"
+
+# Memory-safe lean defaults (v12.1) — flip to "1" on a plan with >= 2 GB RAM
+TRION_ENABLE_STREAMER = "0"
+TRION_FAISS_LOAD_INDEX = "0"
+TRION_ENABLE_BACKFILL = "0"
 TRION_MAX_CHAINS = "12"
+TRION_ENABLE_VALIDATOR = "0"
+TRION_ENABLE_SIGNAL_PROCESSING = "0"
+TRION_ENABLE_RUST_INDEXERS = "0"
+TRION_ENABLE_HASKELL_VERIFY = "0"
+TRION_ENABLE_JULIA_MATH = "0"
+
 DATABASE_URL = ""
 TIMESCALEDB_URL = ""
 BH_LEDGER_DB = "/app/bh_ledger.db"
