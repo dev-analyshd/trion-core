@@ -172,6 +172,7 @@ mod tests {
 
     #[test]
     #[available_gas(2000000000)]
+    #[should_panic(expected: 'asset_in_A == asset_out_B')]
     fn test_s1_non_complement_pair_fails() {
         // A wants X→Y, B wants Z→W — not complements
         let mut a = ArrayTrait::new();
@@ -179,13 +180,8 @@ mod tests {
         let mut b = ArrayTrait::new();
         b.append(2); b.append(1); b.append(300); b.append(400); b.append(500); b.append(999);
 
-        // Should fail: asset_in_A (100) != asset_out_B (400)
-        let result = verify_complementarity(@a, @b, 111, 222, 333, 444, 10);
-        // verify_complementarity uses assert, so it will panic on failure.
-        // In a test, we expect this to fail. We wrap in a panic-catching test.
-        // For simplicity, we test the positive case here and the negative
-        // case in a separate test that expects panic.
-        assert(result, 'non-complement should still verify fields (will panic on assert)');
+        // Should panic: asset_in_A (100) != asset_out_B (400)
+        let _ = verify_complementarity(@a, @b, 111, 222, 333, 444, 10);
     }
 
     #[test]
@@ -197,6 +193,6 @@ mod tests {
         let ok = complementarity_witness_check(
             h_a, h_b, 333, 444, @a, @b, 111, 222, 10
         );
-        assert(ok, 'witness check should pass for complement pair');
+        assert(ok, 'witness check passes');
     }
 }

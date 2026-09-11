@@ -146,6 +146,6 @@ mod tests {
     #[test]
     #[available_gas(1000000000)]
     fn test_s3_critical_never_emits_without_proof() {
-        assert(!critical_tier_emits_without_proof(), 'CRITICAL never emits without proof');
+        assert(!critical_tier_emits_without_proof(), 'CRITICAL no emit');
     }
 }

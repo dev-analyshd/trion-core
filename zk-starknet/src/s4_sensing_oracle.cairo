@@ -196,7 +196,6 @@ mod tests {
     use super::prove_behavioral_coherence;
     use super::verify_behavioral_coherence;
     use super::assert_absent_fields_enforced;
-    use super::BehavioralTruthSignal;
 
     #[test]
     #[available_gas(3000000000)]
@@ -212,7 +211,7 @@ mod tests {
         assert(signal.entity_id == 42, 'entity_id present');
         assert(signal.public_commitment != 0, 'public_commitment present');
         // R-ABSENT: no behavior_content, amount, counterparty, protocol, chain
-        assert(assert_absent_fields_enforced(@signal), 'ABSENT fields enforced');
+        assert(assert_absent_fields_enforced(signal), 'ABSENT fields enforced');
     }
 
     #[test]
@@ -222,7 +221,7 @@ mod tests {
             42, 999, 12345, 67890, 0  // threshold 0 → always coherent
         );
         assert(verify_behavioral_coherence(
-            signal.public_commitment, 42, 999, @signal
+            signal.public_commitment, 42, 999, signal
         ), 'coherence proof verifies');
     }
 
@@ -232,7 +231,7 @@ mod tests {
         let signal = prove_behavioral_coherence(42, 999, 12345, 67890, 0);
         assert(!verify_behavioral_coherence(
             signal.public_commitment, 999,  // wrong entity_id
-            999, @signal
+            999, signal
         ), 'entity mismatch rejected');
     }
 }
