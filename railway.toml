@@ -1,7 +1,12 @@
 # =============================================================================
-# TRION Protocol — Railway Deployment Configuration v11.0
+# TRION Protocol — Railway Deployment Configuration v12.0 (LEAN BUILD)
 #
-# ALL languages, ALL components in a single container.
+# NOTE: railway.json is the primary config (Railway prefers it). This file
+# is kept for compatibility with tooling that reads the TOML format. Both
+# files are kept in sync. The Dockerfile.railway v12.0 no longer runs
+# compile-time builds for Rust/Go/C++/Haskell — only Python deps are
+# installed at build time. All other toolchains are present at runtime
+# for best-effort self-tests but are NOT on the /healthz critical path.
 # =============================================================================
 
 [build]
@@ -17,6 +22,7 @@ restartPolicyMaxRetries = 5
 
 [deploy.env]
 HOSTNAME = "0.0.0.0"
+PYTHONPATH = "/app"
 FAISS_PORT = "8000"
 FLASK_PORT = "5000"
 FAISS_SERVICE_URL = "http://127.0.0.1:8000"
