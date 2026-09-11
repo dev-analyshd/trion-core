@@ -1,0 +1,17 @@
+[package]
+name        = "adapters-core"
+version     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+authors     = { workspace = true }
+description = "TRION BTCP ChainAdapter trait + shared Intent / Route / TxHash / ExecutionResult types (C3 §4 Step 4 verbatim)"
+
+[dependencies]
+serde       = { workspace = true }
+sha3        = { workspace = true }
+hex         = { workspace = true }
+thiserror   = { workspace = true }
+
+[lib]
+name = "adapters_core"
+path = "src/lib.rs"

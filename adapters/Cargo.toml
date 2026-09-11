@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "evm",
+    "svm",
+    "cosmos",
+    "move",
+    "cosmwasm",
+    "ooa",
+]
+
+[workspace.package]
+version     = "0.1.0"
+edition     = "2021"
+license     = "CC0-1.0"
+authors     = ["Hudu Yusuf (Analys) <analys@trion.protocol>"]
+description = "TRION BTCP Cross-VM Adapters — C3 §14.1 Phase 5 items 24-28 + §5.2 OOA"
+
+[workspace.dependencies]
+# Internal shared crate (re-exported by every adapter).
+adapters-core = { path = "core" }
+
+# Minimal, network-tolerant dep set — mirrors the existing trion-*-indexer
+# Cargo.toml style (reqwest + serde_json + sha3 + hex). No heavy chain SDK
+# (ethers / solana-sdk / aptos-sdk / cosmrs) is pulled: each adapter encodes
+# chain-native payloads with hand-rolled RLP / base58 / BECH32 / BCS so
+# cargo build stays tractable in the sandbox AND the adapters honour
+# R-FAILCLOSED by returning `ExecutionResult::Failed` on network error
+# rather than panicking through an unwired SDK.
+serde            = { version = "1",  features = ["derive"] }
+serde_json       = { version = "1"  }
+sha3             = { version = "0.10" }
+hex              = { version = "0.4" }
+bs58             = { version = "0.5" }
+bech32           = { version = "0.11" }
+reqwest          = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio            = { version = "1",  features = ["macros", "rt-multi-thread"] }
+async-trait      = { version = "0.1" }
+thiserror        = { version = "1"   }
+tracing          = { version = "0.1" }
+
+[profile.release]
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+strip         = true

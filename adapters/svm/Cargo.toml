@@ -1,0 +1,19 @@
+[package]
+name        = "adapters-svm"
+version     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+authors     = { workspace = true }
+description = "TRION BTCP Solana adapter — Jupiter/Orca SWAP, SPL TRANSFER (C3 §14.1 P5 #25)"
+
+[dependencies]
+adapters-core = { workspace = true }
+serde          = { workspace = true }
+serde_json     = { workspace = true }
+sha3           = { workspace = true }
+hex            = { workspace = true }
+bs58           = { workspace = true }
+
+[lib]
+name = "adapters_svm"
+path = "src/lib.rs"
