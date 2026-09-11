@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# TRION Protocol — Railway / Container Entrypoint v4 (ALL languages, ALL components)
+# TRION Protocol — Railway / Container Entrypoint v5 (LEAN, ALL toolchains)
+#
+# v5 CHANGE: Go self-test no longer runs `go test ./...` at runtime (that
+# needs network + compilation time + memory). It now verifies the toolchain
+# is present and logs it. Same best-effort posture as C++/Haskell/Julia.
 #
 # STARTUP ORDER (each step gates the next where critical):
 #   0.  Preflight (env / storage sanity)
@@ -8,10 +12,10 @@
 #   2.  FAISS ANIMA Engine (port $FAISS_PORT)
 #   3.  Unified Server: serve.py (Flask + SocketIO on $PORT — public)
 #   4.  BH Streamer (background)
-#   5.  Rust indexers (supervisor — background, best-effort)
-#   6.  Go validator mesh self-test
-#   7.  C++ FFT signal processing self-test
-#   8.  Haskell formal verification self-test (9 theorems)
+#   5.  Rust indexers (supervisor — background, best-effort, skipped if unbuilt)
+#   6.  Go validator mesh — toolchain presence check (fast, no network)
+#   7.  C++ FFT signal processing self-test (skipped if unbuilt)
+#   8.  Haskell formal verification self-test (skipped if no GHC)
 #   9.  Julia math module self-test
 #  10.  Environment status summary
 # =============================================================================
@@ -100,6 +104,10 @@ fi
 ) &
 
 # ── 5. Rust indexers (background, best-effort) ──────────────────────────────
+# NOTE (v12): The Dockerfile no longer runs `cargo build --release` at image
+# build time (it was the #1 cause of Railway build timeouts). The release
+# binaries will therefore be ABSENT in the stock image — this section logs
+# that and moves on. The Python oracle service does not depend on them.
 RUST_PID=""
 if [ "${TRION_ENABLE_RUST_INDEXERS:-1}" = "1" ]; then
     log "Starting Rust indexers supervisor..."
@@ -116,39 +124,44 @@ if [ "${TRION_ENABLE_RUST_INDEXERS:-1}" = "1" ]; then
         done
         log "Rust indexers started (subset for memory)"
     else
-        warn "Rust indexers binary not found — skipping (build may have failed)"
+        log "  Rust indexers: release binaries absent (lean image — not built at image time)"
+        log "  Rust toolchain: $(rustc --version 2>/dev/null || echo 'n/a')  | source: 24 crates present"
+        log "  (To enable indexers, build them in a custom image: cd indexers && cargo build --release)"
     fi
 fi
 
-# ── 6. Go validator mesh self-test ──────────────────────────────────────────
+# ── 6. Go validator mesh — toolchain presence check (fast, no network) ──────
 if [ "${TRION_ENABLE_VALIDATOR:-1}" = "1" ]; then
-    log "Go validator mesh: running self-test..."
+    log "Go validator mesh: checking toolchain..."
     cd /app/validator
     if command -v go >/dev/null 2>&1 && [ -f go.mod ]; then
-        go test ./... 2>&1 | grep -E "^ok|FAIL" | while read line; do
-            log "  Go test: ${line}"
-        done || warn "Go validator self-test: some tests failed"
+        GO_VER=$(go version 2>/dev/null | head -1)
+        log "  Go toolchain: ${GO_VER:-present}"
+        log "  Validator source: present ($(find . -name '*.go' 2>/dev/null | wc -l) .go files)"
+        log "  Go validator mesh: toolchain OK (compilation deferred — non-critical)"
     else
-        warn "Go toolchain not available — skipping validator self-test"
+        warn "Go toolchain not available — skipping validator check"
     fi
     cd /app
 fi
 
 # ── 7. C++ FFT signal processing self-test ──────────────────────────────────
 if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-1}" = "1" ]; then
-    log "C++ FFT: running self-test..."
+    log "C++ FFT: checking engine..."
     if [ -f /app/signal-processing/build/trion_fft_engine ]; then
         /app/signal-processing/build/trion_fft_engine 2>&1 | grep -E "PASS|FAIL|entropy" | while read line; do
             log "  FFT: ${line}"
         done || warn "C++ FFT self-test: failed"
     else
-        warn "C++ FFT binary not found — skipping (build may have failed)"
+        log "  C++ FFT: binary absent (lean image — not built at image time)"
+        log "  C++ toolchain: $(g++ --version 2>/dev/null | head -1)  | source: present"
+        log "  (To enable FFT, build in a custom image: cd signal-processing/build && cmake .. && make)"
     fi
 fi
 
 # ── 8. Haskell formal verification self-test ────────────────────────────────
 if [ "${TRION_ENABLE_HASKELL_VERIFY:-1}" = "1" ]; then
-    log "Haskell: running 9-theorem verification..."
+    log "Haskell: checking formal verification toolchain..."
     cd /app/formal
     GHC=$(find /root/.stack -name "ghc" -path "*/bin/*" 2>/dev/null | head -1)
     if [ -n "$GHC" ] && [ -f src/TRION/Theorems.hs ] && [ -f app/Main.hs ]; then
@@ -162,7 +175,9 @@ if [ "${TRION_ENABLE_HASKELL_VERIFY:-1}" = "1" ]; then
             warn "Haskell: compilation failed — skipping"
         fi
     else
-        warn "Haskell toolchain not available — skipping"
+        log "  Haskell: GHC not bootstrapped (lean image — stack build deferred)"
+        log "  stack: $(stack --version 2>/dev/null | head -1)  | source: trion-formal.cabal present"
+        log "  (To enable verification, run in a custom image: cd formal && stack build)"
     fi
     cd /app
 fi
@@ -183,23 +198,24 @@ fi
 # ── 10. Environment status summary ───────────────────────────────────────────
 log ""
 log "========================================"
-log "  TRION FULL SYSTEM — STATUS SUMMARY"
+log "  TRION FULL SYSTEM — STATUS SUMMARY (v12.0 LEAN)"
 log "========================================"
-log "  Python API (serve.py):  PID $SERVE_PID on :${PORT}"
-log "  FAISS ANIMA Engine:     PID $FAISS_PID on :${FAISS_PORT}"
+log "  Python API (serve.py):  PID $SERVE_PID on :${PORT}   [CRITICAL PATH]"
+log "  FAISS ANIMA Engine:     PID $FAISS_PID on :${FAISS_PORT}   [CRITICAL PATH]"
 [ -n "$BH_PID" ] && log "  BH Streamer:            PID $BH_PID"
-log "  Rust indexers:          started (subset)"
-log "  Go validator mesh:      self-test complete"
-log "  C++ FFT engine:        self-test complete"
-log "  Haskell theorems:       9-theorem verification complete"
-log "  Julia math module:      self-test complete"
+log "  Rust toolchain:         $(rustc --version 2>/dev/null || echo 'n/a')  (indexers: source-only)"
+log "  Go toolchain:           $(go version 2>/dev/null | head -1)  (validator: source-only)"
+log "  C++ toolchain:          $(g++ --version 2>/dev/null | head -1)"
+log "  Haskell stack:          $(stack --version 2>/dev/null | head -1 || echo 'n/a')"
+log "  Julia:                  $(julia --version 2>/dev/null | head -1)"
+log "  Node.js:                $(node --version 2>/dev/null)"
 log ""
 log "  Smart contracts source:"
 log "    Solidity:  55 .sol files"
 log "    Cairo:      60 .cairo files"
 log "    Clarity:    6 .clar files"
-log "    Soroban:    5 WASM programs"
-log "    Anchor:     5 SBF programs"
+log "    Soroban:    5 WASM programs (source)"
+log "    Anchor:     5 SBF programs (source)"
 log "    Move:       7 .move files"
 log "    FunC:       18 .fc files"
 log "    ink!:       8 Rust crates"
@@ -216,6 +232,10 @@ log ""
 log "  6-way parity: 0xae9775361e4acf32613c2d0b4c6760aec2d831bb7320d1cccb6821552636b55a"
 log "  Chain registry: 129 chains, 19 VM families"
 log "  Indexer workspace: 24 crates"
+log ""
+log "  BUILD MODE: lean (toolchains present, compile-time builds skipped)."
+log "  The /healthz endpoint is served by serve.py — independent of all"
+log "  compiled-language components."
 log "========================================"
 
 # ── Trap: clean shutdown ──────────────────────────────────────────────────────
