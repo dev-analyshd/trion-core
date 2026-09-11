@@ -501,7 +501,12 @@ mod tests {
     #[test]
     fn test_verify_proof_rejects_insufficient_signers() {
         let builder = BTCPProofBuilder::with_block(18000000);
-        let (sigs, weights, hhi) = generate_mock_signatures_for_tests(2);
+        // Use 5 signers for low HHI (0.2, below the 0.4 concentration threshold)
+        // but then only include 2 signatures in the proof to trigger InsufficientSigners.
+        let (mut sigs, weights, hhi) = generate_mock_signatures_for_tests(5);
+        // Truncate to 2 signers — HHI stays at 0.2 (from the 5-signer set)
+        // so TooConcentrated does NOT fire; InsufficientSigners fires instead.
+        sigs.truncate(2);
 
         let proof = builder.build_proof(
             H256::sha3(b"anchor"),

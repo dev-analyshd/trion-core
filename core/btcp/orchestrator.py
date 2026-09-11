@@ -39,7 +39,28 @@ try:
         CircuitType,
     )
 except ImportError:
-    pass  # zk-circuits optional
+    # ZK layer optional — stub for environments without the zk package.
+    # R-LABELS: ZK proofs labeled [OPEN] when ZKProofSystem is the stub.
+    class ZKProofSystem:  # type: ignore[no-redef]
+        """Stub ZK proof system — proofs are [OPEN] when this stub is active."""
+        def __init__(self):
+            self._available = False
+
+        def is_available(self) -> bool:
+            return self._available
+
+        def generate_proof(self, *args, **kwargs):
+            raise NotImplementedError(
+                "ZK proof system not installed — install the zk package "
+                "or use zk-circuits/commitments/ for the commitment layer"
+            )
+
+    IntentWitness = None  # type: ignore[assignment,misc]
+    ComplementarityWitness = None  # type: ignore[assignment,misc]
+    BehavioralCredentialWitness = None  # type: ignore[assignment,misc]
+    TravelRuleWitness = None  # type: ignore[assignment,misc]
+    IAPShareWitness = None  # type: ignore[assignment,misc]
+    CircuitType = None  # type: ignore[assignment,misc]
 
 from adapters import (
     VMAdapterFactory,
