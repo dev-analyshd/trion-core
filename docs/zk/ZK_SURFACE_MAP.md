@@ -322,3 +322,62 @@ A-AUD reviews Phase 1 before Phase 2 begins.
 
 *Authored by A-SPEC. v-stamp: `bzk-surface-map-v0.1`. Status: Phase 0
 ACCEPTANCE GATE PASSED.*
+
+---
+
+## FINAL STATUS (post-Phase 7 audit)
+
+> **Authored by:** A-DOCS (documentation engineer) — Task ID: BZK-PHASE-8
+> **Source of truth:** `docs/zk/A_AUD_ledger.md` (Phase 7 independent
+> verifier report; v-stamp `bzk-audit-v0.1`). All statuses below are
+> re-derived from the audit, not from agent self-reports.
+> **R-LABELS:** every claim carries a label (VERIFIED / MEASURED /
+> OPEN / GATED-OPEN / SYNTHETIC-DEMO). Spec estimates retain ESTIMATE.
+
+### Final per-surface status (R-LABELS applied)
+
+| ID | Surface | Final Status (Phase 1-7 outcome) | Constraint Count | Round-Trip | Notes |
+|---|---|---|---|---|---|
+| S1 Phase 1 | ZK Intent Commitment (hash-only commit) | **IMPLEMENTED-TESTED** (Phase 2 + Phase 4) | n/a (hash-only, no circuit) | n/a | `IntentCommitmentRegistry.sol` deployed + 29 Hardhat tests passing; `akashic_root.compute_root` publishes roots. VERIFIED by A-AUD §3. |
+| S1 Phase 2 | ZK Complementarity proof (BTCP §5.6) | **COMPILED, ROUND-TRIP [OPEN]** | **2,686 MEASURED** (vs ~50k ESTIMATE per BTCP §5.6) | `[OPEN]` per Phase 3 §4 BLOCKER (Groth16 setup >240s) | `zk_complementarity_proof/circuit.circom` + `ComplementarityVerifier.sol` wrapper (pluggable `setVerifier`). CW-9 finding: MEASURED 18.6× smaller than spec ESTIMATE because Poseidon + field-equality constraints (not in-circuit SHA3). |
+| S2 | ZK IAP Share Proof (BTCP §5.3) | **COMPILED, ROUND-TRIP [OPEN]**; transparent IAP **LIVE** (Phase 5) | **1,078 MEASURED** (no spec estimate) | `[OPEN]` per Phase 3 §4 BLOCKER (PLONK setup) | Transparent IAP live in `core/zk/iap_transparent.py` (Phase 5); ZK shares `[OPEN]` per R-ORDER (BTCP §14.1 P3 #11). |
+| S3 | ZK Travel Rule (BTCP Fix 1) | **COMPILED, ROUND-TRIP [OPEN]**; `TravelRuleCompliance.sol` **DEPLOYED** (Phase 4) | **1,179 MEASURED** (no spec estimate) | `[OPEN]` per Phase 3 §4 BLOCKER (PLONK setup) | TravelRuleCompliance.sol deployed to 2 local Hardhat VMs with tx hashes recorded (Phase 4). Chameleon tiers LOW/MEDIUM/HIGH/CRITICAL wired per BTCP Fix 1. AWA freeze enforced on CRITICAL tier per WP-Feb §14.2. |
+| S4 | Sensing Oracle / Behavioral Credential (BTCP §7.1) | **GATED-OPEN** — single-epoch base COMPILED; multi-year aggregation **GATED-OPEN** per Phase 1 §4.5 | **3,298 MEASURED** (single-epoch base only) vs 500k-2M ESTIMATE per BTCP §7.1 CONJECTURE for multi-year aggregation | NOT ATTEMPTED (GATED-OPEN) | NO partial activation claim. Plonky2/Nova toolchain not installed; threshold criteria per `FEASIBILITY_AND_SETUP.md §4.5`. A-AUD §8 confirmed no silent activation. Filed as EP-1. |
+| S5 | BIRP (WP-Mar §16) | **GATED-OPEN** — enrollment store **LIVE** (Phase 2.4); recovery path **GATED-OPEN** | n/a (hash-only enrollment; no circuit) | n/a | `birp_store.py` stores `BIRP_anchor = Hash_DNA(BEO_baseline || Hash(DNA_Code) || enrollment_timestamp || behavioral_entropy_seed)` only — never stores `DNA_Code` content. Recovery path Phases 1-5 GATED-OPEN pending drift false-negative empirical validation per WP-Mar §16 CONJECTURE. Filed as EP-2. |
+
+### Audit verdict (per `A_AUD_ledger.md §10`)
+
+- **13/18 D-items YES**
+- **2 PARTIAL** (D5, D12 — round-trip `[OPEN]` per Phase 3 BLOCKER)
+- **3 INCOMPLETE** (D15, D16, D18 — Phase 8 + Phase 9 to execute)
+- **0 FAIL** / 0 unlabeled inventions / 0 conjecture-as-fact /
+  0 citation mismatches / 0 measurement mismatches (5/5 reproduce)
+
+### BLOCKER (per Phase 3 §4.3 + Phase 7 audit §11)
+
+**Groth16 setup time > 240 seconds exceeds the sandbox command timeout.**
+This blocks the prove/verify round-trip (Z1, Z3-rt, Z4, Z12 — all `[OPEN]`)
+and the exported `verifier.sol` plug-in to `ComplementarityVerifier.setVerifier`.
+It does NOT end the mission and does NOT invite invention per mission
+BLOCKER PROTOCOL.
+
+**Threshold criteria for closure:**
+1. Run in an environment with command timeout > 10 minutes, OR
+2. Use `nohup` + `screen` in a persistent environment, OR
+3. Use a remote build server (Railway build phase, CircleCI).
+
+When closed, exported `verifier.sol` drops into `ComplementarityVerifier.setVerifier(circuitId, address)`.
+
+### FORBIDDEN: AGREEMENT STATEMENT
+
+Per mission FORBIDDEN section + Phase 7 audit §11: the AGREEMENT
+STATEMENT (verbatim "I AGREE 100%:") is NOT emitted at this phase
+because D5, D12, D15, D16, D18 are not full YES. Phase 9 (AGREEMENT
+GATE) owns that statement. This surface map reports honest status only.
+
+---
+
+*v-stamp: `bzk-surface-map-v0.2` (post-Phase 7 audit final status).
+Status: 1/5 surfaces IMPLEMENTED-TESTED (S1 Phase 1); 3/5 surfaces
+COMPILED with round-trip [OPEN] (S1 Phase 2, S2, S3); 2/5 surfaces
+GATED-OPEN (S4, S5 — no partial activation claim). 0 FAIL.*
