@@ -34,7 +34,12 @@ FAISS_API_KEY = "trion-railway-key"
 PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
 
-# Memory-safe lean defaults (v12.1) — flip to "1" on a plan with >= 2 GB RAM
+# Memory-safe lean defaults (v12.2) — TRION_FORCE_LEAN=1 forces ALL optional
+# services OFF regardless of Railway dashboard Variables or detected memory.
+# This is the safest default for Railway's free/hobby tier.
+# To restore full functionality on a >= 2 GB plan, set TRION_FORCE_LEAN=0 AND
+# TRION_ENABLE_STREAMER=1 TRION_FAISS_LOAD_INDEX=1 in Railway Variables.
+TRION_FORCE_LEAN = "1"
 TRION_ENABLE_STREAMER = "0"
 TRION_FAISS_LOAD_INDEX = "0"
 TRION_ENABLE_BACKFILL = "0"

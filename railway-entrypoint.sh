@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
 # =============================================================================
-# TRION Protocol — Railway / Container Entrypoint v6 (MEMORY-SAFE LEAN)
+# TRION Protocol — Railway / Container Entrypoint v7 (GIVE-UP WATCHDOG)
 #
-# v6 CHANGE LOG — fixes Railway runtime OOM:
-#   ROOT CAUSE: v5 started 3 heavy processes concurrently (FAISS loading a
-#   195K-vector ~600MB index, serve.py with web3 + 48 chains, BH streamer
-#   with 48 chain sockets + 8K-record queue) plus a 60s-delayed backfill
-#   of 85K entities. Total peak > 2 GB → Linux OOM killer SIGKILL'd both
-#   FAISS and serve.py at T+87s, causing a crash loop.
+# v7 CHANGE LOG — fixes Railway runtime OOM crash loop (v12.1 follow-up):
+#   PROBLEM: v12.1 detected memory via cgroup, but Railway exposes the HOST
+#   memory limit (976 GB) via /sys/fs/cgroup/memory.max instead of the
+#   container limit (~512 MB-1 GB). The lean-mode guard never triggered.
+#   Railway Variables (dashboard) also overrode the railway.json defaults,
+#   so TRION_ENABLE_STREAMER=1 and TRION_FAISS_LOAD_INDEX=1 persisted.
+#   Result: FAISS OOM-killed every 30s in an infinite restart loop.
 #
-#   FIX (v6):
-#     - TRION_ENABLE_STREAMER default 0 (was 1) — was the #3 memory hog
-#       and the source of "database is locked" contention with serve.py.
-#     - TRION_FAISS_LOAD_INDEX default 0 (new) — skip preloading the
-#       195K-vector index. FAISS starts empty; /index/add_batch + streamer
-#       repopulate at runtime.
-#     - Auto-backfill now gated on TRION_ENABLE_STREAMER=1 AND
-#       TRION_ENABLE_BACKFILL=1 (was unconditional).
-#     - Non-critical self-tests (Julia/Haskell/C++/Rust/Go/Signal) default
-#       OFF — they consume memory at boot for no operational benefit.
-#     - Memory guard log at startup prints cgroup limit + recommended plan.
-#     - Watchdog on serve.py death: still exits 1 (so Railway restarts the
-#       container and frees all leaked memory), but logs the death cause.
+#   FIX (v7):
+#     - Memory detection: read cgroup v2 + v1 + `free -m`. Treat values
+#       > 64 GB as "host limit leaked through" and ignore. Auto-detect
+#       Railway env vars (RAILWAY_PROJECT_ID etc.) → force lean if memory
+#       is unknown (safer default for Railway).
+#     - New TRION_FORCE_LEAN env var: =1 forces lean mode regardless of
+#       detected memory. Operator can set this in Railway Variables to
+#       override dashboard-level TRION_ENABLE_STREAMER=1.
+#     - Watchdog GIVE-UP: after 3 consecutive FAISS OOM kills, stop
+#       restarting FAISS. serve.py keeps running alone → /healthz stays
+#       UP → Railway considers container healthy. FAISS-dependent
+#       endpoints return 503 until memory is freed.
+#     - OOM counter resets on any non-OOM FAISS death.
 #
 # STARTUP ORDER (each step gates the next where critical):
 #   0.  Preflight (env / storage sanity) + memory guard
@@ -57,32 +58,81 @@ log()  { echo "[entrypoint $(date +%H:%M:%S)] $*"; }
 warn() { echo "[entrypoint $(date +%H:%M:%S)] WARN: $*" >&2; }
 
 # ── Memory guard: log cgroup limit + warn if constrained ────────────────────
-_mem_limit_kb=""
+# Railway does not always expose a real container memory limit via the
+# standard cgroup paths (sometimes the host limit leaks through). We read
+# multiple sources and treat absurd values (>64 GB) as "host, not container".
+_mem_limit_mb=""
+_mem_source=""
+# cgroup v2
 if [ -r /sys/fs/cgroup/memory.max ]; then
-    _mem_limit_kb=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
-elif [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
-    _mem_limit_kb=$(( $(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null) / 1024 ))
-fi
-if [ -n "$_mem_limit_kb" ] && [ "$_mem_limit_kb" != "max" ]; then
-    _mem_limit_mb=$(( _mem_limit_kb / 1024 ))
-    log "Memory limit (cgroup): ${_mem_limit_mb} MB"
-    if [ "$_mem_limit_mb" -lt 1500 ]; then
-        warn "Memory limit < 1.5 GB — running in LEAN MODE (streamer/backfill/non-critical self-tests OFF)."
-        warn "To enable full stack, upgrade Railway plan OR set TRION_ENABLE_STREAMER=1 TRION_FAISS_LOAD_INDEX=1."
-        # Force lean defaults if operator did not explicitly opt in
-        : "${TRION_ENABLE_STREAMER:=0}"
-        : "${TRION_FAISS_LOAD_INDEX:=0}"
-        : "${TRION_ENABLE_BACKFILL:=0}"
-        : "${TRION_ENABLE_JULIA_MATH:=0}"
-        : "${TRION_ENABLE_HASKELL_VERIFY:=0}"
-        : "${TRION_ENABLE_SIGNAL_PROCESSING:=0}"
-        : "${TRION_ENABLE_RUST_INDEXERS:=0}"
-        : "${TRION_ENABLE_VALIDATOR:=0}"
-        export TRION_ENABLE_STREAMER TRION_FAISS_LOAD_INDEX TRION_ENABLE_BACKFILL \
-               TRION_ENABLE_JULIA_MATH TRION_ENABLE_HASKELL_VERIFY \
-               TRION_ENABLE_SIGNAL_PROCESSING TRION_ENABLE_RUST_INDEXERS \
-               TRION_ENABLE_VALIDATOR
+    _v=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+    if [ "$_v" != "max" ] && [ -n "$_v" ]; then
+        _mem_limit_mb=$(( _v / 1024 / 1024 ))
+        _mem_source="cgroup-v2"
     fi
+fi
+# cgroup v1 fallback
+if [ -z "$_mem_limit_mb" ] && [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+    _v=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null)
+    if [ -n "$_v" ]; then
+        _mem_limit_mb=$(( _v / 1024 / 1024 ))
+        _mem_source="cgroup-v1"
+    fi
+fi
+# Treat values > 64 GB as "host limit leaked through" — cannot trust
+if [ -n "$_mem_limit_mb" ] && [ "$_mem_limit_mb" -gt 65536 ]; then
+    warn "cgroup memory.max=${_mem_limit_mb} MB (looks like HOST limit, not container). Treating as unknown."
+    _mem_limit_mb=""
+    _mem_source=""
+fi
+# `free -m` as a last-resort hint (total RAM visible to the process)
+if [ -z "$_mem_limit_mb" ] && command -v free >/dev/null 2>&1; then
+    _free_total=$(free -m 2>/dev/null | awk '/^Mem:/ {print $2}')
+    if [ -n "$_free_total" ]; then
+        _mem_limit_mb="$_free_total"
+        _mem_source="free-m"
+    fi
+fi
+
+if [ -n "$_mem_limit_mb" ]; then
+    log "Memory limit (${_mem_source}): ${_mem_limit_mb} MB"
+else
+    log "Memory limit: UNKNOWN (cgroup paths unreadable or host limit leaked through)"
+fi
+
+# Determine if we should force lean mode:
+#   - explicit TRION_FORCE_LEAN=1 always wins
+#   - otherwise: detected memory < 1500 MB
+_force_lean=0
+if [ "${TRION_FORCE_LEAN:-0}" = "1" ]; then
+    _force_lean=1
+    log "TRION_FORCE_LEAN=1 — forcing LEAN MODE regardless of detected memory."
+elif [ -n "$_mem_limit_mb" ] && [ "$_mem_limit_mb" -lt 1500 ]; then
+    _force_lean=1
+    warn "Memory limit < 1.5 GB (${_mem_limit_mb} MB) — running in LEAN MODE."
+elif [ -z "$_mem_limit_mb" ]; then
+    # Unknown memory + Railway environment → assume constrained to be safe
+    if [ -n "${RAILWAY_PROJECT_ID:-}${RAILWAY_ENVIRONMENT_ID:-}${RAILWAY_SERVICE_ID:-}" ]; then
+        _force_lean=1
+        warn "Railway environment detected + memory limit unknown — defaulting to LEAN MODE for safety."
+    fi
+fi
+
+if [ "$_force_lean" = "1" ]; then
+    warn "LEAN MODE active: streamer/backfill/FAISS-index-preload/non-critical self-tests OFF."
+    warn "To override: set TRION_FORCE_LEAN=0 AND TRION_ENABLE_STREAMER=1 TRION_FAISS_LOAD_INDEX=1."
+    # Force lean defaults if operator did not explicitly opt in.
+    # NOTE: Railway Variables (dashboard) override railway.json env, so the
+    # operator MUST remove dashboard-level TRION_ENABLE_STREAMER=1 to let
+    # these defaults take effect. We still set them here as a safety net.
+    export TRION_ENABLE_STREAMER=0
+    export TRION_FAISS_LOAD_INDEX=0
+    export TRION_ENABLE_BACKFILL=0
+    export TRION_ENABLE_JULIA_MATH=0
+    export TRION_ENABLE_HASKELL_VERIFY=0
+    export TRION_ENABLE_SIGNAL_PROCESSING=0
+    export TRION_ENABLE_RUST_INDEXERS=0
+    export TRION_ENABLE_VALIDATOR=0
 fi
 
 # ── 0. Preflight ───────────────────────────────────────────────────────────
@@ -253,7 +303,7 @@ fi
 # ── 10. Environment status summary ───────────────────────────────────────────
 log ""
 log "========================================"
-log "  TRION FULL SYSTEM — STATUS SUMMARY (v12.1 MEMORY-SAFE LEAN)"
+log "  TRION FULL SYSTEM — STATUS SUMMARY (v12.2 MEMORY-SAFE + GIVE-UP)"
 log "========================================"
 log "  Python API (serve.py):  PID $SERVE_PID on :${PORT}   [CRITICAL PATH]"
 log "  FAISS ANIMA Engine:     PID $FAISS_PID on :${FAISS_PORT}   [CRITICAL PATH]"
@@ -293,6 +343,7 @@ log "  The /healthz endpoint is served by serve.py — independent of all"
 log "  compiled-language components."
 log ""
 log "  Memory/feature toggles (env vars):"
+log "    TRION_FORCE_LEAN=${TRION_FORCE_LEAN:-0}             (force all optional services OFF)"
 log "    TRION_ENABLE_STREAMER=${TRION_ENABLE_STREAMER:-0}     (live chain ingestion)"
 log "    TRION_FAISS_LOAD_INDEX=${TRION_FAISS_LOAD_INDEX:-1}    (preload 195K-vector index on boot)"
 log "    TRION_ENABLE_BACKFILL=${TRION_ENABLE_BACKFILL:-0}     (BH → FAISS bulk import)"
@@ -306,7 +357,9 @@ log "========================================"
 # ── Trap: clean shutdown ──────────────────────────────────────────────────────
 cleanup() {
     log "Shutting down TRION stack..."
-    for pid in $SERVE_PID $FAISS_PID $BH_PID; do
+    # Read current FAISS PID from shared state (may have changed in watchdog)
+    _faiss_pid_now=$(cut -d'|' -f1 /tmp/trion_faiss_state 2>/dev/null)
+    for pid in $SERVE_PID $_faiss_pid_now $BH_PID; do
         [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
     done
     wait 2>/dev/null
@@ -315,34 +368,68 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # ── Watchdog ─────────────────────────────────────────────────────────────────
+# Give-up logic: if FAISS gets OOM-killed N consecutive times, stop trying to
+# restart it. serve.py (the /healthz critical path) keeps running alone. This
+# breaks the crash loop and lets Railway consider the container healthy.
+#
+# State is shared between the watchdog subshell and the periodic-status
+# subshell via /tmp/trion_faiss_state (PID + gave-up flag).
+_FAISS_OOM_COUNT=0
+_FAISS_OOM_LIMIT=3
+echo "${FAISS_PID}|0" > /tmp/trion_faiss_state
 (
     while true; do
         sleep 30
-        if ! kill -0 "$FAISS_PID" 2>/dev/null; then
-            # Detect OOM kill (exit 137 = 128+SIGKILL, 139 = 128+SIGSEGV)
-            wait "$FAISS_PID" 2>/dev/null
-            _faiss_rc=$?
+        _current_faiss_pid=$(cut -d'|' -f1 /tmp/trion_faiss_state 2>/dev/null)
+        _gave_up=$(cut -d'|' -f2 /tmp/trion_faiss_state 2>/dev/null)
+        if [ "$_gave_up" = "1" ]; then
+            # Already gave up on FAISS — only check serve.py now
+            if ! kill -0 "$SERVE_PID" 2>/dev/null; then
+                wait "$SERVE_PID" 2>/dev/null
+                _serve_rc=$?
+                warn "serve.py died (exit $_serve_rc) — exiting for Railway restart"
+                exit 1
+            fi
+            continue
+        fi
+        if [ -z "$_current_faiss_pid" ] || ! kill -0 "$_current_faiss_pid" 2>/dev/null; then
+            if [ -n "$_current_faiss_pid" ]; then
+                wait "$_current_faiss_pid" 2>/dev/null
+                _faiss_rc=$?
+            else
+                _faiss_rc=0
+            fi
             if [ "$_faiss_rc" -eq 137 ] || [ "$_faiss_rc" -eq 139 ]; then
-                warn "FAISS was OOM-killed (exit $_faiss_rc). Restarting with TRION_FAISS_LOAD_INDEX=0."
+                _FAISS_OOM_COUNT=$((_FAISS_OOM_COUNT + 1))
+                warn "FAISS was OOM-killed (exit $_faiss_rc). OOM count: ${_FAISS_OOM_COUNT}/${_FAISS_OOM_LIMIT}"
                 export TRION_FAISS_LOAD_INDEX=0
+                if [ "$_FAISS_OOM_COUNT" -ge "$_FAISS_OOM_LIMIT" ]; then
+                    warn "FAISS OOM-killed ${_FAISS_OOM_COUNT}x consecutively — GIVING UP on FAISS restart."
+                    warn "serve.py will continue alone. /healthz remains UP (served by serve.py)."
+                    warn "FAISS-dependent endpoints will return 503 until memory is freed (upgrade plan)."
+                    echo "|1" > /tmp/trion_faiss_state
+                    continue
+                fi
             else
                 warn "FAISS died (exit $_faiss_rc) — restarting..."
+                _FAISS_OOM_COUNT=0   # reset counter on non-OOM death
             fi
             cd /app/anima-service
             OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
             PORT="${FAISS_PORT}" FAISS_API_KEY="${FAISS_API_KEY}" \
             TRION_FAISS_LOAD_INDEX="${TRION_FAISS_LOAD_INDEX:-0}" \
             python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port "${FAISS_PORT}" --workers 1 &
-            FAISS_PID=$!
+            _new_pid=$!
             cd /app
-            log "FAISS restarted (PID $FAISS_PID)"
+            echo "${_new_pid}|0" > /tmp/trion_faiss_state
+            log "FAISS restarted (PID $_new_pid)"
         fi
         if ! kill -0 "$SERVE_PID" 2>/dev/null; then
             wait "$SERVE_PID" 2>/dev/null
             _serve_rc=$?
             if [ "$_serve_rc" -eq 137 ] || [ "$_serve_rc" -eq 139 ]; then
                 warn "serve.py was OOM-killed (exit $_serve_rc). Container will restart to free memory."
-                warn "If this recurs: set TRION_ENABLE_STREAMER=0 and TRION_FAISS_LOAD_INDEX=0 in Railway env."
+                warn "If this recurs: set TRION_FORCE_LEAN=1 in Railway Variables (forces all optional services OFF)."
             else
                 warn "serve.py died (exit $_serve_rc) — exiting for Railway restart"
             fi
@@ -357,7 +444,15 @@ WATCHDOG_PID=$!
     while true; do
         sleep 300
         _serve_ok=$(kill -0 "$SERVE_PID" 2>/dev/null && echo UP || echo DOWN)
-        _faiss_ok=$(kill -0 "$FAISS_PID" 2>/dev/null && echo UP || echo DOWN)
+        _faiss_pid_now=$(cut -d'|' -f1 /tmp/trion_faiss_state 2>/dev/null)
+        _gave_up_now=$(cut -d'|' -f2 /tmp/trion_faiss_state 2>/dev/null)
+        if [ "$_gave_up_now" = "1" ]; then
+            _faiss_ok="GAVE-UP"
+        elif [ -n "$_faiss_pid_now" ] && kill -0 "$_faiss_pid_now" 2>/dev/null; then
+            _faiss_ok="UP"
+        else
+            _faiss_ok="DOWN"
+        fi
         _api_status=$(curl -s --max-time 3 "http://127.0.0.1:${PORT}/healthz" 2>/dev/null | head -c 50)
         log "STATUS serve=${_serve_ok} faiss=${_faiss_ok} api=${_api_status}"
     done
