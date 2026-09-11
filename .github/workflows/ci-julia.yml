@@ -8,7 +8,7 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.10'
-      - name: Run Julia tests
+      - name: Install dependencies and run tests
         run: |
           cd math
           julia --project=. -e '
@@ -16,5 +16,6 @@ jobs:
             Pkg.add("Test")
             Pkg.add("Statistics")
             Pkg.add("LinearAlgebra")
-            include("test/runtests.jl")
+            Pkg.instantiate()
           '
+          julia --project=. test/runtests.jl
