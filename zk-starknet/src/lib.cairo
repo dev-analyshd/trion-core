@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: CC0-1.0
 // TRION Protocol — ZK Starknet Substrate
-// Workspace entry point for S1-S5 ZK circuits (library modules — testable)
-//
-// The zk_verifier contract module is compiled separately via the
-// [[target.starknet-contract]] target in Scarb.toml. It is NOT included
-// here because #[starknet::contract] modules cannot be compiled in the
-// library (test) context.
+// Library modules (testable) — the zk_verifier contract is in a separate
+// sub-package at zk-starknet/contract/ to avoid #[starknet::contract]
+// compilation conflicts with the test runner.
 
 pub mod hash_dna;
 pub mod s1_intent_commitment;
