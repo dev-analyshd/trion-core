@@ -95,9 +95,61 @@ def test_hardhat_twin_set_is_exhaustive():
     for root, _dirs, files in os.walk(HARDHAT_CONTRACTS):
         for f in files:
             found.add(os.path.relpath(os.path.join(root, f), HARDHAT_CONTRACTS))
-    assert found == set(HARDHAT_TWIN_MAP), (
-        f"hardhat/contracts file set changed: extra={sorted(found - set(HARDHAT_TWIN_MAP))} "
-        f"missing={sorted(set(HARDHAT_TWIN_MAP) - found)} — update HARDHAT_TWIN_MAP"
+    # BZK Phase 4 (A-CHAIN) introduces a new tree at contracts/zk/ with
+    # its own hardhat twins at hardhat/contracts/zk/. Those twins are
+    # pinned by HARDHAT_ZK_TWIN_MAP below, NOT by HARDHAT_TWIN_MAP. To
+    # keep the existing assertion honest, we exclude the zk/ subtree
+    # here and assert zk twin identity separately.
+    found_non_zk = {p for p in found if not p.startswith("zk" + os.sep)}
+    assert found_non_zk == set(HARDHAT_TWIN_MAP), (
+        f"hardhat/contracts file set changed: extra={sorted(found_non_zk - set(HARDHAT_TWIN_MAP))} "
+        f"missing={sorted(set(HARDHAT_TWIN_MAP) - found_non_zk)} — update HARDHAT_TWIN_MAP"
+    )
+
+
+# ── 1b. hardhat/contracts/zk/** twins are byte-identical to contracts/zk/** ──
+# (BZK Phase 4 twin policy — same byte-identity contract as the
+# hardhat/contracts/ ↔ contracts/solidity/ twin policy above, but for the
+# new zk verifier contracts at contracts/zk/.)
+
+ZK_DIR = os.path.join(REPO, "contracts", "zk")
+HARDHAT_ZK_DIR = os.path.join(HARDHAT_CONTRACTS, "zk")
+
+# hardhat/contracts/zk/<rel> → contracts/zk/<rel>. Byte-identical or fail.
+HARDHAT_ZK_TWIN_MAP = {
+    "TravelRuleCompliance.sol": "TravelRuleCompliance.sol",
+    "IntentCommitmentRegistry.sol": "IntentCommitmentRegistry.sol",
+    "ComplementarityVerifier.sol": "ComplementarityVerifier.sol",
+    "test/MockTravelRuleVerifier.sol": "test/MockTravelRuleVerifier.sol",
+    "test/MockComplementarityGroth16Verifier.sol":
+        "test/MockComplementarityGroth16Verifier.sol",
+}
+
+
+def test_hardhat_zk_twins_byte_identical():
+    for twin, canonical in sorted(HARDHAT_ZK_TWIN_MAP.items()):
+        t = os.path.join(HARDHAT_ZK_DIR, twin)
+        c = os.path.join(ZK_DIR, canonical)
+        assert os.path.isfile(t), f"missing hardhat zk twin: {t}"
+        assert os.path.isfile(c), f"missing canonical zk source: {c}"
+        assert _read(t) == _read(c), (
+            f"hardhat zk twin drifted from canonical source: {t} != {canonical}. "
+            "Copy the canonical file over (the twin policy is byte-identity)."
+        )
+
+
+def test_hardhat_zk_twin_set_is_exhaustive():
+    """Any .sol file under hardhat/contracts/zk must be a pinned twin."""
+    found = set()
+    for root, _dirs, files in os.walk(HARDHAT_ZK_DIR):
+        for f in files:
+            if f.endswith(".sol"):
+                found.add(os.path.relpath(os.path.join(root, f), HARDHAT_ZK_DIR))
+    assert found == set(HARDHAT_ZK_TWIN_MAP), (
+        f"hardhat/contracts/zk .sol file set changed: "
+        f"extra={sorted(found - set(HARDHAT_ZK_TWIN_MAP))} "
+        f"missing={sorted(set(HARDHAT_ZK_TWIN_MAP) - found)} — "
+        "update HARDHAT_ZK_TWIN_MAP"
     )
 
 
