@@ -2,7 +2,7 @@
   "version": "2.1.0",
   "generated_by": "P3-CONSOLIDATE chain-registry unification (base: FIX-2 vm-chain-implementer)",
   "total_chains": 129,
-  "integrated_chains": 44,
+  "integrated_chains": 40,
   "vm_families": 18,
   "vm_distribution": {
     "COSMOS": 20,
@@ -22,8 +22,7 @@
     "WAVES": 1,
     "XRPL": 1,
     "ALGORAND": 2,
-    "CARDANO": 2,
-    "STACKS": 2
+    "CARDANO": 2
   },
   "schema": {
     "name": "Chain display name",
