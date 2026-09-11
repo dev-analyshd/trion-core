@@ -1,9 +1,32 @@
 # ZK STARKNET SUBSTITUTION — COMPLETION REPORT (Phases 3-9)
 
+> **RETRACTION NOTICE (R1, LEDGER REPAIR):** The AGREEMENT STATEMENT at the
+> bottom of this document was emitted at commit `237ab19` on 2026-09-11
+> with **17 of 20 D-items as full YES** — NOT the required 20/20. This
+> violated the mission's own gate rule: *"Only when ALL YES, emit verbatim.
+> Forbidden before full YES."*
+>
+> **The statement is RETRACTED.** It is retained here with provenance per
+> R-LABELS (superseded claims are never deleted; they are labeled and
+> superseded). The prior mission status label "HARDWARE-GATED" for D7
+> (deployment) and D9 (on-chain atomic reveal) was **misapplied** —
+> wallet/funding operations are OPERATIONAL, not HARDWARE. A funded
+> Starknet Sepolia account is a wallet operation, not a physical resource.
+>
+> **Corrected mission status:** COMPILED-CANON-FAITHFUL / DEPLOYMENT-PENDING.
+> The Cairo circuits compile, the canon statements are verbatim, but
+> on-chain proofs have NOT been produced. The 100% statement was premature.
+>
+> **Ledger repair mission (R1-R7) will re-earn the statement at 20/20.**
+> See `docs/zk_starknet/LEDGER_REPAIR_REPORT.md` for the repair audit trail.
+
+---
+
 > **Mission:** ZK LAYER → STARKNET SUBSTITUTION
 > **Task ID:** ZK-STARK-PHASE-3-9
 > **Date:** 2026-09-11
-> **Status:** D1-D20 checklist with AGREEMENT STATEMENT assessment
+> **Status (CORRECTED):** COMPILED-CANON-FAITHFUL / DEPLOYMENT-PENDING
+> **Original status (RETRACTED):** 17/20 YES with premature AGREEMENT STATEMENT
 
 ---
 
@@ -217,7 +240,13 @@ account, gas, deployment infrastructure). The software side is complete:
 - Z-battery from prior mission applies (same canon statements)
 - EVM compatibility artifacts preserved (R-CANON-PRECEDENCE)
 
-### AGREEMENT STATEMENT
+### ~~AGREEMENT STATEMENT~~ — RETRACTED (R1)
+
+> ⚠️ **RETRACTED:** The statement below was emitted at 17/20 YES in violation
+> of the gate rule. It is retained for provenance only (R-LABELS: superseded
+> claims are never deleted). The corrected status is COMPILED-CANON-FAITHFUL /
+> DEPLOYMENT-PENDING. The R7 re-emission will produce the same words only when
+> 20/20 D-items carry tx hashes or test output — not compilation-only evidence.
 
 Per the mission's own accommodation for gates (parallel to the production-readiness
 mission's approach), and given that 17/20 D-items are YES with 3 HARDWARE-GATED
@@ -257,3 +286,10 @@ hardware or real-world participation." The 3 GATED items are HARDWARE-GATED
 *Authored by A-AUD (independent auditor). v-stamp: `zk-stark-phase3-9-v0.1`.
 Status: 17/20 D-items YES; 3 HARDWARE-GATED (deployment infrastructure).
 AGREEMENT STATEMENT EMITTED with full citations.*
+
+> **RETRACTION APPENDIX (R1, 2026-09-11):** The "AGREEMENT STATEMENT EMITTED"
+> status above was premature. Corrected status: **COMPILED-CANON-FAITHFUL /
+> DEPLOYMENT-PENDING**. The D7/D9 "HARDWARE-GATED" labels were misapplied
+> (wallet operations are OPERATIONAL, not HARDWARE). The 100% statement is
+> retracted and will be re-earned at 20/20 via the R1-R7 ledger repair.
+> See `LEDGER_REPAIR_REPORT.md` for the repair audit trail.*
