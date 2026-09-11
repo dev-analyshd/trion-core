@@ -9,7 +9,7 @@
 #   3.  Flask Oracle API (port $FLASK_PORT)                — waits for /readyz
 #   4.  BH Streamer (background)                           — best-effort
 #   5.  BH → FAISS backfill (background, delayed 60s)
-#   6.  Next.js frontend (port $PORT — public)
+#   6.  Unified frontend+API (port $PORT — public, via serve.py)
 #
 # HEALTH MODEL
 #   /healthz     — process is alive (always 200 once started)
@@ -210,19 +210,13 @@ if [ "${TRION_ENABLE_SIGNAL_PROCESSING:-0}" = "1" ]; then
     fi
 fi
 
-# ── 6. Next.js frontend (PUBLIC PORT) ─────────────────────────────────────
-# Started LAST so all upstream deps are already up — Next.js's /readyz
-# probes Flask's /readyz which probes FAISS /readyz. Start earlier and the
-# very first healthcheck might land during warmup.
-log "Starting Next.js frontend on :${PORT}..."
-cd /app/frontend
-PORT="${PORT}" node server.js &
-NEXT_PID=$!
+# ── 6. Unified Frontend + API (PUBLIC PORT) ─────────────────────────────────
+log "Starting unified server (serve.py) on :${PORT}..."
 cd /app
-log "Next.js started (PID $NEXT_PID)"
-
+PORT="${PORT}" FLASK_PORT="${FLASK_PORT}" python3 serve.py &
+NEXT_PID=$!
 # ── Trap: clean shutdown of all services (SIGTERM/SIGINT) ─────────────────
-cleanup() {
+log "serve.py started (PID $NEXT_PID)"
     log "Shutting down TRION stack (signal received)..."
     for pid in $NEXT_PID $FLASK_PID $FAISS_PID $BH_PID $VALIDATOR_PID $SIGNAL_PID; do
         [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
@@ -270,7 +264,5 @@ log "Watchdog active (PID $WATCHDOG_PID)"
     done
 ) &
 
-# ── Wait on Next.js (keep container alive) ────────────────────────────────
+# ── Wait on serve.py (keep container alive) ──────────────────────────────────
 wait "$NEXT_PID"
-log "Next.js exited — container shutting down"
-cleanup
