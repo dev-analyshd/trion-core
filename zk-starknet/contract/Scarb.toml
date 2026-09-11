@@ -1,0 +1,11 @@
+[package]
+name = "zk_verifier_contract"
+version = "0.1.0"
+edition = "2024_07"
+
+[dependencies]
+starknet = ">=2.8.4"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
