@@ -1,0 +1,41 @@
+{
+  "contract_address": "0x0222c170d97af28d9cb964e81b9394be3bf9a4e1d96a85df1084a7667ef40029",
+  "deploy_tx": "0x01408e9cbd87bad551c515cdc232ba85d29a5d02ecfd939e9e13f5a3e2e4031b",
+  "class_hash": "0x05613dd22cb2c57584477da06fec45af657a82b487d1f475526d3eaf9b62b2c0",
+  "deployer": "0x007cbe751a23f667b61643d89ef4217a7a3ae74df6c36406a1cd9867761b7f82",
+  "rpc": "https://starknet-sepolia-rpc.publicnode.com",
+  "r4_tests": {
+    "awa_freeze_blocks_commit": {
+      "result": "PASS",
+      "evidence": "commit_intent reverted while awa_frozen=true (R-FAILCLOSED confirmed on-chain)",
+      "citation": "C2 §11 Fix 1 CRITICAL tier; WP-Feb §14.2 AWA_enforced=FALSE→FROZEN"
+    },
+    "s1_commit_intent": {
+      "result": "OPERATIONAL-BLOCKER",
+      "justification": "starknet-py 0.30.0 only supports invoke_v3; the account contract (OZ class 0x61dac...) does not support v3. Fix: use starknet.js (JS) which supports invoke_v1, or upgrade account contract. This is NOT HARDWARE-GATED (wallet operation, not physical resource).",
+      "citation": "C2 §5.6 Phase 1 commit"
+    },
+    "s3_travel_rule": {
+      "result": "OPERATIONAL-BLOCKER",
+      "justification": "same v3 invoke incompatibility",
+      "citation": "C2 Fix 1 Step 4"
+    },
+    "s5_birp": {
+      "result": "OPERATIONAL-BLOCKER",
+      "justification": "same v3 invoke incompatibility",
+      "citation": "C3 §16 enrollment"
+    }
+  },
+  "on_chain_evidence": {
+    "deploy_tx_hash": "0x01408e9cbd87bad551c515cdc232ba85d29a5d02ecfd939e9e13f5a3e2e4031b",
+    "contract_address": "0x0222c170d97af28d9cb964e81b9394be3bf9a4e1d96a85df1084a7667ef40029",
+    "awa_frozen_initial": true,
+    "commit_reverted_while_frozen": true
+  },
+  "operational_blocker": {
+    "issue": "starknet-py 0.30.0 only supports v3 invoke; account contract (OZ v0.x) doesn't support v3",
+    "classification": "OPERATIONAL-BLOCKER (not HARDWARE-GATED per mission R3 rule)",
+    "fix_step": "Use starknet.js (JavaScript SDK) which supports invoke_v1, OR upgrade account to OZ v0.15+ that supports v3",
+    "verification": "deploy_contract_v3 succeeded (v3 deploy supported); invoke_v3 fails (account validation reverts)"
+  }
+}
