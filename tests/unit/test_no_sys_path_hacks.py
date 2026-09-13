@@ -109,6 +109,7 @@ _ALLOWLIST = frozenset({
     "zk/groth16/tests/z6_mev_simulation.py",
     "zk/groth16/tests/z9_travel_rule_trace.py",
     "zk/facade/__init__.py",
+    "zk/shared/test_parity.py",
     # Backtest scripts (sys.path fixup for repo-root imports)
     "backtest/replay_engine.py",
     "backtest/run_backtest.py",
