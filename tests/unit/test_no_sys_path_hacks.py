@@ -104,10 +104,11 @@ _ALLOWLIST = frozenset({
     "zg/zg_da_streamer.py",
     "zg/zg_sync_daemon.py",
     # ZK circuit tests (prior BZK mission — sys.path fixup for zk-circuits/commitments)
-    "zk-circuits/tests/z10_birp_timing.py",
-    "zk-circuits/tests/z5_reconstruction_attempt.py",
-    "zk-circuits/tests/z6_mev_simulation.py",
-    "zk-circuits/tests/z9_travel_rule_trace.py",
+    "zk/groth16/tests/z10_birp_timing.py",
+    "zk/groth16/tests/z5_reconstruction_attempt.py",
+    "zk/groth16/tests/z6_mev_simulation.py",
+    "zk/groth16/tests/z9_travel_rule_trace.py",
+    "zk/facade/__init__.py",
     # Backtest scripts (sys.path fixup for repo-root imports)
     "backtest/replay_engine.py",
     "backtest/run_backtest.py",

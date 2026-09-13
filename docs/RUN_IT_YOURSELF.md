@@ -200,7 +200,7 @@ zk_behavioral_credential:    #Wires=3302  #Constraints=3298  #Private=10  #Publi
 
 ```bash
 # R-ABSENT: cross-artifact grep for forbidden fields
-bash zk-circuits/commitments/leakage_grep.sh
+bash zk/groth16/commitments/leakage_grep.sh
 # Expected: exit 0, 0 matches
 
 # AWA freeze no-override grep
@@ -288,7 +288,7 @@ Option A (preferred): run in a CI environment with `timeout-minutes: 30`:
 ```bash
 # GitHub Actions, CircleCI, Railway build phase, etc.
 # With timeout > 10 minutes, run:
-cd zk-circuits/zk_intent_commitment
+cd zk/groth16/zk_intent_commitment
 snarkjs powersoftau new bn128 14 pot14_0000.ptau
 snarkjs powersoftau contribute pot14_0000.ptau pot14_0001.ptau --name="contributor1" -v
 snarkjs powersoftau prepare phase2 pot14_0001.ptau pot14_final.ptau
@@ -310,7 +310,7 @@ Option B: use `nohup` + `screen` in a persistent environment:
 
 ```bash
 screen -S bzk-setup
-cd zk-circuits/zk_intent_commitment
+cd zk/groth16/zk_intent_commitment
 nohup snarkjs groth16 setup build/circuit.r1cs pot14_final.ptau circuit_0000.zkey \
     > setup.log 2>&1 &
 # Detach: Ctrl-A then D

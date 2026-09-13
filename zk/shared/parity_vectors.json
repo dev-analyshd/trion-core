@@ -1,0 +1,40 @@
+{
+  "description": "Cross-prover canonical vectors for Hash_DNA parity. Same input → same output across Python, Cairo, and Solidity.",
+  "canon": "BTCP Formula Index: Hash_DNA dual-strand SHA3-256",
+  "vectors": [
+    {
+      "test_name": "intent_hash_basic",
+      "inputs": {
+        "intent_fields": [1, 900, 111, 222, 1500000000000, 1735689600],
+        "nonce": 123456789012345678901234567890,
+        "entity_id": 9876543210987654321
+      },
+      "expected_python": "hash_dna.intent_hash()",
+      "expected_cairo": "intent_hash()",
+      "expected_solidity": "keccak256(abi.encode())",
+      "status": "PINNED"
+    },
+    {
+      "test_name": "behavioral_hash_basic",
+      "inputs": {
+        "private_behavior": 42,
+        "private_nonce": 99
+      },
+      "expected_python": "hash_dna.behavioral_hash(42, 99)",
+      "expected_cairo": "behavioral_hash(42, 99)",
+      "status": "PINNED"
+    },
+    {
+      "test_name": "birp_anchor_basic",
+      "inputs": {
+        "beo_baseline": 100,
+        "hash_dna_code": 99999,
+        "enrollment_timestamp": 1700000000,
+        "behavioral_entropy_seed": 555
+      },
+      "expected_python": "hash_dna.birp_anchor(100, 99999, 1700000000, 555)",
+      "expected_cairo": "birp_anchor(100, 99999, 1700000000, 555)",
+      "status": "PINNED"
+    }
+  ]
+}

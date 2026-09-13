@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // TRION Protocol — ZK Starknet Substrate
-// Contract wrapper for on-chain ZK verification
+// Native on-chain ZK verification contract
 //
 // This contract wraps the S1-S5 circuit functions for on-chain deployment
 // to Starknet Sepolia. Per R-CHANNELS, the on-chain surface is signal

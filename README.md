@@ -803,9 +803,9 @@ trion-core/
 ├── zk/                            # Zero-Knowledge Proof System (Python)
 │   └── __init__.py                # ZKProofSystem: Schnorr-Pedersen Σ-protocol over
 │                                  # secp256k1; 5 circuits (Intent, Complementarity,
-│                                  # Credential, Travel, IAP) — see zk-circuits/ for
+│                                  # Credential, Travel, IAP) — see zk/groth16/ for
 │                                  # the Circom/Groth16 twins
-├── zk-circuits/                   # Circom 2.1.6 / Groth16 circuit sources (5 circuits)
+├── zk/groth16/                   # Circom 2.1.6 / Groth16 circuit sources (5 circuits)
 │                                  # — no zkeys/r1cs/proof artifacts committed: the
 │                                  # trusted-setup ceremony is pending (RISK_REGISTER R-03)
 ├── contracts/                     # All smart contracts organized by VM family
