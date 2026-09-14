@@ -1,0 +1,27 @@
+═══════════════════════════════════════════════════════════
+  BTC ↔ Starknet Bidirectional Zero-Bridge Loop Test     
+  5 rounds BTC→SN + 5 rounds SN→BTC = 10 total          
+  assets NEVER bridge                                     
+═══════════════════════════════════════════════════════════
+
+  Bitcoin block: 5128445 (0000000000d30b3f6571...)
+  BTC address:   tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks
+  BTCP score:     0.8492
+
+═══ DIRECTION 1: BTC → Starknet (5 rounds) ═══
+
+  ── BTC→SN R1 ──
+[2026-09-06T17:40:45.164Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653351-14653353). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_intent → 0x7ba611400d8a30...
+[2026-09-06T17:40:50.819Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653355-14653357). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ BTC→SN R1 lock_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+    ✓ lock_escrow → 0x4aa0f3cca4f15b...
+[2026-09-06T17:40:59.118Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653360-14653362). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ BTC→SN R1 register_route attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+[2026-09-06T17:41:03.140Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653362-14653364). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_route → 0x60303be6b1ec1a...
+[2026-09-06T17:41:11.199Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653367-14653369). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ release_escrow → 0x5df03e14ec9d16...
+[2026-09-06T17:41:16.358Z] WARN: Insufficient transaction data: found 7 V3 transactions with tips in 3 blocks (block range: 14653371-14653373). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.

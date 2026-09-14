@@ -1,0 +1,121 @@
+═══════════════════════════════════════════════════════════
+  BTC ↔ Starknet Bidirectional Zero-Bridge Loop Test     
+  start=R1 count=5 dir=sn2btc        
+  assets NEVER bridge                                     
+═══════════════════════════════════════════════════════════
+
+  Bitcoin block: 5128445 (0000000000d30b3f6571...)
+  BTC address:   tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks
+  BTCP score:     0.8492
+
+═══ DIRECTION: Starknet → BTC (rounds 1–5) ═══
+
+  ── SN→BTC R1 ──
+[2026-09-06T17:48:50.958Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653644-14653646). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_intent → 0x2445a096d33171...
+[2026-09-06T17:48:55.757Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653646-14653648). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R1 lock_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_estimateFee with params {
+  "request": [
+    {)
+    ✓ lock_escrow → 0x6888a80843a0d5...
+    ↻ SN→BTC R1 register_route attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+    ✓ register_route → 0x51b3190a911392...
+[2026-09-06T17:49:09.157Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653654-14653656). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ release_escrow → 0x1048165aaa7178...
+    ✓ finalize_route → 0xa7c0609d58d02e...
+    ✅ SN→BTC R1 PASSED — assets_bridged=false
+
+  ── SN→BTC R2 ──
+[2026-09-06T17:49:22.099Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653661-14653663). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_intent → 0x525e04ced335ea...
+[2026-09-06T17:49:28.060Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653666-14653668). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ lock_escrow → 0x5f9552b627f106...
+[2026-09-06T17:49:33.556Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653669-14653671). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_route → 0x896de88de82f7c...
+[2026-09-06T17:49:37.772Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653672-14653674). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R2 release_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+[2026-09-06T17:49:41.786Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653674-14653676). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ release_escrow → 0x628f9952b85730...
+[2026-09-06T17:49:47.982Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653677-14653679). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ finalize_route → 0x3177fb47b5bf38...
+    ✅ SN→BTC R2 PASSED — assets_bridged=false
+
+  ── SN→BTC R3 ──
+[2026-09-06T17:49:56.474Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653683-14653685). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_intent → 0x10a9d71be9197f...
+[2026-09-06T17:50:00.867Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653685-14653687). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R3 lock_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+    ✓ lock_escrow → 0x7e3cb7e28c0f78...
+    ✓ register_route → 0x5874f5ad9c8146...
+[2026-09-06T17:50:16.416Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653694-14653696). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R3 release_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+[2026-09-06T17:50:19.808Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653697-14653699). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ release_escrow → 0x3b9855ab82e4be...
+[2026-09-06T17:50:25.043Z] WARN: Insufficient transaction data: found 6 V3 transactions with tips in 3 blocks (block range: 14653700-14653702). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R3 finalize_route attempt 1 transient err, retrying in 2000ms… (RPC: starknet_estimateFee with params {
+  "request": [
+    {)
+[2026-09-06T17:50:29.011Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653702-14653704). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ finalize_route → 0x25b54df358d74b...
+    ✅ SN→BTC R3 PASSED — assets_bridged=false
+
+  ── SN→BTC R4 ──
+    ✓ register_intent → 0x2b18eaf3412d1c...
+    ✓ lock_escrow → 0x11ade845cd0b1a...
+[2026-09-06T17:50:47.376Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653713-14653715). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_route → 0x57ffb588d5ba3d...
+[2026-09-06T17:50:53.310Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653716-14653718). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ release_escrow → 0x1ba9fe2f3e06b7...
+    ✓ finalize_route → 0x30227080d07173...
+    ✅ SN→BTC R4 PASSED — assets_bridged=false
+
+  ── SN→BTC R5 ──
+[2026-09-06T17:51:02.202Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653722-14653724). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R5 register_intent attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+[2026-09-06T17:51:04.918Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653724-14653726). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_intent → 0x3ddbe8ceb95daa...
+[2026-09-06T17:51:08.272Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653726-14653728). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R5 lock_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+[2026-09-06T17:51:12.057Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653728-14653730). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ lock_escrow → 0x49d6837a9c1f17...
+[2026-09-06T17:51:18.120Z] WARN: Insufficient transaction data: found 9 V3 transactions with tips in 3 blocks (block range: 14653731-14653733). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ✓ register_route → 0x2f0047aceb7d4d...
+[2026-09-06T17:51:22.659Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653734-14653736). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R5 release_escrow attempt 1 transient err, retrying in 2000ms… (RPC: starknet_addInvokeTransaction with params {
+  "invoke_t)
+    ✓ release_escrow → 0x51f68a03c5b46c...
+[2026-09-06T17:51:30.350Z] WARN: Insufficient transaction data: found 8 V3 transactions with tips in 3 blocks (block range: 14653739-14653741). Required: 10 transactions. Consider reducing minTxsNecessary or increasing maxBlocks.
+    ↻ SN→BTC R5 finalize_route attempt 1 transient err, retrying in 2000ms… (RPC: starknet_estimateFee with params {
+  "request": [
+    {)
+    ✓ finalize_route → 0x5cca12d3f53b74...
+    ✅ SN→BTC R5 PASSED — assets_bridged=false
+
+═══════════════════════════════════════════════════════════
+  BIDIRECTIONAL BTC ↔ STARKNET TEST SUMMARY             
+═══════════════════════════════════════════════════════════
+  BTC→SN R1  5/5 steps ✅
+  BTC→SN R2  5/5 steps ✅
+  BTC→SN R3  5/5 steps ✅
+  BTC→SN R4  5/5 steps ✅
+  BTC→SN R5  5/5 steps ✅
+  SN→BTC R1  5/5 steps ✅
+  SN→BTC R2  5/5 steps ✅
+  SN→BTC R3  5/5 steps ✅
+  SN→BTC R4  5/5 steps ✅
+  SN→BTC R5  5/5 steps ✅
+
+  Total steps: 50
+  Passed:      50
+  Failed:      0
+  Success:     100.0%
+  assets_bridged: false ✅ ZERO-BRIDGE INVARIANT
+═══════════════════════════════════════════════════════════
+
+  Report: /home/z/my-project/trion-core/docs/proofs/btc_starknet_loop_report.json
