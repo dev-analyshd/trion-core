@@ -1,0 +1,1 @@
+{"version":1,"contracts":[{"id":"84h2ets55ncp8","package_name":"zk_verifier_contract","contract_name":"ZKVerifier","module_path":"zk_verifier_contract::ZKVerifier","artifacts":{"sierra":"zk_verifier_contract_ZKVerifier.contract_class.json","casm":"zk_verifier_contract_ZKVerifier.compiled_contract_class.json"}}]}

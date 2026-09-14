@@ -1,0 +1,16 @@
+{
+  "v2_class_hash": "0x78270e19591e334709026d5480c8963ba3235d535eb8a8f351ef911d7c67cb5",
+  "v2_zk_verifier": "0x70786a313eb52b0b8f4781c23c8e79adb13d42e54dbeb2f229199280c4536c6",
+  "deploy_tx": "0x7ef485024c3d43bdae919c932ce5acdddefb47c7bae84acc71b6b2266a64c0b",
+  "unfreeze_tx": "0x3e74ef5c3742679121a2bd2ae43ca56294f605c4bde0d1255034cc2f0ce2b9c",
+  "owner": "0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854",
+  "awa_frozen": [
+    "0x0"
+  ],
+  "fixes_verified": {
+    "zero_value_validation": true,
+    "duplicate_intent_collision": true,
+    "hash_dna_pedersen": "n/a"
+  },
+  "timestamp": "2026-09-14T17:55:55.640Z"
+}
