@@ -1,0 +1,2660 @@
+{
+  "timestamp": "2026-09-14T14:57:15.525Z",
+  "new_zk_verifier": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+  "submitter": "0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854",
+  "total_proofs": 100,
+  "succeeded": 85,
+  "reverted_expected": 1,
+  "failed": 14,
+  "by_category": {
+    "S1": {
+      "succeeded": 20,
+      "reverted": 0,
+      "failed": 0,
+      "total": 20
+    },
+    "S2": {
+      "succeeded": 15,
+      "reverted": 0,
+      "failed": 0,
+      "total": 15
+    },
+    "S3": {
+      "succeeded": 15,
+      "reverted": 0,
+      "failed": 0,
+      "total": 15
+    },
+    "S4": {
+      "succeeded": 20,
+      "reverted": 0,
+      "failed": 0,
+      "total": 20
+    },
+    "S5": {
+      "succeeded": 15,
+      "reverted": 0,
+      "failed": 0,
+      "total": 15
+    },
+    "Hash_DNA": {
+      "succeeded": 0,
+      "reverted": 0,
+      "failed": 10,
+      "total": 10
+    },
+    "ADV": {
+      "succeeded": 0,
+      "reverted": 1,
+      "failed": 4,
+      "total": 5
+    }
+  },
+  "proofs": [
+    {
+      "id": "S1-001",
+      "category": "S1",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3764e45663b353c648baf0b35c7e08888b753b964d4fc94af20fff56791d66d",
+            "0x9169cea5b8532aa016f47fa0893c36eb578226d2f012d909a65afb07a13620"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6656dfe341233076cfdc2f30eacd2b4be323f3ea86f2275f6328f3142823f3",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce508278e0a09d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:36:52.404Z"
+    },
+    {
+      "id": "S1-002",
+      "category": "S1",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x30fc888f98c87877a41b50184a7ace80ad231dcbab8f222c2c2bec434490196",
+            "0x3fce25c776d40aba2a918c94e225fc15d4c7f2f7720995c59b04a8ba643feb0"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x535ae16ab6c3bdf2617dfbd903212327f984f912263a79a03dfdeae9b1faaf5",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce508278e0a09d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:36:55.365Z"
+    },
+    {
+      "id": "S1-003",
+      "category": "S1",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x357084be4312b301f31ecf9c52fe13511f9a3842e958131d7bbda9790d7b93d",
+            "0x1a6d7f824b9329e8b99fd979b663692d27e675b6573937dcc3c6f108bec9df8"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x1b5b90f5d0e19d92ae867e0382e2b51e349236dec2700c0f7d21d1cbf2452da",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce508278e0a09d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:36:58.356Z"
+    },
+    {
+      "id": "S1-004",
+      "category": "S1",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x186fbf2e26deb5745aae5e8e415cd6937b54fa7f2cfb67bdfa49925190184b0",
+            "0x9d948e0306c78169ec65f70bb6b7ed8b7734c24b8fc239c204de99abeec4e6"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x79665055f31d95147e26c1e8fe34207ab3e15587bd40adbc2ff73d7787e57b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce508278e0a09d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:03.536Z"
+    },
+    {
+      "id": "S1-005",
+      "category": "S1",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x13cbd0d262cbcc23d861d11ab8d7f66c9c9221421a464fcbfd87f7aa65bf1bd",
+            "0x1c4b5743704cd83b8ddb77e3d8565c59669deb07265335a18d5a599c2f9ebe6"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x383e4426c10e2df5baa87226296f52150452af3f5f9d5c71d1d1c7fa4843f2b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50854880c91d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:06.587Z"
+    },
+    {
+      "id": "S1-006",
+      "category": "S1",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x507f1278b3f09510164f96471dd1cb2d60e59e7ff962cf19528582ee093ff0",
+            "0x1a5b0e3e19be96addd55544b93e1a51561dff7ac411b975cd0dc4a8ce62979e"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x35ddfe8934c8f7411150c182742aa8313c0b2a31914212bd4f2de10446f6466",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50854880c91d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:09.548Z"
+    },
+    {
+      "id": "S1-007",
+      "category": "S1",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0xea658d64bb1e70ff71e3a34f6727949ec534292ca513b11d2206d77cd5bd67",
+            "0x1e3624af0413f59be9a0c31d11e891fe8b3dca38d7618392d09c09788b382cf"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6dd91395ef6f8f764dada302893668f1595d06f5cf188e24f730481a9836c74",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50854880c91d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:12.514Z"
+    },
+    {
+      "id": "S1-008",
+      "category": "S1",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x201796d15a526564286a2341f41af57e2f069c800fae1d395c056b5efaf3a87",
+            "0xc327dc48d03666c7a857d85b81a0914e89b122bd4eb2f9e4c806ca53f14795"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x1d57722fe3be7f5f2f8a225757cbc2bbb318b061dea429159da8e57a2006042",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50854880c91d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:15.486Z"
+    },
+    {
+      "id": "S1-009",
+      "category": "S1",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x13815aef0696a32232a786cd6ec3d6b08cd6fb4417dd793478f8c04dd83c533",
+            "0xa22edc6771e4f35123b436cb41e0720fc4781ad223eafea76e3a2a508ed5d0"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3533759df97057a041b4c5c3dceabb5157dc1805b7b42ba7d1de2a699c98653",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce507762cdac1d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:37:18.450Z"
+    },
+    {
+      "id": "S1-010",
+      "category": "S1",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x10e138243bde9c918c714d612b5bea776178df07181254b31558bf14af4aaa0",
+            "0x138a0ddc4cd1ffdfb19255844a51a01d0b75f6aba16970da8f37f448dbb9000"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x39c712d1e1a93bfa790c4e61b846e0da0d8edcf9ec5aec1d25a6241dd84c071",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce5081987ff31d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:34.995Z"
+    },
+    {
+      "id": "S1-011",
+      "category": "S1",
+      "idx": 11,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x29b3f03610e30f6a876467e73c43f333fe7d1b9591096595dfbb9deed17815e",
+            "0x24c6745efdda0a7b425cdb43c1970f329b6792245d872444974a32f8aec73a2"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x30c4af2418d2191bf84c08054694a81827878b9edb7e6ee92269c4f4e5a42c9",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce5081987ff31d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:38.455Z"
+    },
+    {
+      "id": "S1-012",
+      "category": "S1",
+      "idx": 12,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3abc4f783d04852b6114c1d70f24a5e3d41fe979612d99810a4c0bb84e4e2f2",
+            "0x5d3da69ff6763faa491cd0c32152a5c055bba531fbeaf8711892c089f75b3f"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3f2edf0dfe5d9a8b91c603ce7f9f0c09eb67032caeb9c69b36c9558009914de",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce509c1e73519d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:41.914Z"
+    },
+    {
+      "id": "S1-013",
+      "category": "S1",
+      "idx": 13,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x122c3fc7e6912f4b16b115f505e9bc07ca327fb6564cdcaafbc510bff22a008",
+            "0x3efa3b007ee485b0444dc2f4e86ffff405ff8a3dd9ece0ca8edc13d3bcc2ad1"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xe08b22ed613ec7bdd6d589c9bd34fcb51286cb0a3e2b4eae81c0809e5bf496",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce509c1e73519d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:45.372Z"
+    },
+    {
+      "id": "S1-014",
+      "category": "S1",
+      "idx": 14,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3395bca2be0579f0fecaa3e78590cb969df0e545c86ebed51690e65ad3ac8ce",
+            "0x285ef3650dd4e056ef5145a51e523e7953720aa39df00b0f5ff96145ac4697f"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6e8cc4beeb7ae778d40e232b334903a154691afe85fc06431bd36099d30b210",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce509c1e73519d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:48.817Z"
+    },
+    {
+      "id": "S1-015",
+      "category": "S1",
+      "idx": 15,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x310cefaee38eddc95efd18d158a7ae350a27394a12c6d7da4d0ee3415e17e92",
+            "0x2213090b177137af239e34d3561aef5e4ebf645b10daa576d13836ded7f506a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x593868d56271d7b1b23d0bd01e90c2775b99bad2cca5d63e06b05dd30329d0f",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50be9e091b1d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:52.263Z"
+    },
+    {
+      "id": "S1-016",
+      "category": "S1",
+      "idx": 16,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x192c214d612ad54ef654095956fbd4d0916589ed60e054e77df4a195fffff68",
+            "0x25cf6e8b7df4bdf78f436b4f487733a5cf7d8da584605ba9fde0d978c935214"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2fb22e8549c315e3b8b5bcd26ce53a6d076245c53239d223c4d83ed6f5e1c19",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50be9e091b1d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:40:55.722Z"
+    },
+    {
+      "id": "S1-017",
+      "category": "S1",
+      "idx": 17,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x12715cef0cbb891c034534a2b02999debd8d6ca1fefd61af892abfac0f77026",
+            "0x338063090f23e95dfe530d988b6cbe0df5c6294e405cde2f639e647a0b0810d"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7bff8cf64452d1084e449b40ad5b1f66011548cf087bfc09ca2e4f69f71bdae",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50be9e091b1d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:01.401Z"
+    },
+    {
+      "id": "S1-018",
+      "category": "S1",
+      "idx": 18,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x4f6d861f00df333d527324fc14472f8d6c1499cb8348dc36357fb2a515099d",
+            "0x5066d113c9f597af1a05b666a0d153230e626a70596f2fb4f1e16ea8b023b6"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xd041dcfb8506bf39b91d502c2120950651dfe6cf270b514a1f75377e56400e",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50e0e70ad69d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:07.156Z"
+    },
+    {
+      "id": "S1-019",
+      "category": "S1",
+      "idx": 19,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0xb242f64b4a72a0b3baf914d1133ea85de181c9e297349c2fe0725d106cff96",
+            "0x16844d36f74c51c45d3a712456b39290163a7d5fb1d2556b1abb402268bf0be"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2432f43501744fde2ec5fd994532c40152a9c78a95965556801080e4be2d3f7",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50e0e70ad69d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:10.711Z"
+    },
+    {
+      "id": "S1-020",
+      "category": "S1",
+      "idx": 20,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x9daee10fe845c625f85a4ce536c9bc687028ccbb621d7a84478d7d53c1db3e",
+            "0x58ef5a59cfb4367e942b26ec6e447caabba16bccc86432d512750e33f9969a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x275f8eff232ce38d40db7b170692adecf8fc187d933310f7242812c2b813421",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xce50e0e70ad69d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:14.166Z"
+    },
+    {
+      "id": "S2-001",
+      "category": "S2",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3764e45663b353c648baf0b35c7e08888b753b964d4fc94af20fff56791d66d",
+            "0x23933fd81382abb637ea22d90f117276df57e4f4fbefa14fa789f51643f608b"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x100859f9bb647866d981a0594e9477108f0ef4ea0ea7df5ca8dbd4ce3ab29bd",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75910b621c783d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:17.633Z"
+    },
+    {
+      "id": "S2-002",
+      "category": "S2",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x30fc888f98c87877a41b50184a7ace80ad231dcbab8f222c2c2bec434490196",
+            "0xf13e1eb11c379288319443906ca6d0f516d02d2f59c520faab3133331d956e"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7c3dd01bcd43777ef75bea04f2725a5ea1396322d450e96f74ad04c652d6d63",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75910b621c783d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:23.278Z"
+    },
+    {
+      "id": "S2-003",
+      "category": "S2",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x357084be4312b301f31ecf9c52fe13511f9a3842e958131d7bbda9790d7b93d",
+            "0x15017d59aaf1df0dcb76dd4d9c6124f4d48b203719ad46d08a295657d927df6"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xc160084e322bdae7e0f83cf543bddf8980bcd2391e483341820917eac8cf1b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75910b621c783d",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:26.833Z"
+    },
+    {
+      "id": "S2-004",
+      "category": "S2",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x186fbf2e26deb5745aae5e8e415cd6937b54fa7f2cfb67bdfa49925190184b0",
+            "0x296f7eda57dcc330cadc775dea906a6f7af0a3d40287fe9221b1b75de77a941"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2694b3f6d45ac6779ea0ae26484d3cdda374eb883e9f4eae6d416c4570b4e4",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75910f3d3cf3bd",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:41:30.279Z"
+    },
+    {
+      "id": "S2-005",
+      "category": "S2",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x13cbd0d262cbcc23d861d11ab8d7f66c9c9221421a464fcbfd87f7aa65bf1bd",
+            "0x2c174b74a04f7a283442e19b0332e7a60677597377541a1b6d7e7fd6dc274fc"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x53c7b0df7da45f4739e1f623a13cb5c50965e1effdaf3eeb230b2662f85884b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x7157165e49da5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:06.078Z"
+    },
+    {
+      "id": "S2-006",
+      "category": "S2",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x507f1278b3f09510164f96471dd1cb2d60e59e7ff962cf19528582ee093ff0",
+            "0x1a531382f8be56a5d4a956e9327ce120e7cc6ca2ed27f29731b861da304b7e"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x55f7f015a420952444389a9a9dc22369ea667502a584c56fe5a486bd97c2c78",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f1da95a910dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:11.358Z"
+    },
+    {
+      "id": "S2-007",
+      "category": "S2",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0xea658d64bb1e70ff71e3a34f6727949ec534292ca513b11d2206d77cd5bd67",
+            "0x302f372b71253d23d5d126852d18f57d03e1e3757ac419849d90b89f47daea4"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x35b15d1c6c76353ade2094caf7648ab639ca0eb37e40c871994b24bf2a8f002",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f1da95a910dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:14.495Z"
+    },
+    {
+      "id": "S2-008",
+      "category": "S2",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x201796d15a526564286a2341f41af57e2f069c800fae1d395c056b5efaf3a87",
+            "0x36b56a392e1b6641fb7cd3390aad11e901c06967a49a74a7d5dab347ab0a53a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x19a180e701b98894459c34efc8a0816cea68e36c6de4edc8d3ba84dc36cd712",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f201343efd1c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:17.541Z"
+    },
+    {
+      "id": "S2-009",
+      "category": "S2",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x13815aef0696a32232a786cd6ec3d6b08cd6fb4417dd793478f8c04dd83c533",
+            "0x1d463da72873ce2fe361b1cef732c907a966b7d69a5bd059b6db8102e798a80"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7d6dbb826ae8c9b77d874150e8d1ca14b6772d6cb207eb57b1bbca43feadad4",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f201343efd1c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:20.586Z"
+    },
+    {
+      "id": "S2-010",
+      "category": "S2",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x10e138243bde9c918c714d612b5bea776178df07181254b31558bf14af4aaa0",
+            "0x2a4be0da7c4c6bcc1da6b9787d4bdaf2347a9e085aa1b65690821e0453f94ca"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x75326e2c8c6a2cbea8084a2c07ee7c559acaabd47d73cc0605a07809aeae5ef",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f201343efd1c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:24.038Z"
+    },
+    {
+      "id": "S2-011",
+      "category": "S2",
+      "idx": 11,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x29b3f03610e30f6a876467e73c43f333fe7d1b9591096595dfbb9deed17815e",
+            "0x20b19196af99ccf8a295f21873d43c497e45e1ebf3a06631914f862b859e03a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x157b56963432b19103e530f27f709346d82d46f811fe3cbb82bc47913e42f4d",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f201343efd1c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:27.080Z"
+    },
+    {
+      "id": "S2-012",
+      "category": "S2",
+      "idx": 12,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3abc4f783d04852b6114c1d70f24a5e3d41fe979612d99810a4c0bb84e4e2f2",
+            "0x22c0cb71c38887e1277638677d34a4ee38844bc7d4400673efee2f628f8dc08"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x337551e5d11bca8f5ef2d574e5630b5510966818540479a8a1839f6d44fc2db",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f2104b9e98dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:30.128Z"
+    },
+    {
+      "id": "S2-013",
+      "category": "S2",
+      "idx": 13,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x122c3fc7e6912f4b16b115f505e9bc07ca327fb6564cdcaafbc510bff22a008",
+            "0xe393434e12f1deb0b0622058c4a951ca0c79cd5ce34fe8229b22812aef8ae9"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x5b731be38966b7011224d4cec8fe2cd3bc63d5731b5bb1863b26d5344f0cc62",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f2104b9e98dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:33.184Z"
+    },
+    {
+      "id": "S2-014",
+      "category": "S2",
+      "idx": 14,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3395bca2be0579f0fecaa3e78590cb969df0e545c86ebed51690e65ad3ac8ce",
+            "0x13274e04ca01505cee2a8c3ed202dd8f4649dd8651a7c86d0a3839658df32df"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xca7badcc3e61f70936ba068c58c90e2bbc8deb35f905d2cc1d5dcb44b883c2",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f2104b9e98dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:36.232Z"
+    },
+    {
+      "id": "S2-015",
+      "category": "S2",
+      "idx": 15,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x310cefaee38eddc95efd18d158a7ae350a27394a12c6d7da4d0ee3415e17e92",
+            "0x1660810470b49760d5bb74e7b5cd93f5c6e5f566a758f8d24bed06aeead627e"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xf7a57b2dba1a89cc1cbba3d8ec9579dd605ad42bdb06a983e2384b3eb1033a",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x75f22287709f9c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:39.283Z"
+    },
+    {
+      "id": "S3-001",
+      "category": "S3",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x314fabca2e425f71266b07009ece824aa379cbcef76510be31706128ce875cd",
+            "0x15de14732906319d6fffd53b37010ff56497bc6bc76636d6e812e1ed19076b2",
+            "0x1",
+            "0x2188f3cb80a894a1c06472abaa07fcbf379c5b3157445afc6ee63774c1a3558"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x1e0c2e7da0f1f1b2df5194320f0138c5cf2ccbf9f70e35bbecbf5e7471a25c8",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d7c003a617dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:42.355Z"
+    },
+    {
+      "id": "S3-002",
+      "category": "S3",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x28db683ca9ada094cfafe47153fdd18e842bfed3d802cb8b1189cfd867a1a79",
+            "0x8499109fc462ae90522d444efec44794a29f1f82239864b1b8059d8c37cd58",
+            "0x2",
+            "0x37802a38f792e3286555ec627190ac17c761973536454cd2a4f13f2a4dc12d4"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7e2e9d257cc943eebf733ef4dadfe49aa2cc6d44a97ed8d5c1f356876d63e80",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a91ab37c4a33c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:45.413Z"
+    },
+    {
+      "id": "S3-003",
+      "category": "S3",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x1fbf1adce4d5077abe60d9fef2b90d102843729cf1ba16d8d41315c232c1ee2",
+            "0x3acf2af04de6d072ca50d991505382242e9ab175e58d4e8311eb71e5ae7f022",
+            "0x3",
+            "0x4276f5c609b2d38808e7269452b96c1b8e6ee59eb9e42714c840c8de263965"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3fec669460243a933fee4dea6e7cc62e724ff75747c9d7bb5275f6250bbdb9e",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d7c003a617dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:48.474Z"
+    },
+    {
+      "id": "S3-004",
+      "category": "S3",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x30523eb2534bd95b97cf1050b14129ab672e9ef42b6dbe0797fdef95a86067f",
+            "0xb9f62d3407680f33dc5cf6770e3215400047a3386abeeb821b2ac7cf02d047",
+            "0x4",
+            "0x3b169da431e1fd9f1600351ca29c7e804a7c3e3f3d3d273fc83a6a7d5f5e66a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3c5aa301071dfc27502d6d00a3a81503915e8ed795b7896edc4792f75a353d5",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d7c943b282dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:51.546Z"
+    },
+    {
+      "id": "S3-005",
+      "category": "S3",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0xe944101ff9a5a5fc016f8016416878117c31b309ea98cb701832103c52a732",
+            "0x3669ee000e339f2947cad4a4c3f44e8d6fc6b8e7e71941c30236cfd9be6a8be",
+            "0x5",
+            "0x4520940c4dca0e321e6aaefc87dbd4f5d572b429265a36ca990fe38038aa40"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x47c42eabbbe9023ee914a07c7957cdb2804d2000b5effd93e8e99f07d30f66",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a91c007e093fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:54.587Z"
+    },
+    {
+      "id": "S3-006",
+      "category": "S3",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x3772002f21fff7bf0f60474ecda7756857b708977d7d2e0bccb4e50dce7e927",
+            "0x303af2b1e467776eb8b67b3e2f794b3fb2b113b061196f9cf3bd85e4d325e36",
+            "0x6",
+            "0x1630d54fcffd620671cffaa8cc44018244fca16038fc49ec0a5c2791962aa0d"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6eb4c7f861974fe4de27232be323de091ebeeb1206faf98bcdc46893b38db4f",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a91c007e093fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:47:57.630Z"
+    },
+    {
+      "id": "S3-007",
+      "category": "S3",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x35d493db3bfc2cda95ba0598c79eb30b1bb48a85c4556c45240a2fca371fea3",
+            "0x10c43a6e1bdd491d67f52b5276f0df50ca361489936272d81d63120a44bbf24",
+            "0x7",
+            "0x219739426f465532505b14fe5cc484271f4842d8c8656fe189423b23bb2d075"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x62522bb025c5b9ef61a6d03b67dbf49aba619d8e5750a44daa75cb2c646299c",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d7c943b282dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:48:00.669Z"
+    },
+    {
+      "id": "S3-008",
+      "category": "S3",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x1bb165034d58171f2505882b6e93d0ce38f4c9fd3396c7da4bd244384019de2",
+            "0xf4307cb5964013ffc7332f50c0d8a33b83e7575c7427e0d5fc86a7d93ba2f9",
+            "0x8",
+            "0x2bb26fe88d5ca69ef3a381cb7574bfd1d993afbb5001ad0a5671ecd8b027130"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2ad5c7009fcbb983b69b039c04c04cf4fc17ec1730159b80c58b7e74491ffdc",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d82bf771b45c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:53:48.266Z"
+    },
+    {
+      "id": "S3-009",
+      "category": "S3",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x29c8243509f047309eb96721d7e06b24a3eb39c54bf89db26626316bb44c971",
+            "0x3cacb02a8fc3a72c3c984de1a50353c27a5608ce3937ac182d6240a89be131a",
+            "0x9",
+            "0x31723854872a9b24c7db6cec6009cd6c398934c7cda3b656fa6e2d803d845ce"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x59c45a09ebe26c98853962b0b171a67ecd773192f66f67cc3e49f84fcdcca17",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d8267752ef5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:53:51.336Z"
+    },
+    {
+      "id": "S3-010",
+      "category": "S3",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x197e6755feb2a5950ee5cb6726b353df4e5e552257f575f853f6aacdaa30557",
+            "0x1edb1f3a7cd6035639f79ce8ad73fe1393325a5b30185722ca263d528e454a0",
+            "0xa",
+            "0x2667ed77eb3ac3fa28fc049e003ccd8e70a0fbc3a2f9fbeb84a461df3c222aa"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x5657089b5909bcc9d59b1148aa7a4337b195852329e07126f0e00b564fa46b0",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a9291bc09881c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:53:54.405Z"
+    },
+    {
+      "id": "S3-011",
+      "category": "S3",
+      "idx": 11,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x3f55160ff1a5c4105becf4168929f17a4c6edd2b76d94feae7dc66029b36af8",
+            "0x18fb08375a741de88b6a01942168776ee72e8c9843b82549f23309c77635766",
+            "0xb",
+            "0x3fff734f96a5d8988fd179dfd95e4e26363052de7583fe837e310a46dc362af"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6322260ba13ccbe6e68674801777df432a71548cce3c56fea6456f7ef758dee",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d8267752ef5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:53:57.467Z"
+    },
+    {
+      "id": "S3-012",
+      "category": "S3",
+      "idx": 12,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x23d87b52af9630cbacb7a88e93cb2b301cfa112666d40c77a8ac0cb863204d2",
+            "0x84f389d78660ebab8c7ac6fd4432af74071e831a25a8bbad4bcced507237c7",
+            "0xc",
+            "0xe450fda662ec805ccbce067fce557409dcfccedc24648088388f47d342b6e9"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x597e37de1a5d55af83902453bc60e736f233bf580d6dfd27422cc929bed5c9d",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a9291bc09881c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:00.533Z"
+    },
+    {
+      "id": "S3-013",
+      "category": "S3",
+      "idx": 13,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x1bcfd1c8d927c6747ff8865b831bfc492dc1fc265eee47a64a049e65973835b",
+            "0x35ae1d48fe89c7fa24ff02b18ce660befb5cdd52189c70894f08a52f0128034",
+            "0xd",
+            "0x2b6aeeda8414316c1c9b664e26b2d84cd92d6a6721fc0acf4672a730912d268"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x47ad919a518c37e2caaffe6ef225e13dce7133674d1e00a2ff58d30657ad87b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a9291bc09881c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:05.815Z"
+    },
+    {
+      "id": "S3-014",
+      "category": "S3",
+      "idx": 14,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x72ad33f06ad03f76261cd2a5874eebcf44026c73805c7f782997f9531ef21f",
+            "0x1eb93ada7792bc710edf0ca0f9982291d0ca59976f0c40edc16e7592766da4c",
+            "0xe",
+            "0x1b0be9747ea77407eb6733371feb68bc5ed98184556eb05477a6dbdedab2d1a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7807d9edec8ade3d9b12f5e8623f9e3bcd5c537a7656c149d0d14658e01d584",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x64d81f019b7fdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:08.956Z"
+    },
+    {
+      "id": "S3-015",
+      "category": "S3",
+      "idx": 15,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x15363608bf2ed156a3fcfb4bfd5c21ad805f28beacbab2f460b397ef34d935f",
+            "0x3a6f8447eb445c224a2360c731a5a8cfd3713e10778f7b990d19428d3a67e65",
+            "0xf",
+            "0x3f16eb985cbf97c8c3ab64a38f086fee5ee6fc09d5eaf6fc78987d22df37257"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x17777c409f910e496a9b81b822b2ebdb4cdf9b8b2fe08c9ce386be1b37fba68",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a9280f32ccd3c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:14.206Z"
+    },
+    {
+      "id": "S4-001",
+      "category": "S4",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x1bcb518c09fd3dbace85ac1b0cac472e999d47fd0500f8d1dd44d1105b1a709",
+            "0x2384bd95da81f217947e048ee1c6f3aa6c6ca5b2b2d70c772e8745867d0b167"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x28d8a49f1684ab9dcb25dda4da8d2ce65b89148008c138ae2ffe0b58c7a1d8b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbb24cbf4bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:19.541Z"
+    },
+    {
+      "id": "S4-002",
+      "category": "S4",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x11c7bebd8cd0d8f55aafbc9410ec6243a77ecc238e646f315ac6b83f66d84a0",
+            "0x2ff1a9de8825e5b47d8c970d2d713ca5ebeb7f0082906ba30f036251d74a58c"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x36f21773f3819cd5a4ef3b98b0f2e436edd3dc79c12df3986f6344d5bf03c4b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbb24cbf4bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:22.675Z"
+    },
+    {
+      "id": "S4-003",
+      "category": "S4",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x176fa6d5e2154aa61ea87960c53b8f11df62573628cee0f656adaa14ea261f7",
+            "0x3d63f1fcff11819c9a74c4bfcbf6f69e0dff0bb5c07a563b939213f6125d03a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x5a631cb034c6c8ae553c0c9f67d8a360393de216388685d0cbccb87567a14d6",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbb24cbf4bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:25.721Z"
+    },
+    {
+      "id": "S4-004",
+      "category": "S4",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3ef7116730ffb9b3b341b153ef9c722740cd1fe44a4bbc770fff38345b153a3",
+            "0x39ab21006f8af53742cb5577805b5148aa8ff98dea402ff8add122c496681ae"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x45b4a23d3c9944697eb7bd68206079b8a103ce2c9cef808307a714807e2ed7e",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbba696feedc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:28.772Z"
+    },
+    {
+      "id": "S4-005",
+      "category": "S4",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x10e91be7d18c4df3634620068fadb237f9a2889fd024a348649d82937f855ba",
+            "0x3b342cb55f8000939551b9b65dc7e87514aa7b59d57f8e9b7275660e3c86359"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6e592583c0f445b3ef8028f718449a17f9c92865ca6fd00170c14ffa638c160",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbba696feedc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:31.820Z"
+    },
+    {
+      "id": "S4-006",
+      "category": "S4",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x156394faa642aa0c013c744fce89ce69f3461ad452a82f5c2b67b233181ba44",
+            "0x2415a9dd805ed6672c9459fed90bf3a1d6a6a9c2c294efcd0c403274edc3f4b"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xbc7bcae3e89fda3a1d345646cec0082eb83bf3dbe07d768f875d20d14dbd14",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbba696feedc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:34.876Z"
+    },
+    {
+      "id": "S4-007",
+      "category": "S4",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x358b07e006c316ae917f264a346d09203c06aa224ff65bb56f8c92bf9cddbfb",
+            "0x111229bfe2e441a2a95946f8006ff04ef62cb8c0324006bd3ec86f9fac9b5c1"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x237a719c9828e4eb97a5db6158b4ed771b6e10d72fbab9b29fb6a2ae2953d38",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbba696feedc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:37.928Z"
+    },
+    {
+      "id": "S4-008",
+      "category": "S4",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x1f5ab52354375d5a9d899b3bc80d5ff6f2fad3fbb4e918fb585f07f85683252",
+            "0x268fdf88b3d17006e33aafc6df5b0b7f2cd8a3b29f8bc55da858314110c380b"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x44908ea469bd4c914435fbf8fad20d997b74c16dc81a7e0288a058382bb7844",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbc64359fc5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:40.986Z"
+    },
+    {
+      "id": "S4-009",
+      "category": "S4",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3d40ee03e218f7cb5d8567a4126aeb63742453a82281231ef95f803aa67d5ef",
+            "0x2142c1cdd07acf1345a42d76fdd9024521e68b9b7c9b52f830a4b4b5ae24509"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3105c7411d9b8ba69e04b26d1b4a6859645f7f46cbab030a403c3136711f2b3",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbc64359fc5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:44.351Z"
+    },
+    {
+      "id": "S4-010",
+      "category": "S4",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x80bb2ef061ff2b2e18ecf438e45cee47adcfb865ac4e7b9359090bd85299fe",
+            "0x21c9f162079596205272b9bdf7b23abfbadf4fbfe75e1b9c7945b3541c92533"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x7cda9b4a6e1fbc1d1e82e984e0f94ca38546ace84d5a0bc7320e1032d45b14b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbc64359fc5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:47.397Z"
+    },
+    {
+      "id": "S4-011",
+      "category": "S4",
+      "idx": 11,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x35ced3e7af6987acdb4f8297f21aea6a73d9158dd499bab553e54f1cd5aeee3",
+            "0xa0938512218b084f6ab5710bb689c8c065ddcf69b1e12c2edd0c82722913f7"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x16f01e16a394776250bd1f838aca8dccc9cbaa84062d7cd493ccbf2c1d9ed05",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbc64359fc5c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:50.466Z"
+    },
+    {
+      "id": "S4-012",
+      "category": "S4",
+      "idx": 12,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x2135b60c466e25802c03c7346dfd43397f231a9881d0e9f3c91330cbbea9447",
+            "0x131af41d89588c1c5c8c938db53d6af51d7bc0dae48126ef04676d2cdc2ed42"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x44e53e2710dd5d275630e696afff49371c6327f52958108416c2e9de4c1ab19",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd851341bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:53.512Z"
+    },
+    {
+      "id": "S4-013",
+      "category": "S4",
+      "idx": 13,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x350cb467d2a9a63deb8cb82f67020c4d6543d00c8587939b3a99e5befb58a54",
+            "0x771aa74e105eedc4df265aa6b22b7d650b95d649f6343aaa37c85a4fbb2f68"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x332f4f4959820cf7caafd8ad01644661d857963f6d36ec7e334b7b58890fd69",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd851341bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:56.562Z"
+    },
+    {
+      "id": "S4-014",
+      "category": "S4",
+      "idx": 14,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x6551416d30a0aa962e5413027f2427011e893be2e08899e32229fdb75f1fe0",
+            "0x3d621935f595e8e53fcf55633b14de4a73c661bab6bf43f7c82c4ac19494b98"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x1d73ade94b2a1a736f72f23cabf248dc6760ff259fa733baeb7ffc557d77263",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd851341bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:54:59.609Z"
+    },
+    {
+      "id": "S4-015",
+      "category": "S4",
+      "idx": 15,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x1b10b5a8739566fcaff483b23eabd253a22d5234f1870b61ab608c4093e6416",
+            "0x2efe85c7d5e8f6e7879df0e502908dfa9e86020a83f1636698d61374f0e20b1"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x47bab0858fe4429aab96e5de00ee67226daa3015182af04759ce3352cb69c1f",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd851341bdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:04.856Z"
+    },
+    {
+      "id": "S4-016",
+      "category": "S4",
+      "idx": 16,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x13b9d5d9934cff1d1dcac6f6f4cc56ef082f614329fca75bd6b7647d85781d4",
+            "0x223bc1ab8dc21afe6e849bb712774f0c33b42e675be7d671888052cb0b9c6da"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x78e9c1cb860329a46070b925b1148f1dd1957e39ad0c44970dedbe9bdaad3f7",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd3f9d9945c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:07.997Z"
+    },
+    {
+      "id": "S4-017",
+      "category": "S4",
+      "idx": 17,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x2cefd75eeabb770f42f5f5a0ffeaaa61101e18c75c949dd3a70abd583e7c8db",
+            "0x1b466599df80d04b6f9d367c23778fe6e90e780abf5b911f9117048a80f7aa6"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3ca127a42f7fe257964e56b7271e3267209aee74ab4421bec57b7f26357cf6b",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd3f9d9945c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:11.047Z"
+    },
+    {
+      "id": "S4-018",
+      "category": "S4",
+      "idx": 18,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x146e7696328b0f9469d8d75a8c186db7150baf1d200e2ca0b9b4009c6204b15",
+            "0x1a9174f233da556c88ece192656e87ae99d8dcbefa95bfb76c34a25655f3577"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x1644a41ae78d511fecf6562f54919edb2d04e7ea1500fc018bd179899c81de2",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd3f9d9945c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:14.110Z"
+    },
+    {
+      "id": "S4-019",
+      "category": "S4",
+      "idx": 19,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x3caa559b1bc822f36bd93cd21c9926d19cf3fef83ed803c3c971226a01f3929",
+            "0x2914512aefb2e784e24dc5bfdd563063720033e4b289b40e43285a68429a091"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2a5daaa57353506307e6d738e81a91675e85b370863ed686b1b22fa493b6c1d",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd79291e3dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:17.150Z"
+    },
+    {
+      "id": "S4-020",
+      "category": "S4",
+      "idx": 20,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x6d1d9f1455edac86192799a470cfcf2c72b6c8bd5edc064d44b99b5e02a58",
+            "0x3248138a86648158adafc81622d7d12ff26d4037ccf3b4694f44965815eb97c"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3a02334fcba80c1c24611b65edb465e8e3e0639b103126381ff8410c9fc8c6a",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbd79291e3dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:22.407Z"
+    },
+    {
+      "id": "S5-001",
+      "category": "S5",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x1471abeeb82c2904f35231125e594bc8be3cc502234bdb7a1e9e9bb42c3ad24",
+            "0x3405fdf0ac921178e5dc796615fe3903610c6b9e0b435fe6c412d08c3175d30"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x50cb8e1e14b29f6c96f3ac257f23db7e81a4d4ca803e7ac45ff3ea1783f67c8",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970d8e8e9381c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:25.542Z"
+    },
+    {
+      "id": "S5-002",
+      "category": "S5",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x2ff444c525b0dcf4638c562816fd4cbccb7d2e66838b047010bc4d5a4ee858d",
+            "0x1adb4dd6ebfea615e76aa6cff382230e83877c74f9ec996a65c621db0a4a1a3"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x67a427a88a67d265f4c76e3bfd0dfa80d2e7ef8c07ee5f7d237a34515b44bb1",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970df277ef0bc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:28.581Z"
+    },
+    {
+      "id": "S5-003",
+      "category": "S5",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x18077c5fccc8bb7f7d1fab716e0f321509d5cc4515b47be3abb64f78d9242a4",
+            "0x9852136cabd73f217988d9cab7b26c211c4a09c882ae313b6f42c083a748ed"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x365da58ef16a998eed23086109ac29d9f2dc163d91c6f3af356968dfb2a5e38",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970df277ef0bc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:31.634Z"
+    },
+    {
+      "id": "S5-004",
+      "category": "S5",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x1db3d600f781af6dac00a91c862180873dd0e969a78639987324fa70315d8b",
+            "0x14ba1e3dfadece1ce6a3bb8663ed641aa7bf3f3a38fbe4ea99aade39f007399"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x978a7ce66d13d66cd00e2ac352403837958f3c21631a7e6342f240ecf16f92",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970df277ef0bc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:34.681Z"
+    },
+    {
+      "id": "S5-005",
+      "category": "S5",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x2c735e63e01b60c6a86d429a147bfce88d5bbce255dcdf6c936107050f66fcc",
+            "0x3d18be19967353be4ae2ffa5074bdce0bb782df33dd20efeafef79771a2db2a"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x12fa07d3806631d1e424941217bc7ae80919df967c031a56fe5daa91a5c1de3",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970df277ef0bc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:37.728Z"
+    },
+    {
+      "id": "S5-006",
+      "category": "S5",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0xc8e22f22356690f38b9cbbb1bd0d64b6dd2dad6d05a5ee0cc7da0e280655e7",
+            "0xec38c71b918b9f7dd7529f99106a209e9278eaffec555066241e64376dd1a1"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x6dc79a7765113d372691d4a375ed872e8ac0a9fa6ebcdd9102700c61439078d",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970e425259cdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:40.779Z"
+    },
+    {
+      "id": "S5-007",
+      "category": "S5",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x39afef9750cd01a5eb38b60a25e13ad5ed781eb1c5f2aad7739fcac58297b1a",
+            "0x3804bf75fff53296e4368b6e864b5edf55630651df246bb90362f0c0ccf83d5"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x63054f242ed03b4c6704a9c4d93fcb8b5f43bd3f5738117a2cc26cd14442daf",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970e425259cdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:55:43.862Z"
+    },
+    {
+      "id": "S5-008",
+      "category": "S5",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x3358b463c20407be68b0a17e51bac7721e54e18357ce85e108e3a4d3f8d749d",
+            "0x9355559b741ede8fb01b0dfd5fdd290cb22b5b2f7fb1d6c667020c3b6dff97"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x323599cee7f39105624f6f8c88e55dce84d693b521a825dacab0a545af07f7e",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x6822140310dfdc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:01.290Z"
+    },
+    {
+      "id": "S5-009",
+      "category": "S5",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x27b35cdf8a8ce55579bd1706b2f8e05da87ebda32808e8e1ce6178c9ee7b0e6",
+            "0x133b39dfb009d70b3504db33eb3e7c455fc66ca8812ceefe949819930cb0669"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x5c3b8cfaa73e49027201efc577427672832e882475a4d0cbf17b2e3dcc73391",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970dfdf89d7fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:04.338Z"
+    },
+    {
+      "id": "S5-010",
+      "category": "S5",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x278d173844d8b62db8c48f77189650fcd53002c31c0aa9d070587601272117c",
+            "0x1ef38550bc7dc283f631e1bc7c2589a65b8b1921740478a0bfde9aa998b11e8"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x610e343877b9045225d51743cf71ebb7ac8f82b53fab1c0e1d2e6e6646882f2",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970dfdf89d7fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:07.390Z"
+    },
+    {
+      "id": "S5-011",
+      "category": "S5",
+      "idx": 11,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0xb1e0a9c0c3afabc251efb763d6a7c5d6b30af451ddd43deeadd2877794475c",
+            "0x326d58e50d501907e5fbc0290110f684f720adc06732dc454deb75b88bb3cea"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0xc3de438b690f9062afba2ba3b129f3bddd2b8fb421d23b0086692b56f56474",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970dfdf89d7fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:10.448Z"
+    },
+    {
+      "id": "S5-012",
+      "category": "S5",
+      "idx": 12,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x287c5f606da706d0de7a2e0a376de52d064d7916507d37318d3d2efb1c8f301",
+            "0x34f6cf83542c2c3ca379615f1cf61aab87ff4b5b0b9469530c15a858b35b6e9"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x43fdb8f9e4711f6eb9a7b953d561064d2c8c3f1a99f123522d47ad8344522f7",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970dfdf89d7fc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:13.507Z"
+    },
+    {
+      "id": "S5-013",
+      "category": "S5",
+      "idx": 13,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x3b7e49e548051464b106704f24ef4e5f4508ff0c51a107cca89b3df1df35c69",
+            "0x2cb29edc2050d756e1bdac9ac0224889e17803a81f0149e09a9cf694475cacb"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x76c9322062a8f68d35a4e38a49e6d9df87ea5e3e06bd607c2650034ee1e9dad",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970d945b15c9c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:16.560Z"
+    },
+    {
+      "id": "S5-014",
+      "category": "S5",
+      "idx": 14,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x1a8f9b34bb9a295d7978024649c2afcc0daa3a82efd23e2adc4905e024c9437",
+            "0x2ca7fe787e392dc0f412c1dc9fe7097e8e6615440ac4a7810a19c69be594cf3"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x2e96bae9d496b96afbd924f048d8372275855add046a59f181dd6ca45eb3abf",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970d945b15c9c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:19.604Z"
+    },
+    {
+      "id": "S5-015",
+      "category": "S5",
+      "idx": 15,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x165d40e3606b9b2641fab1b0f32844e9feb23039adc34d9131388be455e7190",
+            "0x1af98f26a3ee062c004420156ee17cb9e22ae9a01869699eb836d71d28b9268"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x43a9763b3099c60a2edfa81ecf682f090f8cc4a509eae570951fe4c7d1e3c14",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9970d945b15c9c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:22.662Z"
+    },
+    {
+      "id": "Hash_DNA-001",
+      "category": "Hash_DNA",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x45f61ced68c3a19e471acab1bcecbd23a95d632f78706b1b46e7b9aab2f1e6c",
+            "0x841ff3dab7093b10442527c7c2227b340950965fd086a9943b50a9801ee28d"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3aa02e93f93ceffe5b8f179eadb718fd8a91838b58c7c487d83412a8f858a45",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x59700581185b4c",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:25.722Z"
+    },
+    {
+      "id": "Hash_DNA-002",
+      "category": "Hash_DNA",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x5173a5352427b852db005a9a3e0a09f4afe1c867acd4528b336da82b8dbafdb",
+            "0x269d0e4d0c0df3c80f69a7cc0e87c6fef81c547761739a653f81455592ad81c"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x79e74ef0dffa94713e7494f57b47ab01c081015a26b628a2b733121ef527c87",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x5970049a93bfcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:30.974Z"
+    },
+    {
+      "id": "Hash_DNA-003",
+      "category": "Hash_DNA",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x66e19428ae2c0b94bf8d6b8482edf1778df73970e07e32af8962db5ffe8d4de",
+            "0xd2436fe95e985616882981ccd8929dbccf8394391bca57393528d95cfa4120"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x75c3775381da2dd34965cbeee0ab489ceda3642b2577d3db9c82c3dba9cc71c",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x5970049a93bfcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:34.116Z"
+    },
+    {
+      "id": "Hash_DNA-004",
+      "category": "Hash_DNA",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x173ad288df8a1e4d826db3c37af849e6707569d5e27fb5eb6931fd5d945e69c",
+            "0x1f11184d95946febaaa4b58995c13986b90d0b68b3959e9944d692440fdc8df"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x5397519e78ab75214c09e03d2361f85ce3e721b9dbe726ab92687b499e338f2",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x5970049a93bfcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:37.172Z"
+    },
+    {
+      "id": "Hash_DNA-005",
+      "category": "Hash_DNA",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x52c3617e3c9e5788761a3436627d5e90e5003d13fb5570829d4052fa10bd8",
+            "0x315fa079d2ca65d0f396e95650f947cdfb55c92bf40acc5015d175256fbb06c"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x631affdbe1f4b1d7e166e4ee8cdc78668632c7d7c46a49dd1a94532c0f04e87",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x59700ac6671fcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:40.229Z"
+    },
+    {
+      "id": "Hash_DNA-006",
+      "category": "Hash_DNA",
+      "idx": 6,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x56d8f942f761f081e3f6467e537fb80bfc52135ed524cef66e09a7e4f8d3e1d",
+            "0x35f6525a372bf575936fbe7d037f010f402614d28d7abf807ed793e790e4df2"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x272c2256d25202e2cbac090b0223f2b1fa7c0932554ff1ecde9be57d93523c6",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x59700ac6671fcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:43.296Z"
+    },
+    {
+      "id": "Hash_DNA-007",
+      "category": "Hash_DNA",
+      "idx": 7,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x43d823b873f0313da62e1da253206af63188e3232b9fadb5556e0cf285932e",
+            "0x281e052c2fc37383a09a85fe2f1708f72522a02ed83f1f4300c37f541339b55"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x17a7a560ddf0ce2680541aee620d3674068581b8d280779837485186c4fb711",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x59700ac6671fcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:46.355Z"
+    },
+    {
+      "id": "Hash_DNA-008",
+      "category": "Hash_DNA",
+      "idx": 8,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x53a82bc5e926219b53b39f7c7bd5d66f845e0fa61ae60d9e1136e95334e882c",
+            "0x324dbff0751f49774df143778356986b87ce1391170f301a1737105c937fccf"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x3e4668251823c684c8c3c20682b2f41dacf9f259343cd3c6156d920fb869750",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x59700ac6671fcc",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:49.423Z"
+    },
+    {
+      "id": "Hash_DNA-009",
+      "category": "Hash_DNA",
+      "idx": 9,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x7bf7c1e96b2ad460c80ee524b401feedafacd26d860d3b778d6f6542c22eeb3",
+            "0x3bba805870d8e64c2b6d6557f5c0027e32bf8bfb6cd05e7878cadf509df2bda"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x58f09bb6c83f99c73f6e1360605c5f5af5499e2636f9f14428b20a597390423",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x5970114cd0344c",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:52.473Z"
+    },
+    {
+      "id": "Hash_DNA-010",
+      "category": "Hash_DNA",
+      "idx": 10,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0x4f2ddc99aca96f1f3bf85ac2eafc2ab43f5a57d4d9d2b4efbb51c8b9a21cfec",
+            "0xda2dbc39705a5b51af486503b17c5bbafec5c97136657461be860ca1ebd7c1"
+          ]
+        }
+      ],
+      "expected_revert": false,
+      "tx_hash": "0x60907368b72139a60074d87d95fb59da11cae9d72d7aac65e088dbc2a9485e6",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x5970114cd0344c",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:56:55.519Z"
+    },
+    {
+      "id": "ADV-001",
+      "category": "ADV",
+      "idx": 1,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x0",
+            "0x1dfe5fe0339a8f52514791cc3b0e42b172ec3ee3a50d9d1a18827ff8e7f2d7c"
+          ]
+        }
+      ],
+      "expected_revert": true,
+      "tx_hash": "0x39970238e64c745655c8c88c91c8dedfb0912f4dc00dd157700c6aab25d95ef",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0xcefbfb716ef4dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:56:58.574Z"
+    },
+    {
+      "id": "ADV-002",
+      "category": "ADV",
+      "idx": 2,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "commit_intent",
+          "args": [
+            "0x1f864dc08b05866aab4bd043772e3b183a8f424c252dce81d325f4ed486d40b",
+            "0x0"
+          ]
+        }
+      ],
+      "expected_revert": true,
+      "tx_hash": "0x2d61bc739a7b2772b8b5b7c4c0c1e7e37b6065066d072faba0731058bdbcbb8",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9ddc8f9ce019dc",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:57:03.819Z"
+    },
+    {
+      "id": "ADV-003",
+      "category": "ADV",
+      "idx": 3,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "submit_travel_rule_proof",
+          "args": [
+            "0x2e4469ff5b53ebca163b65c17c9b880d90ed7d6b6009ae57f1a1703870970c4",
+            "0x0",
+            "0x1",
+            "0x30c4d36fc5e7ef20d868b572b5c79694c70ff0fe59e93adc8737bc4abd8ed72"
+          ]
+        }
+      ],
+      "expected_revert": true,
+      "tx_hash": "0x5c0b4f5dd2c8567e60f3f9673b409821bbc7b10eb466dff62761d1ae4b39f82",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x9a92b6de5e9b9c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:57:06.931Z"
+    },
+    {
+      "id": "ADV-004",
+      "category": "ADV",
+      "idx": 4,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "enroll_birp",
+          "args": [
+            "0x1202d84a2f87672687d62bb73ce01bbf43cb41946ce1fdbd96769fe5d920f3b",
+            "0x0"
+          ]
+        }
+      ],
+      "expected_revert": true,
+      "tx_hash": "0x7e0d84b78d2b8c69c0d8e0ffc69e2c17c2c15849e607b8b1cb46d537da8f275",
+      "status": "SUCCEEDED",
+      "success": true,
+      "actual_fee": {
+        "amount": "0x682221ab5e425c",
+        "unit": "FRI"
+      },
+      "events_count": 2,
+      "timestamp": "2026-09-14T14:57:09.973Z"
+    },
+    {
+      "id": "ADV-005",
+      "category": "ADV",
+      "idx": 5,
+      "calls": [
+        {
+          "to": "0x69457ea628e4816beb44eeda55b84a2b0cd3169aebebbea43ab10792138e54a",
+          "fn": "nonexistent_adversarial_fn",
+          "args": [
+            "0x0",
+            "0x0"
+          ]
+        }
+      ],
+      "expected_revert": true,
+      "tx_hash": "0x30981b199fa631be594442d3bb66ed4865bb4a73ab3d395943b4f879997d5ba",
+      "status": "REVERTED",
+      "success": false,
+      "revert_reason": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x06d58c2aa17312d090c27ac52b9f9e4a5d267675afee9dedf424b61655cc1854, class hash: 0x00d632f69c8e02ea43f1d8a7c3eb441c6",
+      "actual_fee": {
+        "amount": "0x572cb71415b74c",
+        "unit": "FRI"
+      },
+      "events_count": 1,
+      "timestamp": "2026-09-14T14:57:15.224Z"
+    }
+  ],
+  "hash_dna_bindings": [
+    {
+      "idx": 1,
+      "entity_id": "0x841ff3dab7093b10442527c7c2227b340950965fd086a9943b50a9801ee28d",
+      "system_id": "0x20b76a30ab78a154ac488b3e782a4fe37f19f83d03bc4b4788194a2fe5259fb",
+      "binding_hash": "0x0x45f61ced68c3a19e471acab1bcecbd23a95d632f78706b1b46e7b9aab2f1e6c"
+    },
+    {
+      "idx": 2,
+      "entity_id": "0x269d0e4d0c0df3c80f69a7cc0e87c6fef81c547761739a653f81455592ad81c",
+      "system_id": "0x1a9bdbb11eba76fb5b59180393ffc9f0177c1bce7143f84220045c4fcabbf34",
+      "binding_hash": "0x0x5173a5352427b852db005a9a3e0a09f4afe1c867acd4528b336da82b8dbafdb"
+    },
+    {
+      "idx": 3,
+      "entity_id": "0xd2436fe95e985616882981ccd8929dbccf8394391bca57393528d95cfa4120",
+      "system_id": "0xc66b9e0704bc157435abdee07745e4af2de2f8eba746e2726c0c23e4959f17",
+      "binding_hash": "0x0x66e19428ae2c0b94bf8d6b8482edf1778df73970e07e32af8962db5ffe8d4de"
+    },
+    {
+      "idx": 4,
+      "entity_id": "0x1f11184d95946febaaa4b58995c13986b90d0b68b3959e9944d692440fdc8df",
+      "system_id": "0xd135d3fec9a65beee984eb838f382b3d95b8bc5a8f4f2fc614bc8d8e0529b6",
+      "binding_hash": "0x0x173ad288df8a1e4d826db3c37af849e6707569d5e27fb5eb6931fd5d945e69c"
+    },
+    {
+      "idx": 5,
+      "entity_id": "0x315fa079d2ca65d0f396e95650f947cdfb55c92bf40acc5015d175256fbb06c",
+      "system_id": "0x21de79c686b74bc653522d1fb9e60e4ec1bbc2644395b7ab2147f7661be2a42",
+      "binding_hash": "0x0x52c3617e3c9e5788761a3436627d5e90e5003d13fb5570829d4052fa10bd8"
+    },
+    {
+      "idx": 6,
+      "entity_id": "0x35f6525a372bf575936fbe7d037f010f402614d28d7abf807ed793e790e4df2",
+      "system_id": "0x3297cc1658a37be26a57281faf48f34e099b9feb08f5b47ba0f7d770648e340",
+      "binding_hash": "0x0x56d8f942f761f081e3f6467e537fb80bfc52135ed524cef66e09a7e4f8d3e1d"
+    },
+    {
+      "idx": 7,
+      "entity_id": "0x281e052c2fc37383a09a85fe2f1708f72522a02ed83f1f4300c37f541339b55",
+      "system_id": "0xf77d42fdaef3800629f79a7eee46603143010fbe9951d0c36b32b1dc9e0d81",
+      "binding_hash": "0x0x43d823b873f0313da62e1da253206af63188e3232b9fadb5556e0cf285932e"
+    },
+    {
+      "idx": 8,
+      "entity_id": "0x324dbff0751f49774df143778356986b87ce1391170f301a1737105c937fccf",
+      "system_id": "0x31ea08a1ebcba6ce1863b4c6bc379dc60c8d6821d21c42e8db2e2a7873e0b7a",
+      "binding_hash": "0x0x53a82bc5e926219b53b39f7c7bd5d66f845e0fa61ae60d9e1136e95334e882c"
+    },
+    {
+      "idx": 9,
+      "entity_id": "0x3bba805870d8e64c2b6d6557f5c0027e32bf8bfb6cd05e7878cadf509df2bda",
+      "system_id": "0x356c23f00edd37a84220a2f9d6a60e191eb9ae899de9efbfaa8bacd255995b2",
+      "binding_hash": "0x0x7bf7c1e96b2ad460c80ee524b401feedafacd26d860d3b778d6f6542c22eeb3"
+    },
+    {
+      "idx": 10,
+      "entity_id": "0xda2dbc39705a5b51af486503b17c5bbafec5c97136657461be860ca1ebd7c1",
+      "system_id": "0x2269d927fcdf08c5afc51c516a469c3bc2435191a473b706860349141af69d1",
+      "binding_hash": "0x0x4f2ddc99aca96f1f3bf85ac2eafc2ab43f5a57d4d9d2b4efbb51c8b9a21cfec"
+    }
+  ]
+}
