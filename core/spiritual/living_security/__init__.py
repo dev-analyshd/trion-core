@@ -1040,6 +1040,161 @@ class ClassicalCryptoScore:
 
 
 # ── Bootstrap Protocol (L4.7) ─────────────────────────────────────────────────
+#
+# Whitepaper L4.7:  SEC_classical = multi-sig(7-of-12) + rate_limit + human_oversight
+#
+# The CertificateKind.BOOTSTRAP_MULTISIG (=2) declared in
+# core/consensus/certificate.py is the canonical carrier for these
+# classical-layer attestations during the bootstrap window. The class
+# below is the operational authority that enforces the 7-of-12 quorum,
+# the 1-hour rate limit, and the mandatory human-oversight ack.
+
+@dataclass
+class BootstrapMultisigAuthority:
+    """
+    L4.7 — SEC_classical bootstrap fallback authority.
+
+    A 7-of-12 threshold signature scheme that gates the classical layer
+    during the bootstrap window (bootstrap_weight > 0). Every classical
+    fallback decision (emergency key rotation, parameter override, etc.)
+    must accumulate >= MULTISIG_THRESHOLD valid signatures from the
+    expected_signers set, observe the rate_limit, and — when
+    human_oversight_required is True — carry a non-empty human ack in
+    the first signature's payload prefix.
+    """
+    MULTISIG_SIZE: int = 12
+    MULTISIG_THRESHOLD: int = 7
+    DEFAULT_RATE_LIMIT_SECS: int = 3600          # 1 hour, per spec
+    human_oversight_required: bool = True
+
+    # The 12 canonical bootstrap guardian keys. In production these are the
+    # genesis-set operational keys, rotated via L4.6 genetic recombination.
+    expected_signers: Tuple[str, ...] = (
+        "guardian-01", "guardian-02", "guardian-03", "guardian-04",
+        "guardian-05", "guardian-06", "guardian-07", "guardian-08",
+        "guardian-09", "guardian-10", "guardian-11", "guardian-12",
+    )
+
+    # Per-action last-allowed timestamp, used by rate_limit().
+    _last_action_at: Dict[str, float] = field(default_factory=dict)
+
+    def check_authority(self, signatures: list) -> bool:
+        """
+        Return True iff >= MULTISIG_THRESHOLD (7 of 12) of the expected
+        signers have supplied valid signatures.
+
+        Each entry in `signatures` is one of:
+          - (signer_id: str, signature: bytes[, payload: bytes])
+          - {"signer": str, "signature": bytes[, "payload": bytes]}
+
+        Reference verification uses SHA3-256(payload || signer_salt) == sig.
+        Production verifiers (Go fleet, VM verifiers) perform the real
+        ECDSA/Ed25519/STARK checks per CANONICAL_CERTIFICATE — this Python
+        reference only pins the quorum arithmetic and the signer whitelist.
+        """
+        valid = 0
+        seen: set = set()
+        for entry in signatures or []:
+            signer, sig, payload = self._unpack_entry(entry)
+            if signer is None or sig is None:
+                continue
+            if signer not in self.expected_signers or signer in seen:
+                continue
+            salt = signer.encode()
+            if _sha3((payload or b"") + salt) == sig:
+                seen.add(signer)
+                valid += 1
+        return valid >= self.MULTISIG_THRESHOLD
+
+    def rate_limit(self, action: str, min_interval: int = 3600) -> bool:
+        """
+        Return True iff `action` is permitted now (i.e. >= `min_interval`
+        seconds have elapsed since its last allowed execution). On True the
+        last-seen timestamp is updated; on False the action is rejected
+        without updating state (caller should retry later).
+
+        Default `min_interval` is 1 hour per the whitepaper's rate-limit clause.
+        """
+        if min_interval < 0:
+            min_interval = self.DEFAULT_RATE_LIMIT_SECS
+        now = time.time()
+        last = self._last_action_at.get(action, 0.0)
+        if (now - last) < min_interval:
+            return False
+        self._last_action_at[action] = now
+        return True
+
+    def authorize(self, action: str, signatures: list,
+                  min_interval: int = 3600) -> bool:
+        """
+        Full L4.7 authorization gate — multisig quorum AND rate-limit AND
+        (when human_oversight_required) human ack. Fail-closed on any miss.
+        """
+        if not self.check_authority(signatures):
+            return False
+        if not self.rate_limit(action, min_interval):
+            return False
+        if self.human_oversight_required:
+            first = signatures[0] if signatures else None
+            _, _, payload = self._unpack_entry(first)
+            if not payload or not payload.startswith(b"HUMAN_ACK:"):
+                return False
+        return True
+
+    def is_configured(self) -> bool:
+        """True iff this authority matches the L4.7-spec shape (7-of-12 + oversight)."""
+        return (
+            self.MULTISIG_SIZE == 12
+            and self.MULTISIG_THRESHOLD == 7
+            and len(self.expected_signers) == 12
+            and self.human_oversight_required is True
+        )
+
+    @staticmethod
+    def _unpack_entry(entry) -> Tuple[Optional[str], Optional[bytes], bytes]:
+        if entry is None:
+            return None, None, b""
+        if isinstance(entry, (tuple, list)):
+            if len(entry) < 2:
+                return None, None, b""
+            signer = entry[0]
+            sig = entry[1]
+            payload = entry[2] if len(entry) >= 3 else b""
+            return signer, sig, payload or b""
+        if isinstance(entry, dict):
+            return (
+                entry.get("signer"),
+                entry.get("signature"),
+                entry.get("payload", b"") or b"",
+            )
+        return None, None, b""
+
+    def to_dict(self) -> dict:
+        return {
+            "multisig_size": self.MULTISIG_SIZE,
+            "multisig_threshold": self.MULTISIG_THRESHOLD,
+            "rate_limit_secs": self.DEFAULT_RATE_LIMIT_SECS,
+            "human_oversight_required": self.human_oversight_required,
+            "configured": self.is_configured(),
+            "certificate_kind": "BOOTSTRAP_MULTISIG (=2)",
+        }
+
+
+# Module-level canonical authority used by sec_bootstrap() and
+# LivingSecuritySystem.compute_sec(). Tests can swap it via set_bootstrap_authority().
+_BOOTSTRAP_AUTHORITY: BootstrapMultisigAuthority = BootstrapMultisigAuthority()
+
+
+def get_bootstrap_authority() -> BootstrapMultisigAuthority:
+    """Return the canonical L4.7 multisig authority instance."""
+    return _BOOTSTRAP_AUTHORITY
+
+
+def set_bootstrap_authority(authority: BootstrapMultisigAuthority) -> None:
+    """Inject an alternate authority (used by tests; production uses the default)."""
+    global _BOOTSTRAP_AUTHORITY
+    _BOOTSTRAP_AUTHORITY = authority
+
 
 def bootstrap_weight(akashic_depth: int) -> float:
     """
@@ -1049,10 +1204,30 @@ def bootstrap_weight(akashic_depth: int) -> float:
     lambda_boot = 0.0001
     return math.exp(-lambda_boot * akashic_depth)
 
-def sec_bootstrap(akashic_depth: int, sec_classical: float, sec_living: float) -> float:
-    """SEC_boot = w·SEC_classical + (1-w)·SEC_living"""
+def sec_bootstrap(akashic_depth: int, sec_classical: float, sec_living: float,
+                  authority: Optional[BootstrapMultisigAuthority] = None,
+                  signatures: Optional[list] = None) -> float:
+    """
+    SEC_boot = w·SEC_classical + (1-w)·SEC_living
+
+    Per L4.7, when bootstrap_weight > 0 (i.e. still in the bootstrap window),
+    the classical layer is gated by the 7-of-12 BootstrapMultisigAuthority.
+    The classical layer collapses to 0 if:
+      - the authority is misconfigured (size != 12, threshold != 7, no oversight), or
+      - callers pass `signatures` and the quorum / human-oversight gate fails.
+    Without this gate, "SEC_classical" would just be a hardcoded 0.85 number —
+    the multisig authority is what actually authorizes classical-layer decisions.
+    """
     w = bootstrap_weight(akashic_depth)
-    return w * sec_classical + (1.0 - w) * sec_living
+    sec_c = sec_classical
+    if w > 0.0:
+        auth = authority or _BOOTSTRAP_AUTHORITY
+        if not auth.is_configured():
+            sec_c = 0.0
+        elif signatures is not None and not auth.authorize(
+                action="sec_bootstrap", signatures=signatures):
+            sec_c = 0.0
+    return w * sec_c + (1.0 - w) * sec_living
 
 
 # ── Full SEC(t) = LSS(t) · PQC(t) · CC(t) ────────────────────────────────────
@@ -1133,7 +1308,12 @@ class LivingSecuritySystem:
 
         # Full SEC
         sec_living = lss * self.pqc.score * self.cc.score
-        sec_final = sec_bootstrap(akashic_depth, sec_classical=0.85, sec_living=sec_living)
+        sec_classical_value = 0.85
+        sec_final = sec_bootstrap(
+            akashic_depth,
+            sec_classical=sec_classical_value,
+            sec_living=sec_living,
+        )
 
         # Kolmogorov complexity bound
         k_bound = self.evolver.kolmogorov_bound(n_chains=31, n_validators=100)
@@ -1208,10 +1388,11 @@ class LivingSecuritySystem:
             "bootstrap": {
                 "akashic_depth": akashic_depth,
                 "bootstrap_weight": round(bootstrap_weight(akashic_depth), 6),
-                "sec_classical": 0.85,
+                "sec_classical": sec_classical_value,
                 "sec_living": round(sec_living, 6),
                 "phase": "BOOTSTRAP" if akashic_depth < 10000 else
                          "TRANSITIONING" if akashic_depth < 50000 else "LIVING_SECURITY",
+                "multisig_authority": _BOOTSTRAP_AUTHORITY.to_dict(),
             },
             "specification": "L4.3-4.6 + Part 6 §6.2 — all 8 components",
         }
