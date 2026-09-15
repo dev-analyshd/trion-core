@@ -41,6 +41,13 @@ pub mod master_equation;
 pub mod signal_emitter;
 pub mod adapters;
 
+// Part 11 language mandate — standalone Rust implementation of the
+// Physical Richness Score Φ (L1.1). Pure Rust (no PyO3 dependency by
+// default) so it compiles under `cargo build`; the PyO3 wrapper in
+// `pyo3_bindings` re-exports the same math so the Python engine and the
+// native extension share a single source of truth.
+pub mod phi;
+
 // Re-exports for convenient access
 pub use types::*;
 
