@@ -3777,7 +3777,11 @@ def security_mf(entity_id: str):
     sync_r   = round(0.1 + 0.7 * (h[6] / 255.0), 4)
     rt_r     = round(0.05 + 0.60 * (h[7] / 255.0), 4)
     wt       = detect_wash_trading(self_trade_ratio=cyc, unique_counterparties=cp)
-    sybil    = detect_sybil_liquidity(top_k_lp_share=sybil_sh, lp_beo_count=max(2, h[8] % 15))
+    sybil    = detect_sybil_liquidity(
+        top_k_lp_share=sybil_sh,
+        lp_beo_count=max(2, h[8] % 15),
+        funding_source_count=max(1, h[13] % 4),  # 1..3 → spec trigger sometimes fires
+    )
     gov      = detect_governance_capture(vote_hhi=float(hhi_val), proposal_age_hours=round(1.0 + 70.0 * (h[4] / 255.0), 1))
     mev      = detect_mev_extraction(mev_ratio_30d=mev_r, sandwich_count=int(h[9] % 10))
     pump     = detect_coordinated_pump(sync_buy_ratios=[sync_r, sync_r * 0.9, sync_r * 1.1], entity_count=max(3, h[10] % 10))

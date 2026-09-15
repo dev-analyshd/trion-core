@@ -268,10 +268,13 @@ check("L1.2 WASH_TRADING: 0.70 × cyclic_ratio (0.80 → 0.56)",
 r = detect_wash_trading(self_trade_ratio=0.80, unique_counterparties=10)
 check("L1.2 WASH_TRADING: ≥5 counterparties → not detected", not r.detected)
 
-# TYPE 4: SYBIL_LIQUIDITY — top-5 LP > 80% pool → 0.60 × concentration
-r = detect_sybil_liquidity(top_k_lp_share=0.90, lp_beo_count=10)
+# TYPE 4: SYBIL_LIQUIDITY — top-5 LP > 80% pool, funded from <3 sources → 0.60 × concentration
+r = detect_sybil_liquidity(top_k_lp_share=0.90, lp_beo_count=10, funding_source_count=2)
 check("L1.2 SYBIL_LIQUIDITY: 0.60 × concentration",
       r.detected and approx(r.mf_score, 0.60 * 0.90, 1e-9))
+# Spec trigger requires funding_sources < 3 — 3+ funders must NOT trigger even at 90% concentration.
+r_neg = detect_sybil_liquidity(top_k_lp_share=0.90, lp_beo_count=10, funding_source_count=3)
+check("L1.2 SYBIL_LIQUIDITY: ≥3 funding sources → not detected", not r_neg.detected)
 
 # TYPE 5: GOVERNANCE_CAPTURE — HHI > 4000, proposal < 48h
 r = detect_governance_capture(vote_hhi=5000, proposal_age_hours=24)

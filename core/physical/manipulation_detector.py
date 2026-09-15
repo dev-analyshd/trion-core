@@ -106,18 +106,34 @@ def detect_wash_trading(
 
 
 def detect_sybil_liquidity(
-    top_k_lp_share: float,      # funding_concentration — top-K LP share
-    lp_beo_count: int,          # unique BEO identities (not just addresses)
+    top_k_lp_share: float,         # funding_concentration — top-K LP share
+    lp_beo_count: int,             # unique BEO identities (evidence only — not in spec trigger)
     k: int = 5,
     share_threshold: float = 0.80,
+    funding_source_count: Optional[int] = None,  # spec: "funded from < 3 sources"
+    funding_source_max: int = 3,
 ) -> MFResult:
     """
     SYBIL_LIQUIDITY (specification L1.2 TYPE 4):
     MF = 0.60 × funding_concentration
-    Threshold: top_5_LP_providers > 80% pool AND funded from < 3 sources
+    Trigger (whitepaper V2 §L1.2 TYPE 4):
+        top_5_LP_providers > 80% pool AND funded from < 3 sources
+
+    `funding_source_count` is the number of distinct funding origins backing the
+    top-K LP providers. If the caller does not supply it (older code paths), we
+    derive a conservative default of one funder per observed BEO identity
+    (`funding_source_count = lp_beo_count`); callers that have measured the
+    true funding-source set should pass it explicitly.
     """
+    # Conservative default: assume 1 distinct funder per BEO when unknown.
+    if funding_source_count is None:
+        funding_source_count = lp_beo_count
+
     funding_concentration = top_k_lp_share
-    detected = top_k_lp_share > share_threshold and lp_beo_count < 20
+    detected = (
+        top_k_lp_share > share_threshold and
+        funding_source_count < funding_source_max
+    )
     if detected:
         mf_score = min(0.80, 0.60 * funding_concentration)
         return MFResult(
@@ -127,21 +143,32 @@ def detect_sybil_liquidity(
             confidence=0.80,
             description=(
                 f"Sybil liquidity: top-{k} LPs hold {top_k_lp_share:.1%} "
-                f"with only {lp_beo_count} distinct BEO identities. "
+                f"funded from only {funding_source_count} source(s) "
+                f"(< {funding_source_max} required) — {lp_beo_count} distinct BEO identities. "
                 f"MF = 0.60 × {funding_concentration:.2f} = {mf_score:.4f}."
             ),
             evidence={
                 "top_k_lp_share": top_k_lp_share,
                 "lp_beo_count": lp_beo_count,
+                "funding_source_count": funding_source_count,
                 "funding_concentration": funding_concentration,
+                "trigger": f"top-{k} > {share_threshold:.0%} AND funding_sources < {funding_source_max}",
                 "formula": "0.60 × funding_concentration",
             }
         )
     return MFResult(
         pattern_type="SYBIL_LIQUIDITY", detected=False,
         mf_score=0.0, confidence=0.85,
-        description="No sybil liquidity pattern.",
-        evidence={"top_k_lp_share": top_k_lp_share, "lp_beo_count": lp_beo_count}
+        description=(
+            f"No sybil liquidity: top-{k} share={top_k_lp_share:.1%} "
+            f"(need > {share_threshold:.0%}), funding_sources={funding_source_count} "
+            f"(need < {funding_source_max})."
+        ),
+        evidence={
+            "top_k_lp_share": top_k_lp_share,
+            "lp_beo_count": lp_beo_count,
+            "funding_source_count": funding_source_count,
+        }
     )
 
 
