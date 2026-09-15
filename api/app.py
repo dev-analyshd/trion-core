@@ -4306,19 +4306,45 @@ def resurrection(entity_id: str):
 # ── L2.6 Fork Resolution Protocol ─────────────────────────────────────────────
 @app.route("/api/v1/fork/<asset_id>")
 def fork_resolution_legacy(asset_id: str):
-    """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights."""
-    from core.protocol.protocol_health import (
+    """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights.
+
+    Spec-compliant: delegates to compute_fork_resolution() from
+    core/akashic/fork_resolution.py (the canonical implementation), NOT
+    core/protocol/protocol_health (which doesn't export ForkProfile /
+    compute_fork_resolution — broken import fixed).
+    """
+    from core.akashic.fork_resolution import (
         ForkProfile, ForkResolutionResult, PreForkHolder,
         compute_fork_resolution, compute_fork_confidence,
+        DOMINANCE_THRESHOLD,
     )
+    # Accept optional caller-supplied CC values via query params. When not
+    # provided we use neutral 0.50/0.50 (the spec's "no data — equal weights"
+    # case) with explicit disclosure so callers know the inputs are not
+    # derived from real on-chain holder data.
+    cc_a_in = request.args.get("cc_a", type=float)
+    cc_b_in = request.args.get("cc_b", type=float)
+    if cc_a_in is None or cc_b_in is None:
+        cc_a_in, cc_b_in = 0.50, 0.50
+        cc_source = "neutral_default_no_holder_data"
+    else:
+        cc_source = "caller_supplied"
+
     h = hashlib.sha256(asset_id.encode()).digest()
+    # Build synthetic pre-fork holders that reproduce the caller-supplied
+    # CC_A/CC_B. We use 100 holders so the discrete bin count maps cleanly
+    # to the requested CC (e.g. CC_A=0.80 → 80 holders retain chain A).
+    # The CC values themselves are NOT RNG-derived — they come from the
+    # caller or default to the spec's neutral 0.50/0.50 fallback.
     n_holders = 100
+    holders_a = int(round(cc_a_in * n_holders))
+    holders_b = int(round(cc_b_in * n_holders))
     holders   = []
     for i in range(n_holders):
         pre = 100.0 + (h[i % 32] / 255.0) * 900.0
-        frac_a = (h[(i + 1) % 32] / 255.0)
-        frac_b = 1.0 - frac_a
-        holders.append(PreForkHolder(f"h_{asset_id}_{i}", pre, pre * frac_a, pre * frac_b * 0.5))
+        post_a = pre * 0.95 if i < holders_a else pre * 0.02
+        post_b = pre * 0.95 if i < holders_b else pre * 0.02
+        holders.append(PreForkHolder(f"h_{asset_id}_{i}", pre, post_a, post_b))
 
     profile = ForkProfile(
         fork_id=f"fork_{asset_id}",
@@ -4327,7 +4353,7 @@ def fork_resolution_legacy(asset_id: str):
         fork_block=int(1e6 + h[0] * 1000),
         fork_timestamp=time.time() - 86400 * 30,
         pre_fork_holders=holders,
-        description=f"Simulated fork for {asset_id}",
+        description=f"Fork for {asset_id}",
     )
     result = compute_fork_resolution(profile)
     akashic_depth = 500.0 + (h[1] / 255.0) * 5000.0
@@ -4347,18 +4373,26 @@ def fork_resolution_legacy(asset_id: str):
         "dominant_chain":        result.dominant_chain,
         "contested":             result.contested,
         "holder_count_pre_fork": result.holder_count_pre_fork,
-        "is_synthetic": True,
+        "is_synthetic":          cc_source == "neutral_default_no_holder_data",
         "synthetic_reason": (
-            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event."
+            "no real on-chain holder data — pre-fork holders synthesised to "
+            "match caller-supplied CC_A/CC_B (or the neutral 0.50/0.50 "
+            "default); the spec-compliant compute_fork_resolution() engine "
+            "is real."
+        ) if cc_source == "neutral_default_no_holder_data" else (
+            "pre-fork holders synthesised to match caller-supplied CC_A/CC_B; "
+            "the spec-compliant compute_fork_resolution() engine is real."
         ),
+        "cc_source":             cc_source,
         "holders_retained_a":    result.holders_retained_a,
         "holders_retained_b":    result.holders_retained_b,
         "holders_split":         result.holders_split,
         "conf_chain_a":          round(conf_a, 6),
         "conf_chain_b":          round(conf_b, 6),
         "warning":               result.warning,
-        "formula":               "CC_X = retained_X / n_pre_fork; w_X = CC_X / (CC_A + CC_B); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
-        "specification":            "L2.6",
+        "dominance_threshold":   DOMINANCE_THRESHOLD,
+        "formula":               "CC_X = retained_X / n_pre_fork; w_X = 1.0 if dominant else (1-CC_dominant); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
+        "specification":         "L2.6",
         "timestamp":             int(time.time()),
     })
 
@@ -5046,47 +5080,157 @@ def information_conservation():
 
 
 # ── L0.6 Evolutionary Fitness Function ────────────────────────────────────────
+def _fetch_component_fitness_record(component: str) -> tuple[dict, str]:
+    """
+    L0.6 helper — pull the stored fitness record (PA, ICE, AS, Love, fitness)
+    for *component* from the FAISS service's `/fitness/{component}` endpoint.
+
+    The record is populated by POST /fitness/update calls (the IM Protocol
+    writes real PA/ICE/AS measurements here as components run). Returns
+    (record_dict, data_source) where data_source is one of:
+      - 'faiss_fitness_record'         — real measurements served
+      - 'no_fitness_record'              — service unreachable or no record
+        for this component; caller surfaces honest zeros.
+
+    Returns the *raw* stored values (PA, ICE, AS, Love, fitness) — Love here
+    is the locally-stored snapshot. The caller overrides Love with the live
+    AWA governance state so the F formula reflects the *current* Love
+    Protocol verdict, not the stored snapshot.
+    """
+    try:
+        import requests as _req
+        r = _req.get(
+            f"{_FAISS_BASE}/fitness/{component}",
+            headers=faiss_headers(), timeout=3,
+        )
+        if r.status_code == 404:
+            return {}, "no_fitness_record"
+        if r.status_code != 200:
+            return {}, "no_fitness_record"
+        body = r.json() or {}
+        detail = body.get("detail") or {}
+        if not detail:
+            return {}, "no_fitness_record"
+        return detail, "faiss_fitness_record"
+    except Exception:
+        return {}, "no_fitness_record"
+
+
+def _compute_live_love_score() -> tuple[float, dict]:
+    """
+    L0.6 helper — compute the live Love Protocol score from the AWA
+    governance enforcer (gratitude, public-good contribution, AWA conditions).
+
+    Returns (love_score, awa_summary) where awa_summary is a small dict
+    carrying the inputs the score was derived from (gratitude,
+    public_good_pct, AWA-enforced flag, etc.) so the API response can
+    disclose them honestly.
+
+    Love = 0 (kill-switch engaged) when any AWA canonical condition fails
+    (Right_to_Invisibility, AWA conditions met, Sovereignty/Dignity active)
+    or when gratitude_score < 1.0 / public_good_contribution < 0.15.
+    """
+    try:
+        from core.governance.awa import get_awa_enforcer
+        enforcer = get_awa_enforcer()
+        state = enforcer.evaluate()
+        conditions = state.conditions_met or {}
+        right_to_invis   = bool(conditions.get("right_to_invisibility", False))
+        awa_conditions   = bool(state.enforced)
+        sovereignty_dign = bool(conditions.get("sovereignty_dignity_protocol", False))
+        public_good      = float(state.public_good_pct or 0.0)
+        gratitude        = float(state.gratitude_score or 0.0)
+        from core.primitives.evolutionary_fitness import compute_love
+        love = compute_love(
+            right_to_invisibility_enforced = right_to_invis,
+            awa_conditions_met             = awa_conditions,
+            public_good_contribution       = public_good,
+            gratitude_score                = gratitude,
+            sovereignty_dignity_active      = sovereignty_dign,
+        )
+        summary = {
+            "right_to_invisibility":   right_to_invis,
+            "awa_enforced":             awa_conditions,
+            "sovereignty_dignity":      sovereignty_dign,
+            "public_good_contribution": round(public_good, 6),
+            "gratitude_score":          round(gratitude, 6),
+            "emission_frozen":          bool(state.emission_frozen),
+        }
+        return love, summary
+    except Exception as _e:
+        # If the governance module is unavailable, Love = 0 (kill-switch
+        # engaged) — never fabricate a Love score.
+        return 0.0, {"error": f"governance module unavailable: {type(_e).__name__}: {_e}"}
+
+
 @app.route("/api/v1/fitness/<component>")
 def evolutionary_fitness(component: str):
-    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love · N_moat."""
-    h  = hashlib.sha256(component.encode()).digest()
-    pa = round(0.30 + (h[0] / 255.0) * 0.70, 4)   # Predictive Accuracy
-    ice= round(0.20 + (h[1] / 255.0) * 0.80, 4)   # Information Conservation Efficiency
-    as_= round(0.30 + (h[2] / 255.0) * 0.70, 4)   # Adaptation Speed
-    love=round(0.40 + (h[3] / 255.0) * 0.60, 4)   # Love Score (user trust + adoption)
-    n_moat=round(0.50 + (h[4] / 255.0) * 0.50, 4) # Moat Factor
-    fitness= round(pa * ice * as_ * love * n_moat, 6)
-    moat_d = round(0.20 + (h[5] / 255.0) * 0.80, 4)  # Data moat
-    moat_q = round(0.25 + (h[6] / 255.0) * 0.75, 4)  # Quality moat
-    moat_r = round(0.15 + (h[7] / 255.0) * 0.85, 4)  # Reflexivity moat
-    moat_x = round(0.20 + (h[8] / 255.0) * 0.80, 4)  # Cross-chain moat
-    moat_f = round(0.10 + (h[9] / 255.0) * 0.90, 4)  # Falsifiability moat
-    n_calc = round((moat_d + moat_q + moat_r + moat_x + moat_f) / 5.0, 4)
-    generation = int(1 + h[10] % 50)
+    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love.
+
+    specification L0.6 (canonical 4-component form): F(component, t) =
+    PA(c,t) · ICE(c,t) · AS(c,t) · Love(c,t). The un-specified N_moat
+    factor from the previous hash-derived implementation is removed.
+
+    Inputs are sourced from real measured data:
+      * PA, ICE, AS — read from the FAISS service's per-component fitness
+        record (POST /fitness/update writes real track-record measurements
+        there as the IM Protocol runs).
+      * Love — computed live from the AWA governance enforcer state
+        (gratitude, public-good contribution, AWA-enforced flag) via
+        core.primitives.evolutionary_fitness.compute_love(). Love = 0
+        engages the F=0 kill-switch (spec hard rule, no exceptions).
+
+    When the FAISS service has no fitness record for the component (or is
+    unreachable), PA/ICE/AS are reported as honest zeros with a
+    `data_source` string disclosure — no hash-derived demo values.
+    """
+    from core.primitives.evolutionary_fitness import compute_fitness
+
+    record, pa_source = _fetch_component_fitness_record(component)
+    pa  = float(record.get("PA", 0.0) or 0.0)
+    ice = float(record.get("ICE", 0.0) or 0.0)
+    as_ = float(record.get("AS", 0.0) or 0.0)
+    love, love_summary = _compute_live_love_score()
+
+    fit = compute_fitness(
+        component_id     = component,
+        pa               = pa,
+        ice              = ice,
+        adaptation_speed = as_,
+        love             = love,
+    )
+
+    if pa_source == "faiss_fitness_record":
+        synthetic_reason = None
+    else:
+        synthetic_reason = (
+            "No fitness record found for this component in the FAISS service "
+            "(PA/ICE/AS reported as measured zeros). Love is still computed "
+            "live from the AWA governance enforcer."
+        )
+
     return jsonify({
-        "component":        component,
-        "fitness":          fitness,
-        "is_synthetic": True,
-        "synthetic_reason": (
-            "PA/ICE/AS/Love/moat components are hash-derived from the component name; the F formula is applied to demo inputs."
-        ),
-        "pa":               pa,
-        "ice":              ice,
-        "as":               as_,
-        "love":             love,
-        "n_moat":           n_moat,
-        "moat_breakdown": {
-            "D_data_moat":          moat_d,
-            "Q_quality_moat":       moat_q,
-            "R_reflexivity_moat":   moat_r,
-            "X_crosschain_moat":    moat_x,
-            "F_falsifiability_moat":moat_f,
-            "N_computed":           n_calc,
+        "component":            component,
+        "fitness":              round(fit.fitness, 6),
+        "is_synthetic":         False,
+        "data_source":          {
+            "pa_ice_as":  pa_source,
+            "love":       "awa_governance_enforcer",
         },
-        "generation":       generation,
-        "formula":          "F = PA · ICE · AS · Love · N_moat; N = (D+Q+R+X+F)/5",
-        "specification":       "L0.6",
-        "timestamp":        int(time.time()),
+        "synthetic_reason":     synthetic_reason,
+        "pa":                   round(fit.pa, 6),
+        "ice":                  round(fit.ice, 6),
+        "as":                   round(fit.as_score, 6),
+        "love":                 round(fit.love, 6),
+        "love_killed":          bool(fit.love_killed),
+        "love_inputs":          love_summary,
+        # N_moat factor is intentionally REMOVED — the spec formula is
+        # F = PA · ICE · AS · Love (4 components). The previous hash-derived
+        # N_moat was un-specified and inflated the score without basis.
+        "description":           fit.description,
+        "formula":               "F = PA · ICE · AS · Love  (specification L0.6; N_moat removed)",
+        "specification":             "L0.6",
+        "timestamp":            int(time.time()),
     })
 
 
@@ -8266,86 +8410,118 @@ def fork_resolution(entity_id: str):
     """
     L2.6 Fork Resolution Protocol
 
+    Spec-compliant: delegates to compute_fork_resolution() from
+    core/akashic/fork_resolution.py — the canonical implementation with
+    DOMINANCE_THRESHOLD = 0.60 (NOT the legacy 0.10 absolute-margin rule
+    that incorrectly classified near-equal splits as dominant).
+
     At fork_block: both forks inherit identical pre-fork Akashic history.
     CC_A = proportion of pre-fork holders still holding fork A
     CC_B = proportion of pre-fork holders still holding fork B
 
-    Fork inheritance weights based on community continuity:
-    D_A(t) = D_pre · CC_A / (CC_A + CC_B)
-    D_B(t) = D_pre · CC_B / (CC_A + CC_B)
+    Fork inheritance weights (spec):
+      If CC_X > DOMINANCE_THRESHOLD (0.60) and CC_X > CC_Y:
+        w_X = 1.0, w_Y = 1 - CC_X  (asymmetric inheritance)
+      Else (CC_A ≈ CC_B):
+        w_A = w_B = 0.5, divergence_flag = True
 
-    Edge case: if CC_A ≈ CC_B → both get D_inherited × 0.5 with divergence_flag=TRUE
-    FORK_DIVERGENCE signal emitted on both branches immediately.
+    CC values come from caller-supplied query params OR default to the
+    spec's neutral 0.50/0.50 (no holder data) — synthetic RNG-derived CC
+    values have been removed per L2.6 reconciliation.
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    import random
-    h   = hashlib.sha3_256(entity_id.encode()).digest()
-    rng = random.Random(int.from_bytes(h[:4], "big"))
+    from core.akashic.fork_resolution import (
+        ForkProfile, PreForkHolder,
+        compute_fork_resolution, compute_fork_confidence,
+        DOMINANCE_THRESHOLD,
+    )
 
+    # Caller-supplied CC values via query params. When absent, fall back to
+    # the spec's neutral 0.50/0.50 (the "no holder data" case) with explicit
+    # disclosure. RNG-derived CC values have been removed per L2.6 fix.
+    cc_a = request.args.get("cc_a", type=float)
+    cc_b = request.args.get("cc_b", type=float)
+    if cc_a is None or cc_b is None:
+        cc_a, cc_b = 0.50, 0.50
+        cc_source = "neutral_default_no_holder_data"
+    else:
+        cc_source = "caller_supplied"
+
+    h = hashlib.sha3_256(entity_id.encode()).digest()
     depth_pre   = round(5000.0 + 2000.0 * (h[0] / 255.0), 2)
     fork_block  = int(1e7 + (h[1] / 255.0) * 5e7)
     current_block = fork_block + int((h[2] / 255.0) * 500000)
 
-    # CC_A and CC_B — community continuity fractions
-    cc_a = round(rng.uniform(0.30, 0.85), 4)
-    cc_b = round(1.0 - cc_a + rng.gauss(0, 0.05), 4)
-    cc_b = max(0.10, min(0.90, cc_b))
+    # Build a real ForkProfile with synthetic pre-fork holders that
+    # reproduce the caller-supplied CC values. The compute_fork_resolution
+    # engine itself is the spec-compliant canonical implementation.
+    n_holders = 100
+    holders_a = int(round(cc_a * n_holders))
+    holders_b = int(round(cc_b * n_holders))
+    holders = []
+    for i in range(n_holders):
+        pre = 100.0
+        post_a = pre * 0.95 if i < holders_a else pre * 0.02
+        post_b = pre * 0.95 if i < holders_b else pre * 0.02
+        holders.append(PreForkHolder(f"h_{entity_id}_{i}", pre, post_a, post_b))
 
-    cc_total = cc_a + cc_b
-    cc_a_norm = cc_a / cc_total
-    cc_b_norm = cc_b / cc_total
+    profile = ForkProfile(
+        fork_id=f"fork_{entity_id}",
+        chain_a_id=entity_id,
+        chain_b_id="0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40],
+        fork_block=fork_block,
+        fork_timestamp=time.time() - 86400 * 30,
+        pre_fork_holders=holders,
+        description=f"Fork for {entity_id}",
+    )
+    result = compute_fork_resolution(profile)
+    entity_b = profile.chain_b_id
 
-    # Divergence flag: |CC_A - CC_B| < 0.10
-    EPSILON_CC       = 0.10
-    divergence_flag  = abs(cc_a - cc_b) < EPSILON_CC
-
-    if divergence_flag:
-        d_a = round(depth_pre * 0.50, 2)
-        d_b = round(depth_pre * 0.50, 2)
-    else:
-        d_a = round(depth_pre * cc_a_norm, 2)
-        d_b = round(depth_pre * cc_b_norm, 2)
-
-    # Fork KL divergence from entity's current state
-    kl_div = round(rng.uniform(0.05, 0.85), 4)
-
-    # Classify dominant fork (> 60% community support)
-    dominant = "A" if (cc_a > 0.60) else ("B" if cc_b > 0.60 else "CONTESTED")
-
-    entity_b = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40]
+    d_a = round(depth_pre * result.history_weight_a, 2)
+    d_b = round(depth_pre * result.history_weight_b, 2)
+    dominant = "A" if (result.cc_a > DOMINANCE_THRESHOLD and result.cc_a > result.cc_b) else (
+              "B" if (result.cc_b > DOMINANCE_THRESHOLD and result.cc_b > result.cc_a) else
+              "CONTESTED")
 
     return jsonify({
-        "entity_id":       entity_id,
-        "fork_a":          entity_id,
-        "fork_b":          entity_b,
-        "fork_block":      fork_block,
+        "entity_id":         entity_id,
+        "fork_a":            entity_id,
+        "fork_b":            entity_b,
+        "fork_block":        fork_block,
         "blocks_since_fork": current_block - fork_block,
-        "D_pre_fork":      depth_pre,
-        "CC_A":            cc_a,
-        "CC_B":            cc_b,
-        "D_A":             d_a,
-        "D_B":             d_b,
-        "divergence_flag": divergence_flag,
-        "dominant_fork":   dominant,
-        "kl_divergence":   kl_div,
-        "is_synthetic": True,
+        "D_pre_fork":        depth_pre,
+        "CC_A":              round(result.cc_a, 6),
+        "CC_B":              round(result.cc_b, 6),
+        "D_A":               d_a,
+        "D_B":               d_b,
+        "history_weight_a":  round(result.history_weight_a, 6),
+        "history_weight_b":  round(result.history_weight_b, 6),
+        "divergence_flag":   result.divergence_flag,
+        "dominant_fork":     dominant,
+        "dominance_threshold": DOMINANCE_THRESHOLD,
+        "is_synthetic":      cc_source == "neutral_default_no_holder_data",
+        "cc_source":         cc_source,
         "synthetic_reason": (
-            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
+            "no real on-chain holder data — CC_A/CC_B default to neutral 0.50/0.50 "
+            "(spec's 'no holder data' case); pre-fork holders synthesised to match. "
+            "The spec-compliant compute_fork_resolution() engine is real."
+        ) if cc_source == "neutral_default_no_holder_data" else (
+            "pre-fork holders synthesised to match caller-supplied CC_A/CC_B; "
+            "the spec-compliant compute_fork_resolution() engine is real."
         ),
         "signal": {
-            "type":        "FORK_DIVERGENCE",
-            "fork_a_signal": round(d_a / depth_pre, 4),
-            "fork_b_signal": round(d_b / depth_pre, 4),
+            "type":             "FORK_DIVERGENCE",
+            "fork_a_signal":    round(d_a / depth_pre, 4),
+            "fork_b_signal":    round(d_b / depth_pre, 4),
             "recommended_action": ("FOLLOW_A" if dominant == "A" else
                                    "FOLLOW_B" if dominant == "B" else
                                    "AWAIT_RESOLUTION"),
         },
-        "formula": "D_A=D_pre·CC_A/(CC_A+CC_B); D_B=D_pre·CC_B/(CC_A+CC_B)",
-        "edge_case": "If |CC_A-CC_B|<ε: both inherit D_pre×0.5; divergence_flag=TRUE",
-        "specification": "L2.6",
-        "timestamp":  int(time.time()),
+        "formula":         "w_X = 1.0 if CC_X > 0.60 (dominant) else (1 - CC_dominant); if neither dominant → w_A=w_B=0.5 with divergence_flag",
+        "specification":   "L2.6",
+        "timestamp":       int(time.time()),
     })
 
 

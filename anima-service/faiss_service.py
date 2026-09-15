@@ -2538,7 +2538,20 @@ def fork_resolution(entity_a: str, entity_b: str,
       Neither dominant (CC_A ≈ CC_B) → both get D_inherited × 0.5, divergence_flag = True.
 
     Without CC values (on-chain holder data unavailable): depth-based comparison used as fallback.
+
+    Spec-compliant: dominance threshold DOMINANCE_THRESHOLD = 0.60 (from
+    core/akashic/fork_resolution.py), NOT 0.10 (which incorrectly classified
+    near-equal forks as dominant). Reconciles the three divergent production
+    paths (api/app.py:fork_resolution, api/app.py:fork_resolution_legacy,
+    anima-service/faiss_service.py:fork_resolution) to a single spec path.
     """
+    # Spec-compliant dominance threshold — imported lazily so the service
+    # can boot even if core.akashic.fork_resolution is unavailable.
+    try:
+        from core.akashic.fork_resolution import DOMINANCE_THRESHOLD as _DOM_THR
+    except Exception:
+        _DOM_THR = 0.60   # spec value (matches core/akashic/fork_resolution.py)
+
     depth_a   = calculate_depth(entity_a)
     depth_b   = calculate_depth(entity_b)
     records_a = len(entity_history.get(entity_a, []))
@@ -2550,14 +2563,19 @@ def fork_resolution(entity_a: str, entity_b: str,
 
     if cc_a is not None and cc_b is not None:
         # specification L2.6 — holder-continuity based depth inheritance
+        # Spec: a fork is DOMINANT only when its CC exceeds DOMINANCE_THRESHOLD
+        # (0.60) AND exceeds the other fork's CC. Previously this used 0.10
+        # (absolute margin) which classified near-equal splits as dominant.
         resolution_method = "holder_continuity"
-        if cc_a > cc_b + 0.10:           # Fork A clearly dominant
+        a_dominant = cc_a > _DOM_THR and cc_a > cc_b
+        b_dominant = cc_b > _DOM_THR and cc_b > cc_a
+        if a_dominant:
             winner = entity_a
             depth_inheritance = {"entity_a": 1.0, "entity_b": round(1.0 - cc_a, 4)}
-        elif cc_b > cc_a + 0.10:          # Fork B clearly dominant
+        elif b_dominant:
             winner = entity_b
             depth_inheritance = {"entity_a": round(1.0 - cc_b, 4), "entity_b": 1.0}
-        else:                             # Neither dominant
+        else:                             # Neither dominant (CC_A ≈ CC_B)
             winner          = "DIVERGENT"
             divergence_flag = True
             depth_inheritance = {"entity_a": 0.5, "entity_b": 0.5}
@@ -2584,6 +2602,7 @@ def fork_resolution(entity_a: str, entity_b: str,
         "depth_inheritance":  depth_inheritance,
         "divergence_flag":    divergence_flag,
         "resolution_method":  resolution_method,
+        "dominance_threshold": _DOM_THR,
     }
 
 
