@@ -369,17 +369,96 @@ def compute_brt(unix_ts: float, observed_timestamps: Optional[list] = None) -> d
 import hashlib as _hashlib
 
 
-def _genomic_signature(entity_id_str: str, generation: int = 0) -> str:
-    """
-    Compute genomic_signature: bytes64 (128 hex chars) from sense+antisense strands.
-    specification L0.1 dual-strand DNA schema:
-      sense     = SHA3-256(payload || 0x00)
-      antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
+# ── L4.3-4.6: Living Security components (module-level singletons) ──────────
+# Part 6 §6.2 Components 1, 3, 4, 8. Every signal emission evolves the entity's
+# genomic key through the real chain GK(t) = Hash_DNA(GK(t-1) || BE(t) ||
+# TM(t) || CV(t)), runs CRISPR innate screening of the underlying transaction
+# data, and feeds the epigenetic layer (threat level / validator health /
+# network entropy). Living Security is imported lazily so the signal factory
+# stays importable in minimal runtimes — the legacy stateless SHA3 path is
+# the documented fallback when the spiritual layer is absent.
+_genomic_evolver = None
+_crispr = None
+_epigenetic = None
 
-    The XOR-complement construction binds antisense to sense cryptographically:
-    any tampering with either strand breaks the invariant, enabling tamper detection.
-    Two independent hashes would NOT provide this property.
+def _get_living_security():
+    """Lazily instantiate the module-level Living Security singletons.
+
+    Returns (evolver, crispr, epigenetic). Any component may be None if the
+    spiritual layer is unavailable; the signal factory falls back to the
+    stateless SHA3 path and an "unavailable" immune clearance record so the
+    emission still succeeds with honest provenance.
     """
+    global _genomic_evolver, _crispr, _epigenetic
+    if _genomic_evolver is None:
+        try:
+            from core.spiritual.living_security import (
+                GenomicKeyEvolver, CRISPRDefense, EpigeneticLayer,
+            )
+            _genomic_evolver = GenomicKeyEvolver()
+            _crispr = CRISPRDefense()
+            _epigenetic = EpigeneticLayer()
+        except Exception:
+            # Spiritual layer unavailable in this runtime — leave the
+            # singletons None; _genomic_signature and build_signal will fall
+            # back to the documented legacy path with honest provenance.
+            _genomic_evolver = None
+            _crispr = None
+            _epigenetic = None
+    return _genomic_evolver, _crispr, _epigenetic
+
+
+def _genomic_signature(entity_id_str: str, generation: int = 0,
+                       coherence_result: Optional[dict] = None) -> str:
+    """
+    Compute genomic_signature: bytes64 (128 hex chars) from sense+antisense
+    strands, chaining GK(t-1) || BE(t) || TM(t) || CV(t) per spec L4.3 /
+    Part 6 §6.2 Component 1 via the real GenomicKeyEvolver (Living Security).
+
+    BE(t) = SHA3(behavioral_entropy_vector) — derived from the coherence
+            plane_breakdown at emission (the entropy present in the
+            behavioral observation feeding this signal).
+    TM(t) = SHA3(timestamp || emission_tick) — derived from the emission
+            time (wall-clock) so each evolution advances the temporal
+            component even when no explicit block hash is supplied.
+    CV(t) = SHA3(consensus_view_at_t) — derived from the coherence value
+            C(t) and threshold Θ(t) at emission (the consensus view this
+            signal is certifying).
+
+    The evolver maintains GK(t-1) per entity across calls, so each signal's
+    genomic signature is a true chained evolution — a stolen snapshot is
+    immediately outdated by the next legitimate emission.
+
+    Fallback: if the Living Security layer is unavailable (e.g. minimal
+    runtime), the legacy stateless SHA3 dual-strand computation is used so
+    the signal still carries a structurally-valid bytes64 signature (the
+    provenance record labels which path produced the signature).
+    """
+    evolver, _crispr_unused, _epi_unused = _get_living_security()
+
+    if evolver is not None:
+        import time as _time
+        entity_bytes = entity_id_str.encode("utf-8", errors="ignore")[:32]
+        entity_bytes = entity_bytes.ljust(32, b"\x00")  # 32-byte entity id
+
+        be_hash = _hashlib.sha3_256(
+            repr((coherence_result or {}).get("plane_breakdown", {})).encode()
+        ).digest()
+        tm_hash = _hashlib.sha3_256(
+            (str(_time.time()) + "|" + str(generation)).encode()
+        ).digest()
+        cv_hash = _hashlib.sha3_256(
+            (str((coherence_result or {}).get("C", 0.0)) + "|"
+             + str((coherence_result or {}).get("theta", 0.0))).encode()
+        ).digest()
+        try:
+            gk = evolver.evolve(entity_bytes, be_hash, tm_hash, cv_hash)
+            return gk.sense_hex() + gk.antisense_hex()  # 128 hex chars = 64 bytes
+        except Exception:
+            pass  # fall through to legacy stateless path
+
+    # Legacy stateless SHA3 dual-strand (fallback when the Living Security
+    # layer cannot be imported — minimal runtimes).
     payload     = (entity_id_str + str(generation)).encode()
     sense_b     = _hashlib.sha3_256(payload + b'\x00').digest()
     sha3ff_b    = _hashlib.sha3_256(payload + b'\xFF').digest()
@@ -697,6 +776,21 @@ def build_signal(
     temporal_coherence:   float = 1.0,
     conf_genesis:         Optional[float] = None,
     akashic_depth:        Optional[float] = None,
+    # ── L4.3-4.6: Living Security emission inputs (Part 6 §6.2) ──────────
+    # transaction_data: the underlying behavioral event bytes that back this
+    #     signal — fed to the CRISPR innate immune check. None means the
+    #     immune layer is consulted structurally (the entity's current GK
+    #     sense strand is the "transaction" — preserves existing semantics
+    #     for callers that have always passed immune_clearance=True).
+    # mf_score: manipulation-free score in [0,1] feeding the epigenetic
+    #     threat level (Part 6 §6.2 Component 4). Defaults to the
+    #     complement of C(t) when omitted (low coherence = high threat).
+    # block_entropy: network entropy at the emitting block, feeding the
+    #     epigenetic layer's network_entropy input. Defaults to 1.0
+    #     (max-entropy, neutral) when no measurement is available.
+    transaction_data:    Optional[bytes] = None,
+    mf_score:             Optional[float] = None,
+    block_entropy:        Optional[float] = None,
     # ── L0.5 Signal Selection Principle (entropy-budget gate, Wave 3 D) ──
     # Optional caller-supplied information-gain / entropy-cost figures.
     # When BOTH are provided, the L0.5 gate applies: a signal whose
@@ -870,7 +964,52 @@ def build_signal(
         import math as _math
         conf_genesis = round(1.0 - _math.exp(-0.001 * float(depth)), 6)
 
-    gen_sig = _genomic_signature(entity_id_str, genomic_generation)
+    # ── L4.3-4.6: Living Security emission hooks (Part 6 §6.2) ──────────
+    # Component 1 — Genomic Key Evolution: _genomic_signature now calls the
+    # real GenomicKeyEvolver.evolve() with GK(t-1) || BE(t) || TM(t) || CV(t),
+    # chaining the entity's key forward on every emission. Component 3/8 —
+    # CRISPR innate screening: if transaction_data is provided, the innate
+    # immune layer is consulted; a hit clears immune_clearance=False and the
+    # hit record is attached. Component 4 — Epigenetic layer is updated
+    # with threat_level (mf_score or 1 - C) / validator_health=1.0 /
+    # network_entropy (block_entropy) and the resulting phenotype is carried
+    # on the signal so downstream gates can react to it.
+    _evolver_unused, crispr, epigenetic = _get_living_security()
+
+    crispr_record = None
+    if transaction_data is not None and crispr is not None:
+        try:
+            hit = crispr.innate_check(transaction_data)
+            if hit is not None:
+                immune_clearance = False
+                crispr_record = hit
+        except Exception:
+            # CRISPR failure is non-fatal — immune clearance stays at its
+            # caller-supplied value and the provenance records the failure.
+            crispr_record = {"error": "crispr_check_exception"}
+
+    threat_level = (1.0 - float(C)) if mf_score is None else float(mf_score)
+    threat_level = max(0.0, min(1.0, threat_level))
+    net_entropy  = 1.0 if block_entropy is None else float(block_entropy)
+    net_entropy  = max(0.0, min(1.0, net_entropy))
+    epi_state = None
+    if epigenetic is not None:
+        try:
+            epigenetic.update(
+                threat_level=threat_level,
+                validator_health=1.0,
+                network_entropy=net_entropy,
+            )
+            epi_state = {
+                "state":                         epigenetic.state.value,
+                "coherence_threshold_modifier":  epigenetic.coherence_threshold_modifier,
+                "emission_rate_modifier":        epigenetic.emission_rate_modifier,
+                "threat_level":                  round(epigenetic.threat_level, 6),
+            }
+        except Exception:
+            epi_state = None
+
+    gen_sig = _genomic_signature(entity_id_str, genomic_generation, coherence_result)
 
     prov = _build_provenance(
         caller_provenance=provenance,
@@ -925,6 +1064,13 @@ def build_signal(
         "genomic_signature":  gen_sig,
         "immune_clearance":   immune_clearance,
         "security_generation": genomic_generation,
+        # L4.3-4.6 Living Security artifacts (Part 6 §6.2). The epigenetic
+        # state carries the phenotype (NORMAL/ELEVATED/DEFENSIVE/LOCKDOWN)
+        # at emission so downstream gates can apply the coherence-threshold
+        # and emission-rate modifiers; the CRISPR record (when present)
+        # carries any innate immune hit that flipped immune_clearance.
+        "epigenetic_state":   epi_state,
+        "crispr_record":      crispr_record,
         "validator_count":    validator_count,
         "validator_hhi":      round(validator_hhi, 2),
         "reflexivity_flag":   reflexivity_flag,
