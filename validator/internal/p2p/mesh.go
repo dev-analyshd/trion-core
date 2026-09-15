@@ -310,10 +310,41 @@ func DualStrandVerifyPayload(payload []byte, sense, antisense string) bool {
         return true
 }
 
-// MeshDiversityWeight computes d_j = sqrt(|S_j ∩ S_consensus| / max(|S_j|, 1))
-func MeshDiversityWeight(agreementsWithConsensus, totalObservations int) float64 {
+// MeshDiversityWeight computes the canonical spec diversity weight
+//
+//   d_j = 1 − corr(M_j, M̄)
+//
+// (whitepaper L4.1 / CANONICAL_SPEC_MATRIX). When Byzantine validators
+// coordinate, their model-output streams correlate with the median, so
+// corr → 1 and d_j → 0 — effective stake collapses and honesty is the
+// Nash equilibrium.
+//
+// This is a thin delegator to ComputeDiversityWeight (consensus.go) so
+// the canonical d_j formula has exactly one Go implementation; callers
+// in the mesh layer that previously reached for the legacy sqrt-overlap
+// heuristic should call MeshDiversityWeight with the validator's recent
+// model-output stream and the network median stream. If you only have
+// scalar counts (no per-message output history), use MeshOverlapScore —
+// but understand that it is NOT the spec diversity weight.
+func MeshDiversityWeight(modelOutputs, medianOutputs []float64) float64 {
+        return ComputeDiversityWeight(modelOutputs, medianOutputs)
+}
+
+// MeshOverlapScore is a legacy scalar-count heuristic that returns
+// sqrt(|S_j ∩ S_consensus| / max(|S_j|, 1)).
+//
+// NOTE: this is NOT the whitepaper L4.1 diversity weight d_j = 1 − corr(M_j, M̄).
+// The spec-mandated d_j is implemented by MeshDiversityWeight above (which
+// delegates to consensus.ComputeDiversityWeight). MeshOverlapScore is kept
+// only for mesh-layer contexts where per-message model outputs are not
+// available (e.g. legacy attestation frames carrying only counts); it must
+// NEVER be substituted for d_j in quorum / effective-stake computations.
+// The canonical-sweep audit (SWEEP-A §101) flagged the previous
+// MeshDiversityWeight sqrt-overlap variant as a docs/spec drift — that
+// variant is preserved here under its honest name.
+func MeshOverlapScore(agreementsWithConsensus, totalObservations int) float64 {
         if totalObservations == 0 {
-                return 0.5 // bootstrap prior
+                return 0.5 // bootstrap prior (same as legacy behaviour)
         }
         overlap := float64(agreementsWithConsensus) / float64(totalObservations)
         return math.Sqrt(overlap)

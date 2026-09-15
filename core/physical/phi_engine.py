@@ -8,13 +8,24 @@ f3: Temporal spacing     f4: Smart contract entropy
 f5: Value flow           f6: Wallet architecture
 f7: Cross-protocol       f8: Gas pattern
 f9: MEV interaction
+
+Spec (WHITEPAPER_V2.txt §L1.1):
+    Φ(t) = (1/N) · Σ [ w · H(f(t)) ]
+    w = feature importance weight (learned from Akashic history, not fixed)
+
+The spec-compliant default is to learn `w` from Akashic history via
+`learn_weights_from_history()` (mutual-information feature importance, with a
+correlation-based fallback when sklearn is unavailable). The legacy fixed
+weights `PHI_WEIGHTS` are retained as a backward-compatible fallback for
+cold-start paths that have no historical data yet; callers should migrate to
+the learned path as soon as enough Akashic observations are available.
 """
 
 import math
 import time
 from collections import Counter
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 
 @dataclass
@@ -172,11 +183,140 @@ def compute_f9_mev_interaction(txs: List[TransactionData]) -> float:
     return normalize_entropy(H, 5)
 
 
+# Legacy fixed weights — used as the cold-start default when no Akashic history
+# is available yet. The spec-compliant path learns weights via
+# `learn_weights_from_history()` (see below) and passes the result to
+# `compute_phi(weights=...)`.
 PHI_WEIGHTS = [0.15, 0.15, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10]
 
+N_FEATURES = 9
 
-def compute_phi(txs: List[TransactionData], entity_addr: str) -> dict:
-    """Full Φ(t) computation — all 9 features weighted."""
+
+def learn_weights_from_history(
+    features: Sequence[Sequence[float]],
+    outcomes: Sequence[float],
+    fallback_weights: Optional[Sequence[float]] = None,
+) -> List[float]:
+    """
+    Learn the L1.1 Φ feature-importance weights `w` from Akashic history
+    (spec: "w = feature importance weight (learned from Akashic history,
+    not fixed)").
+
+    Inputs
+    ------
+    features : (n_samples, 9) sequence of f1..f9 Shannon entropy observations.
+    outcomes : (n_samples,) sequence of the target the Φ score is meant to
+               predict — typically the historical coherence outcome C(t),
+               the realized post-hoc Phi, or a binary manipulation label.
+    fallback_weights : optional prior weights to return if learning is
+               impossible (too few samples, zero variance, missing sklearn).
+               Defaults to `PHI_WEIGHTS`.
+
+    Returns
+    -------
+    A length-9 list of non-negative weights summing to 1.0.
+
+    Method
+    ------
+    Primary: sklearn.feature_selection.mutual_info_regression — a non-parametric
+    estimate of mutual information between each feature column and the target.
+    Fallback: |Pearson r| between each feature column and the target (numpy only).
+
+    Both paths return non-negative importances; we L1-normalize them so they
+    sum to 1.0 (matching the spec form `Σ w_i = 1` when N is folded into the
+    leading 1/N factor).
+    """
+    if fallback_weights is None:
+        fallback_weights = PHI_WEIGHTS
+    fallback = [float(w) for w in fallback_weights]
+    s = sum(fallback)
+    fallback = [w / s for w in fallback] if s > 0 else [1.0 / N_FEATURES] * N_FEATURES
+
+    # Convert to plain lists so we can validate shape/emptiness without numpy.
+    try:
+        n_samples = len(features)
+    except TypeError:
+        features = list(features)
+        n_samples = len(features)
+    outcomes = list(outcomes)
+
+    if n_samples < 2 or len(outcomes) != n_samples:
+        # Not enough data to learn from — return the (normalized) fallback.
+        return fallback
+
+    # Build a (n_samples, 9) matrix of floats; reject degenerate rows.
+    try:
+        matrix = [[float(x) for x in row] for row in features]
+    except (TypeError, ValueError):
+        return fallback
+    if any(len(row) != N_FEATURES for row in matrix):
+        return fallback
+
+    # Try the spec-preferred path: sklearn mutual_info_regression.
+    try:
+        import numpy as np
+        from sklearn.feature_selection import mutual_info_regression
+
+        X = np.asarray(matrix, dtype=float)            # (n, 9)
+        y = np.asarray(outcomes, dtype=float)          # (n,)
+        if X.shape[0] < 2 or y.shape[0] < 2:
+            return fallback
+        # mutual_info_regression returns one importance per column of X.
+        mi = mutual_info_regression(X, y)
+        importances = [max(0.0, float(v)) for v in mi]
+    except Exception:
+        # Fallback: |Pearson r| per column (numpy-only, no sklearn).
+        try:
+            import numpy as np
+            X = np.asarray(matrix, dtype=float)
+            y = np.asarray(outcomes, dtype=float)
+            if X.shape[0] < 2:
+                return fallback
+            y_centered = y - y.mean()
+            y_std = y.std()
+            if y_std == 0:
+                return fallback
+            importances = []
+            for j in range(N_FEATURES):
+                col = X[:, j]
+                col_std = col.std()
+                if col_std == 0:
+                    importances.append(0.0)
+                    continue
+                r = float(((col - col.mean()) @ y_centered) /
+                          (col_std * y_std * X.shape[0]))
+                importances.append(abs(r))
+        except Exception:
+            return fallback
+
+    total = sum(importances)
+    if not math.isfinite(total) or total <= 0.0:
+        # All features are non-informative — fall back to the prior so Φ
+        # remains well-defined instead of collapsing to 0.
+        return fallback
+
+    learned = [v / total for v in importances]
+    return learned
+
+
+def compute_phi(
+    txs: List[TransactionData],
+    entity_addr: str,
+    weights: Optional[Sequence[float]] = None,
+) -> dict:
+    """
+    Full Φ(t) computation — all 9 features weighted.
+
+    Parameters
+    ----------
+    txs : transaction window for the entity.
+    entity_addr : canonical entity address (used by f5 value-flow directionality).
+    weights : optional length-9 sequence of feature-importance weights. When
+        supplied, this is the spec-compliant path — the weights should be
+        learned from Akashic history via `learn_weights_from_history()`.
+        When omitted, the legacy fixed `PHI_WEIGHTS` are used (cold-start
+        fallback only — not the spec-compliant default).
+    """
     f1 = compute_f1_volume_entropy(txs)
     f2 = compute_f2_counterparty_diversity(txs)
     f3 = compute_f3_temporal_spacing(txs)
@@ -188,7 +328,26 @@ def compute_phi(txs: List[TransactionData], entity_addr: str) -> dict:
     f9 = compute_f9_mev_interaction(txs)
 
     features = [f1, f2, f3, f4, f5, f6, f7, f8, f9]
-    phi_raw = sum(w * f for w, f in zip(PHI_WEIGHTS, features))
+
+    if weights is None:
+        w = list(PHI_WEIGHTS)
+        weights_source = "fixed_cold_start"
+    else:
+        w = [float(x) for x in weights]
+        if len(w) != N_FEATURES:
+            raise ValueError(
+                f"weights must have {N_FEATURES} entries, got {len(w)}"
+            )
+        total = sum(w)
+        if total <= 0:
+            w = list(PHI_WEIGHTS)
+            weights_source = "fixed_cold_start"
+        else:
+            # Normalize to sum=1 so Φ stays in [0, 1] regardless of scale.
+            w = [x / total for x in w]
+            weights_source = "learned_from_akashic"
+
+    phi_raw = sum(wi * fi for wi, fi in zip(w, features))
 
     return {
         "phi_raw": phi_raw,
@@ -196,7 +355,8 @@ def compute_phi(txs: List[TransactionData], entity_addr: str) -> dict:
         "f4": f4, "f5": f5, "f6": f6,
         "f7": f7, "f8": f8, "f9": f9,
         "tx_count": len(txs),
-        "weights": PHI_WEIGHTS,
+        "weights": w,
+        "weights_source": weights_source,
     }
 
 
@@ -214,10 +374,42 @@ if __name__ == "__main__":
         for i in range(20)
     ]
     result = compute_phi(txs, "0xUSER")
-    print(f"Φ(t) = {result['phi_raw']:.4f}")
+    print(f"Φ(t) = {result['phi_raw']:.4f}  (weights_source={result['weights_source']})")
     for k in ['f1','f2','f3','f4','f5','f6','f7','f8','f9']:
         print(f"  {k} = {result[k]:.4f}")
     assert 0 <= result['phi_raw'] <= 1
     for k in ['f1','f2','f3','f4','f5','f6','f7','f8','f9']:
         assert 0 <= result[k] <= 1, f"{k} out of range: {result[k]}"
-    print("PHASE 10 PASS — Φ(t) nine-feature engine verified")
+
+    # Spec-compliant learned-weights path (Akashic history).
+    # Synthesize a small historical dataset where f1 (volume entropy) is the
+    # only feature correlated with the outcome.
+    import random as _random
+    _random.seed(0)
+    hist_features = []
+    hist_outcomes = []
+    for _ in range(60):
+        f1_v = _random.random()
+        row = [f1_v] + [_random.random() for _ in range(8)]
+        hist_features.append(row)
+        # Outcome tracks f1 + noise — f1 should receive the largest weight.
+        hist_outcomes.append(f1_v + 0.05 * _random.gauss(0, 1))
+    learned = learn_weights_from_history(hist_features, hist_outcomes)
+    assert len(learned) == N_FEATURES
+    assert abs(sum(learned) - 1.0) < 1e-9, f"learned weights must sum to 1, got {sum(learned)}"
+    assert learned[0] == max(learned), (
+        f"f1 should be the most important feature, got weights={learned}"
+    )
+    print(f"learned weights (Akashic): {[round(w, 4) for w in learned]}")
+
+    result_learned = compute_phi(txs, "0xUSER", weights=learned)
+    assert result_learned["weights_source"] == "learned_from_akashic"
+    assert 0 <= result_learned['phi_raw'] <= 1
+    print(f"Φ(t) learned = {result_learned['phi_raw']:.4f}")
+
+    # Cold-start fallback path (no historical data) still works.
+    cold = learn_weights_from_history([], [])
+    assert abs(sum(cold) - 1.0) < 1e-9
+    print(f"cold-start fallback weights: {[round(w, 4) for w in cold]}")
+
+    print("PHASE 10 PASS — Φ(t) nine-feature engine verified (fixed + learned)")
