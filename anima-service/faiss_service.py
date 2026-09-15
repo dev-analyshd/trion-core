@@ -2296,6 +2296,68 @@ def dormancy_decay(entity_id: str,
 
 # ── L2.4  Resurrection Inference ──────────────────────────────────────────────
 
+def _compute_cross_chain_continuity(
+    entity_id: str,
+    dormancy_type: str = "HIBERNATION",
+    dormant_since_ts: Optional[float] = None,
+) -> float:
+    """
+    L2.4 helper — compute g(C) cross-chain continuation evidence ∈ [0,1].
+
+    Spec (core/akashic/resurrection.py compute_context_component):
+      MIGRATION   → 0.90  (cross-chain continuity is the definition of MIGRATION)
+      single chain → 1.0  (no cross-chain split — same-chain continuity intact)
+      multi-chain → fraction of pre-dormancy chains still showing post-dormancy activity
+      data unavailable → 0.50 (conservative default — honest data-pending)
+
+    Replaces the previous production hardcode of g(C) = 1.0 which masked
+    real cross-chain continuity information during resurrection inference.
+    """
+    # MIGRATION has κ=0 — cross-chain continuity is the definition.
+    if dormancy_type == "MIGRATION":
+        return 0.90
+
+    if dormant_since_ts is None:
+        dormant_since_ts = entity_last_active.get(entity_id, 0)
+
+    try:
+        conn = _bh_conn()
+        try:
+            rows = conn.execute(
+                "SELECT chain_id, MAX(ts) AS last_ts "
+                "FROM bh_ledger WHERE entity_id = ? GROUP BY chain_id",
+                (entity_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+    except Exception:
+        # bh_ledger unavailable — fall back to entity_history (single-chain)
+        return 1.0 if entity_history.get(entity_id) else 0.50
+
+    if not rows:
+        # No bh_ledger data — entity_history tells us if there's any record
+        return 1.0 if entity_history.get(entity_id) else 0.50
+
+    chains_total = len(rows)
+    if chains_total <= 1:
+        return 1.0   # single chain — no continuity loss
+
+    # Multi-chain entity: count chains with post-dormancy activity.
+    # If dormant_since_ts is 0/unknown, assume continuity intact (don't
+    # penalise — better to under-count anomalies than over-false-positive).
+    if dormant_since_ts <= 0:
+        return 1.0
+
+    chains_active_post = sum(
+        1 for _, last_ts in rows if last_ts and last_ts > dormant_since_ts
+    )
+    if chains_active_post == 0:
+        # No post-dormancy activity on any chain — likely a fresh resurrection
+        return 0.50
+
+    return round(chains_active_post / chains_total, 4)
+
+
 def resurrection_inference(entity_id: str, new_vector: np.ndarray,
                            dormancy_type: str = "HIBERNATION") -> dict:
     """
@@ -2306,6 +2368,15 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
       sim >= 0.50 → NEW_ENTITY_OLD_SHELL
       sim < 0.50 and low depth  → ZOMBIE
       sim < 0.50 and high variance → HOSTILE_TAKEOVER
+
+    Spec weights (core/akashic/resurrection.py):
+      W_DECAY       = 0.40   — linear multiplier on the decay term e^(-κ·T)
+      W_CONTINUITY  = 0.35   — linear multiplier on sim(S_pre, S_react)
+      W_CONTEXT     = 0.25   — linear multiplier on g(C) context-quality term
+
+    g(C) is computed from REAL cross-chain continuity data (multi-chain
+    bh_ledger activity) — NOT hardcoded 1.0. MIGRATION type implies
+    g(C) = 0.90 (cross-chain continuity is the definition).
     """
     records = entity_history.get(entity_id, [])
     if not records:
@@ -2336,7 +2407,9 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
     kappa = KAPPA.get(dormancy_type, KAPPA["HIBERNATION"])
     decay = math.exp(-kappa * dormant_days)
 
-    # Classification per specification L2.4 / Part 7.2
+    # Classification per specification L2.4 / Part 7.2 — preserved for
+    # disclosure (signal_type, hostile_takeover_risk) but no longer affects
+    # the spec-compliant delta weights.
     depth = calculate_depth(entity_id)
     if sim >= SIM_CONTINUATION:
         classification = "GENUINE_CONTINUATION"
@@ -2347,44 +2420,34 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
     else:
         classification = "HOSTILE_TAKEOVER"   # adversarial signature
 
-    # ── Full specification L2.4 formula ──────────────────────────────────────────
-    # Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
+    # ── Spec-compliant L2.4 formula weights (core/akashic/resurrection.py) ──────
+    # Δ_resurrection = W_DECAY · e^(-κ·T) · W_CONTINUITY · sim(S_pre, S_react) · W_CONTEXT · g(C)
     #
-    # w_d: depth weight — higher depth = more confident the resurrection is meaningful
-    #      w_d = min(1.0, depth / 5.0)  (saturates at depth=5, proxy for mature entity)
-    #
-    # w_c: continuity weight — discounts NEW_ENTITY_OLD_SHELL and ZOMBIE cases
-    #      w_c = 1.0 (GENUINE_CONTINUATION) | 0.6 (NEW_ENTITY_OLD_SHELL) |
-    #            0.3 (HOSTILE_TAKEOVER)       | 0.1 (ZOMBIE)
-    #
-    # w_x: cross-chain weight — MIGRATION type has proven cross-chain continuity
-    #      w_x = 1.0 unless MIGRATION with no cross-chain data available
-    #
-    # g(C): cross-chain continuation evidence function
-    #       g(C) = 1.0 for same-chain entities (no cross-chain split)
-    #       g(C) = 0.5 when chain_id is unresolved (default conservative)
-    #       MIGRATION type implies g(C) = 1.0 (cross-chain continuity is the definition)
+    # The spec defines the weights as LINEAR MULTIPLIERS (constant), NOT as
+    # depth-saturation or classification-based discounts. The previous
+    # production path used w_d = min(1.0, depth/5.0) (depth-saturation) and
+    # w_c ∈ {1.0, 0.6, 0.3, 0.1} (classification-based) — both non-spec.
+    # Replaced with the spec constants below.
+    try:
+        from core.akashic.resurrection import (
+            W_DECAY as _SPEC_W_DECAY,
+            W_CONTINUITY as _SPEC_W_CONTINUITY,
+            W_CONTEXT as _SPEC_W_CONTEXT,
+        )
+    except Exception:
+        # Defensive fallback — matches the spec constants verbatim.
+        _SPEC_W_DECAY       = 0.40
+        _SPEC_W_CONTINUITY  = 0.35
+        _SPEC_W_CONTEXT     = 0.25
 
-    w_d = min(1.0, depth / 5.0)
+    w_d = _SPEC_W_DECAY       # 0.40 — decay term linear multiplier
+    w_c = _SPEC_W_CONTINUITY  # 0.35 — continuity term linear multiplier
+    w_x = _SPEC_W_CONTEXT     # 0.25 — context term linear multiplier
 
-    CONTINUITY_WEIGHTS = {
-        "GENUINE_CONTINUATION": 1.0,
-        "NEW_ENTITY_OLD_SHELL": 0.6,
-        "HOSTILE_TAKEOVER":     0.3,
-        "ZOMBIE":               0.1,
-    }
-    w_c = CONTINUITY_WEIGHTS.get(classification, 1.0)
-
-    # w_x: cross-chain weight per dormancy type
-    # MIGRATION = zero-decay + cross-chain continuity confirmed → w_x = 1.0
-    # All others = same-chain by default → w_x = 1.0
-    # Future: reduce w_x when cross-chain data is absent but multi-chain activity expected
-    w_x = 1.0
-
-    # g(C): cross-chain continuation evidence — Phase 1 default
-    # MIGRATION type implies g(C)=1.0; all others default to same-chain g(C)=1.0.
-    # Future: g(C) computed from actual cross-chain holder continuity data.
-    g_c = 1.0
+    # g(C): cross-chain continuation evidence — computed from REAL bh_ledger
+    # cross-chain activity, NOT hardcoded 1.0. MIGRATION type → g(C) = 0.90
+    # per spec (cross-chain continuity is the definition of MIGRATION).
+    g_c = _compute_cross_chain_continuity(entity_id, dormancy_type, last_ts)
 
     delta_resurrection = w_d * decay * w_c * sim * w_x * g_c
 
@@ -2399,10 +2462,10 @@ def resurrection_inference(entity_id: str, new_vector: np.ndarray,
         "delta_resurrection": round(delta_resurrection, 6),
         # Weight breakdown (L2.4 formula transparency)
         "weights": {
-            "w_d":  round(w_d, 4),   # depth weight
-            "w_c":  round(w_c, 4),   # continuity weight
-            "w_x":  round(w_x, 4),   # cross-chain weight
-            "g_c":  round(g_c, 4),   # cross-chain continuation evidence
+            "w_d":  round(w_d, 4),   # spec: 0.40 — decay multiplier
+            "w_c":  round(w_c, 4),   # spec: 0.35 — continuity multiplier
+            "w_x":  round(w_x, 4),   # spec: 0.25 — context multiplier
+            "g_c":  round(g_c, 4),   # computed cross-chain continuity [0,1]
         },
     }
 
