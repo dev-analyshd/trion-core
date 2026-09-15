@@ -84,16 +84,51 @@ COVERAGE_TIER_2_MULT: constant(uint256) = 2_500_000_000_000_000_000   # 2.5×
 COVERAGE_TIER_3_MULT: constant(uint256) = 5_000_000_000_000_000_000   # 5.0×
 COVERAGE_TIER_4_MULT: constant(uint256) = 10_000_000_000_000_000_000  # 10.0×
 
-# ── Slashing Schedule (AUDIT-4 Gap 1 — 7 types) ──────────────────────────────
-# Per Gap 1: false coverage claim 10/25/50%, COORDINATION_COLLAPSE 100%,
-# COVERAGE_FRAUD 50%, SOCKPUPPET_CONFIRMED 100% bond, BTCP_SPOOF_FLAG 5%.
+# ── Slashing Schedule ────────────────────────────────────────────────────────
+#
+# Whitepaper L4.9 — 5 canonical slash types (spec-mandated, mirror
+# core/spiritual/slashing.py SLASH_AMOUNTS_BPS / PERMANENT_EXCLUSION):
+#   COORDINATED_ATTACK_CONFIRMED: 50%   + permanent exclusion
+#   SUSTAINED_LOW_ACCURACY:      3%    per 30-day window below threshold
+#   HARDWARE_SECURITY_FAILURE:   10%   (HSM compromise)
+#   UPTIME_FAILURE:               0.1%  per day below minimum uptime
+#   SYBIL_CLUSTER_CONFIRMED:     25%   for ALL validators in cluster + permanent
+#
+# AUDIT-4 Gap 1 — 7 BTCP-specific extension types (kept for backward
+# compatibility with the existing on-chain callers; they sit alongside the
+# 5 whitepaper types as additional BTCP-layer conditions):
+#   FALSE_COVERAGE_CLAIM_{MINOR,MAJOR,CRITICAL} (10% / 25% / 50%),
+#   COORDINATION_COLLAPSE (100% + permanent), COVERAGE_FRAUD (50%),
+#   SOCKPUPPET_CONFIRMED (100% + permanent + bond forfeit),
+#   BTCP_SPOOF_FLAG (5%).
+#
+# Slash amounts are in basis points (bps) of the validator's stake.
+
+# Whitepaper L4.9 — 5 canonical slash types (constants in bps).
+SLASH_COORDINATED_ATTACK_CONFIRMED: constant(uint256) = 5000   # 50% + permanent
+SLASH_SUSTAINED_LOW_ACCURACY:       constant(uint256) = 300    # 3% per 30d window
+SLASH_HARDWARE_SECURITY_FAILURE:    constant(uint256) = 1000  # 10%
+SLASH_UPTIME_FAILURE:               constant(uint256) = 10     # 0.1% per day
+SLASH_SYBIL_CLUSTER_CONFIRMED:      constant(uint256) = 2500   # 25% + permanent
+
+# AUDIT-4 Gap 1 — 7 BTCP-specific extension types.
 SLASH_FALSE_COVERAGE_MINOR:    constant(uint256) = 1000   # 10.00% (bps)
 SLASH_FALSE_COVERAGE_MAJOR:    constant(uint256) = 2500   # 25.00% (bps)
-SLASH_FALSE_COVERAGE_CRITICAL:  constant(uint256) = 5000   # 50.00% (bps)
+SLASH_FALSE_COVERAGE_CRITICAL: constant(uint256) = 5000   # 50.00% (bps)
 SLASH_COORDINATION_COLLAPSE:   constant(uint256) = 10000  # 100.00% + permanent
 SLASH_COVERAGE_FRAUD:          constant(uint256) = 5000   # 50.00%
 SLASH_SOCKPUPPET_CONFIRMED:    constant(uint256) = 10000  # 100.00% + permanent + bond
 SLASH_BTCP_SPOOF_FLAG:         constant(uint256) = 500    # 5.00%
+
+# 30-day window — used for SUSTAINED_LOW_ACCURACY multiplier.
+# (seconds form kept for documentation; the contract compares in days below
+# to keep integer division explicit.)
+SLASH_ACCURACY_WINDOW_SECS: constant(uint256) = 30 * 24 * 3600
+SLASH_ACCURACY_WINDOW_DAYS: constant(uint256) = 30
+
+# Hard cap on cumulative slash_bps (UPTIME_FAILURE / SUSTAINED_LOW_ACCURACY
+# are cumulative and could otherwise exceed 100% in adversarial cases).
+SLASH_BPS_CAP: constant(uint256) = 10000
 
 HHI_HEALTHY: constant(uint256) = 1500
 HHI_WARNING: constant(uint256) = 2500
@@ -332,28 +367,43 @@ def update_diversity_score(validator: address, d_j_scaled: uint256):
     self.total_effective_stake = self.total_effective_stake - old_effective + new_effective
     self._update_hhi()
 
-# ── Slashing — 7 types (AUDIT-4 Gap 1) ──────────────────────────────────────
+# ── Slashing — Whitepaper L4.9 (5 types) + AUDIT-4 Gap 1 (7 BTCP extensions) ─
 
 @external
 def slash_validator(
     validator: address,
     slash_type: String[64],
     evidence_hash: bytes32,
+    days_below: uint256 = 0,
 ):
     """
-    Slash a validator for one of the 7 defined slashing conditions per
-    AUDIT-4 Gap 1:
+    Slash a validator for one of the 12 defined slashing conditions:
 
-      FALSE_COVERAGE_CLAIM_MINOR    – 10%  (minor coverage claim inaccuracy)
-      FALSE_COVERAGE_CLAIM_MAJOR    – 25%  (major coverage claim inaccuracy)
-      FALSE_COVERAGE_CLAIM_CRITICAL – 50%  (critical coverage claim inaccuracy)
-      COORDINATION_COLLAPSE         – 100% + permanent exclusion
-      COVERAGE_FRAUD                – 50%
-      SOCKPUPPET_CONFIRMED          – 100% + permanent + challenge bond forfeit
-      BTCP_SPOOF_FLAG               – 5%
+    Whitepaper L4.9 — 5 canonical slash types (spec-mandated):
+      COORDINATED_ATTACK_CONFIRMED – 50% + permanent exclusion
+      SUSTAINED_LOW_ACCURACY       – 3% per 30-day window (pass `days_below`
+                                     as the total days below threshold;
+                                     contract multiplies by windows)
+      HARDWARE_SECURITY_FAILURE    – 10% (HSM compromise)
+      UPTIME_FAILURE               – 0.1% per day below minimum uptime
+                                     (pass `days_below` = days below)
+      SYBIL_CLUSTER_CONFIRMED      – 25% + permanent exclusion
+                                     (applied to ALL validators in cluster)
+
+    AUDIT-4 Gap 1 — 7 BTCP-specific extension types:
+      FALSE_COVERAGE_CLAIM_MINOR     – 10%
+      FALSE_COVERAGE_CLAIM_MAJOR     – 25%
+      FALSE_COVERAGE_CLAIM_CRITICAL  – 50%
+      COORDINATION_COLLAPSE          – 100% + permanent
+      COVERAGE_FRAUD                 – 50%
+      SOCKPUPPET_CONFIRMED           – 100% + permanent + bond forfeit
+      BTCP_SPOOF_FLAG                – 5%
 
     Opens a 72-hour dispute window before executing. Slashed TRION is
     routed 50/50 to insurance_pool + burn (handled in TRIONToken.slash_validator).
+
+    `days_below` is only consulted for UPTIME_FAILURE and
+    SUSTAINED_LOW_ACCURACY (cumulative types); ignored for all others.
     """
     assert msg.sender == self.akashic_oracle or msg.sender == self.governance, "Unauthorized"
     assert self.validators[validator].active, "Not active"
@@ -361,8 +411,33 @@ def slash_validator(
     slash_bps: uint256 = 0
     permanent: bool = False
 
-    # ── 7-type Gap 1 schedule ────────────────────────────────────────────────
-    if slash_type == "FALSE_COVERAGE_CLAIM_MINOR":
+    # ── Whitepaper L4.9 — 5 canonical slash types ────────────────────────────
+    if slash_type == "COORDINATED_ATTACK_CONFIRMED":
+        # 50% + permanent exclusion (whitepaper L4.9).
+        slash_bps = SLASH_COORDINATED_ATTACK_CONFIRMED
+        permanent = True
+    elif slash_type == "SUSTAINED_LOW_ACCURACY":
+        # 3% per 30-day window below threshold — cumulative across windows.
+        # days_below=0 defaults to a single window (3%).
+        if days_below >= SLASH_ACCURACY_WINDOW_DAYS:
+            slash_bps = SLASH_SUSTAINED_LOW_ACCURACY * (days_below / SLASH_ACCURACY_WINDOW_DAYS)
+        else:
+            slash_bps = SLASH_SUSTAINED_LOW_ACCURACY
+    elif slash_type == "HARDWARE_SECURITY_FAILURE":
+        slash_bps = SLASH_HARDWARE_SECURITY_FAILURE
+    elif slash_type == "UPTIME_FAILURE":
+        # 0.1% per day below minimum uptime — cumulative.
+        # days_below=0 defaults to a single day (0.1%).
+        if days_below == 0:
+            slash_bps = SLASH_UPTIME_FAILURE
+        else:
+            slash_bps = SLASH_UPTIME_FAILURE * days_below
+    elif slash_type == "SYBIL_CLUSTER_CONFIRMED":
+        # 25% + permanent exclusion — applied to ALL validators in cluster.
+        slash_bps = SLASH_SYBIL_CLUSTER_CONFIRMED
+        permanent = True
+    # ── AUDIT-4 Gap 1 — 7 BTCP-specific extension types ──────────────────────
+    elif slash_type == "FALSE_COVERAGE_CLAIM_MINOR":
         slash_bps = SLASH_FALSE_COVERAGE_MINOR
     elif slash_type == "FALSE_COVERAGE_CLAIM_MAJOR":
         slash_bps = SLASH_FALSE_COVERAGE_MAJOR
@@ -379,7 +454,11 @@ def slash_validator(
     elif slash_type == "BTCP_SPOOF_FLAG":
         slash_bps = SLASH_BTCP_SPOOF_FLAG
     else:
-        raise "Unknown slash type (AUDIT-4 Gap 1: 7 types only)"
+        raise "Unknown slash type (L4.9 + AUDIT-4 Gap 1: 12 types only)"
+
+    # Cap cumulative slashes at 100% (UPTIME_FAILURE × many days could exceed).
+    if slash_bps > SLASH_BPS_CAP:
+        slash_bps = SLASH_BPS_CAP
 
     slash_amount: uint256 = self.validators[validator].stake * slash_bps / 10000
 
@@ -402,6 +481,9 @@ def slash_validator(
     })
     self.active_disputes += 1
 
+    # PERMANENT_EXCLUSION — set immediately (whitepaper L4.9: applies to
+    # COORDINATED_ATTACK_CONFIRMED and SYBIL_CLUSTER_CONFIRMED, plus the
+    # BTCP COORDINATION_COLLAPSE / SOCKPUPPET_CONFIRMED extensions).
     if permanent:
         self.validators[validator].permanently_excluded = True
 
