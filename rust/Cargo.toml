@@ -9,10 +9,24 @@ authors = ["Hudu Yusuf (Analys) <analys@trion.protocol>"]
 [dependencies]
 sha3 = "0.10"
 hex = "0.4"
+# Part 11 language mandate: PyO3 binding layer for BH, Phi, Sigma, and the
+# Master Equation. Optional — enable with `cargo build --features pyo3` so the
+# default crate build remains purely Rust and adds no Python linkage.
+pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
+
+[features]
+default = []
+# `pyo3` builds the `trion_rust` cdylib importable from Python and exports the
+# C-compatible shims consumed by `core/rust_bridge_pyo3.py` over ctypes.
+pyo3 = ["dep:pyo3"]
 
 [lib]
 name = "trion_btcp"
 path = "src/lib.rs"
+# `cdylib` is required for the PyO3 extension (and for the ctypes fallback).
+# `rlib` is retained so downstream Rust crates (indexers, SDK) can link
+# against the same BTCP types and master-equation code.
+crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "btcp-router"
