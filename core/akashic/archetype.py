@@ -18,6 +18,73 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 import numpy as np
 
+# ─── L2.2 Behavioral feature space dimension ───────────────────────────────
+# Whitepaper spec (L2.2): "Cosine similarity in 128-dimensional behavioral
+# feature space." This mirrors the BP_FINGERPRINT_DIM = 128 used in
+# core/primitives/entity_resolution.py for BEO behavioral fingerprints.
+ARCHETYPE_FEATURE_DIM: int = 128
+
+
+def _embed_phi_to_128(
+    phi_vector: List[float],
+    mental: float,
+    sigma: float,
+    karma: float,
+    anima: float,
+) -> np.ndarray:
+    """
+    Embed the 9-dim Phi vector + 4 behavioral plane scores (M, Σ, K, A)
+    into a 128-dimensional behavioral feature space per whitepaper L2.2 spec.
+
+    Layout (128 dimensions):
+      [  0 ..   8]  9 phi features (physical plane Φ)
+      [  9 ..  12]  4 behavioral plane scores (M, Σ, K, A)
+      [ 13 ..  48]  36 pairwise cross-products of phi features (i<j)
+      [ 49 ..  84]  36 products of phi features × plane scores
+      [ 85 ..  89]   5 statistical summaries (mean, std, min, max, median of phi)
+      [ 90 .. 127]  38 reserved (zeros) — future behavioral features
+
+    This is a deterministic, more sophisticated embedding than naive zero
+    padding: it preserves the original 9-dim Phi signal while exposing
+    non-linear cross-feature structure that the cosine similarity can exploit
+    to discriminate archetypes that share many Phi coordinates but diverge
+    in plane scores (e.g. Accumulation vs. Distribution).
+    """
+    vec = np.zeros(ARCHETYPE_FEATURE_DIM, dtype=np.float32)
+    phi = np.asarray(phi_vector, dtype=np.float32)
+    planes = np.array([mental, sigma, karma, anima], dtype=np.float32)
+
+    # 9 phi features (physical plane)
+    n_phi = min(9, len(phi))
+    vec[0:n_phi] = phi[:n_phi]
+
+    # 4 behavioral plane scores
+    vec[9:13] = planes
+
+    # 36 pairwise cross-products of phi features (i<j)
+    idx = 13
+    for i in range(9):
+        for j in range(i + 1, 9):
+            vec[idx] = phi[i] * phi[j]
+            idx += 1
+
+    # 36 products of phi features × plane scores
+    for i in range(9):
+        for p in range(4):
+            vec[idx] = phi[i] * planes[p]
+            idx += 1
+
+    # 5 statistical summaries of phi
+    if n_phi > 0:
+        vec[idx] = float(phi[:n_phi].mean()); idx += 1
+        vec[idx] = float(phi[:n_phi].std());  idx += 1
+        vec[idx] = float(phi[:n_phi].min());  idx += 1
+        vec[idx] = float(phi[:n_phi].max());  idx += 1
+        vec[idx] = float(np.median(phi[:n_phi])); idx += 1
+
+    # Remaining positions are zeros (reserved for future behavioral features).
+    return vec
+
 
 @dataclass
 class BehavioralArchetype:
@@ -48,6 +115,24 @@ class BehavioralArchetype:
 
     # CRISPR repair
     crispr_template: str           # how to nudge entity toward healthier archetype
+
+    # 128-dim behavioral feature fingerprint — derived from phi_vector + plane
+    # scores via _embed_phi_to_128() in __post_init__(). Stored (not computed
+    # on every match) so that cosine similarity runs against a precomputed
+    # matrix per whitepaper L2.2 spec ("store 128-dim vectors").
+    behavioral_fingerprint: List[float] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.behavioral_fingerprint:
+            fp = _embed_phi_to_128(
+                self.phi_vector,
+                self.mental_score,
+                self.sigma_score,
+                self.karma_score,
+                self.anima_score,
+            )
+            # Store as plain Python list (JSON-serializable, dataclass-friendly).
+            self.behavioral_fingerprint = fp.tolist()
 
 
 ARCHETYPES: List[BehavioralArchetype] = [
@@ -303,19 +388,82 @@ def get_archetype_by_id(arch_id: str) -> Optional[BehavioralArchetype]:
 
 
 def get_archetype_matrix() -> np.ndarray:
+    """Return the 9-dim Phi matrix (12, 9) for backwards-compatible callers.
+
+    Retained for callers that consume the physical-plane Phi vectors directly
+    (e.g. tests/invention_verification.py). New code should prefer
+    get_archetype_feature_matrix() which returns the 128-dim behavioral
+    feature vectors per whitepaper L2.2 spec.
+    """
     return np.array([a.phi_vector for a in ARCHETYPES], dtype=np.float32)
 
 
-def match_archetype(phi_vector: List[float]) -> Dict:
-    phi = np.array(phi_vector, dtype=np.float32)
+def get_archetype_feature_matrix() -> np.ndarray:
+    """
+    Return the 128-dimensional behavioral feature matrix (12, 128) per
+    whitepaper L2.2 spec: "Cosine similarity in 128-dimensional behavioral
+    feature space."
+    """
+    return np.array([a.behavioral_fingerprint for a in ARCHETYPES], dtype=np.float32)
+
+
+def embed_phi_vector(
+    phi_vector: List[float],
+    behavioral_scores: Optional[Dict[str, float]] = None,
+) -> np.ndarray:
+    """
+    Public helper: embed a 9-dim Phi vector + optional plane scores into the
+    128-dimensional behavioral feature space used by match_archetype().
+
+    Args:
+        phi_vector: 9-dim physical-plane Φ vector.
+        behavioral_scores: optional dict with keys 'mental', 'sigma',
+            'karma', 'anima' (each in [0, 1]). Defaults to neutral 0.5 for
+            any missing key — callers that have observed plane scores should
+            pass them explicitly for a more discriminative embedding.
+    """
+    bs = behavioral_scores or {}
+    return _embed_phi_to_128(
+        phi_vector,
+        bs.get("mental", 0.5),
+        bs.get("sigma", 0.5),
+        bs.get("karma", 0.5),
+        bs.get("anima", 0.5),
+    )
+
+
+def match_archetype(
+    phi_vector: List[float],
+    behavioral_scores: Optional[Dict[str, float]] = None,
+) -> Dict:
+    """
+    Match a 9-dim Phi vector against the 12-archetype library using
+    128-dimensional cosine similarity in behavioral feature space.
+
+    Whitepaper L2.2 spec: "Cosine similarity in 128-dimensional behavioral
+    feature space." The query Phi vector is embedded to 128 dimensions via
+    _embed_phi_to_128() (9 phi features + 4 plane scores + cross-products
+    + statistical summaries + reserved zeros) and compared via cosine
+    similarity against each archetype's precomputed behavioral_fingerprint.
+
+    Args:
+        phi_vector: 9-dim physical-plane Φ vector of the entity to classify.
+        behavioral_scores: optional dict with 'mental', 'sigma', 'karma',
+            'anima' plane scores in [0, 1]. Defaults to neutral 0.5 for
+            any missing key — pass observed plane scores when available
+            for a more discriminative match.
+    """
+    query_fp = embed_phi_vector(phi_vector, behavioral_scores)
+    n_q = float(np.linalg.norm(query_fp))
     best_sim = -1.0
     best_arch = ARCHETYPES[0]
-    for arch in ARCHETYPES:
-        ref = np.array(arch.phi_vector, dtype=np.float32)
-        n_phi = np.linalg.norm(phi)
-        n_ref = np.linalg.norm(ref)
-        if n_phi > 0 and n_ref > 0:
-            sim = float(np.dot(phi, ref) / (n_phi * n_ref))
+    if n_q > 0:
+        for arch in ARCHETYPES:
+            ref = np.asarray(arch.behavioral_fingerprint, dtype=np.float32)
+            n_ref = float(np.linalg.norm(ref))
+            if n_ref <= 0:
+                continue
+            sim = float(np.dot(query_fp, ref) / (n_q * n_ref))
             if sim > best_sim:
                 best_sim = sim
                 best_arch = arch
