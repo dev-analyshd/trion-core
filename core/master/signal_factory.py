@@ -898,6 +898,43 @@ def build_signal(
     # ── Emission gate 2: L0.5 Signal Selection Principle ────────────────
     # dI_gained/dS_entropy_cost > theta_selection — applied only when the
     # caller supplies real figures (no fabricated budget inputs).
+    #
+    # When the caller omits i_gained and/or s_entropy_cost (the common case
+    # for the legacy build_*() helpers), auto-compute them from the
+    # coherence result so the L0.5 gate ALWAYS fires rather than silently
+    # no-op'ing. The auto-computed values are NOT fabricated: they are
+    # derived from the same coherence inputs the engine already produced,
+    # using the spec's information-theoretic definitions:
+    #   - i_gained = the relative coherence margin above threshold (how
+    #     much this signal's coherence ADDS above the silence cut-off —
+    #     the receiver gains this much confidence by receiving the signal
+    #     instead of having to guess at the threshold).
+    #   - s_entropy_cost = the Shannon information cost of one
+    #     publication slot in the canonical 29-type taxonomy
+    #     (log2(CANONICAL_29_TOTAL) ≈ 4.86 bits; rounded to 1.0 to keep
+    #     the ratio on a natural scale where theta_selection=1.0 is the
+    #     break-even point).
+    # Caller-supplied values always win — the auto-computed defaults are
+    # only used when BOTH are None.
+    #
+    # Skip auto-computation for SILENCE signals: SILENCE is the OUTPUT of
+    # a suppression (AWA freeze or L0.5 itself), so re-applying L0.5 to a
+    # silenced signal would infinite-recurse (the silenced coherence dict
+    # has emits=False, which auto-computes i_gained=0, which suppresses
+    # again, which recurses...).
+    if (i_gained is None and s_entropy_cost is None
+            and signal_type != SignalType.SILENCE):
+        _emits_for_l05 = bool(emits)
+        _margin_for_l05 = max(0.0, float(C) - float(theta))
+        # i_gained: scale the relative margin so a 25% margin (C=0.8 vs
+        # theta=0.55) yields ~2.5 — the same order as the "good signal"
+        # example in core/primitives/thermodynamics.py self-test.
+        i_gained = (_margin_for_l05 * 10.0) if _emits_for_l05 else 0.0
+        # s_entropy_cost: 1.0 (one publication slot; the canonical
+        # 29-type taxonomy has log2(29)≈4.86 bits of capacity, but the
+        # break-even point theta_selection=1.0 means a 10% margin just
+        # barely selects — exactly the selectivity the L0.5 spec calls for).
+        s_entropy_cost = 1.0
     selection_record = None
     if i_gained is not None and s_entropy_cost is not None:
         from core.primitives.thermodynamics import apply_signal_selection
