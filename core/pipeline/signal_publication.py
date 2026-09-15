@@ -117,6 +117,14 @@ class SignalPublicationPipeline:
         self.profile = profile
         self.publication_count = 0
         self.silence_count = 0
+        # proof-ledger root — every successful on-chain emission (signal OR
+        # silence) appends a JSON record here so the protocol has a
+        # tamper-evident off-chain audit trail alongside the on-chain
+        # oracle events. Override with TRION_PROOF_LEDGER_DIR.
+        self.proof_ledger_dir = os.environ.get(
+            "TRION_PROOF_LEDGER_DIR",
+            os.path.join(os.getcwd(), "proof-ledger"),
+        )
 
     def compute_signal(
         self,
@@ -416,6 +424,17 @@ class SignalPublicationPipeline:
             publication["error"] = "chain_relay not ready"
             logger.warning("Chain relay not ready — signal computed but not published")
 
+        # Step 6: Record the tx hash (or failure) in proof-ledger/.
+        # Every real emission (success OR on-chain failure with a tx hash)
+        # is appended to a JSONL ledger file so the protocol has a
+        # tamper-evident off-chain audit trail alongside the on-chain
+        # oracle events. Dry-run mode is NOT recorded (no tx was sent).
+        self._record_proof_ledger(
+            entity_id=entity_id,
+            signal=signal,
+            publication=publication,
+        )
+
         return {
             **signal,
             "publication": publication,
@@ -451,3 +470,53 @@ class SignalPublicationPipeline:
             "profile": self.profile,
             "chain_ready": self.chain_relay.ready if self.chain_relay else False,
         }
+
+    def _record_proof_ledger(
+        self,
+        entity_id: str,
+        signal: Dict,
+        publication: Dict,
+    ) -> None:
+        """Append a JSONL record to proof-ledger/emissions.jsonl.
+
+        Records every real emission (signal OR silence) with its tx hash,
+        the coherence snapshot, the master-equation T(t), and the
+        publication outcome. Dry-run emissions are skipped (no tx was
+        sent, so there is nothing to audit). Ledger write failure is
+        non-fatal — the on-chain oracle event is the authoritative
+        record; this is the off-chain convenience mirror.
+        """
+        # Skip dry-run / not-yet-published emissions.
+        if publication.get("dry_run"):
+            return
+        tx_hash = publication.get("tx_hash")
+        # Record both successful publications AND on-chain failures (which
+        # carry a tx_hash from the failed attempt) so the audit trail is
+        # complete. Skip only when no tx was attempted.
+        method = publication.get("method")
+        if not tx_hash and not method:
+            return
+        try:
+            os.makedirs(self.proof_ledger_dir, exist_ok=True)
+            record = {
+                "ts": int(time.time()),
+                "entity_id": entity_id,
+                "signal_type": publication.get("trion_signal", {}).get(
+                    "signal_type", "VALUATION",
+                ),
+                "coherence": signal.get("coherence"),
+                "threshold": signal.get("threshold"),
+                "master_signal_T": signal.get("master_signal"),
+                "emits": signal.get("signal_emitted"),
+                "method": method,
+                "tx_hash": tx_hash,
+                "error": publication.get("error"),
+            }
+            with open(
+                os.path.join(self.proof_ledger_dir, "emissions.jsonl"), "a"
+            ) as f:
+                f.write(json.dumps(record) + "\n")
+        except OSError as exc:
+            logger.warning(
+                "proof-ledger write failed for %s: %s", entity_id, exc,
+            )
