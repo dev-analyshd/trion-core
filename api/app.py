@@ -696,12 +696,105 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         ) as _r:
             depth_d = json.loads(_r.read())
         depth = float(depth_d.get("akashic_depth", 0.0))
-        phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
+
+        # ── L1.1 Φ(t) — spec-compliant 9-feature computation ───────────────
+        # Previously phi_live was a synthetic linear depth proxy
+        # (0.40 + 0.55 × depth). Now we call core.physical.phi_engine.
+        # compute_phi() with real TransactionData built from the entity's
+        # BH ledger records (the indexer's per-transaction canonical store).
+        # Falls back to the depth-based formula when:
+        #   (a) the BH ledger is unreachable / empty, or
+        #   (b) compute_phi raises (e.g. weights mismatch) — both paths
+        # surface a non-None phi so downstream _plane_values does not
+        # short-circuit to COLD_START.
+        phi_live, phi_source = _compute_phi_from_bh_ledger(eid)
+        if phi_live is None:
+            phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
+            phi_source = "depth_proxy_fallback"
 
         return ({"m": m_val, "anima": a_val, "phi_live": phi_live,
+                 "phi_source": phi_source,
                  "akashic_depth": depth}, time.time())
     except Exception:
         return (None, time.time())
+
+
+def _compute_phi_from_bh_ledger(eid: str) -> tuple[float | None, str]:
+    """
+    L1.1 — Build a List[TransactionData] from the entity's BH ledger records
+    and call core.physical.phi_engine.compute_phi() on the resulting window.
+
+    Adapter mapping (BH ledger row → TransactionData):
+      tx_hash    → tx_hash
+      ts         → timestamp
+      block_num  → block_number
+      from_addr  → from_addr
+      to_addr    → to_addr
+      value_wei  → value_wei
+      selector   → is_contract / contract_addr (presence ⇒ contract call)
+      gas_used / gas_price are NOT stored in the BH ledger (the indexer
+      canonical BH is event-driven, not gas-tracked); they default to 0.
+
+    Returns (phi_value, source) where source is one of:
+      - 'phi_engine_compute_phi' — real 9-feature Φ(t) computed
+      - 'insufficient_tx_data'    — BH ledger empty or fewer than 2 records
+        (compute_phi returns 0 for all f_i when len(txs) < 2; we surface
+        None so the caller falls back to the depth proxy)
+    """
+    try:
+        import requests as _req
+        r = _req.get(
+            f"{_FAISS_BASE}/bh/ledger/{eid}",
+            params={"limit": 200},
+            headers=faiss_headers(), timeout=2,
+        )
+        if r.status_code != 200:
+            return None, "bh_ledger_unreachable"
+        body = r.json() or {}
+        records = body.get("bh_records", []) or []
+        if len(records) < 2:
+            return None, "insufficient_tx_data"
+        from core.physical.phi_engine import TransactionData, compute_phi
+        txs: list = []
+        for rec in records:
+            selector = rec.get("selector") or ""
+            is_contract = bool(selector) and selector != "0x"
+            contract_addr = rec.get("to_addr") if is_contract else None
+            try:
+                value_wei = int(rec.get("value_wei", 0) or 0)
+            except (TypeError, ValueError):
+                value_wei = 0
+            try:
+                ts = float(rec.get("ts", 0) or 0)
+            except (TypeError, ValueError):
+                ts = 0.0
+            try:
+                block_num = int(rec.get("block_num", 0) or 0)
+            except (TypeError, ValueError):
+                block_num = 0
+            txs.append(TransactionData(
+                tx_hash      = str(rec.get("tx_hash", "")),
+                timestamp    = ts,
+                block_number = block_num,
+                from_addr    = str(rec.get("from_addr", "")),
+                to_addr      = str(rec.get("to_addr", "")),
+                value_wei    = value_wei,
+                gas_used     = 0,
+                gas_price    = 0,
+                is_contract  = is_contract,
+                contract_addr = contract_addr,
+                input_len    = 0,
+            ))
+        # entity_addr: use the canonical BH entity id as the f5 reference
+        # address (value-flow directionality is computed against this).
+        result = compute_phi(txs, entity_addr=eid)
+        phi = float(result.get("phi_raw", 0.0))
+        # Clamp to [0, 1] — compute_phi should already do this but defensive
+        # clamp protects against any future feature drift.
+        phi = max(0.0, min(1.0, phi))
+        return phi, "phi_engine_compute_phi"
+    except Exception:
+        return None, "phi_engine_unavailable"
 
 
 def _query_faiss_planes(eid: str) -> dict | None:
