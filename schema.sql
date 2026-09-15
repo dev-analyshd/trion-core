@@ -825,3 +825,29 @@ CREATE TABLE IF NOT EXISTS btcp_certificate_conflicts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cert_conflicts_key ON btcp_certificate_conflicts (consumption_key);
+
+-- Compression policies for all Akashic hypertables (Part 11 spec: "automated compression for billions of records")
+SELECT add_compression_policy('genesis_confidence_log', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'genesis_confidence_log'
+);
+SELECT add_compression_policy('trajectory_anomaly_log', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'trajectory_anomaly_log'
+);
+SELECT add_compression_policy('biological_rhythm', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'biological_rhythm'
+);
+SELECT add_compression_policy('slashing_log', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'slashing_log'
+);
+SELECT add_compression_policy('resurrection_log', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'resurrection_log'
+);
+SELECT add_compression_policy('mf_evidence_log', INTERVAL '7 days') WHERE NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.jobs
+    WHERE application_name LIKE 'Compression%' AND hypertable_name = 'mf_evidence_log'
+);
