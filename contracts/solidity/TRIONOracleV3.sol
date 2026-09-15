@@ -67,6 +67,17 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     mapping(address => bool) public isValidator;
     uint256 public quorumRequired = 2;
 
+    // ── Canonical signal-type registry (TRION-TEAM-E, canonical fix) ──────────
+    // Maps entityId → canonical 24-member signal type id (0..23) per the
+    // specification §11 closed registry (core/master/signal_factory.py
+    // SignalType enum). The on-chain layout mirrors the off-chain taxonomy
+    // so a relayed BC/XSL/EP/SBA signal carries its type through to
+    // consumers (indexers, dashboards, verification layers).
+    //
+    // Default value 0 == SignalType.VALUATION (the canonical default carrier).
+    mapping(bytes32 => uint8) public signalTypeByEntity;
+    event SignalTypeRecorded(bytes32 indexed entityId, uint8 signalType);
+
     /// @notice Number of registered validators (deployer included).
     /// @dev Feeds minRouteAttestations() — the route-verdict quorum is a
     ///      function of the LIVE validator set, not a static config value.
@@ -735,6 +746,36 @@ contract TRIONOracleV3 is ITRIONOracleV3, Ownable {
     /// @notice Publish a full behavioral signal with entity context and plane data.
     /// @dev Only callable by owner or authorized validator.
     function publishBehavioralSignal(BehavioralSignal calldata s) external {
+        _publishBehavioralSignal(s);
+    }
+
+    // ── Canonical typed publication (TRION-TEAM-E, canonical fix) ──────────
+    /// @notice Publish a behavioral signal AND record its canonical 24-member
+    ///         signal type (0..23, per specification §11 / signal_factory.py).
+    ///         Single transaction: emits BehavioralSignalPublished (or
+    ///         SilenceRecordedV2 when not coherent) AND SignalTypeRecorded so
+    ///         consumers can route by type without a second on-chain lookup.
+    /// @dev    signalType must be < 24 (the closed registry invariant —
+    ///         "Exactly 24 signal types are defined; new types require a
+    ///         protocol fork" — spec/signal_types.md).
+    function publishSignalWithType(BehavioralSignal calldata s, uint8 signalType) external {
+        _publishBehavioralSignal(s);
+
+        require(signalType < 24, "TRION: signal_type out of range");
+        signalTypeByEntity[s.entityId] = signalType;
+        emit SignalTypeRecorded(s.entityId, signalType);
+    }
+
+    /// @notice Read the canonical signal type recorded for an entity.
+    /// @return signalType  0..23 (default 0 = VALUATION when never set).
+    function getSignalType(bytes32 entityId) external view returns (uint8 signalType) {
+        return signalTypeByEntity[entityId];
+    }
+
+    /// @dev Internal helper that performs the auth, plane check, signal
+    ///      storage, counters and event emission shared by both
+    ///      publishBehavioralSignal and publishSignalWithType.
+    function _publishBehavioralSignal(BehavioralSignal calldata s) internal {
         require(
             msg.sender == owner() || isValidator[msg.sender],
             "TRION: not authorized"

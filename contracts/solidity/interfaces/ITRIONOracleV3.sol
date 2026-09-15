@@ -164,6 +164,16 @@ interface ITRIONOracleV3 {
     /// @param s Complete BehavioralSignal struct (signalBlock/timestamp/initialized set on-chain).
     function publishBehavioralSignal(BehavioralSignal calldata s) external;
 
+    /// @notice Publish a behavioral signal AND record its canonical 24-member
+    ///         signal type (0..23, per specification §11 / signal_factory.py).
+    /// @param s Complete BehavioralSignal struct.
+    /// @param signalType Canonical signal type id (0..23).
+    function publishSignalWithType(BehavioralSignal calldata s, uint8 signalType) external;
+
+    /// @notice Read the canonical signal type recorded for an entity.
+    /// @return signalType 0..23 (default 0 = VALUATION when never set).
+    function getSignalType(bytes32 entityId) external view returns (uint8 signalType);
+
     /// @notice Get the core behavioral signal fields for an entity.
     function getBehavioralSignal(bytes32 entityId) external view returns (
         bytes32 publicCommitment,

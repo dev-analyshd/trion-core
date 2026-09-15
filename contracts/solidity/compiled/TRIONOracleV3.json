@@ -1163,6 +1163,133 @@
       "type": "function"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "signalType",
+          "type": "uint8"
+        }
+      ],
+      "name": "SignalTypeRecorded",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "signalTypeByEntity",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "entityId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getSignalType",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "signalType",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "entityId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "publicCommitment",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "coherenceScore",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "threshold",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "moatFactor",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "coherent",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint8",
+              "name": "limitingPlane",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "planesPacked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timingPacked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "initialized",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct ITRIONOracleV3.BehavioralSignal",
+          "name": "s",
+          "type": "tuple"
+        },
+        {
+          "internalType": "uint8",
+          "name": "signalType",
+          "type": "uint8"
+        }
+      ],
+      "name": "publishSignalWithType",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "bytes32",
