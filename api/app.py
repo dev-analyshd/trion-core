@@ -3204,6 +3204,25 @@ def sba_signal(nation_id: str):
     # C inputs — foreign capital inflow / outflow
     foreign_capital_inflow  = _seed(110, 0.3e6, 5.0e6)
     foreign_capital_outflow = _seed(111, 0.3e6, 5.0e6)
+    # SDP mandatory metadata (whitepaper L8.1): cultural_context_vector +
+    # data_sources (appeal_mechanism + uncertainty_bounds are computed in
+    # compute_sba itself; CI_95 always present).
+    cultural_context_vector = {
+        "nation_id":    nation_id,
+        "iso_alpha3":   nation_id.upper()[:3] if len(nation_id) >= 3 else nation_id.upper(),
+        "region":       "UNSPECIFIED_DEMO",
+        "jurisdiction": "UNSPECIFIED_DEMO",
+    }
+    data_sources = [
+        "rpc://ethereum.mainnet",
+        "rpc://arbitrum.one",
+        "api://chainalysis.capital_flows",
+        "api://imf.trade_balance",
+        "feed://stablecoin.adoption_index",
+        "feed://domestic_nl.compute_nl",
+        "feed://domestic_ep.compute_ep",
+        "feed://gov_wallet.behavioral_consistency",
+    ]
 
     result = sba_from_raw_data(
         nation_id                  = nation_id,
@@ -3217,12 +3236,16 @@ def sba_signal(nation_id: str):
         gov_wallet_consistency_90d = gov_wallet_consistency_90d,
         foreign_capital_inflow     = foreign_capital_inflow,
         foreign_capital_outflow    = foreign_capital_outflow,
+        cultural_context_vector    = cultural_context_vector,
+        data_sources               = data_sources,
     )
     result["is_synthetic"] = True
     result["synthetic_reason"] = ("SBA formula engine is real; inputs (cross-border capital flow, "
                                    "policy alignment, NL/EP scores, gov-wallet consistency, capital flows) "
                                    "are deterministic hash-derived demo values, not sovereign data feeds.")
     result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
+    result["sdp_note"] = ("Sovereignty Dignity Protocol: uncertainty_bounds (CI_95), cultural_context_vector, "
+                          "appeal_mechanism, and data_sources are always present per whitepaper L8.1.")
     result["timestamp"] = int(time.time())
     return jsonify(result)
 

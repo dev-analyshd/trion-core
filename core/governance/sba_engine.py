@@ -53,6 +53,20 @@ SBA_HIGH       = 0.75
 SBA_MODERATE   = 0.55
 SBA_LOW        = 0.35
 
+# ── Sovereignty Dignity Protocol (SDP) constants ────────────────────────────
+# Whitepaper L8.1: "TRION does not antagonize governments. It encodes respect
+# for sovereignty architecturally. Appeals are permanent record."
+#
+# SDP_APPEAL_MECHANISM is the canonical reference to the dispute-resolution
+# contract / channel every SBA signal must cite. Encoded as an Akashic-Index
+# resource URI so the appeal record persists in the append-only ledger (L2)
+# and cannot be silently rewritten. Concrete address binding is performed at
+# deployment time by the SDP registry (api route /api/v1/governance/sdp).
+SDP_APPEAL_MECHANISM = "akashic://sdp/appeal_resolution.v1"
+
+# CI_95 z multiplier for the 95% confidence interval (standard normal).
+_Z_95 = 1.96
+
 
 def _corr_to_score(corr: float) -> float:
     """Convert correlation [-1,1] to score [0,1]: (corr+1)/2."""
@@ -214,11 +228,29 @@ def compute_sba(
     w_s:                            float = W_S,
     w_g:                            float = W_G,
     w_c:                            float = W_C,
+    cultural_context_vector:        Optional[Dict] = None,
+    data_sources:                   Optional[List[str]] = None,
+    appeal_mechanism:                Optional[str] = None,
 ) -> dict:
     """
     SBA(nation, t) = w_E·E + w_I·I + w_S·S + w_G·G + w_C·C
 
-    Returns full breakdown for specification compliance.
+    Returns full breakdown for specification compliance, plus the four
+    Sovereignty Dignity Protocol (SDP) mandatory metadata fields required
+    on every SBA signal (whitepaper L8.1):
+
+      - uncertainty_bounds: CI_95 computed from the weighted sub-score
+        variance around the SBA mean (always present, never null).
+      - cultural_context_vector: encoded regional context — nation_id plus
+        region/jurisdiction codes supplied by the caller; defaults to a
+        nation_id-stamped placeholder when caller context is absent.
+      - appeal_mechanism: reference to the dispute-resolution channel
+        (any entity can formally challenge the assessment). Defaults to
+        the canonical SDP appeal contract URI.
+      - data_sources: complete provenance chain — the RPCs, APIs, and
+        feeds actually used to derive the sub-scores. Defaults to empty
+        list when caller provenance is absent (explicit honest disclosure
+        of missing provenance).
     """
     sba = (w_e * e_score + w_i * i_score + w_s * s_score
            + w_g * g_score + w_c * c_score)
@@ -232,6 +264,57 @@ def compute_sba(
     )
 
     policy_action_gap = abs(i_score - e_score)
+
+    # ── SDP metadata 1: uncertainty_bounds (CI_95 from sub-score variance) ─
+    # Weighted variance of the five sub-scores around the weighted mean (sba),
+    # then standard error = sqrt(var / n). CI_95 = sba ± 1.96·SE, clamped to
+    # [0, 1]. Always present — never null — per whitepaper L8.1 SDP.
+    scores  = [e_score, i_score, s_score, g_score, c_score]
+    weights = [w_e, w_i, w_s, w_g, w_c]
+    n       = len(scores)
+    w_sum   = sum(weights)
+    if n > 1 and w_sum > 0:
+        weighted_var = sum(w * (s - sba) ** 2 for w, s in zip(weights, scores)) / w_sum
+        se           = math.sqrt(weighted_var / n)
+        ci_lower     = max(0.0, sba - _Z_95 * se)
+        ci_upper     = min(1.0, sba + _Z_95 * se)
+    else:
+        ci_lower = ci_upper = sba
+    uncertainty_bounds = {
+        "ci_95":         [round(ci_lower, 6), round(ci_upper, 6)],
+        "method":        "weighted_sub_score_variance",
+        "n_sub_scores":  n,
+        "z_multiplier":  _Z_95,
+    }
+
+    # ── SDP metadata 2: cultural_context_vector ────────────────────────────
+    # Encoded regional context. Caller may supply a richer dict (region,
+    # jurisdiction, iso codes, etc.); absent caller context falls back to
+    # a nation_id-stamped placeholder so the field is always present.
+    if cultural_context_vector is None:
+        cultural_context_vector = {
+            "nation_id":    nation_id,
+            "region":       "UNSPECIFIED",
+            "jurisdiction": "UNSPECIFIED",
+        }
+    else:
+        # Ensure nation_id is always present so the vector is self-identifying.
+        cultural_context_vector = dict(cultural_context_vector)
+        cultural_context_vector.setdefault("nation_id", nation_id)
+
+    # ── SDP metadata 3: appeal_mechanism ───────────────────────────────────
+    # Reference to the dispute-resolution contract/channel. Default to the
+    # canonical SDP appeal URI (append-only Akashic record — appeals are
+    # permanent, per whitepaper).
+    if appeal_mechanism is None:
+        appeal_mechanism = SDP_APPEAL_MECHANISM
+
+    # ── SDP metadata 4: data_sources (complete provenance chain) ──────────
+    # The actual RPCs, APIs, and feeds used to derive the sub-scores.
+    # Caller-supplied provenance wins; absent caller data is honestly
+    # disclosed as an empty list (never fabricated).
+    if data_sources is None:
+        data_sources = []
 
     return {
         "nation_id":           nation_id,
@@ -249,11 +332,19 @@ def compute_sba(
         },
         "policy_action_gap":   round(policy_action_gap, 4),
         "behavioral_risk":     sba < SBA_LOW,
+        # ── Sovereignty Dignity Protocol (SDP) mandatory metadata ────────
+        "uncertainty_bounds":      uncertainty_bounds,
+        "cultural_context_vector": cultural_context_vector,
+        "appeal_mechanism":        appeal_mechanism,
+        "data_sources":            list(data_sources),
         "disclosure": (
             f"SBA={sba:.4f} [{tier}]. "
             f"Policy-action gap={'HIGH' if policy_action_gap > 0.30 else 'LOW'} "
             f"({policy_action_gap:.4f}). "
-            "SBA predictions require 70%+ alignment validation over 90-day sample (F10)."
+            "SBA predictions require 70%+ alignment validation over 90-day sample (F10). "
+            "Sovereignty Dignity Protocol: uncertainty_bounds, cultural_context_vector, "
+            "appeal_mechanism, and data_sources are always present. Any entity may "
+            "formally challenge this assessment via the cited appeal_mechanism."
         ),
     }
 
@@ -270,6 +361,9 @@ def sba_from_raw_data(
     gov_wallet_consistency_90d:      List[float],
     foreign_capital_inflow:          float,
     foreign_capital_outflow:         float,
+    cultural_context_vector:         Optional[Dict]  = None,
+    data_sources:                    Optional[List[str]] = None,
+    appeal_mechanism:                 Optional[str]   = None,
 ) -> dict:
     """Full SBA computation from raw whitepaper-aligned inputs.
 
@@ -279,13 +373,23 @@ def sba_from_raw_data(
       S ← nl_domestic_defi, ep_domestic_protocols, citizen_wallet_activity
       G ← gov_wallet_consistency_90d                (90-day rolling series)
       C ← foreign_capital_inflow, foreign_capital_outflow
+
+    SDP metadata (cultural_context_vector, data_sources, appeal_mechanism)
+    passes through to compute_sba; absent caller data falls back to honest
+    defaults there (nation_id-stamped vector, empty source list, canonical
+    SDP appeal URI).
     """
     e = compute_e_score(cross_border_capital_flow, trade_balance_trend, stablecoin_adoption)
     i = compute_i_score([], [], policy_alignment_scores)
     s = compute_s_score(nl_domestic_defi, ep_domestic_protocols, citizen_wallet_activity)
     g = compute_g_score(gov_wallet_consistency_90d)
     c = compute_c_score(foreign_capital_inflow, foreign_capital_outflow)
-    return compute_sba(nation_id, e, i, s, g, c)
+    return compute_sba(
+        nation_id, e, i, s, g, c,
+        cultural_context_vector=cultural_context_vector,
+        data_sources=data_sources,
+        appeal_mechanism=appeal_mechanism,
+    )
 
 
 if __name__ == "__main__":
@@ -301,9 +405,31 @@ if __name__ == "__main__":
         gov_wallet_consistency_90d=[0.85, 0.82, 0.88, 0.80, 0.86],
         foreign_capital_inflow=1.5e6,
         foreign_capital_outflow=0.9e6,
+        cultural_context_vector={
+            "nation_id":    "US",
+            "iso_alpha3":   "USA",
+            "region":       "NORTH_AMERICA",
+            "jurisdiction": "US_FEDERAL",
+        },
+        data_sources=[
+            "rpc://ethereum.mainnet",
+            "rpc://arbitrum.one",
+            "api://chainalysis.capital_flows",
+            "api://imf.trade_balance",
+            "feed://stablecoin.adoption_index",
+        ],
     )
     print(f"SBA(US): {result['sba_score']:.4f} [{result['tier']}]")
     for k, v in result['components'].items():
         print(f"  {k}: {v:.4f}")
+    # SDP mandatory metadata — always present per whitepaper L8.1
+    assert "uncertainty_bounds"      in result and result["uncertainty_bounds"]["ci_95"]
+    assert "cultural_context_vector" in result
+    assert "appeal_mechanism"         in result and result["appeal_mechanism"]
+    assert "data_sources"            in result and isinstance(result["data_sources"], list)
+    print(f"  CI_95: {result['uncertainty_bounds']['ci_95']}")
+    print(f"  cultural_context: {result['cultural_context_vector']}")
+    print(f"  appeal: {result['appeal_mechanism']}")
+    print(f"  data_sources: {len(result['data_sources'])} provenance entries")
     assert 0 <= result['sba_score'] <= 1
     print("L8.1 SBA Engine: PASS")
