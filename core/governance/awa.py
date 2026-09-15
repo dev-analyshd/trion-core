@@ -113,9 +113,13 @@ class EmissionGate:
     """
 
     def __init__(self) -> None:
-        self._frozen: bool = False
-        self._reason: str = ""
-        self._source: str = ""
+        # MD §17 fail-closed: gate starts FROZEN at bootstrap until the first
+        # AWAEnforcer.evaluate() passes. The Gratitude condition (>=1) cannot
+        # be satisfied without recorded disclosures, so the gate correctly
+        # stays frozen until the protocol has earned the right to emit.
+        self._frozen: bool = True
+        self._reason: str = "bootstrap_fail_closed"
+        self._source: str = "init"
         self._since: float = 0.0
 
     # ── read API (consumed by core/master/signal_factory.py) ────────────
