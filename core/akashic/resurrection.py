@@ -179,20 +179,23 @@ def compute_resurrection(
     """
     Δ_resurrection = w_d · e^(-κ·T) · w_c · sim(S_pre, S_react) · w_x · g(C)
 
-    Spec (specification L2.4): the composition is MULTIPLICATIVE — every component
-    participates as a factor, so any single collapsed component (zero context,
-    zero behavioral similarity, full decay) collapses the whole score. This is
-    the semantic that separates GENUINE_CONTINUATION from ZOMBIE.
+    Spec (whitepaper L2.4): the composition is a LINEAR PRODUCT — every
+    component participates as a multiplicative factor with its weight applied
+    as a linear multiplier (not as an exponent). A single collapsed component
+    (zero context, zero behavioral similarity, full decay) collapses the
+    whole score. This is the semantic that separates GENUINE_CONTINUATION
+    from ZOMBIE.
 
-    Implementation: weighted geometric mean of the three components
+    Implementation:
 
-        Δ = e^(-κ·T)^(w_d) · sim(S_pre, S_react)^(w_c) · g(C)^(w_x)
+        Δ = W_DECAY · e^(-κ·T) · W_CONTINUITY · sim(S_pre, S_react) · W_CONTEXT · g(C)
 
-    which is exactly the spec's product form with the weights applied as
-    exponents (log-space: Δ = exp(w_d·ln(decay) + w_c·ln(sim) + w_x·ln(g)))
-    so that Δ stays on a usable [0, 1] scale while preserving the multiplicative
-    collapse property. A plain weighted SUM (previous implementation) violated
-    the spec by allowing a strong decay term to offset a zero context term.
+    Weights W_DECAY=0.40, W_CONTINUITY=0.35, W_CONTEXT=0.25 are applied as
+    linear multipliers per the whitepaper formula. The maximum possible Δ is
+    therefore W_DECAY · W_CONTINUITY · W_CONTEXT = 0.035 (when decay=1,
+    sim=1, g(C)=1). The relative ranking of resurrection candidates is
+    preserved — a healthy resurrection (decay≈1, sim≈1, g(C)≈0.75) yields
+    Δ ≈ 0.022, whereas a decayed ABANDONED shell collapses toward Δ = 0.
     """
     dormancy_type = profile.dormancy_type
     kappa         = KAPPA[dormancy_type]
@@ -201,17 +204,9 @@ def compute_resurrection(
     continuity  = compute_continuity_component(pre_dormancy_features, reactive_features)
     context     = compute_context_component(profile)
 
-    # Multiplicative composition (spec L2.4): weights as exponents.
-    # Components are clamped away from exact 0.0 in log-space only for numeric
-    # safety; a true 0-valued component still drives Δ → 0.
-    EPS = 1e-12
-    log_delta = (
-        W_DECAY      * math.log(max(decay,      EPS)) +
-        W_CONTINUITY * math.log(max(continuity, EPS)) +
-        W_CONTEXT    * math.log(max(context,    EPS))
-    )
-    delta = math.exp(log_delta)
-    # Exact-zero components must produce exactly zero (spec: collapse property)
+    # Linear product composition (spec L2.4): weights as linear multipliers.
+    # Any zero component collapses Δ → 0 (spec: multiplicative collapse property).
+    delta = W_DECAY * decay * W_CONTINUITY * continuity * W_CONTEXT * context
     if decay <= 0.0 or continuity <= 0.0 or context <= 0.0:
         delta = 0.0
     delta = max(0.0, min(1.0, delta))
@@ -288,6 +283,11 @@ if __name__ == "__main__":
     reac_h = [0.8, 0.6, 0.4, 0.9, 0.7]  # Similar behavior — healthy resurrection
     result_h = compute_resurrection(profile_h, pre_h, reac_h)
     print(f"HIBERNATION: Δ_res={result_h.delta_resurrection:.4f} κ={result_h.kappa}")
-    assert result_h.delta_resurrection > 0.5
+    # Linear product formula: max Δ = W_DECAY·W_CONTINUITY·W_CONTEXT = 0.035.
+    # A healthy HIBERNATION resurrection (decay≈0.835, sim=1.0, g(C)=0.75)
+    # yields Δ ≈ 0.022 — well above zero, signaling a healthy revival.
+    assert result_h.delta_resurrection > 0.01
+    # And it must rank strictly above the ABANDONED shell (context=0 → Δ=0).
+    assert result_h.delta_resurrection > result.delta_resurrection
 
     print("L2.4 Resurrection Inference: PASS")

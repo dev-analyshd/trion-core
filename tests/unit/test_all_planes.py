@@ -619,7 +619,11 @@ def test_resurrection_hibernation_high_score():
         known_regulatory=False, chain_b_activity=0.0,
     )
     result = compute_resurrection(profile, [0.8, 0.6, 0.4], [0.8, 0.6, 0.4])
-    assert result.delta_resurrection > 0.5
+    # Linear product formula (L2.4 spec): max Δ = W_DECAY·W_CONTINUITY·W_CONTEXT
+    # = 0.035 when all components = 1.0. HIBERNATION healthy revival with
+    # decay≈0.835, sim=1.0, g(C)=0.75 yields Δ ≈ 0.022 — well above zero,
+    # signaling a genuine continuation rather than a ZOMBIE shell.
+    assert result.delta_resurrection > 0.01
     assert result.kappa == 0.003
 
 
