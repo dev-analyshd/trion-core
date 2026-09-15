@@ -1,5 +1,6 @@
 """
 TRION Protocol — L3.7 Intelligence Maintenance Protocol (IMP)
+CANONICAL SPEC-FAITHFUL IMPLEMENTATION (see note below)
 
 IM(component, t) = Accuracy(component, t) / Accuracy(component, t_baseline)
 
@@ -11,6 +12,25 @@ Falsification condition F7:
   detection and correction within 24 hours.
 
 IMP guarantees this cannot happen by continuous monitoring.
+
+NOTE — relationship to core/governance/intelligence_maintenance.py:
+================================================================
+TRION has TWO modules that historically both exported classes named
+`IntelligenceMaintenanceProtocol`. THIS FILE (core/mental/) is the
+canonical, spec-faithful implementation:
+
+  * THIS FILE:    IM(component, t) = Accuracy(t) / Accuracy(t_baseline)
+                  — the per-component accuracy-ratio formula the
+                    whitepaper (L3.7 / Falsifiability F7) specifies.
+                  — the only implementation referenced by WP1 L3.7's
+                    health-tier threshold table (0.95 / 0.80 / 0.60 / 0.40).
+
+  * core/governance/intelligence_maintenance.py: weighted-average composite
+    CHS(t) = 0.30·PA + 0.20·CS + 0.20·PCR + 0.15·SC + 0.15·CA — a
+    DIFFERENT metric used by the governance layer for ANIMA-wide
+    retraining scheduling. That module's class is now named
+    `ComponentHealthScore` (with `IntelligenceMaintenanceProtocol` kept
+    as a backwards-compat alias) to remove the name collision.
 
 Detection thresholds:
     IM >= 0.95: HEALTHY

@@ -1,15 +1,42 @@
 """
-TRION Protocol — L3.7: Intelligence Maintenance Protocol (IMP)
-specification Chapter 8: ANIMA Intelligence Layer
+TRION Protocol — L3.7: Component Health Score (composite ANIMA health metric)
 
-The Intelligence Maintenance Protocol monitors ANIMA's ongoing accuracy
+NOTE — relationship to the spec's Intelligence Maintenance Protocol (IM):
+=======================================================================
+TRION has TWO related but distinct L3.7 concepts. This module deliberately
+implements a DIFFERENT formula than the whitepaper's canonical IM ratio:
+
+  * core/mental/intelligence_maintenance.py  (CANONICAL — spec-faithful)
+        IM(component, t) = Accuracy(component, t) / Accuracy(component, t_baseline)
+    This is the per-component ratio the whitepaper (L3.7 / Falsifiability F7)
+    actually specifies. It is the canonical implementation and the one
+    WP1 L3.7's threshold table (0.95 / 0.80 / 0.60 / 0.40) refers to.
+
+  * core/governance/intelligence_maintenance.py  (THIS FILE — composite)
+        CHS(t) = 0.30·PA + 0.20·CS + 0.20·PCR + 0.15·SC + 0.15·CA
+    This is a weighted-average composite of FIVE ANIMA quality dimensions
+    (Prediction Accuracy, Calibration, Pattern Coherence, Stream
+    Completeness, Cross-Source Agreement) used by the governance layer
+    to decide when to trigger an ANIMA-wide retraining cycle. It is NOT
+    the spec's per-component ratio — it is a different (complementary)
+    metric, so it has been renamed ComponentHealthScore to remove the
+    previous ambiguity where both files exposed a class named
+    `IntelligenceMaintenanceProtocol` with different formulas.
+
+The class is also re-exported under its old name (`IntelligenceMaintenanceProtocol`)
+as a deprecation alias so existing imports/tests keep working — but new
+code should use `ComponentHealthScore` to make the distinction explicit.
+
+ComponentHealthScore (composite ANIMA health) — Chapter 8 ANIMA Intelligence Layer
+
+The Component Health Score monitors ANIMA's ongoing composite accuracy
 and triggers automatic retraining when performance degrades below threshold.
 
-IM(t) = weighted_average_of_accuracy_metrics(t)
+CHS(t) = weighted_average_of_accuracy_metrics(t)
 
-IM Threshold:
-  IM < IM_THRESHOLD → trigger retraining cycle
-  IM < IM_CRITICAL  → ANIMA output marked UNRELIABLE, signal degraded
+CHS Threshold:
+  CHS < IM_THRESHOLD → trigger retraining cycle
+  CHS < IM_CRITICAL  → ANIMA output marked UNRELIABLE, signal degraded
 
 Monitoring Metrics (specification §8.4):
   1. Prediction Accuracy (PA):    HA tracker from anima_engine.py
@@ -23,7 +50,7 @@ IMP Actions:
   FLAGGED:     Issue warning, increase monitoring frequency
   RETRAIN:     Trigger retraining cycle (pattern library reset + history retention)
   UNRELIABLE:  Mark ANIMA output as UNRELIABLE, reduce signal weight by 0.50
-  DISABLED:    IM < 0.20 → ANIMA output = 0 (same as HA < 0.60 rule)
+  DISABLED:    CHS < 0.20 → ANIMA output = 0 (same as HA < 0.60 rule)
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -105,15 +132,23 @@ class RetrainingCycle:
     completed_at:       Optional[float]
 
 
-class IntelligenceMaintenanceProtocol:
+class ComponentHealthScore:
     """
-    L3.7 IMP — monitors ANIMA accuracy and triggers retraining.
+    L3.7 Component Health Score (CHS) — composite ANIMA health metric that
+    triggers retraining.
+
+    NOTE: This is NOT the spec's Intelligence Maintenance Protocol ratio
+    (IM(component, t) = Accuracy(t) / Accuracy(t_baseline)), which lives
+    in core/mental/intelligence_maintenance.py. CHS is a weighted-average
+    composite of five ANIMA quality dimensions used by the governance
+    layer to schedule ANIMA-wide retraining cycles. See the module
+    docstring above for the full distinction.
 
     Plugs into ANIMAEngine's HA tracker and pattern library.
     Called after every ANIMA prediction cycle to assess health.
     """
 
-    MONITORING_WINDOW_SIZE = 100    # Keep last N IM scores for trend analysis
+    MONITORING_WINDOW_SIZE = 100    # Keep last N CHS scores for trend analysis
 
     def __init__(self):
         self._history:     List[float] = []
@@ -316,32 +351,59 @@ class IntelligenceMaintenanceProtocol:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_imp = IntelligenceMaintenanceProtocol()
+_imp = ComponentHealthScore()
 
-def get_imp() -> IntelligenceMaintenanceProtocol:
+def get_imp() -> ComponentHealthScore:
+    """Accessor for the singleton Component Health Score evaluator.
+
+    Note: the function name `get_imp` and the singleton variable `_imp` are
+    kept for backwards compatibility with existing imports/callers, even
+    though the class is now `ComponentHealthScore`. New code should prefer
+    `get_chs()` / `ComponentHealthScore` to make the metric distinction
+    explicit.
+    """
     return _imp
+
+
+def get_chs() -> ComponentHealthScore:
+    """Spec-recommended accessor for the Component Health Score singleton."""
+    return _imp
+
+
+# Backwards-compatibility / deprecation alias.
+#
+# The class was originally named `IntelligenceMaintenanceProtocol`, which
+# collided with the spec-faithful `IntelligenceMaintenanceSystem` in
+# core/mental/intelligence_maintenance.py and obscured the fact that the
+# two files implement DIFFERENT formulas (this file = weighted-average
+# composite; core/mental = spec IM ratio Acc(t)/Acc(baseline)).
+#
+# The alias keeps existing imports (api/app.py, tests/unit/test_whitepaper_gaps.py)
+# working without modification while making the rename non-breaking. New
+# code should import `ComponentHealthScore` directly.
+IntelligenceMaintenanceProtocol = ComponentHealthScore
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    imp = IntelligenceMaintenanceProtocol()
+    imp = ComponentHealthScore()
 
     # Healthy ANIMA
     r = imp.evaluate(pa=0.85, cs=0.78, pcr=0.72, sc=1.0, ca=0.80, sample_size=500)
-    print(f"HEALTHY: IM={r.im_score:.4f} [{r.status.value}] weight={r.signal_weight:.2f}")
+    print(f"HEALTHY: CHS={r.im_score:.4f} [{r.status.value}] weight={r.signal_weight:.2f}")
     assert r.status == IMPStatus.HEALTHY
     assert r.signal_weight == 1.0
     assert not r.retrain_triggered
 
     # Flagged
     r2 = imp.evaluate(pa=0.62, cs=0.55, pcr=0.50, sc=0.70, ca=0.55, sample_size=200)
-    print(f"FLAGGED: IM={r2.im_score:.4f} [{r2.status.value}] weight={r2.signal_weight:.2f}")
+    print(f"FLAGGED: CHS={r2.im_score:.4f} [{r2.status.value}] weight={r2.signal_weight:.2f}")
     assert r2.status == IMPStatus.FLAGGED
 
     # Retrain triggered
     r3 = imp.evaluate(pa=0.45, cs=0.42, pcr=0.38, sc=0.60, ca=0.40, sample_size=100)
-    print(f"RETRAIN: IM={r3.im_score:.4f} [{r3.status.value}] triggered={r3.retrain_triggered}")
+    print(f"RETRAIN: CHS={r3.im_score:.4f} [{r3.status.value}] triggered={r3.retrain_triggered}")
     assert r3.status == IMPStatus.RETRAIN
     assert r3.retrain_triggered
     assert r3.signal_weight == 0.70
@@ -350,17 +412,20 @@ if __name__ == "__main__":
 
     # Unreliable
     r4 = imp.evaluate(pa=0.25, cs=0.30, pcr=0.22, sc=0.40, ca=0.28, sample_size=30)
-    print(f"UNRELIABLE: IM={r4.im_score:.4f} [{r4.status.value}] weight={r4.signal_weight:.2f}")
+    print(f"UNRELIABLE: CHS={r4.im_score:.4f} [{r4.status.value}] weight={r4.signal_weight:.2f}")
     assert r4.status == IMPStatus.UNRELIABLE
     assert r4.signal_weight == 0.50
 
     # Disabled
     r5 = imp.evaluate(pa=0.10, cs=0.08, pcr=0.05, sc=0.20, ca=0.12, sample_size=10)
-    print(f"DISABLED: IM={r5.im_score:.4f} [{r5.status.value}] weight={r5.signal_weight:.2f}")
+    print(f"DISABLED: CHS={r5.im_score:.4f} [{r5.status.value}] weight={r5.signal_weight:.2f}")
     assert r5.status == IMPStatus.DISABLED
     assert r5.signal_weight == 0.0
 
     cycles = imp.get_cycles()
     print(f"Retraining cycles: {len(cycles)}")
 
-    print("\nL3.7 Intelligence Maintenance Protocol: ALL PASS")
+    # Sanity-check backwards-compat alias still resolves.
+    assert IntelligenceMaintenanceProtocol is ComponentHealthScore
+
+    print("\nL3.7 Component Health Score (composite, governance layer): ALL PASS")
