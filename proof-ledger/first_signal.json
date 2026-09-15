@@ -1,0 +1,22 @@
+{
+  "status": "PLANNED",
+  "requirements": [
+    "Funded testnet account (Arbitrum Sepolia or Starknet Sepolia)",
+    "Oracle contract deployed (TRIONOracleV3 at 0xb819...)",
+    "Relayer configured with RELAYER_PRIVATE_KEY or KMS_PROVIDER",
+    "AWA gate evaluated and passing (or intentionally frozen for SILENCE emission)",
+    "bh_ledger.db populated with at least 100 BHs from real chain data"
+  ],
+  "emission_plan": {
+    "step_1": "Run genesis backfill for 1+ EVM chain (populate bh_ledger.db)",
+    "step_2": "Start FAISS service (port 8000)",
+    "step_3": "Start Oracle API (port 5000)",
+    "step_4": "Start validator mesh (port 6000) as daemon",
+    "step_5": "Start relayer in LIVE mode (set RELAYER_PRIVATE_KEY)",
+    "step_6": "Trigger signal emission via /api/v1/publish/<entity_id>",
+    "step_7": "Record tx hash in this file"
+  },
+  "first_signal_tx_hash": null,
+  "first_silence_tx_hash": null,
+  "first_genesis_tx_hash": null
+}
