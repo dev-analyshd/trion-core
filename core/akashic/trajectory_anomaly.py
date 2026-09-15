@@ -25,12 +25,66 @@ License: CC0
 
 from __future__ import annotations
 import math
+import statistics
 from dataclasses import dataclass
 from typing import Optional
 
 
-# Default anomaly threshold — KL divergence above this triggers alert
+# Default anomaly threshold — KL divergence above this triggers alert.
+# Used as a fallback when no historical KL data is available (per whitepaper
+# L2.7 spec: "If insufficient history exists, fall back to 0.50").
 THETA_ANOMALY_DEFAULT: float = 0.50
+
+# Per whitepaper L2.7 spec: "If TRAJ_ANOMALY > θ_anomaly (> 2 standard
+# deviations)". The statistical threshold is computed as
+#     θ_anomaly = mean(historical_KL) + THETA_STD_MULTIPLIER · stdev(historical_KL)
+THETA_STD_MULTIPLIER: float = 2.0
+
+# Minimum number of historical KL observations required to estimate a
+# meaningful mean and standard deviation. Below this we fall back to the
+# fixed default threshold (0.50). statistics.stdev requires at least 2
+# data points; we use a slightly higher bar to get a stable estimate.
+MIN_HISTORY_FOR_STATISTICAL_THRESHOLD: int = 5
+
+
+def compute_dynamic_theta(
+    historical_kl_values: Optional[list[float]] = None,
+    std_multiplier: float = THETA_STD_MULTIPLIER,
+    fallback: float = THETA_ANOMALY_DEFAULT,
+) -> float:
+    """
+    Compute the dynamic anomaly threshold θ_anomaly per whitepaper L2.7 spec:
+    "If TRAJ_ANOMALY > θ_anomaly (> 2 standard deviations)".
+
+        θ_anomaly = mean(historical_KL) + std_multiplier · stdev(historical_KL)
+
+    If insufficient history exists (fewer than
+    MIN_HISTORY_FOR_STATISTICAL_THRESHOLD observations), fall back to
+    THETA_ANOMALY_DEFAULT = 0.50.
+
+    Args:
+        historical_kl_values: prior KL divergence observations for the same
+            entity (or archetype baseline). Each entry is a single
+            KL(P_actual || P_expected) measurement from a prior window.
+        std_multiplier: how many standard deviations above the mean
+            constitutes an anomaly (whitepaper default: 2.0).
+        fallback: threshold used when historical data is insufficient.
+
+    Returns:
+        θ_anomaly — KL divergence above this triggers MANIPULATION_ALERT.
+    """
+    if not historical_kl_values:
+        return fallback
+    if len(historical_kl_values) < MIN_HISTORY_FOR_STATISTICAL_THRESHOLD:
+        return fallback
+    try:
+        mean_kl = statistics.fmean(historical_kl_values)
+        stdev_kl = statistics.stdev(historical_kl_values)
+    except statistics.StatisticsError:
+        # Defensive: stdev requires ≥2 data points; we already checked above,
+        # but guard against degenerate inputs (e.g. all values equal → stdev=0).
+        return fallback
+    return mean_kl + std_multiplier * stdev_kl
 
 
 @dataclass
@@ -85,23 +139,42 @@ def kl_divergence(p_actual: list[float], p_expected: list[float], epsilon: float
 
 
 def compute_trajectory_anomaly(
-    entity_id:      str,
-    p_actual:       TrajectoryDistribution,
-    p_expected:     TrajectoryDistribution,
-    theta_anomaly:  float = THETA_ANOMALY_DEFAULT,
-    in_genesis:     bool  = True,
-    reflexivity_oe: float = 0.0,  # Observer Effect factor [0, 1]
+    entity_id:              str,
+    p_actual:               TrajectoryDistribution,
+    p_expected:             TrajectoryDistribution,
+    theta_anomaly:          float = THETA_ANOMALY_DEFAULT,
+    in_genesis:             bool  = True,
+    reflexivity_oe:         float = 0.0,  # Observer Effect factor [0, 1]
+    historical_kl_values:   Optional[list[float]] = None,
 ) -> TrajectoryAnomalyResult:
     """
     Compute KL(P_actual || P_expected) and determine if anomaly threshold exceeded.
+
+    Per whitepaper L2.7 spec: "If TRAJ_ANOMALY > θ_anomaly (> 2 standard
+    deviations)". When `historical_kl_values` is provided (≥ MIN_HISTORY
+    observations), θ_anomaly is computed dynamically as
+        θ_anomaly = mean(historical_KL) + 2 · stdev(historical_KL)
+    via compute_dynamic_theta(). If historical data is insufficient or
+    absent, the threshold falls back to THETA_ANOMALY_DEFAULT = 0.50.
 
     If TRAJ_ANOMALY > theta_anomaly AND in_genesis:
         - Genesis signal invalidated (conf_genesis locked)
         - MANIPULATION_ALERT raised
 
+    Args:
+        historical_kl_values: optional prior KL divergence observations for
+            the same entity/archetype baseline. When provided with sufficient
+            history, overrides `theta_anomaly` with the dynamic 2-std threshold.
+
     reflexivity_oe: if high, anomaly may be caused by TRION's own prediction
     (reflexivity attack) rather than manipulation.
     """
+    # Dynamic statistical threshold (whitepaper L2.7 spec: 2 std above mean).
+    # If historical KL data is provided, this overrides the static `theta_anomaly`
+    # parameter; otherwise we use whatever the caller passed (default 0.50).
+    if historical_kl_values is not None:
+        theta_anomaly = compute_dynamic_theta(historical_kl_values)
+
     if len(p_actual.probs) != len(p_expected.probs):
         # Truncate to shorter — different outcome spaces
         n = min(len(p_actual.probs), len(p_expected.probs))
@@ -208,5 +281,34 @@ if __name__ == "__main__":
     # Test 3: Build TRAJECTORY signal
     sig = build_trajectory_signal("entity_X", p_expected, 1000, 47, reflexivity_oe=0.25)
     print(f"TRAJECTORY signal: type={sig['signal_type']} matches={sig['historical_match_count']}")
+
+    # Test 4: Dynamic 2-std threshold (whitepaper L2.7 spec)
+    # Baseline healthy behavior with very low KL — fixed 0.50 threshold would
+    # miss subtle anomalies, but mean + 2·std catches them.
+    healthy_baseline = [0.001, 0.002, 0.001, 0.003, 0.002, 0.001, 0.002, 0.001]
+    dynamic_theta = compute_dynamic_theta(healthy_baseline)
+    import statistics as _st
+    expected_theta = _st.fmean(healthy_baseline) + 2.0 * _st.stdev(healthy_baseline)
+    print(f"Dynamic θ_anomaly = mean + 2·std = {dynamic_theta:.6f} "
+          f"(expected {expected_theta:.6f})")
+    assert abs(dynamic_theta - expected_theta) < 1e-9
+    # A KL of 0.01 is below the fixed 0.50 threshold but ABOVE the dynamic
+    # 2-std threshold — should trigger anomaly under dynamic threshold.
+    p_actual_subtle = TrajectoryDistribution(outcomes, [0.42, 0.34, 0.18, 0.06])
+    r_subtle = compute_trajectory_anomaly(
+        "subtle_anomaly_token", p_actual_subtle, p_expected,
+        historical_kl_values=healthy_baseline,
+    )
+    print(f"Subtle anomaly: KL={r_subtle.kl_divergence:.6f} "
+          f"θ_dynamic={r_subtle.theta_anomaly:.6f} anomaly={r_subtle.anomaly_detected}")
+    assert r_subtle.theta_anomaly < THETA_ANOMALY_DEFAULT  # dynamic < default
+    assert r_subtle.anomaly_detected                      # caught by 2-std rule
+
+    # Test 5: Insufficient history → fallback to 0.50
+    theta_fallback = compute_dynamic_theta([0.01, 0.02])  # only 2 points
+    assert theta_fallback == THETA_ANOMALY_DEFAULT
+    theta_empty = compute_dynamic_theta(None)
+    assert theta_empty == THETA_ANOMALY_DEFAULT
+    print(f"Insufficient history fallback: θ={theta_fallback} (== {THETA_ANOMALY_DEFAULT})")
 
     print("L2.7 Trajectory Anomaly Monitor: PASS")
