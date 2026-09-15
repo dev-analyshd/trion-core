@@ -80,8 +80,18 @@ class TestManipulationAdversarial:
 
     def test_fake_volume_10x(self):
         from core.physical.manipulation_detector import detect_fake_volume
-        r = detect_fake_volume(round_trip_ratio=0.30, zero_sum_trades=50, volume_spike_ratio=12.0)
+        # Spec (L1.2 TYPE 7): entropy < threshold AND volume_spike > 10× baseline.
+        # round_trip_ratio=0.50 (proxy for entropy_deficit) > 0.40 threshold,
+        # volume_spike_ratio=12.0 > 10.0 → both spec conditions satisfied.
+        r = detect_fake_volume(round_trip_ratio=0.50, zero_sum_trades=50, volume_spike_ratio=12.0)
         assert r.detected
+
+    def test_fake_volume_spike_only_not_detected(self):
+        """Spec compliance: a volume spike alone must NOT trigger — entropy must also be low."""
+        from core.physical.manipulation_detector import detect_fake_volume
+        # 12× spike but entropy_deficit=0.30 < 0.40 threshold → AND fails → not detected.
+        r = detect_fake_volume(round_trip_ratio=0.30, zero_sum_trades=50, volume_spike_ratio=12.0)
+        assert not r.detected
 
     def test_mf_capped_at_1(self):
         from core.physical.manipulation_detector import detect_oracle_attack, compute_mf_score

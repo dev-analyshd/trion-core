@@ -289,9 +289,15 @@ check("L1.2 MEV_EXTRACTION: rate 2% → detected", r.detected)
 r = detect_coordinated_pump(sync_buy_ratios=[0.9, 0.9, 0.9], entity_count=3)
 check("L1.2 COORDINATED_PUMP: 3 entities sync>0.8 → detected", r.detected)
 
-# TYPE 7: FAKE_VOLUME
+# TYPE 7: FAKE_VOLUME — entropy < threshold AND volume_spike > 10× baseline (spec AND trigger)
 r = detect_fake_volume(round_trip_ratio=0.5, zero_sum_trades=10, volume_spike_ratio=15.0)
 check("L1.2 FAKE_VOLUME: spike 15× + round-trip 0.5 → detected", r.detected)
+# Spec compliance: a volume spike alone must NOT trigger — entropy must also be low.
+r_spike_only = detect_fake_volume(round_trip_ratio=0.10, zero_sum_trades=10, volume_spike_ratio=15.0)
+check("L1.2 FAKE_VOLUME: spike-only (low round-trip) → NOT detected (AND trigger)", not r_spike_only.detected)
+# Spec compliance: low entropy alone (no spike) must NOT trigger.
+r_entropy_only = detect_fake_volume(round_trip_ratio=0.80, zero_sum_trades=10, volume_spike_ratio=3.0)
+check("L1.2 FAKE_VOLUME: entropy-only (no spike) → NOT detected (AND trigger)", not r_entropy_only.detected)
 
 # Φ_adj = Φ × (1 - MF)
 check("L1.2 Φ_adj = Φ_raw × (1 - MF_score)",

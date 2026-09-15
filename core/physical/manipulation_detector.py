@@ -311,12 +311,21 @@ def detect_fake_volume(
     vol_entropy: float = 0.0,   # Shannon entropy of volume distribution
     h_baseline: float = 1.0,   # baseline entropy (max observed)
     threshold_ratio: float = 0.40,
+    volume_spike_threshold: float = 10.0,   # spec: "volume_spike > 10× baseline"
 ) -> MFResult:
     """
     FAKE_VOLUME_PROTOCOL (specification L1.2 TYPE 7):
     MF = 0.80 × (1 - vol_entropy / H_baseline)
-    Threshold: (1 - vol_entropy/H_baseline) > 0.40 OR volume_spike > 5x
-    When vol_entropy not available, use round_trip_ratio as proxy.
+    Trigger (whitepaper V2 §L1.2 TYPE 7):
+        entropy < threshold AND volume_spike > 10× baseline
+
+    `entropy_deficit = 1 - vol_entropy / H_baseline` is the complement of the
+    normalized entropy; the spec's "entropy < threshold" condition is equivalent
+    to `entropy_deficit > threshold_ratio` (default 0.40 ⇒ entropy < 0.60·H).
+    When vol_entropy is unavailable, round_trip_ratio is used as a proxy for
+    entropy_deficit (a high round-trip ratio is itself a fake-volume residue).
+    `round_trip_ratio` is retained for scoring/evidence but is NOT part of the
+    spec trigger.
     """
     if h_baseline > 0 and vol_entropy > 0:
         entropy_deficit = max(0.0, 1.0 - vol_entropy / h_baseline)
@@ -324,8 +333,8 @@ def detect_fake_volume(
         entropy_deficit = round_trip_ratio
 
     detected = (
-        entropy_deficit > threshold_ratio or
-        (volume_spike_ratio > 10.0 and round_trip_ratio > 0.20)
+        entropy_deficit > threshold_ratio and
+        volume_spike_ratio > volume_spike_threshold
     )
     if detected:
         mf_score = min(0.85, 0.80 * entropy_deficit)
@@ -335,9 +344,9 @@ def detect_fake_volume(
             mf_score=mf_score,
             confidence=0.82,
             description=(
-                f"Fake volume: entropy_deficit={entropy_deficit:.3f} "
-                f"(vol_entropy={vol_entropy:.3f}/H_baseline={h_baseline:.3f}), "
-                f"spike={volume_spike_ratio:.1f}x. "
+                f"Fake volume: entropy_deficit={entropy_deficit:.3f} > {threshold_ratio} "
+                f"(vol_entropy={vol_entropy:.3f}/H_baseline={h_baseline:.3f}) "
+                f"AND spike={volume_spike_ratio:.1f}x > {volume_spike_threshold}x. "
                 f"MF = 0.80 × {entropy_deficit:.3f} = {mf_score:.4f}."
             ),
             evidence={
@@ -346,13 +355,18 @@ def detect_fake_volume(
                 "h_baseline": h_baseline,
                 "round_trip_ratio": round_trip_ratio,
                 "volume_spike_ratio": volume_spike_ratio,
+                "trigger": f"entropy_deficit > {threshold_ratio} AND volume_spike > {volume_spike_threshold}x",
                 "formula": "0.80 × (1 - vol_entropy / H_baseline)",
             }
         )
     return MFResult(
         pattern_type="FAKE_VOLUME_PROTOCOL", detected=False,
         mf_score=0.0, confidence=0.80,
-        description=f"No fake volume: entropy_deficit={entropy_deficit:.3f} < 0.40.",
+        description=(
+            f"No fake volume: entropy_deficit={entropy_deficit:.3f} "
+            f"(need > {threshold_ratio}) AND spike={volume_spike_ratio:.1f}x "
+            f"(need > {volume_spike_threshold}x)."
+        ),
         evidence={"entropy_deficit": entropy_deficit, "round_trip_ratio": round_trip_ratio}
     )
 

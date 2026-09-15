@@ -3785,7 +3785,13 @@ def security_mf(entity_id: str):
     gov      = detect_governance_capture(vote_hhi=float(hhi_val), proposal_age_hours=round(1.0 + 70.0 * (h[4] / 255.0), 1))
     mev      = detect_mev_extraction(mev_ratio_30d=mev_r, sandwich_count=int(h[9] % 10))
     pump     = detect_coordinated_pump(sync_buy_ratios=[sync_r, sync_r * 0.9, sync_r * 1.1], entity_count=max(3, h[10] % 10))
-    fake_vol = detect_fake_volume(round_trip_ratio=rt_r, zero_sum_trades=int(h[11] % 20), volume_spike_ratio=round(1.0 + 4.0 * (h[12] / 255.0), 2))
+    fake_vol = detect_fake_volume(
+        round_trip_ratio=rt_r,
+        zero_sum_trades=int(h[11] % 20),
+        # spec AND trigger: spike > 10× + entropy_deficit (round-trip proxy) > 0.40.
+        # Range 1.0–15.0 so the spec trigger sometimes fires for demo entities.
+        volume_spike_ratio=round(1.0 + 14.0 * (h[12] / 255.0), 2),
+    )
     patterns  = [wt, sybil, gov, mev, pump, fake_vol]
     detected  = [p for p in patterns if p.detected]
     composite = max((p.mf_score for p in detected), default=0.0) if detected else mf_raw
