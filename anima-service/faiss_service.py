@@ -356,6 +356,14 @@ genesis_locks: Dict[str, bool]  = {}
 # Frozen conf_genesis value at lock-engagement time (the actual ceiling while locked)
 genesis_lock_values: Dict[str, float] = {}
 
+# L2.7 Per-entity KL divergence history for dynamic 2-std threshold.
+# specification L2.7: "If TRAJ_ANOMALY > θ_anomaly (> 2 standard deviations)".
+# θ_anomaly = mean(historical_KL) + 2·stdev(historical_KL), falling back to
+# 0.50 when insufficient history (< MIN_KL_HISTORY observations).
+_kl_history: Dict[str, List[float]] = defaultdict(list)
+MIN_KL_HISTORY = 5    # spec: minimum samples for a stable 2-std estimate
+MAX_KL_HISTORY = 100  # bounded rolling window per entity
+
 # ── L0.1 magnitude_normalized — rolling 90-day max tracker ─────────────────────
 # specification: magnitude_normalized = log10(USD_value+1) / log10(max_observed_90d+1)
 # Phase 1: using ETH value as USD proxy (no external price feed).
@@ -2620,8 +2628,19 @@ def _kl_divergence(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> float:
 def trajectory_anomaly(entity_id: str, current_vector: np.ndarray) -> dict:
     """
     L2.7 — Compare entity's actual trajectory vs archetype-expected trajectory.
-    KL-divergence > KL_MANIPULATION → MANIPULATION_ALERT (locks genesis confidence).
-    KL-divergence > KL_WARN → TRAJECTORY_WARN.
+
+    Spec (core/akashic/trajectory_anomaly.py): θ_anomaly is computed
+    DYNAMICALLY as mean(historical_KL) + 2·stdev(historical_KL) per entity.
+    Falls back to 0.50 when insufficient history (< MIN_KL_HISTORY samples).
+
+    KL-divergence > θ_anomaly → MANIPULATION_ALERT (locks genesis confidence).
+    KL-divergence > θ_anomaly × 0.5 → TRAJECTORY_WARN (advisory, no lock).
+    Otherwise NORMAL.
+
+    Replaces the fixed KL_MANIPULATION=0.35 / KL_WARN=0.15 thresholds that
+    could not adapt to per-entity behavioral baselines. The spec mandates
+    the 2-standard-deviation rule: an anomaly is relative to the entity's
+    own historical KL distribution, not a global constant.
     """
     arch_id, arch_sim = get_archetype(current_vector)
 
@@ -2637,20 +2656,51 @@ def trajectory_anomaly(entity_id: str, current_vector: np.ndarray) -> dict:
         np.abs(expected) / (np.abs(expected).sum() + 1e-10),
     )
 
-    if kl > KL_MANIPULATION:
+    beo_id = resolve_beo(entity_id)
+
+    # ── L2.7 dynamic 2-std threshold per spec ─────────────────────────────────
+    # θ_anomaly = mean(historical_KL) + 2·stdev(historical_KL), fallback 0.50.
+    # Uses the entity's accumulated KL history so the threshold adapts to its
+    # own behavioral baseline (high-entropy entities get higher θ_anomaly).
+    try:
+        from core.akashic.trajectory_anomaly import compute_dynamic_theta as _compute_theta
+        theta_anomaly = _compute_theta(list(_kl_history.get(beo_id, [])))
+    except Exception:
+        # Inline fallback if core.akashic.trajectory_anomaly is unavailable.
+        history = list(_kl_history.get(beo_id, []))
+        if len(history) < MIN_KL_HISTORY:
+            theta_anomaly = 0.50
+        else:
+            import statistics as _st
+            try:
+                theta_anomaly = _st.fmean(history) + 2.0 * _st.stdev(history)
+            except _st.StatisticsError:
+                theta_anomaly = 0.50
+
+    # TRAJECTORY_WARN fires at half the anomaly threshold — preserves the
+    # advisory tier without diverging from the spec's single θ_anomaly rule.
+    theta_warn = theta_anomaly * 0.5
+
+    if kl > theta_anomaly:
         alert   = "MANIPULATION_ALERT"
         genesis_lock = True
-    elif kl > KL_WARN:
+    elif kl > theta_warn:
         alert   = "TRAJECTORY_WARN"
         genesis_lock = False
     else:
         alert   = "NORMAL"
         genesis_lock = False
 
+    # ── Record this KL observation in the entity's history (rolling window) ────
+    # Done BEFORE the lock-engagement logic so the next call's θ_anomaly
+    # includes this observation. Bounded to MAX_KL_HISTORY entries per entity.
+    _kl_history[beo_id].append(round(kl, 6))
+    if len(_kl_history[beo_id]) > MAX_KL_HISTORY:
+        del _kl_history[beo_id][:-MAX_KL_HISTORY]
+
     # L2.7 ENFORCE the lock: persist to genesis_locks so genesis_confidence() obeys it.
     # specification: "conf_genesis: LOCKED (stops growing until anomaly resolved)"
     # MANIPULATION_ALERT → lock engaged with frozen value; NORMAL → lock lifted.
-    beo_id = resolve_beo(entity_id)
     if genesis_lock:
         if not genesis_locks.get(beo_id):
             # First time locking: freeze conf_genesis at current depth-computed value
@@ -2659,16 +2709,20 @@ def trajectory_anomaly(entity_id: str, current_vector: np.ndarray) -> dict:
             genesis_lock_values[beo_id] = frozen_conf
         genesis_locks[beo_id] = True
         logger.warning("L2.7 MANIPULATION_ALERT: genesis_confidence LOCKED for %s "
-                       "(KL=%.4f, frozen_conf=%.4f)", beo_id, kl,
-                       genesis_lock_values.get(beo_id, 0.0))
+                       "(KL=%.4f, θ_anomaly=%.4f, frozen_conf=%.4f)", beo_id, kl,
+                       theta_anomaly, genesis_lock_values.get(beo_id, 0.0))
     elif alert == "NORMAL" and genesis_locks.get(beo_id):
         genesis_locks[beo_id] = False
         genesis_lock_values.pop(beo_id, None)
-        logger.info("L2.7 NORMAL: genesis_confidence lock LIFTED for %s (KL=%.4f)", beo_id, kl)
+        logger.info("L2.7 NORMAL: genesis_confidence lock LIFTED for %s (KL=%.4f, θ_anomaly=%.4f)",
+                    beo_id, kl, theta_anomaly)
 
     return {
         "alert":            alert,
         "kl_divergence":    round(kl, 6),
+        "theta_anomaly":    round(theta_anomaly, 6),
+        "theta_warn":       round(theta_warn, 6),
+        "kl_history_size":  len(_kl_history.get(beo_id, [])),
         "archetype_id":     arch_id,
         "archetype_sim":    round(arch_sim, 4),
         "genesis_locked":   genesis_locks.get(beo_id, False),
