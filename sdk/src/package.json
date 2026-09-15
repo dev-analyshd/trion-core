@@ -1,5 +1,5 @@
 {
-  "name": "@trion-protocol/sdk",
+  "name": "@trion/sdk",
   "version": "1.0.0",
   "description": "TRION Protocol TypeScript SDK — Behavioral Truth Oracle",
   "main": "dist/trion.js",
