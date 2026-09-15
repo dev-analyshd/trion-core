@@ -11784,6 +11784,17 @@ async def _on_fastapi_startup():
     # for testing — the production value is the lunar cycle.
     _start_conservation_audit_scheduler()
 
+    # ── Part 11 language mandate — periodic Julia math validation ────────
+    # Whitepaper Part 11 specifies Julia as the Mathematics plane
+    # (scale-invariance verification, entropy-budget calculation, PI
+    # calibration). `core.native_bridge.run_julia_validation()` runs the
+    # embedded TRIONMath.jl verification suite. We re-run it on a 24h
+    # background cadence so any drift between the Python engine and the
+    # Julia reference (scale-invariance violation, entropy-budget overrun,
+    # PI miscalibration) surfaces as a SYSTEMIC_RISK signal rather than
+    # silently degrading the published valuations.
+    _start_julia_validation_scheduler()
+
 
 # ── L0.4/L9.2 Conservation Audit Scheduler ─────────────────────────────────────
 # Singleton AkashicConservationLedger — accumulates InformationState snapshots
@@ -11901,9 +11912,156 @@ def _start_conservation_audit_scheduler() -> None:
     )
 
 
+# ── Part 11 Language Mandate — Julia Math Validation Scheduler ────────────────
+# Whitepaper Part 11 specifies Julia as the Mathematics plane:
+#   * `verify_scale_invariance` — signals must be scale-invariant
+#   * `entropy_budget` — accumulated bits must stay under storage capacity
+#   * `prediction_interval_calibration` — PIs must be calibrated within 2%
+#
+# `core.native_bridge.run_julia_validation()` runs the embedded TRIONMath.jl
+# verification suite via subprocess. We re-run it on a 24h background cadence
+# so any drift between the Python engine and the Julia reference surfaces as
+# a SYSTEMIC_RISK signal rather than silently degrading the published
+# valuations. The cadence is overridable via FAISS_JULIA_VALIDATION_INTERVAL_S
+# so tests can verify the wiring without waiting 24h.
+
+# Production: 24h = 86,400 seconds (one validation per day).
+JULIA_VALIDATION_INTERVAL_S = float(
+    os.environ.get("FAISS_JULIA_VALIDATION_INTERVAL_S") or 86400.0
+)
+
+_JULIA_VALIDATION_THREAD: Optional[threading.Thread] = None
+_JULIA_VALIDATION_STOP = threading.Event()
+_JULIA_VALIDATION_LAST_RESULT: Optional[dict] = None
+# Canonical protocol-level entity_id used when emitting SYSTEMIC_RISK signals
+# that are not tied to any one BEO — mirrors the conservation audit's choice
+# to log at the protocol level rather than tie risk to a single entity.
+_PROTOCOL_ENTITY_ID = "0x" + "00" * 31 + "01"   # 32-byte zero-with-tail
+
+
+def _run_scheduled_julia_validation() -> None:
+    """Invoke `core.native_bridge.run_julia_validation()` and emit a
+    SYSTEMIC_RISK signal when the math plane drifts (scale-invariance
+    violation, entropy-budget overrun, or PI miscalibration)."""
+    global _JULIA_VALIDATION_LAST_RESULT
+    try:
+        # The native_bridge lives in core/native_bridge.py — import lazily so
+        # the faiss_service module remains importable when the core package
+        # is not on sys.path (e.g., during fast unit tests).
+        try:
+            from core.native_bridge import run_julia_validation
+        except Exception as _imp_exc:
+            logger.warning(
+                "[julia-validation] core.native_bridge not importable — skipping: %s",
+                _imp_exc,
+            )
+            return
+        result = run_julia_validation()
+        _JULIA_VALIDATION_LAST_RESULT = result
+
+        if not result.get("available"):
+            # Julia runtime or TRIONMath.jl not found — log a warning but
+            # do NOT emit SYSTEMIC_RISK; the math plane is unverifiable in
+            # this environment, not provably drifting. Operators must
+            # install Julia separately.
+            logger.warning(
+                "[julia-validation] unavailable — reason=%s",
+                result.get("reason", "unknown"),
+            )
+            return
+
+        if result.get("all_pass"):
+            logger.info(
+                "[julia-validation] PASS — scale invariance, entropy budget, "
+                "PI calibration all verified (engine=%s)",
+                result.get("engine", "julia_TRIONMath"),
+            )
+            return
+
+        # Failure path: emit a SYSTEMIC_RISK signal so the API / relayer /
+        # signal publication pipeline can react. Pull the failing-test
+        # names out of the raw output so the signal's `extra` body carries
+        # actionable diagnostic context.
+        raw = (result.get("raw_output") or "")
+        risk_factors: list = []
+        if "Scale invariance" in raw and "FAIL" in raw:
+            risk_factors.append("scale_invariance_violated")
+        if "Entropy budget" in raw and "FAIL" in raw:
+            risk_factors.append("entropy_budget_exceeded")
+        if "Prediction interval calibration" in raw and "FAIL" in raw:
+            risk_factors.append("pi_calibration_off")
+        # Fallback: if we could not classify the failure, surface that too.
+        if not risk_factors:
+            risk_factors.append("julia_math_drift")
+
+        logger.error(
+            "[julia-validation] FAIL — risk_factors=%s engine=%s raw_tail=%s",
+            risk_factors,
+            result.get("engine", "julia_TRIONMath"),
+            raw[-512:],
+        )
+
+        # Emit a SYSTEMIC_RISK signal through the canonical signal pipeline.
+        # The signal emitter is defined later in this module (build_trion_signal /
+        # emit_signal), so import it lazily through the module-level globals.
+        try:
+            sig = emit_signal(
+                _PROTOCOL_ENTITY_ID,
+                SignalRequest(override_type="SYSTEMIC_RISK", extra={
+                    "cascade_reach": "math_plane",
+                    "time_to_impact": 0,
+                    "affected_protocols": ["L0.5", "L1.1", "L3.1", "L5.3"],
+                    "risk_factors": risk_factors,
+                    "engine": result.get("engine", "julia_TRIONMath"),
+                }),
+            )
+            logger.error(
+                "[julia-validation] SYSTEMIC_RISK signal emitted — id=%s type=%s",
+                sig.get("signal_id") or sig.get("id"),
+                sig.get("signal_type"),
+            )
+        except Exception as _emit_exc:
+            logger.error(
+                "[julia-validation] failed to emit SYSTEMIC_RISK signal: %s",
+                _emit_exc,
+            )
+    except Exception as _exc:
+        logger.error("[julia-validation] scheduled validation failed: %s", _exc)
+
+
+def _julia_validation_loop() -> None:
+    """Background loop: run Julia math validation every 24h (overridable)."""
+    # One validation immediately at startup so any environment-level Julia
+    # breakage is caught before the first valuation is served.
+    _run_scheduled_julia_validation()
+    while not _JULIA_VALIDATION_STOP.wait(JULIA_VALIDATION_INTERVAL_S):
+        _run_scheduled_julia_validation()
+
+
+def _start_julia_validation_scheduler() -> None:
+    """Spawn the background Julia validation thread (idempotent)."""
+    global _JULIA_VALIDATION_THREAD
+    if _JULIA_VALIDATION_THREAD is not None and _JULIA_VALIDATION_THREAD.is_alive():
+        return
+    _JULIA_VALIDATION_STOP.clear()
+    _JULIA_VALIDATION_THREAD = threading.Thread(
+        target=_julia_validation_loop,
+        daemon=True,
+        name="julia-validation",
+    )
+    _JULIA_VALIDATION_THREAD.start()
+    logger.info(
+        "[julia-validation] scheduler started — interval=%.0fs "
+        "(override via FAISS_JULIA_VALIDATION_INTERVAL_S)",
+        JULIA_VALIDATION_INTERVAL_S,
+    )
+
+
 @app.on_event("shutdown")
 async def _on_fastapi_shutdown():
     """FastAPI/uvicorn lifecycle hook — final persist before process exit."""
+    _JULIA_VALIDATION_STOP.set()
+    _CONSERVATION_AUDIT_STOP.set()
     _persist_all("fastapi-shutdown")
 
 
