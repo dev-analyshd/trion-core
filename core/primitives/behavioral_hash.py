@@ -245,16 +245,29 @@ def compute_behavioral_hash(event: BehavioralEvent,
         `min(1, log10(human+1)/log10(1001))` — identical to the Rust indexers
         and the Python streamer for the same logical event;
       - `magnitude_normalized` in the result is the value actually encoded in
-        the payload. The SPECIFICATION_V2 USD / 90d-window forms remain available
-        as an explicit non-canonical display path (`usd_value` given) and are
-        returned separately as `magnitude_normalized_usd` — they never enter
-        the canonical payload.
+        the payload. The SPECIFICATION_V2 USD / 90d-window form is also exposed
+        as `magnitude_normalized_90d` (whitepaper L0.1 §3.2 spec-exact:
+        `log10(USD_value + 1) / log10(max_observed_90d + 1)`, falling back to
+        the token-unit log10 ratio when only raw/decimals/max_90d are known).
+        It never enters the canonical payload. The legacy
+        `magnitude_normalized_usd` field is kept as an alias for backward
+        compatibility.
     """
     mag_norm = canonical_magnitude_norm(event.magnitude_raw, event.magnitude_decimals)
-    usd_norm = (normalize_magnitude(
+    # Spec-compliant 90-day magnitude_normalized field (whitepaper L0.1 §3.2):
+    #   magnitude_normalized = log10(USD_value + 1) / log10(max_observed_90d + 1)
+    # Computed only when both `usd_value` and `usd_max_90d` are supplied so the
+    # canonical BH payload (which encodes the deterministic fixed-scale mag_norm
+    # for Akashic immutability) is unaffected. Falls back to the token-unit
+    # log10 form when only the raw/decimals/max_90d triple is available, and to
+    # None when no max-90d reference is provided at all.
+    mag_norm_90d = (normalize_magnitude(
         event.magnitude_raw, event.magnitude_decimals, event.magnitude_max_90d,
         usd_value, usd_max_90d
-    ) if (usd_value is not None) else None)
+    ) if (usd_value is not None or event.magnitude_max_90d > 0) else None)
+    # Backward-compat alias (kept so existing consumers don't break): same
+    # value as `magnitude_normalized_90d`, just under the original field name.
+    usd_norm = mag_norm_90d
 
     # Canonical 32-byte fields (§9 lenient decode)
     entity_32 = bytes_to_32(event.entity_id)
@@ -288,6 +301,11 @@ def compute_behavioral_hash(event: BehavioralEvent,
         "antisense_hex":         antisense.hex(),
         "valid":                 valid,
         "magnitude_normalized":  mag_norm,
+        # Spec-compliant 90-day form (whitepaper L0.1 §3.2). Separate from the
+        # canonical fixed-scale `magnitude_normalized` so the BH payload stays
+        # immutable while reporting can show the spec value.
+        "magnitude_normalized_90d": mag_norm_90d,
+        # Backward-compat alias for `magnitude_normalized_90d`.
         "magnitude_normalized_usd": usd_norm,
         "event_type":            event.event_type.name,
         "event_type_id":         int(event.event_type),
