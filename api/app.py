@@ -4715,34 +4715,115 @@ def validator_reward(validator_id: str):
 
 
 # ── L9.2 Information Conservation Law ─────────────────────────────────────────
+def _fetch_conservation_ledger() -> tuple[dict, str]:
+    """
+    L0.4/L9.2 helper — read the real thermodynamic information conservation
+    ledger from the FAISS service's `/conservation/status` endpoint.
+
+    Returns (ledger_dict, data_source) where:
+      * ledger_dict holds the real I_total / ΔI_consumed / ΔI_transformed /
+        blocks_processed / signals_indexed / signals_rejected fields from
+        `info_conservation` in anima-service/faiss_service.py (itself
+        persisted in the SQLite `conservation_ledger` table on every
+        add_batch call).
+      * data_source is one of:
+          - 'faiss_conservation_status'    — real ledger values served
+          - 'no_conservation_data'         — service unreachable / empty
+          - 'faiss_conservation_ledger_zero' — service responded but ledger
+            is still at bootstrap zeros (no blocks processed yet)
+
+    The caller surfaces the data_source string in its response so consumers
+    can distinguish a measured zero (service up, no flows yet) from an
+    unreachable service.
+    """
+    try:
+        import requests as _req
+        r = _req.get(
+            f"{_FAISS_BASE}/conservation/status",
+            headers=faiss_headers(), timeout=3,
+        )
+        if r.status_code != 200:
+            return {}, "no_conservation_data"
+        body = r.json() or {}
+        if not body:
+            return {}, "no_conservation_data"
+        # Distinguish bootstrap-zeros from a populated ledger.
+        if not body.get("blocks_processed"):
+            return body, "faiss_conservation_ledger_zero"
+        return body, "faiss_conservation_status"
+    except Exception:
+        return {}, "no_conservation_data"
+
+
 @app.route("/api/v1/information/conservation")
 def information_conservation():
-    """L9.2 Information Conservation Law — dI/dt = I_in - I_out - I_decay."""
-    ts    = time.time()
-    i_in  = round(100.0 + 50.0 * math.sin(ts / 3600.0), 4)
-    i_out = round(80.0  + 30.0 * math.cos(ts / 3600.0), 4)
-    decay_rate = 0.001
-    i_current  = round(5000.0 + 1000.0 * math.sin(ts / 86400.0), 2)
-    i_decay    = round(decay_rate * i_current, 4)
-    di_dt      = round(i_in - i_out - i_decay, 4)
-    conserved  = abs(di_dt) < 5.0
+    """L0.4/L9.2 Information Conservation Law — dI/dt = ΔI_consumed − ΔI_transformed.
+
+    The ledger is sourced from the real `info_conservation` dict in
+    anima-service/faiss_service.py (persisted in the SQLite
+    `conservation_ledger` table on every add_batch call). When the FAISS
+    service is unreachable or no blocks have been processed yet, the
+    endpoint returns honest zeros with `data_source` disclosure rather
+    than the previous time-modulated synthetic demo values.
+    """
+    ledger, data_source = _fetch_conservation_ledger()
+
+    i_total           = float(ledger.get("I_total", 0.0) or 0.0)
+    delta_consumed    = float(ledger.get("delta_consumed", 0.0) or 0.0)
+    delta_transformed = float(ledger.get("delta_transformed", 0.0) or 0.0)
+    blocks_processed  = int(ledger.get("blocks_processed", 0) or 0)
+    signals_indexed   = int(ledger.get("signals_indexed", 0) or 0)
+    signals_rejected  = int(ledger.get("signals_rejected_l0_5", 0) or 0)
+
+    # dI/dt = ΔI_consumed − ΔI_transformed. The conservation law
+    # (specification L0.4/L9.2) requires dI/dt ≥ 0 (information is never
+    # destroyed). A negative realized dI/dt is a leak event.
+    di_dt = round(delta_consumed - delta_transformed, 6)
+    # Invariant check — ΔI_transformed must always be ≥ 0 across the
+    # system lifetime (information is only transformed, never destroyed).
+    invariant_holds = delta_transformed >= 0.0
+    conserved = invariant_holds and di_dt >= 0.0
+    # Decay term is informational only — the production ledger does not
+    # separately track decay; the spec's λ·I term is folded into ΔI_transformed.
+    decay_rate = 0.0
+
+    if data_source == "faiss_conservation_status":
+        synthetic_reason = None
+    elif data_source == "faiss_conservation_ledger_zero":
+        synthetic_reason = (
+            "Conservation ledger is at bootstrap zeros — the FAISS service is "
+            "reachable but no blocks have been processed yet. Values are "
+            "measured zeros, not fabricated demo data."
+        )
+    else:
+        synthetic_reason = (
+            "FAISS conservation ledger unreachable; values reported as honest "
+            "zeros with no fabricated information-flow figures."
+        )
+
     return jsonify({
-        "I_current":        i_current,
-        "I_in":             i_in,
-        "I_out":            i_out,
-        "I_decay":          i_decay,
-        "dI_dt":            di_dt,
-        "decay_rate":       decay_rate,
-        "conserved":        conserved,
-        "conservation_gap": round(abs(di_dt), 4),
-        "is_synthetic": True,
-        "synthetic_reason": (
-            "I_in/I_out/I_current are time-modulated deterministic demo values, not measured information flows."
-        ),
-        "status":           "CONSERVED" if conserved else "LEAK_DETECTED",
-        "formula":          "dI/dt = I_in - I_out - λ·I; I_decay = λ·I_current",
-        "specification":       "L9.2",
-        "timestamp":        int(ts),
+        "I_current":              round(i_total, 6),
+        "I_total":                 round(i_total, 6),
+        "I_in":                    round(delta_consumed, 6),
+        "I_out":                   round(delta_transformed, 6),
+        "delta_consumed":          round(delta_consumed, 6),
+        "delta_transformed":       round(delta_transformed, 6),
+        "I_decay":                 0.0,
+        "decay_rate":              decay_rate,
+        "dI_dt":                   di_dt,
+        "blocks_processed":        blocks_processed,
+        "signals_indexed":         signals_indexed,
+        "signals_rejected_l0_5":   signals_rejected,
+        "invariant_holds":         invariant_holds,
+        "conserved":               conserved,
+        "conservation_gap":        round(abs(di_dt), 6) if not conserved else 0.0,
+        "is_synthetic":            False,
+        "data_source":             data_source,
+        "synthetic_reason":        synthetic_reason,
+        "status":                  "CONSERVED" if conserved else "LEAK_DETECTED",
+        "formula":                 "I_TRION(t) = BH_gen + A_abs − S_emit − E_lost; dI/dt = ΔI_consumed − ΔI_transformed ≥ 0",
+        "specification":             "L0.4/L9.2",
+        "timestamp":               int(time.time()),
     })
 
 
