@@ -556,6 +556,182 @@ export class TrionSDK {
             return { sanctioned: true, lists: ['SCREENING_UNAVAILABLE'], confidence: 0 };
         }
     }
+
+    // ── Subscribe (real-time signal polling) ──────────────────────────────────
+    //
+    // Whitepaper §15.4 (Developer SDK Specification):
+    //
+    //     trion.subscribe(entityId, callback, {
+    //       types:        ['VALUATION', 'SILENCE', 'MANIPULATION_ALERT', ...],
+    //       minCoherence: 0.70,
+    //       onSilence:    'EMIT' | 'SUPPRESS',  // EMIT by default
+    //     });
+    //
+    // TRION publishes signals via pull (subscribe) + push (callback) — this
+    // method implements the pull side: a fixed-interval poll of
+    // /api/v1/signal/<entityId> that invokes the callback for every signal
+    // passing the caller's filter options. Returns a SubscriptionHandle
+    // whose unsubscribe() stops the poll loop.
+
+    /**
+     * Subscribe to a stream of TRIONSignal updates for a given entity.
+     *
+     * Polls /api/v1/signal/<entityId> on a fixed interval and invokes the
+     * callback for each signal that passes the filter options.
+     *
+     * Filtering rules (applied in order):
+     *   1. onSilence='SUPPRESS' → skip signals whose signal_type === 'SILENCE'.
+     *   2. types filter → skip signals whose signal_type is not in `types`
+     *      (when `types` is a non-empty array).
+     *   3. minCoherence → skip signals whose coherence < minCoherence.
+     *
+     * Errors (network failure, non-200 response, malformed JSON) are routed
+     * to options.onError if supplied; otherwise they are silently swallowed
+     * so a transient outage does not terminate the subscription. The poll
+     * loop continues until unsubscribe() is called or maxPolls is reached.
+     *
+     * @param baseUrl   Oracle base URL, e.g. "http://localhost:5000"
+     * @param entityId  On-chain entity id (token contract or wallet)
+     * @param callback  Invoked with each signal that passes the filters
+     * @param options   Filtering + polling options (all optional)
+     * @returns SubscriptionHandle — call .unsubscribe() to stop polling
+     */
+    static subscribe(
+        baseUrl:  string,
+        entityId: string,
+        callback: (signal: TRIONSignal) => void,
+        options?: SubscribeOptions,
+    ): SubscriptionHandle {
+        const minCoherence = options?.minCoherence ?? 0.0;
+        const onSilence    = options?.onSilence    ?? 'EMIT';
+        const intervalMs   = options?.intervalMs   ?? 30_000;
+        const maxPolls     = options?.maxPolls     ?? Number.POSITIVE_INFINITY;
+        const onError      = options?.onError;
+        const typesFilter  = options?.types && options.types.length > 0
+            ? new Set<SignalType>(options.types)
+            : null;
+
+        const state: SubscriptionState = {
+            active: true,
+            polls:  0,
+            last:   null,
+            timer:  null,
+        };
+
+        const cleanUrl = baseUrl.replace(/\/$/, '');
+        const url      = `${cleanUrl}/api/v1/signal/${encodeURIComponent(entityId)}`;
+
+        const tick = async (): Promise<void> => {
+            if (!state.active) return;
+            if (state.polls >= maxPolls) {
+                TrionSDK._stopSubscription(state);
+                return;
+            }
+            state.polls++;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    if (onError) onError(new Error(`TRION Oracle error ${res.status}: ${res.statusText}`));
+                    return;
+                }
+                const signal = (await res.json()) as TRIONSignal;
+
+                // Filter 1: SILENCE handling (whitepaper: onSilence 'EMIT' | 'SUPPRESS').
+                if (signal.signal_type === 'SILENCE' && onSilence === 'SUPPRESS') {
+                    return;
+                }
+                // Filter 2: types allow-list.
+                if (typesFilter && !typesFilter.has(signal.signal_type as SignalType)) {
+                    return;
+                }
+                // Filter 3: minCoherence threshold.
+                if (typeof signal.coherence === 'number' && signal.coherence < minCoherence) {
+                    return;
+                }
+                state.last = signal;
+                try {
+                    callback(signal);
+                } catch (cbErr) {
+                    if (onError) onError(cbErr instanceof Error ? cbErr : new Error(String(cbErr)));
+                }
+            } catch (err) {
+                if (onError) onError(err instanceof Error ? err : new Error(String(err)));
+            }
+        };
+
+        // Fire immediately, then on the configured interval.
+        void tick();
+        state.timer = setInterval(() => { void tick(); }, intervalMs);
+
+        return {
+            unsubscribe:    () => TrionSDK._stopSubscription(state),
+            get active()         { return state.active; },
+            get pollsCompleted() { return state.polls; },
+            get lastSignal()     { return state.last; },
+        };
+    }
+
+    /** Internal helper — stop a subscription's poll loop and mark it inactive. */
+    private static _stopSubscription(state: SubscriptionState): void {
+        if (!state.active) return;
+        state.active = false;
+        if (state.timer !== null) {
+            clearInterval(state.timer as ReturnType<typeof setInterval>);
+            state.timer = null;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Subscribe (real-time signal polling) — whitepaper §15.4 SDK spec
+// ---------------------------------------------------------------------------
+
+/** Internal mutable state for an active subscription. */
+interface SubscriptionState {
+    active: boolean;
+    polls:  number;
+    last:   TRIONSignal | null;
+    timer:  ReturnType<typeof setInterval> | null;
+}
+
+/**
+ * Subscription options per whitepaper §15.4 (Developer SDK Specification).
+ *
+ *   trion.subscribe(entityId, callback, {
+ *     types:        ['VALUATION', 'SILENCE', 'MANIPULATION_ALERT', ...],
+ *     minCoherence: 0.70,
+ *     onSilence:    'EMIT' | 'SUPPRESS',  // EMIT by default
+ *   })
+ */
+export interface SubscribeOptions {
+    /** Only invoke the callback for these signal types. Omit/empty = all types. */
+    types?:        SignalType[];
+    /** Minimum coherence threshold — only invoke callback when C(t) >= minCoherence. Default 0.0. */
+    minCoherence?: number;
+    /** Whether to emit SILENCE signals to the callback. 'EMIT' (default) or 'SUPPRESS'. */
+    onSilence?:    'EMIT' | 'SUPPRESS';
+    /** Polling interval in milliseconds. Default 30000 (30s). */
+    intervalMs?:   number;
+    /** Maximum number of polls before auto-unsubscribing. Default Infinity. */
+    maxPolls?:     number;
+    /** Optional error handler — invoked when a fetch fails or the signal
+     *  payload is malformed. If omitted, errors are silently swallowed. */
+    onError?:     (error: Error) => void;
+}
+
+/**
+ * Handle returned by TrionSDK.subscribe() — call unsubscribe() to stop
+ * polling. Also exposes the active state (polls completed, last signal).
+ */
+export interface SubscriptionHandle {
+    /** Stop polling. Safe to call multiple times. */
+    unsubscribe(): void;
+    /** Whether the subscription is still active. */
+    readonly active:         boolean;
+    /** Number of polls completed so far. */
+    readonly pollsCompleted: number;
+    /** The most recent signal delivered to the callback (or null if none yet). */
+    readonly lastSignal:     TRIONSignal | null;
 }
 
 export default TrionSDK;
