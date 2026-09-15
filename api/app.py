@@ -3172,8 +3172,13 @@ def bootstrap_status():
 def sba_signal(nation_id: str):
     """
     L8.1: Sovereign Behavioral Assessment.
-    SBA(nation) = 0.25·E + 0.25·I + 0.20·S + 0.15·G + 0.15·C
-    Compares stated sovereign behavior to onchain observable signals.
+    SBA(nation) = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C
+    Whitepaper sub-component formulas:
+      E = H(cross_border_capital_flow) × trade_balance_trend × stablecoin_adoption
+      I = corr(stated_policy, onchain_enforcement_behavior)
+      S = NL(domestic_DeFi, t) × EP(domestic_protocols, t) × citizen_wallet_activity
+      G = government_wallet_behavioral_consistency (90-day rolling)
+      C = foreign_capital_inflow / (inflow + outflow)
     """
     if not _sba_ok:
         return jsonify({"error": "SBA module unavailable"}), 503
@@ -3184,27 +3189,39 @@ def sba_signal(nation_id: str):
     def _seed(offset: int, low: float = 0.3, high: float = 0.9) -> float:
         return round(low + (high - low) * (h[offset % len(h)] / 255.0), 4)
 
-    gdp_stated   = [_seed(i, 0.01, 0.05) for i in range(5)]
-    gdp_onchain  = [g * (0.90 + 0.20 * (h[i + 5] / 255.0)) for i, g in enumerate(gdp_stated)]
+    # E inputs — cross-border capital flow distribution + trade balance + adoption
+    cross_border_flow = [_seed(i, 0.5e6, 5.0e6) for i in range(5)]
+    trade_balance_trend = round(-1.0 + 2.0 * _seed(5, 0.0, 1.0), 4)   # [-1, 1]
+    stablecoin_adoption = _seed(6, 0.10, 0.90)
+    # I inputs — policy alignment scores (pre-computed [0,1])
     policy_align = [_seed(i + 10, 0.5, 0.95) for i in range(5)]
-    signal_acc   = [_seed(i + 15, 0.55, 0.90) for i in range(4)]
+    # S inputs — NL × EP × citizen wallet activity
+    nl_domestic_defi       = _seed(15, 0.20, 0.85)
+    ep_domestic_protocols = _seed(16, 0.20, 0.85)
+    citizen_wallet_activity = _seed(17, 0.10, 0.80)
+    # G inputs — 90-day rolling government wallet consistency series
+    gov_wallet_consistency_90d = [_seed(20 + i, 0.40, 0.95) for i in range(90)]
+    # C inputs — foreign capital inflow / outflow
+    foreign_capital_inflow  = _seed(110, 0.3e6, 5.0e6)
+    foreign_capital_outflow = _seed(111, 0.3e6, 5.0e6)
 
     result = sba_from_raw_data(
-        nation_id               = nation_id,
-        gdp_stated              = gdp_stated,
-        gdp_onchain             = gdp_onchain,
-        policy_alignment_scores = policy_align,
-        signal_accuracy         = signal_acc,
-        cross_border_consistency = _seed(20, 0.4, 0.85),
-        alliance_alignment       = _seed(21, 0.4, 0.85),
-        geopolitical_entropy     = _seed(22, 0.1, 0.50),
-        monetary_policy_rate     = _seed(23, 0.3, 0.80),
-        stablecoin_flow_bias     = _seed(24, 0.3, 0.80),
-        fx_alignment             = _seed(25, 0.4, 0.85),
+        nation_id                  = nation_id,
+        cross_border_capital_flow  = cross_border_flow,
+        trade_balance_trend        = trade_balance_trend,
+        stablecoin_adoption        = stablecoin_adoption,
+        policy_alignment_scores    = policy_align,
+        nl_domestic_defi           = nl_domestic_defi,
+        ep_domestic_protocols      = ep_domestic_protocols,
+        citizen_wallet_activity    = citizen_wallet_activity,
+        gov_wallet_consistency_90d = gov_wallet_consistency_90d,
+        foreign_capital_inflow     = foreign_capital_inflow,
+        foreign_capital_outflow    = foreign_capital_outflow,
     )
     result["is_synthetic"] = True
-    result["synthetic_reason"] = ("SBA formula engine is real; inputs (GDP, policy alignment, "
-                                   "signal accuracy) are deterministic hash-derived demo values, not sovereign data feeds.")
+    result["synthetic_reason"] = ("SBA formula engine is real; inputs (cross-border capital flow, "
+                                   "policy alignment, NL/EP scores, gov-wallet consistency, capital flows) "
+                                   "are deterministic hash-derived demo values, not sovereign data feeds.")
     result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
     result["timestamp"] = int(time.time())
     return jsonify(result)

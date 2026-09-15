@@ -4,19 +4,20 @@ Chapter 12: Macro-Behavioral Intelligence
 
 SBA(nation, t) = w_E·E(t) + w_I·I(t) + w_S·S(t) + w_G·G(t) + w_C·C(t)
 
-Components:
-  E = Economic Behavioral Regularity
-      corr(stated_GDP_growth, onchain_economic_activity) ∈ [-1, 1] → normalized [0,1]
-  I = Institutional Integrity
-      corr(stated_policy, onchain_enforcement) — measures policy-action gap
-  S = Sovereign Signaling Credibility
-      CRED-weighted track record of sovereign signal accuracy
-  G = Geopolitical Behavioral Coherence
-      consistency of cross-border behavioral patterns
-  C = Currency Behavior Alignment
-      alignment between stated monetary policy and onchain FX/stablecoin flows
+Sub-components (whitepaper L8.1 formulas):
+  E = Economic Behavioral Signal
+      H(cross_border_capital_flow) × trade_balance_trend × stablecoin_adoption
+  I = Institutional Quality Signal
+      corr(stated_policy, onchain_enforcement_behavior)
+      (high: government behavior matches stated policy; low: divergence)
+  S = Social Stability Signal
+      NL(domestic_DeFi, t) × EP(domestic_protocols, t) × citizen_wallet_activity
+  G = Governance Behavioral Signal
+      government_wallet_behavioral_consistency (90-day rolling)
+  C = Cross-chain Capital Confidence
+      foreign_capital_inflow / (inflow + outflow)
 
-Weights (specification L8.1):
+Weights (whitepaper L8.1):
   w_E=0.30, w_I=0.25, w_S=0.20, w_G=0.15, w_C=0.10   (sum=1.00)
 
 SBA ∈ [0, 1]
@@ -24,6 +25,11 @@ SBA ∈ [0, 1]
   0.55–0.75  MODERATE_CREDIBILITY
   0.35–0.55  LOW_CREDIBILITY
   < 0.35  BEHAVIORAL_RISK
+
+Every SBA signal carries Sovereignty Dignity Protocol (SDP) mandatory
+metadata: uncertainty_bounds (CI_95 always present), cultural_context_vector
+(encoded regional context), appeal_mechanism (any entity can formally
+challenge the assessment), and data_sources (complete provenance chain).
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -33,7 +39,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 W_E = 0.30
 W_I = 0.25
@@ -53,28 +59,57 @@ def _corr_to_score(corr: float) -> float:
     return max(0.0, min(1.0, (corr + 1.0) / 2.0))
 
 
+def _normalized_shannon_entropy(values: List[float]) -> float:
+    """
+    Shannon entropy of the value-magnitude distribution, normalized to [0,1]
+    via log2(n) so that a uniform distribution maps to 1.0 and a perfectly
+    concentrated distribution maps to 0.0.
+
+        H(X) = -Σ p_i · log2(p_i)    where p_i = |v_i| / Σ|v_j|
+        H_norm = H(X) / log2(n)      (defined as 0.0 when n <= 1)
+    """
+    n = len(values)
+    if n <= 1:
+        return 0.0
+    abs_vals = [abs(v) for v in values]
+    total = sum(abs_vals)
+    if total <= 0:
+        return 0.0
+    h = 0.0
+    for v in abs_vals:
+        if v > 0:
+            p = v / total
+            h -= p * math.log2(p)
+    h_max = math.log2(n)
+    return h / h_max if h_max > 0 else 0.0
+
+
 def compute_e_score(
-    stated_gdp_growth_series:   List[float],
-    onchain_activity_series:    List[float],
+    cross_border_capital_flow: List[float],
+    trade_balance_trend:       float,
+    stablecoin_adoption:       float,
 ) -> float:
     """
-    E = corr(stated_GDP_growth, onchain_economic_activity), normalized [0,1].
-    High E: stated economic signals match onchain reality.
-    Low E: stated growth diverges from onchain flows (behavioral deception risk).
+    E = H(cross_border_capital_flow) × trade_balance_trend × stablecoin_adoption
+
+    Whitepaper L8.1 (Economic Behavioral Signal):
+      - H(cross_border_capital_flow) = normalized Shannon entropy of the
+        cross-border capital flow distribution. A uniformly distributed flow
+        across counterparties/channels scores 1.0 (diversified, healthy); a
+        single dominant flow scores 0.0 (concentrated, brittle).
+      - trade_balance_trend ∈ [-1, 1] (signed: surplus = +, deficit = -),
+        mapped to [0, 1] via (1 + trend) / 2 so that surplus → 1.0 and
+        deficit → 0.0.
+      - stablecoin_adoption ∈ [0, 1] (fraction of domestic stablecoin
+        penetration vs. fiat / M2).
+
+    The product captures: capital-flow diversification × external-balance
+    health × onchain adoption posture. All three must be strong for high E.
     """
-    n = min(len(stated_gdp_growth_series), len(onchain_activity_series))
-    if n < 3:
-        return 0.50
-    x = stated_gdp_growth_series[-n:]
-    y = onchain_activity_series[-n:]
-    mx, my = sum(x) / n, sum(y) / n
-    num = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
-    dx  = math.sqrt(sum((xi - mx) ** 2 for xi in x))
-    dy  = math.sqrt(sum((yi - my) ** 2 for yi in y))
-    if dx == 0 or dy == 0:
-        return 0.50
-    corr = max(-1.0, min(1.0, num / (dx * dy)))
-    return _corr_to_score(corr)
+    h_norm = _normalized_shannon_entropy(cross_border_capital_flow)
+    tbt    = max(0.0, min(1.0, (trade_balance_trend + 1.0) / 2.0))
+    sa     = max(0.0, min(1.0, stablecoin_adoption))
+    return max(0.0, min(1.0, h_norm * tbt * sa))
 
 
 def compute_i_score(
@@ -83,10 +118,13 @@ def compute_i_score(
     policy_alignment_scores: List[float],
 ) -> float:
     """
-    I = corr(stated_policy, onchain_enforcement)
+    I = corr(stated_policy, onchain_enforcement_behavior)
     Measures the gap between declared regulatory/monetary policy and
     observed on-chain enforcement behavior.
     policy_alignment_scores: pre-computed match scores ∈ [0,1] per policy-action pair.
+
+    The whitepaper L8.1 formula matches this implementation already (correlation
+    between stated policy and onchain enforcement behavior). Kept unchanged.
     """
     if not policy_alignment_scores:
         return 0.50
@@ -98,55 +136,70 @@ def compute_i_score(
 
 
 def compute_s_score(
-    signal_accuracy_history: List[float],
-    cred_weights:            Optional[List[float]] = None,
+    nl_domestic_defi:        float,
+    ep_domestic_protocols:   float,
+    citizen_wallet_activity: float,
 ) -> float:
     """
-    S = CRED-weighted track record of sovereign signal accuracy.
-    signal_accuracy_history: accuracy of past sovereign signals [0,1]
-    cred_weights: source credibility weights (default: equal)
+    S = NL(domestic_DeFi, t) × EP(domestic_protocols, t) × citizen_wallet_activity
+
+    Whitepaper L8.1 (Social Stability Signal):
+      - NL(domestic_DeFi, t) ∈ [0, 1] — Natural Liquidity score for the
+        nation's domestic DeFi ecosystem (whitepaper L7.1, computed by
+        core.extended.natural_liquidity.compute_nl).
+      - EP(domestic_protocols, t) ∈ [0, 1] — Energy Participation index for
+        the nation's domestic protocols (whitepaper L7.2, computed by
+        core.extended.energy_participation.compute_ep).
+      - citizen_wallet_activity ∈ [0, 1] — fraction of citizen wallets
+        active on domestic infrastructure in the evaluation window.
+
+    The product captures: domestic liquidity health × protocol energy
+    participation × civic onchain engagement. All three must be strong for
+    high S.
     """
-    if not signal_accuracy_history:
-        return 0.50
-    n = len(signal_accuracy_history)
-    if cred_weights and len(cred_weights) == n:
-        total_w = sum(cred_weights)
-        if total_w > 0:
-            return min(1.0, sum(a * w for a, w in zip(signal_accuracy_history, cred_weights)) / total_w)
-    return sum(signal_accuracy_history) / n
+    nl  = max(0.0, min(1.0, nl_domestic_defi))
+    ep  = max(0.0, min(1.0, ep_domestic_protocols))
+    cwa = max(0.0, min(1.0, citizen_wallet_activity))
+    return max(0.0, min(1.0, nl * ep * cwa))
 
 
 def compute_g_score(
-    cross_border_flow_consistency:  float,
-    alliance_behavioral_alignment:  float,
-    geopolitical_entropy:           float,
+    daily_consistency_scores: List[float],
 ) -> float:
     """
-    G = Geopolitical Behavioral Coherence.
-    cross_border_flow_consistency: how consistent cross-border crypto flows are [0,1]
-    alliance_behavioral_alignment: alignment with stated alliance behaviors [0,1]
-    geopolitical_entropy: diversity of geopolitical behaviors (low = coherent) [0,1]
+    G = government_wallet_behavioral_consistency (90-day rolling)
+
+    Whitepaper L8.1 (Governance Behavioral Signal):
+      Computes the rolling-mean consistency of government wallet behavior
+      over the trailing 90 days. Each entry is a per-day consistency score
+      ∈ [0, 1] (1.0 = perfectly aligned with stated policy that day,
+      0.0 = fully divergent). The trailing 90 entries are averaged
+      (or all entries if fewer than 90 are supplied, with a 0.50 neutral
+      fallback when the series is empty).
     """
-    coherence = (cross_border_flow_consistency + alliance_behavioral_alignment) / 2.0
-    entropy_penalty = geopolitical_entropy * 0.20
-    return max(0.0, min(1.0, coherence - entropy_penalty))
+    if not daily_consistency_scores:
+        return 0.50
+    window = daily_consistency_scores[-90:]
+    return max(0.0, min(1.0, sum(window) / len(window)))
 
 
 def compute_c_score(
-    stated_monetary_policy_rate:  float,
-    onchain_stablecoin_flow_bias: float,
-    fx_policy_alignment:          float,
+    foreign_capital_inflow:  float,
+    foreign_capital_outflow: float,
 ) -> float:
     """
-    C = Currency Behavior Alignment.
-    stated_monetary_policy_rate: tightening/easing signal [0,1] where 0=ultra-easy, 1=ultra-tight
-    onchain_stablecoin_flow_bias: net flow direction matching policy [0,1]
-    fx_policy_alignment: FX intervention vs stated policy [0,1]
+    C = foreign_capital_inflow / (inflow + outflow)
+
+    Whitepaper L8.1 (Cross-chain Capital Confidence):
+      Fraction of cross-chain capital that is INBOUND. A nation whose
+      cross-chain flows are net-inflowing scores C → 1.0 (capital
+      confidence); net-outflow scores C → 0.0 (capital flight). When both
+      inflow and outflow are zero (no flow observed), C = 0.5 (neutral).
     """
-    deviation = abs(stated_monetary_policy_rate - onchain_stablecoin_flow_bias)
-    alignment = max(0.0, 1.0 - deviation)
-    c = (alignment * 0.60 + fx_policy_alignment * 0.40)
-    return max(0.0, min(1.0, c))
+    total = foreign_capital_inflow + foreign_capital_outflow
+    if total <= 0:
+        return 0.5
+    return max(0.0, min(1.0, foreign_capital_inflow / total))
 
 
 def compute_sba(
@@ -206,40 +259,48 @@ def compute_sba(
 
 
 def sba_from_raw_data(
-    nation_id:                      str,
-    gdp_stated:                     List[float],
-    gdp_onchain:                    List[float],
-    policy_alignment_scores:        List[float],
-    signal_accuracy:                List[float],
-    cross_border_consistency:       float = 0.5,
-    alliance_alignment:             float = 0.5,
-    geopolitical_entropy:           float = 0.3,
-    monetary_policy_rate:           float = 0.5,
-    stablecoin_flow_bias:           float = 0.5,
-    fx_alignment:                   float = 0.5,
+    nation_id:                       str,
+    cross_border_capital_flow:       List[float],
+    trade_balance_trend:             float,
+    stablecoin_adoption:             float,
+    policy_alignment_scores:         List[float],
+    nl_domestic_defi:                float,
+    ep_domestic_protocols:           float,
+    citizen_wallet_activity:         float,
+    gov_wallet_consistency_90d:      List[float],
+    foreign_capital_inflow:          float,
+    foreign_capital_outflow:         float,
 ) -> dict:
-    """Full SBA computation from raw inputs."""
-    e = compute_e_score(gdp_stated, gdp_onchain)
+    """Full SBA computation from raw whitepaper-aligned inputs.
+
+    Maps each whitepaper L8.1 axis to its canonical inputs:
+      E ← cross_border_capital_flow, trade_balance_trend, stablecoin_adoption
+      I ← policy_alignment_scores                  (already spec-aligned)
+      S ← nl_domestic_defi, ep_domestic_protocols, citizen_wallet_activity
+      G ← gov_wallet_consistency_90d                (90-day rolling series)
+      C ← foreign_capital_inflow, foreign_capital_outflow
+    """
+    e = compute_e_score(cross_border_capital_flow, trade_balance_trend, stablecoin_adoption)
     i = compute_i_score([], [], policy_alignment_scores)
-    s = compute_s_score(signal_accuracy)
-    g = compute_g_score(cross_border_consistency, alliance_alignment, geopolitical_entropy)
-    c = compute_c_score(monetary_policy_rate, stablecoin_flow_bias, fx_alignment)
+    s = compute_s_score(nl_domestic_defi, ep_domestic_protocols, citizen_wallet_activity)
+    g = compute_g_score(gov_wallet_consistency_90d)
+    c = compute_c_score(foreign_capital_inflow, foreign_capital_outflow)
     return compute_sba(nation_id, e, i, s, g, c)
 
 
 if __name__ == "__main__":
     result = sba_from_raw_data(
         nation_id="US",
-        gdp_stated=[0.02, 0.03, 0.025, 0.022, 0.028],
-        gdp_onchain=[0.018, 0.031, 0.024, 0.020, 0.026],
+        cross_border_capital_flow=[1.0e6, 1.2e6, 0.9e6, 1.1e6, 1.05e6],
+        trade_balance_trend=+0.30,                # surplus
+        stablecoin_adoption=0.65,
         policy_alignment_scores=[0.80, 0.75, 0.82, 0.78, 0.77],
-        signal_accuracy=[0.72, 0.68, 0.74, 0.70],
-        cross_border_consistency=0.72,
-        alliance_alignment=0.68,
-        geopolitical_entropy=0.25,
-        monetary_policy_rate=0.70,
-        stablecoin_flow_bias=0.65,
-        fx_alignment=0.72,
+        nl_domestic_defi=0.72,
+        ep_domestic_protocols=0.68,
+        citizen_wallet_activity=0.55,
+        gov_wallet_consistency_90d=[0.85, 0.82, 0.88, 0.80, 0.86],
+        foreign_capital_inflow=1.5e6,
+        foreign_capital_outflow=0.9e6,
     )
     print(f"SBA(US): {result['sba_score']:.4f} [{result['tier']}]")
     for k, v in result['components'].items():
