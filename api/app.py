@@ -3331,6 +3331,40 @@ def sba_signal(nation_id: str):
     result["synthetic_reason"] = ("SBA formula engine is real; inputs (cross-border capital flow, "
                                    "policy alignment, NL/EP scores, gov-wallet consistency, capital flows) "
                                    "are deterministic hash-derived demo values, not sovereign data feeds.")
+
+    # ── Wire through signal_factory — canonical SOVEREIGN_BEHAVIORAL (id 19) ─
+    # Per Fix L9 / L6: extended intelligence modules feed ANIMA via the
+    # signal factory so the publication pipeline can emit them.
+    try:
+        from core.master.signal_factory import build_sovereign_behavioral, SignalType
+        sba_score = float(result.get("sba_score", result.get("sba", 0.0)) or 0.0)
+        coh_for_sba = {
+            "C":              sba_score,
+            "theta":          0.50,
+            "emits":           sba_score >= 0.50,
+            "limiting_plane": "sovereign_behavioral",
+            "akashic_depth":   0.0,
+            "silence_gap":     max(0.0, 0.50 - sba_score),
+        }
+        sba_signal_obj = build_sovereign_behavioral(
+            entity_id           = nation_id,
+            coherence_result    = coh_for_sba,
+            sba_score           = round(sba_score, 6),
+            jurisdiction        = cultural_context_vector.get("jurisdiction", "UNSPECIFIED"),
+            policy_stated       = float(policy_align[0]) if policy_align else 0.0,
+            policy_observed     = float(policy_align[0]) if policy_align else 0.0,
+            divergence_index    = max(0.0, 1.0 - (float(policy_align[0]) if policy_align else 0.0)),
+            capital_flow_entropy= round(float(sum(cross_border_flow) / max(1.0, len(cross_border_flow))), 6),
+            threat_level        = "ELEVATED" if sba_score > 0.60 else "LOW",
+        )
+        result["signal_factory_wired"]      = True
+        result["canonical_signal_type"]     = "SOVEREIGN_BEHAVIORAL"
+        result["canonical_signal_type_id"]  = int(SignalType.SOVEREIGN_BEHAVIORAL)
+        result["signal_id"]                 = sba_signal_obj.get("signal_id")
+    except Exception as _sba_factory_err:
+        result["signal_factory_wired"] = False
+        result["signal_factory_error"] = str(_sba_factory_err)
+
     result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
     result["sdp_note"] = ("Sovereignty Dignity Protocol: uncertainty_bounds (CI_95), cultural_context_vector, "
                           "appeal_mechanism, and data_sources are always present per whitepaper L8.1.")
@@ -3381,6 +3415,49 @@ def xsl_signal(entity_id: str):
     result["is_synthetic"] = True
     result["synthetic_reason"] = ("XSL formula engine is real; chain behavioral vectors and bridge "
                                    "metrics are deterministic hash-derived demo values, not measured cross-species data.")
+
+    # ── Wire through signal_factory — BTCP_ROUTE is the canonical carrier ─
+    # for the cross-chain behavioural XSL signal (it is the closest carrier
+    # per the BTCP_DOMAIN_SIGNALS map in signal_factory). The whitepaper
+    # specifies that XSL feeds ANIMA as a cross-domain signal; the
+    # signal_factory call here makes that explicit.
+    try:
+        from core.master.signal_factory import build_btcp_route, SignalType
+        xsl_value = float(result.get("xsl", result.get("xsl_score", 0.0)) or 0.0)
+        coh_for_xsl = {
+            "C":              xsl_value,
+            "theta":          0.40,
+            "emits":           xsl_value >= 0.40,
+            "limiting_plane": "cross_species_liquidity",
+            "akashic_depth":   float(len(chains)),
+            "silence_gap":     max(0.0, 0.40 - xsl_value),
+        }
+        xsl_signal_obj = build_btcp_route(
+            entity_id             = entity_id,
+            coherence_result      = coh_for_xsl,
+            btcp_score            = round(xsl_value, 6),
+            continuity_score      = round(float(result.get("continuity_score", xsl_value)), 6),
+            route_chain_ids        = [c.chain_id for c in chains],
+            optimal_route         = result.get("optimal_route", "DIRECT"),
+            mev_exposure_on_route  = round(float(result.get("mev_exposure_on_route", 0.0)), 6),
+            batch_opportunity      = bool(result.get("batch_opportunity", False)),
+            estimated_gas_saved    = round(float(result.get("estimated_gas_saved", 0.0)), 6),
+            mempool_archetype      = result.get("mempool_archetype", "NORMAL"),
+        )
+        result["signal_factory_wired"]      = True
+        result["canonical_signal_type"]     = "BTCP_ROUTE"
+        result["canonical_signal_type_id"]  = int(SignalType.BTCP_ROUTE)
+        result["signal_id"]                 = xsl_signal_obj.get("signal_id")
+        result["anima_cross_domain_note"]   = (
+            "XSL feeds ANIMA as a cross-domain signal per whitepaper §11; "
+            "the closest canonical carrier in the 29-type taxonomy is "
+            "BTCP_ROUTE (id 22), so the signal_factory wiring routes through "
+            "build_btcp_route with xsl_score as the btcp_score."
+        )
+    except Exception as _xsl_factory_err:
+        result["signal_factory_wired"] = False
+        result["signal_factory_error"] = str(_xsl_factory_err)
+
     result["timestamp"] = int(time.time())
     return jsonify(result)
 
@@ -4331,85 +4408,209 @@ def trajectory_anomaly_legacy(entity_id: str):
 # ── L6.1 Biological Capital Index ─────────────────────────────────────────────
 @app.route("/api/v1/bc/<ecosystem>")
 def biological_capital(ecosystem: str):
-    """L6.1 Biological Capital — BC(ecosystem,t) = Flow · Resilience · Uniqueness · Interdependence."""
-    from core.extended.sovereign_behavioral import (
+    """L6.1 Biological Capital — BC(ecosystem,t) = Flow · Resilience · Uniqueness · Interdependence.
+
+    Wires the GBIF fetcher (``core.extended.biological_capital.fetch_ecosystem_data``)
+    as the real data source. When GBIF returns occurrence records, the BC flow
+    component is recalibrated against actual species-occurrence density. When
+    the network is unavailable or GBIF returns no records, the endpoint
+    falls back to conservative bootstrap defaults with honest disclosure
+    (``is_synthetic: true`` + ``synthetic_reason``) — never fabricated data.
+
+    The BC result is then wired through ``signal_factory.build_biological_capital``
+    so a canonical 29-type BIOLOGICAL_CAPITAL signal can be emitted by the
+    publication pipeline (Fix L9 / L6).
+    """
+    # The BC engine lives in core.extended.biological_capital — not
+    # sovereign_behavioral. The previous import path was wrong and meant
+    # this endpoint raised ImportError on every call.
+    from core.extended.biological_capital import (
         EcosystemProfile, compute_bc, bc_to_ecosystem_health_signal,
+        fetch_ecosystem_data, ecosystem_data_to_profile,
+        NPP_MAX_REFERENCE, BIOMASS_MAX_REFERENCE,
     )
-    h = hashlib.sha256(ecosystem.encode()).digest()
-    profile = EcosystemProfile(
-        ecosystem_id              = ecosystem,
-        net_primary_productivity  = 200.0 + (h[0] / 255.0) * 2300.0,
-        biomass_density           = 10.0  + (h[1] / 255.0) * 290.0,
-        recovery_speed            = round(0.10 + (h[2] / 255.0) * 0.85, 4),
-        disturbance_magnitude     = round(0.05 + (h[3] / 255.0) * 0.75, 4),
-        endemic_species_count     = int(10 + (h[4] / 255.0) * 5000),
-        comparable_baseline_count = int(100 + (h[5] / 255.0) * 2000),
-        keystone_species_present  = bool(h[6] > 100),
-        network_connectivity      = round(0.10 + (h[7] / 255.0) * 0.85, 4),
-        trophic_levels            = int(2 + h[8] % 5),
+    from core.master.signal_factory import build_biological_capital, SignalType
+
+    # ── 1. Try real GBIF data first ──────────────────────────────────────────
+    eco_data = None
+    gbif_error = None
+    try:
+        eco_data = fetch_ecosystem_data(species_query=ecosystem, use_cache=True)
+    except Exception as exc:
+        gbif_error = str(exc)
+        eco_data = None
+
+    used_real_data = bool(eco_data and eco_data.get("occurrence_count", 0) > 0)
+
+    # ── 2. Build EcosystemProfile from real GBIF data OR bootstrap defaults ─
+    if used_real_data:
+        # Real GBIF records → calibrate the profile against them.
+        profile, _ = ecosystem_data_to_profile(ecosystem, eco_data)
+        synthetic_reason = None
+    else:
+        # Bootstrap defaults — conservative mid-range values, honestly disclosed.
+        # No hash-derived fabrication. The defaults let the BC formula run so
+        # the endpoint stays useful while GBIF is unavailable / unindexed.
+        profile = EcosystemProfile(
+            ecosystem_id                 = ecosystem,
+            net_primary_productivity     = NPP_MAX_REFERENCE * 0.30,   # 30% of reference
+            biomass_density              = BIOMASS_MAX_REFERENCE * 0.30,
+            recovery_speed               = 0.40,   # mid-range
+            disturbance_magnitude        = 0.30,
+            endemic_species_count        = 0,      # unknown at bootstrap
+            comparable_baseline_count    = 5,
+            keystone_species_present     = False,
+            network_connectivity         = 0.30,
+            trophic_levels               = 2,
+        )
+        if gbif_error:
+            synthetic_reason = (
+                f"GBIF fetch failed ({gbif_error}); using bootstrap-default "
+                "ecosystem profile with conservative mid-range values. BC "
+                "formula engine is real; inputs are disclosed defaults, not "
+                "fabricated data."
+            )
+        else:
+            synthetic_reason = (
+                "GBIF returned 0 occurrences for this ecosystem; using "
+                "bootstrap-default ecosystem profile with conservative "
+                "mid-range values. BC formula engine is real; inputs are "
+                "disclosed defaults, not fabricated data."
+            )
+
+    # ── 3. Compute BC and build canonical signal via signal_factory ────────
+    result = compute_bc(profile, eco_data=eco_data)
+    ecosystem_health = bc_to_ecosystem_health_signal(result)
+
+    # Wire through signal_factory so the publication pipeline can emit a
+    # canonical BIOLOGICAL_CAPITAL (id 21) signal. Coherence_result is a
+    # minimal honest dict — the BC value itself is the signal_value.
+    coherence_result_for_signal = {
+        "C":              result.bc,
+        "theta":          0.35,   # BC threshold for "HEALTHY or better"
+        "emits":           result.bc >= 0.35,
+        "limiting_plane": "biological_capital",
+        "akashic_depth":   float(eco_data.get("occurrence_count", 0) if eco_data else 0),
+        "silence_gap":     max(0.0, 0.35 - result.bc),
+    }
+    bc_signal = build_biological_capital(
+        entity_id        = ecosystem,
+        coherence_result = coherence_result_for_signal,
+        bc_score         = round(result.bc, 6),
+        ecosystem_id     = ecosystem,
+        species_at_risk  = int((eco_data or {}).get("iucn_threats", {}).get("VULNERABLE", 0)
+                               + (eco_data or {}).get("iucn_threats", {}).get("ENDANGERED", 0)
+                               + (eco_data or {}).get("iucn_threats", {}).get("CRITICALLY_ENDANGERED", 0)),
+        keystone_health       = round(result.interdependence, 6),
+        resilience_index      = round(result.resilience, 6),
+        interdependence_score = round(result.interdependence, 6),
+        xsl_aggregate         = round(result.flow, 6),  # flow proxy until XSL is computed
     )
-    result = compute_bc(profile)
-    signal = bc_to_ecosystem_health_signal(result)
+
     return jsonify({
-        **signal,
-        "bc_score":       round(result.bc, 6),
-        "is_synthetic": True,
-        "synthetic_reason": (
-            "ecosystem profile (NPP, biomass, endemics) hash-derived from the ecosystem name; the BC formula engine is real."
-        ),
-        "flow":           round(result.flow, 6),
-        "resilience":     round(result.resilience, 6),
-        "uniqueness":     round(result.uniqueness, 6),
-        "interdependence":round(result.interdependence, 6),
-        "label":          result.label,
-        "warning":        result.warning,
-        "formula":        "BC = Flow · Resilience · Uniqueness · Interdependence",
-        "falsification":  "F9: must not diverge from peer-reviewed valuations over 12mo",
-        "specification":     "L6.1",
-        "timestamp":      int(time.time()),
+        **ecosystem_health,
+        "bc_score":          round(result.bc, 6),
+        "is_synthetic":      not used_real_data,
+        "synthetic_reason":  synthetic_reason,
+        "gbif_source": {
+            "fetched":              used_real_data,
+            "occurrence_count":     (eco_data or {}).get("occurrence_count", 0),
+            "species_count":        (eco_data or {}).get("species_count", 0),
+            "iucn_threats":         (eco_data or {}).get("iucn_threats", {}),
+            "fetched_at":           (eco_data or {}).get("fetched_at"),
+        },
+        "flow":            round(result.flow, 6),
+        "resilience":      round(result.resilience, 6),
+        "uniqueness":      round(result.uniqueness, 6),
+        "interdependence": round(result.interdependence, 6),
+        "label":           result.label,
+        "warning":         result.warning,
+        "formula":         "BC = Flow · Resilience · Uniqueness · Interdependence",
+        "falsification":   "F9: must not diverge from peer-reviewed valuations over 12mo",
+        "specification":    "L6.1",
+        "signal_factory_wired": True,
+        "canonical_signal_type":   "BIOLOGICAL_CAPITAL",
+        "canonical_signal_type_id": int(SignalType.BIOLOGICAL_CAPITAL),
+        "signal_id":              bc_signal.get("signal_id"),
+        "timestamp":               int(time.time()),
     })
 
 
 # ── L7.2 Energy Participation Index ───────────────────────────────────────────
 @app.route("/api/v1/ep/<entity_id>")
 def energy_participation(entity_id: str):
-    """L7.2 Energy Participation Index — EP = VC · PA · DC."""
-    from core.extended.sovereign_behavioral import (
+    """L7.2 Energy Participation Index — EP = VC · PA · DC.
+
+    The EP engine lives in ``core.extended.energy_participation`` (the
+    previous import path ``sovereign_behavioral`` was wrong and raised
+    ImportError on every call). At bootstrap, no live on-chain analytics
+    feed is wired, so the endpoint honestly returns ``is_synthetic: true``
+    with bootstrap-default economics and developer data — and wires the
+    result through ``signal_factory.build_energy_participation`` so the
+    canonical 29-type ENERGY_PARTICIPATION signal can be emitted.
+    """
+    # The EP engine lives in core.extended.energy_participation.
+    from core.extended.energy_participation import (
         ProtocolEconomics, DeveloperData, compute_ep,
     )
-    h = hashlib.sha256(entity_id.encode()).digest()
-    val_to_purpose = round(500_000 + (h[0] / 255.0) * 10_000_000, 2)
-    mev_extracted  = round(10_000 + (h[1] / 255.0) * 1_000_000, 2)
-    fees_extracted = round(5_000  + (h[2] / 255.0) * 500_000, 2)
+    from core.master.signal_factory import build_energy_participation, SignalType
+
+    # Bootstrap defaults — conservative mid-range values, honestly disclosed.
+    # No hash-derived fabrication. The defaults let the EP formula run so the
+    # endpoint stays useful while on-chain analytics and developer-activity
+    # feeds are not yet wired.
     econ = ProtocolEconomics(
         protocol_id                = entity_id,
-        value_to_protocol_purpose  = val_to_purpose,
-        value_mev_extracted        = mev_extracted,
-        value_fees_extracted       = fees_extracted,
+        value_to_protocol_purpose  = 1_000_000.0,   # 1M USD to purpose
+        value_mev_extracted        = 50_000.0,       # 5% MEV extraction
+        value_fees_extracted       = 100_000.0,      # 10% fees
         interaction_type_counts    = {
-            "SWAP":               int(10000 + (h[3] / 255.0) * 200000),
-            "LIQUIDITY_ADD":      int(1000  + (h[4] / 255.0) * 10000),
-            "LIQUIDITY_REMOVE":   int(800   + (h[5] / 255.0) * 8000),
-            "GOVERNANCE_VOTE":    int(50    + (h[6] / 255.0) * 500),
-            "REWARD_CLAIM":       int(2000  + (h[7] / 255.0) * 20000),
+            "SWAP":             50000,
+            "LIQUIDITY_ADD":     5000,
+            "LIQUIDITY_REMOVE":  3000,
+            "GOVERNANCE_VOTE":    200,
+            "REWARD_CLAIM":     10000,
         },
     )
     dev = DeveloperData(
-        protocol_id               = entity_id,
-        active_core_contributors  = int(2 + h[8] % 30),
-        median_commit_tenure_days = round(30.0 + (h[9] / 255.0) * 1000.0, 1),
-        total_contributor_count   = int(10 + h[10] % 200),
-        commit_velocity           = round(2.0 + (h[11] / 255.0) * 50.0, 1),
-        issue_resolution_rate     = round(0.20 + (h[12] / 255.0) * 0.75, 4),
+        protocol_id                = entity_id,
+        active_core_contributors  = 10,
+        median_commit_tenure_days = 180.0,
+        total_contributor_count   = 50,
+        commit_velocity           = 15.0,
+        issue_resolution_rate     = 0.50,
     )
     result = compute_ep(econ, dev)
+
+    # Wire through signal_factory — canonical ENERGY_PARTICIPATION (id 20).
+    coherence_result_for_signal = {
+        "C":              result.ep,
+        "theta":          0.50,
+        "emits":           result.ep >= 0.50,
+        "limiting_plane": "energy_participation",
+        "akashic_depth":   0.0,
+        "silence_gap":     max(0.0, 0.50 - result.ep),
+    }
+    ep_signal = build_energy_participation(
+        entity_id        = entity_id,
+        coherence_result = coherence_result_for_signal,
+        ep_score                         = round(result.ep, 6),
+        validator_count                  = 0,
+        participation_ratio              = round(result.pa, 6),
+        decentralization_coefficient     = round(result.dc, 6),
+        energy_source_diversity           = 0.0,
+        carbon_intensity                  = 0.0,
+    )
+
     return jsonify({
         "entity_id":     entity_id,
         "signal_type":   "ECOSYSTEM_HEALTH",
         "ep":            round(result.ep, 6),
         "is_synthetic": True,
         "synthetic_reason": (
-            "protocol economics and developer data are hash-derived from entity_id; the EP=VC·PA·DC engine is real."
+            "Bootstrap-default protocol economics and developer data (no live "
+            "on-chain analytics feed wired yet). EP=VC·PA·DC engine is real; "
+            "inputs are disclosed defaults, not hash-derived demo values."
         ),
         "vc":            round(result.vc, 6),
         "pa":            round(result.pa, 6),
@@ -4418,12 +4619,16 @@ def energy_participation(entity_id: str):
         "mev_fraction":  round(result.mev_fraction, 6),
         "warning":       result.warning,
         "economics": {
-            "value_to_protocol_purpose": val_to_purpose,
-            "value_mev_extracted":       mev_extracted,
-            "value_fees_extracted":      fees_extracted,
+            "value_to_protocol_purpose": econ.value_to_protocol_purpose,
+            "value_mev_extracted":       econ.value_mev_extracted,
+            "value_fees_extracted":      econ.value_fees_extracted,
         },
         "formula":       "EP = VC · PA · DC; VC=purpose_value/extraction; PA=H(interaction_types); DC=active_tenure/total",
         "specification":    "L7.2",
+        "signal_factory_wired":     True,
+        "canonical_signal_type":    "ENERGY_PARTICIPATION",
+        "canonical_signal_type_id": int(SignalType.ENERGY_PARTICIPATION),
+        "signal_id":                ep_signal.get("signal_id"),
         "timestamp":     int(time.time()),
     })
 
