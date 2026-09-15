@@ -358,6 +358,28 @@ try:
     _btcp_continuum_available = True
     _log.info("BTCP + CONTINUUM routes registered")
 
+    # ── L8: initialise the conscious-plane annotation DB on startup ─────────
+    # The annotation interface (see /api/v1/annotation/<entity_id>) had no
+    # persistence layer before this. Creating the four canonical tables
+    # (annotations, annotators, annotation_challenges, indigenous_consent)
+    # here means submissions can actually be stored and retrieved from the
+    # very first request, with no seeded rows (honest bootstrap).
+    try:
+        from core.spiritual.conscious.annotation_db import (
+            init_annotation_db, annotation_db_health,
+        )
+        if init_annotation_db():
+            _health = annotation_db_health()
+            _log.info(
+                "Conscious-plane annotation DB initialised: %s (row_counts=%s)",
+                _health.get("db_path"),
+                _health.get("row_counts"),
+            )
+        else:
+            _log.warning("Conscious-plane annotation DB init returned False")
+    except Exception as _ann_err:
+        _log.warning("Conscious-plane annotation DB init failed: %s", _ann_err)
+
     # ── Auto-start the real-time BH streamer ──────────────────────────────────
     # GATED (TRION_STREAMER_INPROCESS, default 0): in production the entrypoint
     # owns exactly ONE standalone streamer process (scripts/run_bh_streamer.py,
@@ -883,6 +905,45 @@ def _market_volatility() -> float:
     noise = (int(hashlib.md5(str(int(t / 300)).encode()).hexdigest(), 16) % 100) / 1000
     return round(min(0.95, base + noise), 4)
 
+
+# ── L5.4: protocol genesis time_years resolver ──────────────────────────────
+# The master equation T(t) = [C≥Θ] · S(t) · e^(M_moat·t) compounds the moat
+# factor by elapsed protocol time t in YEARS. The spec ties t to the protocol
+# genesis — TRION's value grows exponentially with years of accumulated
+# honest operation, so a system that has run for three years is
+# exponentially harder to replace than one that started yesterday.
+#
+# Operators set TRION_GENESIS_TIMESTAMP (Unix seconds) — e.g. the mainnet
+# deploy block timestamp. When unset or unparseable we fall back to 1.0
+# (single-period compounding) so the equation stays defined and the moat
+# still amplifies T(t) by a sensible factor. The fallback is intentionally
+# conservative: under-measuring time under-counts TRION's accumulated moat,
+# which is the safe direction (never inflate T(t)).
+_TRION_GENESIS_TIMESTAMP = os.environ.get("TRION_GENESIS_TIMESTAMP")
+
+def _resolve_time_years(now_unix: float) -> float:
+    """Resolve the time_years input for the L5.4 master equation.
+
+    Returns (now - genesis)/seconds_per_year when TRION_GENESIS_TIMESTAMP is
+    a valid Unix seconds value, else 1.0 (single-period compounding) with an
+    honest log warning. Never raises.
+    """
+    genesis = _TRION_GENESIS_TIMESTAMP
+    if not genesis:
+        # No genesis configured — single-period compounding preserves
+        # backward compatibility. Operators should set
+        # TRION_GENESIS_TIMESTAMP at mainnet deploy time.
+        return 1.0
+    try:
+        g = float(genesis)
+    except (TypeError, ValueError):
+        return 1.0
+    if g <= 0 or g > now_unix:
+        # Malformed / future genesis — fall back to 1.0 rather than
+        # producing a negative or absurdly large exponent.
+        return 1.0
+    return max(1.0, (now_unix - g) / 31_557_600.0)  # 365.25-day year
+
 def _compute_signal(entity_id: str) -> dict:
     """
     Compute behavioral coherence signal — full TRIONSignal schema (specification §11).
@@ -1046,8 +1107,13 @@ def _compute_signal(entity_id: str) -> dict:
     # equation needs (C, theta, emits, margin, moat_factor, limiting_plane,
     # trend); the signal value defaults to C(t) per the spec ("when no
     # separate signal value is supplied, C(t) is used as the signal value").
-    # time_years defaults to 1.0 (single-period compounding) — Fix L5.4
-    # follow-up wires the real protocol genesis timestamp here.
+    #
+    # time_years: elapsed protocol time t in the compounding exponent
+    # e^(M_moat·t). The spec ties t to the protocol genesis — TRION's value
+    # compounds with years of accumulated honest operation. We resolve it
+    # from the TRION_GENESIS_TIMESTAMP env var (Unix seconds); when unset,
+    # we fall back to 1.0 (single-period compounding) so the equation stays
+    # defined and the moat still amplifies T(t) by a sensible factor.
     from core.master.master_equation import MasterEquation
     _master_eq_input = {
         "C":              coh["C"],
@@ -1061,7 +1127,8 @@ def _compute_signal(entity_id: str) -> dict:
         # separate signal value has been computed for this emission.
         "signal_value":   coh["C"],
     }
-    _me = MasterEquation().compute(_master_eq_input, time_years=1.0)
+    time_years = _resolve_time_years(now)
+    _me = MasterEquation().compute(_master_eq_input, time_years=time_years)
     trion_truth_value = round(_me.t, 6)
 
     # ── Bootstrap planes ───────────────────────────────────────────────────────
