@@ -4792,36 +4792,109 @@ def evolutionary_fitness(component: str):
 
 
 # ── L0.3 Resonance Communication Condition ────────────────────────────────────
+def _fetch_entity_event_counts(entity_id: str) -> dict:
+    """
+    L0.3 helper — pull a per-event-type count dict for *entity_id* from the
+    FAISS BH ledger. Returns {UniversalEventType(int): count} over the most
+    recent 200 BH records (the indexer's per-transaction canonical BH store).
+
+    Returns an empty dict when the FAISS service is unreachable or the
+    entity has no BH records — the caller then surfaces an honest zero
+    resonance with `data_source: 'no_bh_records'` so consumers never see a
+    hash-derived synthetic number masquerading as measured resonance.
+    """
+    try:
+        import requests as _req
+        r = _req.get(
+            f"{_FAISS_BASE}/bh/ledger/{entity_id}",
+            params={"limit": 200},
+            headers=faiss_headers(), timeout=3,
+        )
+        if r.status_code != 200:
+            return {}
+        body = r.json() or {}
+        records = body.get("bh_records", []) or []
+        counts: dict = {}
+        for rec in records:
+            et = rec.get("event_type")
+            if et is None:
+                continue
+            try:
+                et_int = int(et)
+            except (TypeError, ValueError):
+                continue
+            # UniversalEventType mirrors L0.1 EventType ids 0–19; reject anything
+            # outside that closed 20-type set so the resonance spectrum stays
+            # canonical.
+            if 0 <= et_int <= 19:
+                counts[et_int] = counts.get(et_int, 0) + 1
+        return counts
+    except Exception:
+        return {}
+
+
 @app.route("/api/v1/resonance/<entity_a>/<entity_b>")
 def resonance(entity_a: str, entity_b: str):
-    """L0.3 Resonance Communication Condition — R(A,B) = corr(Φ_A, Φ_B) · TC_A · TC_B."""
-    ha = hashlib.sha256(entity_a.encode()).digest()
-    hb = hashlib.sha256(entity_b.encode()).digest()
-    phi_a  = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
-    phi_b  = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
-    tc_a   = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
-    tc_b   = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
-    hab    = hashlib.sha256((entity_a + entity_b).encode()).digest()
-    corr   = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
-    r_ab   = round(abs(corr) * tc_a * tc_b, 6)
-    in_resonance = r_ab >= 0.50
+    """L0.3 Resonance Communication Condition — Comm(A,B) iff ∃f : RF(A,f) > 0 AND RF(B,f) > 0.
+
+    Wires the spec-compliant `core.primitives.resonance.can_communicate()` and
+    `compute_channel_resonance()` into the production API path. The resonance
+    spectrum per entity is built from real per-event-type counts pulled from
+    the FAISS BH ledger (no hash-derived synthetic Φ/TC/correlation values).
+
+    When either entity has no BH records indexed, the endpoint returns an
+    honest zero resonance with `is_synthetic: False` and a `data_source`
+    string explaining why (no fabricated behavioral overlap).
+    """
+    from core.primitives.resonance import (
+        UniversalEventType, compute_resonance_frequencies,
+        compute_channel_resonance, can_communicate,
+    )
+
+    counts_a = _fetch_entity_event_counts(entity_a)
+    counts_b = _fetch_entity_event_counts(entity_b)
+
+    # Build event-type-keyed dicts the resonance module expects.
+    events_a = {UniversalEventType(et): n for et, n in counts_a.items()}
+    events_b = {UniversalEventType(et): n for et, n in counts_b.items()}
+
+    rf_a = compute_resonance_frequencies(entity_a, events_a)
+    rf_b = compute_resonance_frequencies(entity_b, events_b)
+
+    result = compute_channel_resonance(rf_a, rf_b)
+    communicates = can_communicate(rf_a, rf_b)
+
+    if not counts_a or not counts_b:
+        data_source = "no_bh_records"
+        synthetic_reason = (
+            "One or both entities have no canonical BH records indexed in the "
+            "FAISS ledger; resonance is reported as a measured zero (no shared "
+            "frequencies) rather than a fabricated synthetic score."
+        )
+    else:
+        data_source = "faiss_bh_ledger"
+        synthetic_reason = None
+
     return jsonify({
-        "entity_a":     entity_a,
-        "entity_b":     entity_b,
-        "resonance":    r_ab,
-        "is_synthetic": True,
-        "synthetic_reason": (
-            "Φ, TC and correlation values are hash-derived from the entity ids; not measured plane data."
-        ),
-        "in_resonance": in_resonance,
-        "correlation":  corr,
-        "phi_a":        phi_a,
-        "phi_b":        phi_b,
-        "tc_a":         tc_a,
-        "tc_b":         tc_b,
-        "formula":      "R(A,B) = |corr(Φ_A,Φ_B)| · TC_A · TC_B; in_resonance if R ≥ 0.50",
-        "specification":   "L0.3",
-        "timestamp":    int(time.time()),
+        "entity_a":              entity_a,
+        "entity_b":              entity_b,
+        "resonance":             round(result.resonance_score, 6),
+        "is_synthetic":          False,
+        "data_source":           data_source,
+        "synthetic_reason":      synthetic_reason,
+        "in_resonance":          bool(communicates and result.resonance_score > 0.0),
+        "communicates":          bool(communicates),
+        "shared_frequencies":    [et.name for et in result.shared_frequencies],
+        "dominant_channel":      result.dominant_channel.name,
+        "phase_alignment":       round(result.phase_alignment, 6),
+        "event_count_a":         sum(counts_a.values()),
+        "event_count_b":         sum(counts_b.values()),
+        "unique_channels_a":     len(counts_a),
+        "unique_channels_b":     len(counts_b),
+        "formula":               "Comm(A,B) iff ∃f : RF(A,f) > 0 AND RF(B,f) > 0; "
+                                 "resonance_score = cosine sim of weighted amplitude vectors",
+        "specification":            "L0.3",
+        "timestamp":             int(time.time()),
     })
 
 
