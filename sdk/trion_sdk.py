@@ -526,29 +526,192 @@ class TRIONClient:
     # ── Signal verification ───────────────────────────────────────────────────
 
     @staticmethod
-    def verify_signal(signal_dict: Dict) -> bool:
+    def _structural_check(signal_dict: Dict) -> bool:
         """
-        Cryptographic verification of a TRIONSignal.
-        Checks: genomic_signature length, sense XOR antisense complement invariant,
-        CI_95 non-null, timestamp recency (within 5 minutes if strict).
-        Returns True iff all checks pass.
+        Structural sanity checks on a TRIONSignal — the boolean check the
+        legacy verify_signal returned directly:
+          - genomic_signature is a 128-char hex string (bytes64 = sense||antisense)
+          - ci_95 is non-null
+          - signal_value ∈ [0, 1] (when present)
+          - timestamp is a positive int
+          - entity_id is non-empty
         """
         gs = signal_dict.get("genomic_signature", "")
-        if len(gs) != 128:
+        if not isinstance(gs, str) or len(gs) != 128:
             return False
         ci = signal_dict.get("ci_95")
         if ci is None:
             return False
-        sv   = float(signal_dict.get("signal_value", -1))
-        if not (0.0 <= sv <= 1.0):
-            return False
-        ts   = signal_dict.get("timestamp", 0)
-        if ts <= 0:
+        sv = signal_dict.get("signal_value")
+        if sv is not None:
+            try:
+                svf = float(sv)
+            except (TypeError, ValueError):
+                return False
+            if not (0.0 <= svf <= 1.0):
+                return False
+        ts = signal_dict.get("timestamp", 0)
+        if not isinstance(ts, (int, float)) or ts <= 0:
             return False
         entity_id = signal_dict.get("entity_id", "")
         if not entity_id:
             return False
         return True
+
+    @staticmethod
+    def _genomic_invariant_check(signal_dict: Dict) -> bool:
+        """
+        Verify the dual-strand genomic signature (whitepaper L0.1 / Part 6).
+
+        genomic_signature = sense[32] || antisense[32]
+          sense     = SHA3-256(payload || 0x00)        payload = entity_id || generation
+          antisense = SHA3-256(payload || 0xFF) XOR complement(sense)
+        where complement(x) = NOT(x) (bit-wise per byte).
+
+        Returns True iff recomputing both strands from entity_id +
+        security_generation reproduces the stored signature exactly.
+        """
+        gs = signal_dict.get("genomic_signature", "")
+        if not isinstance(gs, str) or len(gs) != 128:
+            return False
+        try:
+            sense_b     = bytes.fromhex(gs[:64])
+            antisense_b = bytes.fromhex(gs[64:])
+            if len(sense_b) != 32 or len(antisense_b) != 32:
+                return False
+        except (ValueError, TypeError):
+            return False
+
+        entity_id = signal_dict.get("entity_id", "")
+        if not entity_id:
+            return False
+        try:
+            generation = int(signal_dict.get("security_generation", 0) or 0)
+        except (TypeError, ValueError):
+            return False
+
+        payload = (str(entity_id) + str(generation)).encode()
+
+        # Recompute sense and verify it matches the stored first half.
+        expected_sense = hashlib.sha3_256(payload + b"\x00").digest()
+        if expected_sense != sense_b:
+            return False
+
+        # Recompute antisense and verify the XOR/complement invariant.
+        sha3ff_b            = hashlib.sha3_256(payload + b"\xFF").digest()
+        expected_antisense  = bytes(s ^ (f ^ 0xFF) for s, f in zip(sha3ff_b, sense_b))
+        return expected_antisense == antisense_b
+
+    def _all_bh_retrievable_structural(self, signal_dict: Dict) -> bool:
+        """
+        Offline structural check: every entry in the provenance chain must
+        carry either a `bh_id` (for behavioral_hash source entries) or a
+        `source` field. Real Akashic-Index retrieval is gated behind
+        verify_provenance=True (see verify_signal).
+        """
+        provenance = signal_dict.get("provenance") or []
+        if not isinstance(provenance, list) or not provenance:
+            return False
+        for entry in provenance:
+            if not isinstance(entry, dict):
+                return False
+            if "bh_id" not in entry and "source" not in entry:
+                return False
+        return True
+
+    def _all_bh_retrievable_via_akashic(self, signal_dict: Dict) -> bool:
+        """
+        Live Akashic-Index retrieval check: fetch the BH ledger for the
+        signal's entity_id from /api/v1/bh/ledger/<entity_id> and confirm
+        every behavioral_hash entry in the provenance chain appears in it.
+
+        Returns False on any HTTP error, missing entity_id, or any
+        provenance BH not present in the ledger (fail-closed).
+        """
+        entity_id = signal_dict.get("entity_id", "")
+        if not entity_id:
+            return False
+        provenance = signal_dict.get("provenance") or []
+        bh_ids = [
+            p.get("bh_id") for p in provenance
+            if isinstance(p, dict) and p.get("source") == "behavioral_hash"
+            and p.get("bh_id")
+        ]
+        if not bh_ids:
+            # No behavioral_hash entries to verify — structural check is
+            # sufficient (non-BH provenance: coherence_engine, brt, etc.).
+            return self._all_bh_retrievable_structural(signal_dict)
+
+        try:
+            ledger = self._http.get(f"/api/v1/bh/ledger/{entity_id}", params={"limit": 500})
+        except Exception:
+            # Network / server error — fail-closed.
+            return False
+
+        entries = ledger.get("entries", []) if isinstance(ledger, dict) else (ledger if isinstance(ledger, list) else [])
+        # The ledger entries carry either bh_id or sense_hex; match on bh_id
+        # when present, else fall back to sense_hex.
+        retrievable_ids = set()
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            if e.get("bh_id"):
+                retrievable_ids.add(e["bh_id"])
+            if e.get("sense_hex"):
+                retrievable_ids.add(e["sense_hex"])
+            if e.get("antisense_hex"):
+                retrievable_ids.add(e["antisense_hex"])
+
+        # Fail-closed: every provenance bh_id must be present in the ledger.
+        return all(bh in retrievable_ids for bh in bh_ids)
+
+    def verify_signal(self, signal_dict: Dict, verify_provenance: bool = False) -> Dict:
+        """
+        Cryptographic verification of a TRIONSignal.
+
+        Whitepaper §15.4 (Developer SDK Specification) return shape:
+            { valid: bool,
+              provenance_chain_depth: int,
+              all_BH_retrievable: bool,
+              genomic_valid: bool }
+
+        Field semantics:
+          - valid: structural sanity (genomic_signature length, ci_95
+            non-null, signal_value ∈ [0,1], timestamp > 0, entity_id
+            non-empty). The boolean the legacy verify_signal returned.
+          - provenance_chain_depth: length of the signal's `provenance`
+            list (whitepaper: complete derivation chain depth).
+          - all_BH_retrievable: when verify_provenance=False (default),
+            a structural check that every provenance entry carries a
+            bh_id (for behavioral_hash source entries) or a source field.
+            When verify_provenance=True, every behavioral_hash entry is
+            also fetched from the Akashic Index (BH ledger) and confirmed
+            present — true provenance retrievability, fail-closed.
+          - genomic_valid: recomputes sense + antisense from entity_id +
+            security_generation and verifies the XOR/complement invariant
+            on the dual-strand genomic signature (whitepaper L0.1 / Part 6).
+
+        Args:
+          signal_dict: the TRIONSignal dict to verify.
+          verify_provenance: when True, perform live HTTP retrieval checks
+            against the Akashic Index for every behavioral_hash entry in
+            the signal's provenance chain. Default False (offline
+            structural check only) — pass True for full provenance audits.
+        """
+        valid = self._structural_check(signal_dict)
+        provenance = signal_dict.get("provenance") or []
+        provenance_chain_depth = len(provenance) if isinstance(provenance, list) else 0
+        genomic_valid = self._genomic_invariant_check(signal_dict)
+        if verify_provenance:
+            all_BH_retrievable = self._all_bh_retrievable_via_akashic(signal_dict)
+        else:
+            all_BH_retrievable = self._all_bh_retrievable_structural(signal_dict)
+        return {
+            "valid":                   valid,
+            "provenance_chain_depth":  provenance_chain_depth,
+            "all_BH_retrievable":      all_BH_retrievable,
+            "genomic_valid":           genomic_valid,
+        }
 
     def __repr__(self) -> str:
         return f"TRIONClient(base_url={self._base!r}, sdk_version={self.SDK_VERSION!r})"
