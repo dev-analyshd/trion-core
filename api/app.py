@@ -3702,6 +3702,183 @@ def planes_anima(entity_id: str):
     return jsonify(data), code
 
 
+# ── L7: 3-plane vs 5-plane emergence comparison (F3 falsifiability) ────────────
+
+# Per-entity history of emergence comparisons — used to accumulate evidence
+# for the F3 falsifiability condition (CI calibration coverage as D(t) grows).
+# An entry is appended each time /api/v1/emergence_test/<eid> is hit.
+_EMERGENCE_LOG: list = []
+_EMERGENCE_LOG_MAX = 1000
+
+
+@app.route("/api/v1/emergence_test/<entity_id>")
+@require_entity_id()
+def emergence_test(entity_id: str):
+    """
+    L7 — 3-plane vs 5-plane emergence comparison for F3 falsifiability.
+
+    Computes C(t) two ways from the *same* FAISS-sourced plane values
+    (no synthetic RNG, no hash-derived fallbacks):
+
+      C_5plane = α·Φ + β·M + γ·Σ + δ·K + ε·A   (full master equation)
+      C_3plane = α'·Φ + β'·M + γ'·Σ             (only Φ, M, Σ —
+                                                  weights renormalised to
+                                                  sum to 1 after dropping
+                                                  K and A)
+
+    emergence_confirmed := C_5plane > max(C_3plane, max_plane)
+        — the five-plane composition must strictly exceed both the
+          three-plane projection AND the strongest single plane.
+          If it does not, the master equation is not extracting
+          emergent information beyond its dominant input — a falsifying
+          observation for F3.
+
+    Each call records the comparison into an in-memory log that is
+    exposed via /api/v1/emergence_test/<entity_id>/history for F3
+    calibration tracking. The log is honest: when the cold-start guard
+    fires (no FAISS data), we report `insufficient_data: true` and do
+    NOT record an emergence observation.
+    """
+    from core.master.coherence import (
+        CoherenceEngine, CoherenceInput, AssetProfile, WEIGHT_PROFILES,
+    )
+
+    planes = _plane_values(entity_id)
+    if planes.get("_cold_start"):
+        return jsonify({
+            "entity_id": entity_id,
+            "insufficient_data": True,
+            "cold_start_reason": planes.get("cold_start_reason"),
+            "emergence_confirmed": None,
+            "note": (
+                "FAISS reports no behavioral history for this entity — "
+                "emergence comparison deferred until observed BH sediment "
+                "is available. No F3 observation recorded."
+            ),
+            "timestamp": int(time.time()),
+        }), 200
+
+    vol = _market_volatility()
+    mf  = _mf_score(entity_id)
+    # Same bootstrap-default TI used by _compute_signal so the comparison
+    # is consistent with the published signal.
+    from core.physical.temporal_coherence import (
+        compute_transduction_integrity, SensorCalibration,
+    )
+    ti = compute_transduction_integrity(SensorCalibration(
+        sensor_id=entity_id, calibration_score=0.80,
+        drift_correction=0.85, cross_verification=0.75,
+        bootstrap_mode=True,
+    )).ti
+    phi_adj = max(0.0, min(1.0, planes["phi"] * (1.0 - mf) * ti))
+    m_adj   = planes["m"]
+    sigma   = planes["sigma"]
+    k_plane = planes["k"]
+    anima   = planes["anima"]
+    depth   = planes.get("akashic_depth", 0.0)
+
+    engine = CoherenceEngine()
+
+    # ── C_5plane — full master equation over all 5 planes ──────────────────
+    inp5 = CoherenceInput(
+        phi_adj=phi_adj, m_adj=m_adj, sigma=sigma, k_plane=k_plane,
+        anima=anima, volatility=vol, akashic_depth=depth,
+        moat_time=1.0, profile=AssetProfile.DEFAULT,
+    )
+    res5 = engine.compute_coherence(inp5)
+    C_5  = res5["C"]
+    theta = res5["theta"]
+
+    # ── C_3plane — drop K and A, renormalise α,β,γ to sum to 1 ──────────────
+    w = WEIGHT_PROFILES[AssetProfile.DEFAULT]
+    s3 = w["alpha"] + w["beta"] + w["gamma"]
+    if s3 <= 0:
+        # Degenerate weight profile — emergent comparison not well-defined.
+        return jsonify({
+            "entity_id": entity_id,
+            "error": "degenerate_weight_profile",
+            "emergence_confirmed": None,
+            "timestamp": int(time.time()),
+        }), 500
+
+    a3, b3, g3 = w["alpha"] / s3, w["beta"] / s3, w["gamma"] / s3
+    C_3 = max(0.0, min(1.0, a3 * phi_adj + b3 * m_adj + g3 * sigma))
+
+    # ── Single-plane baselines (raw plane values, no weighting) ────────────
+    single_planes = {
+        "physical":  planes["phi"],
+        "mental":    planes["m"],
+        "spiritual": sigma,
+        "conscious": k_plane,
+        "anima":     anima,
+    }
+    max_plane_name = max(single_planes, key=single_planes.get)
+    max_plane_val  = single_planes[max_plane_name]
+
+    # ── Emergence verdict ──────────────────────────────────────────────────
+    # C_5plane must strictly exceed both the 3-plane projection AND the
+    # strongest single plane. Otherwise the master equation is not
+    # extracting information beyond its dominant input.
+    emergence_confirmed = (C_5 > C_3) and (C_5 > max_plane_val)
+    emergence_delta_5v3  = round(C_5 - C_3, 6)
+    emergence_delta_5vmax = round(C_5 - max_plane_val, 6)
+
+    # ── Honest provenance for F3 tracking ──────────────────────────────────
+    observation = {
+        "entity_id":           entity_id,
+        "timestamp":           int(time.time()),
+        "C_5plane":            round(C_5, 6),
+        "C_3plane":            round(C_3, 6),
+        "max_plane":           max_plane_name,
+        "max_plane_value":     round(max_plane_val, 6),
+        "theta":               round(theta, 6),
+        "emergence_confirmed": emergence_confirmed,
+        "emergence_delta_5v3":  emergence_delta_5v3,
+        "emergence_delta_5vmax": emergence_delta_5vmax,
+        "weights_5plane":      {k: round(v, 4) for k, v in w.items()},
+        "weights_3plane":       {"alpha": round(a3, 4), "beta": round(b3, 4), "gamma": round(g3, 4)},
+        "planes_source": {
+            "faiss_enriched":  planes.get("_faiss_enriched", False),
+            "sigma_source":    planes.get("sigma_source"),
+            "k_source":        planes.get("k_source"),
+            "akashic_depth":   round(depth, 2),
+        },
+        "f3_falsifiability_note": (
+            "F3 (CI calibration as D(t) grows): emergence_confirmed=true means "
+            "the 5-plane composition carries strictly more information than "
+            "the 3-plane projection or any single plane. Persistent "
+            "emergence_confirmed=false over a rolling 90-day window would "
+            "falsify the master-equation emergence claim."
+        ),
+    }
+
+    _EMERGENCE_LOG.append(observation)
+    if len(_EMERGENCE_LOG) > _EMERGENCE_LOG_MAX:
+        _EMERGENCE_LOG[:] = _EMERGENCE_LOG[-_EMERGENCE_LOG_MAX:]
+
+    return jsonify(observation), 200
+
+
+@app.route("/api/v1/emergence_test/<entity_id>/history")
+@require_entity_id()
+def emergence_test_history(entity_id: str):
+    """Return the accumulated F3 emergence observations for an entity."""
+    rows = [r for r in _EMERGENCE_LOG if r["entity_id"] == entity_id]
+    summary = {
+        "entity_id": entity_id,
+        "observations":   len(rows),
+        "emergence_confirmed_count": sum(1 for r in rows if r["emergence_confirmed"]),
+        "emergence_falsified_count": sum(1 for r in rows if not r["emergence_confirmed"]),
+        "f3_status": (
+            "MONITORING" if not rows else
+            ("ACCUMULATING_EVIDENCE" if all(r["emergence_confirmed"] for r in rows)
+             else "FALSIFYING_OBSERVATIONS_PRESENT")
+        ),
+        "timestamp": int(time.time()),
+    }
+    return jsonify({"summary": summary, "observations": rows}), 200
+
+
 # ── specification: Signal Batch, Liquidity, Genesis, Security MF/Genomic ─────────
 
 @app.route("/api/v1/signal/batch", methods=["POST", "GET"])
@@ -4164,34 +4341,173 @@ def energy_participation(entity_id: str):
 
 
 # ── L4.8 Validator HHI ────────────────────────────────────────────────────────
-@app.route("/api/v1/validator/hhi")
-def validator_hhi():
-    """L4.8 HHI Validator Diversity — HHI(t) = Σ(s_j·d_j/Σs_k·d_k)² × 10000."""
-    from core.spiritual.hhi_monitor import ValidatorStake, compute_hhi_enforcement, HHITier
-    n_validators = 60
-    validators   = []
-    for i in range(n_validators):
-        seed_i = hashlib.sha256(f"validator_{i}".encode()).digest()
-        stake  = round(50.0 + (seed_i[0] / 255.0) * 950.0, 2)
-        div    = round(0.4 + (seed_i[1] / 255.0) * 0.6, 4)
-        validators.append(ValidatorStake(
-            validator_id     = f"trion_val_{i:03d}",
+# Honest data-source hierarchy (no hash-derived demo validators):
+#   1. Go validator mesh on :6000 — fetch the live validator set from
+#      /consensus/hhi (the P2P gateway exposes the real registry).
+#   2. anima-service faiss_service._SEED_VALIDATORS — structured validator
+#      records (id, stake, region) seeded for the Phase 1 testnet; not
+#      hash-derived. Used when the Go mesh is not running.
+#   3. Empty list — no validators registered; HHI = 0 with a
+#      `synthetic_reason` explaining why (honest zero, not fabricated data).
+_VALIDATOR_MESH_URL = os.environ.get(
+    "TRION_VALIDATOR_MESH_URL", "http://127.0.0.1:6000"
+)
+
+# Region index → continent code, mirroring faiss_service._SEED_VALIDATORS
+# regions (0=NA, 1=EU, 2=EU, 3=ASIA, 4=ASIA, 5=ME, 6=AF, 7=SA, plus OC for
+# region code 1 from val-oceania-1). The L4.8 continent-count invariant is
+# `>= 4` — this table preserves the Phase-1 mapping exactly.
+_REGION_TO_CONTINENT = {
+    0: "NA", 1: "EU", 2: "EU", 3: "ASIA", 4: "ASIA",
+    5: "ME", 6: "AF", 7: "SA",
+}
+
+def _fetch_validator_mesh_hhi():
+    """Fetch the live validator set from the Go validator mesh on :6000.
+
+    Returns (validators_list, source_label) or (None, error_msg) if the mesh
+    is not running or the response is malformed.
+    """
+    import requests as _req
+    try:
+        r = _req.get(
+            f"{_VALIDATOR_MESH_URL}/consensus/hhi",
+            timeout=5,
+            headers={"Accept": "application/json"},
+        )
+    except Exception as exc:
+        return None, f"validator mesh unreachable at {_VALIDATOR_MESH_URL}: {exc}"
+    if r.status_code != 200:
+        return None, f"validator mesh returned HTTP {r.status_code}"
+    try:
+        body = r.json()
+    except Exception as exc:
+        return None, f"validator mesh returned non-JSON: {exc}"
+
+    # Tolerate two response shapes: {validators: [...]} (mesh style) and
+    # a bare list (older / custom deployments).
+    raw = body.get("validators") if isinstance(body, dict) else body
+    if not isinstance(raw, list) or not raw:
+        return None, "validator mesh returned an empty validator set"
+
+    from core.spiritual.hhi_monitor import ValidatorStake
+    out: list = []
+    for v in raw:
+        if not isinstance(v, dict):
+            continue
+        stake = float(v.get("stake") or v.get("effective_stake") or 0.0)
+        div   = float(v.get("diversity_score") or v.get("diversity") or 0.5)
+        region_code = v.get("region")
+        region = (f"region_{region_code}" if isinstance(region_code, int)
+                  else (region_code or "region_0"))
+        continent = v.get("continent") or _REGION_TO_CONTINENT.get(
+            region_code if isinstance(region_code, int) else -1, "UNK"
+        )
+        out.append(ValidatorStake(
+            validator_id     = str(v.get("id") or v.get("validator_id") or "v?"),
             stake            = stake,
             diversity_score  = div,
             effective_stake  = stake * div,
-            geographic_region= f"region_{i % 8}",
-            jurisdiction     = f"juris_{i % 7}",
-            continent        = ["NA", "EU", "ASIA", "AF", "SA", "OC"][i % 6],
+            geographic_region= str(region),
+            jurisdiction     = str(v.get("jurisdiction") or "juris_0"),
+            continent        = str(continent),
         ))
+    if not out:
+        return None, "validator mesh returned no parseable validators"
+    return out, "go_validator_mesh"
+
+def _seed_validators_from_faiss():
+    """Build ValidatorStake records from faiss_service._SEED_VALIDATORS.
+
+    faiss_service lives in anima-service/ (a hyphenated directory that is not
+    importable as a Python package) and has heavy import-time dependencies on
+    anima_engine. Rather than pulling in the whole service, we mirror the
+    structured seed validator records here — they are NOT hash-derived, they
+    are 10 named validators across 8 geographic super-regions (Phase-1
+    testnet). The source-of-truth is anima-service/faiss_service.py; this
+    mirror is intentionally kept small and is documented in the comment
+    block above so a drift is easy to spot.
+
+    Returns (validators_list, None).
+    """
+    from core.spiritual.hhi_monitor import ValidatorStake
+    # Mirror of anima-service/faiss_service.py:_SEED_VALIDATORS (Phase 1
+    # testnet). Update both lists together when the seed set changes.
+    seed_validators = [
+        {"id": "val-north-america-1",  "region": 0, "stake": 50_000.0},
+        {"id": "val-north-america-2",  "region": 0, "stake": 40_000.0},
+        {"id": "val-europe-west-1",    "region": 1, "stake": 60_000.0},
+        {"id": "val-europe-east-1",    "region": 2, "stake": 35_000.0},
+        {"id": "val-asia-east-1",      "region": 3, "stake": 70_000.0},
+        {"id": "val-asia-southeast-1", "region": 4, "stake": 45_000.0},
+        {"id": "val-middle-east-1",    "region": 5, "stake": 30_000.0},
+        {"id": "val-africa-1",         "region": 6, "stake": 25_000.0},
+        {"id": "val-south-america-1",  "region": 7, "stake": 38_000.0},
+        {"id": "val-oceania-1",        "region": 1, "stake": 28_000.0},
+    ]
+    out: list = []
+    for v in seed_validators:
+        stake = float(v.get("stake", 0.0))
+        region_code = int(v.get("region", 0))
+        # Region 1 (EU) hosts both val-europe-west-1 and val-oceania-1 —
+        # split the continent on validator id so the continental diversity
+        # count stays honest (EU + OC).
+        continent = ("OC" if "oceania" in str(v.get("id", "")).lower()
+                      else _REGION_TO_CONTINENT.get(region_code, "UNK"))
+        # Seed validators ship a stake; diversity defaults to a neutral 0.8
+        # for the seed set (the live mesh supplies the real coordination
+        # score once a BFT round has run).
+        div = 0.8
+        out.append(ValidatorStake(
+            validator_id     = str(v.get("id")),
+            stake            = stake,
+            diversity_score  = div,
+            effective_stake  = stake * div,
+            geographic_region= f"region_{region_code}",
+            jurisdiction     = f"juris_{region_code}",
+            continent        = continent,
+        ))
+    return out, None
+
+@app.route("/api/v1/validator/hhi")
+def validator_hhi():
+    """L4.8 HHI Validator Diversity — HHI(t) = Σ(s_j·d_j/Σs_k·d_k)² × 10000."""
+    from core.spiritual.hhi_monitor import compute_hhi_enforcement
+
+    # Try the live Go validator mesh first (the only source of truth in a
+    # real deployment).
+    validators, source = _fetch_validator_mesh_hhi()
+    is_synthetic = False
+    synthetic_reason = None
+    if validators is None:
+        # Fall back to the structured seed validator set in faiss_service.
+        validators, seed_err = _seed_validators_from_faiss()
+        if validators is None:
+            # Honest zero — no validators anywhere, no fabricated data.
+            validators = []
+            is_synthetic = True
+            synthetic_reason = (
+                f"no validator data available (mesh: {source}; seed: {seed_err}). "
+                f"Returning an empty set with HHI=0."
+            )
+        else:
+            source = "faiss_service_seed_validators"
+            is_synthetic = True
+            synthetic_reason = (
+                "Go validator mesh not running — using the structured "
+                "Phase-1 testnet seed validator set from "
+                "anima-service/faiss_service._SEED_VALIDATORS (NOT hash-derived). "
+                f"Mesh status: {source}."
+            )
+
     result = compute_hhi_enforcement(validators, hhi_days_above_2500=0)
     return jsonify({
         "hhi":                     round(result.hhi, 2),
-        "is_synthetic": True,
-        "synthetic_reason": (
-            "validator set deterministically generated from sha256('validator_i') — not the live validator registry."
-        ),
-        "tier":                    result.tier.value,
+        "is_synthetic":            is_synthetic,
+        "synthetic_reason":        synthetic_reason,
+        "data_source":             source if not is_synthetic else "fallback",
         "validator_count":         result.validator_count,
+        "tier":                    result.tier.value,
         "total_effective_stake":   round(result.total_effective_stake, 2),
         "continent_count":         result.continent_count,
         "continents":              result.continents,
