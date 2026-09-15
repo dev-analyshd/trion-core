@@ -58,6 +58,19 @@ CRED_INITIAL: Dict[SourceType, float] = {
 }
 
 # Verification event values (by event type)
+#
+# Penalty tiers follow the whitepaper (Chapter 8.2 / WP1 L3.4):
+#   -2.0  wrong_prediction          — honest miss, small credibility hit
+#   -3.0  misinformation_detected    — published known-false info
+#   -3.0  manipulation_detected      — coordinated manipulation
+#   -3.0  sybil_identified          — Sybil / duplicate identity
+#                                    (kept at -3.0 to match manipulation;
+#                                     spec lists Sybil as a manipulation
+#                                     subtype, NOT the -5.0 tier)
+#   -5.0  conflict_of_interest      — source correlated with the entity's
+#                                     own trading (reserves the -5.0 tier
+#                                     per WP1 L3.4 — strongest penalty,
+#                                     effectively excludes the source)
 VERIFICATION_VALUES: Dict[str, float] = {
     "correct_prediction":          1.0,  # Source predicted outcome correctly
     "peer_review_accepted":        1.5,  # Academic peer review acceptance
@@ -66,7 +79,8 @@ VERIFICATION_VALUES: Dict[str, float] = {
     "wrong_prediction":           -2.0,  # Source predicted incorrectly
     "misinformation_detected":    -3.0,  # Source published known false info
     "manipulation_detected":      -3.0,  # Source used for coordinated manipulation
-    "sybil_identified":           -5.0,  # Source is a Sybil account
+    "sybil_identified":           -3.0,  # Source is a Sybil / duplicate account
+    "conflict_of_interest":       -5.0,  # Source correlated with entity's own trading (WP1 L3.4 reserved tier)
 }
 
 ALPHA_DECAY   = 0.99   # Per-day credibility decay
@@ -139,8 +153,13 @@ def update_credibility(
     # Track statistics
     new_correct = source.correct_count + (1 if "correct" in verification_type else 0)
     new_wrong   = source.wrong_count   + (1 if "wrong" in verification_type or "misinformation" in verification_type else 0)
+    # A source is flagged when it has been caught in any integrity violation:
+    # coordinated manipulation, Sybil identity, OR conflict of interest
+    # (correlation with the entity's own trading — WP1 L3.4 -5.0 tier).
     manip_flag  = source.manipulation_flag or (
-        "manipulation" in verification_type or "sybil" in verification_type
+        "manipulation" in verification_type
+        or "sybil" in verification_type
+        or "conflict" in verification_type
     )
 
     updated = SourceCredibility(
