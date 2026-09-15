@@ -1037,11 +1037,32 @@ def _compute_signal(entity_id: str) -> dict:
     validator_hhi   = round(2000.0 + (h[10] / 255.0) * 2000.0, 2)
     reflexivity_flag = oe_factor > 0.40
 
-    # ── L0.5 M_moat & L5.3 T(t) master equation ──────────────────────────────
+    # ── L0.5 M_moat & L5.3/L5.4 T(t) master equation ─────────────────────────
     moat_factor = coh["moat_factor"]
     moat_comps  = coh["moat_components"]
-    # T(t) = [C(t)>=Θ(t)] · C(t) · e^(M_moat)
-    trion_truth_value = round(C * math.exp(moat_factor), 6) if coherent else 0.0
+    # L5.4: T(t) = [C≥Θ] · S(t) · e^(M_moat·t) — computed by the real
+    # MasterEquation class (core/master/master_equation.py), not the inline
+    # formula. The coherence_result dict carries every field the master
+    # equation needs (C, theta, emits, margin, moat_factor, limiting_plane,
+    # trend); the signal value defaults to C(t) per the spec ("when no
+    # separate signal value is supplied, C(t) is used as the signal value").
+    # time_years defaults to 1.0 (single-period compounding) — Fix L5.4
+    # follow-up wires the real protocol genesis timestamp here.
+    from core.master.master_equation import MasterEquation
+    _master_eq_input = {
+        "C":              coh["C"],
+        "theta":          coh["theta"],
+        "emits":          coh["emits"],
+        "margin":         coh["margin"],
+        "moat_factor":    coh.get("moat_factor", 1.0),
+        "limiting_plane": coh.get("limiting_plane", "unknown"),
+        "trend":          coh.get("trend", "STABLE"),
+        # S(t): signal value — falls back to C(t) per spec L5.4 when no
+        # separate signal value has been computed for this emission.
+        "signal_value":   coh["C"],
+    }
+    _me = MasterEquation().compute(_master_eq_input, time_years=1.0)
+    trion_truth_value = round(_me.t, 6)
 
     # ── Bootstrap planes ───────────────────────────────────────────────────────
     bootstrap_phase = any(coh.get("bootstrap_planes", {}).values())
