@@ -142,7 +142,10 @@ def _resolve_path(env_key: str, filenames: list) -> str:
     return filenames[0]
 
 INDEX_PATH     = _resolve_path("FAISS_INDEX_PATH",     ["akashic_faiss.index", "anima-service/akashic_faiss.index"])
-CENTROIDS_PATH = _resolve_path("FAISS_CENTROIDS_PATH", ["trion_archetype_centroids.npy", "anima-service/trion_archetype_centroids.npy"])
+# L2.2 — prefer the spec-named `akashic_archetype_centroids.npy` for trained
+# K-means centroids; fall back to the legacy `trion_archetype_centroids.npy`
+# for backward compatibility with existing installs.
+CENTROIDS_PATH = _resolve_path("FAISS_CENTROIDS_PATH", ["akashic_archetype_centroids.npy", "anima-service/akashic_archetype_centroids.npy", "trion_archetype_centroids.npy", "anima-service/trion_archetype_centroids.npy"])
 STATE_DB_PATH  = _resolve_path("FAISS_STATE_DB",       ["akashic_state.db", "akashic/akashic_state.db"])
 BH_LEDGER_DB_PATH = os.environ.get("BH_LEDGER_DB", os.path.join(
     os.path.dirname(STATE_DB_PATH), "bh_ledger.db"
@@ -604,6 +607,45 @@ def _load_or_init_index():
         logger.info("Archetype centroids loaded — %d centroids.", len(centroids))
 
 _load_or_init_index()
+
+
+# ── L2.2  Hardcoded Archetype Fallback ─────────────────────────────────────────
+# When no real K-means centroids are available (cold start, no real data
+# indexed yet), seed the global `centroids` array from the 12 hardcoded
+# behavioral archetypes in core/akashic/archetype.py. This keeps
+# get_archetype() and /api/v1/akashic/match/{id} functional during bootstrap
+# without producing -1 / 0.0 placeholder matches.
+#
+# Per spec L2.2: "Fall back to hardcoded archetypes only when no real data
+# exists". The 128-dim behavioral_fingerprint vectors are used (not the 9-dim
+# phi_vectors) so cosine similarity remains meaningful against live 128-dim
+# FAISS behavioral vectors.
+def _load_hardcoded_archetype_fallback():
+    """Seed `centroids` from the 12 hardcoded archetypes if no real K-means
+    centroids have been trained yet. Called once at startup."""
+    global centroids
+    if centroids is not None and len(centroids) > 0:
+        return   # real K-means centroids already loaded — leave them
+    try:
+        from core.akashic.archetype import ARCHETYPES
+        if not ARCHETYPES:
+            return
+        fallback = np.array(
+            [a.behavioral_fingerprint for a in ARCHETYPES],
+            dtype="float32",
+        )
+        centroids = fallback
+        logger.info(
+            "[L2.2] Hardcoded archetype fallback seeded — %d archetypes "
+            "(no trained K-means centroids available).",
+            len(ARCHETYPES),
+        )
+    except Exception as _e:
+        logger.warning(
+            "[L2.2] Could not load hardcoded archetype fallback: %s", _e
+        )
+
+_load_hardcoded_archetype_fallback()
 
 
 # ── SQLite Persistence ─────────────────────────────────────────────────────────
@@ -11057,10 +11099,110 @@ except Exception as _ve:
 
 
 def _phi_from_entity_id(entity_id: str) -> List[float]:
-    """Derive a stable 9-dim phi vector from entity_id hash."""
-    import hashlib as _hl
-    h = _hl.sha3_256(entity_id.encode()).digest()
-    return [round(0.1 + 0.8 * (h[i] / 255.0), 4) for i in range(9)]
+    """
+    Derive a 9-dim physical-plane phi vector for the entity.
+
+    L2.2 spec: phi must be REAL behavioral data from FAISS, not a hash of
+    entity_id. When the entity has indexed records, derive phi from the
+    records' magnitude / entropy / arch_sim / temporal features. Fall
+    back to a deterministic sha3-256 hash-derived vector ONLY when the
+    entity has no behavioral history yet — callers disclose the source
+    via the 'phi_source' field so downstream consumers can distinguish
+    real behavioral phi from synthetic placeholders.
+    """
+    beo_id = resolve_beo(entity_id)
+    records = entity_history.get(beo_id, [])
+
+    if not records:
+        # No real data — fall back to deterministic hash (callers must
+        # disclose via phi_source = 'hash_fallback').
+        import hashlib as _hl
+        h = _hl.sha3_256(entity_id.encode()).digest()
+        return [round(0.1 + 0.8 * (h[i] / 255.0), 4) for i in range(9)]
+
+    # Real behavioral phi — computed from the entity's most recent
+    # indexed records. Each feature is normalised to [0, 1] to align with
+    # the 9-dim phi_vector layout used by the 12 hardcoded archetypes.
+    window = records[-50:]
+    mags   = [max(float(r.get("magnitude", 0.0)), BASE_PRESENCE) for r in window]
+    ents   = [float(r.get("entropy", 0.0)) for r in window]
+    sims   = [float(r.get("arch_sim", 0.0)) for r in window]
+    ts_list = [float(r.get("ts", 0.0)) for r in window]
+
+    # f1: mean magnitude (tanh-clip to [0, 1))
+    f1 = float(math.tanh(float(np.mean(mags)))) if mags else 0.0
+
+    # f2: mean entropy (normalised by typical behavioral entropy ~3.0 nats)
+    f2 = float(min(1.0, float(np.mean(ents)) / 3.0)) if ents else 0.0
+
+    # f3: mean archetype similarity
+    f3 = float(np.mean(sims)) if sims else 0.0
+
+    # f4: behavioral frequency (records per day, tanh-clip)
+    if len(ts_list) >= 2:
+        ts_range = max(0.001, max(ts_list) - min(ts_list))
+        rate_per_day = len(window) / (ts_range / 86400.0)
+        f4 = float(math.tanh(rate_per_day / 10.0))
+    else:
+        f4 = 0.0
+
+    # f5: temporal regularity (1 − coefficient-of-variation of inter-arrivals)
+    if len(ts_list) >= 3:
+        ts_sorted = sorted(ts_list)
+        deltas = [ts_sorted[i + 1] - ts_sorted[i] for i in range(len(ts_sorted) - 1)]
+        mean_d = float(np.mean(deltas)) if deltas else 0.0
+        std_d  = float(np.std(deltas)) if deltas else 0.0
+        cv = (std_d / mean_d) if mean_d > 0 else 1.0
+        f5 = float(max(0.0, 1.0 - min(1.0, cv / 2.0)))
+    else:
+        f5 = 0.5
+
+    # f6: value diversity (1 − HHI of magnitudes)
+    if len(mags) >= 3:
+        total = sum(mags)
+        if total > 0:
+            shares = [m / total for m in mags]
+            hhi = sum(s * s for s in shares)
+            f6 = float(max(0.0, 1.0 - min(1.0, hhi)))
+        else:
+            f6 = 0.5
+    else:
+        f6 = 0.5
+
+    # f7: time-of-day entropy (circadian diversity, normalised by ln(24))
+    if len(ts_list) >= 3:
+        hour_counts: Dict[int, int] = defaultdict(int)
+        for ts in ts_list:
+            try:
+                hr = int(datetime.fromtimestamp(ts, tz=timezone.utc).hour)
+                hour_counts[hr] += 1
+            except Exception:
+                pass
+        total_ev = sum(hour_counts.values())
+        if total_ev > 0:
+            probs = [c / total_ev for c in hour_counts.values() if c > 0]
+            ent_h = -sum(p * math.log(p) for p in probs) / math.log(24)
+            f7 = float(ent_h)
+        else:
+            f7 = 0.5
+    else:
+        f7 = 0.5
+
+    # f8: behavioral stability (1 − normalised std of arch_sim)
+    if len(sims) >= 3:
+        f8 = float(max(0.0, 1.0 - min(1.0, float(np.std(sims)) / 0.30)))
+    else:
+        f8 = 0.5
+
+    # f9: information density (mean magnitude·entropy, tanh-clip)
+    if mags and ents:
+        info_density = float(np.mean([m * e for m, e in zip(mags, ents)]))
+        f9 = float(math.tanh(info_density))
+    else:
+        f9 = 0.0
+
+    return [round(max(0.0, min(1.0, f)), 4)
+            for f in (f1, f2, f3, f4, f5, f6, f7, f8, f9)]
 
 
 def _coherence_from_phi(phi: List[float]) -> float:
@@ -11167,13 +11309,30 @@ async def faiss_archetypes():
 
 @app.get("/api/v1/akashic/match/{entity_id}")
 async def faiss_akashic_match(entity_id: str):
-    """Match entity to closest behavioral archetype."""
+    """Match entity to closest behavioral archetype.
+
+    L2.2 — phi is derived from the entity's REAL indexed records when
+    available (magnitude, entropy, arch_sim, temporal features). When no
+    behavioral history exists yet, falls back to a deterministic sha3-256
+    hash with explicit phi_source / phi_disclosure so downstream consumers
+    know the archetype match is not meaningful.
+    """
     if not _vision_ok.get("akashic"):
         raise HTTPException(503, "Akashic module unavailable")
-    phi = _phi_from_entity_id(entity_id)
-    result = _match_archetype(phi)
-    result["entity_id"] = entity_id
-    result["phi_vector"] = phi
+    beo_id      = resolve_beo(entity_id)
+    has_records = bool(entity_history.get(beo_id))
+    phi         = _phi_from_entity_id(entity_id)
+    result      = _match_archetype(phi)
+    result["entity_id"]   = entity_id
+    result["phi_vector"]  = phi
+    result["phi_source"]  = "faiss_records" if has_records else "hash_fallback"
+    if not has_records:
+        result["phi_disclosure"] = (
+            "Entity has no indexed behavioral history in FAISS. phi_vector "
+            "is derived from sha3-256(entity_id) as a deterministic "
+            "placeholder; archetype match is not meaningful until real "
+            "behavioral data is indexed."
+        )
     return result
 
 
