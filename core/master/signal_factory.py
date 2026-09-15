@@ -1102,6 +1102,14 @@ def build_valuation(
     ci_95_lower: float,
     ci_95_upper: float,
     moat_factor: float = 1.0,
+    # ── L0.5 Signal Selection Principle (entropy-budget gate) ──────────────
+    # Optional caller-supplied information-gain / entropy-cost figures.
+    # When BOTH are provided, build_signal's L0.5 gate fires: a signal whose
+    # dI_gained/dS_entropy_cost <= theta_selection is emitted as SILENCE
+    # with the selection record (no fabricated inputs).
+    i_gained: Optional[float] = None,
+    s_entropy_cost: Optional[float] = None,
+    theta_selection: float = 1.0,
 ) -> dict:
     return build_signal(
         entity_id=entity_id,
@@ -1111,6 +1119,9 @@ def build_valuation(
         ci_95_lower=ci_95_lower,
         ci_95_upper=ci_95_upper,
         extra={"moat_factor": moat_factor},
+        i_gained=i_gained,
+        s_entropy_cost=s_entropy_cost,
+        theta_selection=theta_selection,
     )
 
 

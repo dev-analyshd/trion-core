@@ -1232,6 +1232,19 @@ def _compute_signal(entity_id: str) -> dict:
             "OE_factor (L3.2) caps M_adj below M_base for highly-observed protocols — "
             "this is working as designed: reflexivity bounds the Mental plane."
         ),
+        # ── L0.5 Signal Selection inputs (entropy-budget gate) ────────────────
+        # i_gained: information gained by emitting this signal — derived from
+        # the coherence delta (C − theta) scaled by 100 (treats the margin as
+        # a percentage-point contribution; 1% margin → 1 nat of information).
+        # s_entropy_cost: signal publication entropy — log2(N_signal_types)
+        # ≈ 4.585 bits, multiplied by the (1 + observer_effect × broadcast)
+        # adjustment per spec L0.5. Both are passed to build_signal so the
+        # L0.5 selection gate fires (dI/dS > theta_selection).
+        "i_gained":         round(max(0.0, C - theta) * 100.0, 6),
+        "s_entropy_cost":   round(
+            math.log2(24) * (1.0 + oe_factor * 1.0), 6
+        ),
+        "theta_selection":  1.0,
     }
 
 
@@ -6940,8 +6953,16 @@ def signal_by_type(type_name: str, entity_id: str):
 
     try:
         if tn == "VALUATION":
+            # L0.5 Signal Selection gate: pass i_gained (coherence delta × 100)
+            # and s_entropy_cost (signal publication entropy = log2(N_types)
+            # × (1 + OE × broadcast)) computed by _compute_signal so the L0.5
+            # gate inside build_signal fires. A below-threshold signal is
+            # emitted as SILENCE with the selection record (no fabrication).
             sig = build_valuation(entity_id, coh, sv, sv*0.92, min(1.0, sv*1.08),
-                                  moat_factor=base.get("moat_factor", 0.5))
+                                  moat_factor=base.get("moat_factor", 0.5),
+                                  i_gained=base.get("i_gained"),
+                                  s_entropy_cost=base.get("s_entropy_cost"),
+                                  theta_selection=base.get("theta_selection", 1.0))
         elif tn == "SILENCE":
             sig = build_silence(entity_id, coh)
         elif tn == "MANIPULATION_ALERT":
