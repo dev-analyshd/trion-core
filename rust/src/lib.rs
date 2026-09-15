@@ -48,6 +48,10 @@ pub mod adapters;
 // native extension share a single source of truth.
 pub mod phi;
 
+// Part 11 language mandate — standalone Rust implementation of the
+// Spiritual Plane Σ (L4.1), diversity-weighted BFT validator consensus.
+pub mod sigma;
+
 // Re-exports for convenient access
 pub use types::*;
 
