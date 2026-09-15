@@ -5129,11 +5129,28 @@ def _compute_live_love_score() -> tuple[float, dict]:
     Love = 0 (kill-switch engaged) when any AWA canonical condition fails
     (Right_to_Invisibility, AWA conditions met, Sovereignty/Dignity active)
     or when gratitude_score < 1.0 / public_good_contribution < 0.15.
+
+    AWAEnforcer.evaluate() requires the live consensus_quorum,
+    validator_hhi and public_good_pct inputs (the spec's six-condition
+    AWA check). The same default values the /api/v1/governance/awa
+    endpoint uses are applied here so the Love score reflects the same
+    canonical AWA verdict every other consumer sees.
     """
     try:
         from core.governance.awa import get_awa_enforcer
         enforcer = get_awa_enforcer()
-        state = enforcer.evaluate()
+        # Reuse the same defaults as /api/v1/governance/awa so the Love
+        # verdict matches the canonical AWA endpoint output. validator_hhi
+        # is proxied from market volatility (same approach as the AWA
+        # endpoint); akashic_depth is read from the live FAISS service.
+        vol = _market_volatility()
+        hhi_proxy = 1200 + int(vol * 800)
+        state = enforcer.evaluate(
+            consensus_quorum = 0.72,
+            validator_hhi    = hhi_proxy,
+            public_good_pct  = 0.20,
+            akashic_depth    = _faiss_depth(),
+        )
         conditions = state.conditions_met or {}
         right_to_invis   = bool(conditions.get("right_to_invisibility", False))
         awa_conditions   = bool(state.enforced)
