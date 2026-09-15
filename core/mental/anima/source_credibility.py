@@ -225,7 +225,67 @@ def compute_cross_source_agreement(
     sources: List[SourceCredibility],
 ) -> float:
     """
-    CA (Cross-Source Agreement) = 1 - credibility-weighted standard deviation
+    CA (Cross-Source Agreement) — spec-faithful credibility-weighted mean of
+    per-source agreement with the consensus (WP1 L3.3 / Chapter 8.2):
+
+        CA = Σ_s CRED(s,t) · agreement(s,t) / Σ_s CRED(s,t)
+
+    where for each source s:
+
+        agreement(s,t) = 1 - |signal_s - consensus_mean| / consensus_range
+
+    agreement(s,t) ∈ [0, 1]: 1.0 when the source matches the consensus mean,
+    0.0 when it sits at the edge of the observed range.
+
+    Edge cases:
+      * Empty inputs → 0.5 (neutral)
+      * Zero total weight → 0.5
+      * Zero consensus range (all sources identical) → CA = 1.0 (perfect
+        agreement by definition)
+    """
+    if not signals or not sources:
+        return 0.5
+
+    # WP1 L3.4: Exclude sources with CRED < 0.10 from the CA computation.
+    active = [(sig, src) for sig, src in zip(signals, sources) if not is_excluded(src)]
+    if not active:
+        return 0.5
+
+    total_weight = sum(src.cred for _, src in active)
+    if total_weight <= 0:
+        return 0.5
+
+    consensus_mean = credibility_weighted_signal(signals, sources)
+
+    sig_values = [sig for sig, _ in active]
+    consensus_range = max(sig_values) - min(sig_values)
+
+    weighted_agreement = 0.0
+    for sig, src in active:
+        deviation = abs(sig - consensus_mean)
+        if consensus_range > 0:
+            agreement = max(0.0, 1.0 - deviation / consensus_range)
+        else:
+            # All sources identical → unanimous → perfect agreement.
+            agreement = 1.0
+        weighted_agreement += src.cred * agreement
+
+    ca = weighted_agreement / total_weight
+    # Defensive clamp into [0, 1].
+    return max(0.0, min(1.0, ca))
+
+
+def compute_cross_source_agreement_deprecated(
+    signals: List[float],
+    sources: List[SourceCredibility],
+) -> float:
+    """
+    [DEPRECATED] Legacy CA = 1 - 4 · credibility-weighted standard deviation.
+
+    Retained for backward comparison only. The whitepaper (WP1 L3.3) defines
+    CA as a credibility-weighted MEAN of per-source agreement, not the
+    inverse of a weighted standard deviation — see
+    :func:`compute_cross_source_agreement` for the spec-faithful formula.
 
     High agreement (low std) → CA near 1.0
     High disagreement (high std) → CA near 0.0
