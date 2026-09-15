@@ -52,6 +52,12 @@ pub mod phi;
 // Spiritual Plane Σ (L4.1), diversity-weighted BFT validator consensus.
 pub mod sigma;
 
+// PyO3 wrappers + C-compatible ctypes shims. The module body is guarded
+// by `#[cfg(feature = "pyo3")]` so a default `cargo build` does not pull
+// in the Python linkage; enable with `cargo build --features pyo3`.
+#[cfg(feature = "pyo3")]
+pub mod pyo3_bindings;
+
 // Re-exports for convenient access
 pub use types::*;
 
