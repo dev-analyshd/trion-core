@@ -883,6 +883,18 @@ def build_signal(
         validator_record=validator_record,
     )
 
+    # ── Quality Metadata: entropy (whitepaper Part 5) ────────────────────
+    # entropy: float64 (derivation uncertainty). Populated from the L0.5
+    # signal-selection entropy cost (selection_record.s_entropy_cost) when
+    # the caller supplies real L0.5 inputs (i_gained + s_entropy_cost);
+    # defaults to 0.0 when the selection budget is unmeasured (no
+    # fabricated inputs — see emission gate 2 above). Carried as a
+    # top-level field per whitepaper Part 5 §"TRIONSignal — Complete Schema"
+    # (QUALITY METADATA block, between temporal_coherence and akashic_depth).
+    entropy = float(selection_record.s_entropy_cost) if (
+        selection_record is not None and selection_record.s_entropy_cost is not None
+    ) else 0.0
+
     signal = {
         "signal_id":          str(uuid.uuid4()),
         "signal_type":        signal_type.name,
@@ -917,6 +929,10 @@ def build_signal(
         "validator_hhi":      round(validator_hhi, 2),
         "reflexivity_flag":   reflexivity_flag,
         "temporal_coherence": round(temporal_coherence, 6),
+        # Quality Metadata — derivation uncertainty (whitepaper Part 5).
+        # Sourced from L0.5 signal_selection.s_entropy_cost when the
+        # caller supplies real L0.5 budget inputs; 0.0 otherwise.
+        "entropy":            round(entropy, 6),
         "provenance":         prov,
         **(extra or {}),
     }
