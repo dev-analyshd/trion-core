@@ -1,24 +1,29 @@
 [Unit]
-Description=TRION Protocol Validator (Go) — mesh + TRION-BFT self-test
+Description=TRION Protocol Validator (Go) — long-running DW-BFT mesh daemon
 Documentation=https://github.com/dev-analyshd/trion-core/blob/main/validator/README.md
 After=network.target
 
 [Service]
-# The Go validator is a ONE-SHOT self-test binary: it verifies attestation-mesh
-# primitives, dual-strand signing, and a 4-validator TRION-BFT consensus round
-# over real TCP gossip, prints PASS and exits 0. It is NOT a daemon — nothing
-# listens on :6000 (the P2P API gateway in internal/p2p/gateway.go is
-# test-only). Build it first on a machine with a Go >=1.21 toolchain:
+# The Go validator now runs as a long-lived daemon: the P2P mesh on :6000
+# (internal/p2p/gateway.go), the TRION-BFT consensus engine
+# (internal/consensus/engine.go), and the canonical certificate producer
+# (internal/consensus/certificate_producer.go) all run inside this one
+# binary. systemd restarts it on any unexpected exit so the validator stays
+# in the mesh across reboots and crashes.
+#
+# Build it first on a machine with a Go >=1.21 toolchain:
 #
 #   cd /opt/trion/validator && \
 #       go build -o /usr/local/bin/trion-validator ./cmd/trion-validator/
 #
 # (The previous ExecStart ran `python3 -m validator.node`, a module that has
 # never existed — validator/ is pure Go.)
-Type=oneshot
+Type=simple
 User=trion
 WorkingDirectory=/opt/trion
-ExecStart=/usr/local/bin/trion-validator
+ExecStart=/usr/local/bin/trion-validator --mesh :6000 --consensus --cert-producer
+Restart=always
+RestartSec=5s
 TimeoutStartSec=120
 
 # Security hardening
