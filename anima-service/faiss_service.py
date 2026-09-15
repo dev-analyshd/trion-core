@@ -11772,6 +11772,134 @@ async def _on_fastapi_startup():
     _t = threading.Thread(target=_deferred_train, daemon=True, name="archetype-startup")
     _t.start()
 
+    # ── L0.4/L9.2 lunar-cycle conservation audit (R-EC-06) ──────────────────────
+    # specification L0.4/L9.2 mandates a periodic thermodynamic information
+    # conservation audit at lunar-cycle cadence (≈ 29.5 days = 2,551,442 s).
+    # The audit compares the realized ΔI over the trailing window against the
+    # expected Σ(BH_gen + A_abs − S_emit − E_lost); a deviation beyond
+    # tau_audit is an information leak / destruction event and triggers a
+    # SYSTEMIC_RISK emission directive.
+    #
+    # The interval is configurable via FAISS_CONSERVATION_AUDIT_INTERVAL_S
+    # for testing — the production value is the lunar cycle.
+    _start_conservation_audit_scheduler()
+
+
+# ── L0.4/L9.2 Conservation Audit Scheduler ─────────────────────────────────────
+# Singleton AkashicConservationLedger — accumulates InformationState snapshots
+# recorded from the live info_conservation dict so run_conservation_audit has a
+# window of states to compare against.
+_CONSERVATION_AUDIT_LEDGER = None  # type: ignore[var-annotated]
+_CONSERVATION_AUDIT_THREAD = None
+_CONSERVATION_AUDIT_STOP    = threading.Event()
+# Production: lunar cycle ≈ 2,551,442 seconds (29.5 days).
+# Test override: set FAISS_CONSERVATION_AUDIT_INTERVAL_S=3600 (or any value)
+# to verify the audit fires without waiting a month.
+LUNAR_CYCLE_SECONDS = 2_551_442
+_CONSERVATION_AUDIT_INTERVAL_S = float(
+    os.environ.get("FAISS_CONSERVATION_AUDIT_INTERVAL_S") or LUNAR_CYCLE_SECONDS
+)
+
+
+def _record_conservation_snapshot() -> None:
+    """Snapshot the current info_conservation counters into the audit ledger.
+
+    Each snapshot becomes one InformationState row in the
+    AkashicConservationLedger; the audit then compares the trailing
+    sequence against its expected ΔI = Σ(BH_gen + A_abs − S_emit − E_lost).
+    """
+    global _CONSERVATION_AUDIT_LEDGER
+    try:
+        from core.primitives.thermodynamics import AkashicConservationLedger
+    except Exception as _exc:
+        logger.debug("[conservation-audit] thermodynamics module unavailable: %s", _exc)
+        return
+    if _CONSERVATION_AUDIT_LEDGER is None:
+        _CONSERVATION_AUDIT_LEDGER = AkashicConservationLedger()
+    # ΔI_consumed since last snapshot = current delta_consumed − previous
+    # delta_consumed (the running totals accumulate monotonically).
+    prev = getattr(_CONSERVATION_AUDIT_LEDGER, "_last_seen_totals", None)
+    now_ts = _time.time()
+    cur_consumed    = float(info_conservation.get("delta_consumed", 0.0))
+    cur_transformed = float(info_conservation.get("delta_transformed", 0.0))
+    if prev is None:
+        bh_gen = 0.0
+        a_abs = cur_consumed
+        s_emit = 0.0
+        e_lost = cur_transformed
+    else:
+        bh_gen = max(0.0, cur_consumed - prev["consumed"])
+        s_emit = max(0.0, cur_transformed - prev["transformed"])
+        a_abs = 0.0
+        e_lost = 0.0
+    _CONSERVATION_AUDIT_LEDGER.record_state(
+        timestamp      = now_ts,
+        bh_generated   = bh_gen,
+        a_absorbed     = a_abs,
+        s_emitted      = s_emit,
+        e_lost         = e_lost,
+    )
+    _CONSERVATION_AUDIT_LEDGER._last_seen_totals = {
+        "consumed": cur_consumed, "transformed": cur_transformed,
+    }
+
+
+def _run_scheduled_conservation_audit() -> None:
+    """Record a fresh conservation snapshot and run the lunar-cycle audit."""
+    try:
+        _record_conservation_snapshot()
+        if _CONSERVATION_AUDIT_LEDGER is None:
+            return
+        from core.primitives.thermodynamics import run_conservation_audit
+        result = run_conservation_audit(_CONSERVATION_AUDIT_LEDGER)
+        if result.get("systemic_risk"):
+            logger.error(
+                "[conservation-audit] LEAK DETECTED — deviation=%.6g states=%d "
+                "risk_factors=%s",
+                result.get("deviation", 0.0),
+                result.get("states_audited", 0),
+                result.get("risk_factors", []),
+            )
+        else:
+            logger.info(
+                "[conservation-audit] OK — states=%d i_start=%.4f i_end=%.4f "
+                "deviation=%.6g",
+                result.get("states_audited", 0),
+                result.get("i_start", 0.0),
+                result.get("i_end", 0.0),
+                result.get("deviation", 0.0),
+            )
+    except Exception as _exc:
+        logger.error("[conservation-audit] scheduled audit failed: %s", _exc)
+
+
+def _conservation_audit_loop() -> None:
+    """Background loop: snapshot every interval, audit on the same cadence."""
+    # Record one snapshot immediately so the ledger has at least one state
+    # before the first audit fires.
+    _record_conservation_snapshot()
+    while not _CONSERVATION_AUDIT_STOP.wait(_CONSERVATION_AUDIT_INTERVAL_S):
+        _run_scheduled_conservation_audit()
+
+
+def _start_conservation_audit_scheduler() -> None:
+    """Spawn the background conservation audit thread (idempotent)."""
+    global _CONSERVATION_AUDIT_THREAD
+    if _CONSERVATION_AUDIT_THREAD is not None and _CONSERVATION_AUDIT_THREAD.is_alive():
+        return
+    _CONSERVATION_AUDIT_STOP.clear()
+    _CONSERVATION_AUDIT_THREAD = threading.Thread(
+        target=_conservation_audit_loop,
+        daemon=True,
+        name="conservation-audit",
+    )
+    _CONSERVATION_AUDIT_THREAD.start()
+    logger.info(
+        "[conservation-audit] scheduler started — interval=%.0fs (lunar cycle=%.0fs, "
+        "override via FAISS_CONSERVATION_AUDIT_INTERVAL_S)",
+        _CONSERVATION_AUDIT_INTERVAL_S, LUNAR_CYCLE_SECONDS,
+    )
+
 
 @app.on_event("shutdown")
 async def _on_fastapi_shutdown():
