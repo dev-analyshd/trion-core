@@ -1106,8 +1106,23 @@ def _compute_signal(entity_id: str) -> dict:
     # directly as m_base; observer-effect corrections (OE_factor) will
     # accumulate as real signal publication history grows.
     m_base    = planes["m"]
-    oe_factor = 0.0   # No reflexivity history yet; grows with accumulated signals
-    m_adj     = m_base
+
+    # ── L3.2 OE_factor — wire from FAISS observer_effect endpoint ──────────
+    # Spec L3.2: OE_factor = corr(signal_publication(t-1), behavioral_change(t)).
+    # The canonical implementation lives in anima-service/faiss_service.py
+    # compute_observer_effect() and is exposed at /api/v1/observer_effect/{id}.
+    # Wire it here so the live API signal path consumes the real OE_factor
+    # rather than hardcoding 0.0. When FAISS is unavailable, falls back to 0.0
+    # with explicit disclosure so callers know the mental plane has not been
+    # dampened for reflexivity.
+    oe_data, oe_status = _proxy_faiss(f"/api/v1/observer_effect/{entity_id}")
+    if oe_status == 200 and isinstance(oe_data, dict) and "oe_factor" in oe_data:
+        oe_factor = float(oe_data.get("oe_factor", 0.0))
+        oe_source = "faiss_observer_effect"
+    else:
+        oe_factor = 0.0
+        oe_source = "faiss_unavailable_fallback_zero"
+    m_adj     = m_base * max(0.0, 1.0 - oe_factor)
 
     # ── L1.4 TI(sensor) = Calibration · Drift · CrossVerification ─────────────
     # Previously hash-derived calibration values fabricated sensor fidelity
@@ -1187,8 +1202,30 @@ def _compute_signal(entity_id: str) -> dict:
     sig_type = SignalType.VALUATION if coherent else SignalType.SILENCE
 
     # ── Validator estimates (L4.8 HHI) ────────────────────────────────────────
-    validator_count = int(7 + h[9] % 14)
-    validator_hhi   = round(2000.0 + (h[10] / 255.0) * 2000.0, 2)
+    # Previously: `validator_count = int(7 + h[9] % 14)` and
+    # `validator_hhi = 2000 + (h[10] / 255) * 2000` — pure hash-derived demo
+    # values pretending to be the live validator set composition. That
+    # contradicted the L4.8 fix on /api/v1/validator/hhi, which now uses real
+    # registry data. The signal path must use the SAME source-of-truth.
+    #
+    # Reuse the validator-hhi helpers (mesh → seed → empty-list fallback).
+    # When the mesh is unreachable we get the structured Phase-1 seed set; the
+    # signal carries an honest `validator_data_source` field so consumers can
+    # tell which path produced the figures (no more hash-derived leak).
+    _vs, _vsrc = _fetch_validator_mesh_hhi()
+    if _vs is None:
+        _vs, _ = _seed_validators_from_faiss()
+        _vsrc  = "faiss_service_seed_validators"
+    if _vs:
+        _total_stake = sum(v.effective_stake for v in _vs)
+        if _total_stake > 0:
+            _shares = [(v.effective_stake / _total_stake) ** 2 for v in _vs]
+            validator_count = len(_vs)
+            validator_hhi   = round(sum(_shares) * 10_000.0, 2)
+        else:
+            validator_count, validator_hhi = 0, 0.0
+    else:
+        validator_count, validator_hhi = 0, 0.0
     reflexivity_flag = oe_factor > 0.40
 
     # ── L0.5 M_moat & L5.3/L5.4 T(t) master equation ─────────────────────────
@@ -1273,6 +1310,7 @@ def _compute_signal(entity_id: str) -> dict:
         "akashic_depth":      depth_val,
         "observer_effect":    round(oe_factor, 6),
         "OE_factor":          round(oe_factor, 6),
+        "oe_source":          oe_source,
         "bootstrap_phase":    bootstrap_phase,
         "conf_genesis":       conf_genesis,
         "genomic_signature":  gen_sig,
@@ -1280,6 +1318,10 @@ def _compute_signal(entity_id: str) -> dict:
         "security_generation": 0,
         "validator_count":    validator_count,
         "validator_hhi":      validator_hhi,
+        # Honest disclosure: where validator_count / validator_hhi came from.
+        # Mirror the /api/v1/validator/hhi data-source label so consumers
+        # can correlate the signal's validator figures with the registry.
+        "validator_data_source": _vsrc,
         "reflexivity_flag":   reflexivity_flag,
         "provenance":         [],
         # ── Extended specification fields ────────────────────────────────────────
