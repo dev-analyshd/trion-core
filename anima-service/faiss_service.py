@@ -4569,15 +4569,168 @@ def _fp_fake_volume(records: list) -> float:
     return round(min(1.0, fake_count / max(1, len(window))), 4)
 
 
+def _mf_adapter_inputs(records: list) -> dict:
+    """
+    L1.2 adapter — convert FAISS entity_history records to the inputs each
+    spec-compliant manipulation detector (core/physical/manipulation_detector.py)
+    needs.
+
+    Mapping summary (each derived from the entity_history record list):
+      * cyclic_flow_ratio     — 1 − normalised CV of magnitudes (low CV ⇒
+        high cyclic flow ⇒ likely wash trading).
+      * counterparty_count    — len(records) proxy (the canonical BH ledger
+        stores from/to addresses, but entity_history only carries the
+        behavioral vector + magnitude/entropy — we surface the record count
+        as a conservative upper bound on unique counterparties).
+      * mev_ratio_30d         — fraction of recent records with high magnitude
+        AND low entropy (proxy for MEV extraction pattern).
+      * round_trip_ratio      — same shape as cyclic_flow_ratio (volume that
+        returns to origin).
+      * volume_spike_ratio    — recent_vol / historical_avg_vol.
+      * vol_entropy           — mean entropy across the recent window.
+      * sustained_days        — default 30d observation window.
+      * sync_buy_ratios       — empty list (honest zero — per-wallet sync
+        ratios require multi-entity clustering not available here).
+      * entity_count          — 1 (this entity only).
+
+    The remaining inputs (top_k_lp_share, lp_beo_count, vote_hhi,
+    proposal_age_hours, sandwich_count, zero_sum_trades,
+    spot_deviation_pct, blocks_since_swap, funding_source_count) are NOT
+    derivable from entity_history alone — they're surfaced as honest zeros
+    so the spec-compliant detectors do not trigger on data we don't have.
+    The detectors themselves return mf_score=0 when the trigger condition
+    isn't met, so honest zeros propagate cleanly.
+    """
+    if not records:
+        return {
+            "cyclic_flow_ratio":   0.0,
+            "counterparty_count":  0,
+            "top_k_lp_share":      0.0,
+            "lp_beo_count":        0,
+            "funding_source_count": 0,
+            "vote_hhi":            0.0,
+            "proposal_age_hours":  0.0,
+            "mev_ratio_30d":       0.0,
+            "sandwich_count":      0,
+            "sustained_days":      0.0,
+            "sync_buy_ratios":     [],
+            "entity_count":        0,
+            "round_trip_ratio":    0.0,
+            "zero_sum_trades":     0,
+            "volume_spike_ratio":  0.0,
+            "vol_entropy":         0.0,
+            "spot_deviation_pct":  0.0,
+            "blocks_since_swap":    0,
+        }
+    mags = [float(r.get("magnitude", 0.0) or 0.0) for r in records[-50:]]
+    ents = [float(r.get("entropy", 0.0) or 0.0) for r in records[-50:]]
+    mu = float(np.mean(mags)) if mags else 0.0
+    sigma = float(np.std(mags)) if mags else 0.0
+    cv = (sigma / mu) if mu > 1e-10 else 0.0
+    cyclic_flow_ratio = max(0.0, min(1.0, 1.0 - cv / WASH_CV_NATURAL))
+    counterparty_count = len(records)
+    # MEV ratio proxy: fraction of recent high-magnitude + low-entropy records.
+    mev_count = sum(
+        1 for r in records[-50:]
+        if float(r.get("magnitude", 0.0)) > 1.0
+        and float(r.get("entropy", 0.0)) < MEV_ENTROPY_MAX
+    )
+    mev_ratio_30d = float(mev_count) / max(1, len(records[-50:]))
+    round_trip_ratio = cyclic_flow_ratio  # same shape proxy
+    # Volume spike ratio: recent mean / historical mean.
+    n = len(mags)
+    if n >= 10:
+        recent_mean = float(np.mean(mags[-10:]))
+        hist_mean   = float(np.mean(mags[:-10])) if n > 10 else recent_mean
+    else:
+        recent_mean = float(np.mean(mags)) if mags else 0.0
+        hist_mean   = recent_mean
+    volume_spike_ratio = (
+        float(recent_mean / hist_mean) if hist_mean > 1e-10 else 0.0
+    )
+    vol_entropy = float(np.mean(ents)) if ents else 0.0
+    return {
+        "cyclic_flow_ratio":   cyclic_flow_ratio,
+        "counterparty_count":  counterparty_count,
+        "top_k_lp_share":      0.0,           # honest zero — LP concentration not tracked
+        "lp_beo_count":        0,              # honest zero
+        "funding_source_count": 0,             # honest zero
+        "vote_hhi":            0.0,            # honest zero — governance tracked elsewhere
+        "proposal_age_hours":  0.0,            # honest zero
+        "mev_ratio_30d":       mev_ratio_30d,
+        "sandwich_count":      0,              # honest zero
+        "sustained_days":      30.0,           # default 30d observation window
+        "sync_buy_ratios":     [],             # honest zero — needs multi-entity clustering
+        "entity_count":        1,              # this entity only
+        "round_trip_ratio":    round_trip_ratio,
+        "zero_sum_trades":     0,              # honest zero
+        "volume_spike_ratio":  volume_spike_ratio,
+        "vol_entropy":         vol_entropy,
+        "spot_deviation_pct":  0.0,            # honest zero — needs price feed
+        "blocks_since_swap":    0,             # honest zero
+    }
+
+
 def compute_manipulation_fingerprint(entity_id: str) -> dict:
     """
     L1.2 — Full Manipulation Fingerprint: 7 types → MF_score → Φ_adj multiplier.
     Φ_adj(t) = Φ(t) · (1 − MF_score).
+
+    Production path now wires the spec-compliant detect_* detectors from
+    core/physical/manipulation_detector.py (whitepaper L1.2 TYPE 1-7
+    formulas). The divergent _fp_* heuristics are retained as a deprecated
+    `legacy_fingerprints` view for backward-compatibility — the canonical
+    `fingerprints` dict is now keyed by the spec detector pattern_type
+    names (WASH_TRADING, ORACLE_ATTACK_ATTEMPT, SYBIL_LIQUIDITY,
+    GOVERNANCE_CAPTURE, MEV_EXTRACTION_SUSTAINED, COORDINATED_PUMP,
+    FAKE_VOLUME_PROTOCOL).
     """
     beo_id  = resolve_beo(entity_id)
     records = entity_history.get(beo_id, [])
 
-    scores: Dict[str, float] = {
+    # ── Spec-compliant detector inputs (adapter) ─────────────────────────────
+    inputs = _mf_adapter_inputs(records)
+
+    # ── Spec-compliant detect_* calls (whitepaper L1.2 TYPE 1-7) ──────────────
+    from core.physical.manipulation_detector import (
+        detect_oracle_attack, detect_wash_trading, detect_governance_capture,
+        detect_coordinated_pump, detect_mev_extraction, detect_fake_volume,
+        detect_sybil_liquidity, compute_mf_score as _spec_compute_mf_score,
+    )
+    spec_results = [
+        detect_oracle_attack(
+            inputs["spot_deviation_pct"], inputs["blocks_since_swap"],
+        ),
+        detect_wash_trading(
+            inputs["cyclic_flow_ratio"], inputs["counterparty_count"],
+        ),
+        detect_sybil_liquidity(
+            inputs["top_k_lp_share"], inputs["lp_beo_count"],
+            funding_source_count=inputs["funding_source_count"],
+        ),
+        detect_governance_capture(
+            inputs["vote_hhi"], inputs["proposal_age_hours"],
+        ),
+        detect_mev_extraction(
+            inputs["mev_ratio_30d"], inputs["sandwich_count"],
+            sustained_days=inputs["sustained_days"],
+        ),
+        detect_coordinated_pump(
+            inputs["sync_buy_ratios"], inputs["entity_count"],
+        ),
+        detect_fake_volume(
+            inputs["round_trip_ratio"], inputs["zero_sum_trades"],
+            inputs["volume_spike_ratio"], vol_entropy=inputs["vol_entropy"],
+        ),
+    ]
+    spec_aggregate = _spec_compute_mf_score(spec_results)
+    mf_score       = float(spec_aggregate.get("mf_score", 0.0))
+    dominant_type  = spec_aggregate.get("primary_type") or "CLEAN"
+    # Per-detector component scores (spec pattern_type names).
+    scores = {r.pattern_type: float(r.mf_score) for r in spec_results}
+
+    # ── Legacy heuristic fingerprints (deprecated view, backward-compat) ────
+    legacy_scores = {
         "WASH_TRADING":       _fp_wash_trading(records),
         "COORDINATED_PUMP":   _fp_coordinated_pump(records),
         "ORACLE_ATTACK":      _fp_oracle_attack(records),
@@ -4587,25 +4740,7 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
         "FAKE_VOLUME":        _fp_fake_volume(records),
     }
 
-    # specification L1.2: each type has a built-in scale coefficient, and
-    # MF_score = min(1.0, max(all active type contributions)).
-    # "Active contribution" = raw_score × specification_coefficient.
-    # Taking the MAX (not sum) means the single worst-detected fraud type
-    # determines the MF_score — one confirmed attack pattern is enough.
-    SPECIFICATION_SCALES = {
-        "WASH_TRADING":       0.70,   # 0.70 × cyclic_flow_ratio
-        "COORDINATED_PUMP":   0.85,   # 0.85 × sync_buy_ratio
-        "ORACLE_ATTACK":      1.00,   # 1.00  automatic when detected
-        "SYBIL_LIQUIDITY":    0.60,   # 0.60 × funding_concentration
-        "GOVERNANCE_CAPTURE": 0.50,   # 0.50 × (vote_HHI-2500)/7500
-        "MEV_EXTRACTION":     0.40,   # 0.40 × (mev_rate-0.005)/0.045
-        "FAKE_VOLUME":        0.80,   # 0.80 × (1-vol_entropy/H_baseline)
-    }
-    scaled_scores    = {k: v * SPECIFICATION_SCALES[k] for k, v in scores.items()}
-    mf_score         = round(min(1.0, max(scaled_scores.values())), 6)
-    dominant_type    = max(scaled_scores, key=scaled_scores.get)
-    dominant_score   = scaled_scores[dominant_type]
-    phi_adj_mult     = round(1.0 - mf_score, 6)
+    phi_adj_mult = round(1.0 - mf_score, 6)
 
     if mf_score >= 0.50:
         alert = "MANIPULATION_ALERT"
@@ -4617,10 +4752,7 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
     # ── Native FFT cross-check (TRION_AUDIT_REPORT.md P3-14) ─────────────────
     # Wires the compiled C++ FFT engine (cpp/fft_engine.cpp) into the live
     # WASH_TRADING detection path as an independent, additive cross-check —
-    # it never overrides the Python-computed mf_score, it only annotates it.
-    # Real periodic-frequency detection over the volume series is orthogonal
-    # to the Python heuristics above (cyclic-flow-ratio) and catches clock-
-    # driven wash patterns those heuristics can miss.
+    # it never overrides the spec-computed mf_score, it only annotates it.
     fft_check = {"available": False, "reason": "insufficient records"}
     if len(records) >= 8:
         try:
@@ -4634,12 +4766,16 @@ def compute_manipulation_fingerprint(entity_id: str) -> dict:
     return {
         "entity_id":          entity_id,
         "beo_id":             beo_id,
-        "mf_score":           mf_score,
+        "mf_score":           round(mf_score, 6),
         "phi_adj_multiplier": phi_adj_mult,
         "alert":              alert,
         "dominant_type":      dominant_type,
-        "dominant_score":     round(dominant_score, 4),
-        "fingerprints":       scores,
+        "dominant_score":     round(mf_score, 4),
+        "fingerprints":       scores,            # spec pattern_type names
+        "legacy_fingerprints": legacy_scores,    # deprecated heuristic view
+        "detected_types":     spec_aggregate.get("detected_types", []),
+        "detector_action":    spec_aggregate.get("action", "PASS"),
+        "adapter_inputs":     inputs,            # honest disclosure of derived inputs
         "record_count":       len(records),
         "fft_cross_check":    fft_check,
     }
