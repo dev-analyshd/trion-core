@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-09-16T02:31:04.072449",
+  "tool": "Z3 SMT Solver",
+  "z3_version": "5.1.0",
+  "contract": "contracts/vyper/TRIONStaking.vy",
+  "total_properties": 19,
+  "verified": 19,
+  "counterexamples": 0,
+  "unknown": 0,
+  "certification": "PASS",
+  "properties": [
+    {
+      "property": "slash_never_exceeds_stake",
+      "status": "VERIFIED",
+      "description": "For all valid slash types and stakes >= minimum, slashed_amount <= stake"
+    },
+    {
+      "property": "permanent_exclusion_COORDINATED_ATTACK_CONFIRMED",
+      "status": "VERIFIED",
+      "description": "Slash type COORDINATED_ATTACK_CONFIRMED at 5000 bps \u2014 permanent exclusion correctly enforced"
+    },
+    {
+      "property": "permanent_exclusion_SUSTAINED_LOW_ACCURACY",
+      "status": "VERIFIED",
+      "description": "Slash type SUSTAINED_LOW_ACCURACY at 300 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_HARDWARE_SECURITY_FAILURE",
+      "status": "VERIFIED",
+      "description": "Slash type HARDWARE_SECURITY_FAILURE at 1000 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_UPTIME_FAILURE",
+      "status": "VERIFIED",
+      "description": "Slash type UPTIME_FAILURE at 10 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_SYBIL_CLUSTER_CONFIRMED",
+      "status": "VERIFIED",
+      "description": "Slash type SYBIL_CLUSTER_CONFIRMED at 2500 bps \u2014 permanent exclusion correctly enforced"
+    },
+    {
+      "property": "permanent_exclusion_FALSE_COVERAGE_CLAIM_MINOR",
+      "status": "VERIFIED",
+      "description": "Slash type FALSE_COVERAGE_CLAIM_MINOR at 1000 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_FALSE_COVERAGE_CLAIM_MAJOR",
+      "status": "VERIFIED",
+      "description": "Slash type FALSE_COVERAGE_CLAIM_MAJOR at 2500 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_FALSE_COVERAGE_CLAIM_CRITICAL",
+      "status": "VERIFIED",
+      "description": "Slash type FALSE_COVERAGE_CLAIM_CRITICAL at 5000 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_COORDINATION_COLLAPSE",
+      "status": "VERIFIED",
+      "description": "Slash type COORDINATION_COLLAPSE at 10000 bps \u2014 permanent exclusion correctly enforced"
+    },
+    {
+      "property": "permanent_exclusion_COVERAGE_FRAUD",
+      "status": "VERIFIED",
+      "description": "Slash type COVERAGE_FRAUD at 5000 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "permanent_exclusion_SOCKPUPPET_CONFIRMED",
+      "status": "VERIFIED",
+      "description": "Slash type SOCKPUPPET_CONFIRMED at 10000 bps \u2014 permanent exclusion correctly enforced"
+    },
+    {
+      "property": "permanent_exclusion_BTCP_SPOOF_FLAG",
+      "status": "VERIFIED",
+      "description": "Slash type BTCP_SPOOF_FLAG at 500 bps \u2014 permanent exclusion correctly not required"
+    },
+    {
+      "property": "challenge_bond_is_5_percent",
+      "status": "VERIFIED",
+      "description": "Challenge bond equals 5% of slashed amount for all non-negative stakes"
+    },
+    {
+      "property": "dispute_window_72h",
+      "status": "VERIFIED",
+      "description": "Dispute window is exactly 72 hours per whitepaper L4.9"
+    },
+    {
+      "property": "effective_stake_gte_base",
+      "status": "VERIFIED",
+      "description": "Effective stake >= base stake for all coverage tiers (multiplier >= 1x)"
+    },
+    {
+      "property": "effective_stake_lte_10x",
+      "status": "VERIFIED",
+      "description": "Effective stake <= 10x base stake (multiplier <= 10x)"
+    },
+    {
+      "property": "uptime_slash_proportional",
+      "status": "VERIFIED",
+      "description": "UPTIME_FAILURE slash = 0.1% per day offline (10 bps * days)"
+    },
+    {
+      "property": "accuracy_slash_proportional",
+      "status": "VERIFIED",
+      "description": "SUSTAINED_LOW_ACCURACY slash = 3% per 30-day window (300 bps * windows)"
+    }
+  ]
+}
