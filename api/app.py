@@ -988,9 +988,115 @@ def _plane_values_staleness_s(eid: str):
     return round(time.time() - ts, 1)
 
 
+# ── L1.2 Manipulation Fingerprint (live, 7-pattern detector) ──────────────────
+# The previous stub `_mf_score = 0.05 + 0.30·(h[0]/255)` fabricated a score
+# from a hash of the entity id and bore no relation to the entity's actual
+# on-chain behaviour. It is retained here as a thin backward-compatible
+# scalar wrapper around `_live_manipulation_fingerprint`, which proxies
+# the real detector exposed by the anima-service at
+# /api/v1/manipulation_fingerprint/<eid> (core/physical/manipulation_detector.py
+# — 7 patterns: WASH_TRADING, COORDINATED_PUMP, ORACLE_ATTACK_ATTEMPT,
+# SYBIL_LIQUIDITY, GOVERNANCE_CAPTURE, MEV_EXTRACTION_SUSTAINED,
+# FAKE_VOLUME_PROTOCOL). Fail-closed to mf_score=0.0 when FAISS is
+# unreachable — which is the honest value when no behavioural history
+# exists (better than fabricating a hash-derived non-zero score).
+
+_MF_FALLBACK = {
+    "mf_score":           0.0,
+    "primary_type":       None,
+    "detected_types":     [],
+    "components":         {},
+    "alert_level":        "CLEAN",
+    "source":             "faiss_unavailable",
+    "phi_adj_multiplier": 1.0,
+    "action":             "PASS",
+}
+
+# Cache (eid -> (ts, dict)) for 5s — the live detector scans FAISS vectors
+# on every call and is rate-limited under burst load.
+_MF_CACHE_TTL = 5.0
+_mf_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _live_manipulation_fingerprint(eid: str) -> dict:
+    """
+    L1.2 — Manipulation Fingerprint (7 patterns, live FAISS-backed detector).
+
+    Proxies GET {FAISS_BASE}/api/v1/manipulation_fingerprint/{eid} which runs
+    the real detector at core/physical/manipulation_detector.py over the
+    entity's indexed behavioural history.
+
+    Returns a dict with:
+        mf_score           — composite ∈ [0,1] (0.0 if FAISS unreachable)
+        primary_type       — dominant pattern name (None if clean)
+        detected_types     — list of triggered pattern names
+        components         — per-pattern {name: score} dict (always 7 keys)
+        alert_level        — CLEAN / SUSPICIOUS / MALICIOUS
+        source             — 'faiss_live' | 'faiss_unavailable'
+        phi_adj_multiplier — 1.0 - mf_score (so Φ_adj = Φ × multiplier)
+        action             — PASS / DISCOUNT_PHI / IMMEDIATE_SILENCE
+
+    Fail-closed design: when the FAISS service is unreachable the function
+    returns mf_score=0.0 with source='faiss_unavailable'. This is the
+    honest value when no behavioural history exists — better than the prior
+    hash-derived stub (which fabricated a non-zero score from the entity id).
+    """
+    # 5s cache to absorb bursty callers that hit _compute_signal, /threat,
+    # /btv etc. on the same entity in the same request fan-out.
+    cached = _mf_cache.get(eid)
+    if cached and (time.time() - cached[0]) < _MF_CACHE_TTL:
+        return cached[1]
+
+    url = f"{_FAISS_BASE}/api/v1/manipulation_fingerprint/{eid}"
+    try:
+        with faiss_urlopen(url, timeout=2.5) as r:
+            payload = json.loads(r.read().decode("utf-8"))
+        # Normalise field names — the FAISS detector returns `components`
+        # as {pattern_type: mf_score}; we additionally surface the scalar
+        # multiplier + alert level for downstream consumers.
+        components = payload.get("components") or {}
+        mf_scalar  = float(payload.get("mf_score", 0.0) or 0.0)
+        if mf_scalar < 0.0 or mf_scalar > 1.0:
+            mf_scalar = max(0.0, min(1.0, mf_scalar))
+        if mf_scalar >= 0.70:
+            alert_level = "MALICIOUS"
+            action      = "IMMEDIATE_SILENCE"
+        elif mf_scalar >= 0.40:
+            alert_level = "SUSPICIOUS"
+            action      = "DISCOUNT_PHI"
+        else:
+            alert_level = "CLEAN"
+            action      = "PASS"
+        result = {
+            "mf_score":           round(mf_scalar, 6),
+            "primary_type":       payload.get("primary_type"),
+            "detected_types":     payload.get("detected_types", []),
+            "components":         components,
+            "alert_level":        alert_level,
+            "source":             "faiss_live",
+            "phi_adj_multiplier": round(1.0 - mf_scalar, 6),
+            "action":             action,
+        }
+    except Exception as _e:
+        # Fail-closed: honest 0.0 + source tag. Downstream code continues to
+        # function (C(t) computed with mf=0) but the response surfaces
+        # `source: 'faiss_unavailable'` so the consumer knows the detector
+        # was not consulted.
+        result = dict(_MF_FALLBACK)
+
+    _mf_cache[eid] = (time.time(), result)
+    return result
+
+
 def _mf_score(eid: str) -> float:
-    h = hashlib.sha256((eid + "mf").encode()).digest()
-    return round(0.05 + 0.30 * (h[0] / 255.0), 4)
+    """
+    Backward-compatible scalar wrapper around _live_manipulation_fingerprint.
+
+    Returns the composite mf_score ∈ [0,1] from the live 7-pattern detector
+    (proxied from the anima-service). 0.0 when FAISS is unreachable.
+    """
+    return _live_manipulation_fingerprint(eid)["mf_score"]
+
 
 def _market_volatility() -> float:
     t = time.time()
@@ -1095,6 +1201,11 @@ def _compute_signal(entity_id: str) -> dict:
         }
 
     mf     = _mf_score(entity_id)
+    # L1.2 — full per-type fingerprint for the response surface (callers
+    # like the Next.js dashboard's Manipulation Fingerprint Radar consume
+    # `manipulation_fingerprint.fingerprints`; the scalar `mf_score`
+    # field above is kept for backward compat).
+    mf_fp = _live_manipulation_fingerprint(entity_id)
     vol    = _market_volatility()
     h      = hashlib.sha3_256(entity_id.encode()).digest()
 
@@ -1289,6 +1400,7 @@ def _compute_signal(entity_id: str) -> dict:
         "limiting_plane":     limiting_plane,
         "archetype":          archetype,
         "mf_score":           mf,
+        "manipulation_fingerprint": mf_fp,
         "market_volatility":  vol,
         "plane_breakdown": {
             "physical":  round(phi_adjusted,   6),
