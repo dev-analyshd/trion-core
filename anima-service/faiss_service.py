@@ -4815,8 +4815,36 @@ def record_signal_publication(entity_id: str, signal_ts: float, entropy_at_pub: 
 def compute_observer_effect(entity_id: str) -> dict:
     """
     L3.2 — Observer Effect OE_factor ∈ [0,1].
-    For each past publication, compare mean entropy 1h before vs 1h after.
-    OE_factor = mean(|ΔH| / H_pre) across all measured publications.
+
+    specification (whitepaper §3.5 / Part 13 §13.4.11):
+        OE_factor = corr(signal_publication_events, behavioral_change_post_pub)
+
+    The previous implementation used mean(|ΔH| / H_pre) — a relative
+    entropy change ratio. That captures magnitude but not DIRECTION:
+    a publication that consistently causes the same directional shift
+    (e.g. always bullish sentiment after a VALUATION signal) has the
+    same OE_factor as one that causes random magnitude changes. The
+    spec calls for a Pearson correlation between the publication events
+    (encoded as a 0/1 time-series where 1 = publication) and the
+    behavioral-change post-publication (Δbehavior).
+
+    This commit replaces the magnitude ratio with the Pearson correlation
+    coefficient. The series are:
+      x_i ∈ {0, 1}      — 1 if publication i occurred in bucket i,
+                          0 otherwise (the publication indicator)
+      y_i = Δbehavior_i  — mean behavioral-state delta in the 1h window
+                          after bucket i (entropy delta, signed)
+
+    OE_factor = max(0, pearson_corr(x, y))   — clamped to [0, 1].
+    A correlation close to 1 means: "publication consistently causes
+    behavioral shift" — the observer effect is strong. A correlation
+    close to 0 means: "publications have no consistent effect on
+    behavior" — no observer effect. We clamp to ≥0 because a NEGATIVE
+    correlation (publication causes opposite behavioral shift) is
+    actually evidence of reflexivity, not absence of observer effect.
+
+    Falls back to the legacy magnitude ratio when fewer than 5
+    publication events are recorded (Pearson needs a minimum sample).
     """
     beo_id    = resolve_beo(entity_id)
     records   = entity_history.get(beo_id, [])
@@ -4831,31 +4859,100 @@ def compute_observer_effect(entity_id: str) -> dict:
             "reflexivity_flag":  False,
             "publication_count": len(pub_log),
             "status":            "insufficient_data",
+            "formula":           "pearson_corr(pub_indicator, delta_behavior) — needs ≥5 pubs",
         }
 
-    deltas = []
+    # ── Build the (x_i, y_i) paired series ────────────────────────────────────
+    # x_i = 1 (publication occurred in bucket i), y_i = Δbehavior (signed).
+    # We use the last 20 publications and compute Δbehavior as the signed
+    # entropy delta (post_mean − pre_mean) for each publication's 1h window.
+    paired_x: list[float] = []
+    paired_y: list[float] = []
+    legacy_deltas: list[float] = []   # for fallback
+
     for pub_ts, _ in pub_log[-20:]:
         pre_recs  = [r for r in records if pub_ts - 3600.0 <= r["ts"] < pub_ts]
         post_recs = [r for r in records if pub_ts < r["ts"] <= pub_ts + 3600.0]
         if pre_recs and post_recs:
             ent_pre  = float(np.mean([r["entropy"] for r in pre_recs]))
             ent_post = float(np.mean([r["entropy"] for r in post_recs]))
-            delta    = abs(ent_post - ent_pre) / max(ent_pre, 1e-6)
-            deltas.append(min(1.0, delta))
+            # Signed delta — the actual behavioral change (positive = entropy
+            # increased after publication, negative = decreased).
+            signed_delta = ent_post - ent_pre
+            paired_x.append(1.0)   # publication indicator = 1 for this bucket
+            paired_y.append(signed_delta)
+            # Legacy fallback computation (magnitude ratio)
+            legacy_deltas.append(min(1.0, abs(signed_delta) / max(ent_pre, 1e-6)))
 
-    oe_factor        = round(float(np.mean(deltas)) if deltas else 0.0, 6)
+    # ── Pearson correlation between pub indicator and Δbehavior ────────────────
+    # x has all 1s for the publication buckets — we need contrast buckets
+    # (where no publication occurred) to compute a meaningful correlation.
+    # We sample an equal number of non-publication buckets from the records
+    # to form the contrast set.
+    if len(paired_x) >= 5:
+        # Build contrast buckets: pick non-publication 1h windows
+        # at random offsets between publications.
+        pub_ts_set = {p[0] for p in pub_log}
+        all_ts = sorted([r["ts"] for r in records])
+        if len(all_ts) >= 2:
+            t_min, t_max = all_ts[0], all_ts[-1]
+            # Walk through time in 1h steps, sampling non-publication buckets
+            n_contrast = min(len(paired_x), 20)
+            contrast_y: list[float] = []
+            bucket_t = t_min
+            step = 3600.0
+            tries = 0
+            while len(contrast_y) < n_contrast and bucket_t < t_max and tries < 100:
+                tries += 1
+                # Skip if this bucket contains a publication
+                if any(abs(bucket_t - pt) < 1800.0 for pt in pub_ts_set):
+                    bucket_t += step
+                    continue
+                bucket_recs = [r for r in records if bucket_t <= r["ts"] < bucket_t + step]
+                if len(bucket_recs) >= 2:
+                    # Take the delta between the first and second half of the bucket
+                    mid = len(bucket_recs) // 2
+                    early = [r["entropy"] for r in bucket_recs[:mid]]
+                    late  = [r["entropy"] for r in bucket_recs[mid:]]
+                    if early and late:
+                        contrast_y.append(float(np.mean(late)) - float(np.mean(early)))
+                bucket_t += step
+
+            # Combine: x = [1,1,...,1, 0,0,...,0], y = pub_deltas + contrast_deltas
+            x = paired_x + [0.0] * len(contrast_y)
+            y = paired_y + contrast_y
+            if len(x) >= 5:
+                # Pearson correlation: cov(x,y) / (std(x) * std(y))
+                x_arr = np.array(x, dtype=float)
+                y_arr = np.array(y, dtype=float)
+                if x_arr.std() > 0 and y_arr.std() > 0:
+                    corr = float(np.corrcoef(x_arr, y_arr)[0, 1])
+                    # Clamp to [0, 1] — negative correlation is reflexivity, not OE absence
+                    oe_factor = max(0.0, min(1.0, corr))
+                else:
+                    # Zero variance — fall back to legacy magnitude ratio
+                    oe_factor = round(float(np.mean(legacy_deltas)) if legacy_deltas else 0.0, 6)
+            else:
+                oe_factor = round(float(np.mean(legacy_deltas)) if legacy_deltas else 0.0, 6)
+        else:
+            oe_factor = round(float(np.mean(legacy_deltas)) if legacy_deltas else 0.0, 6)
+    else:
+        # Fewer than 5 paired publications — fall back to legacy magnitude ratio
+        oe_factor = round(float(np.mean(legacy_deltas)) if legacy_deltas else 0.0, 6)
+
     reflexivity_flag = oe_factor > 0.30   # L3.5 threshold
     m_adj_mult       = round(1.0 - oe_factor, 6)
 
     return {
         "entity_id":         entity_id,
         "beo_id":            beo_id,
-        "oe_factor":         oe_factor,
+        "oe_factor":         round(oe_factor, 6),
         "m_adj_multiplier":  m_adj_mult,
         "reflexivity_flag":  reflexivity_flag,
         "publication_count": len(pub_log),
-        "measurements":      len(deltas),
+        "measurements":      len(paired_x),
         "status":            "ok",
+        "formula":           "pearson_corr(publication_indicator, signed_delta_behavior)",
     }
 
 
