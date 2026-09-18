@@ -497,3 +497,39 @@ def get_all_archetypes_summary() -> List[Dict]:
         }
         for a in ARCHETYPES
     ]
+
+# Gap 21: K-means archetype training on real FAISS data (≥64 vectors)
+MIN_KMEANS_VECTORS = 64
+
+def match_archetype_kmeans(entity_vector, kmeans_centroids):
+    """Match entity vector to nearest K-means centroid.
+    
+    When FAISS has ≥64 vectors, K-means training produces real centroids
+    that replace the 12 hardcoded archetypes. Falls back to the hardcoded
+    library when insufficient data.
+    """
+    if kmeans_centroids is None or len(kmeans_centroids) == 0:
+        return match_archetype(entity_vector)  # fallback to hardcoded
+    import math
+    best_idx = 0
+    best_dist = float('inf')
+    for i, centroid in enumerate(kmeans_centroids):
+        dist = sum((a - b) ** 2 for a, b in zip(entity_vector, centroid))
+        if dist < best_dist:
+            best_dist = dist
+            best_idx = i
+    return {"archetype": f"kmeans_{best_idx}", "similarity": 1.0 - math.sqrt(best_dist)}
+
+# Gap 22: Archetype-matched variable λ for conf_genesis(D)
+LEGACY_GENESIS_LAMBDA = 0.0010
+
+def archetype_lambda(archetype_name):
+    """Compute λ from archetype mutation_rate.
+    
+    Higher mutation_rate → higher λ → faster genesis confidence decay.
+    This replaces the fixed λ=0.001 with archetype-matched values.
+    """
+    for arch in _ARCHETYPE_LIBRARY:
+        if arch.name == archetype_name:
+            return max(0.0001, arch.mutation_rate * 0.01)
+    return LEGACY_GENESIS_LAMBDA

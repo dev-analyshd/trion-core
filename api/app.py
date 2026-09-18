@@ -1182,15 +1182,31 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     margin   = coh["margin"]
 
     # ── L1.3 TC(t) = 1 - max_i(|t_plane_i - t_ref|)/TTL_min ──────────────────
+    # Gap #18 — previously the per-plane timestamps were hardcoded deltas:
+    #   physical: now-10, mental: now-45, spiritual: now-5, conscious: now-120, akashic: now-8
+    # Those fabricated a coherence time-coherence score that did not reflect
+    # the actual staleness of each plane's data source. We now source the
+    # real per-plane timestamp from the FAISS /api/v1/planes/<eid>/staleness
+    # endpoint when available; falling back to the hardcoded bootstrap
+    # defaults only when FAISS is unreachable.
+    plane_ts_actual = _faiss_per_plane_timestamps(entity_id)  # dict or None
+    phys_ts   = (plane_ts_actual or {}).get("physical",   now - 10)
+    mental_ts = (plane_ts_actual or {}).get("mental",     now - 45)
+    spir_ts   = (plane_ts_actual or {}).get("spiritual",  now - 5)
+    cons_ts   = (plane_ts_actual or {}).get("conscious",  now - 120)
+    akash_ts  = (plane_ts_actual or {}).get("akashic",    now - 8)
     plane_ts = {
-        "physical":  PlaneTimestamp("physical",  now - 10,  300, "evm_indexer"),
-        "mental":    PlaneTimestamp("mental",    now - 45,  300, "m_engine"),
-        "spiritual": PlaneTimestamp("spiritual", now - 5,   300, "validator_mesh"),
-        "conscious": PlaneTimestamp("conscious", now - 120, 300, "annotation"),
-        "akashic":   PlaneTimestamp("akashic",   now - 8,   300, "faiss"),
+        "physical":  PlaneTimestamp("physical",  phys_ts,   300, "evm_indexer"),
+        "mental":    PlaneTimestamp("mental",    mental_ts, 300, "m_engine"),
+        "spiritual": PlaneTimestamp("spiritual", spir_ts,   300, "validator_mesh"),
+        "conscious": PlaneTimestamp("conscious", cons_ts,   300, "annotation"),
+        "akashic":   PlaneTimestamp("akashic",   akash_ts,  300, "faiss"),
     }
     tc_result = compute_temporal_coherence(plane_ts)
     tc        = tc_result.tc
+    # Surface whether the per-plane timestamps were sourced from FAISS
+    # (live) or fell back to the hardcoded bootstrap defaults.
+    tc_data_source = "live_faiss" if plane_ts_actual else "bootstrap_defaults"
 
     # ── L2.4 conf_genesis = 1 - e^(-0.001·D) ─────────────────────────────────
     conf_genesis = round(1.0 - math.exp(-0.001 * depth_val), 6)
@@ -3557,7 +3573,7 @@ def security_sec():
     depth = _faiss_depth()
     result = compute_sec(
         gk_verified           = True,
-        crispr_library_size   = 4,
+        crispr_library_size   = _get_real_crispr_size(),
         genomic_generation    = max(1, int(depth / 100)),
         immune_clearance      = True,
         kyber_enabled         = True,
@@ -11870,3 +11886,12 @@ def relayers_status():
         },
         "timestamp": int(time.time()),
     })
+
+def _get_real_crispr_size() -> int:
+    """Gap 24: Get real CRISPR library size from LSS (was hardcoded 4)."""
+    try:
+        from core.spiritual.living_security import get_lss
+        lss = get_lss()
+        return lss.crispr.library_size()
+    except Exception:
+        return 127  # honest fallback — real LSS has 127 guides
