@@ -400,6 +400,108 @@ class ChainRelay:
             log.error("Silence recording failed: %s", e)
             return {"error": str(e), "published": False}
 
+    # ── publishSignalWithType (gap #5) ────────────────────────────────────────
+    # Typed emission: routes VALUATION through publish_behavioral_signal_v3 and
+    # every other SignalType (SILENCE, MANIPULATION_ALERT, GENESIS, …) through
+    # record_silence with the signal_type carried in the metadata. The 24-type
+    # canonical taxonomy (M-073) is encoded in the high byte of `threshold`
+    # so the contract preserves the legacy ABI while consumers can read the
+    # full type from the on-chain receipt's `signalType` topic.
+    _TYPED_SIGNAL_SILENCE_FAMILY = {
+        "SILENCE", "BOOTSTRAP", "GENESIS",
+    }
+
+    def publishSignalWithType(self,
+            entity_b32: bytes,
+            signal_type: str,
+            commitment: bytes,
+            coherence_score: int,
+            threshold: int,
+            moat_factor: int,
+            coherent: bool,
+            limiting_plane: int,
+            phi_plane: int = 0,
+            mental_plane: int = 0,
+            sigma_plane: int = 0,
+            conscious_plane: int = 0,
+            anima_plane: int = 0) -> dict:
+        """
+        Publish a behavioral signal carrying its 24-type taxonomy tag.
+
+        - VALUATION → publishBehavioralSignal (rich V3 path, all 5 planes).
+        - SILENCE family (SILENCE, BOOTSTRAP, GENESIS) → record_silence
+          (coherent=False, contract auto-emits SilenceRecorded).
+        - All other types (MANIPULATION_ALERT, RESURRECTION, TRAJECTORY, …)
+          → publishBehavioralSignal with the type encoded in the high byte
+          of `threshold` so the existing ABI carries it without a contract
+          upgrade.
+
+        Returns the chain-receipt dict (same shape as the V3 path) with an
+        added `signal_type` field for downstream consumers.
+        """
+        # SILENCE family — delegate to record_silence.
+        if signal_type in self._TYPED_SIGNAL_SILENCE_FAMILY or not coherent:
+            receipt = self.record_silence(
+                entity_b32=entity_b32,
+                coherence_score=coherence_score,
+                threshold=threshold,
+                limiting_plane=limiting_plane,
+            )
+            receipt["signal_type"] = "SILENCE"
+            receipt["requested_signal_type"] = signal_type
+            return receipt
+
+        # VALUATION — rich V3 path.
+        if signal_type == "VALUATION":
+            receipt = self.publish_behavioral_signal_v3(
+                entity_b32=entity_b32,
+                commitment=commitment,
+                coherence_score=coherence_score,
+                threshold=threshold,
+                moat_factor=moat_factor,
+                coherent=True,
+                limiting_plane=limiting_plane,
+                phi_plane=phi_plane,
+                mental_plane=mental_plane,
+                sigma_plane=sigma_plane,
+                conscious_plane=conscious_plane,
+                anima_plane=anima_plane,
+            )
+            receipt["signal_type"] = "VALUATION"
+            return receipt
+
+        # Other typed signals — encode the type in the high byte of the
+        # threshold field (the legacy ABI cannot accept a new arg without a
+        # contract upgrade, so we pack the type into the upper 8 bits of
+        # the existing uint256 threshold). Consumers reading the receipt
+        # decode `signal_type_id = threshold >> 248` and `real_threshold =
+        # threshold & ((1 << 248) - 1)`.
+        try:
+            from core.master.signal_factory import SignalType
+            sig_enum = SignalType[signal_type]
+            sig_id   = int(sig_enum)
+        except Exception:
+            sig_id = 0  # default to VALUATION when unknown
+        packed_threshold = ((sig_id & 0xFF) << 248) | (threshold & ((1 << 248) - 1))
+        receipt = self.publish_behavioral_signal_v3(
+            entity_b32=entity_b32,
+            commitment=commitment,
+            coherence_score=coherence_score,
+            threshold=packed_threshold,
+            moat_factor=moat_factor,
+            coherent=True,
+            limiting_plane=limiting_plane,
+            phi_plane=phi_plane,
+            mental_plane=mental_plane,
+            sigma_plane=sigma_plane,
+            conscious_plane=conscious_plane,
+            anima_plane=anima_plane,
+        )
+        receipt["signal_type"]      = signal_type
+        receipt["signal_type_id"]   = sig_id
+        receipt["threshold_packed"] = "signal_type_id_in_high_byte"
+        return receipt
+
     def get_behavioral_signal(self, entity_b32: bytes) -> dict:
         """Read a behavioral signal from the V3 oracle contract."""
         if not self.ready:
