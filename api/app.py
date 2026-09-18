@@ -142,6 +142,73 @@ _rl_cleanup_thread = threading.Thread(
 _rl_cleanup_thread.start()
 
 
+# ── Gap #9 — AWA evaluate() at startup with real inputs ───────────────────────
+# Per spec §17: every signal emission passes through the AWA gate, but the
+# gate itself was never evaluated at oracle startup with real inputs — it
+# defaulted to a frozen state because the initial evaluate() call had never
+# happened. The first /api/v1/signal request would then see an empty
+# _last_state and the gate logic would only run after that request.
+#
+# We now invoke AWAEnforcer.evaluate() ONCE at module load with the real
+# bootstrap inputs (live akashic depth from FAISS, hardcoded bootstrap
+# defaults for the conditions that have no live source yet — quorum=0,
+# HHI=10000, public_good=0.10, gratitude=0 — surfaced as DATA_PENDING in
+# the freeze reason). The emission gate is updated from the resulting
+# AWAState, so the very first /api/v1/signal already carries the honest
+# AWA freeze state.
+def _awa_startup_evaluate():
+    """Call AWAEnforcer.evaluate() at oracle startup with real inputs.
+
+    Reads the live akashic_depth from FAISS (via the _faiss_depth helper)
+    so the gate's bootstrap_weight (e^(-0.0001·D)) is computed from real
+    data. Other inputs default to honest bootstrap values: quorum=0 (no
+    validators yet), HHI=10000 (concentrated), public_good=0.10, gratitude
+    score from the gratitude protocol's history (typically 0 at startup).
+    """
+    try:
+        from core.governance.awa import AWAEnforcer, get_emission_gate
+        # Live akashic_depth from FAISS — fail-soft to 0 if FAISS is down
+        # or _faiss_depth is not yet defined (late-binding safety).
+        try:
+            depth = float(_faiss_depth() or 0.0)
+        except Exception:
+            depth = 0.0
+        enforcer = AWAEnforcer()
+        state = enforcer.evaluate(
+            consensus_quorum           = 0.0,         # no validators yet
+            validator_hhi              = 10000.0,     # maximally concentrated
+            public_good_pct            = 0.10,        # below 15% charter minimum
+            akashic_depth              = depth,       # REAL live depth
+            now                        = time.time(),
+            # Both distributions are None at startup — the anti-centralization
+            # checks default to PASS (presumption of innocence) but the
+            # disclosure surfaces 'DATA_PENDING' so operators know the
+            # measurement has not been wired yet.
+            signal_weight_distribution   = None,
+            validator_stake_distribution = None,
+        )
+        gate = get_emission_gate()
+        gate._update_from_state(state)
+        _log.info(
+            "AWA startup evaluate: enforced=%s status=%s akashic_depth=%s "
+            "failing_conditions=%s",
+            state.enforced, state.status, depth, state.failing,
+        )
+    except Exception as e:
+        # Fail-soft: if the AWA module cannot be imported (broken install)
+        # the oracle still serves /healthz — every /api/v1/signal will
+        # return 503 with 'AWA gate unavailable' via assert_emission_allowed.
+        _log.warning("AWA startup evaluate failed (oracle will run fail-closed): %s", e)
+
+
+# Invoke at module import — deferred 0.1s so all module-level helpers
+# (especially _faiss_depth at line ~3800) are defined before the call.
+# The delay is shorter than any reasonable request roundtrip, so the
+# gate is populated before the first /api/v1/signal arrives.
+import threading as _awa_timer_mod
+_awa_timer_mod.Timer(0.1, _awa_startup_evaluate).start()
+
+
 @app.before_request
 def _rate_limit():
     # Allow health probes and static files through without counting
