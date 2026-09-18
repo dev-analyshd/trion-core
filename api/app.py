@@ -1195,6 +1195,68 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     # ── L2.4 conf_genesis = 1 - e^(-0.001·D) ─────────────────────────────────
     conf_genesis = round(1.0 - math.exp(-0.001 * depth_val), 6)
 
+    # ── Gap #17 — auto-couple trajectory anomaly to conf_genesis=0 ──────────
+    # When the trajectory-anomaly detector flags the entity's behavioral
+    # distribution as anomalous (KL(P_actual || P_expected) > theta_anomaly),
+    # the genesis inference is invalidated. Per spec L2.4: an invalidated
+    # genesis collapses conf_genesis to 0 — the protocol cannot trust
+    # the entity's claimed behavioral lineage until the anomaly is resolved
+    # (typically by re-accumulating a fresh behavioral window).
+    #
+    # Previously, the trajectory anomaly surfaced only a 'genesis_invalidated'
+    # boolean on its own response, leaving conf_genesis at its depth-derived
+    # value. This was a soft-coupling that allowed downstream consumers to
+    # miss the invalidation. We now hard-couple: when the anomaly detector
+    # fires, conf_genesis is forced to 0 here in the live signal path.
+    try:
+        from core.akashic.trajectory_anomaly import (
+            compute_trajectory_anomaly, TrajectoryDistribution,
+        )
+        # Use the plane values as a 5-element behavioral distribution proxy.
+        # Real trajectory anomalies would compute this from the entity's
+        # full outcome histogram in FAISS; the 5-plane vector is the
+        # honest proxy available without a FAISS round-trip.
+        p_actual   = [max(1e-9, planes["phi"]),
+                     max(1e-9, planes["m"]),
+                     max(1e-9, planes["sigma"]),
+                     max(1e-9, planes["k"]),
+                     max(1e-9, planes["anima"])]
+        total     = sum(p_actual)
+        p_actual  = [p / total for p in p_actual]
+        # Expected distribution: uniform 5-element prior (1/5 each) — the
+        # "balanced protocol" reference. A real implementation would fetch
+        # the entity's archetype's expected distribution from FAISS.
+        p_expected = [0.2, 0.2, 0.2, 0.2, 0.2]
+        traj_result = compute_trajectory_anomaly(
+            entity_id   = entity_id,
+            p_actual    = TrajectoryDistribution(outcomes=["phi","m","sigma","k","anima"],
+                                                 probs=p_actual),
+            p_expected  = TrajectoryDistribution(outcomes=["phi","m","sigma","k","anima"],
+                                                 probs=p_expected),
+            theta_anomaly = 0.30,
+            in_genesis    = True,
+        )
+        if traj_result.genesis_invalidated:
+            # Hard-couple: collapse conf_genesis to 0 — the genesis inference
+            # is invalidated by the trajectory anomaly.
+            conf_genesis = 0.0
+            _log.info("trajectory anomaly invalidated genesis for %s: KL=%.4f alert=%s",
+                      entity_id, traj_result.kl_divergence, traj_result.alert_type)
+            # Surface the anomaly on the signal so consumers see WHY
+            # conf_genesis dropped to 0.
+            traj_payload = {
+                "kl_divergence":      round(traj_result.kl_divergence, 6),
+                "theta_anomaly":      traj_result.theta_anomaly,
+                "anomaly_detected":   traj_result.anomaly_detected,
+                "alert_type":         traj_result.alert_type,
+                "dominant_deviation": traj_result.dominant_deviation,
+                "reflexivity_flag":   traj_result.reflexivity_flag,
+            }
+        else:
+            traj_payload = None
+    except Exception as _e:
+        traj_payload = None  # fail-soft: keep conf_genesis at depth-derived value
+
     # ── CI_95: ±1.96σ where σ ≈ 0.05·(1-mf) ──────────────────────────────────
     sigma_est = max(0.01, 0.05 * (1.0 - mf))
     ci_lower  = round(max(0.0, C - 1.96 * sigma_est), 6)
@@ -1358,6 +1420,10 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
             "OE_factor (L3.2) caps M_adj below M_base for highly-observed protocols — "
             "this is working as designed: reflexivity bounds the Mental plane."
         ),
+        # Trajectory anomaly payload (gap #17) — surfaced only when the
+        # anomaly detector fired AND collapsed conf_genesis to 0. Absent
+        # otherwise (never fabricated).
+        "trajectory_anomaly": traj_payload,
         # Signal is now constructed via build_signal — surface this so
         # audit consumers can verify the schema is the canonical one
         # (rather than the ad-hoc dict that lived here pre-gap-#3).
