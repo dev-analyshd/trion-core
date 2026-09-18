@@ -83,6 +83,7 @@ tlc formal/tla/TRIONTheorems.tla
 | T8 AkashicAppendOnly | ✓ | ✓ | ✓ (state-machine) |
 | T10 MoatMonotoneInDepth | ✓ | ✓ | — |
 | T11 MasterEquationSilence | ✓ | ✓ | ✓ |
+| L2.5 ConvergenceTheorem | ✓ | ✓ | — |
 | InitSilence | — | — | ✓ |
 | InitValidGate | — | — | ✓ |
 

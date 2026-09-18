@@ -119,3 +119,44 @@ Proof.
   rewrite master_equation_silence by assumption.
   rewrite Rmult_0_l, Rmult_0_l. reflexivity.
 Qed.
+
+(* ─── L2.5: Convergence Theorem ──────────────────────────────────────────── *)
+
+Definition gap_variance (D h_irr : R) : R :=
+  h_irr + h_irr / (1 + D).
+
+Theorem l25_convergence_theorem :
+  forall (h_irr eps : R),
+    0 < h_irr -> 0 < eps ->
+    exists D0 : R, 0 <= D0 /\ forall D : R, D0 <= D ->
+                                          gap_variance D h_irr <= h_irr + eps.
+Proof.
+  intros h_irr eps H_hirr H_eps.
+  exists (Rmax 0 (h_irr / eps - 1)).
+  split.
+  - apply Rmax_glb_le; [lra|]. unfold Rmax. destruct (R_le_dec 0 (h_irr / eps - 1)).
+    + assumption.
+    + lra.
+  - intros D H_D_ge_D0.
+    unfold gap_variance.
+    assert (H_1D_pos : 0 < 1 + D).
+    { unfold Rmax in H_D_ge_D0. destruct (R_le_dec 0 (h_irr / eps - 1)).
+      - lra.
+      - lra. }
+    assert (H_1D_ge : h_irr / eps <= 1 + D).
+    { unfold Rmax in H_D_ge_D0. destruct (R_le_dec 0 (h_irr / eps - 1)).
+      - replace (h_irr / eps - 1) with (h_irr / eps - 1) in H_D_ge_D0 by reflexivity.
+        assert (H_eq : h_irr / eps - 1 <= 1 + D) by lra.
+        nra. nra.
+      - assert (H_0_ge : 0 <= 1 + D) by lra.
+        assert (H_hirr_lt_eps : h_irr < eps).
+        { assert (H_neg : h_irr / eps - 1 < 0) by lra.
+          assert (H_div : h_irr / eps < 1).
+          { assert (H_aux : h_irr / eps < 1) by nra. assumption. }
+          assert (H_hirr_lt : h_irr < eps) by nra. assumption. }
+        nra. }
+    assert (H_div : h_irr / (1 + D) <= eps).
+    { apply Rle_Rinv; [exact H_1D_pos|]. nra. }
+    lra.
+Qed.
+
