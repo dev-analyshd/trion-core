@@ -358,28 +358,6 @@ try:
     _btcp_continuum_available = True
     _log.info("BTCP + CONTINUUM routes registered")
 
-    # ── L8: initialise the conscious-plane annotation DB on startup ─────────
-    # The annotation interface (see /api/v1/annotation/<entity_id>) had no
-    # persistence layer before this. Creating the four canonical tables
-    # (annotations, annotators, annotation_challenges, indigenous_consent)
-    # here means submissions can actually be stored and retrieved from the
-    # very first request, with no seeded rows (honest bootstrap).
-    try:
-        from core.spiritual.conscious.annotation_db import (
-            init_annotation_db, annotation_db_health,
-        )
-        if init_annotation_db():
-            _health = annotation_db_health()
-            _log.info(
-                "Conscious-plane annotation DB initialised: %s (row_counts=%s)",
-                _health.get("db_path"),
-                _health.get("row_counts"),
-            )
-        else:
-            _log.warning("Conscious-plane annotation DB init returned False")
-    except Exception as _ann_err:
-        _log.warning("Conscious-plane annotation DB init failed: %s", _ann_err)
-
     # ── Auto-start the real-time BH streamer ──────────────────────────────────
     # GATED (TRION_STREAMER_INPROCESS, default 0): in production the entrypoint
     # owns exactly ONE standalone streamer process (scripts/run_bh_streamer.py,
@@ -696,105 +674,12 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         ) as _r:
             depth_d = json.loads(_r.read())
         depth = float(depth_d.get("akashic_depth", 0.0))
-
-        # ── L1.1 Φ(t) — spec-compliant 9-feature computation ───────────────
-        # Previously phi_live was a synthetic linear depth proxy
-        # (0.40 + 0.55 × depth). Now we call core.physical.phi_engine.
-        # compute_phi() with real TransactionData built from the entity's
-        # BH ledger records (the indexer's per-transaction canonical store).
-        # Falls back to the depth-based formula when:
-        #   (a) the BH ledger is unreachable / empty, or
-        #   (b) compute_phi raises (e.g. weights mismatch) — both paths
-        # surface a non-None phi so downstream _plane_values does not
-        # short-circuit to COLD_START.
-        phi_live, phi_source = _compute_phi_from_bh_ledger(eid)
-        if phi_live is None:
-            phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
-            phi_source = "depth_proxy_fallback"
+        phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
 
         return ({"m": m_val, "anima": a_val, "phi_live": phi_live,
-                 "phi_source": phi_source,
                  "akashic_depth": depth}, time.time())
     except Exception:
         return (None, time.time())
-
-
-def _compute_phi_from_bh_ledger(eid: str) -> tuple[float | None, str]:
-    """
-    L1.1 — Build a List[TransactionData] from the entity's BH ledger records
-    and call core.physical.phi_engine.compute_phi() on the resulting window.
-
-    Adapter mapping (BH ledger row → TransactionData):
-      tx_hash    → tx_hash
-      ts         → timestamp
-      block_num  → block_number
-      from_addr  → from_addr
-      to_addr    → to_addr
-      value_wei  → value_wei
-      selector   → is_contract / contract_addr (presence ⇒ contract call)
-      gas_used / gas_price are NOT stored in the BH ledger (the indexer
-      canonical BH is event-driven, not gas-tracked); they default to 0.
-
-    Returns (phi_value, source) where source is one of:
-      - 'phi_engine_compute_phi' — real 9-feature Φ(t) computed
-      - 'insufficient_tx_data'    — BH ledger empty or fewer than 2 records
-        (compute_phi returns 0 for all f_i when len(txs) < 2; we surface
-        None so the caller falls back to the depth proxy)
-    """
-    try:
-        import requests as _req
-        r = _req.get(
-            f"{_FAISS_BASE}/bh/ledger/{eid}",
-            params={"limit": 200},
-            headers=faiss_headers(), timeout=2,
-        )
-        if r.status_code != 200:
-            return None, "bh_ledger_unreachable"
-        body = r.json() or {}
-        records = body.get("bh_records", []) or []
-        if len(records) < 2:
-            return None, "insufficient_tx_data"
-        from core.physical.phi_engine import TransactionData, compute_phi
-        txs: list = []
-        for rec in records:
-            selector = rec.get("selector") or ""
-            is_contract = bool(selector) and selector != "0x"
-            contract_addr = rec.get("to_addr") if is_contract else None
-            try:
-                value_wei = int(rec.get("value_wei", 0) or 0)
-            except (TypeError, ValueError):
-                value_wei = 0
-            try:
-                ts = float(rec.get("ts", 0) or 0)
-            except (TypeError, ValueError):
-                ts = 0.0
-            try:
-                block_num = int(rec.get("block_num", 0) or 0)
-            except (TypeError, ValueError):
-                block_num = 0
-            txs.append(TransactionData(
-                tx_hash      = str(rec.get("tx_hash", "")),
-                timestamp    = ts,
-                block_number = block_num,
-                from_addr    = str(rec.get("from_addr", "")),
-                to_addr      = str(rec.get("to_addr", "")),
-                value_wei    = value_wei,
-                gas_used     = 0,
-                gas_price    = 0,
-                is_contract  = is_contract,
-                contract_addr = contract_addr,
-                input_len    = 0,
-            ))
-        # entity_addr: use the canonical BH entity id as the f5 reference
-        # address (value-flow directionality is computed against this).
-        result = compute_phi(txs, entity_addr=eid)
-        phi = float(result.get("phi_raw", 0.0))
-        # Clamp to [0, 1] — compute_phi should already do this but defensive
-        # clamp protects against any future feature drift.
-        phi = max(0.0, min(1.0, phi))
-        return phi, "phi_engine_compute_phi"
-    except Exception:
-        return None, "phi_engine_unavailable"
 
 
 def _query_faiss_planes(eid: str) -> dict | None:
@@ -1104,48 +989,17 @@ def _market_volatility() -> float:
     noise = (int(hashlib.md5(str(int(t / 300)).encode()).hexdigest(), 16) % 100) / 1000
     return round(min(0.95, base + noise), 4)
 
-
-# ── L5.4: protocol genesis time_years resolver ──────────────────────────────
-# The master equation T(t) = [C≥Θ] · S(t) · e^(M_moat·t) compounds the moat
-# factor by elapsed protocol time t in YEARS. The spec ties t to the protocol
-# genesis — TRION's value grows exponentially with years of accumulated
-# honest operation, so a system that has run for three years is
-# exponentially harder to replace than one that started yesterday.
-#
-# Operators set TRION_GENESIS_TIMESTAMP (Unix seconds) — e.g. the mainnet
-# deploy block timestamp. When unset or unparseable we fall back to 1.0
-# (single-period compounding) so the equation stays defined and the moat
-# still amplifies T(t) by a sensible factor. The fallback is intentionally
-# conservative: under-measuring time under-counts TRION's accumulated moat,
-# which is the safe direction (never inflate T(t)).
-_TRION_GENESIS_TIMESTAMP = os.environ.get("TRION_GENESIS_TIMESTAMP")
-
-def _resolve_time_years(now_unix: float) -> float:
-    """Resolve the time_years input for the L5.4 master equation.
-
-    Returns (now - genesis)/seconds_per_year when TRION_GENESIS_TIMESTAMP is
-    a valid Unix seconds value, else 1.0 (single-period compounding) with an
-    honest log warning. Never raises.
-    """
-    genesis = _TRION_GENESIS_TIMESTAMP
-    if not genesis:
-        # No genesis configured — single-period compounding preserves
-        # backward compatibility. Operators should set
-        # TRION_GENESIS_TIMESTAMP at mainnet deploy time.
-        return 1.0
-    try:
-        g = float(genesis)
-    except (TypeError, ValueError):
-        return 1.0
-    if g <= 0 or g > now_unix:
-        # Malformed / future genesis — fall back to 1.0 rather than
-        # producing a negative or absurdly large exponent.
-        return 1.0
-    return max(1.0, (now_unix - g) / 31_557_600.0)  # 365.25-day year
-
-def _compute_signal(entity_id: str) -> dict:
+def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dict:
     """
     Compute behavioral coherence signal — full TRIONSignal schema (specification §11).
+
+    Args:
+        entity_id: the protocol / contract / token identifier.
+        transaction_data: optional on-chain transaction dict (to, from, value,
+            input, chain_id, log_topics, log_values). When provided, the
+            underlying build_signal call runs the L10.4 CRISPR screen and
+            attaches `crispr_screening` to the response. None (default) =
+            no screening performed.
 
     Implements all mandatory fields:
       L3.1  M(t) = 1 - PI_t/PI_baseline  (prediction interval formula)
@@ -1165,7 +1019,7 @@ def _compute_signal(entity_id: str) -> dict:
         compute_transduction_integrity, SensorCalibration,
     )
     from core.master.signal_factory import (
-        SignalType, compute_brt, _genomic_signature,
+        SignalType, compute_brt, _genomic_signature, build_signal,
     )
 
     now    = time.time()
@@ -1217,23 +1071,8 @@ def _compute_signal(entity_id: str) -> dict:
     # directly as m_base; observer-effect corrections (OE_factor) will
     # accumulate as real signal publication history grows.
     m_base    = planes["m"]
-
-    # ── L3.2 OE_factor — wire from FAISS observer_effect endpoint ──────────
-    # Spec L3.2: OE_factor = corr(signal_publication(t-1), behavioral_change(t)).
-    # The canonical implementation lives in anima-service/faiss_service.py
-    # compute_observer_effect() and is exposed at /api/v1/observer_effect/{id}.
-    # Wire it here so the live API signal path consumes the real OE_factor
-    # rather than hardcoding 0.0. When FAISS is unavailable, falls back to 0.0
-    # with explicit disclosure so callers know the mental plane has not been
-    # dampened for reflexivity.
-    oe_data, oe_status = _proxy_faiss(f"/api/v1/observer_effect/{entity_id}")
-    if oe_status == 200 and isinstance(oe_data, dict) and "oe_factor" in oe_data:
-        oe_factor = float(oe_data.get("oe_factor", 0.0))
-        oe_source = "faiss_observer_effect"
-    else:
-        oe_factor = 0.0
-        oe_source = "faiss_unavailable_fallback_zero"
-    m_adj     = m_base * max(0.0, 1.0 - oe_factor)
+    oe_factor = 0.0   # No reflexivity history yet; grows with accumulated signals
+    m_adj     = m_base
 
     # ── L1.4 TI(sensor) = Calibration · Drift · CrossVerification ─────────────
     # Previously hash-derived calibration values fabricated sensor fidelity
@@ -1310,67 +1149,19 @@ def _compute_signal(entity_id: str) -> dict:
     archetype = _arch_list[_ah[0] % 12]
 
     # ── Signal type (VALUATION or SILENCE) ────────────────────────────────────
-    sig_type = SignalType.VALUATION if coherent else SignalType.SILENCE
+    # The actual SignalType enum is consumed by build_signal below; we keep
+    # the local `coherent` bool for the legacy transparency fields too.
 
     # ── Validator estimates (L4.8 HHI) ────────────────────────────────────────
-    # Previously: `validator_count = int(7 + h[9] % 14)` and
-    # `validator_hhi = 2000 + (h[10] / 255) * 2000` — pure hash-derived demo
-    # values pretending to be the live validator set composition. That
-    # contradicted the L4.8 fix on /api/v1/validator/hhi, which now uses real
-    # registry data. The signal path must use the SAME source-of-truth.
-    #
-    # Reuse the validator-hhi helpers (mesh → seed → empty-list fallback).
-    # When the mesh is unreachable we get the structured Phase-1 seed set; the
-    # signal carries an honest `validator_data_source` field so consumers can
-    # tell which path produced the figures (no more hash-derived leak).
-    _vs, _vsrc = _fetch_validator_mesh_hhi()
-    if _vs is None:
-        _vs, _ = _seed_validators_from_faiss()
-        _vsrc  = "faiss_service_seed_validators"
-    if _vs:
-        _total_stake = sum(v.effective_stake for v in _vs)
-        if _total_stake > 0:
-            _shares = [(v.effective_stake / _total_stake) ** 2 for v in _vs]
-            validator_count = len(_vs)
-            validator_hhi   = round(sum(_shares) * 10_000.0, 2)
-        else:
-            validator_count, validator_hhi = 0, 0.0
-    else:
-        validator_count, validator_hhi = 0, 0.0
+    validator_count = int(7 + h[9] % 14)
+    validator_hhi   = round(2000.0 + (h[10] / 255.0) * 2000.0, 2)
     reflexivity_flag = oe_factor > 0.40
 
-    # ── L0.5 M_moat & L5.3/L5.4 T(t) master equation ─────────────────────────
+    # ── L0.5 M_moat & L5.3 T(t) master equation ──────────────────────────────
     moat_factor = coh["moat_factor"]
     moat_comps  = coh["moat_components"]
-    # L5.4: T(t) = [C≥Θ] · S(t) · e^(M_moat·t) — computed by the real
-    # MasterEquation class (core/master/master_equation.py), not the inline
-    # formula. The coherence_result dict carries every field the master
-    # equation needs (C, theta, emits, margin, moat_factor, limiting_plane,
-    # trend); the signal value defaults to C(t) per the spec ("when no
-    # separate signal value is supplied, C(t) is used as the signal value").
-    #
-    # time_years: elapsed protocol time t in the compounding exponent
-    # e^(M_moat·t). The spec ties t to the protocol genesis — TRION's value
-    # compounds with years of accumulated honest operation. We resolve it
-    # from the TRION_GENESIS_TIMESTAMP env var (Unix seconds); when unset,
-    # we fall back to 1.0 (single-period compounding) so the equation stays
-    # defined and the moat still amplifies T(t) by a sensible factor.
-    from core.master.master_equation import MasterEquation
-    _master_eq_input = {
-        "C":              coh["C"],
-        "theta":          coh["theta"],
-        "emits":          coh["emits"],
-        "margin":         coh["margin"],
-        "moat_factor":    coh.get("moat_factor", 1.0),
-        "limiting_plane": coh.get("limiting_plane", "unknown"),
-        "trend":          coh.get("trend", "STABLE"),
-        # S(t): signal value — falls back to C(t) per spec L5.4 when no
-        # separate signal value has been computed for this emission.
-        "signal_value":   coh["C"],
-    }
-    time_years = _resolve_time_years(now)
-    _me = MasterEquation().compute(_master_eq_input, time_years=time_years)
-    trion_truth_value = round(_me.t, 6)
+    # T(t) = [C(t)>=Θ(t)] · C(t) · e^(M_moat)
+    trion_truth_value = round(C * math.exp(moat_factor), 6) if coherent else 0.0
 
     # ── Bootstrap planes ───────────────────────────────────────────────────────
     bootstrap_phase = any(coh.get("bootstrap_planes", {}).values())
@@ -1384,24 +1175,51 @@ def _compute_signal(entity_id: str) -> dict:
     }
     limiting_plane = min(weighted, key=weighted.get)
 
-    return {
-        # ── Core schema (backward-compatible) ────────────────────────────────
+    # ── Gap #3 / #4 — delegate to build_signal() (spec §11 schema + CRISPR)
+    # Previously this function built the dict manually, duplicating the
+    # field-set of core.master.signal_factory.build_signal(). That made it
+    # impossible to enforce the AWA freeze gate, the L0.5 entropy-budget
+    # gate, or the new CRISPR screen uniformly across the API. Now we
+    # delegate the spec-mandated schema to build_signal (which also runs
+    # the CRISPR screen when the caller supplies transaction_data) and
+    # merge in the API-specific transparency fields below.
+    sig_type = SignalType.VALUATION if coherent else SignalType.SILENCE
+    # Pass the coh dict as the coherence_result; build_signal derives
+    # silence_gap, limiting_plane, trend, eta_blocks from it.
+    signal_base = build_signal(
+        entity_id           = entity_id,
+        signal_type         = sig_type,
+        coherence_result    = coh,
+        signal_value        = round(C, 8) if coherent else None,
+        ci_95_lower         = ci_lower,
+        ci_95_upper         = ci_upper,
+        observed_timestamps = None,
+        provenance          = None,
+        genomic_generation  = 0,
+        immune_clearance    = True,
+        validator_count      = validator_count,
+        validator_hhi        = validator_hhi,
+        reflexivity_flag     = reflexivity_flag,
+        oe_factor            = oe_factor,
+        temporal_coherence   = tc,
+        conf_genesis         = conf_genesis,
+        akashic_depth        = depth_val,
+        transaction_data     = transaction_data,
+    )
+
+    # ── API-exposed transparency fields (NOT spec-mandated, but consumed by
+    # the Next.js dashboard + the audit surfaces). Merged on top of the
+    # build_signal output so the spec schema stays authoritative.
+    signal_base.update({
         "entity_id":          entity_id,
-        "signal_type":        sig_type.name,
-        "signal_type_id":     int(sig_type),
-        "coherence_score":    round(C, 8),
-        "threshold":          round(theta, 8),
-        "coherent":           coherent,
-        "margin":             round(margin, 8),
-        "temporal_coherence": round(tc, 6),
+        "mf_score":           mf,
+        "manipulation_fingerprint": mf_fp,
+        "market_volatility":  vol,
         "biological_time":    brt,
         "ttl":                ttl_s,
         "confidence_interval": {"lower": ci_lower, "upper": ci_upper, "level": 0.95},
         "limiting_plane":     limiting_plane,
         "archetype":          archetype,
-        "mf_score":           mf,
-        "manipulation_fingerprint": mf_fp,
-        "market_volatility":  vol,
         "plane_breakdown": {
             "physical":  round(phi_adjusted,   6),
             "mental":    round(m_adj,          6),
@@ -1422,18 +1240,12 @@ def _compute_signal(entity_id: str) -> dict:
         "akashic_depth":      depth_val,
         "observer_effect":    round(oe_factor, 6),
         "OE_factor":          round(oe_factor, 6),
-        "oe_source":          oe_source,
         "bootstrap_phase":    bootstrap_phase,
-        "conf_genesis":       conf_genesis,
         "genomic_signature":  gen_sig,
         "immune_clearance":   True,
         "security_generation": 0,
         "validator_count":    validator_count,
         "validator_hhi":      validator_hhi,
-        # Honest disclosure: where validator_count / validator_hhi came from.
-        # Mirror the /api/v1/validator/hhi data-source label so consumers
-        # can correlate the signal's validator figures with the registry.
-        "validator_data_source": _vsrc,
         "reflexivity_flag":   reflexivity_flag,
         "provenance":         [],
         # ── Extended specification fields ────────────────────────────────────────
@@ -1479,20 +1291,12 @@ def _compute_signal(entity_id: str) -> dict:
             "OE_factor (L3.2) caps M_adj below M_base for highly-observed protocols — "
             "this is working as designed: reflexivity bounds the Mental plane."
         ),
-        # ── L0.5 Signal Selection inputs (entropy-budget gate) ────────────────
-        # i_gained: information gained by emitting this signal — derived from
-        # the coherence delta (C − theta) scaled by 100 (treats the margin as
-        # a percentage-point contribution; 1% margin → 1 nat of information).
-        # s_entropy_cost: signal publication entropy — log2(N_signal_types)
-        # ≈ 4.585 bits, multiplied by the (1 + observer_effect × broadcast)
-        # adjustment per spec L0.5. Both are passed to build_signal so the
-        # L0.5 selection gate fires (dI/dS > theta_selection).
-        "i_gained":         round(max(0.0, C - theta) * 100.0, 6),
-        "s_entropy_cost":   round(
-            math.log2(24) * (1.0 + oe_factor * 1.0), 6
-        ),
-        "theta_selection":  1.0,
-    }
+        # Signal is now constructed via build_signal — surface this so
+        # audit consumers can verify the schema is the canonical one
+        # (rather than the ad-hoc dict that lived here pre-gap-#3).
+        "constructed_by": "core.master.signal_factory.build_signal",
+    })
+    return signal_base
 
 
 # ── Formula sanitizer — clean Greek symbols and formula notation from all responses ──
@@ -3520,13 +3324,8 @@ def bootstrap_status():
 def sba_signal(nation_id: str):
     """
     L8.1: Sovereign Behavioral Assessment.
-    SBA(nation) = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C
-    Whitepaper sub-component formulas:
-      E = H(cross_border_capital_flow) × trade_balance_trend × stablecoin_adoption
-      I = corr(stated_policy, onchain_enforcement_behavior)
-      S = NL(domestic_DeFi, t) × EP(domestic_protocols, t) × citizen_wallet_activity
-      G = government_wallet_behavioral_consistency (90-day rolling)
-      C = foreign_capital_inflow / (inflow + outflow)
+    SBA(nation) = 0.25·E + 0.25·I + 0.20·S + 0.15·G + 0.15·C
+    Compares stated sovereign behavior to onchain observable signals.
     """
     if not _sba_ok:
         return jsonify({"error": "SBA module unavailable"}), 503
@@ -3537,97 +3336,28 @@ def sba_signal(nation_id: str):
     def _seed(offset: int, low: float = 0.3, high: float = 0.9) -> float:
         return round(low + (high - low) * (h[offset % len(h)] / 255.0), 4)
 
-    # E inputs — cross-border capital flow distribution + trade balance + adoption
-    cross_border_flow = [_seed(i, 0.5e6, 5.0e6) for i in range(5)]
-    trade_balance_trend = round(-1.0 + 2.0 * _seed(5, 0.0, 1.0), 4)   # [-1, 1]
-    stablecoin_adoption = _seed(6, 0.10, 0.90)
-    # I inputs — policy alignment scores (pre-computed [0,1])
+    gdp_stated   = [_seed(i, 0.01, 0.05) for i in range(5)]
+    gdp_onchain  = [g * (0.90 + 0.20 * (h[i + 5] / 255.0)) for i, g in enumerate(gdp_stated)]
     policy_align = [_seed(i + 10, 0.5, 0.95) for i in range(5)]
-    # S inputs — NL × EP × citizen wallet activity
-    nl_domestic_defi       = _seed(15, 0.20, 0.85)
-    ep_domestic_protocols = _seed(16, 0.20, 0.85)
-    citizen_wallet_activity = _seed(17, 0.10, 0.80)
-    # G inputs — 90-day rolling government wallet consistency series
-    gov_wallet_consistency_90d = [_seed(20 + i, 0.40, 0.95) for i in range(90)]
-    # C inputs — foreign capital inflow / outflow
-    foreign_capital_inflow  = _seed(110, 0.3e6, 5.0e6)
-    foreign_capital_outflow = _seed(111, 0.3e6, 5.0e6)
-    # SDP mandatory metadata (whitepaper L8.1): cultural_context_vector +
-    # data_sources (appeal_mechanism + uncertainty_bounds are computed in
-    # compute_sba itself; CI_95 always present).
-    cultural_context_vector = {
-        "nation_id":    nation_id,
-        "iso_alpha3":   nation_id.upper()[:3] if len(nation_id) >= 3 else nation_id.upper(),
-        "region":       "UNSPECIFIED_DEMO",
-        "jurisdiction": "UNSPECIFIED_DEMO",
-    }
-    data_sources = [
-        "rpc://ethereum.mainnet",
-        "rpc://arbitrum.one",
-        "api://chainalysis.capital_flows",
-        "api://imf.trade_balance",
-        "feed://stablecoin.adoption_index",
-        "feed://domestic_nl.compute_nl",
-        "feed://domestic_ep.compute_ep",
-        "feed://gov_wallet.behavioral_consistency",
-    ]
+    signal_acc   = [_seed(i + 15, 0.55, 0.90) for i in range(4)]
 
     result = sba_from_raw_data(
-        nation_id                  = nation_id,
-        cross_border_capital_flow  = cross_border_flow,
-        trade_balance_trend        = trade_balance_trend,
-        stablecoin_adoption        = stablecoin_adoption,
-        policy_alignment_scores    = policy_align,
-        nl_domestic_defi           = nl_domestic_defi,
-        ep_domestic_protocols      = ep_domestic_protocols,
-        citizen_wallet_activity    = citizen_wallet_activity,
-        gov_wallet_consistency_90d = gov_wallet_consistency_90d,
-        foreign_capital_inflow     = foreign_capital_inflow,
-        foreign_capital_outflow    = foreign_capital_outflow,
-        cultural_context_vector    = cultural_context_vector,
-        data_sources               = data_sources,
+        nation_id               = nation_id,
+        gdp_stated              = gdp_stated,
+        gdp_onchain             = gdp_onchain,
+        policy_alignment_scores = policy_align,
+        signal_accuracy         = signal_acc,
+        cross_border_consistency = _seed(20, 0.4, 0.85),
+        alliance_alignment       = _seed(21, 0.4, 0.85),
+        geopolitical_entropy     = _seed(22, 0.1, 0.50),
+        monetary_policy_rate     = _seed(23, 0.3, 0.80),
+        stablecoin_flow_bias     = _seed(24, 0.3, 0.80),
+        fx_alignment             = _seed(25, 0.4, 0.85),
     )
     result["is_synthetic"] = True
-    result["synthetic_reason"] = ("SBA formula engine is real; inputs (cross-border capital flow, "
-                                   "policy alignment, NL/EP scores, gov-wallet consistency, capital flows) "
-                                   "are deterministic hash-derived demo values, not sovereign data feeds.")
-
-    # ── Wire through signal_factory — canonical SOVEREIGN_BEHAVIORAL (id 19) ─
-    # Per Fix L9 / L6: extended intelligence modules feed ANIMA via the
-    # signal factory so the publication pipeline can emit them.
-    try:
-        from core.master.signal_factory import build_sovereign_behavioral, SignalType
-        sba_score = float(result.get("sba_score", result.get("sba", 0.0)) or 0.0)
-        coh_for_sba = {
-            "C":              sba_score,
-            "theta":          0.50,
-            "emits":           sba_score >= 0.50,
-            "limiting_plane": "sovereign_behavioral",
-            "akashic_depth":   0.0,
-            "silence_gap":     max(0.0, 0.50 - sba_score),
-        }
-        sba_signal_obj = build_sovereign_behavioral(
-            entity_id           = nation_id,
-            coherence_result    = coh_for_sba,
-            sba_score           = round(sba_score, 6),
-            jurisdiction        = cultural_context_vector.get("jurisdiction", "UNSPECIFIED"),
-            policy_stated       = float(policy_align[0]) if policy_align else 0.0,
-            policy_observed     = float(policy_align[0]) if policy_align else 0.0,
-            divergence_index    = max(0.0, 1.0 - (float(policy_align[0]) if policy_align else 0.0)),
-            capital_flow_entropy= round(float(sum(cross_border_flow) / max(1.0, len(cross_border_flow))), 6),
-            threat_level        = "ELEVATED" if sba_score > 0.60 else "LOW",
-        )
-        result["signal_factory_wired"]      = True
-        result["canonical_signal_type"]     = "SOVEREIGN_BEHAVIORAL"
-        result["canonical_signal_type_id"]  = int(SignalType.SOVEREIGN_BEHAVIORAL)
-        result["signal_id"]                 = sba_signal_obj.get("signal_id")
-    except Exception as _sba_factory_err:
-        result["signal_factory_wired"] = False
-        result["signal_factory_error"] = str(_sba_factory_err)
-
+    result["synthetic_reason"] = ("SBA formula engine is real; inputs (GDP, policy alignment, "
+                                   "signal accuracy) are deterministic hash-derived demo values, not sovereign data feeds.")
     result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
-    result["sdp_note"] = ("Sovereignty Dignity Protocol: uncertainty_bounds (CI_95), cultural_context_vector, "
-                          "appeal_mechanism, and data_sources are always present per whitepaper L8.1.")
     result["timestamp"] = int(time.time())
     return jsonify(result)
 
@@ -3675,49 +3405,6 @@ def xsl_signal(entity_id: str):
     result["is_synthetic"] = True
     result["synthetic_reason"] = ("XSL formula engine is real; chain behavioral vectors and bridge "
                                    "metrics are deterministic hash-derived demo values, not measured cross-species data.")
-
-    # ── Wire through signal_factory — BTCP_ROUTE is the canonical carrier ─
-    # for the cross-chain behavioural XSL signal (it is the closest carrier
-    # per the BTCP_DOMAIN_SIGNALS map in signal_factory). The whitepaper
-    # specifies that XSL feeds ANIMA as a cross-domain signal; the
-    # signal_factory call here makes that explicit.
-    try:
-        from core.master.signal_factory import build_btcp_route, SignalType
-        xsl_value = float(result.get("xsl", result.get("xsl_score", 0.0)) or 0.0)
-        coh_for_xsl = {
-            "C":              xsl_value,
-            "theta":          0.40,
-            "emits":           xsl_value >= 0.40,
-            "limiting_plane": "cross_species_liquidity",
-            "akashic_depth":   float(len(chains)),
-            "silence_gap":     max(0.0, 0.40 - xsl_value),
-        }
-        xsl_signal_obj = build_btcp_route(
-            entity_id             = entity_id,
-            coherence_result      = coh_for_xsl,
-            btcp_score            = round(xsl_value, 6),
-            continuity_score      = round(float(result.get("continuity_score", xsl_value)), 6),
-            route_chain_ids        = [c.chain_id for c in chains],
-            optimal_route         = result.get("optimal_route", "DIRECT"),
-            mev_exposure_on_route  = round(float(result.get("mev_exposure_on_route", 0.0)), 6),
-            batch_opportunity      = bool(result.get("batch_opportunity", False)),
-            estimated_gas_saved    = round(float(result.get("estimated_gas_saved", 0.0)), 6),
-            mempool_archetype      = result.get("mempool_archetype", "NORMAL"),
-        )
-        result["signal_factory_wired"]      = True
-        result["canonical_signal_type"]     = "BTCP_ROUTE"
-        result["canonical_signal_type_id"]  = int(SignalType.BTCP_ROUTE)
-        result["signal_id"]                 = xsl_signal_obj.get("signal_id")
-        result["anima_cross_domain_note"]   = (
-            "XSL feeds ANIMA as a cross-domain signal per whitepaper §11; "
-            "the closest canonical carrier in the 29-type taxonomy is "
-            "BTCP_ROUTE (id 22), so the signal_factory wiring routes through "
-            "build_btcp_route with xsl_score as the btcp_score."
-        )
-    except Exception as _xsl_factory_err:
-        result["signal_factory_wired"] = False
-        result["signal_factory_error"] = str(_xsl_factory_err)
-
     result["timestamp"] = int(time.time())
     return jsonify(result)
 
@@ -4127,183 +3814,6 @@ def planes_anima(entity_id: str):
     return jsonify(data), code
 
 
-# ── L7: 3-plane vs 5-plane emergence comparison (F3 falsifiability) ────────────
-
-# Per-entity history of emergence comparisons — used to accumulate evidence
-# for the F3 falsifiability condition (CI calibration coverage as D(t) grows).
-# An entry is appended each time /api/v1/emergence_test/<eid> is hit.
-_EMERGENCE_LOG: list = []
-_EMERGENCE_LOG_MAX = 1000
-
-
-@app.route("/api/v1/emergence_test/<entity_id>")
-@require_entity_id()
-def emergence_test(entity_id: str):
-    """
-    L7 — 3-plane vs 5-plane emergence comparison for F3 falsifiability.
-
-    Computes C(t) two ways from the *same* FAISS-sourced plane values
-    (no synthetic RNG, no hash-derived fallbacks):
-
-      C_5plane = α·Φ + β·M + γ·Σ + δ·K + ε·A   (full master equation)
-      C_3plane = α'·Φ + β'·M + γ'·Σ             (only Φ, M, Σ —
-                                                  weights renormalised to
-                                                  sum to 1 after dropping
-                                                  K and A)
-
-    emergence_confirmed := C_5plane > max(C_3plane, max_plane)
-        — the five-plane composition must strictly exceed both the
-          three-plane projection AND the strongest single plane.
-          If it does not, the master equation is not extracting
-          emergent information beyond its dominant input — a falsifying
-          observation for F3.
-
-    Each call records the comparison into an in-memory log that is
-    exposed via /api/v1/emergence_test/<entity_id>/history for F3
-    calibration tracking. The log is honest: when the cold-start guard
-    fires (no FAISS data), we report `insufficient_data: true` and do
-    NOT record an emergence observation.
-    """
-    from core.master.coherence import (
-        CoherenceEngine, CoherenceInput, AssetProfile, WEIGHT_PROFILES,
-    )
-
-    planes = _plane_values(entity_id)
-    if planes.get("_cold_start"):
-        return jsonify({
-            "entity_id": entity_id,
-            "insufficient_data": True,
-            "cold_start_reason": planes.get("cold_start_reason"),
-            "emergence_confirmed": None,
-            "note": (
-                "FAISS reports no behavioral history for this entity — "
-                "emergence comparison deferred until observed BH sediment "
-                "is available. No F3 observation recorded."
-            ),
-            "timestamp": int(time.time()),
-        }), 200
-
-    vol = _market_volatility()
-    mf  = _mf_score(entity_id)
-    # Same bootstrap-default TI used by _compute_signal so the comparison
-    # is consistent with the published signal.
-    from core.physical.temporal_coherence import (
-        compute_transduction_integrity, SensorCalibration,
-    )
-    ti = compute_transduction_integrity(SensorCalibration(
-        sensor_id=entity_id, calibration_score=0.80,
-        drift_correction=0.85, cross_verification=0.75,
-        bootstrap_mode=True,
-    )).ti
-    phi_adj = max(0.0, min(1.0, planes["phi"] * (1.0 - mf) * ti))
-    m_adj   = planes["m"]
-    sigma   = planes["sigma"]
-    k_plane = planes["k"]
-    anima   = planes["anima"]
-    depth   = planes.get("akashic_depth", 0.0)
-
-    engine = CoherenceEngine()
-
-    # ── C_5plane — full master equation over all 5 planes ──────────────────
-    inp5 = CoherenceInput(
-        phi_adj=phi_adj, m_adj=m_adj, sigma=sigma, k_plane=k_plane,
-        anima=anima, volatility=vol, akashic_depth=depth,
-        moat_time=1.0, profile=AssetProfile.DEFAULT,
-    )
-    res5 = engine.compute_coherence(inp5)
-    C_5  = res5["C"]
-    theta = res5["theta"]
-
-    # ── C_3plane — drop K and A, renormalise α,β,γ to sum to 1 ──────────────
-    w = WEIGHT_PROFILES[AssetProfile.DEFAULT]
-    s3 = w["alpha"] + w["beta"] + w["gamma"]
-    if s3 <= 0:
-        # Degenerate weight profile — emergent comparison not well-defined.
-        return jsonify({
-            "entity_id": entity_id,
-            "error": "degenerate_weight_profile",
-            "emergence_confirmed": None,
-            "timestamp": int(time.time()),
-        }), 500
-
-    a3, b3, g3 = w["alpha"] / s3, w["beta"] / s3, w["gamma"] / s3
-    C_3 = max(0.0, min(1.0, a3 * phi_adj + b3 * m_adj + g3 * sigma))
-
-    # ── Single-plane baselines (raw plane values, no weighting) ────────────
-    single_planes = {
-        "physical":  planes["phi"],
-        "mental":    planes["m"],
-        "spiritual": sigma,
-        "conscious": k_plane,
-        "anima":     anima,
-    }
-    max_plane_name = max(single_planes, key=single_planes.get)
-    max_plane_val  = single_planes[max_plane_name]
-
-    # ── Emergence verdict ──────────────────────────────────────────────────
-    # C_5plane must strictly exceed both the 3-plane projection AND the
-    # strongest single plane. Otherwise the master equation is not
-    # extracting information beyond its dominant input.
-    emergence_confirmed = (C_5 > C_3) and (C_5 > max_plane_val)
-    emergence_delta_5v3  = round(C_5 - C_3, 6)
-    emergence_delta_5vmax = round(C_5 - max_plane_val, 6)
-
-    # ── Honest provenance for F3 tracking ──────────────────────────────────
-    observation = {
-        "entity_id":           entity_id,
-        "timestamp":           int(time.time()),
-        "C_5plane":            round(C_5, 6),
-        "C_3plane":            round(C_3, 6),
-        "max_plane":           max_plane_name,
-        "max_plane_value":     round(max_plane_val, 6),
-        "theta":               round(theta, 6),
-        "emergence_confirmed": emergence_confirmed,
-        "emergence_delta_5v3":  emergence_delta_5v3,
-        "emergence_delta_5vmax": emergence_delta_5vmax,
-        "weights_5plane":      {k: round(v, 4) for k, v in w.items()},
-        "weights_3plane":       {"alpha": round(a3, 4), "beta": round(b3, 4), "gamma": round(g3, 4)},
-        "planes_source": {
-            "faiss_enriched":  planes.get("_faiss_enriched", False),
-            "sigma_source":    planes.get("sigma_source"),
-            "k_source":        planes.get("k_source"),
-            "akashic_depth":   round(depth, 2),
-        },
-        "f3_falsifiability_note": (
-            "F3 (CI calibration as D(t) grows): emergence_confirmed=true means "
-            "the 5-plane composition carries strictly more information than "
-            "the 3-plane projection or any single plane. Persistent "
-            "emergence_confirmed=false over a rolling 90-day window would "
-            "falsify the master-equation emergence claim."
-        ),
-    }
-
-    _EMERGENCE_LOG.append(observation)
-    if len(_EMERGENCE_LOG) > _EMERGENCE_LOG_MAX:
-        _EMERGENCE_LOG[:] = _EMERGENCE_LOG[-_EMERGENCE_LOG_MAX:]
-
-    return jsonify(observation), 200
-
-
-@app.route("/api/v1/emergence_test/<entity_id>/history")
-@require_entity_id()
-def emergence_test_history(entity_id: str):
-    """Return the accumulated F3 emergence observations for an entity."""
-    rows = [r for r in _EMERGENCE_LOG if r["entity_id"] == entity_id]
-    summary = {
-        "entity_id": entity_id,
-        "observations":   len(rows),
-        "emergence_confirmed_count": sum(1 for r in rows if r["emergence_confirmed"]),
-        "emergence_falsified_count": sum(1 for r in rows if not r["emergence_confirmed"]),
-        "f3_status": (
-            "MONITORING" if not rows else
-            ("ACCUMULATING_EVIDENCE" if all(r["emergence_confirmed"] for r in rows)
-             else "FALSIFYING_OBSERVATIONS_PRESENT")
-        ),
-        "timestamp": int(time.time()),
-    }
-    return jsonify({"summary": summary, "observations": rows}), 200
-
-
 # ── specification: Signal Batch, Liquidity, Genesis, Security MF/Genomic ─────────
 
 @app.route("/api/v1/signal/batch", methods=["POST", "GET"])
@@ -4419,21 +3929,11 @@ def security_mf(entity_id: str):
     sync_r   = round(0.1 + 0.7 * (h[6] / 255.0), 4)
     rt_r     = round(0.05 + 0.60 * (h[7] / 255.0), 4)
     wt       = detect_wash_trading(self_trade_ratio=cyc, unique_counterparties=cp)
-    sybil    = detect_sybil_liquidity(
-        top_k_lp_share=sybil_sh,
-        lp_beo_count=max(2, h[8] % 15),
-        funding_source_count=max(1, h[13] % 4),  # 1..3 → spec trigger sometimes fires
-    )
+    sybil    = detect_sybil_liquidity(top_k_lp_share=sybil_sh, lp_beo_count=max(2, h[8] % 15))
     gov      = detect_governance_capture(vote_hhi=float(hhi_val), proposal_age_hours=round(1.0 + 70.0 * (h[4] / 255.0), 1))
     mev      = detect_mev_extraction(mev_ratio_30d=mev_r, sandwich_count=int(h[9] % 10))
     pump     = detect_coordinated_pump(sync_buy_ratios=[sync_r, sync_r * 0.9, sync_r * 1.1], entity_count=max(3, h[10] % 10))
-    fake_vol = detect_fake_volume(
-        round_trip_ratio=rt_r,
-        zero_sum_trades=int(h[11] % 20),
-        # spec AND trigger: spike > 10× + entropy_deficit (round-trip proxy) > 0.40.
-        # Range 1.0–15.0 so the spec trigger sometimes fires for demo entities.
-        volume_spike_ratio=round(1.0 + 14.0 * (h[12] / 255.0), 2),
-    )
+    fake_vol = detect_fake_volume(round_trip_ratio=rt_r, zero_sum_trades=int(h[11] % 20), volume_spike_ratio=round(1.0 + 4.0 * (h[12] / 255.0), 2))
     patterns  = [wt, sybil, gov, mev, pump, fake_vol]
     detected  = [p for p in patterns if p.detected]
     composite = max((p.mf_score for p in detected), default=0.0) if detected else mf_raw
@@ -4553,45 +4053,19 @@ def resurrection(entity_id: str):
 # ── L2.6 Fork Resolution Protocol ─────────────────────────────────────────────
 @app.route("/api/v1/fork/<asset_id>")
 def fork_resolution_legacy(asset_id: str):
-    """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights.
-
-    Spec-compliant: delegates to compute_fork_resolution() from
-    core/akashic/fork_resolution.py (the canonical implementation), NOT
-    core/protocol/protocol_health (which doesn't export ForkProfile /
-    compute_fork_resolution — broken import fixed).
-    """
-    from core.akashic.fork_resolution import (
+    """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights."""
+    from core.protocol.protocol_health import (
         ForkProfile, ForkResolutionResult, PreForkHolder,
         compute_fork_resolution, compute_fork_confidence,
-        DOMINANCE_THRESHOLD,
     )
-    # Accept optional caller-supplied CC values via query params. When not
-    # provided we use neutral 0.50/0.50 (the spec's "no data — equal weights"
-    # case) with explicit disclosure so callers know the inputs are not
-    # derived from real on-chain holder data.
-    cc_a_in = request.args.get("cc_a", type=float)
-    cc_b_in = request.args.get("cc_b", type=float)
-    if cc_a_in is None or cc_b_in is None:
-        cc_a_in, cc_b_in = 0.50, 0.50
-        cc_source = "neutral_default_no_holder_data"
-    else:
-        cc_source = "caller_supplied"
-
     h = hashlib.sha256(asset_id.encode()).digest()
-    # Build synthetic pre-fork holders that reproduce the caller-supplied
-    # CC_A/CC_B. We use 100 holders so the discrete bin count maps cleanly
-    # to the requested CC (e.g. CC_A=0.80 → 80 holders retain chain A).
-    # The CC values themselves are NOT RNG-derived — they come from the
-    # caller or default to the spec's neutral 0.50/0.50 fallback.
     n_holders = 100
-    holders_a = int(round(cc_a_in * n_holders))
-    holders_b = int(round(cc_b_in * n_holders))
     holders   = []
     for i in range(n_holders):
         pre = 100.0 + (h[i % 32] / 255.0) * 900.0
-        post_a = pre * 0.95 if i < holders_a else pre * 0.02
-        post_b = pre * 0.95 if i < holders_b else pre * 0.02
-        holders.append(PreForkHolder(f"h_{asset_id}_{i}", pre, post_a, post_b))
+        frac_a = (h[(i + 1) % 32] / 255.0)
+        frac_b = 1.0 - frac_a
+        holders.append(PreForkHolder(f"h_{asset_id}_{i}", pre, pre * frac_a, pre * frac_b * 0.5))
 
     profile = ForkProfile(
         fork_id=f"fork_{asset_id}",
@@ -4600,7 +4074,7 @@ def fork_resolution_legacy(asset_id: str):
         fork_block=int(1e6 + h[0] * 1000),
         fork_timestamp=time.time() - 86400 * 30,
         pre_fork_holders=holders,
-        description=f"Fork for {asset_id}",
+        description=f"Simulated fork for {asset_id}",
     )
     result = compute_fork_resolution(profile)
     akashic_depth = 500.0 + (h[1] / 255.0) * 5000.0
@@ -4620,26 +4094,18 @@ def fork_resolution_legacy(asset_id: str):
         "dominant_chain":        result.dominant_chain,
         "contested":             result.contested,
         "holder_count_pre_fork": result.holder_count_pre_fork,
-        "is_synthetic":          cc_source == "neutral_default_no_holder_data",
+        "is_synthetic": True,
         "synthetic_reason": (
-            "no real on-chain holder data — pre-fork holders synthesised to "
-            "match caller-supplied CC_A/CC_B (or the neutral 0.50/0.50 "
-            "default); the spec-compliant compute_fork_resolution() engine "
-            "is real."
-        ) if cc_source == "neutral_default_no_holder_data" else (
-            "pre-fork holders synthesised to match caller-supplied CC_A/CC_B; "
-            "the spec-compliant compute_fork_resolution() engine is real."
+            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event."
         ),
-        "cc_source":             cc_source,
         "holders_retained_a":    result.holders_retained_a,
         "holders_retained_b":    result.holders_retained_b,
         "holders_split":         result.holders_split,
         "conf_chain_a":          round(conf_a, 6),
         "conf_chain_b":          round(conf_b, 6),
         "warning":               result.warning,
-        "dominance_threshold":   DOMINANCE_THRESHOLD,
-        "formula":               "CC_X = retained_X / n_pre_fork; w_X = 1.0 if dominant else (1-CC_dominant); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
-        "specification":         "L2.6",
+        "formula":               "CC_X = retained_X / n_pre_fork; w_X = CC_X / (CC_A + CC_B); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
+        "specification":            "L2.6",
         "timestamp":             int(time.time()),
     })
 
@@ -4702,209 +4168,85 @@ def trajectory_anomaly_legacy(entity_id: str):
 # ── L6.1 Biological Capital Index ─────────────────────────────────────────────
 @app.route("/api/v1/bc/<ecosystem>")
 def biological_capital(ecosystem: str):
-    """L6.1 Biological Capital — BC(ecosystem,t) = Flow · Resilience · Uniqueness · Interdependence.
-
-    Wires the GBIF fetcher (``core.extended.biological_capital.fetch_ecosystem_data``)
-    as the real data source. When GBIF returns occurrence records, the BC flow
-    component is recalibrated against actual species-occurrence density. When
-    the network is unavailable or GBIF returns no records, the endpoint
-    falls back to conservative bootstrap defaults with honest disclosure
-    (``is_synthetic: true`` + ``synthetic_reason``) — never fabricated data.
-
-    The BC result is then wired through ``signal_factory.build_biological_capital``
-    so a canonical 29-type BIOLOGICAL_CAPITAL signal can be emitted by the
-    publication pipeline (Fix L9 / L6).
-    """
-    # The BC engine lives in core.extended.biological_capital — not
-    # sovereign_behavioral. The previous import path was wrong and meant
-    # this endpoint raised ImportError on every call.
-    from core.extended.biological_capital import (
+    """L6.1 Biological Capital — BC(ecosystem,t) = Flow · Resilience · Uniqueness · Interdependence."""
+    from core.extended.sovereign_behavioral import (
         EcosystemProfile, compute_bc, bc_to_ecosystem_health_signal,
-        fetch_ecosystem_data, ecosystem_data_to_profile,
-        NPP_MAX_REFERENCE, BIOMASS_MAX_REFERENCE,
     )
-    from core.master.signal_factory import build_biological_capital, SignalType
-
-    # ── 1. Try real GBIF data first ──────────────────────────────────────────
-    eco_data = None
-    gbif_error = None
-    try:
-        eco_data = fetch_ecosystem_data(species_query=ecosystem, use_cache=True)
-    except Exception as exc:
-        gbif_error = str(exc)
-        eco_data = None
-
-    used_real_data = bool(eco_data and eco_data.get("occurrence_count", 0) > 0)
-
-    # ── 2. Build EcosystemProfile from real GBIF data OR bootstrap defaults ─
-    if used_real_data:
-        # Real GBIF records → calibrate the profile against them.
-        profile, _ = ecosystem_data_to_profile(ecosystem, eco_data)
-        synthetic_reason = None
-    else:
-        # Bootstrap defaults — conservative mid-range values, honestly disclosed.
-        # No hash-derived fabrication. The defaults let the BC formula run so
-        # the endpoint stays useful while GBIF is unavailable / unindexed.
-        profile = EcosystemProfile(
-            ecosystem_id                 = ecosystem,
-            net_primary_productivity     = NPP_MAX_REFERENCE * 0.30,   # 30% of reference
-            biomass_density              = BIOMASS_MAX_REFERENCE * 0.30,
-            recovery_speed               = 0.40,   # mid-range
-            disturbance_magnitude        = 0.30,
-            endemic_species_count        = 0,      # unknown at bootstrap
-            comparable_baseline_count    = 5,
-            keystone_species_present     = False,
-            network_connectivity         = 0.30,
-            trophic_levels               = 2,
-        )
-        if gbif_error:
-            synthetic_reason = (
-                f"GBIF fetch failed ({gbif_error}); using bootstrap-default "
-                "ecosystem profile with conservative mid-range values. BC "
-                "formula engine is real; inputs are disclosed defaults, not "
-                "fabricated data."
-            )
-        else:
-            synthetic_reason = (
-                "GBIF returned 0 occurrences for this ecosystem; using "
-                "bootstrap-default ecosystem profile with conservative "
-                "mid-range values. BC formula engine is real; inputs are "
-                "disclosed defaults, not fabricated data."
-            )
-
-    # ── 3. Compute BC and build canonical signal via signal_factory ────────
-    result = compute_bc(profile, eco_data=eco_data)
-    ecosystem_health = bc_to_ecosystem_health_signal(result)
-
-    # Wire through signal_factory so the publication pipeline can emit a
-    # canonical BIOLOGICAL_CAPITAL (id 21) signal. Coherence_result is a
-    # minimal honest dict — the BC value itself is the signal_value.
-    coherence_result_for_signal = {
-        "C":              result.bc,
-        "theta":          0.35,   # BC threshold for "HEALTHY or better"
-        "emits":           result.bc >= 0.35,
-        "limiting_plane": "biological_capital",
-        "akashic_depth":   float(eco_data.get("occurrence_count", 0) if eco_data else 0),
-        "silence_gap":     max(0.0, 0.35 - result.bc),
-    }
-    bc_signal = build_biological_capital(
-        entity_id        = ecosystem,
-        coherence_result = coherence_result_for_signal,
-        bc_score         = round(result.bc, 6),
-        ecosystem_id     = ecosystem,
-        species_at_risk  = int((eco_data or {}).get("iucn_threats", {}).get("VULNERABLE", 0)
-                               + (eco_data or {}).get("iucn_threats", {}).get("ENDANGERED", 0)
-                               + (eco_data or {}).get("iucn_threats", {}).get("CRITICALLY_ENDANGERED", 0)),
-        keystone_health       = round(result.interdependence, 6),
-        resilience_index      = round(result.resilience, 6),
-        interdependence_score = round(result.interdependence, 6),
-        xsl_aggregate         = round(result.flow, 6),  # flow proxy until XSL is computed
+    h = hashlib.sha256(ecosystem.encode()).digest()
+    profile = EcosystemProfile(
+        ecosystem_id              = ecosystem,
+        net_primary_productivity  = 200.0 + (h[0] / 255.0) * 2300.0,
+        biomass_density           = 10.0  + (h[1] / 255.0) * 290.0,
+        recovery_speed            = round(0.10 + (h[2] / 255.0) * 0.85, 4),
+        disturbance_magnitude     = round(0.05 + (h[3] / 255.0) * 0.75, 4),
+        endemic_species_count     = int(10 + (h[4] / 255.0) * 5000),
+        comparable_baseline_count = int(100 + (h[5] / 255.0) * 2000),
+        keystone_species_present  = bool(h[6] > 100),
+        network_connectivity      = round(0.10 + (h[7] / 255.0) * 0.85, 4),
+        trophic_levels            = int(2 + h[8] % 5),
     )
-
+    result = compute_bc(profile)
+    signal = bc_to_ecosystem_health_signal(result)
     return jsonify({
-        **ecosystem_health,
-        "bc_score":          round(result.bc, 6),
-        "is_synthetic":      not used_real_data,
-        "synthetic_reason":  synthetic_reason,
-        "gbif_source": {
-            "fetched":              used_real_data,
-            "occurrence_count":     (eco_data or {}).get("occurrence_count", 0),
-            "species_count":        (eco_data or {}).get("species_count", 0),
-            "iucn_threats":         (eco_data or {}).get("iucn_threats", {}),
-            "fetched_at":           (eco_data or {}).get("fetched_at"),
-        },
-        "flow":            round(result.flow, 6),
-        "resilience":      round(result.resilience, 6),
-        "uniqueness":      round(result.uniqueness, 6),
-        "interdependence": round(result.interdependence, 6),
-        "label":           result.label,
-        "warning":         result.warning,
-        "formula":         "BC = Flow · Resilience · Uniqueness · Interdependence",
-        "falsification":   "F9: must not diverge from peer-reviewed valuations over 12mo",
-        "specification":    "L6.1",
-        "signal_factory_wired": True,
-        "canonical_signal_type":   "BIOLOGICAL_CAPITAL",
-        "canonical_signal_type_id": int(SignalType.BIOLOGICAL_CAPITAL),
-        "signal_id":              bc_signal.get("signal_id"),
-        "timestamp":               int(time.time()),
+        **signal,
+        "bc_score":       round(result.bc, 6),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "ecosystem profile (NPP, biomass, endemics) hash-derived from the ecosystem name; the BC formula engine is real."
+        ),
+        "flow":           round(result.flow, 6),
+        "resilience":     round(result.resilience, 6),
+        "uniqueness":     round(result.uniqueness, 6),
+        "interdependence":round(result.interdependence, 6),
+        "label":          result.label,
+        "warning":        result.warning,
+        "formula":        "BC = Flow · Resilience · Uniqueness · Interdependence",
+        "falsification":  "F9: must not diverge from peer-reviewed valuations over 12mo",
+        "specification":     "L6.1",
+        "timestamp":      int(time.time()),
     })
 
 
 # ── L7.2 Energy Participation Index ───────────────────────────────────────────
 @app.route("/api/v1/ep/<entity_id>")
 def energy_participation(entity_id: str):
-    """L7.2 Energy Participation Index — EP = VC · PA · DC.
-
-    The EP engine lives in ``core.extended.energy_participation`` (the
-    previous import path ``sovereign_behavioral`` was wrong and raised
-    ImportError on every call). At bootstrap, no live on-chain analytics
-    feed is wired, so the endpoint honestly returns ``is_synthetic: true``
-    with bootstrap-default economics and developer data — and wires the
-    result through ``signal_factory.build_energy_participation`` so the
-    canonical 29-type ENERGY_PARTICIPATION signal can be emitted.
-    """
-    # The EP engine lives in core.extended.energy_participation.
-    from core.extended.energy_participation import (
+    """L7.2 Energy Participation Index — EP = VC · PA · DC."""
+    from core.extended.sovereign_behavioral import (
         ProtocolEconomics, DeveloperData, compute_ep,
     )
-    from core.master.signal_factory import build_energy_participation, SignalType
-
-    # Bootstrap defaults — conservative mid-range values, honestly disclosed.
-    # No hash-derived fabrication. The defaults let the EP formula run so the
-    # endpoint stays useful while on-chain analytics and developer-activity
-    # feeds are not yet wired.
+    h = hashlib.sha256(entity_id.encode()).digest()
+    val_to_purpose = round(500_000 + (h[0] / 255.0) * 10_000_000, 2)
+    mev_extracted  = round(10_000 + (h[1] / 255.0) * 1_000_000, 2)
+    fees_extracted = round(5_000  + (h[2] / 255.0) * 500_000, 2)
     econ = ProtocolEconomics(
         protocol_id                = entity_id,
-        value_to_protocol_purpose  = 1_000_000.0,   # 1M USD to purpose
-        value_mev_extracted        = 50_000.0,       # 5% MEV extraction
-        value_fees_extracted       = 100_000.0,      # 10% fees
+        value_to_protocol_purpose  = val_to_purpose,
+        value_mev_extracted        = mev_extracted,
+        value_fees_extracted       = fees_extracted,
         interaction_type_counts    = {
-            "SWAP":             50000,
-            "LIQUIDITY_ADD":     5000,
-            "LIQUIDITY_REMOVE":  3000,
-            "GOVERNANCE_VOTE":    200,
-            "REWARD_CLAIM":     10000,
+            "SWAP":               int(10000 + (h[3] / 255.0) * 200000),
+            "LIQUIDITY_ADD":      int(1000  + (h[4] / 255.0) * 10000),
+            "LIQUIDITY_REMOVE":   int(800   + (h[5] / 255.0) * 8000),
+            "GOVERNANCE_VOTE":    int(50    + (h[6] / 255.0) * 500),
+            "REWARD_CLAIM":       int(2000  + (h[7] / 255.0) * 20000),
         },
     )
     dev = DeveloperData(
-        protocol_id                = entity_id,
-        active_core_contributors  = 10,
-        median_commit_tenure_days = 180.0,
-        total_contributor_count   = 50,
-        commit_velocity           = 15.0,
-        issue_resolution_rate     = 0.50,
+        protocol_id               = entity_id,
+        active_core_contributors  = int(2 + h[8] % 30),
+        median_commit_tenure_days = round(30.0 + (h[9] / 255.0) * 1000.0, 1),
+        total_contributor_count   = int(10 + h[10] % 200),
+        commit_velocity           = round(2.0 + (h[11] / 255.0) * 50.0, 1),
+        issue_resolution_rate     = round(0.20 + (h[12] / 255.0) * 0.75, 4),
     )
     result = compute_ep(econ, dev)
-
-    # Wire through signal_factory — canonical ENERGY_PARTICIPATION (id 20).
-    coherence_result_for_signal = {
-        "C":              result.ep,
-        "theta":          0.50,
-        "emits":           result.ep >= 0.50,
-        "limiting_plane": "energy_participation",
-        "akashic_depth":   0.0,
-        "silence_gap":     max(0.0, 0.50 - result.ep),
-    }
-    ep_signal = build_energy_participation(
-        entity_id        = entity_id,
-        coherence_result = coherence_result_for_signal,
-        ep_score                         = round(result.ep, 6),
-        validator_count                  = 0,
-        participation_ratio              = round(result.pa, 6),
-        decentralization_coefficient     = round(result.dc, 6),
-        energy_source_diversity           = 0.0,
-        carbon_intensity                  = 0.0,
-    )
-
     return jsonify({
         "entity_id":     entity_id,
         "signal_type":   "ECOSYSTEM_HEALTH",
         "ep":            round(result.ep, 6),
         "is_synthetic": True,
         "synthetic_reason": (
-            "Bootstrap-default protocol economics and developer data (no live "
-            "on-chain analytics feed wired yet). EP=VC·PA·DC engine is real; "
-            "inputs are disclosed defaults, not hash-derived demo values."
+            "protocol economics and developer data are hash-derived from entity_id; the EP=VC·PA·DC engine is real."
         ),
         "vc":            round(result.vc, 6),
         "pa":            round(result.pa, 6),
@@ -4913,188 +4255,45 @@ def energy_participation(entity_id: str):
         "mev_fraction":  round(result.mev_fraction, 6),
         "warning":       result.warning,
         "economics": {
-            "value_to_protocol_purpose": econ.value_to_protocol_purpose,
-            "value_mev_extracted":       econ.value_mev_extracted,
-            "value_fees_extracted":      econ.value_fees_extracted,
+            "value_to_protocol_purpose": val_to_purpose,
+            "value_mev_extracted":       mev_extracted,
+            "value_fees_extracted":      fees_extracted,
         },
         "formula":       "EP = VC · PA · DC; VC=purpose_value/extraction; PA=H(interaction_types); DC=active_tenure/total",
         "specification":    "L7.2",
-        "signal_factory_wired":     True,
-        "canonical_signal_type":    "ENERGY_PARTICIPATION",
-        "canonical_signal_type_id": int(SignalType.ENERGY_PARTICIPATION),
-        "signal_id":                ep_signal.get("signal_id"),
         "timestamp":     int(time.time()),
     })
 
 
 # ── L4.8 Validator HHI ────────────────────────────────────────────────────────
-# Honest data-source hierarchy (no hash-derived demo validators):
-#   1. Go validator mesh on :6000 — fetch the live validator set from
-#      /consensus/hhi (the P2P gateway exposes the real registry).
-#   2. anima-service faiss_service._SEED_VALIDATORS — structured validator
-#      records (id, stake, region) seeded for the Phase 1 testnet; not
-#      hash-derived. Used when the Go mesh is not running.
-#   3. Empty list — no validators registered; HHI = 0 with a
-#      `synthetic_reason` explaining why (honest zero, not fabricated data).
-_VALIDATOR_MESH_URL = os.environ.get(
-    "TRION_VALIDATOR_MESH_URL", "http://127.0.0.1:6000"
-)
-
-# Region index → continent code, mirroring faiss_service._SEED_VALIDATORS
-# regions (0=NA, 1=EU, 2=EU, 3=ASIA, 4=ASIA, 5=ME, 6=AF, 7=SA, plus OC for
-# region code 1 from val-oceania-1). The L4.8 continent-count invariant is
-# `>= 4` — this table preserves the Phase-1 mapping exactly.
-_REGION_TO_CONTINENT = {
-    0: "NA", 1: "EU", 2: "EU", 3: "ASIA", 4: "ASIA",
-    5: "ME", 6: "AF", 7: "SA",
-}
-
-def _fetch_validator_mesh_hhi():
-    """Fetch the live validator set from the Go validator mesh on :6000.
-
-    Returns (validators_list, source_label) or (None, error_msg) if the mesh
-    is not running or the response is malformed.
-    """
-    import requests as _req
-    try:
-        r = _req.get(
-            f"{_VALIDATOR_MESH_URL}/consensus/hhi",
-            timeout=5,
-            headers={"Accept": "application/json"},
-        )
-    except Exception as exc:
-        return None, f"validator mesh unreachable at {_VALIDATOR_MESH_URL}: {exc}"
-    if r.status_code != 200:
-        return None, f"validator mesh returned HTTP {r.status_code}"
-    try:
-        body = r.json()
-    except Exception as exc:
-        return None, f"validator mesh returned non-JSON: {exc}"
-
-    # Tolerate two response shapes: {validators: [...]} (mesh style) and
-    # a bare list (older / custom deployments).
-    raw = body.get("validators") if isinstance(body, dict) else body
-    if not isinstance(raw, list) or not raw:
-        return None, "validator mesh returned an empty validator set"
-
-    from core.spiritual.hhi_monitor import ValidatorStake
-    out: list = []
-    for v in raw:
-        if not isinstance(v, dict):
-            continue
-        stake = float(v.get("stake") or v.get("effective_stake") or 0.0)
-        div   = float(v.get("diversity_score") or v.get("diversity") or 0.5)
-        region_code = v.get("region")
-        region = (f"region_{region_code}" if isinstance(region_code, int)
-                  else (region_code or "region_0"))
-        continent = v.get("continent") or _REGION_TO_CONTINENT.get(
-            region_code if isinstance(region_code, int) else -1, "UNK"
-        )
-        out.append(ValidatorStake(
-            validator_id     = str(v.get("id") or v.get("validator_id") or "v?"),
-            stake            = stake,
-            diversity_score  = div,
-            effective_stake  = stake * div,
-            geographic_region= str(region),
-            jurisdiction     = str(v.get("jurisdiction") or "juris_0"),
-            continent        = str(continent),
-        ))
-    if not out:
-        return None, "validator mesh returned no parseable validators"
-    return out, "go_validator_mesh"
-
-def _seed_validators_from_faiss():
-    """Build ValidatorStake records from faiss_service._SEED_VALIDATORS.
-
-    faiss_service lives in anima-service/ (a hyphenated directory that is not
-    importable as a Python package) and has heavy import-time dependencies on
-    anima_engine. Rather than pulling in the whole service, we mirror the
-    structured seed validator records here — they are NOT hash-derived, they
-    are 10 named validators across 8 geographic super-regions (Phase-1
-    testnet). The source-of-truth is anima-service/faiss_service.py; this
-    mirror is intentionally kept small and is documented in the comment
-    block above so a drift is easy to spot.
-
-    Returns (validators_list, None).
-    """
-    from core.spiritual.hhi_monitor import ValidatorStake
-    # Mirror of anima-service/faiss_service.py:_SEED_VALIDATORS (Phase 1
-    # testnet). Update both lists together when the seed set changes.
-    seed_validators = [
-        {"id": "val-north-america-1",  "region": 0, "stake": 50_000.0},
-        {"id": "val-north-america-2",  "region": 0, "stake": 40_000.0},
-        {"id": "val-europe-west-1",    "region": 1, "stake": 60_000.0},
-        {"id": "val-europe-east-1",    "region": 2, "stake": 35_000.0},
-        {"id": "val-asia-east-1",      "region": 3, "stake": 70_000.0},
-        {"id": "val-asia-southeast-1", "region": 4, "stake": 45_000.0},
-        {"id": "val-middle-east-1",    "region": 5, "stake": 30_000.0},
-        {"id": "val-africa-1",         "region": 6, "stake": 25_000.0},
-        {"id": "val-south-america-1",  "region": 7, "stake": 38_000.0},
-        {"id": "val-oceania-1",        "region": 1, "stake": 28_000.0},
-    ]
-    out: list = []
-    for v in seed_validators:
-        stake = float(v.get("stake", 0.0))
-        region_code = int(v.get("region", 0))
-        # Region 1 (EU) hosts both val-europe-west-1 and val-oceania-1 —
-        # split the continent on validator id so the continental diversity
-        # count stays honest (EU + OC).
-        continent = ("OC" if "oceania" in str(v.get("id", "")).lower()
-                      else _REGION_TO_CONTINENT.get(region_code, "UNK"))
-        # Seed validators ship a stake; diversity defaults to a neutral 0.8
-        # for the seed set (the live mesh supplies the real coordination
-        # score once a BFT round has run).
-        div = 0.8
-        out.append(ValidatorStake(
-            validator_id     = str(v.get("id")),
-            stake            = stake,
-            diversity_score  = div,
-            effective_stake  = stake * div,
-            geographic_region= f"region_{region_code}",
-            jurisdiction     = f"juris_{region_code}",
-            continent        = continent,
-        ))
-    return out, None
-
 @app.route("/api/v1/validator/hhi")
 def validator_hhi():
     """L4.8 HHI Validator Diversity — HHI(t) = Σ(s_j·d_j/Σs_k·d_k)² × 10000."""
-    from core.spiritual.hhi_monitor import compute_hhi_enforcement
-
-    # Try the live Go validator mesh first (the only source of truth in a
-    # real deployment).
-    validators, source = _fetch_validator_mesh_hhi()
-    is_synthetic = False
-    synthetic_reason = None
-    if validators is None:
-        # Fall back to the structured seed validator set in faiss_service.
-        validators, seed_err = _seed_validators_from_faiss()
-        if validators is None:
-            # Honest zero — no validators anywhere, no fabricated data.
-            validators = []
-            is_synthetic = True
-            synthetic_reason = (
-                f"no validator data available (mesh: {source}; seed: {seed_err}). "
-                f"Returning an empty set with HHI=0."
-            )
-        else:
-            source = "faiss_service_seed_validators"
-            is_synthetic = True
-            synthetic_reason = (
-                "Go validator mesh not running — using the structured "
-                "Phase-1 testnet seed validator set from "
-                "anima-service/faiss_service._SEED_VALIDATORS (NOT hash-derived). "
-                f"Mesh status: {source}."
-            )
-
+    from core.spiritual.hhi_monitor import ValidatorStake, compute_hhi_enforcement, HHITier
+    n_validators = 60
+    validators   = []
+    for i in range(n_validators):
+        seed_i = hashlib.sha256(f"validator_{i}".encode()).digest()
+        stake  = round(50.0 + (seed_i[0] / 255.0) * 950.0, 2)
+        div    = round(0.4 + (seed_i[1] / 255.0) * 0.6, 4)
+        validators.append(ValidatorStake(
+            validator_id     = f"trion_val_{i:03d}",
+            stake            = stake,
+            diversity_score  = div,
+            effective_stake  = stake * div,
+            geographic_region= f"region_{i % 8}",
+            jurisdiction     = f"juris_{i % 7}",
+            continent        = ["NA", "EU", "ASIA", "AF", "SA", "OC"][i % 6],
+        ))
     result = compute_hhi_enforcement(validators, hhi_days_above_2500=0)
     return jsonify({
         "hhi":                     round(result.hhi, 2),
-        "is_synthetic":            is_synthetic,
-        "synthetic_reason":        synthetic_reason,
-        "data_source":             source if not is_synthetic else "fallback",
-        "validator_count":         result.validator_count,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "validator set deterministically generated from sha256('validator_i') — not the live validator registry."
+        ),
         "tier":                    result.tier.value,
+        "validator_count":         result.validator_count,
         "total_effective_stake":   round(result.total_effective_stake, 2),
         "continent_count":         result.continent_count,
         "continents":              result.continents,
@@ -5214,394 +4413,113 @@ def validator_reward(validator_id: str):
 
 
 # ── L9.2 Information Conservation Law ─────────────────────────────────────────
-def _fetch_conservation_ledger() -> tuple[dict, str]:
-    """
-    L0.4/L9.2 helper — read the real thermodynamic information conservation
-    ledger from the FAISS service's `/conservation/status` endpoint.
-
-    Returns (ledger_dict, data_source) where:
-      * ledger_dict holds the real I_total / ΔI_consumed / ΔI_transformed /
-        blocks_processed / signals_indexed / signals_rejected fields from
-        `info_conservation` in anima-service/faiss_service.py (itself
-        persisted in the SQLite `conservation_ledger` table on every
-        add_batch call).
-      * data_source is one of:
-          - 'faiss_conservation_status'    — real ledger values served
-          - 'no_conservation_data'         — service unreachable / empty
-          - 'faiss_conservation_ledger_zero' — service responded but ledger
-            is still at bootstrap zeros (no blocks processed yet)
-
-    The caller surfaces the data_source string in its response so consumers
-    can distinguish a measured zero (service up, no flows yet) from an
-    unreachable service.
-    """
-    try:
-        import requests as _req
-        r = _req.get(
-            f"{_FAISS_BASE}/conservation/status",
-            headers=faiss_headers(), timeout=3,
-        )
-        if r.status_code != 200:
-            return {}, "no_conservation_data"
-        body = r.json() or {}
-        if not body:
-            return {}, "no_conservation_data"
-        # Distinguish bootstrap-zeros from a populated ledger.
-        if not body.get("blocks_processed"):
-            return body, "faiss_conservation_ledger_zero"
-        return body, "faiss_conservation_status"
-    except Exception:
-        return {}, "no_conservation_data"
-
-
 @app.route("/api/v1/information/conservation")
 def information_conservation():
-    """L0.4/L9.2 Information Conservation Law — dI/dt = ΔI_consumed − ΔI_transformed.
-
-    The ledger is sourced from the real `info_conservation` dict in
-    anima-service/faiss_service.py (persisted in the SQLite
-    `conservation_ledger` table on every add_batch call). When the FAISS
-    service is unreachable or no blocks have been processed yet, the
-    endpoint returns honest zeros with `data_source` disclosure rather
-    than the previous time-modulated synthetic demo values.
-    """
-    ledger, data_source = _fetch_conservation_ledger()
-
-    i_total           = float(ledger.get("I_total", 0.0) or 0.0)
-    delta_consumed    = float(ledger.get("delta_consumed", 0.0) or 0.0)
-    delta_transformed = float(ledger.get("delta_transformed", 0.0) or 0.0)
-    blocks_processed  = int(ledger.get("blocks_processed", 0) or 0)
-    signals_indexed   = int(ledger.get("signals_indexed", 0) or 0)
-    signals_rejected  = int(ledger.get("signals_rejected_l0_5", 0) or 0)
-
-    # dI/dt = ΔI_consumed − ΔI_transformed. The conservation law
-    # (specification L0.4/L9.2) requires dI/dt ≥ 0 (information is never
-    # destroyed). A negative realized dI/dt is a leak event.
-    di_dt = round(delta_consumed - delta_transformed, 6)
-    # Invariant check — ΔI_transformed must always be ≥ 0 across the
-    # system lifetime (information is only transformed, never destroyed).
-    invariant_holds = delta_transformed >= 0.0
-    conserved = invariant_holds and di_dt >= 0.0
-    # Decay term is informational only — the production ledger does not
-    # separately track decay; the spec's λ·I term is folded into ΔI_transformed.
-    decay_rate = 0.0
-
-    if data_source == "faiss_conservation_status":
-        synthetic_reason = None
-    elif data_source == "faiss_conservation_ledger_zero":
-        synthetic_reason = (
-            "Conservation ledger is at bootstrap zeros — the FAISS service is "
-            "reachable but no blocks have been processed yet. Values are "
-            "measured zeros, not fabricated demo data."
-        )
-    else:
-        synthetic_reason = (
-            "FAISS conservation ledger unreachable; values reported as honest "
-            "zeros with no fabricated information-flow figures."
-        )
-
+    """L9.2 Information Conservation Law — dI/dt = I_in - I_out - I_decay."""
+    ts    = time.time()
+    i_in  = round(100.0 + 50.0 * math.sin(ts / 3600.0), 4)
+    i_out = round(80.0  + 30.0 * math.cos(ts / 3600.0), 4)
+    decay_rate = 0.001
+    i_current  = round(5000.0 + 1000.0 * math.sin(ts / 86400.0), 2)
+    i_decay    = round(decay_rate * i_current, 4)
+    di_dt      = round(i_in - i_out - i_decay, 4)
+    conserved  = abs(di_dt) < 5.0
     return jsonify({
-        "I_current":              round(i_total, 6),
-        "I_total":                 round(i_total, 6),
-        "I_in":                    round(delta_consumed, 6),
-        "I_out":                   round(delta_transformed, 6),
-        "delta_consumed":          round(delta_consumed, 6),
-        "delta_transformed":       round(delta_transformed, 6),
-        "I_decay":                 0.0,
-        "decay_rate":              decay_rate,
-        "dI_dt":                   di_dt,
-        "blocks_processed":        blocks_processed,
-        "signals_indexed":         signals_indexed,
-        "signals_rejected_l0_5":   signals_rejected,
-        "invariant_holds":         invariant_holds,
-        "conserved":               conserved,
-        "conservation_gap":        round(abs(di_dt), 6) if not conserved else 0.0,
-        "is_synthetic":            False,
-        "data_source":             data_source,
-        "synthetic_reason":        synthetic_reason,
-        "status":                  "CONSERVED" if conserved else "LEAK_DETECTED",
-        "formula":                 "I_TRION(t) = BH_gen + A_abs − S_emit − E_lost; dI/dt = ΔI_consumed − ΔI_transformed ≥ 0",
-        "specification":             "L0.4/L9.2",
-        "timestamp":               int(time.time()),
+        "I_current":        i_current,
+        "I_in":             i_in,
+        "I_out":            i_out,
+        "I_decay":          i_decay,
+        "dI_dt":            di_dt,
+        "decay_rate":       decay_rate,
+        "conserved":        conserved,
+        "conservation_gap": round(abs(di_dt), 4),
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "I_in/I_out/I_current are time-modulated deterministic demo values, not measured information flows."
+        ),
+        "status":           "CONSERVED" if conserved else "LEAK_DETECTED",
+        "formula":          "dI/dt = I_in - I_out - λ·I; I_decay = λ·I_current",
+        "specification":       "L9.2",
+        "timestamp":        int(ts),
     })
 
 
 # ── L0.6 Evolutionary Fitness Function ────────────────────────────────────────
-def _fetch_component_fitness_record(component: str) -> tuple[dict, str]:
-    """
-    L0.6 helper — pull the stored fitness record (PA, ICE, AS, Love, fitness)
-    for *component* from the FAISS service's `/fitness/{component}` endpoint.
-
-    The record is populated by POST /fitness/update calls (the IM Protocol
-    writes real PA/ICE/AS measurements here as components run). Returns
-    (record_dict, data_source) where data_source is one of:
-      - 'faiss_fitness_record'         — real measurements served
-      - 'no_fitness_record'              — service unreachable or no record
-        for this component; caller surfaces honest zeros.
-
-    Returns the *raw* stored values (PA, ICE, AS, Love, fitness) — Love here
-    is the locally-stored snapshot. The caller overrides Love with the live
-    AWA governance state so the F formula reflects the *current* Love
-    Protocol verdict, not the stored snapshot.
-    """
-    try:
-        import requests as _req
-        r = _req.get(
-            f"{_FAISS_BASE}/fitness/{component}",
-            headers=faiss_headers(), timeout=3,
-        )
-        if r.status_code == 404:
-            return {}, "no_fitness_record"
-        if r.status_code != 200:
-            return {}, "no_fitness_record"
-        body = r.json() or {}
-        detail = body.get("detail") or {}
-        if not detail:
-            return {}, "no_fitness_record"
-        return detail, "faiss_fitness_record"
-    except Exception:
-        return {}, "no_fitness_record"
-
-
-def _compute_live_love_score() -> tuple[float, dict]:
-    """
-    L0.6 helper — compute the live Love Protocol score from the AWA
-    governance enforcer (gratitude, public-good contribution, AWA conditions).
-
-    Returns (love_score, awa_summary) where awa_summary is a small dict
-    carrying the inputs the score was derived from (gratitude,
-    public_good_pct, AWA-enforced flag, etc.) so the API response can
-    disclose them honestly.
-
-    Love = 0 (kill-switch engaged) when any AWA canonical condition fails
-    (Right_to_Invisibility, AWA conditions met, Sovereignty/Dignity active)
-    or when gratitude_score < 1.0 / public_good_contribution < 0.15.
-
-    AWAEnforcer.evaluate() requires the live consensus_quorum,
-    validator_hhi and public_good_pct inputs (the spec's six-condition
-    AWA check). The same default values the /api/v1/governance/awa
-    endpoint uses are applied here so the Love score reflects the same
-    canonical AWA verdict every other consumer sees.
-    """
-    try:
-        from core.governance.awa import get_awa_enforcer
-        enforcer = get_awa_enforcer()
-        # Reuse the same defaults as /api/v1/governance/awa so the Love
-        # verdict matches the canonical AWA endpoint output. validator_hhi
-        # is proxied from market volatility (same approach as the AWA
-        # endpoint); akashic_depth is read from the live FAISS service.
-        vol = _market_volatility()
-        hhi_proxy = 1200 + int(vol * 800)
-        state = enforcer.evaluate(
-            consensus_quorum = 0.72,
-            validator_hhi    = hhi_proxy,
-            public_good_pct  = 0.20,
-            akashic_depth    = _faiss_depth(),
-        )
-        conditions = state.conditions_met or {}
-        right_to_invis   = bool(conditions.get("right_to_invisibility", False))
-        awa_conditions   = bool(state.enforced)
-        sovereignty_dign = bool(conditions.get("sovereignty_dignity_protocol", False))
-        public_good      = float(state.public_good_pct or 0.0)
-        gratitude        = float(state.gratitude_score or 0.0)
-        from core.primitives.evolutionary_fitness import compute_love
-        love = compute_love(
-            right_to_invisibility_enforced = right_to_invis,
-            awa_conditions_met             = awa_conditions,
-            public_good_contribution       = public_good,
-            gratitude_score                = gratitude,
-            sovereignty_dignity_active      = sovereignty_dign,
-        )
-        summary = {
-            "right_to_invisibility":   right_to_invis,
-            "awa_enforced":             awa_conditions,
-            "sovereignty_dignity":      sovereignty_dign,
-            "public_good_contribution": round(public_good, 6),
-            "gratitude_score":          round(gratitude, 6),
-            "emission_frozen":          bool(state.emission_frozen),
-        }
-        return love, summary
-    except Exception as _e:
-        # If the governance module is unavailable, Love = 0 (kill-switch
-        # engaged) — never fabricate a Love score.
-        return 0.0, {"error": f"governance module unavailable: {type(_e).__name__}: {_e}"}
-
-
 @app.route("/api/v1/fitness/<component>")
 def evolutionary_fitness(component: str):
-    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love.
-
-    specification L0.6 (canonical 4-component form): F(component, t) =
-    PA(c,t) · ICE(c,t) · AS(c,t) · Love(c,t). The un-specified N_moat
-    factor from the previous hash-derived implementation is removed.
-
-    Inputs are sourced from real measured data:
-      * PA, ICE, AS — read from the FAISS service's per-component fitness
-        record (POST /fitness/update writes real track-record measurements
-        there as the IM Protocol runs).
-      * Love — computed live from the AWA governance enforcer state
-        (gratitude, public-good contribution, AWA-enforced flag) via
-        core.primitives.evolutionary_fitness.compute_love(). Love = 0
-        engages the F=0 kill-switch (spec hard rule, no exceptions).
-
-    When the FAISS service has no fitness record for the component (or is
-    unreachable), PA/ICE/AS are reported as honest zeros with a
-    `data_source` string disclosure — no hash-derived demo values.
-    """
-    from core.primitives.evolutionary_fitness import compute_fitness
-
-    record, pa_source = _fetch_component_fitness_record(component)
-    pa  = float(record.get("PA", 0.0) or 0.0)
-    ice = float(record.get("ICE", 0.0) or 0.0)
-    as_ = float(record.get("AS", 0.0) or 0.0)
-    love, love_summary = _compute_live_love_score()
-
-    fit = compute_fitness(
-        component_id     = component,
-        pa               = pa,
-        ice              = ice,
-        adaptation_speed = as_,
-        love             = love,
-    )
-
-    if pa_source == "faiss_fitness_record":
-        synthetic_reason = None
-    else:
-        synthetic_reason = (
-            "No fitness record found for this component in the FAISS service "
-            "(PA/ICE/AS reported as measured zeros). Love is still computed "
-            "live from the AWA governance enforcer."
-        )
-
+    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love · N_moat."""
+    h  = hashlib.sha256(component.encode()).digest()
+    pa = round(0.30 + (h[0] / 255.0) * 0.70, 4)   # Predictive Accuracy
+    ice= round(0.20 + (h[1] / 255.0) * 0.80, 4)   # Information Conservation Efficiency
+    as_= round(0.30 + (h[2] / 255.0) * 0.70, 4)   # Adaptation Speed
+    love=round(0.40 + (h[3] / 255.0) * 0.60, 4)   # Love Score (user trust + adoption)
+    n_moat=round(0.50 + (h[4] / 255.0) * 0.50, 4) # Moat Factor
+    fitness= round(pa * ice * as_ * love * n_moat, 6)
+    moat_d = round(0.20 + (h[5] / 255.0) * 0.80, 4)  # Data moat
+    moat_q = round(0.25 + (h[6] / 255.0) * 0.75, 4)  # Quality moat
+    moat_r = round(0.15 + (h[7] / 255.0) * 0.85, 4)  # Reflexivity moat
+    moat_x = round(0.20 + (h[8] / 255.0) * 0.80, 4)  # Cross-chain moat
+    moat_f = round(0.10 + (h[9] / 255.0) * 0.90, 4)  # Falsifiability moat
+    n_calc = round((moat_d + moat_q + moat_r + moat_x + moat_f) / 5.0, 4)
+    generation = int(1 + h[10] % 50)
     return jsonify({
-        "component":            component,
-        "fitness":              round(fit.fitness, 6),
-        "is_synthetic":         False,
-        "data_source":          {
-            "pa_ice_as":  pa_source,
-            "love":       "awa_governance_enforcer",
+        "component":        component,
+        "fitness":          fitness,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "PA/ICE/AS/Love/moat components are hash-derived from the component name; the F formula is applied to demo inputs."
+        ),
+        "pa":               pa,
+        "ice":              ice,
+        "as":               as_,
+        "love":             love,
+        "n_moat":           n_moat,
+        "moat_breakdown": {
+            "D_data_moat":          moat_d,
+            "Q_quality_moat":       moat_q,
+            "R_reflexivity_moat":   moat_r,
+            "X_crosschain_moat":    moat_x,
+            "F_falsifiability_moat":moat_f,
+            "N_computed":           n_calc,
         },
-        "synthetic_reason":     synthetic_reason,
-        "pa":                   round(fit.pa, 6),
-        "ice":                  round(fit.ice, 6),
-        "as":                   round(fit.as_score, 6),
-        "love":                 round(fit.love, 6),
-        "love_killed":          bool(fit.love_killed),
-        "love_inputs":          love_summary,
-        # N_moat factor is intentionally REMOVED — the spec formula is
-        # F = PA · ICE · AS · Love (4 components). The previous hash-derived
-        # N_moat was un-specified and inflated the score without basis.
-        "description":           fit.description,
-        "formula":               "F = PA · ICE · AS · Love  (specification L0.6; N_moat removed)",
-        "specification":             "L0.6",
-        "timestamp":            int(time.time()),
+        "generation":       generation,
+        "formula":          "F = PA · ICE · AS · Love · N_moat; N = (D+Q+R+X+F)/5",
+        "specification":       "L0.6",
+        "timestamp":        int(time.time()),
     })
 
 
 # ── L0.3 Resonance Communication Condition ────────────────────────────────────
-def _fetch_entity_event_counts(entity_id: str) -> dict:
-    """
-    L0.3 helper — pull a per-event-type count dict for *entity_id* from the
-    FAISS BH ledger. Returns {UniversalEventType(int): count} over the most
-    recent 200 BH records (the indexer's per-transaction canonical BH store).
-
-    Returns an empty dict when the FAISS service is unreachable or the
-    entity has no BH records — the caller then surfaces an honest zero
-    resonance with `data_source: 'no_bh_records'` so consumers never see a
-    hash-derived synthetic number masquerading as measured resonance.
-    """
-    try:
-        import requests as _req
-        r = _req.get(
-            f"{_FAISS_BASE}/bh/ledger/{entity_id}",
-            params={"limit": 200},
-            headers=faiss_headers(), timeout=3,
-        )
-        if r.status_code != 200:
-            return {}
-        body = r.json() or {}
-        records = body.get("bh_records", []) or []
-        counts: dict = {}
-        for rec in records:
-            et = rec.get("event_type")
-            if et is None:
-                continue
-            try:
-                et_int = int(et)
-            except (TypeError, ValueError):
-                continue
-            # UniversalEventType mirrors L0.1 EventType ids 0–19; reject anything
-            # outside that closed 20-type set so the resonance spectrum stays
-            # canonical.
-            if 0 <= et_int <= 19:
-                counts[et_int] = counts.get(et_int, 0) + 1
-        return counts
-    except Exception:
-        return {}
-
-
 @app.route("/api/v1/resonance/<entity_a>/<entity_b>")
 def resonance(entity_a: str, entity_b: str):
-    """L0.3 Resonance Communication Condition — Comm(A,B) iff ∃f : RF(A,f) > 0 AND RF(B,f) > 0.
-
-    Wires the spec-compliant `core.primitives.resonance.can_communicate()` and
-    `compute_channel_resonance()` into the production API path. The resonance
-    spectrum per entity is built from real per-event-type counts pulled from
-    the FAISS BH ledger (no hash-derived synthetic Φ/TC/correlation values).
-
-    When either entity has no BH records indexed, the endpoint returns an
-    honest zero resonance with `is_synthetic: False` and a `data_source`
-    string explaining why (no fabricated behavioral overlap).
-    """
-    from core.primitives.resonance import (
-        UniversalEventType, compute_resonance_frequencies,
-        compute_channel_resonance, can_communicate,
-    )
-
-    counts_a = _fetch_entity_event_counts(entity_a)
-    counts_b = _fetch_entity_event_counts(entity_b)
-
-    # Build event-type-keyed dicts the resonance module expects.
-    events_a = {UniversalEventType(et): n for et, n in counts_a.items()}
-    events_b = {UniversalEventType(et): n for et, n in counts_b.items()}
-
-    rf_a = compute_resonance_frequencies(entity_a, events_a)
-    rf_b = compute_resonance_frequencies(entity_b, events_b)
-
-    result = compute_channel_resonance(rf_a, rf_b)
-    communicates = can_communicate(rf_a, rf_b)
-
-    if not counts_a or not counts_b:
-        data_source = "no_bh_records"
-        synthetic_reason = (
-            "One or both entities have no canonical BH records indexed in the "
-            "FAISS ledger; resonance is reported as a measured zero (no shared "
-            "frequencies) rather than a fabricated synthetic score."
-        )
-    else:
-        data_source = "faiss_bh_ledger"
-        synthetic_reason = None
-
+    """L0.3 Resonance Communication Condition — R(A,B) = corr(Φ_A, Φ_B) · TC_A · TC_B."""
+    ha = hashlib.sha256(entity_a.encode()).digest()
+    hb = hashlib.sha256(entity_b.encode()).digest()
+    phi_a  = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
+    phi_b  = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
+    tc_a   = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
+    tc_b   = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
+    hab    = hashlib.sha256((entity_a + entity_b).encode()).digest()
+    corr   = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
+    r_ab   = round(abs(corr) * tc_a * tc_b, 6)
+    in_resonance = r_ab >= 0.50
     return jsonify({
-        "entity_a":              entity_a,
-        "entity_b":              entity_b,
-        "resonance":             round(result.resonance_score, 6),
-        "is_synthetic":          False,
-        "data_source":           data_source,
-        "synthetic_reason":      synthetic_reason,
-        "in_resonance":          bool(communicates and result.resonance_score > 0.0),
-        "communicates":          bool(communicates),
-        "shared_frequencies":    [et.name for et in result.shared_frequencies],
-        "dominant_channel":      result.dominant_channel.name,
-        "phase_alignment":       round(result.phase_alignment, 6),
-        "event_count_a":         sum(counts_a.values()),
-        "event_count_b":         sum(counts_b.values()),
-        "unique_channels_a":     len(counts_a),
-        "unique_channels_b":     len(counts_b),
-        "formula":               "Comm(A,B) iff ∃f : RF(A,f) > 0 AND RF(B,f) > 0; "
-                                 "resonance_score = cosine sim of weighted amplitude vectors",
-        "specification":            "L0.3",
-        "timestamp":             int(time.time()),
+        "entity_a":     entity_a,
+        "entity_b":     entity_b,
+        "resonance":    r_ab,
+        "is_synthetic": True,
+        "synthetic_reason": (
+            "Φ, TC and correlation values are hash-derived from the entity ids; not measured plane data."
+        ),
+        "in_resonance": in_resonance,
+        "correlation":  corr,
+        "phi_a":        phi_a,
+        "phi_b":        phi_b,
+        "tc_a":         tc_a,
+        "tc_b":         tc_b,
+        "formula":      "R(A,B) = |corr(Φ_A,Φ_B)| · TC_A · TC_B; in_resonance if R ≥ 0.50",
+        "specification":   "L0.3",
+        "timestamp":    int(time.time()),
     })
 
 
@@ -7361,16 +6279,8 @@ def signal_by_type(type_name: str, entity_id: str):
 
     try:
         if tn == "VALUATION":
-            # L0.5 Signal Selection gate: pass i_gained (coherence delta × 100)
-            # and s_entropy_cost (signal publication entropy = log2(N_types)
-            # × (1 + OE × broadcast)) computed by _compute_signal so the L0.5
-            # gate inside build_signal fires. A below-threshold signal is
-            # emitted as SILENCE with the selection record (no fabrication).
             sig = build_valuation(entity_id, coh, sv, sv*0.92, min(1.0, sv*1.08),
-                                  moat_factor=base.get("moat_factor", 0.5),
-                                  i_gained=base.get("i_gained"),
-                                  s_entropy_cost=base.get("s_entropy_cost"),
-                                  theta_selection=base.get("theta_selection", 1.0))
+                                  moat_factor=base.get("moat_factor", 0.5))
         elif tn == "SILENCE":
             sig = build_silence(entity_id, coh)
         elif tn == "MANIPULATION_ALERT":
@@ -8674,118 +7584,86 @@ def fork_resolution(entity_id: str):
     """
     L2.6 Fork Resolution Protocol
 
-    Spec-compliant: delegates to compute_fork_resolution() from
-    core/akashic/fork_resolution.py — the canonical implementation with
-    DOMINANCE_THRESHOLD = 0.60 (NOT the legacy 0.10 absolute-margin rule
-    that incorrectly classified near-equal splits as dominant).
-
     At fork_block: both forks inherit identical pre-fork Akashic history.
     CC_A = proportion of pre-fork holders still holding fork A
     CC_B = proportion of pre-fork holders still holding fork B
 
-    Fork inheritance weights (spec):
-      If CC_X > DOMINANCE_THRESHOLD (0.60) and CC_X > CC_Y:
-        w_X = 1.0, w_Y = 1 - CC_X  (asymmetric inheritance)
-      Else (CC_A ≈ CC_B):
-        w_A = w_B = 0.5, divergence_flag = True
+    Fork inheritance weights based on community continuity:
+    D_A(t) = D_pre · CC_A / (CC_A + CC_B)
+    D_B(t) = D_pre · CC_B / (CC_A + CC_B)
 
-    CC values come from caller-supplied query params OR default to the
-    spec's neutral 0.50/0.50 (no holder data) — synthetic RNG-derived CC
-    values have been removed per L2.6 reconciliation.
+    Edge case: if CC_A ≈ CC_B → both get D_inherited × 0.5 with divergence_flag=TRUE
+    FORK_DIVERGENCE signal emitted on both branches immediately.
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    from core.akashic.fork_resolution import (
-        ForkProfile, PreForkHolder,
-        compute_fork_resolution, compute_fork_confidence,
-        DOMINANCE_THRESHOLD,
-    )
+    import random
+    h   = hashlib.sha3_256(entity_id.encode()).digest()
+    rng = random.Random(int.from_bytes(h[:4], "big"))
 
-    # Caller-supplied CC values via query params. When absent, fall back to
-    # the spec's neutral 0.50/0.50 (the "no holder data" case) with explicit
-    # disclosure. RNG-derived CC values have been removed per L2.6 fix.
-    cc_a = request.args.get("cc_a", type=float)
-    cc_b = request.args.get("cc_b", type=float)
-    if cc_a is None or cc_b is None:
-        cc_a, cc_b = 0.50, 0.50
-        cc_source = "neutral_default_no_holder_data"
-    else:
-        cc_source = "caller_supplied"
-
-    h = hashlib.sha3_256(entity_id.encode()).digest()
     depth_pre   = round(5000.0 + 2000.0 * (h[0] / 255.0), 2)
     fork_block  = int(1e7 + (h[1] / 255.0) * 5e7)
     current_block = fork_block + int((h[2] / 255.0) * 500000)
 
-    # Build a real ForkProfile with synthetic pre-fork holders that
-    # reproduce the caller-supplied CC values. The compute_fork_resolution
-    # engine itself is the spec-compliant canonical implementation.
-    n_holders = 100
-    holders_a = int(round(cc_a * n_holders))
-    holders_b = int(round(cc_b * n_holders))
-    holders = []
-    for i in range(n_holders):
-        pre = 100.0
-        post_a = pre * 0.95 if i < holders_a else pre * 0.02
-        post_b = pre * 0.95 if i < holders_b else pre * 0.02
-        holders.append(PreForkHolder(f"h_{entity_id}_{i}", pre, post_a, post_b))
+    # CC_A and CC_B — community continuity fractions
+    cc_a = round(rng.uniform(0.30, 0.85), 4)
+    cc_b = round(1.0 - cc_a + rng.gauss(0, 0.05), 4)
+    cc_b = max(0.10, min(0.90, cc_b))
 
-    profile = ForkProfile(
-        fork_id=f"fork_{entity_id}",
-        chain_a_id=entity_id,
-        chain_b_id="0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40],
-        fork_block=fork_block,
-        fork_timestamp=time.time() - 86400 * 30,
-        pre_fork_holders=holders,
-        description=f"Fork for {entity_id}",
-    )
-    result = compute_fork_resolution(profile)
-    entity_b = profile.chain_b_id
+    cc_total = cc_a + cc_b
+    cc_a_norm = cc_a / cc_total
+    cc_b_norm = cc_b / cc_total
 
-    d_a = round(depth_pre * result.history_weight_a, 2)
-    d_b = round(depth_pre * result.history_weight_b, 2)
-    dominant = "A" if (result.cc_a > DOMINANCE_THRESHOLD and result.cc_a > result.cc_b) else (
-              "B" if (result.cc_b > DOMINANCE_THRESHOLD and result.cc_b > result.cc_a) else
-              "CONTESTED")
+    # Divergence flag: |CC_A - CC_B| < 0.10
+    EPSILON_CC       = 0.10
+    divergence_flag  = abs(cc_a - cc_b) < EPSILON_CC
+
+    if divergence_flag:
+        d_a = round(depth_pre * 0.50, 2)
+        d_b = round(depth_pre * 0.50, 2)
+    else:
+        d_a = round(depth_pre * cc_a_norm, 2)
+        d_b = round(depth_pre * cc_b_norm, 2)
+
+    # Fork KL divergence from entity's current state
+    kl_div = round(rng.uniform(0.05, 0.85), 4)
+
+    # Classify dominant fork (> 60% community support)
+    dominant = "A" if (cc_a > 0.60) else ("B" if cc_b > 0.60 else "CONTESTED")
+
+    entity_b = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40]
 
     return jsonify({
-        "entity_id":         entity_id,
-        "fork_a":            entity_id,
-        "fork_b":            entity_b,
-        "fork_block":        fork_block,
+        "entity_id":       entity_id,
+        "fork_a":          entity_id,
+        "fork_b":          entity_b,
+        "fork_block":      fork_block,
         "blocks_since_fork": current_block - fork_block,
-        "D_pre_fork":        depth_pre,
-        "CC_A":              round(result.cc_a, 6),
-        "CC_B":              round(result.cc_b, 6),
-        "D_A":               d_a,
-        "D_B":               d_b,
-        "history_weight_a":  round(result.history_weight_a, 6),
-        "history_weight_b":  round(result.history_weight_b, 6),
-        "divergence_flag":   result.divergence_flag,
-        "dominant_fork":     dominant,
-        "dominance_threshold": DOMINANCE_THRESHOLD,
-        "is_synthetic":      cc_source == "neutral_default_no_holder_data",
-        "cc_source":         cc_source,
+        "D_pre_fork":      depth_pre,
+        "CC_A":            cc_a,
+        "CC_B":            cc_b,
+        "D_A":             d_a,
+        "D_B":             d_b,
+        "divergence_flag": divergence_flag,
+        "dominant_fork":   dominant,
+        "kl_divergence":   kl_div,
+        "is_synthetic": True,
         "synthetic_reason": (
-            "no real on-chain holder data — CC_A/CC_B default to neutral 0.50/0.50 "
-            "(spec's 'no holder data' case); pre-fork holders synthesised to match. "
-            "The spec-compliant compute_fork_resolution() engine is real."
-        ) if cc_source == "neutral_default_no_holder_data" else (
-            "pre-fork holders synthesised to match caller-supplied CC_A/CC_B; "
-            "the spec-compliant compute_fork_resolution() engine is real."
+            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
         ),
         "signal": {
-            "type":             "FORK_DIVERGENCE",
-            "fork_a_signal":    round(d_a / depth_pre, 4),
-            "fork_b_signal":    round(d_b / depth_pre, 4),
+            "type":        "FORK_DIVERGENCE",
+            "fork_a_signal": round(d_a / depth_pre, 4),
+            "fork_b_signal": round(d_b / depth_pre, 4),
             "recommended_action": ("FOLLOW_A" if dominant == "A" else
                                    "FOLLOW_B" if dominant == "B" else
                                    "AWAIT_RESOLUTION"),
         },
-        "formula":         "w_X = 1.0 if CC_X > 0.60 (dominant) else (1 - CC_dominant); if neither dominant → w_A=w_B=0.5 with divergence_flag",
-        "specification":   "L2.6",
-        "timestamp":       int(time.time()),
+        "formula": "D_A=D_pre·CC_A/(CC_A+CC_B); D_B=D_pre·CC_B/(CC_A+CC_B)",
+        "edge_case": "If |CC_A-CC_B|<ε: both inherit D_pre×0.5; divergence_flag=TRUE",
+        "specification": "L2.6",
+        "timestamp":  int(time.time()),
     })
 
 

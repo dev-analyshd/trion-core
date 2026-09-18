@@ -800,6 +800,14 @@ def build_signal(
     i_gained:             Optional[float] = None,
     s_entropy_cost:       Optional[float] = None,
     theta_selection:      float = 1.0,
+    # ── CRISPR screening (gap #4 — pass transaction_data so the auditor
+    # can match the underlying transaction against the known
+    # attack-signature library at core/auditor/contract_auditor.py).
+    # When provided, build_signal invokes the CRISPR matcher and attaches
+    # crispr_screening = {matched: bool, signatures: [...], library_size: int}
+    # to the returned signal dict. When omitted, no screening is performed
+    # and the field is absent — never fabricated.
+    transaction_data:     Optional[dict] = None,
 ) -> dict:
     """
     Build a complete TRIONSignal object with all specification-mandated fields.
@@ -1128,6 +1136,25 @@ def build_signal(
             "selected": True,
             "reason": selection_record.reason,
         }
+
+    # ── CRISPR screening (gap #4) ────────────────────────────────────────────
+    # When the caller passes the underlying transaction_data we screen it
+    # against the L10.4 CRISPR defense library (core/auditor/contract_auditor).
+    # A match collapses immune_clearance to False and surfaces the matched
+    # signatures — the Genomic Key then self-invalidates per L4.3.
+    if transaction_data is not None:
+        try:
+            from core.auditor.contract_auditor import crispr_screen_transaction
+            screening = crispr_screen_transaction(transaction_data)
+            signal["crispr_screening"] = screening
+            if screening.get("matched"):
+                signal["immune_clearance"] = False
+                signal["crispr_match"] = screening.get("signatures", [])
+        except Exception:
+            # Fail-soft: never let the CRISPR matcher abort signal
+            # construction. The absence of the crispr_screening field
+            # signals that screening was not performed.
+            pass
     return signal
 
 
