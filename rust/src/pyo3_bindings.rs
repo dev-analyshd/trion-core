@@ -38,6 +38,23 @@ use crate::master_equation::master_equation;
 use crate::phi::{compute_phi as rust_compute_phi, TransactionData};
 #[cfg(feature = "pyo3")]
 use crate::sigma::{compute_sigma as rust_compute_sigma, compute_diversity_weight};
+#[cfg(feature = "pyo3")]
+use crate::anima::{
+    compute_anima_score as rust_compute_anima_score,
+    compute_archetype_similarity as rust_compute_archetype_similarity,
+    compute_ci_95 as rust_compute_ci_95,
+    compute_ci_95_unbounded as rust_compute_ci_95_unbounded,
+    compute_observer_effect as rust_compute_observer_effect,
+    compute_pattern_library_pcr as rust_compute_pattern_library_pcr,
+    compute_probability_distribution as rust_compute_probability_distribution,
+    pearson_correlation as rust_pearson_correlation,
+};
+#[cfg(feature = "pyo3")]
+use crate::living_security::{
+    compute_sec_native as rust_compute_sec_native,
+    CRISPRDefense, GenomicKeyEvolver, hash_dna as rust_hash_dna,
+    kolmogorov_bound as rust_kolmogorov_bound,
+};
 
 // ──────────────────────────────────────────────────────────────────────────
 //  PyTransactionData — Python-facing mirror of `phi::TransactionData`
@@ -289,6 +306,236 @@ pub fn py_signal_type_name_from_id(id: u8) -> Option<String> {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+//  ANIMA ML hot-path (L3.3 / L3.6) — Part 11 language mandate
+// ──────────────────────────────────────────────────────────────────────────
+//
+//  Five performance-critical inference functions ported from the Python
+//  ANIMA engine (`anima-service/anima_engine.py` + `core/mental/anima/`):
+//
+//    1. compute_anima_score(pcr, ha, ca)            → f64
+//       A(t) = PCR · HA · CA (L3.3); returns 0 when HA < 0.60.
+//
+//    2. compute_archetype_similarity(entity, archetype) → f64
+//       Cosine similarity between an entity vector and an archetype
+//       centroid — `_compute_pcr` step 3.
+//
+//    3. compute_observer_effect(publications, changes)  → f64
+//       Lag-1 Pearson correlation OE = corr(pub[t-1], change[t])
+//       (L3.6 Observer Effect / Predictive Completeness Limit).
+//
+//    4. compute_ci_95(mean, std_dev, n_samples)       → (f64, f64)
+//       95% confidence interval using the t-distribution approximation
+//       (2.262 for n<10, 1.96 otherwise).
+//
+//    5. compute_probability_distribution(scores)      → (mean, std, lo, hi)
+//       Full PROBABILITY_DISTRIBUTION over a sample of scores — spec §3.3
+//       mandates ANIMA outputs are distributions, never point predictions.
+
+/// `#[pyfunction]` wrapper around `anima::compute_anima_score`.
+///
+/// Python: `trion_rust.compute_anima_score(0.85, 0.92, 0.78)` → 0.60996
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_anima_score")]
+pub fn py_compute_anima_score(pcr: f64, ha: f64, ca: f64) -> f64 {
+    rust_compute_anima_score(pcr, ha, ca)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_archetype_similarity`.
+///
+/// Python: `trion_rust.compute_archetype_similarity([0.1, 0.4], [0.3, 0.2])`
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_archetype_similarity")]
+pub fn py_compute_archetype_similarity(
+    entity_vector: Vec<f64>,
+    archetype_vector: Vec<f64>,
+) -> f64 {
+    rust_compute_archetype_similarity(&entity_vector, &archetype_vector)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_observer_effect`.
+///
+/// Python:
+///   trion_rust.compute_observer_effect([0.5, 0.6, 0.7, 0.8, 0.9],
+///                                      [0.2, 0.5, 0.65, 0.78, 0.88])
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_observer_effect")]
+pub fn py_compute_observer_effect(
+    publications: Vec<f64>,
+    behavioral_changes: Vec<f64>,
+) -> f64 {
+    rust_compute_observer_effect(&publications, &behavioral_changes)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_ci_95`.
+///
+/// Returns the (ci_low, ci_high) tuple clipped to the unit interval.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_ci_95")]
+pub fn py_compute_ci_95(mean: f64, std_dev: f64, n_samples: usize) -> (f64, f64) {
+    rust_compute_ci_95(mean, std_dev, n_samples)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_ci_95_unbounded` for
+/// callers working with non-unit scores (e.g., block counts).
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_ci_95_unbounded")]
+pub fn py_compute_ci_95_unbounded(mean: f64, std_dev: f64, n_samples: usize) -> (f64, f64) {
+    rust_compute_ci_95_unbounded(mean, std_dev, n_samples)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_probability_distribution`.
+///
+/// Returns `(mean, std_dev, ci_low, ci_high)` — spec §3.3 mandates that
+/// ANIMA outputs are PROBABILITY_DISTRIBUTION, never point predictions.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_probability_distribution")]
+pub fn py_compute_probability_distribution(scores: Vec<f64>) -> (f64, f64, f64, f64) {
+    rust_compute_probability_distribution(&scores)
+}
+
+/// `#[pyfunction]` wrapper around `anima::pearson_correlation` —
+/// raw two-series Pearson correlation, lag-0 alignment.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "pearson_correlation")]
+pub fn py_pearson_correlation(x: Vec<f64>, y: Vec<f64>) -> f64 {
+    rust_pearson_correlation(&x, &y)
+}
+
+/// `#[pyfunction]` wrapper around `anima::compute_pattern_library_pcr`.
+/// Returns `(pcr, coherent_count, total_count)` — mirrors
+/// `ANIMAPatternLibrary.compute_pcr()` in `pattern_library.py`.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_pattern_library_pcr")]
+pub fn py_compute_pattern_library_pcr(
+    coherences: Vec<f64>,
+    thresholds: Vec<f64>,
+) -> (f64, usize, usize) {
+    rust_compute_pattern_library_pcr(&coherences, &thresholds)
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Living Security System — L4.3-4.6 + Part 6
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Internal helper: evolve a GenomicKey one generation forward, starting
+/// from a genesis key if `generation == 0`. Mirrors the Python wrapper
+/// `core/rust_bridge_pyo3.py::compute_genomic_key_native` so the two paths
+/// produce byte-identical sense/antisense for the same inputs.
+fn evolve_genomic_key_bytes(
+    entity_id: &str,
+    generation: u64,
+    behavioral_event: &[u8],
+    timestamp: &[u8],
+    context: &[u8],
+) -> (String, String) {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0);
+    let h_env_seed = {
+        use sha3::Digest;
+        let mut h = sha3::Sha3_256::new();
+        h.update(b"trion_lss_h_env_seed::");
+        h.update(entity_id.as_bytes());
+        let out: [u8; 32] = h.finalize().into();
+        out
+    };
+
+    if generation == 0 {
+        let gk = GenomicKeyEvolver::initialize(entity_id.as_bytes(), &h_env_seed, now);
+        return (gk.sense_hex(), gk.antisense_hex());
+    }
+
+    let mut gk = GenomicKeyEvolver::initialize(entity_id.as_bytes(), &h_env_seed, now);
+    if generation > 1 {
+        let zero_hash: [u8; 32] = sha3::Sha3_256::digest(b"trion_lss_zero_step").into();
+        for _ in 1..generation {
+            gk = GenomicKeyEvolver::evolve(&gk, &zero_hash, &zero_hash, &zero_hash, now);
+        }
+    }
+    let gk_final = GenomicKeyEvolver::evolve(&gk, behavioral_event, timestamp, context, now);
+    (gk_final.sense_hex(), gk_final.antisense_hex())
+}
+
+/// `#[pyfunction]` wrapper around genomic-key evolution. Returns
+/// `(sense_hex, antisense_hex)` — each 64 lowercase hex chars.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_genomic_key_native")]
+#[pyo3(signature = (entity_id, generation, behavioral_event, timestamp, context))]
+pub fn py_compute_genomic_key_native(
+    entity_id: &str,
+    generation: u64,
+    behavioral_event: &[u8],
+    timestamp: &[u8],
+    context: &[u8],
+) -> (String, String) {
+    evolve_genomic_key_bytes(entity_id, generation, behavioral_event, timestamp, context)
+}
+
+/// `#[pyfunction]` wrapper around `living_security::compute_sec_native`.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "compute_sec_native")]
+#[pyo3(signature = (entity_id, akashic_depth, n_chains, n_validators))]
+pub fn py_compute_sec_native(
+    entity_id: &str,
+    akashic_depth: u64,
+    n_chains: u64,
+    n_validators: u64,
+) -> f64 {
+    rust_compute_sec_native(entity_id, akashic_depth, n_chains, n_validators)
+}
+
+/// `#[pyfunction]` wrapper around `CRISPRDefense::innate_check`.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "crispr_check_native")]
+pub fn py_crispr_check_native(transaction_data: &[u8]) -> bool {
+    CRISPRDefense::innate_check(transaction_data).is_some()
+}
+
+/// `#[pyfunction]` wrapper around `living_security::hash_dna` (L0.1).
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "lss_hash_dna")]
+pub fn py_lss_hash_dna(payload: &[u8]) -> (Vec<u8>, Vec<u8>) {
+    let (sense, antisense) = rust_hash_dna(payload);
+    (sense.to_vec(), antisense.to_vec())
+}
+
+/// `#[pyfunction]` wrapper around `living_security::kolmogorov_bound`.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "kolmogorov_bound")]
+#[pyo3(signature = (t_seconds, n_chains, n_validators, h_environment))]
+pub fn py_kolmogorov_bound(
+    t_seconds: f64,
+    n_chains: u64,
+    n_validators: u64,
+    h_environment: &[u8],
+) -> PyResult<f64> {
+    if h_environment.len() != 32 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "h_environment must be 32 bytes, got {}",
+            h_environment.len()
+        )));
+    }
+    let mut h = [0u8; 32];
+    h.copy_from_slice(h_environment);
+    Ok(rust_kolmogorov_bound(t_seconds, n_chains, n_validators, &h))
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 //  Module entry point — `import trion_rust`
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -303,6 +550,10 @@ pub fn py_signal_type_name_from_id(id: u8) -> Option<String> {
 /// t = trion_rust.compute_master_equation(c, theta, s, moat, t_years)
 /// id  = trion_rust.signal_type_id_from_name("VALUATION")  # → 0
 /// name = trion_rust.signal_type_name_from_id(0)           # → "VALUATION"
+/// sense_hex, antisense_hex = trion_rust.compute_genomic_key_native(
+///     "entity", 1, b"be", b"tm", b"cv")
+/// sec = trion_rust.compute_sec_native("entity", 1000, 31, 100)
+/// matched = trion_rust.crispr_check_native(tx_bytes)
 /// ```
 #[cfg(feature = "pyo3")]
 #[pymodule]
@@ -315,10 +566,25 @@ fn trion_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_compute_master_equation, m)?)?;
     m.add_function(wrap_pyfunction!(py_signal_type_id_from_name, m)?)?;
     m.add_function(wrap_pyfunction!(py_signal_type_name_from_id, m)?)?;
+    // ANIMA ML hot-path (L3.3 / L3.6) — Part 11 language mandate.
+    m.add_function(wrap_pyfunction!(py_compute_anima_score, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_archetype_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_observer_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_ci_95, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_ci_95_unbounded, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_probability_distribution, m)?)?;
+    m.add_function(wrap_pyfunction!(py_pearson_correlation, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_pattern_library_pcr, m)?)?;
+    // Living Security System (L4.3-4.6 + Part 6) — Rust native ports.
+    m.add_function(wrap_pyfunction!(py_compute_genomic_key_native, m)?)?;
+    m.add_function(wrap_pyfunction!(py_compute_sec_native, m)?)?;
+    m.add_function(wrap_pyfunction!(py_crispr_check_native, m)?)?;
+    m.add_function(wrap_pyfunction!(py_lss_hash_dna, m)?)?;
+    m.add_function(wrap_pyfunction!(py_kolmogorov_bound, m)?)?;
     // Expose module-level constants so the Python side can sanity-check
     // the build (used by core/rust_bridge_pyo3.py).
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add("SUPPORTED_FEATURES", ["bh", "phi", "sigma", "master_equation", "signal_emitter"])?;
+    m.add("SUPPORTED_FEATURES", ["bh", "phi", "sigma", "master_equation", "signal_emitter", "anima", "living_security"])?;
     m.add("SIGNAL_TYPE_COUNT", crate::signal_emitter::SIGNAL_TYPE_COUNT)?;
     Ok(())
 }
@@ -559,6 +825,293 @@ pub extern "C" fn trion_rust_signal_type_name_from_id(
     0
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+//  ANIMA ML hot-path — ctypes C-shims for the 5 inference functions
+// ──────────────────────────────────────────────────────────────────────────
+
+/// C-compatible shim for `compute_anima_score`. Pure scalar call — no
+/// pointer arguments, so the Python ctypes layer calls it directly with
+/// `(c_double, c_double, c_double) -> c_double`.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_anima_score(pcr: f64, ha: f64, ca: f64) -> f64 {
+    rust_compute_anima_score(pcr, ha, ca)
+}
+
+/// C-compatible shim for `compute_archetype_similarity`. Accepts two flat
+/// `f64` arrays of equal length; the caller is responsible for truncating
+/// the longer one if lengths differ (mirrors the Rust trait of clamping
+/// to min-length internally).
+///
+/// # Safety
+/// Both pointers must reference arrays of at least `count` `f64` values.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_archetype_similarity(
+    entity_ptr: *const f64,
+    archetype_ptr: *const f64,
+    count: usize,
+) -> f64 {
+    if entity_ptr.is_null() || archetype_ptr.is_null() || count == 0 {
+        return 0.0;
+    }
+    let entity = unsafe { std::slice::from_raw_parts(entity_ptr, count) };
+    let archetype = unsafe { std::slice::from_raw_parts(archetype_ptr, count) };
+    rust_compute_archetype_similarity(entity, archetype)
+}
+
+/// C-compatible shim for `compute_observer_effect`. Accepts two flat
+/// `f64` arrays of equal length; the caller is responsible for
+/// truncating if the two series have different lengths.
+///
+/// # Safety
+/// Both pointers must reference arrays of at least `count` `f64` values.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_observer_effect(
+    pubs_ptr: *const f64,
+    changes_ptr: *const f64,
+    count: usize,
+) -> f64 {
+    if pubs_ptr.is_null() || changes_ptr.is_null() || count < 2 {
+        return 0.0;
+    }
+    let pubs = unsafe { std::slice::from_raw_parts(pubs_ptr, count) };
+    let changes = unsafe { std::slice::from_raw_parts(changes_ptr, count) };
+    rust_compute_observer_effect(pubs, changes)
+}
+
+/// C-compatible shim for `compute_ci_95`. Writes the (ci_low, ci_high)
+/// pair into the caller-supplied 2-element `out` buffer so the Python
+/// ctypes layer can read both values without a heap allocation.
+///
+/// # Safety
+/// `out_ptr` must point to 2 writable `f64` slots.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_ci_95(
+    mean: f64,
+    std_dev: f64,
+    n_samples: usize,
+    out_ptr: *mut f64,
+) -> i32 {
+    if out_ptr.is_null() {
+        return -1;
+    }
+    let (lo, hi) = rust_compute_ci_95(mean, std_dev, n_samples);
+    unsafe {
+        *out_ptr.add(0) = lo;
+        *out_ptr.add(1) = hi;
+    }
+    0
+}
+
+/// C-compatible shim for `compute_probability_distribution`. Writes the
+/// 4-tuple `(mean, std_dev, ci_low, ci_high)` into the caller-supplied
+/// 4-element `out` buffer.
+///
+/// # Safety
+/// `out_ptr` must point to 4 writable `f64` slots.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_probability_distribution(
+    scores_ptr: *const f64,
+    count: usize,
+    out_ptr: *mut f64,
+) -> i32 {
+    if scores_ptr.is_null() || out_ptr.is_null() {
+        return -1;
+    }
+    let scores = unsafe { std::slice::from_raw_parts(scores_ptr, count) };
+    let (mean, std_dev, lo, hi) = rust_compute_probability_distribution(scores);
+    unsafe {
+        *out_ptr.add(0) = mean;
+        *out_ptr.add(1) = std_dev;
+        *out_ptr.add(2) = lo;
+        *out_ptr.add(3) = hi;
+    }
+    0
+}
+
+/// C-compatible shim for `compute_pattern_library_pcr`. Writes the
+/// 3-tuple `(pcr, coherent_count, total_count)` into the caller-supplied
+/// 3-element `out` buffer (count slots are `f64` for ABI portability —
+/// integer counts are cast losslessly).
+///
+/// # Safety
+/// `coherences_ptr` and `thresholds_ptr` must each point to `count`
+/// `f64` values. `out_ptr` must point to 3 writable `f64` slots.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_pattern_library_pcr(
+    coherences_ptr: *const f64,
+    thresholds_ptr: *const f64,
+    count: usize,
+    out_ptr: *mut f64,
+) -> i32 {
+    if coherences_ptr.is_null() || thresholds_ptr.is_null() || out_ptr.is_null() {
+        return -1;
+    }
+    let coherences = unsafe { std::slice::from_raw_parts(coherences_ptr, count) };
+    let thresholds = unsafe { std::slice::from_raw_parts(thresholds_ptr, count) };
+    let (pcr, coherent, total) = rust_compute_pattern_library_pcr(coherences, thresholds);
+    unsafe {
+        *out_ptr.add(0) = pcr;
+        *out_ptr.add(1) = coherent as f64;
+        *out_ptr.add(2) = total as f64;
+    }
+    0
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Living Security System — C-compatible ctypes shims
+// ──────────────────────────────────────────────────────────────────────────
+
+/// C-layout genomic-key result: two 64-char hex strings packed into
+/// fixed 65-byte buffers (64 hex chars + NUL terminator). Documented for
+/// callers that prefer a struct-based FFI; the
+/// `trion_rust_compute_genomic_key` shim below uses raw out-pointers for
+/// simplicity, but the layout here matches what that shim writes.
+#[cfg(feature = "pyo3")]
+#[repr(C)]
+#[allow(dead_code)]
+pub struct GenomicKeyHexResult {
+    pub sense_hex: [u8; 65],
+    pub antisense_hex: [u8; 65],
+}
+
+/// C-compatible shim for `compute_genomic_key_native`. Evolves a genomic
+/// key one generation forward (or initialises the genesis key when
+/// `generation == 0`) and writes the 64-char hex sense + antisense into
+/// the caller-supplied buffers (each 65 bytes — NUL-terminated).
+///
+/// Returns 0 on success, negative on error.
+///
+/// # Safety
+/// All four pointers must be non-null. `entity_id_ptr` must point to
+/// `entity_id_len` readable bytes; `be_ptr`/`tm_ptr`/`cv_ptr` must point
+/// to `be_len`/`tm_len`/`cv_len` readable bytes respectively. The two
+/// out-buffers must each be at least 65 bytes writable.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_genomic_key(
+    entity_id_ptr: *const u8,
+    entity_id_len: usize,
+    generation: u64,
+    be_ptr: *const u8,
+    be_len: usize,
+    tm_ptr: *const u8,
+    tm_len: usize,
+    cv_ptr: *const u8,
+    cv_len: usize,
+    out_sense_hex: *mut u8,
+    out_antisense_hex: *mut u8,
+) -> i32 {
+    if entity_id_ptr.is_null()
+        || be_ptr.is_null()
+        || tm_ptr.is_null()
+        || cv_ptr.is_null()
+        || out_sense_hex.is_null()
+        || out_antisense_hex.is_null()
+    {
+        return -1;
+    }
+    let entity_id_bytes = unsafe { std::slice::from_raw_parts(entity_id_ptr, entity_id_len) };
+    let be = unsafe { std::slice::from_raw_parts(be_ptr, be_len) };
+    let tm = unsafe { std::slice::from_raw_parts(tm_ptr, tm_len) };
+    let cv = unsafe { std::slice::from_raw_parts(cv_ptr, cv_len) };
+    let entity_id_str = match std::str::from_utf8(entity_id_bytes) {
+        Ok(s) => s.to_string(),
+        Err(_) => String::from_utf8_lossy(entity_id_bytes).into_owned(),
+    };
+    let (sense_hex, antisense_hex) =
+        evolve_genomic_key_bytes(&entity_id_str, generation, be, tm, cv);
+    if sense_hex.len() != 64 || antisense_hex.len() != 64 {
+        return -2;
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(sense_hex.as_ptr(), out_sense_hex, 64);
+        *out_sense_hex.add(64) = 0;
+        std::ptr::copy_nonoverlapping(antisense_hex.as_ptr(), out_antisense_hex, 64);
+        *out_antisense_hex.add(64) = 0;
+    }
+    0
+}
+
+/// C-compatible shim for `compute_sec_native`. Returns the bootstrap-
+/// weighted effective SEC(t) ∈ [0, 1] as a plain f64.
+///
+/// # Safety
+/// `entity_id_ptr` must point to `entity_id_len` readable bytes.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_compute_sec(
+    entity_id_ptr: *const u8,
+    entity_id_len: usize,
+    akashic_depth: u64,
+    n_chains: u64,
+    n_validators: u64,
+) -> f64 {
+    if entity_id_ptr.is_null() {
+        return 0.0;
+    }
+    let entity_id_bytes = unsafe { std::slice::from_raw_parts(entity_id_ptr, entity_id_len) };
+    let entity_id_str = match std::str::from_utf8(entity_id_bytes) {
+        Ok(s) => s.to_string(),
+        Err(_) => String::from_utf8_lossy(entity_id_bytes).into_owned(),
+    };
+    rust_compute_sec_native(&entity_id_str, akashic_depth, n_chains, n_validators)
+}
+
+/// C-compatible shim for `crispr_check_native`. Returns 1 if any of the
+/// 126 static CRISPR attack signatures matches as a substring of the
+/// supplied transaction bytes, 0 otherwise.
+///
+/// # Safety
+/// `tx_ptr` must point to `tx_len` readable bytes.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_crispr_check(
+    tx_ptr: *const u8,
+    tx_len: usize,
+) -> i32 {
+    if tx_ptr.is_null() {
+        return 0;
+    }
+    let tx = unsafe { std::slice::from_raw_parts(tx_ptr, tx_len) };
+    if CRISPRDefense::innate_check(tx).is_some() {
+        1
+    } else {
+        0
+    }
+}
+
+/// C-compatible shim for `lss_hash_dna`. Writes the 32-byte sense and
+/// antisense digests into the caller-supplied buffers.
+///
+/// # Safety
+/// `payload_ptr` must point to `len` readable bytes; `out_sense` and
+/// `out_antisense` must each point to 32 writable bytes.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_lss_hash_dna(
+    payload_ptr: *const u8,
+    len: usize,
+    out_sense: *mut u8,
+    out_antisense: *mut u8,
+) -> i32 {
+    if payload_ptr.is_null() || out_sense.is_null() || out_antisense.is_null() {
+        return -1;
+    }
+    let payload = unsafe { std::slice::from_raw_parts(payload_ptr, len) };
+    let (sense, antisense) = rust_hash_dna(payload);
+    unsafe {
+        std::ptr::copy_nonoverlapping(sense.as_ptr(), out_sense, 32);
+        std::ptr::copy_nonoverlapping(antisense.as_ptr(), out_antisense, 32);
+    }
+    0
+}
+
 #[cfg(all(test, feature = "pyo3"))]
 mod tests {
     use super::*;
@@ -598,6 +1151,64 @@ mod tests {
         // C < Θ → SILENCE → sentinel -1.0.
         let t = trion_rust_compute_master_equation(0.40, 0.90, 0.40, 1.0, 1.0);
         assert_eq!(t, -1.0);
+    }
+
+    #[test]
+    fn test_lss_hash_dna_extern_c_writes_strands() {
+        let payload = b"lss test payload";
+        let mut sense = [0u8; 32];
+        let mut antisense = [0u8; 32];
+        let rc = trion_rust_lss_hash_dna(payload.as_ptr(), payload.len(), sense.as_mut_ptr(), antisense.as_mut_ptr());
+        assert_eq!(rc, 0);
+        // Verify the antisense XOR-NOT invariant.
+        let mut pff = Vec::with_capacity(payload.len() + 1);
+        pff.extend_from_slice(payload);
+        pff.push(0xFF);
+        let sha3ff: [u8; 32] = Sha3_256::digest(&pff).into();
+        for i in 0..32 {
+            assert_eq!(antisense[i], sha3ff[i] ^ !sense[i]);
+        }
+    }
+
+    #[test]
+    fn test_crispr_check_extern_c_matches_signature() {
+        let tx = b"prefix_HARVEST_FLASH_LOAN_ORACLE_MANIP_suffix";
+        let hit = trion_rust_crispr_check(tx.as_ptr(), tx.len());
+        assert_eq!(hit, 1, "expected CRISPR match on Harvest signature");
+        let clean = b"clean transaction data";
+        let miss = trion_rust_crispr_check(clean.as_ptr(), clean.len());
+        assert_eq!(miss, 0);
+    }
+
+    #[test]
+    fn test_compute_sec_extern_c_returns_unit_interval() {
+        let eid = b"uniswap_v3";
+        let sec = trion_rust_compute_sec(eid.as_ptr(), eid.len(), 1000, 31, 100);
+        assert!(sec > 0.0 && sec <= 1.0, "sec out of range: {sec}");
+    }
+
+    #[test]
+    fn test_compute_genomic_key_extern_c_writes_hex() {
+        let eid = b"test_entity";
+        let be = b"behavioral_event";
+        let tm = b"timestamp";
+        let cv = b"context";
+        let mut sense_hex = [0u8; 65];
+        let mut antisense_hex = [0u8; 65];
+        let rc = trion_rust_compute_genomic_key(
+            eid.as_ptr(), eid.len(), 1,
+            be.as_ptr(), be.len(),
+            tm.as_ptr(), tm.len(),
+            cv.as_ptr(), cv.len(),
+            sense_hex.as_mut_ptr(), antisense_hex.as_mut_ptr(),
+        );
+        assert_eq!(rc, 0);
+        let s = std::str::from_utf8(&sense_hex[..64]).unwrap();
+        let a = std::str::from_utf8(&antisense_hex[..64]).unwrap();
+        assert_eq!(s.len(), 64);
+        assert_eq!(a.len(), 64);
+        assert!(s.chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
     }
 }
 

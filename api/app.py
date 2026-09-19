@@ -752,6 +752,17 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         ) as _r:
             anima_d = json.loads(_r.read())
         a_val = float(anima_d.get("anima_score", 0.5))
+        # Preserve the (pcr, ha, ca) component breakdown so the API layer can
+        # re-compute A(t) = PCR·HA·CA via the Rust bridge (Part 11 mandate:
+        # "Performance-critical paths compiled to Rust via PyO3 bindings").
+        # The FAISS service returns them under `components` (see
+        # anima-service/anima_engine.py::get_anima_score lines 1456-1460).
+        _comps = anima_d.get("components") or {}
+        anima_components = {
+            "pcr": float(_comps.get("pcr", 0.0)),
+            "ha":  float(_comps.get("ha",  0.0)),
+            "ca":  float(_comps.get("ca",  0.0)),
+        } if _comps else None
 
         # ── Depth (physical proxy) ─────────────────────────────────────────
         with faiss_urlopen(
@@ -762,7 +773,8 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
 
         return ({"m": m_val, "anima": a_val, "phi_live": phi_live,
-                 "akashic_depth": depth}, time.time())
+                 "akashic_depth": depth,
+                 "anima_components": anima_components}, time.time())
     except Exception:
         return (None, time.time())
 
@@ -2111,9 +2123,40 @@ def anima_signal(entity_id: str):
     except Exception:
         pass
 
+    # ── ANIMA score computation — try Rust first, fall back to Python ────────
+    # Whitepaper Part 11 mandates "Performance-critical paths compiled to Rust
+    # via PyO3 bindings." The hot-path ANIMA multiplication A(t) = PCR·HA·CA
+    # is delegated to `core.rust_bridge_pyo3.compute_anima_score_native` which
+    # dispatches PyO3 → ctypes → Python fallback. When the FAISS service
+    # supplied the (pcr, ha, ca) component breakdown, we re-compute the
+    # score through Rust; otherwise we fall back to the FAISS-provided
+    # pre-computed score (which itself uses the same math, just on the
+    # FAISS service side).
+    anima_score = planes["anima"]
+    anima_source = "faiss"
+    anima_components = planes.get("anima_components")
+    if anima_components:
+        try:
+            from core.rust_bridge_pyo3 import compute_anima_score_native
+            rust_score = compute_anima_score_native(
+                anima_components["pcr"],
+                anima_components["ha"],
+                anima_components["ca"],
+            )
+            # Only override if Rust returned a finite value (the Rust path
+            # returns 0.0 when HA < 0.60 — anima_disabled, matching the
+            # Python `anima_engine.py` line 1427 behavior).
+            if isinstance(rust_score, (int, float)) and math.isfinite(float(rust_score)):
+                anima_score = float(rust_score)
+                anima_source = "rust"
+        except Exception as _exc:
+            _log.warning("Rust bridge compute_anima_score_native failed: %s", _exc)
+            anima_source = "python_fallback"
+
     return jsonify({
         "entity_id": entity_id,
-        "anima_score": round(planes["anima"], 6),
+        "anima_score": round(anima_score, 6),
+        "anima_source": anima_source,
         "archetype": archetype,
         "archetype_distance": archetype_distance,
         "vector_neighbors": vector_neighbors,

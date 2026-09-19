@@ -103,6 +103,20 @@ pub mod phi;
 // Spiritual Plane Σ (L4.1), diversity-weighted BFT validator consensus.
 pub mod sigma;
 
+// Part 11 language mandate — ANIMA ML hot-path (L3.3 / L3.6). Standalone
+// Rust port of the 5 performance-critical inference functions invoked on
+// every signal computation (`compute_anima_score`, `compute_archetype_similarity`,
+// `compute_observer_effect`, `compute_ci_95`, `compute_probability_distribution`).
+pub mod anima;
+
+// Part 11 language mandate — Living Security System (L4.3–4.6 + Part 6).
+// Pure Rust port of the performance-critical cryptographic primitives of
+// the LSS: `hash_dna`, `GenomicKey` + `GenomicKeyEvolver`, `CRISPRDefense`
+// (126 static attack signatures), `compute_sec` (SEC = LSS · PQC · CC), and
+// the `kolmogorov_bound`. The PyO3 wrappers in `pyo3_bindings.rs` re-export
+// the same math to Python via `core/rust_bridge_pyo3.py`.
+pub mod living_security;
+
 // PyO3 wrappers + C-compatible ctypes shims. The module body is guarded
 // by `#[cfg(feature = "pyo3")]` so a default `cargo build` does not pull
 // in the Python linkage; enable with `cargo build --features pyo3`.
