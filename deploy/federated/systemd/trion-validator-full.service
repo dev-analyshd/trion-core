@@ -1,0 +1,107 @@
+# =============================================================================
+# TRION Protocol — Federated Full Validator (systemd unit)
+# =============================================================================
+# Runs deploy/federated/start_validator_full.sh as a long-running service that
+# boots the entire TRION stack on a single bare-metal host:
+#
+#   • ANIMA FAISS engine    :8001   (anima-service/faiss_service.py)
+#   • Python Oracle API     :5000   (serve.py)
+#   • 1–2 Rust indexers             (indexers/target/release/trion-<family>)
+#   • Go validator daemon   :7001 + :7080/healthz (validator/trion-validator)
+#
+# INSTALL
+#
+#   # 1. Drop the repo at /opt/trion (or set WorkingDirectory below to match)
+#   sudo cp -r /path/to/trion-core /opt/trion
+#   sudo cp /opt/trion/deploy/federated/start_validator_full.sh /opt/trion/
+#   sudo cp /opt/trion/deploy/federated/validator.env.example /opt/trion/validator.env
+#   sudo chmod 700 /opt/trion/validator.env       # root-readable only
+#   sudo $EDITOR /opt/trion/validator.env          # fill in secrets
+#
+#   # 2. Create a dedicated system user (no shell login, no sudo)
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin trion
+#   sudo chown -R trion:trion /opt/trion
+#
+#   # 3. Build the Rust + Go binaries once (Python deps already baked in the
+#   #    venv at /home/z/.venv or system pip)
+#   (cd /opt/trion/validator && go build -o trion-validator ./cmd/trion-validator/)
+#   (cd /opt/trion/indexers   && cargo build --release -p trion-evm)
+#
+#   # 4. Install the unit
+#   sudo cp /opt/trion/deploy/federated/systemd/trion-validator-full.service \
+#           /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now trion-validator-full
+#   sudo systemctl status trion-validator-full
+#   sudo journalctl -u trion-validator-full -f
+#
+# OPERATIONS
+#
+#   sudo systemctl restart trion-validator-full   # restart the whole stack
+#   sudo systemctl stop  trion-validator-full    # graceful: SIGTERM → --stop
+#   sudo systemctl status trion-validator-full   # + ExecStop=$0 --stop
+#
+#   # Live probe without going through systemd:
+#   sudo -u trion /opt/trion/start_validator_full.sh --status
+#
+# ENVIRONMENT FILE
+#
+#   /opt/trion/validator.env is the source of truth for env vars. The unit
+#   reads it via EnvironmentFile= so changes take effect on the next
+#   `systemctl restart` (no daemon-reload needed for env-only changes).
+# =============================================================================
+
+[Unit]
+Description=TRION Protocol — Full Validator Node (FAISS + Oracle + indexers + Go mesh)
+Documentation=https://github.com/dev-analyshd/trion-core/blob/main/deploy/federated/README.md
+After=network-online.target
+Wants=network-online.target
+# If you run TimescaleDB on the same host, declare it here so systemd orders
+# this unit AFTER the database is up. Uncomment if applicable:
+# After=postgresql.service
+# Wants=postgresql.service
+
+[Service]
+Type=simple
+User=trion
+Group=trion
+WorkingDirectory=/opt/trion
+EnvironmentFile=/opt/trion/validator.env
+# start_validator_full.sh blocks in a sentinel loop after bringing up the
+# stack; SIGTERM (KillSignal below) cascades to every child via the trap.
+ExecStart=/opt/trion/start_validator_full.sh
+# ExecStop runs the launcher with --stop, which TERMs every PID it owns.
+ExecStop=/opt/trion/start_validator_full.sh --stop
+Restart=always
+RestartSec=10
+# Give the stack up to 5 minutes to come up (FAISS cold start + Oracle
+# schema migrations + first indexer fetch can take a while on a fresh node).
+TimeoutStartSec=300
+# On stop, give the trap 30 seconds to drain before systemd SIGKILLs.
+TimeoutStopSec=30
+KillMode=process
+KillSignal=SIGTERM
+
+# ── Security hardening ────────────────────────────────────────────────────────
+# The service needs write access to its data + log dirs; everything else is
+# read-only. NoNewPrivileges prevents the launcher from gaining capabilities.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/trion/data /opt/trion/logs /tmp
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+# The Go validator mesh + Python Oracle bind non-privileged ports (5000, 7001,
+# 7080, 8001) so we can drop ALL ambient capabilities.
+AmbientCapabilities=
+CapabilityBoundingSet=
+# Resource limits — tune per host. The federated stack uses ~2 GB RAM
+# (FAISS index + Python Oracle + Rust indexers + Go mesh).
+MemoryMax=4G
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

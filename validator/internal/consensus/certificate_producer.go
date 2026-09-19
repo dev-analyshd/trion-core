@@ -478,32 +478,34 @@ func (m *P2PMesh) RegisterSignature(sig []byte) {
         // mutated. The docstring above documents the production wiring.
 }
 
-// ── ValidatorSet ────────────────────────────────────────────────────────────
+// ── CertValidatorSet (renamed from ValidatorSet to avoid collision with engine.go's slice-based ValidatorSet) ────
 
-// ValidatorEntry is one validator's contribution to the certificate quorum.
+// CertValidatorEntry is one validator's contribution to the certificate quorum.
 // `Power` is the effective power s_j·d_j (stake × diversity weight) in
 // 1e6 fixed-point (matches the §2 total_effective_power scale).
-type ValidatorEntry struct {
+type CertValidatorEntry struct {
         ID           string         // hex validator ID (32-byte SHA3-256 of pubkey)
         PublicKey    *ecdsa.PublicKey // signing public key
         Power        uint64         // s_j·d_j, ×1e6 fixed-point
         Diversity    float64        // d_j (informational)
 }
 
-// ValidatorSet is the registered set for a single validator_epoch (§2).
-type ValidatorSet struct {
+// CertValidatorSet is the registered set for a single validator_epoch (§2).
+// Used by VerifyCertificate for signature/quorum verification — distinct from
+// engine.go's slice-based live-consensus ValidatorSet to avoid type collision.
+type CertValidatorSet struct {
         Epoch        uint32
-        Validators   map[string]*ValidatorEntry // keyed by ID
-        TotalPower   uint64                     // Σ_j s_j·d_j, ×1e6
-        DConsensus   uint64                     // Σ plane at emission, ×1e6
+        Validators   map[string]*CertValidatorEntry // keyed by ID
+        TotalPower   uint64                          // Σ_j s_j·d_j, ×1e6
+        DConsensus   uint64                          // Σ plane at emission, ×1e6
 }
 
-// NewValidatorSet constructs a ValidatorSet from a slice of entries,
+// NewCertValidatorSet constructs a CertValidatorSet from a slice of entries,
 // computing TotalPower = Σ_j s_j·d_j.
-func NewValidatorSet(epoch uint32, entries []*ValidatorEntry, dConsensus uint64) *ValidatorSet {
-        vs := &ValidatorSet{
+func NewCertValidatorSet(epoch uint32, entries []*CertValidatorEntry, dConsensus uint64) *CertValidatorSet {
+        vs := &CertValidatorSet{
                 Epoch:      epoch,
-                Validators: make(map[string]*ValidatorEntry, len(entries)),
+                Validators: make(map[string]*CertValidatorEntry, len(entries)),
                 DConsensus: dConsensus,
         }
         var total uint64
@@ -531,7 +533,7 @@ func NewValidatorSet(epoch uint32, entries []*ValidatorEntry, dConsensus uint64)
 //
 // Returns true iff quorum is met AND every signature is valid (a single
 // invalid signature fails the whole batch — §6 step 5a).
-func VerifyCertificate(payload []byte, signatures [][]byte, validatorSet *ValidatorSet) bool {
+func VerifyCertificate(payload []byte, signatures [][]byte, validatorSet *CertValidatorSet) bool {
         if validatorSet == nil || validatorSet.TotalPower == 0 {
                 return false
         }
@@ -568,7 +570,7 @@ func VerifyCertificate(payload []byte, signatures [][]byte, validatorSet *Valida
                 // public key against (r, s) over digest. (Go's ecdsa.Verify is
                 // constant-time-ish; the validator set is small in practice so
                 // the iteration is cheap.)
-                var matched *ValidatorEntry
+                var matched *CertValidatorEntry
                 for id, entry := range validatorSet.Validators {
                         if entry.PublicKey == nil {
                                 continue

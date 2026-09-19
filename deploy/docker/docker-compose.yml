@@ -102,32 +102,7 @@ services:
     restart: "no"
 
   # ── Frontend Dashboard ─────────────────────────────────────
-  frontend:
-    build:
-      context: .
-      dockerfile: deploy/docker/Dockerfile.frontend
-    container_name: trion-frontend
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-    environment:
-      - NODE_ENV=production
-      - FLASK_URL=http://api:5000
-      # (NEXT_PUBLIC_API_URL removed: nothing in either frontend reads it —
-      # the Next.js rewrites proxy /api/* to FLASK_URL; the only
-      # NEXT_PUBLIC_* var the code consumes is NEXT_PUBLIC_WS_URL)
-    volumes:
-      - ./logs:/app/logs
-    networks:
-      - trion_internal
-    ports:
-      - "127.0.0.1:3000:3000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
 
   # ── Nginx Reverse Proxy ────────────────────────────────────
   nginx:
@@ -136,7 +111,6 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-      - frontend
     ports:
       - "80:80"
       - "443:443"

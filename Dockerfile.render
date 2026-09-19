@@ -5,7 +5,7 @@
 # Multi-stage build:
 #   Stage 1: rust-builder  — compiles all 21 Rust L0 indexer binaries
 #   Stage 2: node-builder  — npm install for all Node.js relayers & chains
-#   Stage 3: next-builder  — builds Next.js React frontend (standalone)
+#   Stage 3: Runtime (frontend builder removed — TRION is headless)
 #   Stage 4: runtime       — Python 3.11 + Node.js 20 + Rust bins + Next.js
 #
 # Services (render-entrypoint.sh):
@@ -63,31 +63,19 @@ RUN for d in chains/near chains/pvm chains/starknet chains/sui chains/svm chains
         cd /build/$d && npm install --omit=dev --legacy-peer-deps --silent && cd /build; \
     done
 
-# ─── Stage 3: Next.js builder (React frontend) ──────────────────────────────
-FROM node:20-slim AS next-builder
-
-WORKDIR /build
-
-# Copy the frontend package.json and install deps
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --legacy-peer-deps
-
-# Copy frontend source
-COPY frontend/ ./
-
-# Set API proxy target to Flask internal port
-ENV NEXT_PUBLIC_API_BASE=""
-
-# Build Next.js standalone (must succeed — no || true)
-RUN npm run build
+# ─── Stage 3: Runtime (frontend builder removed — TRION is headless) ───────
+# The previous Stage 3 built the Next.js dashboard from frontend/. That
+# directory no longer exists — TRION validators run headless (Python Oracle
+# + ANIMA FAISS + Go daemon + Rust indexers, no dashboard). Consumers use
+# the REST API directly (http://<host>:5000/api/v1/*).
 
 # ─── Stage 4: Runtime ───────────────────────────────────────────────────────
 FROM python:3.11-slim
 
 LABEL maintainer="TRION Protocol"
-LABEL description="TRION Protocol — React + Flask + Rust (v5.0)"
+LABEL description="TRION Protocol — Headless Validator (Flask + Rust + Go)"
 LABEL org.opencontainers.image.source="https://github.com/dev-analyshd/trion-core"
-LABEL version="5.0.0"
+LABEL version="6.0.0-headless"
 
 # ── System: Node.js 20, curl, tini, build tools ───────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -122,12 +110,8 @@ COPY --from=node-builder /build/chains/botchain/node_modules   /app/chains/botch
 # ── Next.js standalone build ─────────────────────────────────────────────────
 # In Docker, the build root is /build/ (WORKDIR). Since there's no monorepo
 # parent, standalone output is FLAT at /build/.next/standalone/server.js
-# (NOT nested under frontend/ like in local builds).
-COPY --from=next-builder /build/.next/standalone/ /app/frontend/
-COPY --from=next-builder /build/.next/static /app/frontend/.next/static
-COPY --from=next-builder /build/public /app/frontend/public
+# (no longer applicable — frontend removed, TRION is headless)
 # Also copy the Next.js config so rewrites() work at runtime
-COPY --from=next-builder /build/next.config.js /app/frontend/next.config.js
 
 WORKDIR /app
 
@@ -164,9 +148,8 @@ COPY zg/              ./zg/
 COPY schema.sql       ./schema.sql
 COPY package.json     ./package.json
 COPY tsconfig.json    ./tsconfig.json
-# NOTE: Do NOT copy frontend/ source over the standalone build.
-# The standalone server.js + .next/static are already copied above.
-# Copying frontend/src/ here would overwrite the standalone output.
+# NOTE: frontend/ directory removed — TRION is headless.
+# Consumers use the REST API directly on port 5000.
 
 # ── bh_ledger.db initialization ──────────────────────────────────────────────
 RUN python3 -c "

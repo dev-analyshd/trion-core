@@ -211,9 +211,16 @@ _awa_timer_mod.Timer(0.1, _awa_startup_evaluate).start()
 
 @app.before_request
 def _rate_limit():
-    # Allow health probes and static files through without counting
+    # Allow health probes, static files, and FEDERATION mesh calls through
+    # without counting against the rate limit. Federation endpoints
+    # (/api/v1/federation/*) are mesh-internal calls between validator
+    # Oracles — they run at high frequency (peer probes every 2s, cross-
+    # validator signal verification) and must NOT be throttled by the
+    # per-IP rate limiter, otherwise the mesh can't self-organize.
     path = request.path
-    if path in ("/api/v1/health", "/favicon.ico") or path.startswith("/static/"):
+    if path in ("/api/v1/health", "/healthz", "/readyz", "/favicon.ico") \
+       or path.startswith("/static/") \
+       or path.startswith("/api/v1/federation/"):
         return None
 
     ip  = _get_client_ip()
@@ -2227,6 +2234,200 @@ def readyz():
     return jsonify({"status": "ready",
                     "faiss_url": faiss_url,
                     "timestamp": int(time.time())})
+
+
+# ── Federation endpoints (decentralized validator mesh) ────────────────────
+#
+# TRION is decentralized: every validator runs the full stack (Python Oracle +
+# ANIMA FAISS + Go daemon + Rust indexers). These endpoints let validators
+# discover each other, sync peer state, and verify that every node in the mesh
+# is computing the same coherence signal from the same shared Akashic Index
+# (TimescaleDB cluster).
+#
+# Configuration:
+#   TRION_VALIDATOR_ID       — unique ID for this validator (default: hostname)
+#   TRION_VALIDATOR_REGION   — ISO-3166 region (NA-US, EU-DE, AP-JP, ...)
+#   TRION_PEER_ORACLES       — comma-separated list of peer Oracle URLs
+#                              (e.g. "http://peer1:5000,http://peer2:5000")
+#   TRION_VALIDATOR_ADDR     — Go mesh listen addr (default 127.0.0.1:7001)
+#   TRION_HEALTHZ_ADDR       — Go healthz addr (default 127.0.0.1:7080)
+#
+# Whitepaper alignment: the 346-byte canonical certificate is signed by the
+# diversity-weighted BFT quorum (validator mesh). Consumers can query ANY
+# validator's Oracle and verify the certificate's quorum signature offline.
+# This is the "substrate-independent behavioral coherence oracle" — the
+# Oracle is not a company, it is a network of nodes.
+
+def _validator_identity() -> dict:
+    """Return this validator's identity + mesh configuration."""
+    import socket
+    hostname = socket.gethostname() or "unknown"
+    vid = os.environ.get("TRION_VALIDATOR_ID", f"trion-validator-{hostname}")
+    region = os.environ.get("TRION_VALIDATOR_REGION", "UNSET")
+    mesh_addr = os.environ.get("TRION_VALIDATOR_ADDR", "127.0.0.1:7001")
+    healthz_addr = os.environ.get("TRION_HEALTHZ_ADDR", "127.0.0.1:7080")
+    peer_oracles_raw = os.environ.get("TRION_PEER_ORACLES", "").strip()
+    peer_oracles = [u.strip() for u in peer_oracles_raw.split(",") if u.strip()]
+    return {
+        "validator_id":    vid,
+        "region":          region,
+        "mesh_addr":       mesh_addr,
+        "healthz_addr":    healthz_addr,
+        "peer_oracles":    peer_oracles,
+        "peer_count":      len(peer_oracles),
+        "hostname":        hostname,
+        "federation_mode": len(peer_oracles) > 0,
+    }
+
+
+def _probe_peer_oracle(url: str, timeout: float = 5.0) -> dict:
+    """Probe a peer Oracle's /api/v1/federation/status endpoint."""
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen(f"{url.rstrip('/')}/api/v1/federation/status", timeout=timeout) as _r:
+            data = json.loads(_r.read())
+            return {"url": url, "reachable": True, "peer": data}
+    except Exception as exc:
+        return {"url": url, "reachable": False, "error": str(exc)[:200]}
+
+
+@app.route("/api/v1/federation/status")
+def federation_status():
+    """Return this validator's federation status + reachable peers.
+
+    Consumers can query ANY validator's Oracle and get the same coherence
+    signal (all validators read from the shared TimescaleDB Akashic Index).
+    This endpoint lets the mesh self-organize: each validator reports its
+    own identity + the peers it can reach.
+
+    Live test:
+        curl http://validator-1:5000/api/v1/federation/status
+        curl http://validator-2:5000/api/v1/federation/status
+
+    Both should return the same peer list (mesh is symmetric) and each
+    should report the other as reachable.
+    """
+    ident = _validator_identity()
+
+    # Probe each configured peer Oracle (best-effort, 2s timeout each)
+    peers = []
+    if ident["peer_oracles"]:
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=8) as pool:
+            peers = list(pool.map(lambda u: _probe_peer_oracle(u), ident["peer_oracles"]))
+
+    reachable = sum(1 for p in peers if p.get("reachable"))
+    total = len(peers)
+
+    # Also report the local FAISS state (shared Akashic Index)
+    faiss_state = {"reachable": False, "indexed_vectors": 0}
+    try:
+        with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=1.5) as _r:
+            fd = json.loads(_r.read())
+            faiss_state = {
+                "reachable":       True,
+                "indexed_vectors": fd.get("indexed_vectors", 0),
+                "index_type":      fd.get("index_type", "IndexFlatL2"),
+            }
+    except Exception:
+        pass
+
+    # Report the local Go validator daemon state
+    go_state = {"reachable": False}
+    try:
+        with _ur.urlopen(f"http://{ident['healthz_addr']}/healthz", timeout=1.0) as _r:
+            gd = json.loads(_r.read())
+            go_state = {"reachable": True, "status": gd.get("status"), "service": gd.get("service")}
+    except Exception:
+        pass
+
+    return jsonify({
+        "validator_id":      ident["validator_id"],
+        "region":            ident["region"],
+        "hostname":          ident["hostname"],
+        "mesh_addr":         ident["mesh_addr"],
+        "healthz_addr":      ident["healthz_addr"],
+        "federation_mode":   ident["federation_mode"],
+        "peer_oracles":      ident["peer_oracles"],
+        "peer_count":        ident["peer_count"],
+        "peers_reachable":   reachable,
+        "peers_total":       total,
+        "faiss":             faiss_state,
+        "go_validator":      go_state,
+        "headless":          True,  # no dashboard — TRION is headless
+        "timestamp":         int(time.time()),
+        "peers":             peers,
+    })
+
+
+@app.route("/api/v1/federation/signal/<entity_id>")
+def federation_signal(entity_id: str):
+    """Cross-validator signal verification.
+
+    Queries this validator's signal for <entity_id> AND all peer Oracles,
+    returning a comparison table so consumers can verify the mesh is
+    computing the same signal independently.
+
+    Whitepaper guarantee: every validator reads the same shared Akashic
+    Index (TimescaleDB), so all should return identical coherence scores.
+    Any divergence indicates a configuration or data-sync issue.
+    """
+    import urllib.request as _ur
+    # Get local signal
+    local = _compute_signal(entity_id)
+    local_signal = {
+        "validator_id":  _validator_identity()["validator_id"],
+        "signal_type":   local.get("signal_type"),
+        "coherence":     local.get("coherence_score"),
+        "threshold":     local.get("threshold"),
+        "init_valid":    local.get("init_valid"),
+        "source":        "self",
+    }
+
+    # Query each peer Oracle
+    ident = _validator_identity()
+    peer_signals = []
+    for peer_url in ident["peer_oracles"]:
+        try:
+            with _ur.urlopen(f"{peer_url.rstrip('/')}/api/v1/signal/{entity_id}", timeout=2.0) as _r:
+                pd = json.loads(_r.read())
+                peer_signals.append({
+                    "validator_id":  pd.get("validator_id", peer_url),
+                    "url":           peer_url,
+                    "signal_type":   pd.get("signal_type"),
+                    "coherence":     pd.get("coherence_score"),
+                    "threshold":     pd.get("threshold"),
+                    "init_valid":    pd.get("init_valid"),
+                    "reachable":     True,
+                })
+        except Exception as exc:
+            peer_signals.append({
+                "url":       peer_url,
+                "reachable": False,
+                "error":     str(exc)[:200],
+            })
+
+    # Check consensus — do all reachable validators agree?
+    reachable_signals = [s for s in peer_signals if s.get("reachable")] + [local_signal]
+    coherence_values = [s.get("coherence") for s in reachable_signals if s.get("coherence") is not None]
+    consensus = None
+    if len(coherence_values) >= 2:
+        max_diff = max(coherence_values) - min(coherence_values)
+        consensus = {
+            "validators_responded": len(coherence_values),
+            "coherence_min":        round(min(coherence_values), 6),
+            "coherence_max":        round(max(coherence_values), 6),
+            "coherence_spread":     round(max_diff, 6),
+            "agreement":            max_diff < 0.001,  # < 0.1% spread = agreement
+        }
+
+    return jsonify({
+        "entity_id":      entity_id,
+        "local":           local_signal,
+        "peers":           peer_signals,
+        "consensus":       consensus,
+        "timestamp":       int(time.time()),
+    })
 
 
 @app.route("/api/v1/stats")
@@ -4542,6 +4743,49 @@ def genesis_signal(asset_id: str):
         # The L1.2 label belonged to /api/v1/security/<eid>/mf, not /genesis.
         "specification":      "L2.3",
         "timestamp":       int(time.time()),
+    })
+
+
+@app.route("/api/v1/genesis/<asset_id>/confidence")
+def genesis_confidence(asset_id: str):
+    """Focused L2.3 genesis-confidence-decay view.
+
+    Whitepaper §L2.3 (Akashic Index):
+        conf_genesis(t) = 1 - e^(-λ · D_asset(t))
+        conf_genesis(0) = 0   → zero direct data, fully archetype-dependent
+        conf_genesis(∞) = 1   → fully direct-data-driven, archetype retires
+
+    Returns ONLY the genesis-confidence fields (a focused projection of the
+    full /api/v1/genesis/<id> response) so consumers that only need the
+    decay model don't pay for the full genesis inference payload.
+    """
+    # Try the FAISS engine first — it has the canonical archetype-aware λ
+    data, code = _proxy_faiss(f"/api/v1/genesis/{asset_id}/confidence")
+    if code == 200:
+        return jsonify(data), code
+    # Fallback: compute locally with the canonical λ=0.001 decay constant.
+    try:
+        depth_d, depth_code = _proxy_faiss(f"/api/v1/depth/{asset_id}")
+        depth_val = float(depth_d.get("akashic_depth", 0.0)) if depth_code == 200 else 0.0
+    except Exception:
+        depth_val = 0.0
+    c_genesis = round(1.0 - math.exp(-0.001 * depth_val), 6)
+    return jsonify({
+        "asset_id":      asset_id,
+        "conf_genesis":  c_genesis,
+        "depth_used":    depth_val,
+        "lambda":        0.001,
+        "formula":       "conf_genesis(t) = 1 - e^(-λ · D_asset(t))",
+        "specification": "L2.3",
+        "boundary_0":    0.0,   # conf_genesis(0)  = 0   — archetype-only
+        "boundary_inf":  1.0,   # conf_genesis(∞)  = 1   — direct-data only
+        "is_synthetic":  depth_val == 0.0,
+        "disclosure": (
+            f"conf_genesis = 1 - e^(-0.001 · D) where D={depth_val}. "
+            f"When D=0, conf_genesis=0 (full archetype dependence). "
+            f"As D→∞, conf_genesis→1 (full direct-data dependence)."
+        ),
+        "timestamp":     int(time.time()),
     })
 
 

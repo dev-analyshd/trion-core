@@ -160,17 +160,11 @@ start_validators() {
     fi
 }
 
-start_frontend() {
-    log "Starting Frontend (Next.js)..."
-    export FLASK_URL="$FLASK_URL"
-    if [ "$BACKGROUND" = true ]; then
-        cd "$WORKSPACE/frontend" && nohup npm run dev \
-            > "$LOG_DIR/frontend.log" 2>&1 &
-        echo $! > "$LOG_DIR/frontend.pid"
-    else
-        cd "$WORKSPACE/frontend" && npm run dev
-    fi
-}
+# start_frontend() removed — TRION is now headless.
+# Validators run the full stack (Python Oracle + ANIMA FAISS + Go daemon + Rust
+# indexers) without any dashboard. See deploy/federated/start_validator_full.sh
+# for the canonical federated launcher. The Next.js dashboard that used to
+# live in frontend/ is no longer shipped with trion-core.
 
 # ── Main startup sequence ────────────────────────────────────
 log "============================================================"
@@ -200,14 +194,9 @@ if [ "$BACKGROUND" = true ]; then
         start_validators   # one-shot Go self-test — no port to wait for
     fi
     
-    if [ "$START_FRONTEND" = true ]; then
-        if command -v npm &>/dev/null; then
-            start_frontend
-            wait_for_port $FRONTEND_PORT "Frontend" || true
-        else
-            log "⚠️  npm not found — skipping frontend"
-        fi
-    fi
+    # Frontend startup removed — TRION is headless. Use the Oracle REST API
+    # directly (http://127.0.0.1:$API_PORT/api/v1/*) or deploy the federated
+    # validator stack (deploy/federated/) for multi-node operation.
     
     log ""
     log "============================================================"
@@ -215,9 +204,7 @@ if [ "$BACKGROUND" = true ]; then
     log "============================================================"
     log "  FAISS Engine:    http://127.0.0.1:$FAISS_PORT"
     log "  Oracle API:      http://127.0.0.1:$API_PORT"
-    if [ "$START_FRONTEND" = true ] && command -v npm &>/dev/null; then
-        log "  Frontend:        http://127.0.0.1:$FRONTEND_PORT"
-    fi
+    log "  (headless — no dashboard; use the REST API directly)"
     log ""
     log "  Logs: $LOG_DIR/"
     log "  Stop: ./scripts/stop_trion.sh"

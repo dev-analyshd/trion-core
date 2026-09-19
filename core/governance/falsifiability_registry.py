@@ -87,25 +87,30 @@ class FalsifiabilityCondition:
 
 
 # ── Gap #8 — Part 13 mapping table ────────────────────────────────────────────
-# The canonical Part 13 sub-section each F-condition maps to. Used by
-# downstream consumers (audits, dashboards) to cross-reference the
-# whitepaper's structured falsifiability framework.
+# The canonical Part 13 reference for each F-condition. Per the whitepaper
+# Part 13 (lines 1154-1185 of spec/WHITEPAPER_MD.txt), the 15 Falsification
+# Conditions are flat entries F1-F15 in a single table, NOT a §13.x.y
+# sub-section structure. The previous registry used invented §13.x.y numbers
+# which do not exist in the canonical source — this version uses the canonical
+# flat "Part 13 F<n>" reference, with a parenthetical layer annotation that
+# preserves the layer-grouping context that was the only useful information
+# in the invented sub-section numbers.
 PART_13_MAPPING: Dict[str, str] = {
-    "F1":  "§13.1.1 — Protocol-level: manipulation resistance (L1.2)",
-    "F2":  "§13.5.2 — BFT layer: coordination collapse / consensus safety",
-    "F3":  "§13.4.3 — ANIMA layer: CI calibration over growing depth",
-    "F4":  "§13.4.4 — ANIMA layer: LSS breach causality",
-    "F5":  "§13.4.5 — ANIMA layer: L2.5 convergence theorem (signal → realized)",
-    "F6":  "§13.3.6 — Akashic layer: genesis inference convergence",
-    "F7":  "§13.4.7 — ANIMA layer: 24h component degradation detection (IM)",
-    "F8":  "§13.5.8 — BFT layer: validator HHI ≤ 2500 (30-day, auto-corrected)",
-    "F9":  "§13.5.9 — BFT layer: geographic distribution (≥4 continents)",
-    "F10": "§13.1.10 — Protocol-level: SILENCE coherence gap accuracy",
-    "F11": "§13.4.11 — ANIMA layer: observer-effect anti-circular-reinforcement",
-    "F12": "§13.7.12 — Governance layer: AWA anti-centralization (no single entity)",
-    "F13": "§13.2.13 — Behavioral Hash layer: MF detector FP-rate <2%",
-    "F14": "§13.6.14 — Application layer: BRT gas correlation (CONJECTURE)",
-    "F15": "§13.7.15 — Governance layer: REGULATORY_BEHAVIORAL 24-month (CONJECTURE)",
+    "F1":  "Part 13 F1 — Protocol-level: manipulation resistance (L1.2)",
+    "F2":  "Part 13 F2 — BFT layer: coordination collapse / consensus safety",
+    "F3":  "Part 13 F3 — ANIMA layer: CI calibration over growing depth",
+    "F4":  "Part 13 F4 — ANIMA layer: LSS breach causality",
+    "F5":  "Part 13 F5 — ANIMA layer: L2.5 convergence theorem (signal → realized)",
+    "F6":  "Part 13 F6 — Akashic layer: genesis inference convergence",
+    "F7":  "Part 13 F7 — ANIMA layer: 24h component degradation detection (IM)",
+    "F8":  "Part 13 F8 — BFT layer: validator HHI ≤ 2500 (30-day, auto-corrected)",
+    "F9":  "Part 13 F9 — BFT layer: geographic distribution (≥4 continents)",
+    "F10": "Part 13 F10 — Protocol-level: SILENCE coherence gap accuracy",
+    "F11": "Part 13 F11 — ANIMA layer: observer-effect anti-circular-reinforcement",
+    "F12": "Part 13 F12 — Governance layer: AWA anti-centralization (no single entity)",
+    "F13": "Part 13 F13 — Behavioral Hash layer: MF detector FP-rate <2%",
+    "F14": "Part 13 F14 — Application layer: BRT gas correlation (CONJECTURE)",
+    "F15": "Part 13 F15 — Governance layer: REGULATORY_BEHAVIORAL 24-month (CONJECTURE)",
 }
 
 

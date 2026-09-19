@@ -1,0 +1,340 @@
+# =============================================================================
+# TRION Protocol — Federated Validator Cluster (docker-compose)
+# =============================================================================
+# Spins up 4 TRION validator nodes + 1 shared TimescaleDB on a single host.
+#
+# Each validator container runs the FULL stack:
+#   • Python Oracle API     :5000   (serve.py)
+#   • ANIMA FAISS engine    :8001   (anima-service/faiss_service.py, uvicorn)
+#   • Go validator daemon   :7001 mesh + :7080 /healthz
+#     (optional — mount the pre-built binary, see below)
+#
+# Port mapping per validator (host:container):
+#   validator-1 → 5001:5000, 8001:8001, 7001:7001, 7081:7080
+#   validator-2 → 5002:5000, 8002:8001, 7002:7001, 7082:7080
+#   validator-3 → 5003:5000, 8003:8001, 7003:7001, 7083:7080
+#   validator-4 → 5004:5000, 8004:8001, 7004:7001, 7084:7080
+#
+# All four validators share the `timescaledb` service — the schema is
+# multi-tenant via the validator_id column. The schema.sql from the repo root
+# is mounted into /docker-entrypoint-initdb.d/ so TimescaleDB applies it on
+# first boot only (when the data volume is empty).
+#
+# QUICK START
+#   cp deploy/federated/validator.env.example deploy/federated/validator.env
+#   # edit validator.env: set RELAYER_PRIVATE_KEY, TRION_API_KEY, FAISS_API_KEY
+#   cd deploy/federated
+#   docker compose -f docker-compose.federated.yml up --build -d
+#   docker compose -f docker-compose.federated.yml ps
+#
+# OPTIONAL: Go validator + Rust indexers inside containers
+#   The root Dockerfile is Python-only (no Go / Rust toolchain). To run the Go
+#   validator daemon inside each container, build the binary on the host and
+#   mount it read-only — the volumes block below already wires that in:
+#
+#     cd /path/to/trion-core
+#     (cd validator && go build -o trion-validator ./cmd/trion-validator/)
+#     (cd indexers   && cargo build --release -p trion-evm)
+#
+#   The compose file picks them up automatically; if the binaries are absent
+#   the container still starts the FAISS + Oracle stack and skips the Go
+#   validator (a warning is logged).
+# =============================================================================
+
+# Top-level anchor — the shared validator service template. Each validator-N
+# service inherits from it and overrides only the per-node ports + ID.
+x-validator-base: &validator-base
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+  env_file:
+    # Operators MUST `cp validator.env.example validator.env` before `up`.
+    - path: ./validator.env
+      required: false
+  environment:
+    &validator-env
+    # Per-node overrides (set below per validator) take precedence over env_file.
+    KMS_PROVIDER: env
+    TRION_ALLOW_RAW_ENV_KEYS: "1"
+    TRION_STREAMER_INPROCESS: "1"
+    TRION_ENABLE_STREAMER: "1"
+    # The shared DB is reached by service name inside the compose network.
+    TIMESCALEDB_URL: postgres://trion:trion@timescaledb:5432/trion_mainnet
+    FAISS_SERVICE_URL: http://127.0.0.1:8001
+    FAISS_PORT: "8001"
+    PORT: "5000"
+    INDEXER_FAMILIES: ${INDEXER_FAMILIES:-evm}
+    POLL_INTERVAL_MS: "15000"
+  volumes:
+    # Persistent per-node state (SQLite WAL, FAISS index, BH ledger).
+    - validator-state:/app/data
+    # /app/logs is created at runtime — make it a volume so logs survive restarts.
+    - validator-logs:/app/logs
+    # OPTIONAL host-built Go validator binary (read-only mount). The
+    # federated entrypoint starts it if present.
+    - ../../validator/trion-validator:/usr/local/bin/trion-validator:ro
+    # OPTIONAL host-built Rust indexer binaries (read-only mount). The
+    # federated entrypoint iterates INDEXER_FAMILIES and starts each one.
+    - ../../indexers/target/release:/opt/trion-indexers:ro
+    # The launcher script — drives the full-stack orchestration in-container.
+    - ./start_validator_full.sh:/opt/trion/start_validator_full.sh:ro
+  depends_on:
+    timescaledb:
+      condition: service_healthy
+  restart: unless-stopped
+  # The root Dockerfile CMD starts FAISS + serve.py only. Override with the
+  # federated launcher so the Go validator + Rust indexers also run when their
+  # binaries are mounted in. PID_DIR is on a tmpfs so PID files survive
+  # `docker compose restart` but not `docker compose down`.
+  command: ["/bin/sh", "-c"]
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fs http://localhost:5000/api/v1/health || exit 1"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 60s
+
+services:
+  # ── Shared TimescaleDB cluster ──────────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: trion-timescaledb
+    environment:
+      POSTGRES_USER: trion
+      POSTGRES_PASSWORD: trion
+      POSTGRES_DB: trion_mainnet
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+      # schema.sql is loaded ONLY on first boot (empty data volume).
+      - ../../schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trion -d trion_mainnet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Validator 1 ────────────────────────────────────────────────────────────
+  validator-1:
+    <<: *validator-base
+    container_name: trion-validator-1
+    environment:
+      <<: *validator-env
+      TRION_VALIDATOR_ID: validator-1
+      TRION_VALIDATOR_REGION: ${TRION_VALIDATOR_REGION_1:-NA-US}
+      TRION_VALIDATOR_ADDR: 0.0.0.0:7001
+      TRION_HEALTHZ_ADDR: 0.0.0.0:7080
+    ports:
+      - "5001:5000"   # Oracle API
+      - "8001:8001"   # FAISS engine
+      - "7001:7001"   # Go mesh
+      - "7081:7080"   # healthz
+    volumes:
+      - validator-1-state:/app/data
+      - validator-1-logs:/app/logs
+      - ../../validator/trion-validator:/usr/local/bin/trion-validator:ro
+      - ../../indexers/target/release:/opt/trion-indexers:ro
+      - ./start_validator_full.sh:/opt/trion/start_validator_full.sh:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        # Inline orchestrator: starts FAISS → Oracle → optional Go validator.
+        # Mirrors start_validator_full.sh but uses the container's filesystem layout.
+        set -e
+        cd /app/anima-service
+        OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+          python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port 8001 --workers 1 \
+          > /app/logs/faiss.log 2>&1 &
+        echo $$! > /tmp/trion-validator-faiss.pid
+        # Give FAISS ~6s to bind before the Oracle polls it.
+        sleep 6
+        cd /app
+        python3 serve.py > /app/logs/oracle.log 2>&1 &
+        echo $$! > /tmp/trion-validator-oracle.pid
+        # Optional Rust indexers (host-built binaries mounted read-only).
+        for fam in $$INDEXER_FAMILIES; do
+          bin=/opt/trion-indexers/trion-$$fam
+          if [ -x "$$bin" ]; then
+            FAISS_SERVICE_URL=http://127.0.0.1:8001 \
+            FAISS_API_KEY=$$FAISS_API_KEY \
+              "$$bin" > /app/logs/indexer-$$fam.log 2>&1 &
+            echo "$$fam $$!" >> /tmp/trion-validator-indexers.pid
+          else
+            echo "[federated] indexer binary not mounted: $$bin — skipping"
+          fi
+        done
+        # Optional Go validator (host-built binary mounted read-only).
+        if [ -x /usr/local/bin/trion-validator ]; then
+          /usr/local/bin/trion-validator > /app/logs/validator.log 2>&1 &
+          echo $$! > /tmp/trion-validator-go.pid
+        else
+          echo "[federated] /usr/local/bin/trion-validator not mounted — Go mesh disabled"
+        fi
+        wait
+
+  # ── Validator 2 ────────────────────────────────────────────────────────────
+  validator-2:
+    <<: *validator-base
+    container_name: trion-validator-2
+    environment:
+      <<: *validator-env
+      TRION_VALIDATOR_ID: validator-2
+      TRION_VALIDATOR_REGION: ${TRION_VALIDATOR_REGION_2:-EU-DE}
+      TRION_VALIDATOR_ADDR: 0.0.0.0:7001
+      TRION_HEALTHZ_ADDR: 0.0.0.0:7080
+    ports:
+      - "5002:5000"
+      - "8002:8001"
+      - "7002:7001"
+      - "7082:7080"
+    volumes:
+      - validator-2-state:/app/data
+      - validator-2-logs:/app/logs
+      - ../../validator/trion-validator:/usr/local/bin/trion-validator:ro
+      - ../../indexers/target/release:/opt/trion-indexers:ro
+      - ./start_validator_full.sh:/opt/trion/start_validator_full.sh:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        cd /app/anima-service
+        OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+          python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port 8001 --workers 1 \
+          > /app/logs/faiss.log 2>&1 &
+        echo $$! > /tmp/trion-validator-faiss.pid
+        sleep 6
+        cd /app
+        python3 serve.py > /app/logs/oracle.log 2>&1 &
+        echo $$! > /tmp/trion-validator-oracle.pid
+        for fam in $$INDEXER_FAMILIES; do
+          bin=/opt/trion-indexers/trion-$$fam
+          if [ -x "$$bin" ]; then
+            FAISS_SERVICE_URL=http://127.0.0.1:8001 \
+            FAISS_API_KEY=$$FAISS_API_KEY \
+              "$$bin" > /app/logs/indexer-$$fam.log 2>&1 &
+            echo "$$fam $$!" >> /tmp/trion-validator-indexers.pid
+          fi
+        done
+        if [ -x /usr/local/bin/trion-validator ]; then
+          /usr/local/bin/trion-validator > /app/logs/validator.log 2>&1 &
+          echo $$! > /tmp/trion-validator-go.pid
+        fi
+        wait
+
+  # ── Validator 3 ────────────────────────────────────────────────────────────
+  validator-3:
+    <<: *validator-base
+    container_name: trion-validator-3
+    environment:
+      <<: *validator-env
+      TRION_VALIDATOR_ID: validator-3
+      TRION_VALIDATOR_REGION: ${TRION_VALIDATOR_REGION_3:-AP-JP}
+      TRION_VALIDATOR_ADDR: 0.0.0.0:7001
+      TRION_HEALTHZ_ADDR: 0.0.0.0:7080
+    ports:
+      - "5003:5000"
+      - "8003:8001"
+      - "7003:7001"
+      - "7083:7080"
+    volumes:
+      - validator-3-state:/app/data
+      - validator-3-logs:/app/logs
+      - ../../validator/trion-validator:/usr/local/bin/trion-validator:ro
+      - ../../indexers/target/release:/opt/trion-indexers:ro
+      - ./start_validator_full.sh:/opt/trion/start_validator_full.sh:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        cd /app/anima-service
+        OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+          python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port 8001 --workers 1 \
+          > /app/logs/faiss.log 2>&1 &
+        echo $$! > /tmp/trion-validator-faiss.pid
+        sleep 6
+        cd /app
+        python3 serve.py > /app/logs/oracle.log 2>&1 &
+        echo $$! > /tmp/trion-validator-oracle.pid
+        for fam in $$INDEXER_FAMILIES; do
+          bin=/opt/trion-indexers/trion-$$fam
+          if [ -x "$$bin" ]; then
+            FAISS_SERVICE_URL=http://127.0.0.1:8001 \
+            FAISS_API_KEY=$$FAISS_API_KEY \
+              "$$bin" > /app/logs/indexer-$$fam.log 2>&1 &
+            echo "$$fam $$!" >> /tmp/trion-validator-indexers.pid
+          fi
+        done
+        if [ -x /usr/local/bin/trion-validator ]; then
+          /usr/local/bin/trion-validator > /app/logs/validator.log 2>&1 &
+          echo $$! > /tmp/trion-validator-go.pid
+        fi
+        wait
+
+  # ── Validator 4 ────────────────────────────────────────────────────────────
+  validator-4:
+    <<: *validator-base
+    container_name: trion-validator-4
+    environment:
+      <<: *validator-env
+      TRION_VALIDATOR_ID: validator-4
+      TRION_VALIDATOR_REGION: ${TRION_VALIDATOR_REGION_4:-SA-BR}
+      TRION_VALIDATOR_ADDR: 0.0.0.0:7001
+      TRION_HEALTHZ_ADDR: 0.0.0.0:7080
+    ports:
+      - "5004:5000"
+      - "8004:8001"
+      - "7004:7001"
+      - "7084:7080"
+    volumes:
+      - validator-4-state:/app/data
+      - validator-4-logs:/app/logs
+      - ../../validator/trion-validator:/usr/local/bin/trion-validator:ro
+      - ../../indexers/target/release:/opt/trion-indexers:ro
+      - ./start_validator_full.sh:/opt/trion/start_validator_full.sh:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        cd /app/anima-service
+        OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+          python3 -m uvicorn faiss_service:app --host 0.0.0.0 --port 8001 --workers 1 \
+          > /app/logs/faiss.log 2>&1 &
+        echo $$! > /tmp/trion-validator-faiss.pid
+        sleep 6
+        cd /app
+        python3 serve.py > /app/logs/oracle.log 2>&1 &
+        echo $$! > /tmp/trion-validator-oracle.pid
+        for fam in $$INDEXER_FAMILIES; do
+          bin=/opt/trion-indexers/trion-$$fam
+          if [ -x "$$bin" ]; then
+            FAISS_SERVICE_URL=http://127.0.0.1:8001 \
+            FAISS_API_KEY=$$FAISS_API_KEY \
+              "$$bin" > /app/logs/indexer-$$fam.log 2>&1 &
+            echo "$$fam $$!" >> /tmp/trion-validator-indexers.pid
+          fi
+        done
+        if [ -x /usr/local/bin/trion-validator ]; then
+          /usr/local/bin/trion-validator > /app/logs/validator.log 2>&1 &
+          echo $$! > /tmp/trion-validator-go.pid
+        fi
+        wait
+
+volumes:
+  timescale-data:
+  validator-state:
+  validator-1-state:
+  validator-2-state:
+  validator-3-state:
+  validator-4-state:
+  validator-logs:
+  validator-1-logs:
+  validator-2-logs:
+  validator-3-logs:
+  validator-4-logs:
