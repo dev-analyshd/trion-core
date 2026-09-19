@@ -4091,16 +4091,22 @@ def genesis_signal(asset_id: str):
 @app.route("/api/v1/security/<entity_id>/mf")
 @require_entity_id()
 def security_mf(entity_id: str):
-    """Manipulation Fingerprint (MF) score for entity — specification L2.1.
+    """Manipulation Fingerprint (MF) score for entity — specification L1.2.
 
     DISCLOSURE: the 7-pattern detector engine is real, but the per-entity pattern
     inputs are hash-seeded demo values (see is_synthetic in the response), not
     measured on-chain evidence.
     """
+    # Audit Fix #8: the previous import block omitted detect_oracle_attack, so
+    # /api/v1/security/<eid>/mf returned only 6 of the 7 whitepaper L1.2
+    # manipulation patterns (missing ORACLE_ATTACK_ATTEMPT — the only pattern
+    # whose MF=1.0 trigger forces immediate SILENCE). Wire it in so all 7
+    # pattern detectors run and the response carries 7 entries.
     from core.physical.manipulation_detector import (
         detect_wash_trading, detect_sybil_liquidity,
         detect_governance_capture, detect_mev_extraction,
         detect_coordinated_pump, detect_fake_volume,
+        detect_oracle_attack,
     )
     h        = hashlib.sha256(entity_id.encode()).digest()
     mf_raw   = _mf_score(entity_id)
@@ -4111,13 +4117,18 @@ def security_mf(entity_id: str):
     mev_r    = round(0.001 + 0.049 * (h[5] / 255.0), 6)
     sync_r   = round(0.1 + 0.7 * (h[6] / 255.0), 4)
     rt_r     = round(0.05 + 0.60 * (h[7] / 255.0), 4)
+    # Oracle-attack demo inputs: deviation_pct ∈ [0.0, 0.30], blocks ∈ [0, 12].
+    # Hash-seeded so the same entity always yields the same demo verdict.
+    spot_dev_pct = round(0.30 * (h[13] / 255.0), 4)
+    blk_since    = int(h[14] % 13)
     wt       = detect_wash_trading(self_trade_ratio=cyc, unique_counterparties=cp)
     sybil    = detect_sybil_liquidity(top_k_lp_share=sybil_sh, lp_beo_count=max(2, h[8] % 15))
     gov      = detect_governance_capture(vote_hhi=float(hhi_val), proposal_age_hours=round(1.0 + 70.0 * (h[4] / 255.0), 1))
     mev      = detect_mev_extraction(mev_ratio_30d=mev_r, sandwich_count=int(h[9] % 10))
     pump     = detect_coordinated_pump(sync_buy_ratios=[sync_r, sync_r * 0.9, sync_r * 1.1], entity_count=max(3, h[10] % 10))
     fake_vol = detect_fake_volume(round_trip_ratio=rt_r, zero_sum_trades=int(h[11] % 20), volume_spike_ratio=round(1.0 + 4.0 * (h[12] / 255.0), 2))
-    patterns  = [wt, sybil, gov, mev, pump, fake_vol]
+    oracle   = detect_oracle_attack(spot_deviation_pct=spot_dev_pct, blocks_since_swap=blk_since)
+    patterns  = [wt, sybil, gov, mev, pump, fake_vol, oracle]
     detected  = [p for p in patterns if p.detected]
     composite = max((p.mf_score for p in detected), default=0.0) if detected else mf_raw
     return jsonify({
@@ -4131,12 +4142,13 @@ def security_mf(entity_id: str):
             for p in patterns
         ],
         "detected_count": len(detected),
+        "pattern_count":  len(patterns),
         "is_synthetic": True,
         "synthetic_reason": (
-            "the 7-pattern detector engine is real (core/physical/manipulation_detector.py), but its inputs here (cyclic ratio, LP share, HHI, MEV rate, sync ratios, round-trip ratio) are hash-seeded from sha256(entity_id) — per-entity evidence is fabricated demo data."
+            "the 7-pattern detector engine is real (core/physical/manipulation_detector.py), but its inputs here (cyclic ratio, LP share, HHI, MEV rate, sync ratios, round-trip ratio, oracle spot-deviation) are hash-seeded from sha256(entity_id) — per-entity evidence is fabricated demo data."
         ),
-        "formula":     "MF = max(detected pattern scores); ORACLE_ATTACK=1.0 overrides all",
-        "specification":  "L2.1",
+        "formula":     "MF = max(detected pattern scores); ORACLE_ATTACK_ATTEMPT=1.0 overrides all",
+        "specification":  "L1.2",
         "timestamp":   int(time.time()),
     })
 
