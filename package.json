@@ -6,7 +6,12 @@
   "scripts": {
     "trion:index-all": "node scripts/trion_master_indexer.mjs",
     "trion:backfill": "node scripts/trion_master_indexer.mjs --backfill",
-    "trion:index-list": "node scripts/trion_master_indexer.mjs --list"
+    "trion:index-list": "node scripts/trion_master_indexer.mjs --list",
+    "relayer": "node relayer/index.js",
+    "relayer:list": "node relayer/index.js --list",
+    "relayer:dry-run": "node relayer/index.js --dry-run",
+    "relayer:evm": "node relayer/index.js --dry-run --family=evm",
+    "relayer:live": "node relayer/index.js --live"
   },
   "overrides": {
     "protobufjs": "8.7.0",
