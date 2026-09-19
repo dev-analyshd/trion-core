@@ -4116,7 +4116,11 @@ def genesis_signal(asset_id: str):
         "behavioral_age":  0,
         "disclosure":      f"GENESIS — no behavioral history. conf_genesis = 1 - e^(-0.001·D) where D={depth_val}.",
         "formula":         "conf_genesis = 1 - e^(-0.001 · D(t))",
-        "specification":      "L1.2",
+        # Audit Fix #4 (FINAL-JUDGE gap L2.3): the genesis confidence decay
+        # endpoint was mis-labeled "L1.2" (Manipulation Fingerprint). Per the
+        # whitepaper, Genesis Confidence Decay is §L2.3 (Akashic Index).
+        # The L1.2 label belonged to /api/v1/security/<eid>/mf, not /genesis.
+        "specification":      "L2.3",
         "timestamp":       int(time.time()),
     })
 
