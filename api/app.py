@@ -4766,14 +4766,38 @@ def information_conservation():
 # ── L0.6 Evolutionary Fitness Function ────────────────────────────────────────
 @app.route("/api/v1/fitness/<component>")
 def evolutionary_fitness(component: str):
-    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love · N_moat."""
+    """
+    L0.6 Evolutionary Fitness — canonical whitepaper formula:
+        F(component, t) = PA(c,t) · ICE(c,t) · AS(c,t) · Love(c,t)
+
+    The whitepaper L0.6 spec defines F as the product of exactly 4 universals.
+    A 5th "N_moat" multiplier was historically folded into this endpoint
+    (mis-applying the L5.4 moat factor to the L0.6 fitness product). Per the
+    final-audit gap L0.6, N_moat is now an *optional* multiplier that
+    defaults to 1.0 — i.e. it does NOT change F unless the caller explicitly
+    opts in via the `include_moat=1` query parameter (kept for backward
+    compatibility with dashboards that still display the legacy 5-factor
+    decomposition). The canonical F is the 4-factor product below.
+    """
     h  = hashlib.sha256(component.encode()).digest()
     pa = round(0.30 + (h[0] / 255.0) * 0.70, 4)   # Predictive Accuracy
     ice= round(0.20 + (h[1] / 255.0) * 0.80, 4)   # Information Conservation Efficiency
     as_= round(0.30 + (h[2] / 255.0) * 0.70, 4)   # Adaptation Speed
     love=round(0.40 + (h[3] / 255.0) * 0.60, 4)   # Love Score (user trust + adoption)
-    n_moat=round(0.50 + (h[4] / 255.0) * 0.50, 4) # Moat Factor
-    fitness= round(pa * ice * as_ * love * n_moat, 6)
+
+    # N_moat (L5 moat factor) is OPTIONAL per whitepaper L0.6 — the canonical
+    # fitness is PA·ICE·AS·Love. Default N_moat = 1.0 (no-op multiplier).
+    # Set ?include_moat=1 to fold the 5-factor legacy product back in.
+    include_moat = request.args.get("include_moat", "0") in ("1", "true", "yes")
+    n_moat_default = 1.0  # whitepaper L0.6 canonical: 4-factor product
+    n_moat_value   = round(0.50 + (h[4] / 255.0) * 0.50, 4) if include_moat else n_moat_default
+
+    # Canonical 4-factor fitness per whitepaper L0.6.
+    fitness_canonical = round(pa * ice * as_ * love, 6)
+    # Optional 5-factor legacy product (only when caller opts in).
+    fitness_with_moat = round(pa * ice * as_ * love * n_moat_value, 6)
+    fitness = fitness_with_moat if include_moat else fitness_canonical
+
     moat_d = round(0.20 + (h[5] / 255.0) * 0.80, 4)  # Data moat
     moat_q = round(0.25 + (h[6] / 255.0) * 0.75, 4)  # Quality moat
     moat_r = round(0.15 + (h[7] / 255.0) * 0.85, 4)  # Reflexivity moat
@@ -4784,15 +4808,21 @@ def evolutionary_fitness(component: str):
     return jsonify({
         "component":        component,
         "fitness":          fitness,
+        "fitness_canonical_4factor": fitness_canonical,
+        "fitness_with_moat_5factor": fitness_with_moat if include_moat else None,
+        "include_moat":     include_moat,
         "is_synthetic": True,
         "synthetic_reason": (
-            "PA/ICE/AS/Love/moat components are hash-derived from the component name; the F formula is applied to demo inputs."
+            "PA/ICE/AS/Love components are hash-derived from the component name; "
+            "the canonical L0.6 F=PA·ICE·AS·Love 4-factor formula is applied. "
+            "N_moat defaults to 1.0 (whitepaper L0.6) — pass ?include_moat=1 to "
+            "fold the L5 moat factor back in for the legacy 5-factor product."
         ),
         "pa":               pa,
         "ice":              ice,
         "as":               as_,
         "love":             love,
-        "n_moat":           n_moat,
+        "n_moat":           n_moat_value,  # 1.0 (canonical) or moat score (legacy opt-in)
         "moat_breakdown": {
             "D_data_moat":          moat_d,
             "Q_quality_moat":       moat_q,
@@ -4802,7 +4832,7 @@ def evolutionary_fitness(component: str):
             "N_computed":           n_calc,
         },
         "generation":       generation,
-        "formula":          "F = PA · ICE · AS · Love · N_moat; N = (D+Q+R+X+F)/5",
+        "formula":          "F = PA · ICE · AS · Love  (canonical L0.6, 4-factor); N_moat optional ×=1.0 default",
         "specification":       "L0.6",
         "timestamp":        int(time.time()),
     })
@@ -7817,7 +7847,7 @@ def specification_coverage():
         {"id":"L0.3","name":"Resonance R(A,B)","formula":"R(A,B)=|corr(Φ_A,Φ_B)|·TC_A·TC_B","status":"SYNTHETIC-DEMO","synthetic_reason":"Φ/TC/correlation hash-derived from entity ids.","endpoints":["/api/v1/resonance/<a>/<b>"],"specification":"L0.3"},
         {"id":"L0.4","name":"Information Conservation dI/dt≥0","formula":"I_TRION=BH_gen+A_abs-S_emit-E_lost","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/information/conservation"],"specification":"L0.4"},
         {"id":"L0.5","name":"M_moat(t)=D·Q·R·X·F·N","formula":"M_moat=D_data·Q_quality·R_reflex·X_cross·F_fals·N_network","status":"SYNTHETIC-DEMO","synthetic_reason":"/api/v1/moat returns time-modulated demo values (the signal pipeline's moat_factor is engine-computed).","endpoints":["/api/v1/moat","/api/v1/signal/<id>"],"specification":"L0.5"},
-        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love·N","formula":"F=PA·ICE·AS·Love·N_moat","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"specification":"L0.6"},
+        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love","formula":"F=PA·ICE·AS·Love (4-factor; N_moat optional ×=1.0)","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"specification":"L0.6"},
         {"id":"L0.7","name":"Behavioral True Value BTV","formula":"BTV=P_ref×Ω×(1−MF_discount)×C_weight×NL_weight","status":"SYNTHETIC-DEMO","synthetic_reason":"BTV engine is real; price baselines are hardcoded bootstrap values until relayer data arrives.","endpoints":["/api/v1/price/btv/<base>","/api/v1/price/hierarchy"],"specification":"L0.7"},
         {"id":"L0.8","name":"Inverted Price Feed — C_manipulate(D)","formula":"C_manipulate(D)=K·e^(α·D(t)); strictly monotonically increasing; at D→∞: cost→∞","status":"SYNTHETIC-DEMO","synthetic_reason":"real formula computed over BTV-engine values with hardcoded baseline prices.","endpoints":["/api/v1/inverted_price_feed","/api/v1/inverted_price_feed/<asset>"],"specification":"L0.8"},
         # L1 — Physical Plane
