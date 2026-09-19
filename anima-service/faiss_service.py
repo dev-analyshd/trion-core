@@ -1268,8 +1268,8 @@ def _tsdb_write_bh(beo_id: str, record: dict, block_num: int = 0, chain_id: int 
                 ts, gk_hash, prev_gk, bh_id, antisense,
                 beo_id.encode("utf-8"),
                 record.get("event_type", "TRANSFER"),
-                float(record.get("magnitude", 0.0)),
-                float(record.get("entropy", 0.0)),
+                min(1.0, max(0.0, float(record.get("magnitude", 0.0)))),
+                max(0.0, float(record.get("entropy", 0.0))),
                 chain_id,
                 gk_hash,
                 block_num,
@@ -1286,7 +1286,7 @@ def _tsdb_write_bh(beo_id: str, record: dict, block_num: int = 0, chain_id: int 
             """, (
                 beo_id,
                 record.get("event_type", "TRANSFER"),
-                float(record.get("magnitude", 0.0)),
+                min(1.0, max(0.0, float(record.get("magnitude", 0.0)))),
                 chain_id,
                 block_num,
                 sense_hex,
@@ -4212,6 +4212,41 @@ def add_tx_bh_batch(payload: TxBhBatchPayload):
             _db_write_with_retry(_bh_write)
         except Exception as exc:
             logger.warning("[bh_ledger] write failed after retries: %s", str(exc)[:120])
+
+    # ── TimescaleDB dual-write for per-transaction BHs ──────────────────────
+    # Each tx BH record is also written to the shared TimescaleDB akashic_bh
+    # hypertable so all federated validators see the same Akashic Index.
+    if _tsdb_ready and rows:
+        try:
+            conn_ts = _tsdb_conn()
+            if conn_ts:
+                with conn_ts.cursor() as cur:
+                    for e in payload.entries:
+                        ts_dt = datetime.fromtimestamp(float(e.timestamp), tz=timezone.utc)
+                        mag_norm = min(1.0, max(0.0, float(e.magnitude_norm)))
+                        entropy_delta = max(0.0, float(e.magnitude_norm) * 0.1)
+                        gk_hash = hashlib.sha3_256((e.entity_id + "gk" + str(e.block_num)).encode()).digest()
+                        prev_gk = hashlib.sha3_256((e.entity_id + "gk" + str(max(0, e.block_num - 1))).encode()).digest()
+                        bh_id = bytes.fromhex(e.sense_hex) if e.sense_hex else hashlib.sha3_256(e.entity_id.encode()).digest()
+                        antisense = bytes.fromhex(e.antisense_hex) if e.antisense_hex else hashlib.sha3_256(b"antisense").digest()
+                        event_name = e.event_type_name or ("TRANSFER" if 0 <= e.event_type < 20 else "TRANSFER")
+                        cur.execute("""
+                            INSERT INTO akashic_bh
+                                (time, gk_hash, prev_gk_hash, bh_id, antisense, entity_id,
+                                 event_type, magnitude_norm, entropy_delta, chain_id,
+                                 block_hash, block_num, context)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (time, bh_id) DO NOTHING
+                        """, (
+                            ts_dt, gk_hash, prev_gk, bh_id, antisense,
+                            e.entity_id.encode("utf-8"),
+                            event_name, mag_norm, entropy_delta, min(32767, max(0, int(e.chain_id))),
+                            gk_hash, e.block_num,
+                            psycopg2.extras.Json({"chain_label": payload.chain_label, "tx_hash": e.tx_hash}),
+                        ))
+                conn_ts.commit()
+        except Exception as exc:
+            logger.warning("[_tsdb_write_bh_batch] TimescaleDB write failed: %s", str(exc)[:120])
 
     logger.info(
         "[bh_ledger] chain=%s block=%d entries=%d stored=%d verified=%d",
