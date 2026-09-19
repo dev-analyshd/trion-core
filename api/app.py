@@ -4054,7 +4054,19 @@ def genesis_signal(asset_id: str):
     conf       = round(0.10 + 0.25 * (h[1] / 255.0), 4)
     volatility = _market_volatility()
     theta      = round(0.55 + 0.37 * volatility, 4)
-    c_genesis  = round(1.0 - math.exp(-0.001 * 1), 6)
+    # Audit Fix #7: the previous expression was `math.exp(-0.001 * 1)` — a
+    # hardcoded `* 1` instead of `* D` (the depth value).  That made
+    # conf_genesis = 1 - e^(-0.001) = 0.001 for every genesis asset, even
+    # when the disclosure text honestly said "where D=0" (which would yield
+    # 1 - e^0 = 0).  Pull the asset's actual Akashic depth from FAISS when
+    # reachable; fall back to 0 (true genesis: no behavioral history yet)
+    # when FAISS is down.  λ=0.001 matches the whitepaper L2.3 decay.
+    try:
+        depth_d, depth_code = _proxy_faiss(f"/api/v1/depth/{asset_id}")
+        depth_val = float(depth_d.get("akashic_depth", 0.0)) if depth_code == 200 else 0.0
+    except Exception:
+        depth_val = 0.0
+    c_genesis  = round(1.0 - math.exp(-0.001 * depth_val), 6)
     return jsonify({
         "asset_id":        asset_id,
         "signal_type":     "GENESIS",
@@ -4064,11 +4076,12 @@ def genesis_signal(asset_id: str):
             "FAISS genesis engine unreachable — phi_seed/confidence are deterministically derived from sha256(asset_id), not measured behavioral history."
         ),
         "conf_genesis":    c_genesis,
+        "depth_used":      depth_val,
         "confidence":      conf,
         "threshold":       theta,
         "coherent":        phi_seed >= theta,
         "behavioral_age":  0,
-        "disclosure":      "GENESIS — no behavioral history. conf_genesis = 1 - e^(-0.001·D) where D=0.",
+        "disclosure":      f"GENESIS — no behavioral history. conf_genesis = 1 - e^(-0.001·D) where D={depth_val}.",
         "formula":         "conf_genesis = 1 - e^(-0.001 · D(t))",
         "specification":      "L1.2",
         "timestamp":       int(time.time()),
