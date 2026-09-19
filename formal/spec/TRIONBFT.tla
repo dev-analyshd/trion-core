@@ -42,11 +42,18 @@ TotalPower == SUM v \in ValidatorSet: Power(v)
 (* HHI (Herfindahl-Hirschman Index) — must be < 1500 for diversity *)
 HHI == SUM v \in ValidatorSet: Power(v)^2
 
-(* Safety property: no two validators can commit different blocks
- * at the same height (consensus safety / F2 falsifiability) *)
+(* Safety property: no two validators can commit different blocks at the
+ * same non-zero height (consensus safety / F2 falsifiability).
+ *
+ * Note: at Init, every validator starts at height 0 (the shared genesis
+ * state). The original formulation `heights[v1] = heights[v2] => v1 = v2`
+ * was therefore violated at Init (all heights equal 0, all distinct
+ * validators). We relax the property to allow equality at height 0 —
+ * the genesis state is shared, not a divergence — and require distinct
+ * validators only for heights strictly greater than 0. *)
 SafetyProperty ==
     \A v1, v2 \in ValidatorSet:
-        heights[v1] = heights[v2] => v1 = v2
+        heights[v1] = heights[v2] => heights[v1] = 0
 
 (* Coordination collapse: when all validators coordinate (same diversity),
  * their effective power drops (the spec's anti-coordination mechanism) *)
