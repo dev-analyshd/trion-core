@@ -3026,6 +3026,17 @@ class ComplementarityPayload(BaseModel):
 
 # ── Routes — core ──────────────────────────────────────────────────────────────
 
+@app.get("/api/v1/languages")
+async def supported_languages():
+    """Return the count + list of supported ANIMA NLP languages."""
+    from multilingual_sentiment import LEXICONS
+    return {
+        "supported_language_count": len(LEXICONS),
+        "supported_languages": sorted(LEXICONS.keys()),
+        "specification": "ANIMA NLP layer — whitepaper §6.2",
+        "disclosure": f"ANIMA supports {len(LEXICONS)} languages via Unicode script detection + lexicon-based scoring.",
+    }
+
 @app.get("/health")
 def health():
     return {

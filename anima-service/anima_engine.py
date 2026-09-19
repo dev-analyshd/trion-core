@@ -151,6 +151,61 @@ NEWS_FEEDS = {
     "DAILYHODL":      "https://dailyhodl.com/feed/",
     "CRYPTOPOTATO":   "https://cryptopotato.com/feed/",
     "COINJOURNAL":    "https://coinjournal.net/feed/",
+    # ── Multilingual crypto news (ANIMA 100+ language coverage) ──────────────
+    # Spanish (es) — Latin America + Spain crypto markets
+    "CRYPTONOTICIAS_ES":  "https://www.criptonoticias.com/feed/",
+    "CRIPTONOTICIAS_ES":  "https://criptonoticias.com/feed/",
+    "BITCOINES_ES":       "https://www.bitcoin.es/feed/",
+    # Portuguese (pt) — Brazil + Portugal
+    "CRIPTOFACIL_PT":     "https://www.criptofacil.com/feed/",
+    "BITCOININFO_PT":     "https://www.bitcoininfo.com.br/feed/",
+    # French (fr) — Francophone crypto
+    "CRYPTONEWS_FR":      "https://www.cryptonne.fr/feed/",
+    "JOURNALDUCOIN_FR":   "https://journalducoin.com/feed/",
+    # German (de) — DACH region
+    "BTC_ECHO_DE":        "https://www.btc-echo.de/feed/",
+    "COIN-DE":             "https://coin-hero.de/feed/",
+    # Italian (it)
+    "CRYPTONOMIST_IT":    "https://www.cryptonomist.ch/feed/",
+    "MONETA_IT":          "https://www.monetaweb.it/feed/",
+    # Russian (ru)
+    "CRYPTONEWS_RU":      "https://crypto-news.ru/rss/",
+    "FORKLOG_RU":         "https://forklog.com/feed",
+    # Chinese (zh)
+    "CHAINNEWS_ZH":       "https://www.chainnews.com/feed/",
+    "8BTC_ZH":            "https://www.8btc.com/feed",
+    # Japanese (ja)
+    "COINPOST_JA":        "https://coinpost.jp/feed",
+    "CRYPTO_WATCH_JA":   "https://blog.crypto-watch.com/feed",
+    # Korean (ko)
+    "COINPAN_KO":         "https://www.coinpan.com/rss",
+    "TOKENPOST_KO":       "https://www.tokenpost.com/rss",
+    # Turkish (tr)
+    "CRYPTOSON_TR":       "https://cryptoson.com/feed/",
+    "BTKOM_TR":           "https://www.btkom.com/feed/",
+    # Arabic (ar)
+    "ARABCYPR_AR":        "https://www.arabcyber.com/feed/",
+    "ALGULF_AR":          "https://algulf.net/feed/",
+    # Vietnamese (vi)
+    "TINTUC_VI":          "https://tintucbitcoin.com/feed/",
+    "BITCOINVI":          "https://bitcoinvietnamnews.com/feed/",
+    # Thai (th)
+    "BITCOIN_TH":         "https://www.bitcoinsinth.com/feed/",
+    # Hindi (hi)
+    "CRYPTOHI_IN":        "https://www.cryptohindi.in/feed/",
+    # Indonesian (id)
+    "CRYPTO-ID":          "https://www.cryptoharian.com/feed/",
+    "INDODAX_ID":         "https://indodax.com/blog/feed/",
+    # Dutch (nl)
+    "CRYPTO_NL":          "https://www.crypto-nieuws.nl/feed/",
+    # Polish (pl)
+    "CRYPTO_PL":          "https://www.cryptocoin.pl/feed/",
+    "BITCOIN_PL":         "https://www.bitcoin.pl/feed/",
+    # Ukrainian (uk)
+    "CRYPTO_UA":          "https://crypto.ua/feed/",
+    # African (sw/ha)
+    "BITCOINKE_KE":       "https://www.bitcoinke.co.ke/feed/",
+    "TECHAfrica":         "https://techafrica.co.ke/feed/",
 }
 
 REGULATORY_FEEDS = {
