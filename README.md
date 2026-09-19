@@ -238,6 +238,21 @@ Every command below has been tested against a fresh clone of this repository.
 
 **Rust is required.** Without the Rust indexers, the Oracle has no behavioral data to evaluate — the Akashic Index stays empty, D(t) = 0, and every signal is SILENCE/COLD_START. The indexers are L0 — they are the foundation of the entire pipeline. They watch blockchains, extract behavioral events, compute 93-byte Behavioral Hashes, and feed them into the FAISS Akashic Index. Without them, TRION is blind.
 
+### PyO3 — Rust powers the core math (Whitepaper Part 11)
+
+The whitepaper Part 11 specifies: *"Performance-critical paths compiled to Rust via PyO3 bindings."* This is implemented:
+
+- **Rust modules** (`rust/src/`): `phi.rs` (L1.1 Φ — 609 lines), `sigma.rs` (L4.1 Σ — 257 lines), `master_equation.rs` (L5 T(t) — 457 lines), `pyo3_bindings.rs` (bridge — 489 lines)
+- **Python bridge** (`core/rust_bridge_pyo3.py`): tries `import trion_rust` (PyO3), then `ctypes.CDLL` (ctypes fallback), then Python reference implementation
+- **Build command**: `cd rust && cargo build --release --features pyo3` → produces `libtrion_btcp.so` (750KB cdylib)
+- **4 Rust-native functions** accessible from Python:
+  1. `compute_behavioral_hash` — L0.1 93-byte dual-strand Behavioral Hash
+  2. `compute_phi` — L1.1 9-feature Shannon entropy Physical Richness Φ
+  3. `compute_sigma` — L4.1 diversity-weighted BFT Spiritual Plane Σ
+  4. `compute_master_equation` — L5 Master Equation T(t) = [C≥Θ]·S·e^(M·t)
+
+When the `.so` is present, the Oracle automatically uses Rust for BH, Φ, Σ, and T(t) computation. Without it, it falls back to Python reference implementations (same formulas, same golden vectors — just slower).
+
 ---
 
 ### Linux / WSL
@@ -264,6 +279,16 @@ cargo build --release
 # → Produces 23 binaries: trion-evm, trion-svm, trion-utxo, trion-starknet, ...
 # → Build time: ~10 minutes (23 crates, each ~4MB binary)
 cd ..
+
+# ── Step 4b: Build the Rust PyO3 core (performance-critical math) ──
+# This produces libtrion_btcp.so — the Rust native library that powers
+# BH computation, Φ (Physical), Σ (Spiritual), and T(t) (Master Equation).
+# Without this, Python fallback is used (same formulas, slower).
+cd rust
+cargo build --release --features pyo3
+cd ..
+# → Produces rust/target/release/libtrion_btcp.so (750KB)
+# → Python bridge auto-detects it via ctypes
 
 # ── Step 5: Configure environment ─────────────────────────────
 cp .env.example .env
@@ -318,6 +343,7 @@ pip install flask flask-socketio simple-websocket flask-cors \
     feedparser vaderSentiment langdetect faiss-cpu pydantic \
     fastapi uvicorn z3-solver web3 eth-account
 cd indexers && cargo build --release && cd ..
+cd rust && cargo build --release --features pyo3 && cd ..
 cd anima-service && FAISS_PORT=8001 python3 faiss_service.py &
 cd ..
 FAISS_SERVICE_URL=http://127.0.0.1:8001 python3 serve.py &
