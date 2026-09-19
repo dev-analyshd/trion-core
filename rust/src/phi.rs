@@ -47,7 +47,7 @@ pub const PHI_WEIGHTS: [f64; N_FEATURES] = [
 /// `TransactionData` dataclass so the PyO3 adapter
 /// (`rust/src/pyo3_bindings.rs::PyTransactionData`) can pass records
 /// straight from the indexer / FAISS adapter without translation.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TransactionData {
     /// Canonical transaction hash (0x…), used by f4/f7 to derive protocol buckets.
     pub tx_hash: String,

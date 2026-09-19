@@ -467,3 +467,23 @@ mod tests {
         assert_eq!(t, -1.0);
     }
 }
+
+// ── From<PyTransactionData> for TransactionData ─────────────────────────────
+// Required by the compute_phi_native wrapper which maps a list of
+// PyTransactionData (Python-visible) to Vec<TransactionData> (Rust-internal).
+
+#[cfg(feature = "pyo3")]
+impl From<&PyRef<'_, PyTransactionData>> for TransactionData {
+    fn from(py: &PyRef<'_, PyTransactionData>) -> Self {
+        TransactionData {
+            tx_hash:      py.tx_hash.clone(),
+            value_wei:     py.value_wei,
+            gas_used:      py.gas_used,
+            contract_addr: py.contract_addr.clone(),
+            from_addr:     py.from_addr.clone(),
+            to_addr:       py.to_addr.clone(),
+            block_num:     py.block_num,
+            timestamp:     py.timestamp,
+        }
+    }
+}
