@@ -18,11 +18,11 @@ EXTENDS Naturals, Sequences, Integers, FiniteSets
 CONSTANTS
     ValidatorSet,    (* Set of validator identifiers *)
     MaxStake,        (* Maximum stake any validator can have *)
-    MaxDiversity,    (* Maximum diversity score *)
+    MaxDiversity     (* Maximum diversity score *)
 
 VARIABLES
     stakes,          (* Function: Validator -> stake *)
-    diversities,     (* Function: Validator -> diversity score *)
+    diversities,    (* Function: Validator -> diversity score *)
     heights,         (* Function: Validator -> committed height *)
     frozen           (* Boolean: is the AWA gate frozen? *)
 
@@ -36,11 +36,27 @@ TypeInvariant ==
 (* Diversity-weighted power: power(v) = stake(v) * diversity(v) *)
 Power(v) == stakes[v] * diversities[v]
 
-(* Total power across all validators *)
-TotalPower == SUM v \in ValidatorSet: Power(v)
+(* Recursive sum over the ValidatorSet (TLA+ has no built-in SUM). *)
+RECURSIVE SumOver(_)
+SumOver(S) ==
+    IF S = {}
+    THEN 0
+    ELSE LET v == CHOOSE x \in S: TRUE
+         IN Power(v) + SumOver(S \ {v})
 
-(* HHI (Herfindahl-Hirschman Index) — must be < 1500 for diversity *)
-HHI == SUM v \in ValidatorSet: Power(v)^2
+(* Total power across all validators *)
+TotalPower == SumOver(ValidatorSet)
+
+(* HHI (Herfindahl-Hirschman Index) — must be < 1500 for diversity.
+ * Defined analogously using a recursive sum of squared power. *)
+RECURSIVE SumSqOver(_)
+SumSqOver(S) ==
+    IF S = {}
+    THEN 0
+    ELSE LET v == CHOOSE x \in S: TRUE
+         IN Power(v)*Power(v) + SumSqOver(S \ {v})
+
+HHI == SumSqOver(ValidatorSet)
 
 (* Safety property: no two validators can commit different blocks at the
  * same non-zero height (consensus safety / F2 falsifiability).
@@ -53,14 +69,15 @@ HHI == SUM v \in ValidatorSet: Power(v)^2
  * validators only for heights strictly greater than 0. *)
 SafetyProperty ==
     \A v1, v2 \in ValidatorSet:
-        heights[v1] = heights[v2] => heights[v1] = 0
+        v1 # v2 /\ heights[v1] > 0 /\ heights[v2] > 0
+        => heights[v1] # heights[v2]
 
 (* Coordination collapse: when all validators coordinate (same diversity),
  * their effective power drops (the spec's anti-coordination mechanism) *)
 CoordinationCollapseHolds ==
     \A v1, v2 \in ValidatorSet:
         diversities[v1] = diversities[v2] =>
-            Power(v1) + Power(v2) <= TotalPower / 2
+            Power(v1) + Power(v2) <= TotalPower \div 2
 
 (* INIT: all validators start at height 0 with equal stake *)
 Init ==
@@ -69,10 +86,18 @@ Init ==
     /\ heights = [v \in ValidatorSet |-> 0]
     /\ frozen = FALSE
 
-(* NEXT: a validator commits the next height *)
+(* Max height across all validators — TLA+ core has no built-in Max over a
+ * function range, so we define it via CHOOSE. *)
+MaxHeight ==
+    CHOOSE h \in {heights[v] : v \in ValidatorSet}:
+        \A w \in ValidatorSet: heights[w] <= h
+
+(* NEXT: a validator commits the next height.
+ * At Init all heights are 0 (genesis). The first validator to commit
+ * advances to height 1. Subsequent commits advance one at a time. *)
 Next ==
     \E v \in ValidatorSet:
-        /\ heights[v] = Max(heights)  (* only the furthest-ahead validator commits *)
+        /\ heights[v] = MaxHeight
         /\ heights' = [heights EXCEPT ![v] = @ + 1]
         /\ UNCHANGED <<stakes, diversities, frozen>>
 

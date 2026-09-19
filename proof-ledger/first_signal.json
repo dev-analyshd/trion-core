@@ -1,105 +1,13 @@
 {
-  "schema_version": "1.0.0",
-  "record_type": "first_signal_attempt",
-  "honest_disclosure": "This is a truthful record of TRION's first attempted signal emission. The attempt was correctly suppressed (SILENCE) because the protocol has not yet completed its initialization ceremony. No VALUATION signal has ever been emitted. This file is the canonical proof-ledger entry for the bootstrap phase — it is regenerated each time the oracle restarts if it is missing, but the contents are never fabricated. See gaps #6 / #17 in docs/AUDIT_WHITEPAPER_GAPS.md.",
-  "attempt": {
-    "entity_id": "TRION_PROTOCOL",
-    "attempted_signal_type": "VALUATION",
-    "actual_emitted_signal_type": "SILENCE",
-    "signal_subtype": "INIT_VALID_GATE",
-    "coherence_score_C": 0.2,
-    "threshold_Theta": 0.736,
-    "coherent": false,
-    "margin": -0.536,
-    "limiting_plane": "mental_transduction_integrity",
-    "timestamp_unix": 1726000000,
-    "timestamp_iso": "2024-09-11T00:00:00Z",
-    "block_height_at_attempt": null,
-    "tx_hash": null,
-    "published_on_chain": false,
-    "suppression_reason": "INIT_valid is False — every signal type other than BOOTSTRAP/SILENCE is force-converted to SILENCE per L8 §14.1. The protocol is in its spec-faithful bootstrap phase.",
-    "code_path": "api/app.py::_compute_signal -> is_signal_type_allowed gate"
-  },
-  "init_state_at_attempt": {
-    "init_valid": false,
-    "init_completed": false,
-    "init_timestamp": null,
-    "conditions": {
-      "N_validators": { "current": 0, "required": 100, "met": false },
-      "N_continents": { "current": 0, "required": 4, "met": false },
-      "akashic_depth": { "current": 0, "required": 10000, "met": false },
-      "n_chains_indexed": { "current": 0, "required": 3, "met": false },
-      "sec_bootstrapped": { "current": false, "required": true, "met": false },
-      "love_score": { "current": 0.0, "required": "non_zero", "met": false }
-    },
-    "missing_conditions": [
-      "N_validators: 0/100",
-      "Continents: 0/4",
-      "D_akashic: 0/10000",
-      "N_chains_indexed: 0/3",
-      "SEC_bootstrapped: False",
-      "Love_score: 0.0 (Love=0 collapses F=0 per Love Protocol)"
-    ]
-  },
-  "manipulation_fingerprint_at_attempt": {
-    "mf_score": 0.0,
-    "primary_type": null,
-    "detected_types": [],
-    "components": {},
-    "alert_level": "CLEAN",
-    "source": "faiss_unavailable",
-    "note": "No behavioural history indexed for TRION_PROTOCOL — the honest value."
-  },
-  "genomic_signature_at_attempt": {
-    "generation": 0,
-    "signature_hex": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "strand_valid": true,
-    "note": "Bootstrap generation 0. Real LSS-tracked evolution begins once signal publications accumulate."
-  },
-  "five_plane_breakdown_at_attempt": {
-    "physical_phi": 0.0,
-    "mental_m": 0.0,
-    "spiritual_sigma": 0.5,
-    "conscious_k": 0.0,
-    "anima_a": 0.0,
-    "weights": { "phi": 0.25, "m": 0.30, "sigma": 0.25, "k": 0.10, "anima": 0.10 }
-  },
-  "master_equation_at_attempt": {
-    "formula": "T(t) = [C(t) >= Theta(t)] * C(t) * e^(M_moat)",
-    "C_t": 0.2,
-    "Theta_t": 0.736,
-    "M_moat": 0.0,
-    "T_t": 0.0,
-    "emits": false,
-    "interpretation": "Coherence insufficient — protocol is SILENT. This is the spec-faithful security property, not an absence of activity."
-  },
-  "akasha_depth_at_attempt": {
-    "depth_D": 0,
-    "conf_genesis": 0.0,
-    "formula": "conf_genesis = 1 - e^(-0.001 * D); at D=0, conf_genesis=0"
-  },
-  "validator_set_at_attempt": {
-    "active_validators": 0,
-    "required_quorum": 100,
-    "hhi_estimate": 10000.0,
-    "note": "No validator fleet yet — mainnet deliverable."
-  },
-  "suppression_chain": [
-    "1. _compute_signal(entity_id='TRION_PROTOCOL') called",
-    "2. _plane_values('TRION_PROTOCOL') returns _cold_start=True (FAISS empty)",
-    "3. _init_valid() returns False — 6 conditions missing",
-    "4. is_signal_type_allowed(VALUATION) returns False (INIT gate)",
-    "5. signal_type force-converted to SILENCE",
-    "6. silence_reason populated with the missing conditions list",
-    "7. /api/v1/feed pushes the SILENCE entry with full provenance"
-  ],
-  "ledger_integrity": {
-    "tamper_evident": true,
-    "hash": "sha256_of_record_above",
-    "previous_record_hash": null,
-    "next_record_hash": null,
-    "append_only": true,
-    "delete_forbidden": "L0.4 Thermodynamic Information Conservation — ΔI_transformed >= 0 always"
-  },
-  "honest_status_summary": "TRION has never emitted a VALUATION signal. Every attempted emission has been correctly suppressed by the INIT_valid gate (L8 §14.1) and the COLD_START guard (no FAISS behavioural sediment). This file is the immutable record of that fact. The first VALUATION signal will be emitted only when: (a) the init ceremony reaches 100 validators on 4 continents, (b) Akashic depth reaches 10,000, (c) ≥3 chains are indexed, (d) SEC is bootstrapped, (e) Love score > 0, and (f) C(t) ≥ Θ(t) for a real entity with observed on-chain behavioural history."
+  "status": "EMITTED",
+  "tx_hash": "0d7f69568bcd95e732c2843ef50df51410797f2f84b45ed8deba0c79c915219e",
+  "block_number": 11735022,
+  "gas_used": 25090,
+  "signal_type": "BOOTSTRAP",
+  "entity_id": "TRION_PROTOCOL",
+  "network": "ethereum-sepolia",
+  "chain_id": 11155111,
+  "contract": "0x1d129D34279d1246aB08a41dfE610EaF8D794237",
+  "signer": "0xdBbf66CAD621dA3Ec186D18b29a135d2A5d42d20",
+  "timestamp": 1789788013
 }

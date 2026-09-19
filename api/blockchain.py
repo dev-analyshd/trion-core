@@ -21,6 +21,23 @@ except ImportError:
     WEB3_OK = False
     log.warning("web3 not installed — chain features disabled")
 
+# ── V3 BehavioralSignal struct (mirrors ITRIONOracleV3.BehavioralSignal) ─────
+# Used by publishSignalWithType and publishBehavioralSignal. The 10 fields are:
+#   entityId, publicCommitment, coherenceScore, threshold, moatFactor,
+#   coherent, limitingPlane, planesPacked, timingPacked, initialized.
+_BEHAVIORAL_SIGNAL_COMPONENTS = [
+    {"name": "entityId",         "type": "bytes32"},
+    {"name": "publicCommitment", "type": "bytes32"},
+    {"name": "coherenceScore",   "type": "uint256"},
+    {"name": "threshold",         "type": "uint256"},
+    {"name": "moatFactor",        "type": "uint256"},
+    {"name": "coherent",          "type": "bool"},
+    {"name": "limitingPlane",     "type": "uint8"},
+    {"name": "planesPacked",      "type": "uint256"},
+    {"name": "timingPacked",      "type": "uint256"},
+    {"name": "initialized",       "type": "bool"},
+]
+
 ORACLE_ABI = [
     {
         "inputs": [
@@ -35,6 +52,100 @@ ORACLE_ABI = [
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
+    },
+    # ── V3 canonical typed publication (TRION-TEAM-E) ────────────────────────
+    # function publishSignalWithType(BehavioralSignal calldata s, uint8 signalType)
+    # 13 conceptual args (10 struct fields + 5 plane scores packed into
+    # planesPacked + signalType). The on-chain ABI takes the struct as a single
+    # tuple arg followed by the signalType byte.
+    {
+        "inputs": [
+            {
+                "name": "s",
+                "type": "tuple",
+                "internalType": "struct ITRIONOracleV3.BehavioralSignal",
+                "components": _BEHAVIORAL_SIGNAL_COMPONENTS,
+            },
+            {"name": "signalType", "type": "uint8", "internalType": "uint8"},
+        ],
+        "name": "publishSignalWithType",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {
+                "name": "s",
+                "type": "tuple",
+                "internalType": "struct ITRIONOracleV3.BehavioralSignal",
+                "components": _BEHAVIORAL_SIGNAL_COMPONENTS,
+            },
+        ],
+        "name": "publishBehavioralSignal",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "entityId", "type": "bytes32"}],
+        "name": "getSignalType",
+        "outputs": [{"name": "signalType", "type": "uint8"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "", "type": "bytes32"}],
+        "name": "signalTypeByEntity",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "", "type": "bytes32"}],
+        "name": "signalCountByEntity",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "totalBehavioralSignals",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "v", "type": "address"}],
+        "name": "addValidator",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "entityId", "type": "bytes32"}],
+        "name": "getBehavioralSignal",
+        "outputs": [
+            {"name": "publicCommitment", "type": "bytes32"},
+            {"name": "coherenceScore", "type": "uint256"},
+            {"name": "threshold", "type": "uint256"},
+            {"name": "moatFactor", "type": "uint256"},
+            {"name": "coherent", "type": "bool"},
+            {"name": "limitingPlane", "type": "uint8"},
+            {"name": "initialized", "type": "bool"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    # ── SignalTypeRecorded event (emitted by publishSignalWithType) ───────────
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True,  "name": "entityId",   "type": "bytes32"},
+            {"indexed": False, "name": "signalType", "type": "uint8"},
+        ],
+        "name": "SignalTypeRecorded",
+        "type": "event",
     },
     {
         "inputs": [],
@@ -148,7 +259,7 @@ ORACLE_ABI = [
             {"name": "consciousPlane", "type": "uint64"},
             {"name": "animaPlane", "type": "uint64"}
         ],
-        "name": "publishBehavioralSignal",
+        "name": "publishBehavioralSignalLegacy12",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -205,9 +316,23 @@ class ChainRelay:
     def _init(self):
         if not WEB3_OK:
             return
-        rpc = os.environ.get("ARB_SEPOLIA_RPC", "https://sepolia-rollup.arbitrum.io/rpc")
+        # Prefer ETH_SEPOLIA_RPC (canonical V3 deployment target) when set;
+        # fall back to the legacy ARB_SEPOLIA_RPC env name for backward compat.
+        rpc = (
+            os.environ.get("ETH_SEPOLIA_RPC")
+            or os.environ.get("ARB_SEPOLIA_RPC")
+            or "https://ethereum-sepolia.publicnode.com"
+        )
         pk  = os.environ.get("PRIVATE_KEY", "") or os.environ.get("RELAYER_PRIVATE_KEY", "")
-        oracle_addr = os.environ.get("ORACLE_ADDRESS", "0x1d129D34279d1246aB08a41dfE610EaF8D794237")
+        # Canonical V3 deployment on Ethereum Sepolia (recompiled with
+        # publishSignalWithType on 2026-09-19 — see proof-ledger/first_signal.json
+        # tx 0x96a42a2ca4a1df918df90b5820cdfbd83de89ab27ce53e1673dd86fcec7c6db9).
+        # The previous default (0x1d129D3…4237) targeted the OLD TRIONSensingOracle
+        # on Arbitrum Sepolia which only exposed publishBehavioralTruth (6-arg).
+        oracle_addr = os.environ.get(
+            "ORACLE_ADDRESS",
+            "0x590CD9B5ad34b735d8c262a462d9bc82E57C4DA5",
+        )
 
         try:
             w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 20}))
@@ -309,6 +434,74 @@ class ChainRelay:
                 log.error("publish_signal error: %s", e)
                 return {"error": str(e), "published": False}
 
+    @staticmethod
+    def _pack_planes(phi_plane: int, mental_plane: int, sigma_plane: int,
+                     conscious_plane: int, anima_plane: int) -> int:
+        """
+        Pack five plane scores (×1e6) into one uint256 (32 bits each).
+
+        Mirrors TRIONOracleV3.packPlanes():
+            planesPacked = phi | (mental << 32) | (sigma << 64)
+                         | (conscious << 96) | (anima << 128)
+        """
+        return (
+            (int(phi_plane)       & 0xFFFFFFFF)
+            | ((int(mental_plane)     & 0xFFFFFFFF) << 32)
+            | ((int(sigma_plane)      & 0xFFFFFFFF) << 64)
+            | ((int(conscious_plane)  & 0xFFFFFFFF) << 96)
+            | ((int(anima_plane)      & 0xFFFFFFFF) << 128)
+        )
+
+    def _build_behavioral_signal_tuple(self,
+            entity_b32: bytes,
+            commitment: bytes,
+            coherence_score: int,
+            threshold: int,
+            moat_factor: int,
+            coherent: bool,
+            limiting_plane: int,
+            phi_plane: int = 0,
+            mental_plane: int = 0,
+            sigma_plane: int = 0,
+            conscious_plane: int = 0,
+            anima_plane: int = 0) -> tuple:
+        """
+        Build the on-chain BehavioralSignal tuple (10 fields).
+
+        Solidity struct:
+            struct BehavioralSignal {
+                bytes32 entityId;
+                bytes32 publicCommitment;
+                uint256 coherenceScore;
+                uint256 threshold;
+                uint256 moatFactor;
+                bool    coherent;
+                uint8   limitingPlane;
+                uint256 planesPacked;     // 5 planes × 32 bits
+                uint256 timingPacked;    // (block << 64) | timestamp
+                bool    initialized;
+            }
+
+        timingPacked and initialized are overwritten by the contract itself
+        in `_publishBehavioralSignal` (sig.timingPacked = (block.number << 64)
+        | block.timestamp; sig.initialized = true). We pass zeros here.
+        """
+        planes_packed = self._pack_planes(
+            phi_plane, mental_plane, sigma_plane, conscious_plane, anima_plane,
+        )
+        return (
+            entity_b32,         # bytes32 entityId
+            commitment,         # bytes32 publicCommitment
+            int(coherence_score),
+            int(threshold),
+            int(moat_factor),
+            bool(coherent),
+            int(limiting_plane) & 0xFF,
+            planes_packed,
+            0,                  # timingPacked — set by the contract
+            False,              # initialized  — set by the contract
+        )
+
     def publish_behavioral_signal_v3(self,
             entity_b32: bytes,
             commitment: bytes,
@@ -317,25 +510,29 @@ class ChainRelay:
             moat_factor: int,
             coherent: bool,
             limiting_plane: int,
-            phi_plane: int,
-            mental_plane: int,
-            sigma_plane: int,
-            conscious_plane: int,
-            anima_plane: int) -> dict:
+            phi_plane: int = 0,
+            mental_plane: int = 0,
+            sigma_plane: int = 0,
+            conscious_plane: int = 0,
+            anima_plane: int = 0) -> dict:
         """
         Publish a full behavioral signal via TRIONOracleV3.publishBehavioralSignal().
-        Rich format with entity ID, commitment, moat, and all 5 planes.
+        Rich format with entity ID, commitment, moat, and all 5 planes packed
+        into the on-chain BehavioralSignal struct (tuple).
         """
         if not self.ready:
             return {"error": "chain_not_ready", "published": False}
         try:
             with self._lock:
-                nonce = self._w3.eth.get_transaction_count(self._account.address)
-                tx = self._oracle.functions.publishBehavioralSignal(
+                sig_tuple = self._build_behavioral_signal_tuple(
                     entity_b32, commitment, coherence_score, threshold,
                     moat_factor, coherent, limiting_plane,
                     phi_plane, mental_plane, sigma_plane,
-                    conscious_plane, anima_plane
+                    conscious_plane, anima_plane,
+                )
+                nonce = self._w3.eth.get_transaction_count(self._account.address)
+                tx = self._oracle.functions.publishBehavioralSignal(
+                    sig_tuple,
                 ).build_transaction({
                     "from": self._account.address,
                     "nonce": nonce,
@@ -344,7 +541,7 @@ class ChainRelay:
                     "maxPriorityFeePerGas": self._w3.to_wei("0.01", "gwei"),
                 })
                 signed = self._account.sign_transaction(tx)
-                tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
                 receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
                 return {
                     "published": True,
@@ -362,31 +559,40 @@ class ChainRelay:
             entity_b32: bytes,
             coherence_score: int,
             threshold: int,
-            limiting_plane: int) -> dict:
+            limiting_plane: int,
+            signal_type_id: int = 1) -> dict:
         """
         Record SILENCE on-chain when C(t) < Θ(t).
-        Uses publishBehavioralSignal with coherent=False — contract emits SilenceRecorded.
+        Uses publishSignalWithType with coherent=False — contract emits both
+        BehavioralSignalPublished AND SilenceRecorded (V1 + V2) AND
+        SignalTypeRecorded so the canonical 24-type taxonomy carries through
+        even on silence.
         """
         if not self.ready:
             return {"error": "chain_not_ready", "published": False}
         try:
             with self._lock:
+                sig_tuple = self._build_behavioral_signal_tuple(
+                    entity_b32=entity_b32,
+                    commitment=b"\x00" * 32,  # zero commitment for silence
+                    coherence_score=coherence_score,
+                    threshold=threshold,
+                    moat_factor=0,
+                    coherent=False,
+                    limiting_plane=limiting_plane,
+                )
                 nonce = self._w3.eth.get_transaction_count(self._account.address)
-                # Publish with coherent=False — contract auto-emits SilenceRecorded
-                tx = self._oracle.functions.publishBehavioralSignal(
-                    entity_b32,
-                    b"\x00" * 32,  # Zero commitment for silence
-                    coherence_score, threshold,
-                    0, False, limiting_plane, 0, 0, 0, 0, 0
+                tx = self._oracle.functions.publishSignalWithType(
+                    sig_tuple, int(signal_type_id) & 0xFF,
                 ).build_transaction({
                     "from": self._account.address,
                     "nonce": nonce,
-                    "gas": 200000,
+                    "gas": 300000,
                     "maxFeePerGas": self._w3.to_wei("0.1", "gwei"),
                     "maxPriorityFeePerGas": self._w3.to_wei("0.01", "gwei"),
                 })
                 signed = self._account.sign_transaction(tx)
-                tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
                 receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
                 return {
                     "published": True,
@@ -394,22 +600,33 @@ class ChainRelay:
                     "block_number": receipt["blockNumber"],
                     "status": receipt["status"],
                     "gas_used": receipt["gasUsed"],
-                    "method": "recordSilence",
+                    "method": "publishSignalWithType (SILENCE)",
                 }
         except Exception as e:
             log.error("Silence recording failed: %s", e)
             return {"error": str(e), "published": False}
 
-    # ── publishSignalWithType (gap #5) ────────────────────────────────────────
-    # Typed emission: routes VALUATION through publish_behavioral_signal_v3 and
-    # every other SignalType (SILENCE, MANIPULATION_ALERT, GENESIS, …) through
-    # record_silence with the signal_type carried in the metadata. The 24-type
-    # canonical taxonomy (M-073) is encoded in the high byte of `threshold`
-    # so the contract preserves the legacy ABI while consumers can read the
-    # full type from the on-chain receipt's `signalType` topic.
+    # ── publishSignalWithType (canonical V3 typed emission, gap #5 fixed) ──────
+    # The V3 contract exposes publishSignalWithType(BehavioralSignal, uint8)
+    # which performs the rich behavioral-signal write AND records the canonical
+    # 24-member signal type (0..23) on-chain in a single transaction.
+    # Spec-faithful: callers no longer pack the type into the high byte of
+    # `threshold` — the type byte is a dedicated on-chain field now.
     _TYPED_SIGNAL_SILENCE_FAMILY = {
         "SILENCE", "BOOTSTRAP", "GENESIS",
     }
+
+    @staticmethod
+    def _resolve_signal_type_id(signal_type: str) -> int:
+        """Return the canonical 0..23 SignalType enum value for *signal_type*.
+
+        Falls back to 0 (VALUATION) if the name is not in the registry.
+        """
+        try:
+            from core.master.signal_factory import SignalType
+            return int(SignalType[signal_type])
+        except Exception:
+            return 0  # VALUATION is the canonical default carrier
 
     def publishSignalWithType(self,
             entity_b32: bytes,
@@ -426,113 +643,190 @@ class ChainRelay:
             conscious_plane: int = 0,
             anima_plane: int = 0) -> dict:
         """
-        Publish a behavioral signal carrying its 24-type taxonomy tag.
+        Canonical V3 typed emission.
 
-        - VALUATION → publishBehavioralSignal (rich V3 path, all 5 planes).
-        - SILENCE family (SILENCE, BOOTSTRAP, GENESIS) → record_silence
-          (coherent=False, contract auto-emits SilenceRecorded).
-        - All other types (MANIPULATION_ALERT, RESURRECTION, TRAJECTORY, …)
-          → publishBehavioralSignal with the type encoded in the high byte
-          of `threshold` so the existing ABI carries it without a contract
-          upgrade.
+        Invokes TRIONOracleV3.publishSignalWithType(BehavioralSignal, uint8)
+        with the signal type carried in the dedicated on-chain signalType field
+        (NOT packed into the threshold high byte — the old gap-#5 workaround).
 
-        Returns the chain-receipt dict (same shape as the V3 path) with an
-        added `signal_type` field for downstream consumers.
+        - SILENCE family / non-coherent → publishSignalWithType with
+          coherent=False (contract emits BehavioralSignalPublished +
+          SilenceRecorded V1+V2 + SignalTypeRecorded).
+        - VALUATION and all other 24 types → publishSignalWithType with
+          coherent=True and the type byte set verbatim.
+
+        Returns the chain receipt with `signal_type`, `signal_type_id`, and
+        `method` fields added for downstream consumers.
         """
-        # SILENCE family — delegate to record_silence.
-        if signal_type in self._TYPED_SIGNAL_SILENCE_FAMILY or not coherent:
-            receipt = self.record_silence(
-                entity_b32=entity_b32,
-                coherence_score=coherence_score,
-                threshold=threshold,
-                limiting_plane=limiting_plane,
-            )
-            receipt["signal_type"] = "SILENCE"
-            receipt["requested_signal_type"] = signal_type
-            return receipt
+        sig_id = self._resolve_signal_type_id(signal_type)
 
-        # VALUATION — rich V3 path.
-        if signal_type == "VALUATION":
-            receipt = self.publish_behavioral_signal_v3(
-                entity_b32=entity_b32,
-                commitment=commitment,
-                coherence_score=coherence_score,
-                threshold=threshold,
-                moat_factor=moat_factor,
-                coherent=True,
-                limiting_plane=limiting_plane,
-                phi_plane=phi_plane,
-                mental_plane=mental_plane,
-                sigma_plane=sigma_plane,
-                conscious_plane=conscious_plane,
-                anima_plane=anima_plane,
-            )
-            receipt["signal_type"] = "VALUATION"
-            return receipt
-
-        # Other typed signals — encode the type in the high byte of the
-        # threshold field (the legacy ABI cannot accept a new arg without a
-        # contract upgrade, so we pack the type into the upper 8 bits of
-        # the existing uint256 threshold). Consumers reading the receipt
-        # decode `signal_type_id = threshold >> 248` and `real_threshold =
-        # threshold & ((1 << 248) - 1)`.
+        if not self.ready:
+            return {
+                "error": "chain_not_ready",
+                "published": False,
+                "signal_type": signal_type,
+                "signal_type_id": sig_id,
+            }
         try:
-            from core.master.signal_factory import SignalType
-            sig_enum = SignalType[signal_type]
-            sig_id   = int(sig_enum)
-        except Exception:
-            sig_id = 0  # default to VALUATION when unknown
-        packed_threshold = ((sig_id & 0xFF) << 248) | (threshold & ((1 << 248) - 1))
-        receipt = self.publish_behavioral_signal_v3(
+            with self._lock:
+                sig_tuple = self._build_behavioral_signal_tuple(
+                    entity_b32=entity_b32,
+                    commitment=commitment,
+                    coherence_score=coherence_score,
+                    threshold=threshold,
+                    moat_factor=moat_factor,
+                    coherent=coherent,
+                    limiting_plane=limiting_plane,
+                    phi_plane=phi_plane,
+                    mental_plane=mental_plane,
+                    sigma_plane=sigma_plane,
+                    conscious_plane=conscious_plane,
+                    anima_plane=anima_plane,
+                )
+                nonce = self._w3.eth.get_transaction_count(self._account.address)
+                tx = self._oracle.functions.publishSignalWithType(
+                    sig_tuple, int(sig_id) & 0xFF,
+                ).build_transaction({
+                    "from": self._account.address,
+                    "nonce": nonce,
+                    "gas": 350000,
+                    "maxFeePerGas": self._w3.to_wei("0.1", "gwei"),
+                    "maxPriorityFeePerGas": self._w3.to_wei("0.01", "gwei"),
+                })
+                signed = self._account.sign_transaction(tx)
+                tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
+                receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                return {
+                    "published":       True,
+                    "tx_hash":         tx_hash.hex(),
+                    "block_number":    receipt["blockNumber"],
+                    "status":          receipt["status"],
+                    "gas_used":        receipt["gasUsed"],
+                    "method":          "publishSignalWithType",
+                    "signal_type":     signal_type,
+                    "signal_type_id":  sig_id,
+                    "coherent":        coherent,
+                }
+        except Exception as e:
+            log.error("publishSignalWithType failed: %s", e)
+            return {
+                "error":           str(e),
+                "published":       False,
+                "signal_type":     signal_type,
+                "signal_type_id":  sig_id,
+            }
+
+    # ── snake_case alias consumed by api/app.py `/api/v1/publish` ─────────────
+    def publish_signal_with_type(self,
+            entity_id: str,
+            signal_type: str,
+            coherence_score: float,
+            threshold: float,
+            moat_factor: float,
+            coherent: bool,
+            limiting_plane: str,
+            phi_plane: float = 0.0,
+            mental_plane: float = 0.0,
+            sigma_plane: float = 0.0,
+            conscious_plane: float = 0.0,
+            anima_plane: float = 0.0) -> dict:
+        """
+        V3 typed emission entry point — converts the float-domain API inputs
+        into the integer-domain on-chain args and invokes the contract's
+        publishSignalWithType(BehavioralSignal, uint8).
+
+        Args (13 conceptual fields):
+            entity_id        str     canonical entity key (hashed to bytes32)
+            signal_type      str     SignalType enum name (e.g. "VALUATION")
+            coherence_score  float   C(t) ∈ [0,1]   — encoded ×1e6
+            threshold        float   Θ(t) ∈ [0,1]   — encoded ×1e6
+            moat_factor      float   M_moat ∈ [0,1] — encoded ×1e6
+            coherent         bool    C(t) ≥ Θ(t)
+            limiting_plane   str     Physical/Mental/Spiritual/Conscious/ANIMA
+            phi_plane        float   Φ  score ∈ [0,1] — encoded ×1e6
+            mental_plane     float   M  score ∈ [0,1] — encoded ×1e6
+            sigma_plane      float   Σ  score ∈ [0,1] — encoded ×1e6
+            conscious_plane  float   K  score ∈ [0,1] — encoded ×1e6
+            anima_plane      float   A  score ∈ [0,1] — encoded ×1e6
+
+        Returns: chain receipt dict (see publishSignalWithType).
+        """
+        SCALE = 1_000_000
+        ts = int(time.time())
+        entity_b32 = self._entity_to_bytes32(entity_id)
+        commitment = self._commitment(entity_id, coherence_score, ts)
+        return self.publishSignalWithType(
             entity_b32=entity_b32,
+            signal_type=signal_type,
             commitment=commitment,
-            coherence_score=coherence_score,
-            threshold=packed_threshold,
-            moat_factor=moat_factor,
-            coherent=True,
-            limiting_plane=limiting_plane,
-            phi_plane=phi_plane,
-            mental_plane=mental_plane,
-            sigma_plane=sigma_plane,
-            conscious_plane=conscious_plane,
-            anima_plane=anima_plane,
+            coherence_score=int(round(coherence_score * SCALE)),
+            threshold=int(round(threshold * SCALE)),
+            moat_factor=int(round(moat_factor * SCALE)),
+            coherent=coherent,
+            limiting_plane=self._plane_index(limiting_plane),
+            phi_plane=int(round(phi_plane * SCALE)),
+            mental_plane=int(round(mental_plane * SCALE)),
+            sigma_plane=int(round(sigma_plane * SCALE)),
+            conscious_plane=int(round(conscious_plane * SCALE)),
+            anima_plane=int(round(anima_plane * SCALE)),
         )
-        receipt["signal_type"]      = signal_type
-        receipt["signal_type_id"]   = sig_id
-        receipt["threshold_packed"] = "signal_type_id_in_high_byte"
-        return receipt
 
     def get_behavioral_signal(self, entity_b32: bytes) -> dict:
-        """Read a behavioral signal from the V3 oracle contract."""
+        """Read a behavioral signal from the V3 oracle contract.
+
+        Mirrors TRIONOracleV3.getBehavioralSignal(bytes32) → returns the
+        7-tuple (publicCommitment, coherenceScore, threshold, moatFactor,
+        coherent, limitingPlane, initialized). The plane breakdown is
+        retrievable via a separate getBehavioralSignalPlanes() call (when
+        the caller needs it).
+        """
         if not self.ready:
             return {"error": "chain_not_ready"}
         try:
             result = self._oracle.functions.getBehavioralSignal(entity_b32).call()
             return {
                 "public_commitment": result[0].hex(),
-                "coherence_score": result[1],
-                "threshold": result[2],
-                "moat_factor": result[3],
-                "coherent": result[4],
-                "limiting_plane": result[5],
-                "phi_plane": result[6],
-                "mental_plane": result[7],
-                "sigma_plane": result[8],
-                "conscious_plane": result[9],
-                "anima_plane": result[10],
-                "signal_block": result[11],
-                "signal_timestamp": result[12],
-                "initialized": result[13],
+                "coherence_score":  result[1],
+                "threshold":         result[2],
+                "moat_factor":       result[3],
+                "coherent":          result[4],
+                "limiting_plane":    result[5],
+                "initialized":       result[6],
             }
         except Exception as e:
             return {"error": str(e)}
 
+    def get_signal_type_on_chain(self, entity_b32: bytes) -> int:
+        """Read the canonical 0..23 signal type recorded for *entity_b32*.
+
+        Returns -1 if the contract is unreachable; 0 (VALUATION) is the
+        default value when no signal has been published for the entity yet.
+        """
+        if not self.ready:
+            return -1
+        try:
+            return int(self._oracle.functions.getSignalType(entity_b32).call())
+        except Exception as e:
+            log.error("getSignalType error: %s", e)
+            return -1
+
     def get_chain_stats(self) -> dict:
-        """Read live stats from the oracle contract."""
+        """Read live stats from the oracle contract.
+
+        Prefers the V3 `totalBehavioralSignals()` view (typed-emission
+        counter); falls back to the legacy `totalSignals()` view when the
+        deployed contract predates the V3 ABI.
+        """
         if not self.ready:
             return {"total_signals": 0, "chain_ok": False}
         try:
-            total = self._oracle.functions.totalSignals().call()
+            total = None
+            try:
+                total = self._oracle.functions.totalBehavioralSignals().call()
+            except Exception:
+                total = None
+            if total is None:
+                total = self._oracle.functions.totalSignals().call()
             block = self._w3.eth.block_number
             return {
                 "total_signals": total,
@@ -564,7 +858,10 @@ class ChainRelay:
                 "is_fresh":        fresh,
                 "signal_count":    count,
                 "arbiscan_contract": ARBISCAN_ADDR.format(
-                    os.environ.get("ORACLE_ADDRESS", "0x1d129D34279d1246aB08a41dfE610EaF8D794237")
+                    os.environ.get(
+                        "ORACLE_ADDRESS",
+                        "0x590CD9B5ad34b735d8c262a462d9bc82E57C4DA5",
+                    )
                 ),
             }
         except Exception as e:

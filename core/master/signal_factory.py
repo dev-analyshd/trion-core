@@ -777,18 +777,12 @@ def build_signal(
     conf_genesis:         Optional[float] = None,
     akashic_depth:        Optional[float] = None,
     # ── L4.3-4.6: Living Security emission inputs (Part 6 §6.2) ──────────
-    # transaction_data: the underlying behavioral event bytes that back this
-    #     signal — fed to the CRISPR innate immune check. None means the
-    #     immune layer is consulted structurally (the entity's current GK
-    #     sense strand is the "transaction" — preserves existing semantics
-    #     for callers that have always passed immune_clearance=True).
     # mf_score: manipulation-free score in [0,1] feeding the epigenetic
     #     threat level (Part 6 §6.2 Component 4). Defaults to the
     #     complement of C(t) when omitted (low coherence = high threat).
     # block_entropy: network entropy at the emitting block, feeding the
     #     epigenetic layer's network_entropy input. Defaults to 1.0
     #     (max-entropy, neutral) when no measurement is available.
-    transaction_data:    Optional[bytes] = None,
     mf_score:             Optional[float] = None,
     block_entropy:        Optional[float] = None,
     # ── L0.5 Signal Selection Principle (entropy-budget gate, Wave 3 D) ──
@@ -807,6 +801,13 @@ def build_signal(
     # crispr_screening = {matched: bool, signatures: [...], library_size: int}
     # to the returned signal dict. When omitted, no screening is performed
     # and the field is absent — never fabricated.
+    #
+    # The transaction_data field serves BOTH the innate immune check
+    # (innate_check expects bytes — built from the canonical transaction
+    # encoding) AND the CRISPR screen (crispr_screen_transaction accepts
+    # the dict form so the auditor can read selector/logs/values directly).
+    # Callers may pass either form; build_signal encodes bytes from the
+    # dict when the innate check needs them.
     transaction_data:     Optional[dict] = None,
 ) -> dict:
     """
