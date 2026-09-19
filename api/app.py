@@ -1305,8 +1305,18 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     # ── L0.5 M_moat & L5.3 T(t) master equation ──────────────────────────────
     moat_factor = coh["moat_factor"]
     moat_comps  = coh["moat_components"]
-    # T(t) = [C(t)>=Θ(t)] · C(t) · e^(M_moat)
-    trion_truth_value = round(C * math.exp(moat_factor), 6) if coherent else 0.0
+    # T(t) = [C(t)≥Θ(t)] · C(t) · e^(M_moat · t)
+    #
+    # L5.4 master equation: the moat factor COMPOUNDS with elapsed protocol
+    # time t (years of accumulated honest operation).  Per the whitepaper,
+    # D_MINIMUM = 10_000 behavioral events ≈ 6 months of honest operation,
+    # so time_years = depth_val / 20_000.  Previously the exponent was missing
+    # the time multiplier (e^(M_moat) instead of e^(M_moat·t)), which silently
+    # dropped the compounding term — making a 3-year-old entity look as
+    # replaceable as one that started yesterday.  Audit Fix #5.
+    time_years = max(0.0, depth_val / 20_000.0)
+    moat_exp   = moat_factor * time_years
+    trion_truth_value = round(C * math.exp(moat_exp), 6) if coherent else 0.0
 
     # ── Bootstrap planes ───────────────────────────────────────────────────────
     bootstrap_phase = any(coh.get("bootstrap_planes", {}).values())
