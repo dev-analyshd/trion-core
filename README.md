@@ -228,57 +228,88 @@ Every command below has been tested against a fresh clone of this repository.
 
 ### Prerequisites
 
-| Language | Version | Install Command | Used For |
-|----------|---------|-----------------|----------|
-| Python | 3.11+ | [python.org](https://python.org) | Oracle API, FAISS ANIMA, core, formal verification |
-| Node.js | 20+ | [nodejs.org](https://nodejs.org) | Relayer, btc-tools, SDK |
-| Rust | 1.80+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | Indexers, adapters, math |
-| Go | 1.21+ | [go.dev/dl](https://go.dev/dl/) | Validator, network monitor |
-| Lean 4 | 4.34+ | `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \| sh` | Formal proofs |
+| Language | Version | Install Command | Used For | Required? |
+|----------|---------|-----------------|----------|-----------|
+| Python | 3.11+ | [python.org](https://python.org) | Oracle API, FAISS ANIMA, core, formal verification | **YES** |
+| Rust | 1.80+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | L0 Indexers — watches blockchains, feeds BHs into Akashic Index | **YES** |
+| Node.js | 20+ | [nodejs.org](https://nodejs.org) | Relayer, btc-tools, SDK | Optional |
+| Go | 1.21+ | [go.dev/dl](https://go.dev/dl/) | Validator, network monitor | Optional (for validators) |
+| Lean 4 | 4.34+ | `curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \| sh` | Formal proofs | Optional (for verification) |
 
-You do NOT need all of these to run TRION. The minimum to see live signals is **Python only** (steps 1-2 below). Everything else is optional.
+**Rust is required.** Without the Rust indexers, the Oracle has no behavioral data to evaluate — the Akashic Index stays empty, D(t) = 0, and every signal is SILENCE/COLD_START. The indexers are L0 — they are the foundation of the entire pipeline. They watch blockchains, extract behavioral events, compute 93-byte Behavioral Hashes, and feed them into the FAISS Akashic Index. Without them, TRION is blind.
 
 ---
 
 ### Linux / WSL
 
 ```bash
-# 1. Clone the repository
+# ── Step 1: Clone ──────────────────────────────────────────────
 git clone https://github.com/dev-analyshd/trion-core.git
 cd trion-core
 
-# 2. Create a Python virtual environment
+# ── Step 2: Install Python ────────────────────────────────────
 python3 -m venv .venv
 source .venv/bin/activate
-
-# 3. Install Python dependencies
 pip install flask flask-socketio simple-websocket flask-cors \
     feedparser vaderSentiment langdetect faiss-cpu pydantic \
     fastapi uvicorn z3-solver web3 eth-account
 
-# 4. Configure environment
+# ── Step 3: Install Rust ───────────────────────────────────────
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# ── Step 4: Build the 23 Rust indexers ─────────────────────────
+cd indexers
+cargo build --release
+# → Produces 23 binaries: trion-evm, trion-svm, trion-utxo, trion-starknet, ...
+# → Build time: ~10 minutes (23 crates, each ~4MB binary)
+cd ..
+
+# ── Step 5: Configure environment ─────────────────────────────
 cp .env.example .env
 # Edit .env — set PRIVATE_KEY (testnet), RPC URLs, API keys (optional for testing)
 
-# 5. Start the FAISS ANIMA engine (port 8001)
+# ── Step 6: Start the FAISS ANIMA engine (port 8001) ──────────
 cd anima-service
 FAISS_PORT=8001 python3 faiss_service.py &
 cd ..
 
-# 6. Start the Oracle API (port 5000)
-FAISS_SERVICE_URL=http://127.0.0.1:8001 python3 serve.py
+# ── Step 7: Start the Oracle API (port 5000) ──────────────────
+FAISS_SERVICE_URL=http://127.0.0.1:8001 python3 serve.py &
+
+# ── Step 8: Start the Rust EVM indexer ────────────────────────
+# This watches 72 EVM chains in parallel and feeds BHs into FAISS.
+# The indexer connects to FAISS on port 8001 (set in Step 6).
+FAISS_SERVICE_URL=http://127.0.0.1:8001 ./indexers/target/release/trion-evm &
+
+# ── Step 9: Verify the full pipeline is working ───────────────
+# Check Oracle health (should show "healthy"):
+curl http://localhost:5000/api/v1/health
+
+# Check FAISS (should show indexed_vectors growing):
+curl http://localhost:8001/health
+
+# Check the signal (should show COLD_START initially, then COHERENT as data flows):
+curl http://localhost:5000/api/v1/signal/TRION_PROTOCOL
+
+# Check the live feed (should show new entries appearing):
+curl http://localhost:5000/api/v1/feed
 ```
 
 ### macOS
 
 ```bash
-# Install Homebrew if you don't have it
+# Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Install Python and Node.js
-brew install python@3.12 node
+# Install Python
+brew install python@3.12
 
-# Clone and run (same as Linux)
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# Clone and run (same as Linux steps 1-9 above)
 git clone https://github.com/dev-analyshd/trion-core.git
 cd trion-core
 python3 -m venv .venv
@@ -286,16 +317,17 @@ source .venv/bin/activate
 pip install flask flask-socketio simple-websocket flask-cors \
     feedparser vaderSentiment langdetect faiss-cpu pydantic \
     fastapi uvicorn z3-solver web3 eth-account
-cp .env.example .env
+cd indexers && cargo build --release && cd ..
 cd anima-service && FAISS_PORT=8001 python3 faiss_service.py &
 cd ..
-FAISS_SERVICE_URL=http://127.0.0.1:8001 python3 serve.py
+FAISS_SERVICE_URL=http://127.0.0.1:8001 python3 serve.py &
+FAISS_SERVICE_URL=http://127.0.0.1:8001 ./indexers/target/release/trion-evm &
 ```
 
 ### Windows (WSL)
 
 ```powershell
-# 1. Install WSL if you don't have it (run in PowerShell as Admin)
+# 1. Install WSL (run in PowerShell as Admin)
 wsl --install -d Ubuntu-22.04
 
 # 2. Open WSL terminal
@@ -308,31 +340,81 @@ wsl
 
 ---
 
-### Verify It Works
+### Verify the Full Pipeline
 
-Open a new terminal and test:
+After starting all 3 services (FAISS + Oracle + Indexer), verify the complete data flow:
 
 ```bash
-# Oracle health
-curl http://localhost:5000/api/v1/health
-# → {"status":"healthy","oracle":"TRION Protocol v2.0.0",...}
-
-# ANIMA health
+# 1. FAISS health — should show indexed_vectors > 0 (growing as indexer runs)
 curl http://localhost:8001/health
-# → {"status":"ok","faiss_available":true,"indexed_vectors":2178,...}
+# Expected: {"status":"ok","faiss_available":true,"indexed_vectors":2178,...}
 
-# Live signal
+# 2. Oracle health — should show "healthy"
+curl http://localhost:5000/api/v1/health
+# Expected: {"status":"healthy","oracle":"TRION Protocol v2.0.0",...}
+
+# 3. Live signal — should show signal_type + coherence_score
 curl http://localhost:5000/api/v1/signal/TRION_PROTOCOL
-# → {"signal_type":"SILENCE","signal_subtype":"COLD_START","coherence_score":0.0,...}
+# Expected: {"signal_type":"SILENCE","signal_subtype":"COLD_START",...}
+# (COLD_START means FAISS has no behavioral history for this entity yet —
+#  as the indexer feeds data, D(t) grows and signals become COHERENT)
+
+# 4. Live feed — should show entries appearing over time
+curl http://localhost:5000/api/v1/feed
+# Expected: {"feed":[...],"total_computed":N,...}
+
+# 5. Akashic depth (D(t)) — should grow as indexer runs
+curl http://localhost:8001/api/v1/depth/TRION_PROTOCOL
+# Expected: depth value increasing over time
+
+# 6. VM coverage — should show 12 VM families + 34+ chains
+curl http://localhost:8001/vm-status
+# Expected: {"vm_families":{"EVM":{...},"SVM":{...},...}}
+
+# 7. Falsifiability — should show 15 conditions
+curl http://localhost:5000/api/v1/governance/falsifiability
+# Expected: {"conditions":[...15 conditions...]}
 ```
 
-### Seed the BH Ledger (for testing)
+### Available Indexers
+
+The `cargo build --release` command produces 23 binaries, one per VM family:
+
+| Binary | VM Family | Chains | Example |
+|--------|-----------|--------|---------|
+| `trion-evm` | Ethereum/EVM | 72 | Ethereum, Arbitrum, Base, Optimism, Polygon, BNB, Mantle, Linea, Scroll, HashKey, Botanix, Monad, ... |
+| `trion-svm` | Solana | 3 | Solana Mainnet, Devnet, Testnet |
+| `trion-utxo` | Bitcoin/UTXO | 6 | Bitcoin, Litecoin, Dogecoin, Bitcoin Cash, ... |
+| `trion-starknet` | Starknet | 1 | Starknet Sepolia |
+| `trion-cosmos` | Cosmos SDK | 6 | Cosmos Hub, Osmosis, Juno, Akash, Celestia, Injective |
+| `trion-near` | NEAR | 2 | NEAR Mainnet, Testnet |
+| `trion-ton` | TON | 2 | TON Mainnet, Testnet |
+| `trion-sui` | Sui | 1 | Sui Mainnet |
+| `trion-aptos` | Aptos (Move) | 2 | Aptos, Testnet |
+| `trion-stacks` | Stacks | 1 | Stacks Testnet |
+| `trion-stellar` | Stellar (Soroban) | 1 | Stellar Testnet |
+| `trion-pvm` | Polkadot | 2 | Polkadot, Kusama |
+| `trion-tron` | TRON | 1 | TRON Mainnet |
+| `trion-movement` | Movement (MVM) | 2 | Movement, Testnet |
+| `trion-hedera` | Hedera | 1 | Hedera Mainnet |
+| `trion-algorand` | Algorand | 1 | Algorand Mainnet |
+| `trion-cardano` | Cardano | 1 | Cardano Mainnet |
+| `trion-multiversx` | MultiversX | 1 | MultiversX Mainnet |
+| `trion-vechain` | VeChain | 1 | VeChain Mainnet |
+| `trion-waves` | Waves | 1 | Waves Mainnet |
+| `trion-xrpl` | XRPL | 1 | XRP Ledger |
+| `trion-botchain` | BotChain | 1 | BotChain Mainnet |
+| `trion-pi` | Pi Network | 1 | Pi Mainnet |
+
+To start multiple indexers (e.g., EVM + Solana + Bitcoin):
 
 ```bash
-# Populate 100 behavioral hashes for testing
-python3 scripts/seed_bh_ledger.py
-# → Inserts 100 BHs (12 entities, 8 event types, Arbitrum chain)
+FAISS_SERVICE_URL=http://127.0.0.1:8001 ./indexers/target/release/trion-evm &
+FAISS_SERVICE_URL=http://127.0.0.1:8001 ./indexers/target/release/trion-svm &
+FAISS_SERVICE_URL=http://127.0.0.1:8001 ./indexers/target/release/trion-utxo &
 ```
+
+Each indexer polls its chains every 15 seconds, extracts behavioral events, computes 93-byte Behavioral Hashes, and POSTs them to the FAISS service at `http://127.0.0.1:8001/index/add`. The FAISS service stores them in the Akashic Index. The Oracle reads from the Akashic Index to compute coherence scores.
 
 ---
 
