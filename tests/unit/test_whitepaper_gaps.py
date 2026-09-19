@@ -358,9 +358,35 @@ class TestSlashingEngine:
         assert p["probation_days"] == 30
 
     def test_s4_collusion_permanent_ban(self):
-        """S4: 100% slash, permanent ban — maximum severity."""
+        """S4: 50% slash (canonical V2 L4.9 COORDINATED_ATTACK_CONFIRMED magnitude), permanent ban.
+
+        Pre-V2 draft had MANIPULATION_COLLUSION at 100%, but the canonical
+        resolution (WHITEPAPER_V2.txt §L4.9, line 507) sets
+        COORDINATED_ATTACK_CONFIRMED at 50% + permanent exclusion. Audit Fix #10
+        realigned the S4 legacy alias to the canonical V2 magnitude.
+        """
         p = SLASH_PARAMETERS[SlashingCondition.MANIPULATION_COLLUSION]
-        assert p["stake_fraction"] == 1.00
+        assert p["stake_fraction"] == 0.50
+        assert p["permanent_ban"] is True
+
+    def test_l4_9_canonical_v2_conditions_present(self):
+        """Audit Fix #10: canonical V2 L4.9 conditions must be registered."""
+        # COORDINATED_ATTACK_CONFIRMED: 50% + permanent ban
+        p = SLASH_PARAMETERS[SlashingCondition.COORDINATED_ATTACK_CONFIRMED]
+        assert p["stake_fraction"] == 0.50
+        assert p["permanent_ban"] is True
+        # SUSTAINED_LOW_ACCURACY: 3% per 30-day window
+        p = SLASH_PARAMETERS[SlashingCondition.SUSTAINED_LOW_ACCURACY]
+        assert p["stake_fraction"] == 0.03
+        # HARDWARE_SECURITY_FAILURE: 10% (HSM compromise)
+        p = SLASH_PARAMETERS[SlashingCondition.HARDWARE_SECURITY_FAILURE]
+        assert p["stake_fraction"] == 0.10
+        # UPTIME_FAILURE: 0.1% per day below minimum uptime
+        p = SLASH_PARAMETERS[SlashingCondition.UPTIME_FAILURE]
+        assert p["stake_fraction"] == 0.001
+        # SYBIL_CLUSTER_CONFIRMED: 25% for all validators in cluster + permanent ban
+        p = SLASH_PARAMETERS[SlashingCondition.SYBIL_CLUSTER_CONFIRMED]
+        assert p["stake_fraction"] == 0.25
         assert p["permanent_ban"] is True
 
     def test_s5_geo_violation_params(self):

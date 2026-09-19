@@ -2,12 +2,27 @@
 TRION Protocol — L4.9: Slashing Engine + 7-Step Dispute Resolution
 specification Chapter 14: Governance Architecture — Validator Accountability
 
-Five Slashing Conditions:
-  S1. Double-signing:           slash 50% of stake, permanent ban
-  S2. Prolonged offline (>72h): slash 5% of stake, temp suspension
-  S3. False signal submission:  slash 20% of stake, probation 30d
-  S4. Manipulation collusion:   slash 100% of stake, permanent ban
-  S5. Geographic constraint violation: slash 10% of stake, 7-day suspension
+Slashing Conditions (canonical V2 L4.9, WHITEPAPER_V2.txt §L4.9):
+  COORDINATED_ATTACK_CONFIRMED: 50% slashed + permanent exclusion
+  SUSTAINED_LOW_ACCURACY:        3% slashed per 30-day window below threshold
+  HARDWARE_SECURITY_FAILURE:    10% slashed (HSM compromise)
+  UPTIME_FAILURE:               0.1% per day below minimum uptime
+  SYBIL_CLUSTER_CONFIRMED:       25% slashed for ALL validators in cluster
+
+Legacy S1–S5 conditions (kept for backward compatibility with existing
+deployments and tests; mapped onto the canonical V2 set):
+  S1. Double-signing:           50% of stake, permanent ban   (→ COORDINATED_ATTACK_CONFIRMED family)
+  S2. Prolonged offline (>72h): 5% of stake, 7-day suspension  (→ UPTIME_FAILURE family)
+  S3. False signal submission:  20% of stake, probation 30d    (→ SUSTAINED_LOW_ACCURACY family)
+  S4. Manipulation collusion:   50% of stake, permanent ban    (canonical V2 magnitude; was 100%
+                                                                 in pre-V2 draft — Audit Fix #10)
+  S5. Geographic constraint violation: 10% of stake, 7-day suspension
+
+Note: MANIPULATION_COLLUSION (S4) is the legacy spelling of the
+COORDINATED_ATTACK_CONFIRMED condition; its magnitude has been
+realigned from 100% → 50% to match the canonical V2 L4.9 spec
+(WHITEPAPER_V2.txt line 507: "COORDINATED_ATTACK_CONFIRMED: 50%
+slashed + permanent exclusion").
 
 Seven-Step Dispute Resolution Flow:
   Step 1: Accusation filed (any validator or protocol)
@@ -37,11 +52,20 @@ from typing import Dict, List, Optional
 # ── Slashing Conditions ───────────────────────────────────────────────────────
 
 class SlashingCondition(str, Enum):
+    # Legacy S1–S5 conditions (kept for backward compatibility).
     DOUBLE_SIGNING             = "S1_DOUBLE_SIGNING"
     PROLONGED_OFFLINE          = "S2_PROLONGED_OFFLINE"
     FALSE_SIGNAL_SUBMISSION    = "S3_FALSE_SIGNAL_SUBMISSION"
     MANIPULATION_COLLUSION     = "S4_MANIPULATION_COLLUSION"
     GEO_CONSTRAINT_VIOLATION   = "S5_GEO_CONSTRAINT_VIOLATION"
+    # Canonical V2 L4.9 conditions (WHITEPAPER_V2.txt §L4.9).  Audit Fix #10:
+    # these were missing from the registry, leaving the API unable to slash
+    # for sustained low accuracy, HSM compromise, or sybil cluster formation.
+    COORDINATED_ATTACK_CONFIRMED = "L4_9_COORDINATED_ATTACK_CONFIRMED"
+    SUSTAINED_LOW_ACCURACY       = "L4_9_SUSTAINED_LOW_ACCURACY"
+    HARDWARE_SECURITY_FAILURE    = "L4_9_HARDWARE_SECURITY_FAILURE"
+    UPTIME_FAILURE               = "L4_9_UPTIME_FAILURE"
+    SYBIL_CLUSTER_CONFIRMED      = "L4_9_SYBIL_CLUSTER_CONFIRMED"
 
 
 SLASH_PARAMETERS: Dict[SlashingCondition, dict] = {
@@ -69,12 +93,19 @@ SLASH_PARAMETERS: Dict[SlashingCondition, dict] = {
         "description":      "Validator submitted signal that was later falsified with evidence.",
         "severity":         "HIGH",
     },
+    # Audit Fix #10: realigned from 1.00 → 0.50 to match the canonical V2
+    # L4.9 spec (WHITEPAPER_V2.txt line 507).  The pre-V2 draft had
+    # "MANIPULATION_COLLUSION: 100%" but the canonical resolution recorded
+    # in docs/audit/CANONICAL_SPEC_MATRIX.md (K12) sets coordinated
+    # manipulation at 50% + permanent exclusion, NOT 100%.  The
+    # COORDINATED_ATTACK_CONFIRMED entry below is the canonical V2 name;
+    # S4_MANIPULATION_COLLUSION remains as a legacy alias.
     SlashingCondition.MANIPULATION_COLLUSION: {
-        "stake_fraction":   1.00,
+        "stake_fraction":   0.50,
         "permanent_ban":    True,
         "suspension_days":  None,
         "probation_days":   None,
-        "description":      "Validator participated in coordinated manipulation of TRION outputs.",
+        "description":      "Validator participated in coordinated manipulation of TRION outputs. (Legacy alias for COORDINATED_ATTACK_CONFIRMED; canonical V2 magnitude = 50%, not 100%.)",
         "severity":         "CRITICAL",
     },
     SlashingCondition.GEO_CONSTRAINT_VIOLATION: {
@@ -84,6 +115,47 @@ SLASH_PARAMETERS: Dict[SlashingCondition, dict] = {
         "probation_days":   None,
         "description":      "Validator violated L4.8 geographic distribution constraints.",
         "severity":         "MEDIUM",
+    },
+    # ── Canonical V2 L4.9 conditions (WHITEPAPER_V2.txt §L4.9) ────────────────
+    SlashingCondition.COORDINATED_ATTACK_CONFIRMED: {
+        "stake_fraction":   0.50,
+        "permanent_ban":    True,
+        "suspension_days":  None,
+        "probation_days":   None,
+        "description":      "COORDINATED_ATTACK_CONFIRMED: validators coordinated to manipulate TRION outputs. 50% of stake slashed + permanent exclusion from consensus.",
+        "severity":         "CRITICAL",
+    },
+    SlashingCondition.SUSTAINED_LOW_ACCURACY: {
+        "stake_fraction":   0.03,
+        "permanent_ban":    False,
+        "suspension_days":  None,
+        "probation_days":   30,
+        "description":      "SUSTAINED_LOW_ACCURACY: validator accuracy stayed below the protocol threshold for a 30-day window. 3% slashed per 30-day window below threshold.",
+        "severity":         "MEDIUM",
+    },
+    SlashingCondition.HARDWARE_SECURITY_FAILURE: {
+        "stake_fraction":   0.10,
+        "permanent_ban":    False,
+        "suspension_days":  30,
+        "probation_days":   None,
+        "description":      "HARDWARE_SECURITY_FAILURE: HSM key compromise or hardware-signing failure. 10% slashed (HSM compromise).",
+        "severity":         "HIGH",
+    },
+    SlashingCondition.UPTIME_FAILURE: {
+        "stake_fraction":   0.001,
+        "permanent_ban":    False,
+        "suspension_days":  None,
+        "probation_days":   None,
+        "description":      "UPTIME_FAILURE: validator uptime below the daily minimum. 0.1% slashed per day below minimum uptime.",
+        "severity":         "LOW",
+    },
+    SlashingCondition.SYBIL_CLUSTER_CONFIRMED: {
+        "stake_fraction":   0.25,
+        "permanent_ban":    True,
+        "suspension_days":  None,
+        "probation_days":   None,
+        "description":      "SYBIL_CLUSTER_CONFIRMED: validator is part of a confirmed sybil cluster. 25% slashed for ALL validators in the cluster + permanent exclusion.",
+        "severity":         "CRITICAL",
     },
 }
 
