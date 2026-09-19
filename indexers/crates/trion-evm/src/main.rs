@@ -54,77 +54,68 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "ETH_MAINNET", chain_id: 1,
         rpcs: &[
-            "https://ethereum.publicnode.com",
-            "https://cloudflare-eth.com",
-            "https://rpc.ankr.com/eth",
-            "https://eth.llamarpc.com",
+            "https://ethereum-rpc.publicnode.com",
         ],
     },
     EvmChain {
         label: "ARB_MAINNET", chain_id: 42161,
         rpcs: &[
-            "https://arb1.arbitrum.io/rpc",
-            "https://arbitrum-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/arbitrum",
+            "https://arbitrum-one-rpc.publicnode.com",
         ],
     },
     EvmChain {
         label: "BASE_MAINNET", chain_id: 8453,
         rpcs: &[
-            "https://mainnet.base.org",
-            "https://base-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/base",
+            "https://base-rpc.publicnode.com",
         ],
     },
     EvmChain {
         label: "OP_MAINNET", chain_id: 10,
         rpcs: &[
             "https://mainnet.optimism.io",
-            "https://optimism-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/optimism",
         ],
     },
     EvmChain {
         label: "POLYGON", chain_id: 137,
         rpcs: &[
             "https://polygon-bor-rpc.publicnode.com",
-            "https://1rpc.io/matic",
-            "https://polygon.drpc.org",
-            "https://polygon-rpc.com",
-            "https://rpc.ankr.com/polygon",
         ],
     },
     EvmChain {
         label: "BNB_MAINNET", chain_id: 56,
         rpcs: &[
             "https://bsc-dataseed.binance.org",
-            "https://bsc-dataseed1.defibit.io",
-            "https://bsc-dataseed1.ninicoin.io",
-            "https://bsc-mainnet.public.blastapi.io",
         ],
     },
     EvmChain {
         label: "MANTLE", chain_id: 5000,
-        rpcs: &["https://rpc.mantle.xyz", "https://mantle-mainnet.public.blastapi.io"],
+        rpcs: &[
+            "https://rpc.mantle.xyz",
+        ],
     },
     EvmChain {
         label: "LINEA", chain_id: 59144,
-        rpcs: &["https://rpc.linea.build", "https://linea-mainnet.public.blastapi.io"],
+        rpcs: &[
+            "https://rpc.linea.build",
+        ],
     },
     EvmChain {
         label: "SCROLL", chain_id: 534352,
-        rpcs: &["https://rpc.scroll.io", "https://scroll-mainnet.public.blastapi.io"],
+        rpcs: &[
+            "https://rpc.scroll.io",
+        ],
     },
     EvmChain {
         label: "HASHKEY", chain_id: 177,
-        rpcs: &["https://mainnet.hsk.xyz", "https://hashkey-mainnet-rpc.publicnode.com"],
+        rpcs: &[
+            "https://mainnet.hsk.xyz",
+        ],
     },
     // ── 0G Networks ───────────────────────────────────────────────────────────
     EvmChain {
         label: "ZG_MAINNET", chain_id: 16661,
         rpcs: &[
             "https://evmrpc.0g.ai",
-            "https://rpc.0g.ai",
         ],
     },
 
@@ -132,10 +123,7 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "AVALANCHE", chain_id: 43114,
         rpcs: &[
-            "https://api.avax.network/ext/bc/C/rpc",
             "https://avalanche-c-chain-rpc.publicnode.com",
-            "https://rpc.ankr.com/avalanche",
-            "https://1rpc.io/avax/c",
         ],
     },
 
@@ -144,17 +132,12 @@ const CHAINS: &[EvmChain] = &[
         label: "FANTOM", chain_id: 250,
         rpcs: &[
             "https://rpcapi.fantom.network",
-            "https://fantom-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/fantom",
-            "https://fantom.drpc.org",
         ],
     },
     EvmChain {
         label: "SONIC", chain_id: 146,
         rpcs: &[
             "https://rpc.soniclabs.com",
-            "https://sonic-mainnet.public.blastapi.io",
-            "https://sonic.drpc.org",
         ],
     },
 
@@ -163,9 +146,6 @@ const CHAINS: &[EvmChain] = &[
         label: "ZKSYNC_ERA", chain_id: 324,
         rpcs: &[
             "https://mainnet.era.zksync.io",
-            "https://zksync-mainnet.public.blastapi.io",
-            "https://zksync.drpc.org",
-            "https://1rpc.io/zksync2-era",
         ],
     },
 
@@ -174,8 +154,6 @@ const CHAINS: &[EvmChain] = &[
         label: "BERACHAIN", chain_id: 80094,
         rpcs: &[
             "https://rpc.berachain.com",
-            "https://berachain-mainnet.public.blastapi.io",
-            "https://berachain.drpc.org",
         ],
     },
 
@@ -184,8 +162,6 @@ const CHAINS: &[EvmChain] = &[
         label: "XLAYER", chain_id: 196,
         rpcs: &[
             "https://rpc.xlayer.tech",
-            "https://xlayerrpc.okx.com",
-            "https://xlayer-mainnet.public.blastapi.io",
         ],
     },
 
@@ -193,9 +169,7 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "XDC", chain_id: 50,
         rpcs: &[
-            "https://rpc.xinfin.network",
-            "https://erpc.xinfin.network",
-            "https://rpc1.xinfin.network",
+            "https://rpc.xdcrpc.com",
         ],
     },
 
@@ -204,7 +178,6 @@ const CHAINS: &[EvmChain] = &[
         label: "STORY_IP", chain_id: 1514,
         rpcs: &[
             "https://mainnet.storyrpc.io",
-            "https://story-mainnet.public.blastapi.io",
         ],
     },
 
@@ -213,9 +186,6 @@ const CHAINS: &[EvmChain] = &[
         label: "BLAST", chain_id: 81457,
         rpcs: &[
             "https://rpc.blast.io",
-            "https://blast-mainnet.public.blastapi.io",
-            "https://blast.drpc.org",
-            "https://rpc.ankr.com/blast",
         ],
     },
 
@@ -223,9 +193,7 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "MANTA_PACIFIC", chain_id: 169,
         rpcs: &[
-            "https://pacific-rpc.manta.network/http",
-            "https://manta-pacific-mainnet.public.blastapi.io",
-            "https://manta.drpc.org",
+            "https://rpc.manta-pacific.zeebaz.xyz",
         ],
     },
 
@@ -234,8 +202,6 @@ const CHAINS: &[EvmChain] = &[
         label: "MODE", chain_id: 34443,
         rpcs: &[
             "https://mainnet.mode.network",
-            "https://mode-mainnet.public.blastapi.io",
-            "https://mode.drpc.org",
         ],
     },
 
@@ -244,8 +210,6 @@ const CHAINS: &[EvmChain] = &[
         label: "TAIKO", chain_id: 167000,
         rpcs: &[
             "https://rpc.mainnet.taiko.xyz",
-            "https://taiko-mainnet.public.blastapi.io",
-            "https://taiko.drpc.org",
         ],
     },
 
@@ -254,7 +218,6 @@ const CHAINS: &[EvmChain] = &[
         label: "FRAXTAL", chain_id: 252,
         rpcs: &[
             "https://rpc.frax.com",
-            "https://fraxtal-mainnet.public.blastapi.io",
         ],
     },
 
@@ -263,8 +226,6 @@ const CHAINS: &[EvmChain] = &[
         label: "METIS", chain_id: 1088,
         rpcs: &[
             "https://andromeda.metis.io/?owner=1088",
-            "https://metis-mainnet.public.blastapi.io",
-            "https://metis.drpc.org",
         ],
     },
 
@@ -273,9 +234,6 @@ const CHAINS: &[EvmChain] = &[
         label: "CELO", chain_id: 42220,
         rpcs: &[
             "https://forno.celo.org",
-            "https://celo-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/celo",
-            "https://1rpc.io/celo",
         ],
     },
 
@@ -284,9 +242,6 @@ const CHAINS: &[EvmChain] = &[
         label: "GNOSIS", chain_id: 100,
         rpcs: &[
             "https://rpc.gnosischain.com",
-            "https://gnosis-mainnet.public.blastapi.io",
-            "https://rpc.ankr.com/gnosis",
-            "https://gnosis.drpc.org",
         ],
     },
 
@@ -295,9 +250,6 @@ const CHAINS: &[EvmChain] = &[
         label: "MOONBEAM", chain_id: 1284,
         rpcs: &[
             "https://rpc.api.moonbeam.network",
-            "https://moonbeam-mainnet.public.blastapi.io",
-            "https://moonbeam.drpc.org",
-            "https://rpc.ankr.com/moonbeam",
         ],
     },
 
@@ -306,9 +258,6 @@ const CHAINS: &[EvmChain] = &[
         label: "KAIA", chain_id: 8217,
         rpcs: &[
             "https://public-en.node.kaia.io",
-            "https://klaytn-mainnet-rpc.publicnode.com",
-            "https://klaytn.drpc.org",
-            "https://rpc.ankr.com/klaytn",
         ],
     },
 
@@ -317,8 +266,6 @@ const CHAINS: &[EvmChain] = &[
         label: "CORE", chain_id: 1116,
         rpcs: &[
             "https://rpc.coredao.org",
-            "https://core-mainnet.public.blastapi.io",
-            "https://1rpc.io/core",
         ],
     },
 
@@ -327,7 +274,6 @@ const CHAINS: &[EvmChain] = &[
         label: "BITLAYER", chain_id: 200901,
         rpcs: &[
             "https://rpc.bitlayer.org",
-            "https://rpc.bitlayer-rpc.com",
         ],
     },
 
@@ -336,7 +282,6 @@ const CHAINS: &[EvmChain] = &[
         label: "BOB", chain_id: 60808,
         rpcs: &[
             "https://rpc.gobob.xyz",
-            "https://bob-mainnet.public.blastapi.io",
         ],
     },
 
@@ -345,7 +290,6 @@ const CHAINS: &[EvmChain] = &[
         label: "ROOTSTOCK", chain_id: 30,
         rpcs: &[
             "https://public-node.rsk.co",
-            "https://mycrypto.rsk.co",
         ],
     },
 
@@ -353,10 +297,7 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "CRONOS", chain_id: 25,
         rpcs: &[
-            "https://evm.cronos.org",
-            "https://cronos-mainnet.public.blastapi.io",
-            "https://cronos.drpc.org",
-            "https://rpc.vvs.finance",
+            "https://crono-evm-rpc.publicnode.com",
         ],
     },
 
@@ -365,8 +306,6 @@ const CHAINS: &[EvmChain] = &[
         label: "AURORA", chain_id: 1313161554,
         rpcs: &[
             "https://mainnet.aurora.dev",
-            "https://aurora-mainnet.public.blastapi.io",
-            "https://1rpc.io/aurora",
         ],
     },
 
@@ -375,8 +314,6 @@ const CHAINS: &[EvmChain] = &[
         label: "HARMONY", chain_id: 1666600000,
         rpcs: &[
             "https://api.harmony.one",
-            "https://harmony-0-rpc.gateway.pokt.network",
-            "https://harmony.drpc.org",
         ],
     },
 
@@ -385,7 +322,6 @@ const CHAINS: &[EvmChain] = &[
         label: "IOTEX", chain_id: 4689,
         rpcs: &[
             "https://babel-api.mainnet.iotex.io",
-            "https://rpc.iotex.io",
         ],
     },
 
@@ -394,7 +330,6 @@ const CHAINS: &[EvmChain] = &[
         label: "CONFLUX", chain_id: 1030,
         rpcs: &[
             "https://evm.confluxrpc.com",
-            "https://conflux-espace-public.unifra.io",
         ],
     },
 
@@ -405,15 +340,12 @@ const CHAINS: &[EvmChain] = &[
         label: "MONAD_MAINNET", chain_id: 10143,
         rpcs: &[
             "https://rpc.monad.xyz",
-            "https://monad.drpc.org",
-            "https://1rpc.io/monad",
         ],
     },
     EvmChain {
         label: "FILECOIN", chain_id: 314,
         rpcs: &[
             "https://api.node.glif.io/rpc/v1",
-            "https://rpc.ankr.com/filecoin",
         ],
     },
     EvmChain {
@@ -427,84 +359,72 @@ const CHAINS: &[EvmChain] = &[
         label: "ABSTRACT", chain_id: 2741,
         rpcs: &[
             "https://api.mainnet.abs.xyz",
-            "https://abstract-mainnet.drpc.org",
         ],
     },
     EvmChain {
         label: "ZORA", chain_id: 7777777,
         rpcs: &[
             "https://rpc.zora.energy",
-            "https://zora.drpc.org",
         ],
     },
     EvmChain {
         label: "WEMIX", chain_id: 1111,
         rpcs: &[
             "https://api.wemix.com",
-            "https://wemix-mainnet.rpc.thirdweb.com",
         ],
     },
     EvmChain {
         label: "OKT_CHAIN", chain_id: 66,
         rpcs: &[
-            "https://exchainrpc.okex.org",
-            "https://okt.drpc.org",
+            "https://exchainrpc.okex.com",
         ],
     },
     EvmChain {
         label: "OASIS_SAPPHIRE", chain_id: 23294,
         rpcs: &[
             "https://sapphire.oasis.io",
-            "https://1rpc.io/oasis/sapphire",
         ],
     },
     EvmChain {
         label: "TELOS", chain_id: 40,
         rpcs: &[
-            "https://mainnet.telos.net/evm",
-            "https://rpc1.eu.telos.net/evm",
+            "https://telos-evm.publicnode.com",
         ],
     },
     EvmChain {
         label: "KROMA", chain_id: 255,
         rpcs: &[
             "https://api.kroma.network",
-            "https://1rpc.io/kroma",
         ],
     },
     EvmChain {
         label: "CYBER", chain_id: 7560,
         rpcs: &[
             "https://rpc.cyber.co",
-            "https://cyber.drpc.org",
         ],
     },
     EvmChain {
         label: "SEI_EVM", chain_id: 1329,
         rpcs: &[
             "https://evm-rpc.sei-apis.com",
-            "https://sei-evm.drpc.org",
         ],
     },
     EvmChain {
         label: "CANTO", chain_id: 7700,
         rpcs: &[
             "https://canto.gravitychain.io",
-            "https://mainnode.plexnode.org:8545",
         ],
     },
     EvmChain {
         label: "NEON_EVM", chain_id: 245022934,
         rpcs: &[
             "https://neon-proxy-mainnet.solana.p2p.org",
-            "https://neon-mainnet.everstake.one",
         ],
     },
     EvmChain {
         label: "IOTA_EVM", chain_id: 8822,
         rpcs: &[
             "https://json-rpc.evm.iotaledger.net",
-            "https://iota-mainnet-evm.public.blastapi.io",
         ],
     },
 
@@ -512,7 +432,7 @@ const CHAINS: &[EvmChain] = &[
     EvmChain {
         label: "BOT_CHAIN", chain_id: 677,
         rpcs: &[
-            "https://rpc.botchain.ai",
+            "https://botchain-rpc.com",
         ],
     },
 
@@ -531,51 +451,75 @@ const CHAINS: &[EvmChain] = &[
     // ── Testnets & additional mainnets (registry gap fill) ─────────────────────
     EvmChain {
         label: "ARB_SEPOLIA", chain_id: 421614,
-        rpcs: &["https://sepolia-rollup.arbitrum.io/rpc", "https://arbitrum-sepolia-rpc.publicnode.com"],
+        rpcs: &[
+            "https://arbitrum-sepolia-rpc.publicnode.com",
+        ],
     },
     EvmChain {
         label: "BASE_SEPOLIA", chain_id: 84532,
-        rpcs: &["https://sepolia.base.org", "https://base-sepolia-rpc.publicnode.com"],
+        rpcs: &[
+            "https://base-sepolia-rpc.publicnode.com",
+        ],
     },
     EvmChain {
         label: "OP_SEPOLIA", chain_id: 11155420,
-        rpcs: &["https://sepolia.optimism.io", "https://optimism-sepolia-rpc.publicnode.com"],
+        rpcs: &[
+            "https://sepolia.optimism.io",
+        ],
     },
     EvmChain {
         label: "ETH_SEPOLIA", chain_id: 11155111,
-        rpcs: &["https://ethereum-sepolia-rpc.publicnode.com", "https://rpc.sepolia.org"],
+        rpcs: &[
+            "https://ethereum-sepolia-rpc.publicnode.com",
+        ],
     },
     EvmChain {
         label: "HOLESKY", chain_id: 17000,
-        rpcs: &["https://ethereum-holesky-rpc.publicnode.com"],
+        rpcs: &[
+            "https://holesky-rpc.publicnode.com",
+        ],
     },
     EvmChain {
         label: "ETC", chain_id: 61,
-        rpcs: &["https://etc.rivet.link", "https://rpc.etcchain.com"],
+        rpcs: &[
+            "https://etc.rivet.link",
+        ],
     },
     EvmChain {
         label: "BNB_TESTNET", chain_id: 97,
-        rpcs: &["https://data-seed-prebsc-1-s1.bnbchain.org:8545"],
+        rpcs: &[
+            "https://data-seed-prebsc-1-s1.binance.org",
+        ],
     },
     EvmChain {
         label: "FUJI", chain_id: 43113,
-        rpcs: &["https://api.avax-test.network/ext/bc/C/rpc"],
+        rpcs: &[
+            "https://api.avax.network/ext/bc/C/rpc",
+        ],
     },
     EvmChain {
         label: "ASTAR_EVM", chain_id: 592,
-        rpcs: &["https://evm.astar.network", "https://astar-rpc.publicnode.com"],
+        rpcs: &[
+            "https://evm.astar.network",
+        ],
     },
     EvmChain {
         label: "BOBA_NETWORK", chain_id: 288,
-        rpcs: &["https://mainnet.boba.network"],
+        rpcs: &[
+            "https://mainnet.boba.network",
+        ],
     },
     EvmChain {
         label: "MOONRIVER", chain_id: 1285,
-        rpcs: &["https://rpc.api.moonriver.moonbeam.network"],
+        rpcs: &[
+            "https://rpc.api.moonriver.moonbeam.network",
+        ],
     },
     EvmChain {
         label: "FLARE", chain_id: 14,
-        rpcs: &["https://flare-api.flare.network/ext/C/rpc"],
+        rpcs: &[
+            "https://flare-api.flare.network/ext/C/rpc",
+        ],
     },
     EvmChain {
         label: "OPTOPIA", chain_id: 62249,
@@ -583,15 +527,21 @@ const CHAINS: &[EvmChain] = &[
     },
     EvmChain {
         label: "POLYGON_AMOY", chain_id: 80002,
-        rpcs: &["https://rpc-amoy.polygon.technology"],
+        rpcs: &[
+            "https://rpc-amoy.polygon.technology",
+        ],
     },
     EvmChain {
         label: "POLYGON_ZKEVM", chain_id: 1101,
-        rpcs: &["https://zkevm-rpc.com", "https://polygon-zkevm-rpc.publicnode.com"],
+        rpcs: &[
+            "https://polygon-zkevm-rpc.publicnode.com",
+        ],
     },
     EvmChain {
         label: "KAVA_EVM", chain_id: 2222,
-        rpcs: &["https://evm.kava.io", "https://kava-evm-rpc.publicnode.com"],
+        rpcs: &[
+            "https://evm.kava.io",
+        ],
     },
     EvmChain {
         label: "BOTANIX", chain_id: 3636,
