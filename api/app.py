@@ -4148,7 +4148,10 @@ def security_genomic(entity_id: str):
 @require_entity_id()
 def resurrection(entity_id: str):
     """L2.4 Resurrection Inference — Δ_resurrection = w_d·e^(-κ·T) + w_c·sim(S_pre,S_react) + w_x·g(C)."""
-    from core.akashic.genesis import (
+    # NOTE: DormancyProfile / DormancyType / compute_resurrection / classify_dormancy
+    # live in core/akashic/resurrection.py, NOT core/akashic/genesis.py.  The previous
+    # import path caused a 500 ImportError on /api/v1/resurrection/<eid>.
+    from core.akashic.resurrection import (
         DormancyProfile, DormancyType, compute_resurrection, classify_dormancy
     )
     h = hashlib.sha256(entity_id.encode()).digest()
