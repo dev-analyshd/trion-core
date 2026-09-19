@@ -114,6 +114,12 @@ except ImportError:
 
 import anima_engine as _anima
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # L2.1 — wire the spec-faithful Akashic depth integral (trapezoidal
 # integration of A(τ)·(1+M(τ))·C(τ)) into the production depth path.
 try:
@@ -122,12 +128,6 @@ except Exception as _depth_import_err:  # pragma: no cover — keep service aliv
     _compute_akashic_depth = None
     logger.warning("core.akashic.depth unavailable — calculate_depth will fall "
                    "back to inline integration: %s", _depth_import_err)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
