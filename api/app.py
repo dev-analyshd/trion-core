@@ -275,6 +275,14 @@ _WRITE_PATHS = frozenset({
     "/api/v1/zg/compute/infer",  # runs submitted compute jobs
 })
 
+# Public POST endpoints that are read-only operations packaged as POST because
+# they accept a JSON body too large for a query string. These stay public even
+# when TRION_API_KEY is unset (entity resolution / validation do not mutate
+# state — they only compute scores from supplied input).
+_PUBLIC_POST_PATHS = frozenset({
+    "/api/v1/beo",               # L0.2 BEO entity resolution (read-only query)
+})
+
 def _is_write_path(path: str) -> bool:
     for p in _WRITE_PATHS:
         if p.endswith("/"):
@@ -311,6 +319,10 @@ def _require_api_key():
             return _writes_disabled_response()
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return None  # read-only traffic stays public without a key
+        # Read-only POSTs (entity resolution, validation queries) stay public
+        # — these endpoints accept a JSON body but do not mutate state.
+        if request.path in _PUBLIC_POST_PATHS:
+            return None
         if request.path in ("/api/v1/health",):
             return None
         return _writes_disabled_response()
@@ -319,6 +331,12 @@ def _require_api_key():
         pass  # write path: authenticated on EVERY method (P-API-02)
     elif request.method in ("GET", "HEAD", "OPTIONS"):
         return None  # read-only traffic is always public
+
+    # Read-only POSTs (entity resolution, validation queries) stay public even
+    # when an API key is configured — these endpoints accept a JSON body but
+    # do not mutate state, so they are treated like reads.
+    if request.path in _PUBLIC_POST_PATHS:
+        return None
 
     # Exempt the health probe even on non-GET (monitoring tools use POST health checks)
     if request.path in ("/api/v1/health",):
@@ -4786,6 +4804,189 @@ def evolutionary_fitness(component: str):
         "generation":       generation,
         "formula":          "F = PA · ICE · AS · Love · N_moat; N = (D+Q+R+X+F)/5",
         "specification":       "L0.6",
+        "timestamp":        int(time.time()),
+    })
+
+
+# ── L0.2 Behavioral Entity Object (BEO) Resolution ────────────────────────────
+@app.route("/api/v1/beo", methods=["POST"])
+def beo_resolve():
+    """
+    L0.2 Behavioral Entity Object (BEO) entity resolution.
+
+    Accepts a JSON body containing one or more wallet identifiers and resolves
+    them to a canonical BEO identity using the whitepaper L0.2 formula:
+
+        BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σw
+        w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (Σw = 1.00)
+        threshold: BEO_valid iff BEO_confidence > 0.75 (strict)
+
+    Request body (single wallet):
+        { "identifier": "0xABC...", "chain_id": 1 }
+
+    Request body (multi-wallet cluster):
+        { "identifiers": ["0xABC...", "0xDEF...", "0x123..."], "chain_id": 1 }
+
+    Optional fields per identifier object:
+        { "identifiers": [{"address":"0xABC","chain_id":1,"funding_source":"0xFUN",
+                           "first_tx_ts":1700000000,
+                           "co_tx_timestamps":[1700000100,1700000200]}] }
+
+    Response includes BEO_confidence, components (CF/ST/SC/BP), canonical_id,
+    same_entity predicate, and the disclosure string.
+
+    NOTE: this endpoint is a READ-ONLY query (entity resolution does not mutate
+    state), so it is exempt from the TRION_API_KEY requirement for POST writes.
+    """
+    from core.primitives.entity_resolution import (
+        WalletActivity, resolve_entity, BEO_CONFIDENCE_THRESHOLD,
+    )
+
+    body = request.get_json(silent=True) or {}
+
+    # Accept either a single identifier or a list of identifiers / wallet objects
+    raw_idents = body.get("identifiers")
+    if raw_idents is None:
+        ident = body.get("identifier")
+        if ident is None:
+            return jsonify({
+                "error": "missing_identifier",
+                "message": ("Request body must include 'identifier' (string) or "
+                            "'identifiers' (list). Example: "
+                            '{"identifier":"0xABC","chain_id":1}'),
+            }), 400
+        raw_idents = [ident]
+
+    default_chain = int(body.get("chain_id", 1))
+
+    wallets: list[WalletActivity] = []
+    parse_errors: list[str] = []
+
+    for idx, item in enumerate(raw_idents):
+        if isinstance(item, str):
+            address = item
+            chain_id = default_chain
+            funding_source = None
+            first_tx_ts = 0.0
+            co_tx_ts: list[float] = []
+        elif isinstance(item, dict):
+            address = item.get("address") or item.get("identifier") or ""
+            chain_id = int(item.get("chain_id", default_chain))
+            funding_source = item.get("funding_source")
+            first_tx_ts = float(item.get("first_tx_ts", 0.0) or 0.0)
+            co_in = item.get("co_tx_timestamps", []) or []
+            co_tx_ts = [float(t) for t in co_in if t is not None]
+        else:
+            parse_errors.append(f"identifiers[{idx}]: expected string or object, got {type(item).__name__}")
+            continue
+
+        if not address:
+            parse_errors.append(f"identifiers[{idx}]: missing 'address'/'identifier' field")
+            continue
+
+        # When the caller supplies only a bare identifier (no behavioral
+        # features), derive deterministic hash-seeded features so the
+        # SimHash fingerprint has real signal to compare against peer
+        # wallets. This keeps the BP score meaningful in the demo path
+        # without requiring a live ANIMA/FAISS feed.
+        if not funding_source or first_tx_ts <= 0 or not co_tx_ts:
+            h = hashlib.sha256(f"{address}|{chain_id}".encode()).digest()
+            if not funding_source:
+                funding_source = "0x" + h[:20].hex()
+            if first_tx_ts <= 0:
+                # Deterministic epoch in 2023-2024 range
+                first_tx_ts = 1_690_000_000.0 + (int.from_bytes(h[:4], "big") % 31_536_000)
+            if not co_tx_ts:
+                # Derive 2-5 deterministic co-tx timestamps within 1 day of first_tx_ts
+                n_co = 2 + (h[5] % 4)
+                base = first_tx_ts
+                co_tx_ts = [base + (h[(6 + i) % 32] * 60 + i * 120) for i in range(n_co)]
+
+        wallets.append(WalletActivity(
+            address=address,
+            chain_id=chain_id,
+            funding_source=funding_source,
+            first_tx_ts=first_tx_ts,
+            co_tx_timestamps=co_tx_ts,
+        ))
+
+    if not wallets:
+        return jsonify({
+            "error": "no_wallets",
+            "message": "No valid wallet identifiers supplied.",
+            "parse_errors": parse_errors,
+        }), 400
+
+    # Whitepaper L0.2 weights — canonical 4-component weighted average.
+    w_CF, w_ST, w_SC, w_BP = 0.40, 0.25, 0.25, 0.10
+    sigma_w = w_CF + w_ST + w_SC + w_BP  # = 1.00
+
+    result = resolve_entity(
+        wallets,
+        w_CF=w_CF, w_ST=w_ST, w_SC=w_SC, w_BP=w_BP,
+        bp_prior=0.50,
+    )
+
+    cf = result["components"]["CF"]
+    st = result["components"]["ST"]
+    sc = result["components"]["SC"]
+    bp = result["components"]["BP"]
+    beo_confidence = result["beo_confidence"]
+
+    # Explicit normalization by Σw (== 1.00) per the whitepaper formula
+    # display — keeps the formula self-documenting even when callers override
+    # the default weights via resolve_entity()'s kwargs.
+    raw_numerator = w_CF * cf + w_ST * st + w_SC * sc + w_BP * bp
+    normalized_confidence = raw_numerator / sigma_w if sigma_w > 0 else 0.0
+    normalized_confidence = max(0.0, min(1.0, normalized_confidence))
+
+    return jsonify({
+        "identifier":        (body.get("identifier") if body.get("identifier") is not None
+                               else (raw_idents[0] if raw_idents else None)),
+        "chain_id":          default_chain,
+        "wallet_count":      len(wallets),
+        "beo_confidence":    round(beo_confidence, 6),
+        "normalized_confidence": round(normalized_confidence, 6),
+        "canonical_id":      result["canonical_id"],
+        "same_entity":       result["same_entity"],
+        "threshold":         BEO_CONFIDENCE_THRESHOLD,
+        "components": {
+            "CF": round(cf, 6),
+            "ST": round(st, 6),
+            "SC": round(sc, 6),
+            "BP": round(bp, 6),
+        },
+        "weights": {
+            "w_CF": w_CF,
+            "w_ST": w_ST,
+            "w_SC": w_SC,
+            "w_BP": w_BP,
+            "Sigma_w": sigma_w,
+        },
+        "is_synthetic": (
+            # Disclosure: if any wallet was hash-seeded (caller did not supply
+            # full behavioral features), flag the response as synthetic.
+            any(isinstance(it, str) for it in raw_idents)
+            or any(
+                isinstance(it, dict) and (
+                    not it.get("funding_source")
+                    or not it.get("first_tx_ts")
+                    or not it.get("co_tx_timestamps")
+                )
+                for it in raw_idents
+            )
+        ),
+        "synthetic_reason": (
+            "Wallet behavioral features (funding_source, first_tx_ts, "
+            "co_tx_timestamps) were hash-derived from sha256(address|chain_id) "
+            "when not supplied by the caller — same algorithm as "
+            "/api/v1/fitness and /api/v1/resonance demo paths. For full-fidelity "
+            "BEO resolution, supply real on-chain activity via the 'identifiers' "
+            "array of wallet objects, or proxy through the ANIMA FAISS service."
+        ),
+        "parse_errors":     parse_errors if parse_errors else None,
+        "formula":          "BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σw",
+        "specification":    "L0.2",
         "timestamp":        int(time.time()),
     })
 
