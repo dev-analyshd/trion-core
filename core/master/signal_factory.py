@@ -241,38 +241,122 @@ def classify_signal(name_or_type) -> dict:
     RULING_NAME_ALIASES (REGULATORY_BEHAVIORAL → REGULATORY_BHV,
     MEV_BEHAVIORAL → MEV_EXPOSURE), and every classification records
     whether the type belongs to the BTCP family of the 29-type taxonomy.
+
+    Part 11 language mandate — "Performance-critical paths compiled to Rust
+    via PyO3 bindings": the canonical name → id resolution now runs through
+    `core.rust_bridge_pyo3.signal_type_id_from_name_native`. The bridge
+    prefers the Rust `signal_emitter::SignalType::from_id` lookup when the
+    cdylib/PyO3 module exposes the lookup symbol, and falls back to the
+    canonical Python `SignalType` IntEnum (parity-tested against the Rust
+    enum — see `rust/src/signal_emitter.rs::tests::test_names_match_python_registry`).
+    The `signal_type_resolution` field records which dispatch produced the
+    resolution so the live path can be audited.
     """
+    # ── Rust bridge dispatch (Part 11 mandate) ────────────────────────────────
+    # We try the Rust signal_emitter bridge first. The bridge returns the
+    # canonical registry id (0-23) when the name resolves, or None when
+    # the name is not in the canonical 24. The bridge prefers the Rust
+    # cdylib/PyO3 module lookup and falls back to the Python IntEnum — the
+    # source of truth the Rust enum is parity-tested against.
+    #
+    # The `signal_type_resolution` field on the response records which
+    # dispatch ACTUALLY answered (rust_native_pyo3 / rust_native_ctypes /
+    # python_fallback), so consumers can audit the live path honestly —
+    # when the .so does not yet export the signal_emitter C ABI shim, the
+    # dispatch is "python_fallback" (NOT a fake "rust_native").
+    signal_type_resolution = "python_fallback"
+    try:
+        from core.rust_bridge_pyo3 import (
+            signal_type_id_from_name_with_dispatch, _NATIVE_MODE,
+        )
+        rust_active = _NATIVE_MODE != "python"
+    except Exception:
+        rust_active = False
+
     if isinstance(name_or_type, SignalType):
         st = name_or_type
+        # When the caller already passes a SignalType, the id is canonical
+        # by construction; we still verify via the bridge if Rust is active
+        # so the live path exercises the Rust signal_emitter symbol.
+        if rust_active:
+            rust_id, dispatch = signal_type_id_from_name_with_dispatch(st.name)
+            if rust_id is not None and rust_id == int(st):
+                signal_type_resolution = dispatch
+            elif rust_id is not None:
+                # Drift between the Python IntEnum and the Rust enum — this
+                # should never happen (parity-tested) but we surface it
+                # honestly rather than silently picking one.
+                signal_type_resolution = (
+                    f"drift(py={int(st)},rust={rust_id},{dispatch})"
+                )
+            else:
+                signal_type_resolution = "python_fallback"
+        else:
+            signal_type_resolution = "python_fallback"
     else:
         raw = str(name_or_type).upper()
         # Ruling spelling of a drifted internal name (M-073 closed set).
         raw = RULING_NAME_ALIASES.get(raw, raw)
-        try:
-            st = SignalType[raw]
-        except KeyError:
-            name = raw
-            if name in BTCP_DOMAIN_SIGNALS:
-                meta = BTCP_DOMAIN_SIGNALS[name]
-                carrier = SignalType[meta["carrier"]]
-                domain = "btcp_14_2"
-                return {
-                    "type_name":       name,
-                    "signal_type_id":  int(carrier),   # carried on the carrier id
-                    "domain":          domain,
-                    "carrier":         meta["carrier"],
-                    "signal_subtype":  name,
-                    "severity":        meta["severity"],
-                    "emitter_layer":   meta["layer"],
-                    "ttl_class":       meta["ttl_class"],
-                    "btcp_family":     True,
-                    "ruling_name":     name,
-                }
+
+        # Rust bridge lookup — preferred over the direct Python IntEnum
+        # lookup when the cdylib is loaded (Part 11 mandate).
+        rust_id = None
+        dispatch = "python_fallback"
+        if rust_active:
+            try:
+                rust_id, dispatch = signal_type_id_from_name_with_dispatch(raw)
+            except Exception:
+                rust_id, dispatch = None, "python_fallback"
+
+        if rust_id is not None:
+            # Bridge resolved the name to a canonical id — reconstruct the
+            # SignalType IntEnum member from the id so downstream callers
+            # (which use `int(st)` and `st.name`) work unchanged.
+            try:
+                st = SignalType(rust_id)
+                signal_type_resolution = dispatch
+            except ValueError:
+                st = None
+                signal_type_resolution = "python_fallback"
+        else:
+            try:
+                st = SignalType[raw]
+                signal_type_resolution = "python_fallback"
+            except KeyError:
+                st = None
+                name = raw
+                if name in BTCP_DOMAIN_SIGNALS:
+                    meta = BTCP_DOMAIN_SIGNALS[name]
+                    carrier = SignalType[meta["carrier"]]
+                    domain = "btcp_14_2"
+                    return {
+                        "type_name":       name,
+                        "signal_type_id":  int(carrier),   # carried on the carrier id
+                        "domain":          domain,
+                        "carrier":         meta["carrier"],
+                        "signal_subtype":  name,
+                        "severity":        meta["severity"],
+                        "emitter_layer":   meta["layer"],
+                        "ttl_class":       meta["ttl_class"],
+                        "btcp_family":     True,
+                        "ruling_name":     name,
+                        "signal_type_resolution": "python_fallback",
+                    }
+                raise KeyError(
+                    f"unclassifiable signal type {name_or_type!r} — not in the "
+                    f"canonical 24 (MD §11 ∪ V2 Part 5) nor the BTCP §14.2 "
+                    f"domain registry"
+                )
+
+        if st is None:
+            # Defensive: the bridge and the Python IntEnum both failed to
+            # resolve the name — re-raise as KeyError so callers fail
+            # closed rather than emitting an unclassifiable signal.
             raise KeyError(
-                f"unclassifiable signal type {name_or_type!r} — not in the "
-                f"canonical 24 (MD §11 ∪ V2 Part 5) nor the BTCP §14.2 "
-                f"domain registry"
+                f"unclassifiable signal type {name_or_type!r} — Rust bridge "
+                f"and Python IntEnum both returned None"
             )
+
     name = st.name
     if name in CANONICAL_19_TYPES:
         domain = "canonical_19"
@@ -294,6 +378,7 @@ def classify_signal(name_or_type) -> dict:
         "ttl_class":      "critical" if name in ("MANIPULATION_ALERT", "SYSTEMIC_RISK") else "non_critical",
         "btcp_family":    name in BTCP_FAMILY_10_TYPES,
         "ruling_name":    internal_to_ruling.get(name, name),
+        "signal_type_resolution": signal_type_resolution,
     }
 
 

@@ -514,7 +514,62 @@ def compute_phi(
         learned from Akashic history via `learn_weights_from_history()`.
         When omitted, the legacy fixed `PHI_WEIGHTS` are used (cold-start
         fallback only — not the spec-compliant default).
+
+    Dispatch (Part 11 language mandate — "Performance-critical paths compiled
+    to Rust via PyO3 bindings"):
+      1. Rust native (`core.rust_bridge_pyo3.compute_phi_native`) when the
+         PyO3 extension or ctypes cdylib is available. The Rust function
+         returns a scalar Φ ∈ [0, 1]; we wrap it into the same dict shape
+         the Python reference returns so callers (build_signal, /api/v1/signal,
+         the dashboard) work unchanged in both dispatch modes.
+      2. Python reference (the 9-feature Shannon entropy engine below) when
+         the Rust extension is absent or the native call fails.
     """
+    # ── Rust bridge (Part 11 mandate) ─────────────────────────────────────────
+    try:
+        from core.rust_bridge_pyo3 import compute_phi_native, _NATIVE_MODE
+        if _NATIVE_MODE != "python":
+            phi_val = compute_phi_native(
+                list(txs),
+                weights=list(weights) if weights is not None else None,
+            )
+            if phi_val is not None and isinstance(phi_val, (int, float)) and math.isfinite(float(phi_val)):
+                phi_val = float(phi_val)
+                # Mirror the Python reference output schema so downstream
+                # consumers (build_signal, /api/v1/signal, dashboard) work
+                # unchanged in Rust-native and Python-fallback modes.
+                if weights is None:
+                    w = list(PHI_WEIGHTS)
+                    weights_source = "fixed_cold_start"
+                else:
+                    w = [float(x) for x in weights]
+                    s = sum(w)
+                    if s <= 0:
+                        w = list(PHI_WEIGHTS)
+                        weights_source = "fixed_cold_start"
+                    else:
+                        w = [x / s for x in w]
+                        weights_source = "learned_from_akashic"
+                return {
+                    "phi_raw":          phi_val,
+                    "phi":              phi_val,    # canonical alias
+                    "f1": 0.0, "f2": 0.0, "f3": 0.0,
+                    "f4": 0.0, "f5": 0.0, "f6": 0.0,
+                    "f7": 0.0, "f8": 0.0, "f9": 0.0,
+                    # Per-feature breakdown is computed inside the Rust
+                    # shim; we surface the aggregate only and label the
+                    # path honestly. The nine f1..f9 keys remain present
+                    # (zero) so legacy consumers that index by feature key
+                    # do not KeyError.
+                    "tx_count":         len(txs),
+                    "weights":           w,
+                    "weights_source":    weights_source,
+                    "compute_backend":  "rust_native",
+                }
+    except Exception:
+        pass  # fall through to Python implementation
+
+    # ── Python reference implementation (fallback) ────────────────────────────
     f1 = compute_f1_volume_entropy(txs)
     f2 = compute_f2_counterparty_diversity(txs)
     f3 = compute_f3_temporal_spacing(txs)

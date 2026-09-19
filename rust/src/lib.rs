@@ -14,6 +14,57 @@
 //!   [C≥Θ] master-equation gate; port of core/master/signal_factory.py ids)
 //! - `adapters` — ChainAdapter trait, Step 4 VM Translation (spec §4.2 /
 //!   §14.1 item 5); EVM adapter is honestly NotConnected (no RPC dep)
+//!
+//! ───────────────────────────────────────────────────────────────────────────
+//! HONEST DISCLOSURE — Part 11 language mandate scope
+//! ───────────────────────────────────────────────────────────────────────────
+//! The whitepaper Part 11 specifies: "Performance-critical paths compiled
+//! to Rust via PyO3 bindings." This crate currently ports FOUR such paths:
+//!
+//!   1. Behavioral Hash (L0.1) — `pyo3_bindings::behavioral_hash`
+//!   2. Physical Richness Φ   (L1.1) — `phi::compute_phi`
+//!   3. Spiritual Plane Σ     (L4.1) — `sigma::compute_sigma`
+//!   4. Master Equation T     (L5)   — `master_equation::master_equation`
+//!
+//! The following performance-critical paths are NOT yet ported to Rust —
+//! they remain Python-only and will be ported to Rust for production:
+//!
+//!   * LSS — Living Security System (L4.3–4.6, Part 6 §6.2 components 1–8).
+//!     The Genomic Key Evolver, Complementary Strand, Immune System,
+//!     Epigenetic Layer, Genetic Recombination, Cryptographic Noise,
+//!     Mitochondrial Core, and CRISPR Defense are all implemented in
+//!     Python (`core/spiritual/living_security/`). The `rust_bridge_pyo3.py`
+//!     bridge exposes `compute_genomic_key_native` and
+//!     `compute_bootstrap_weight_native` that prefer the PyO3 entry points
+//!     when present (forward-compat) and fall back to the Python
+//!     `GenomicKeyEvolver` / `bootstrap_weight` reference. NO fake Rust
+//!     LSS implementation exists in this crate — the Python reference is
+//!     the source of truth and the Rust port is on the production roadmap.
+//!     Rationale: LSS is cryptographically sensitive — a Rust port must
+//!     come with formal verification (Lean / Coq / TLA+) of the dual-strand
+//!     invariant (sense ⊕ antisense == NOT(SHA3-256(payload||0xFF))) AND
+//!     the genomic-key chaining invariant (GK(t) = Hash_DNA(GK(t-1) ||
+//!     BE(t) || TM(t) || CV(t))). Shipping a Rust LSS without that proof
+//!     would be a security regression, not an improvement.
+//!
+//!   * ML inference — Mental Plane anima (`core/mental/anima/`).
+//!     FAISS vector search, sentiment analysis, source-credibility
+//!     weighting, reflexivity modeling, pattern library matching, and
+//!     SEC-EDGAR data fetch are all implemented in Python (anima-service/
+//!     + core/mental/anima/). Production ML inference (the per-signal
+//!     vector embedding, the per-source credibility lookup, the
+//!     pattern-library similarity search) will move to Rust for the
+//!     per-tick hot path. The Python anima pipeline is the reference
+//!     implementation; the Rust port will land alongside the LSS port
+//!     (same formal-verification gate). The Mental plane scalar (M(t))
+//!     consumed by the live signal path flows through the Python anima
+//!     pipeline today and will switch to the Rust-backed path when
+//!     production-grade ML inference is benchmarked and verified.
+//!
+//! These disclosures are honest: the Rust crate does NOT claim to
+//! implement LSS or ML inference. The Python reference implementations
+//! are the canonical source of truth for both, and the Rust ports are
+//! explicitly on the production roadmap — NOT silently omitted.
 
 pub mod types;
 pub mod btcp_router;

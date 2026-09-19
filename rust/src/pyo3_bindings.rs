@@ -252,6 +252,43 @@ pub fn py_compute_master_equation(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+//  Signal Emitter — §14.2 24-type SignalType registry lookups (PyO3 wrappers)
+// ──────────────────────────────────────────────────────────────────────────
+//
+// Part 11 language mandate: the canonical 24-type SignalType registry
+// (Rust `signal_emitter::SignalType` ↔ Python `SignalType` IntEnum) is
+// parity-tested across both implementations. The PyO3 wrappers below expose
+// the name ↔ id resolution so `core/rust_bridge_pyo3.py::signal_type_*_
+// native` can dispatch through Rust when the PyO3 module is importable;
+// the cdylib ctypes fallback path uses the `extern "C"` shims further down.
+
+/// `#[pyfunction]` wrapper around `signal_emitter::SignalType::from_id` —
+/// resolves a registry name to its canonical id (0–23). Returns `None`
+/// (Python `None`) when the name is not a canonical 24-type member.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "signal_type_id_from_name")]
+pub fn py_signal_type_id_from_name(name: &str) -> Option<u8> {
+    let name_upper = name.to_uppercase();
+    for variant in crate::signal_emitter::ALL_SIGNAL_TYPES.iter() {
+        if variant.name() == name_upper {
+            return Some(variant.id());
+        }
+    }
+    None
+}
+
+/// `#[pyfunction]` wrapper around `signal_emitter::SignalType::name` —
+/// resolves a canonical id (0–23) to its registry name. Returns `None`
+/// when the id is outside 0–23.
+#[cfg(feature = "pyo3")]
+#[pyfunction]
+#[pyo3(name = "signal_type_name_from_id")]
+pub fn py_signal_type_name_from_id(id: u8) -> Option<String> {
+    crate::signal_emitter::SignalType::from_id(id).map(|v| v.name().to_string())
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 //  Module entry point — `import trion_rust`
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -264,6 +301,8 @@ pub fn py_compute_master_equation(
 /// phi = trion_rust.compute_phi(tx_list, weights)
 /// sigma = trion_rust.compute_sigma(stakes, diversity, vals, median, db, v)
 /// t = trion_rust.compute_master_equation(c, theta, s, moat, t_years)
+/// id  = trion_rust.signal_type_id_from_name("VALUATION")  # → 0
+/// name = trion_rust.signal_type_name_from_id(0)           # → "VALUATION"
 /// ```
 #[cfg(feature = "pyo3")]
 #[pymodule]
@@ -274,10 +313,13 @@ fn trion_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_compute_sigma, m)?)?;
     m.add_function(wrap_pyfunction!(py_compute_diversity_weight, m)?)?;
     m.add_function(wrap_pyfunction!(py_compute_master_equation, m)?)?;
+    m.add_function(wrap_pyfunction!(py_signal_type_id_from_name, m)?)?;
+    m.add_function(wrap_pyfunction!(py_signal_type_name_from_id, m)?)?;
     // Expose module-level constants so the Python side can sanity-check
     // the build (used by core/rust_bridge_pyo3.py).
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add("SUPPORTED_FEATURES", ["bh", "phi", "sigma", "master_equation"])?;
+    m.add("SUPPORTED_FEATURES", ["bh", "phi", "sigma", "master_equation", "signal_emitter"])?;
+    m.add("SIGNAL_TYPE_COUNT", crate::signal_emitter::SIGNAL_TYPE_COUNT)?;
     Ok(())
 }
 
@@ -424,6 +466,97 @@ pub extern "C" fn trion_rust_compute_master_equation(
         Some(t) => t,
         None => -1.0,
     }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Signal Emitter — §14.2 24-type SignalType registry lookups
+// ──────────────────────────────────────────────────────────────────────────
+//
+// Part 11 language mandate: the canonical 24-type SignalType registry lives
+// in Rust (`signal_emitter::SignalType`) and in Python (`core.master.
+// signal_factory.SignalType`). The two enums are parity-tested (see
+// `signal_emitter::tests::test_names_match_python_registry` and
+// `test_all_24_ids_round_trip`) — the ids 0–23 and the SCREAMING_SNAKE
+// names are byte-identical across both implementations.
+//
+// The C ABI shims below expose the Rust name ↔ id resolution so the Python
+// bridge (`core/rust_bridge_pyo3.py::signal_type_id_from_name_native` and
+// `signal_type_name_from_id_native`) can call into the Rust lookup when
+// the cdylib is loaded via ctypes. The shims activate on the next
+// `cargo build --features pyo3`; the Python bridge already prefers the
+// Rust path and falls back to the Python IntEnum (canonical source of
+// truth) when the shims are not linked into the loaded .so.
+//
+// NOTE: these shims do NOT implement signal *emission* — the master-equation
+// gate lives in `signal_emitter::SignalEmitter::emit` and is invoked from
+// Python via `compute_master_equation_native` (the [C≥Θ]·S·e^(M·t) gate
+// drives VALUATION vs SILENCE selection). The shims here expose only the
+// name ↔ id resolution of the 24-type registry itself.
+
+/// C-compatible shim: resolve a canonical signal-type name to its registry id.
+///
+/// `name_ptr` must point to a NUL-terminated UTF-8 string. Returns the
+/// canonical id (0–23) when the name resolves, or `-1` when the name is
+/// not a canonical 24-type member.
+///
+/// # Safety
+/// `name_ptr` must point to a NUL-terminated readable byte sequence.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_signal_type_id_from_name(name_ptr: *const std::os::raw::c_char) -> i32 {
+    if name_ptr.is_null() {
+        return -1;
+    }
+    let c_str = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
+    let name = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    // The Rust enum uses SCREAMING_SNAKE names; accept either case to mirror
+    // the Python `str(name).upper()` normalization.
+    let name_upper = name.to_uppercase();
+    // Linear scan over the 24-member registry — the registry is small and
+    // the lookup is rare (once per emission classification), so a flat
+    // scan is faster than a HashMap allocation for this size.
+    for variant in crate::signal_emitter::ALL_SIGNAL_TYPES.iter() {
+        if variant.name() == name_upper {
+            return variant.id() as i32;
+        }
+    }
+    -1
+}
+
+/// C-compatible shim: resolve a canonical signal-type id to its registry
+/// name. Writes a NUL-terminated UTF-8 string into `out_buf` (at most
+/// `buf_len - 1` bytes plus the NUL terminator). Returns 0 on success, or
+/// -1 when the id is outside 0–23 or the buffer is too small.
+///
+/// # Safety
+/// `out_buf` must point to at least `buf_len` writable bytes.
+#[cfg(feature = "pyo3")]
+#[no_mangle]
+pub extern "C" fn trion_rust_signal_type_name_from_id(
+    id: u8,
+    out_buf: *mut std::os::raw::c_char,
+    buf_len: usize,
+) -> i32 {
+    if out_buf.is_null() || buf_len == 0 {
+        return -1;
+    }
+    let variant = match crate::signal_emitter::SignalType::from_id(id) {
+        Some(v) => v,
+        None => return -1,
+    };
+    let name = variant.name();
+    // Need name.len() + 1 bytes (name + NUL terminator).
+    if name.len() + 1 > buf_len {
+        return -1;
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(name.as_ptr() as *const u8, out_buf as *mut u8, name.len());
+        *out_buf.add(name.len()) = 0; // NUL terminator
+    }
+    0
 }
 
 #[cfg(all(test, feature = "pyo3"))]

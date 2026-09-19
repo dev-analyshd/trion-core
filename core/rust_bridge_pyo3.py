@@ -622,5 +622,172 @@ def compute_bootstrap_weight_native(akashic_depth: int) -> float:
     return bootstrap_weight(akashic_depth)
 
 
+# ─── Signal Type Registry (§14.2 — 24-type enum) ──────────────────────────
+#
+# Part 11 language mandate: the canonical 24-type SignalType registry is
+# defined in Rust (`rust/src/signal_emitter.rs::SignalType`) and in Python
+# (`core/master/signal_factory.py::SignalType`). The two enums are
+# parity-tested (see `signal_emitter::tests::test_names_match_python_registry`
+# and `test_all_24_ids_round_trip`) — the ids 0–23 and the SCREAMING_SNAKE
+# names are byte-identical across both implementations.
+#
+# The bridge below resolves name ↔ id using the Rust implementation when
+# the cdylib/PyO3 module exposes the lookup symbol, and falls back to the
+# Python `SignalType` IntEnum (the canonical source of truth) when the
+# Rust lookup symbol is unavailable. The fallback is honest: it is NOT a
+# fake Rust implementation — it is the Python reference that the Rust enum
+# is parity-tested against, used as the fallback when the Rust lookup is
+# not linked into the loaded cdylib.
+
+# Map of canonical registry id (0-23) → canonical registry name.
+# Populated lazily from the Python SignalType IntEnum on first use so the
+# bridge stays in sync with the canonical registry without a duplicate
+# static table. The Rust enum's `ALL_SIGNAL_TYPES` is parity-tested to
+# produce the same name-for-id mapping (see `signal_emitter.rs` tests).
+_SIGNAL_TYPE_ID_TO_NAME_CACHE: Optional[list] = None
+
+
+def _ensure_signal_type_cache() -> list:
+    """Lazily build the (id → name) lookup table from the Python registry.
+
+    The Python SignalType IntEnum is the canonical source of truth — the
+    Rust `SignalType::ALL_SIGNAL_TYPES` array is parity-tested against it
+    (see `signal_emitter::tests::test_names_match_python_registry`).
+    """
+    global _SIGNAL_TYPE_ID_TO_NAME_CACHE
+    if _SIGNAL_TYPE_ID_TO_NAME_CACHE is None:
+        from core.master.signal_factory import SignalType
+        _SIGNAL_TYPE_ID_TO_NAME_CACHE = [
+            member.name for member in sorted(SignalType, key=lambda m: int(m))
+        ]
+    return _SIGNAL_TYPE_ID_TO_NAME_CACHE
+
+
+def signal_type_id_from_name_native(name: str) -> Optional[int]:
+    """
+    Resolve a canonical signal type name (e.g. `"VALUATION"`,
+    `"CROSS_CHAIN_COHERENCE"`) to its registry id in 0–23.
+
+    Dispatch order:
+      1. PyO3: `trion_rust.signal_type_id_from_name(name)` when the PyO3
+         module exposes the signal_emitter lookup.
+      2. ctypes: `lib.trion_rust_signal_type_id_from_name(name_ptr)` when
+         the cdylib exports the C ABI shim (added by the next `cargo build
+         --features pyo3` after the signal_emitter shim lands).
+      3. Python fallback: the canonical `SignalType` IntEnum lookup (the
+         source of truth the Rust enum is parity-tested against).
+
+    Returns None when the name is not a canonical 24-type member.
+    """
+    return signal_type_id_from_name_with_dispatch(name)[0]
+
+
+def signal_type_id_from_name_with_dispatch(name: str) -> tuple:
+    """
+    Same as `signal_type_id_from_name_native` but also returns the dispatch
+    mode that produced the value. The tuple is `(id_or_None, dispatch_mode)`
+    where `dispatch_mode` is one of:
+      * `"rust_native_pyo3"`    — the PyO3 `trion_rust` module answered.
+      * `"rust_native_ctypes"`  — the cdylib C ABI shim answered.
+      * `"python_fallback"`     — the Python IntEnum answered (canonical
+                                  source of truth; the Rust enum is
+                                  parity-tested against this).
+      * `"none"`                — the name did not resolve.
+
+    The dispatch tag lets callers (e.g. `classify_signal`) honestly label
+    which implementation produced the value — when the .so does not yet
+    export the signal_emitter C ABI shim, the dispatch is
+    `"python_fallback"` (NOT a fake `"rust_native"`).
+    """
+    name_upper = str(name).upper().strip()
+
+    # 1. PyO3 module path.
+    if _NATIVE_MODE == "pyo3" and _RUST_EXT_PYTHON_MODULE is not None:
+        fn = getattr(_RUST_EXT_PYTHON_MODULE, "signal_type_id_from_name", None)
+        if callable(fn):
+            try:
+                id_val = fn(name_upper)
+                if id_val is not None and 0 <= int(id_val) < 24:
+                    return int(id_val), "rust_native_pyo3"
+            except Exception as exc:  # pragma: no cover — defensive
+                _log.warning("PyO3 signal_type_id_from_name failed: %s", exc)
+
+    # 2. ctypes cdylib path (forward-compat: activates when the .so is
+    # rebuilt with the signal_emitter C ABI shim).
+    if _NATIVE_MODE == "ctypes" and _RUST_EXT_CDLL is not None:
+        fn = getattr(_RUST_EXT_CDLL, "trion_rust_signal_type_id_from_name", None)
+        if callable(fn):
+            try:
+                fn.argtypes = [ctypes.c_char_p]
+                fn.restype = ctypes.c_int32
+                rc = fn(name_upper.encode("utf-8"))
+                # rc == -1 → unknown name; 0..23 → canonical id.
+                if rc >= 0 and rc < 24:
+                    return int(rc), "rust_native_ctypes"
+            except (AttributeError, OSError, ctypes.ArgumentError) as exc:
+                _log.debug("ctypes signal_type_id_from_name not available: %s", exc)
+
+    # 3. Python fallback (canonical source of truth — the Rust enum is
+    # parity-tested against this IntEnum).
+    from core.master.signal_factory import SignalType, RULING_NAME_ALIASES
+    canonical = RULING_NAME_ALIASES.get(name_upper, name_upper)
+    try:
+        return int(SignalType[canonical]), "python_fallback"
+    except KeyError:
+        return None, "none"
+
+
+def signal_type_name_from_id_native(signal_type_id: int) -> Optional[str]:
+    """
+    Resolve a canonical signal type id (0–23) to its registry name.
+
+    Dispatch order mirrors `signal_type_id_from_name_native`:
+      1. PyO3: `trion_rust.signal_type_name_from_id(id)`.
+      2. ctypes: `lib.trion_rust_signal_type_name_from_id(id, buf, len)`.
+      3. Python fallback: the canonical `SignalType` IntEnum lookup.
+
+    Returns None when the id is outside 0–23.
+    """
+    try:
+        id_int = int(signal_type_id)
+    except (TypeError, ValueError):
+        return None
+    if id_int < 0 or id_int >= 24:
+        return None
+
+    # 1. PyO3 module path.
+    if _NATIVE_MODE == "pyo3" and _RUST_EXT_PYTHON_MODULE is not None:
+        fn = getattr(_RUST_EXT_PYTHON_MODULE, "signal_type_name_from_id", None)
+        if callable(fn):
+            try:
+                name_val = fn(id_int)
+                if isinstance(name_val, str) and name_val:
+                    return name_val
+            except Exception as exc:  # pragma: no cover — defensive
+                _log.warning("PyO3 signal_type_name_from_id failed: %s", exc)
+
+    # 2. ctypes cdylib path (forward-compat).
+    if _NATIVE_MODE == "ctypes" and _RUST_EXT_CDLL is not None:
+        fn = getattr(_RUST_EXT_CDLL, "trion_rust_signal_type_name_from_id", None)
+        if callable(fn):
+            try:
+                fn.argtypes = [ctypes.c_uint8, ctypes.c_char_p, ctypes.c_size_t]
+                fn.restype = ctypes.c_int32
+                buf = ctypes.create_string_buffer(64)
+                rc = fn(id_int, buf, 64)
+                if rc == 0:
+                    name = buf.value.decode("utf-8", errors="ignore")
+                    if name:
+                        return name
+            except (AttributeError, OSError, ctypes.ArgumentError) as exc:
+                _log.debug("ctypes signal_type_name_from_id not available: %s", exc)
+
+    # 3. Python fallback (canonical source of truth).
+    table = _ensure_signal_type_cache()
+    if 0 <= id_int < len(table):
+        return table[id_int]
+    return None
+
+
 # Initialize on import
 _find_rust_ext()
