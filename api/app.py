@@ -1097,6 +1097,17 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     # SILENCE/COLD_START signal and return immediately.  Never compute or
     # publish a coherence score when no observed behavioral sediment exists.
     if planes.get("_cold_start"):
+        # Gap #1: attach real L1.2 manipulation fingerprint to COLD_START signals.
+        try:
+            _mf_data, _ = _live_manipulation_fingerprint(entity_id)
+        except Exception:
+            _mf_data = {"mf_score": 0.0, "alert": "CLEAN", "fingerprints": {}}
+        # Gap #9: attach INIT_valid state.
+        try:
+            from core.governance.initialization import get_init_state
+            _init_valid_val = get_init_state().init_valid
+        except Exception:
+            _init_valid_val = False
         return {
             "entity_id":        entity_id,
             "signal_type":      "SILENCE",
@@ -1119,6 +1130,9 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
                 "TRION requires observed on-chain activity indexed in FAISS "
                 "before publishing a coherence score for this entity."
             ),
+            "manipulation_fingerprint": _mf_data,
+            "init_valid":                _init_valid_val,
+            "silence_reason":            "COLD_START: insufficient behavioral sediment indexed in FAISS for this entity.",
         }
 
     mf     = _mf_score(entity_id)
@@ -3427,6 +3441,7 @@ def falsifiability_alias():
 
 
 @app.route("/api/v1/governance/init")
+@app.route("/api/v1/governance/init_state")
 def governance_init():
     """
     Governance module initialization status — all governance components.
@@ -4252,7 +4267,7 @@ def resurrection(entity_id: str):
 @app.route("/api/v1/fork/<asset_id>")
 def fork_resolution_legacy(asset_id: str):
     """L2.6 Fork Resolution — CC_A/CC_B continuity coefficients + history inheritance weights."""
-    from core.protocol.protocol_health import (
+    from core.akashic.fork_resolution import (
         ForkProfile, ForkResolutionResult, PreForkHolder,
         compute_fork_resolution, compute_fork_confidence,
     )
@@ -4313,7 +4328,7 @@ def fork_resolution_legacy(asset_id: str):
 @require_entity_id()
 def trajectory_anomaly_legacy(entity_id: str):
     """L2.7 Trajectory Anomaly — KL(P_actual || P_expected) with MANIPULATION_ALERT."""
-    from core.akashic.genesis import (
+    from core.akashic.trajectory_anomaly import (
         TrajectoryDistribution, compute_trajectory_anomaly, build_trajectory_signal,
     )
     h = hashlib.sha256(entity_id.encode()).digest()
