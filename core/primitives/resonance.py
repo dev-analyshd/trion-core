@@ -229,7 +229,8 @@ def compute_channel_resonance(
     resonance_score = dot / denom if denom > 0 else 0.0
     phase_alignment = 1.0 - (phase_sum / (len(shared) * 2 * 3.14159)) if shared else 0.0
     phase_alignment = max(0.0, min(1.0, phase_alignment))
-# Spec-faithful existential quantification (whitepaper L0.3):
+
+    # Spec-faithful existential quantification (whitepaper L0.3):
     #     Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
     # The `shared` list contains every event-type f for which BOTH A and B
     # carry a non-zero resonance frequency entry (compute_resonance_frequencies
@@ -241,8 +242,6 @@ def compute_channel_resonance(
     # R(X,Y) score obscured the spec-faithful semantics. We now assert it
     # directly.
     communicates = bool(shared)
-
-
 
     return ResonanceResult(
         entity_a           = entity_a,

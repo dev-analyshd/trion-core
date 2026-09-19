@@ -1068,6 +1068,120 @@ def _mf_score(eid: str) -> float:
     return _live_manipulation_fingerprint(eid)["mf_score"]
 
 
+# ── L9 moat-input resolver (gap #6) ────────────────────────────────────────────
+# Sources the spec-mandated moat factor inputs from the real registries:
+#   Q — prediction_accuracy:  FAISS /api/v1/historical_accuracy/<eid>
+#                              (None when FAISS is unreachable)
+#   R — regulatory_score:    SBA tier map (None during bootstrap)
+#   X — chain_count:         config/chain_registry.json total chains
+#   F — challenge_count:     FALSIFIABILITY_CONDITIONS total (Part 13 = 15)
+#   N — protocols_count + tvl_usd:  registry INTEGRATED_CHAINS + summed TVL
+#
+# Each field may legitimately be None — MoatInput's documented fallback
+# behavior kicks in (K-plane proxy, M_adj reflexivity proxy, depth proxy,
+# F_REGISTRY_BASELINE, time-based saturation) so the moat is always
+# computable, just less spec-faithful during bootstrap.
+_MOAT_INPUTS_CACHE: dict = {}
+_MOAT_INPUTS_CACHE_TTL = 60.0  # seconds
+
+
+def _resolve_moat_inputs(entity_id: str, planes: dict, depth_val: float) -> dict:
+    """Resolve the 6 spec-mandated moat factor inputs.
+
+    Returns a dict with the same keys MoatInput accepts. Each value is either
+    the spec-faithful real input (preferred) or None (so the engine falls
+    back to its documented bootstrap proxy). Cached for 60s to absorb the
+    bursty call pattern of multi-endpoint consumers.
+    """
+    cache_key = f"{entity_id}:{int(depth_val)}"
+    now = time.time()
+    cached = _MOAT_INPUTS_CACHE.get(cache_key)
+    if cached and (now - cached[0]) < _MOAT_INPUTS_CACHE_TTL:
+        return cached[1]
+
+    result: dict = {
+        "prediction_accuracy": None,
+        "regulatory_score":    None,
+        "chain_count":         None,
+        "challenge_count":     None,
+        "protocols_count":     None,
+        "tvl_usd":             None,
+    }
+
+    # ── Q — prediction_accuracy (corr(predicted, actual) over rolling HA window)
+    # The anima-service exposes the rolling 90-day accuracy correlation via
+    # /api/v1/historical_accuracy/<eid>. When the endpoint is unavailable or
+    # returns no data (cold-start), Q falls back to the conscious-plane
+    # score K (with a +0.15 bootstrap offset) — the documented behaviour.
+    try:
+        with faiss_urlopen(
+            f"{_FAISS_BASE}/api/v1/historical_accuracy/{entity_id}", timeout=2
+        ) as r:
+            _acc = json.loads(r.read())
+        if isinstance(_acc, dict):
+            acc_val = _acc.get("accuracy") or _acc.get("prediction_accuracy")
+            if acc_val is not None:
+                result["prediction_accuracy"] = float(acc_val)
+    except Exception:
+        pass
+
+    # ── R — regulatory_score (SBA tier map — proxy for regulatory clarity)
+    # The /api/v1/sba/<jur> endpoint computes the Sovereign Behavioral
+    # Anchoring tier per jurisdiction. We do not block on jurisdiction
+    # resolution here; instead we leave R as None when SBA is unreachable
+    # so the engine falls back to the M_adj reflexivity proxy. (When SBA
+    # is live, the per-jurisdiction R lookup happens in the SBA route
+    # itself; this function deliberately stays at the protocol-level.)
+    # Audit-fix #6 surface: callers that supply R via build_signal get the
+    # spec-faithful factor — see core/master/signal_factory.py.
+    result["regulatory_score"] = None
+
+    # ── X — chain_count (canonical chain registry total chains)
+    try:
+        counts = _registry_chain_counts()
+        # chains_indexed is the total chain count across all VM families
+        # registered in config/chain_registry.json (the single source of
+        # truth per gap #1 / #2 audit fix).
+        n_chains = int(counts.get("chains_indexed", 0) or 0)
+        if n_chains > 0:
+            result["chain_count"] = n_chains
+    except Exception:
+        pass
+
+    # ── F — challenge_count (Falsifiability registry total — Part 13)
+    try:
+        from core.governance.falsifiability_registry import (
+            FALSIFIABILITY_CONDITIONS,
+        )
+        n_challenges = len(FALSIFIABILITY_CONDITIONS)
+        if n_challenges > 0:
+            result["challenge_count"] = n_challenges
+    except Exception:
+        pass
+
+    # ── N — protocols_count + tvl_usd (network-effect proxy)
+    # protocols_count = INTEGRATED_CHAINS (registry-deployed oracle contracts).
+    # tvl_usd = 0.0 during bootstrap (no real TVL oracle wired); the engine
+    # falls back to the time-based N saturation curve when TVL is 0/None.
+    try:
+        from api.chains_registry import INTEGRATED_CHAINS, TOTAL_CHAINS, VM_FAMILIES
+        result["protocols_count"] = int(INTEGRATED_CHAINS)
+        # Surface the protocol-level coverage even when TVL is unknown so
+        # the audit trail can attribute the moat's N factor to either the
+        # protocols×TVL path (when both > 0) or the time-based saturation
+        # fallback (when either is 0/None).
+        if result["protocols_count"] and result["protocols_count"] > 0:
+            # Bootstrap TVL disclosure: 0.0 until the TVL oracle is wired.
+            # MoatEngine._factor_N correctly falls back to (1 - e^(-t/τ))
+            # when tvl_usd <= 0 (see core/master/moat.py).
+            result["tvl_usd"] = 0.0
+    except Exception:
+        pass
+
+    _MOAT_INPUTS_CACHE[cache_key] = (now, result)
+    return result
+
+
 def _market_volatility() -> float:
     t = time.time()
     base = 0.25 + 0.20 * abs(math.sin(t / 3600))
@@ -1195,6 +1309,18 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     depth_val = round(planes.get("akashic_depth", 0.0), 2)
 
     # ── L5.2 C(t) via CoherenceEngine ─────────────────────────────────────────
+    # Gap #6 — wire real moat inputs (D/Q/R/X/F/N) into the MoatInput that
+    # CoherenceEngine constructs internally. Previously the engine only got
+    # akashic_depth + k_plane + m_adj + moat_time, so every moat factor fell
+    # back to its bootstrap proxy. Now we source the spec-mandated fields:
+    #   D = depth_val (already wired through akashic_depth)
+    #   Q = prediction_accuracy — FAISS /api/v1/historical_accuracy/<eid>
+    #       when available (None → K-plane proxy, the documented fallback)
+    #   R = regulatory_score — SBA tier map (None → M_adj reflexivity proxy)
+    #   X = chain_count — config/chain_registry.json (canonical VM family count)
+    #   F = challenge_count — FALSIFIABILITY_CONDITIONS total (15 baseline)
+    #   N = protocols_count + tvl_usd — INTEGRATED_CHAINS + registry TVL
+    moat_inputs = _resolve_moat_inputs(entity_id, planes, depth_val)
     engine    = CoherenceEngine()
     coh_input = CoherenceInput(
         phi_adj      = phi_adjusted,
@@ -1205,6 +1331,12 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
         volatility   = vol,
         akashic_depth= depth_val,
         moat_time    = now,
+        prediction_accuracy = moat_inputs.get("prediction_accuracy"),
+        regulatory_score    = moat_inputs.get("regulatory_score"),
+        chain_count         = moat_inputs.get("chain_count"),
+        challenge_count     = moat_inputs.get("challenge_count"),
+        protocols_count     = moat_inputs.get("protocols_count"),
+        tvl_usd             = moat_inputs.get("tvl_usd"),
     )
     coh = engine.compute_coherence(coh_input)
 
@@ -1596,26 +1728,68 @@ def signal(entity_id: str):
 @app.route("/api/v1/publish/<entity_id>", methods=["POST", "GET"])
 def publish_signal(entity_id: str):
     """
-    Publish behavioral truth on-chain via TRIONSensingOracle.publishBehavioralTruth().
-    Returns real tx_hash + Arbiscan link. Takes 2-8s for chain confirmation.
+    Publish behavioral signal on-chain via TRIONOracleV3.publishSignalWithType().
+
+    L8.2 hard gate (INIT_valid): if INIT_valid=False, VALUATION signals are
+    REJECTED with HTTP 403 — only BOOTSTRAP/SILENCE/GENESIS signals may be
+    emitted during the bootstrap phase. The contract still gets the typed
+    write when the signal is allowed, so the canonical 24-member signal
+    taxonomy carries through to consumers.
+
+    Returns the chain receipt (tx_hash, block_number, status, gas_used,
+    signal_type, signal_type_id) plus the full computed signal payload.
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
     data = _compute_signal(entity_id)
 
+    # ── L8.2 hard gate — INIT_valid signal-emission gate (gap #4 fix) ──────────
+    # is_signal_type_allowed() returns False for VALUATION (and every other
+    # non-bootstrap type) while INIT_valid=False. The spec §14.1 guarantee is
+    # "TRION does not emit signals before INIT_valid = TRUE. No exceptions."
+    # Pre-fix this gate existed in code but was never wired into the
+    # publication boundary — now it is a hard reject at /api/v1/publish.
+    from core.governance.initialization import (
+        is_signal_type_allowed, get_init_state,
+    )
+    requested_signal_type = data.get("signal_type", "VALUATION")
+    init_state = get_init_state()
+    init_valid = bool(init_state.init_valid)
+    if not is_signal_type_allowed(requested_signal_type):
+        return jsonify({
+            **data,
+            "init_valid":          init_valid,
+            "coherent":            False,
+            "silence":             True,
+            "signal_type":         requested_signal_type,
+            "chain": {
+                "published":       False,
+                "error":           "init_valid_gate_rejected",
+                "reason": (
+                    f"INIT_valid=False — emission of {requested_signal_type} "
+                    f"signals is forbidden before the initialization ceremony "
+                    f"completes (spec §14.1). Allowed types during bootstrap: "
+                    f"BOOTSTRAP, SILENCE. Missing conditions: "
+                    f"{', '.join(init_state.missing_conditions()) or 'none'}"
+                ),
+                "method":          "INIT_valid hard gate",
+            },
+        }), 403
+
     # AWA emission gate (MD §17 — "silence is information"): while the
     # Anti-Weaponization Architecture has frozen emission, truth publication
     # fails closed. SILENCE signals remain publishable by design.
     from core.governance.awa import assert_emission_allowed, EmissionFrozenError
     try:
-        assert_emission_allowed("VALUATION")
+        assert_emission_allowed(requested_signal_type)
     except EmissionFrozenError as exc:
         return jsonify({
             **data,
-            "coherent": False,
-            "silence": True,
-            "reason": f"emission frozen: {exc}",
+            "init_valid":          init_valid,
+            "coherent":            False,
+            "silence":             True,
+            "reason":              f"emission frozen: {exc}",
             "chain": {"published": False, "error": "awa_emission_frozen"},
         }), 503
 
@@ -1623,15 +1797,30 @@ def publish_signal(entity_id: str):
     if relay is None or not relay.ready:
         return jsonify({
             **data,
+            "init_valid":          init_valid,
             "chain": {"published": False, "error": "chain relay not configured"}
         })
 
-    chain_result = relay.publish_signal(
+    # ── V3 typed-emission path (gap #5 fix) ───────────────────────────────────
+    # Legacy path called publishBehavioralTruth (6-arg); the canonical V3
+    # contract function publishSignalWithType(BehavioralSignal, uint8) records
+    # both the full plane breakdown AND the 24-member signal-type byte in a
+    # single transaction.
+    plane_breakdown = data.get("plane_breakdown", {}) or {}
+    moat_components  = (data.get("moat_components") or {})
+    chain_result = relay.publish_signal_with_type(
         entity_id        = entity_id,
-        score            = data["coherence_score"],
-        threshold        = data["threshold"],
-        coherent         = data["coherent"],
-        limiting_plane   = data["limiting_plane"],
+        signal_type      = requested_signal_type,
+        coherence_score  = float(data.get("coherence_score", 0.0) or 0.0),
+        threshold        = float(data.get("threshold", 0.0) or 0.0),
+        moat_factor      = float(data.get("moat_factor", 0.0) or 0.0),
+        coherent         = bool(data.get("coherent", False)),
+        limiting_plane   = data.get("limiting_plane", "Physical"),
+        phi_plane        = float(plane_breakdown.get("physical",  0.0) or 0.0),
+        mental_plane     = float(plane_breakdown.get("mental",    0.0) or 0.0),
+        sigma_plane      = float(plane_breakdown.get("spiritual", 0.0) or 0.0),
+        conscious_plane  = float(plane_breakdown.get("conscious",  0.0) or 0.0),
+        anima_plane      = float(plane_breakdown.get("anima",     0.0) or 0.0),
     )
 
     if chain_result.get("published"):
@@ -1646,12 +1835,15 @@ def publish_signal(entity_id: str):
             "timestamp":       data["timestamp"],
             "tx_hash":         chain_result.get("tx_hash", ""),
             "arbiscan_url":    chain_result.get("arbiscan_url", ""),
+            "signal_type":     chain_result.get("signal_type", requested_signal_type),
+            "signal_type_id":  chain_result.get("signal_type_id"),
             "on_chain":        True,
         })
 
     return jsonify({
         **data,
-        "chain": chain_result,
+        "init_valid": init_valid,
+        "chain":      chain_result,
     })
 
 
@@ -7860,8 +8052,8 @@ def specification_coverage():
     formulas = [
         # L0 — Foundation
         {"id":"L0.1","name":"Behavioral Hash BH(entity,t)","formula":"sense=SHA3(payload‖0x00); antisense=SHA3(payload‖0xFF)⊕¬sense","status":"LIVE","synthetic_reason":"POST computes real BHs from submitted events and /api/v1/bh/ledger serves indexer-produced per-tx BHs; the GET /api/v1/bh/<entity_id> demo path uses hash-seeded event inputs and carries is_synthetic=true.","endpoints":["/api/v1/bh/<entity_id>","/api/v1/bh POST","/api/v1/bh/ledger/<id>"],"specification":"L0.1"},
-        {"id":"L0.2","name":"BEO Entity Resolution","formula":"BEO_score=w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"specification":"L0.2"},
-        {"id":"L0.3","name":"Resonance R(A,B)","formula":"R(A,B)=|corr(Φ_A,Φ_B)|·TC_A·TC_B","status":"SYNTHETIC-DEMO","synthetic_reason":"Φ/TC/correlation hash-derived from entity ids.","endpoints":["/api/v1/resonance/<a>/<b>"],"specification":"L0.3"},
+        {"id":"L0.2","name":"BEO Entity Resolution","formula":"BEO_confidence=(w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP)/Σw","status":"LIVE","endpoints":["/api/v1/beo","/api/v1/signal/<id>"],"specification":"L0.2"},
+        {"id":"L0.3","name":"Resonance Comm(A,B)","formula":"Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0  (canonical); R(X,Y)=cosine (supplementary)","status":"SYNTHETIC-DEMO","synthetic_reason":"event-count spectra hash-derived from entity ids; canonical predicate asserted directly.","endpoints":["/api/v1/resonance/<a>/<b>"],"specification":"L0.3"},
         {"id":"L0.4","name":"Information Conservation dI/dt≥0","formula":"I_TRION=BH_gen+A_abs-S_emit-E_lost","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/information/conservation"],"specification":"L0.4"},
         {"id":"L0.5","name":"M_moat(t)=D·Q·R·X·F·N","formula":"M_moat=D_data·Q_quality·R_reflex·X_cross·F_fals·N_network","status":"SYNTHETIC-DEMO","synthetic_reason":"/api/v1/moat returns time-modulated demo values (the signal pipeline's moat_factor is engine-computed).","endpoints":["/api/v1/moat","/api/v1/signal/<id>"],"specification":"L0.5"},
         {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love","formula":"F=PA·ICE·AS·Love (4-factor; N_moat optional ×=1.0)","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"specification":"L0.6"},
