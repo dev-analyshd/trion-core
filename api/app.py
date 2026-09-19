@@ -4994,34 +4994,100 @@ def beo_resolve():
 # ── L0.3 Resonance Communication Condition ────────────────────────────────────
 @app.route("/api/v1/resonance/<entity_a>/<entity_b>")
 def resonance(entity_a: str, entity_b: str):
-    """L0.3 Resonance Communication Condition — R(A,B) = corr(Φ_A, Φ_B) · TC_A · TC_B."""
+    """
+    L0.3 Resonance Communication Condition.
+
+    Whitepaper L0.3 canonical communication semantics (spec-faithful):
+        Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
+
+    The endpoint routes through `core/primitives/resonance.py::compute_channel_resonance()`,
+    which builds each entity's resonance-frequency spectrum (one RF entry per
+    event type with non-zero activity) and asserts the existential predicate
+    directly. The supplementary cosine-similarity score R(X,Y) is also
+    returned for callers that need a graded resonance magnitude.
+
+    When the caller supplies no on-chain event history (the typical case for a
+    hash-only demo call), deterministic synthetic event counts are derived
+    from sha256(entity_id) so the existential predicate is exercised against
+    a non-trivial frequency spectrum (3-5 event types per entity).
+    """
+    from core.primitives.resonance import (
+        UniversalEventType,
+        compute_resonance_frequencies,
+        compute_channel_resonance,
+        EVENT_WEIGHTS,
+    )
+
     ha = hashlib.sha256(entity_a.encode()).digest()
     hb = hashlib.sha256(entity_b.encode()).digest()
-    phi_a  = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
-    phi_b  = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
-    tc_a   = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
-    tc_b   = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
-    hab    = hashlib.sha256((entity_a + entity_b).encode()).digest()
-    corr   = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
-    r_ab   = round(abs(corr) * tc_a * tc_b, 6)
-    in_resonance = r_ab >= 0.50
+
+    # Build deterministic synthetic event-count spectra. We pick 3-5 of the
+    # 20 universal event types per entity and seed their counts from the
+    # sha256 digest so the same entity always yields the same spectrum.
+    all_types = list(UniversalEventType)
+    n_a = 3 + (ha[0] % 3)  # 3..5
+    n_b = 3 + (hb[0] % 3)
+
+    events_a: dict = {}
+    for i in range(n_a):
+        et = all_types[(ha[1 + i] + ha[6 + i]) % len(all_types)]
+        cnt = 50 + (ha[(2 + i * 3) % 32] * 10 + ha[(3 + i * 3) % 32])
+        events_a[et] = events_a.get(et, 0) + cnt
+
+    events_b: dict = {}
+    for i in range(n_b):
+        et = all_types[(hb[1 + i] + hb[6 + i]) % len(all_types)]
+        cnt = 50 + (hb[(2 + i * 3) % 32] * 10 + hb[(3 + i * 3) % 32])
+        events_b[et] = events_b.get(et, 0) + cnt
+
+    rf_a = compute_resonance_frequencies(entity_a, events_a, observation_days=90.0)
+    rf_b = compute_resonance_frequencies(entity_b, events_b, observation_days=90.0)
+
+    result = compute_channel_resonance(rf_a, rf_b)
+
+    # Legacy hash-derived supplementary metric (kept for backward-compat with
+    # dashboard chart that reads R(A,B) directly). The canonical
+    # `comm_a_b` field below is the spec-faithful predicate.
+    phi_a = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
+    phi_b = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
+    tc_a  = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
+    tc_b  = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
+    hab   = hashlib.sha256((entity_a + entity_b).encode()).digest()
+    corr  = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
+    r_ab  = round(abs(corr) * tc_a * tc_b, 6)
+
     return jsonify({
-        "entity_a":     entity_a,
-        "entity_b":     entity_b,
-        "resonance":    r_ab,
-        "is_synthetic": True,
+        "entity_a":              entity_a,
+        "entity_b":              entity_b,
+        # Canonical spec-faithful predicate (whitepaper L0.3):
+        #   Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
+        "comm_a_b":              result.communicates,         # canonical predicate
+        "communicates":          result.communicates,         # alias
+        "shared_frequencies":    [et.name for et in result.shared_frequencies],
+        "shared_frequency_count": len(result.shared_frequencies),
+        "dominant_channel":      result.dominant_channel.name,
+        # Supplementary graded resonance score (cosine similarity, R(X,Y)):
+        "resonance_score":       round(result.resonance_score, 6),
+        "phase_alignment":       round(result.phase_alignment, 6),
+        # Legacy hash-derived R(A,B) metric (kept for backward-compat):
+        "resonance":             r_ab,
+        "in_resonance":          result.communicates,         # spec: Comm(A,B)
+        "correlation":           corr,
+        "phi_a":                 phi_a,
+        "phi_b":                 phi_b,
+        "tc_a":                  tc_a,
+        "tc_b":                  tc_b,
+        "is_synthetic":          True,
         "synthetic_reason": (
-            "Φ, TC and correlation values are hash-derived from the entity ids; not measured plane data."
+            "Event-count spectra are hash-derived from sha256(entity_id); "
+            "the canonical existential predicate Comm(A,B) and the supplementary "
+            "R(X,Y) cosine score are both computed against these synthetic "
+            "spectra. For full-fidelity resonance, supply real on-chain event "
+            "history through the ANIMA/FAISS service."
         ),
-        "in_resonance": in_resonance,
-        "correlation":  corr,
-        "phi_a":        phi_a,
-        "phi_b":        phi_b,
-        "tc_a":         tc_a,
-        "tc_b":         tc_b,
-        "formula":      "R(A,B) = |corr(Φ_A,Φ_B)| · TC_A · TC_B; in_resonance if R ≥ 0.50",
-        "specification":   "L0.3",
-        "timestamp":    int(time.time()),
+        "formula":               "Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0  (canonical L0.3); R(X,Y)=cosine (supplementary)",
+        "specification":         "L0.3",
+        "timestamp":             int(time.time()),
     })
 
 

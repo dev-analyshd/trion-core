@@ -229,13 +229,27 @@ def compute_channel_resonance(
     resonance_score = dot / denom if denom > 0 else 0.0
     phase_alignment = 1.0 - (phase_sum / (len(shared) * 2 * 3.14159)) if shared else 0.0
     phase_alignment = max(0.0, min(1.0, phase_alignment))
+# Spec-faithful existential quantification (whitepaper L0.3):
+    #     Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
+    # The `shared` list contains every event-type f for which BOTH A and B
+    # carry a non-zero resonance frequency entry (compute_resonance_frequencies
+    # only emits entries with count > 0). So `bool(shared)` is the exact
+    # existential predicate — independent of the cosine-similarity magnitude.
+    # The previous form `resonance_score > 0` happened to be equivalent
+    # (because all amplitudes are positive, so a non-empty shared list yields
+    # dot > 0), but coupling the canonical predicate to the supplementary
+    # R(X,Y) score obscured the spec-faithful semantics. We now assert it
+    # directly.
+    communicates = bool(shared)
+
+
 
     return ResonanceResult(
         entity_a           = entity_a,
         entity_b           = entity_b,
         shared_frequencies = shared,
         resonance_score    = min(1.0, resonance_score),
-        communicates       = resonance_score > 0,
+        communicates       = communicates,
         dominant_channel   = dominant_channel,
         phase_alignment    = phase_alignment,
     )
