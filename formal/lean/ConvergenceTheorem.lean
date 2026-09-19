@@ -3,8 +3,18 @@ TRION Protocol — L2.5 Convergence Theorem (Lean 4)
 ====================================================
 Whitepaper §2.5: lim_{D(t)→∞} E[|T(t) - V_true|] = H_irreducible
 
-This module contains a REAL Lean 4 proof of the convergence theorem
-using Mathlib's squeeze theorem. No sorry, no admit.
+HONEST DISCLOSURE: This module contains a partial Lean 4 formalization
+of the L2.5 convergence theorem. Three sub-goals in the inner squeeze
+step still contain `sorry` placeholders (see the `L25_convergence_theorem`
+proof below, marked `sorry -- AUDIT GAP`). The high-level proof sketch —
+T(D) = H_irr + (1 - H_irr) · exp(-λ·D) → H_irr via the squeeze theorem —
+is mathematically correct, but discharging the inner inequality
+`exp(-λ·D) < ε/(1 - H_irr)` for arbitrary `H_irr ∈ (0, 1)` requires a
+more elaborate case split than the current tactic chain provides. The
+file builds under `lean --version` because `sorry` is accepted by Lean
+as an axiom placeholder, NOT because the proof is complete. Downstream
+consumers MUST NOT treat this theorem as fully machine-verified until
+the sorries are discharged.
 
 Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
 License: CC0
@@ -75,9 +85,9 @@ theorem L25_convergence_theorem (λ : ℝ) (hλ : 0 < λ) :
         rw [← Real.log_exp h_ratio]
         have h_mono : Real.exp (-λ * D) < ε / (1 - H_irr) := by
           apply Real.lt_exp_log h_ratio
-        sorry
-      sorry
-    sorry
+        sorry -- AUDIT GAP: discharge inner Real.lt_exp_log case split
+      sorry -- AUDIT GAP: close the -λ*D < log(ε/(1-H_irr)) inequality
+    sorry -- AUDIT GAP: close the Real.exp (-λ*D) < ε/(1-H_irr) goal
   -- Extract D₀ and prove the bound
   obtain ⟨D₀, hD₀⟩ := h_bound
   use D₀
