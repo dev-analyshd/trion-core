@@ -3495,23 +3495,34 @@ def sba_signal(nation_id: str):
     def _seed(offset: int, low: float = 0.3, high: float = 0.9) -> float:
         return round(low + (high - low) * (h[offset % len(h)] / 255.0), 4)
 
-    gdp_stated   = [_seed(i, 0.01, 0.05) for i in range(5)]
-    gdp_onchain  = [g * (0.90 + 0.20 * (h[i + 5] / 255.0)) for i, g in enumerate(gdp_stated)]
-    policy_align = [_seed(i + 10, 0.5, 0.95) for i in range(5)]
-    signal_acc   = [_seed(i + 15, 0.55, 0.90) for i in range(4)]
+    # ── Map the synthetic hash-derived nation profile onto the canonical
+    # sba_from_raw_data signature.  Audit Fix #6: the previous call passed
+    # mismatched kwargs (gdp_stated, signal_accuracy, geopolitical_entropy,
+    # stablecoin_flow_bias, …) that do not exist on sba_from_raw_data,
+    # producing a TypeError and a 500 on every /api/v1/sba/<nation_id> hit.
+    cross_border_capital_flow = [_seed(i, 0.01, 0.05) for i in range(5)]   # E axis
+    gov_wallet_consistency_90d = [_seed(i + 5, 0.55, 0.95) for i in range(5)]  # G axis
+    policy_alignment_scores   = [_seed(i + 10, 0.50, 0.95) for i in range(5)]  # I axis
+    trade_balance_trend        = round(-0.20 + 0.60 * (h[15] / 255.0), 4)  # ∈ [-0.20, +0.40]
+    stablecoin_adoption        = _seed(16, 0.25, 0.80)                     # E axis
+    nl_domestic_defi           = _seed(17, 0.30, 0.80)                     # S axis
+    ep_domestic_protocols      = _seed(18, 0.20, 0.75)                     # S axis
+    citizen_wallet_activity    = _seed(19, 0.30, 0.80)                     # S axis
+    foreign_capital_inflow     = round(0.5e6 + 4.5e6 * (h[20] / 255.0), 2)  # C axis
+    foreign_capital_outflow    = round(0.4e6 + 3.0e6 * (h[21] / 255.0), 2)  # C axis
 
     result = sba_from_raw_data(
-        nation_id               = nation_id,
-        gdp_stated              = gdp_stated,
-        gdp_onchain             = gdp_onchain,
-        policy_alignment_scores = policy_align,
-        signal_accuracy         = signal_acc,
-        cross_border_consistency = _seed(20, 0.4, 0.85),
-        alliance_alignment       = _seed(21, 0.4, 0.85),
-        geopolitical_entropy     = _seed(22, 0.1, 0.50),
-        monetary_policy_rate     = _seed(23, 0.3, 0.80),
-        stablecoin_flow_bias     = _seed(24, 0.3, 0.80),
-        fx_alignment             = _seed(25, 0.4, 0.85),
+        nation_id                  = nation_id,
+        cross_border_capital_flow  = cross_border_capital_flow,
+        trade_balance_trend        = trade_balance_trend,
+        stablecoin_adoption         = stablecoin_adoption,
+        policy_alignment_scores    = policy_alignment_scores,
+        nl_domestic_defi           = nl_domestic_defi,
+        ep_domestic_protocols      = ep_domestic_protocols,
+        citizen_wallet_activity    = citizen_wallet_activity,
+        gov_wallet_consistency_90d = gov_wallet_consistency_90d,
+        foreign_capital_inflow     = foreign_capital_inflow,
+        foreign_capital_outflow    = foreign_capital_outflow,
     )
     result["is_synthetic"] = True
     result["synthetic_reason"] = ("SBA formula engine is real; inputs (GDP, policy alignment, "
