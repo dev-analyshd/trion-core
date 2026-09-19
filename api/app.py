@@ -4328,10 +4328,16 @@ def fork_resolution_legacy(asset_id: str):
         "history_weight_b":      round(result.history_weight_b, 6),
         "dominant_chain":        result.dominant_chain,
         "contested":             result.contested,
+        "divergence_flag":       result.divergence_flag,
+        "confidence_discount_a": round(result.confidence_discount_a, 6),
+        "confidence_discount_b": round(result.confidence_discount_b, 6),
+        "dominance_threshold":   0.60,
         "holder_count_pre_fork": result.holder_count_pre_fork,
         "is_synthetic": True,
         "synthetic_reason": (
-            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event."
+            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event. "
+            "History inheritance uses the asymmetric rule (whitepaper L2.6): the dominant fork "
+            "(CC > 0.60) receives FULL D_inherited; the weaker fork receives D_inherited × (1 - CC_dominant)."
         ),
         "holders_retained_a":    result.holders_retained_a,
         "holders_retained_b":    result.holders_retained_b,
@@ -4339,7 +4345,14 @@ def fork_resolution_legacy(asset_id: str):
         "conf_chain_a":          round(conf_a, 6),
         "conf_chain_b":          round(conf_b, 6),
         "warning":               result.warning,
-        "formula":               "CC_X = retained_X / n_pre_fork; w_X = CC_X / (CC_A + CC_B); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
+        "formula": (
+            "Asymmetric L2.6 (via core/akashic/fork_resolution.py): "
+            "CC_X = retained_X / n_valid_holders; "
+            "if CC_dominant > 0.60 → w_dominant=1.0 (FULL D_inherited), "
+            "w_other=(1−CC_dominant) [confidence-discounted]; "
+            "else (CC_A≈CC_B) → w_A=w_B=0.5, divergence_flag=TRUE. "
+            "conf(t) = conf_genesis·(1-e^(-λ·D(t)))"
+        ),
         "specification":            "L2.6",
         "timestamp":             int(time.time()),
     })
@@ -8190,11 +8203,17 @@ def fork_resolution(entity_id: str):
     CC_A = proportion of pre-fork holders still holding fork A
     CC_B = proportion of pre-fork holders still holding fork B
 
-    Fork inheritance weights based on community continuity:
-    D_A(t) = D_pre · CC_A / (CC_A + CC_B)
-    D_B(t) = D_pre · CC_B / (CC_A + CC_B)
+    Asymmetric inheritance rule (whitepaper L2.6 spec):
+        - If CC_A > DOMINANCE_THRESHOLD (0.60) and CC_A > CC_B:
+            D_A = D_pre          (FULL D_inherited — dominant fork)
+            D_B = D_pre × (1 - CC_A)   (confidence-discounted share)
+        - If CC_B > DOMINANCE_THRESHOLD (0.60) and CC_B > CC_A:
+            D_B = D_pre          (FULL D_inherited — dominant fork)
+            D_A = D_pre × (1 - CC_B)   (confidence-discounted share)
+        - Else (CC_A ≈ CC_B, neither dominant):
+            D_A = D_pre × 0.5    D_B = D_pre × 0.5
+            divergence_flag = TRUE  (disputed history inheritance)
 
-    Edge case: if CC_A ≈ CC_B → both get D_inherited × 0.5 with divergence_flag=TRUE
     FORK_DIVERGENCE signal emitted on both branches immediately.
     """
     if not entity_id or len(entity_id) < 4:
@@ -8213,26 +8232,46 @@ def fork_resolution(entity_id: str):
     cc_b = round(1.0 - cc_a + rng.gauss(0, 0.05), 4)
     cc_b = max(0.10, min(0.90, cc_b))
 
-    cc_total = cc_a + cc_b
-    cc_a_norm = cc_a / cc_total
-    cc_b_norm = cc_b / cc_total
+    # Whitepaper L2.6 spec — DOMINANCE_THRESHOLD per core/akashic/fork_resolution.py
+    DOMINANCE_THRESHOLD = 0.60
 
-    # Divergence flag: |CC_A - CC_B| < 0.10
-    EPSILON_CC       = 0.10
-    divergence_flag  = abs(cc_a - cc_b) < EPSILON_CC
+    # Asymmetric inheritance rule (whitepaper L2.6):
+    #   * If exactly one fork's CC exceeds DOMINANCE_THRESHOLD, that fork is
+    #     DOMINANT and inherits FULL pre-fork history (D = D_pre). The weaker
+    #     fork receives D_pre × (1 - CC_dominant) with a confidence discount.
+    #   * If NEITHER fork is dominant (CC_A ≈ CC_B, both below threshold, or
+    #     both above threshold with similar loyalty), history is split 50/50
+    #     and divergence_flag is raised (disputed inheritance).
+    a_dominant = (cc_a > DOMINANCE_THRESHOLD) and (cc_a > cc_b)
+    b_dominant = (cc_b > DOMINANCE_THRESHOLD) and (cc_b > cc_a)
 
-    if divergence_flag:
+    if a_dominant:
+        # Fork A dominant — receives FULL D_inherited.
+        d_a = round(depth_pre, 2)
+        d_b = round(depth_pre * max(0.0, 1.0 - cc_a), 2)
+        dominant = "A"
+        divergence_flag = False
+        confidence_discount_a = 0.0
+        confidence_discount_b = round(1.0 - cc_a, 6)
+    elif b_dominant:
+        # Fork B dominant — receives FULL D_inherited.
+        d_a = round(depth_pre * max(0.0, 1.0 - cc_b), 2)
+        d_b = round(depth_pre, 2)
+        dominant = "B"
+        divergence_flag = False
+        confidence_discount_a = round(1.0 - cc_b, 6)
+        confidence_discount_b = 0.0
+    else:
+        # Contested fork (CC_A ≈ CC_B) — equal split with divergence_flag.
         d_a = round(depth_pre * 0.50, 2)
         d_b = round(depth_pre * 0.50, 2)
-    else:
-        d_a = round(depth_pre * cc_a_norm, 2)
-        d_b = round(depth_pre * cc_b_norm, 2)
+        dominant = "CONTESTED"
+        divergence_flag = True
+        confidence_discount_a = 0.5
+        confidence_discount_b = 0.5
 
     # Fork KL divergence from entity's current state
     kl_div = round(rng.uniform(0.05, 0.85), 4)
-
-    # Classify dominant fork (> 60% community support)
-    dominant = "A" if (cc_a > 0.60) else ("B" if cc_b > 0.60 else "CONTESTED")
 
     entity_b = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40]
 
@@ -8247,12 +8286,18 @@ def fork_resolution(entity_id: str):
         "CC_B":            cc_b,
         "D_A":             d_a,
         "D_B":             d_b,
+        "history_weight_a": round(d_a / depth_pre, 6) if depth_pre > 0 else 0.0,
+        "history_weight_b": round(d_b / depth_pre, 6) if depth_pre > 0 else 0.0,
+        "confidence_discount_a": round(confidence_discount_a, 6),
+        "confidence_discount_b": round(confidence_discount_b, 6),
+        "dominance_threshold": DOMINANCE_THRESHOLD,
         "divergence_flag": divergence_flag,
         "dominant_fork":   dominant,
         "kl_divergence":   kl_div,
         "is_synthetic": True,
         "synthetic_reason": (
-            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
+            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event. "
+            "Asymmetric inheritance rule (whitepaper L2.6) is applied: the dominant fork receives FULL D_inherited."
         ),
         "signal": {
             "type":        "FORK_DIVERGENCE",
@@ -8262,8 +8307,12 @@ def fork_resolution(entity_id: str):
                                    "FOLLOW_B" if dominant == "B" else
                                    "AWAIT_RESOLUTION"),
         },
-        "formula": "D_A=D_pre·CC_A/(CC_A+CC_B); D_B=D_pre·CC_B/(CC_A+CC_B)",
-        "edge_case": "If |CC_A-CC_B|<ε: both inherit D_pre×0.5; divergence_flag=TRUE",
+        "formula": (
+            "Asymmetric L2.6: if CC_dominant > 0.60 → D_dominant=D_pre (FULL); "
+            "D_other=D_pre·(1−CC_dominant). Else (CC_A≈CC_B): D_A=D_B=D_pre×0.5, "
+            "divergence_flag=TRUE."
+        ),
+        "edge_case": "If neither fork exceeds DOMINANCE_THRESHOLD=0.60: both inherit D_pre×0.5; divergence_flag=TRUE",
         "specification": "L2.6",
         "timestamp":  int(time.time()),
     })
