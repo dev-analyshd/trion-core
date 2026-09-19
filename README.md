@@ -393,7 +393,7 @@ curl http://localhost:5000/api/v1/feed
 curl http://localhost:8001/api/v1/depth/TRION_PROTOCOL
 # Expected: depth value increasing over time
 
-# 6. VM coverage — should show 12 VM families + 34+ chains
+# 6. VM coverage — should show 18 VM families + 34+ chains
 curl http://localhost:8001/vm-status
 # Expected: {"vm_families":{"EVM":{...},"SVM":{...},...}}
 
