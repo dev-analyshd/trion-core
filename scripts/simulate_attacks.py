@@ -22,7 +22,7 @@ import argparse
 sys.path.insert(0, '.')
 
 ORACLE_BASE   = "http://127.0.0.1:5000"
-FAISS_BASE    = "http://127.0.0.1:8000"
+FAISS_BASE    = "http://127.0.0.1:8001"
 OUTPUT_CSV    = "trion_simulation_results.csv"
 
 ATTACKS = [

@@ -11,7 +11,7 @@ Environment=PYTHONPATH=/opt/trion:/opt/trion/pylibs
 # (FLASK_ENV removed: nothing reads it — serve.py runs the app directly, and
 # Flask itself dropped FLASK_ENV support in 2.3)
 Environment=PORT=5000
-Environment=FAISS_SERVICE_URL=http://127.0.0.1:8000
+Environment=FAISS_SERVICE_URL=http://127.0.0.1:8001
 # serve.py is a SINGLE process (no gunicorn workers), so the in-process BH
 # streamer gate is the correct mode for this unit (api/app.py default 0 is
 # for multi-worker images; the docker entrypoints run the standalone

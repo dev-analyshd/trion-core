@@ -178,7 +178,7 @@ fn pi_bh_batch(txs: &[Value], ops_per_tx: &[Vec<Value>], chain_id: u64, label: &
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(6_000u64);
     let mut horizon   = std::env::var("PI_HORIZON_URL").unwrap_or_else(|_| HORIZON_URLS[0].into());
     let mut rpc_idx = 0usize;  // RPC failover rotation index

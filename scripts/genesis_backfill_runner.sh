@@ -4,7 +4,7 @@
 # all chain logic lives in scripts/genesis_backfill_runner.py.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-export FAISS_SERVICE_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
+export FAISS_SERVICE_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8001}"
 
 # Wait for FAISS to be reachable before starting — prevents flooding logs with
 # connection errors on cold boot (matches pattern used by rust_indexers.sh).

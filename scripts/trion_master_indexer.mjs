@@ -24,7 +24,7 @@
  *   TRION_INDEXER_BIN_DIR   — directory of compiled indexer binaries
  *                             (default: indexers/target/release)
  *   FAISS_URL               — FAISS ANIMA ingest endpoint
- *                             (default: http://127.0.0.1:8000)
+ *                             (default: http://127.0.0.1:8001)
  *   TRION_FAMILIES          — comma-separated family filter
  *
  * Author: TRION Protocol — Originator: Hudu Yusuf (Analys)
@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BIN_DIR =
   process.env.TRION_INDEXER_BIN_DIR || join(ROOT, "indexers", "target", "release");
-const FAISS_URL = process.env.FAISS_SERVICE_URL || process.env.FAISS_URL || "http://127.0.0.1:8000";
+const FAISS_URL = process.env.FAISS_SERVICE_URL || process.env.FAISS_URL || "http://127.0.0.1:8001";
 
 // Canonical VM-family → indexer binary map (mirrors indexers/crates/*)
 const FAMILIES = {

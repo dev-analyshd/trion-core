@@ -4702,6 +4702,14 @@ def genesis_signal(asset_id: str):
     """Genesis inference for a new asset with no behavioral history."""
     data, code = _proxy_faiss(f"/api/v1/genesis/{asset_id}")
     if code == 200:
+        # Augment FAISS response with canonical L2.3 spec-label fields
+        # (FAISS computes the genesis value but doesn't include the boundary
+        # values or λ — add them here so every genesis response is spec-complete)
+        data.setdefault("specification", "L2.3")
+        data.setdefault("lambda", 0.001)
+        data.setdefault("boundary_0", 0.0)    # conf_genesis(0)  = 0   — archetype-only
+        data.setdefault("boundary_inf", 1.0)  # conf_genesis(∞)  = 1   — direct-data only
+        data.setdefault("formula", "conf_genesis(t) = 1 - e^(-λ · D_asset(t))")
         return jsonify(data), code
     h          = hashlib.sha256((asset_id + "genesis").encode()).digest()
     phi_seed   = round(0.30 + 0.40 * (h[0] / 255.0), 4)
@@ -4731,6 +4739,9 @@ def genesis_signal(asset_id: str):
         ),
         "conf_genesis":    c_genesis,
         "depth_used":      depth_val,
+        "lambda":          0.001,
+        "boundary_0":      0.0,   # conf_genesis(0)  = 0   — archetype-only
+        "boundary_inf":    1.0,   # conf_genesis(∞)  = 1   — direct-data only
         "confidence":      conf,
         "threshold":       theta,
         "coherent":        phi_seed >= theta,
@@ -6401,7 +6412,7 @@ def native_stack():
     interpreter for formal verification, so "wired" here means "executed
     successfully just now", not "source file exists".
     """
-    from adapters.evm import (
+    from core.native_bridge import (
         native_stack_report, run_formal_verification,
         run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest,
         compute_fft_features,

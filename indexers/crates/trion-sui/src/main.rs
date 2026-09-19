@@ -296,7 +296,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
     let faiss_url = std::env::var("FAISS_SERVICE_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+        .unwrap_or_else(|_| "http://127.0.0.1:8001".into());
     let poll_ms = std::env::var("POLL_MS").ok()
         .and_then(|s| s.parse().ok()).unwrap_or(5_000u64);
 

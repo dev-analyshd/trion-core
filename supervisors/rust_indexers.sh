@@ -4,13 +4,13 @@
 # Manages trion-evm (73 EVM chains incl testnets) and trion-svm (Solana).
 # All other VMs are handled by native_vm_indexers.sh and
 # extended_vm_indexers.sh (also Rust binaries).
-# Usage: FAISS_SERVICE_URL=http://127.0.0.1:8000 bash supervisors/rust_indexers.sh
+# Usage: FAISS_SERVICE_URL=http://127.0.0.1:8001 bash supervisors/rust_indexers.sh
 # ============================================================
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN_DIR="$ROOT/indexers/target/debug"
-FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
+FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8001}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
 

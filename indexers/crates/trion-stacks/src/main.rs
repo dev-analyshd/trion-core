@@ -60,9 +60,9 @@ async fn main() -> Result<()> {
     info!("TRION Stacks indexer starting — {} (chain_id={}, api={})", cfg.label, cfg.chain_id, cfg.api);
 
     let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?;
-    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".to_string());
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".to_string());
     let faiss = FaissClient::new(&faiss_url)?;
-    let mut state = IndexerState::new(&format!("/tmp/trion-stacks-{}.state", cfg.chain_id));
+    let mut state = IndexerState::new(&format!("stacks_{}", cfg.chain_id));
     let mut current_block = state.last_block();
 
     loop {

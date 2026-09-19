@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 # ── CLI args ──────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="TRION stress test")
 parser.add_argument("--base",     default="http://127.0.0.1:5000")
-parser.add_argument("--faiss",    default="http://127.0.0.1:8000")
+parser.add_argument("--faiss",    default="http://127.0.0.1:8001")
 parser.add_argument("--workers",  type=int, default=20)
 parser.add_argument("--requests", type=int, default=200)
 parser.add_argument("--timeout",  type=int, default=8)

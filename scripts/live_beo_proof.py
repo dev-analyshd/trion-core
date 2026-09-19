@@ -50,7 +50,7 @@ RST= "\033[0m"
 BOLD="\033[1m"
 
 ORACLE_URL = "http://127.0.0.1:5000"
-FAISS_URL  = "http://127.0.0.1:8000"
+FAISS_URL  = "http://127.0.0.1:8001"
 
 # ── Proof entity ─────────────────────────────────────────────────────────────
 ENTITY_LABEL = "TRION_CROSSCHAIN_PROOF_v1"

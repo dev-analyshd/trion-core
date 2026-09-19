@@ -44,7 +44,7 @@ M = "\033[95m"; W = "\033[1;97m"; DIM = "\033[2m"; RST = "\033[0m"
 BOLD = "\033[1m"
 
 ORACLE = "http://127.0.0.1:5000"
-FAISS  = "http://127.0.0.1:8000"
+FAISS  = "http://127.0.0.1:8001"
 
 PASS = f"{G}✓ PASS{RST}"
 FAIL = f"{R}✗ FAIL{RST}"

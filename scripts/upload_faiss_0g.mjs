@@ -33,7 +33,7 @@ const GATE_ABI = [
 
 async function fetchVectorCount() {
   try {
-    const res = await fetch("http://127.0.0.1:8000/health", { signal: AbortSignal.timeout(5000) });
+    const res = await fetch("http://127.0.0.1:8001/health", { signal: AbortSignal.timeout(5000) });
     const d = await res.json();
     return d.indexed_vectors || 10018;
   } catch { return 10018; }

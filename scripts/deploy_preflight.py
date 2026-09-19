@@ -30,7 +30,7 @@ REQUIRED_ENV = ("PORT",)              # Railway injects PORT — hard requiremen
 OPTIONAL_ENV_DEFAULTS = {
     "FAISS_PORT":         "8000",
     "FLASK_PORT":         "5000",
-    "FAISS_SERVICE_URL":  "http://127.0.0.1:8000",
+    "FAISS_SERVICE_URL":  "http://127.0.0.1:8001",
     "ORACLE_API_URL":     "http://127.0.0.1:5000",
     "FLASK_URL":          "http://127.0.0.1:5000",
     "BH_LEDGER_DB":       "/app/bh_ledger.db",

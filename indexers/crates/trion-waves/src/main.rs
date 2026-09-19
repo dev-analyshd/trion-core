@@ -240,7 +240,7 @@ fn waves_bh_batch(txs: &[Value], height: u64, block_hash: &str, ts: u64) -> TxBh
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(15_000u64);
     let mut base      = std::env::var("WAVES_RPC_URL").unwrap_or_else(|_| WAVES_URLS[0].into());
     let mut rpc_idx = 0usize;  // RPC failover rotation index

@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Production binaries live at /app/bin (set via RUST_BIN_DIR in Dockerfile.render).
 # In Replit dev mode RUST_BIN_DIR is unset, so fall back to the local debug build.
 BIN_DIR="${RUST_BIN_DIR:-$ROOT/indexers/target/debug}"
-FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8000}"
+FAISS_URL="${FAISS_SERVICE_URL:-http://127.0.0.1:8001}"
 LOG_DIR="/tmp/trion-rust-logs"
 mkdir -p "$LOG_DIR"
 

@@ -192,7 +192,7 @@ fn move_bh_batch(block: &Value, chain_id: u64, label: &str, height: u64, block_h
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".into());
     let poll_ms   = std::env::var("POLL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(4_000u64);
     let faiss     = FaissClient::new(&faiss_url)?;
     let state = IndexerState::new("movement_mainnet");

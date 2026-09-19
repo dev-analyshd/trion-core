@@ -863,7 +863,7 @@ async fn index_chain(chain: &EvmChain, faiss: &FaissClient, state: &mut IndexerS
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let faiss_url = std::env::var("FAISS_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8001".into());
     let poll_ms   = std::env::var("POLL_INTERVAL_MS").ok().and_then(|s| s.parse().ok()).unwrap_or(15_000u64);
 
     info!("TRION EVM Rust Indexer — {} chains (parallel), poll={}ms, faiss={}", CHAINS.len(), poll_ms, faiss_url);
