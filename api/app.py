@@ -211,16 +211,9 @@ _awa_timer_mod.Timer(0.1, _awa_startup_evaluate).start()
 
 @app.before_request
 def _rate_limit():
-    # Allow health probes, static files, and FEDERATION mesh calls through
-    # without counting against the rate limit. Federation endpoints
-    # (/api/v1/federation/*) are mesh-internal calls between validator
-    # Oracles — they run at high frequency (peer probes every 2s, cross-
-    # validator signal verification) and must NOT be throttled by the
-    # per-IP rate limiter, otherwise the mesh can't self-organize.
+    # Allow health probes and static files through without counting
     path = request.path
-    if path in ("/api/v1/health", "/healthz", "/readyz", "/favicon.ico") \
-       or path.startswith("/static/") \
-       or path.startswith("/api/v1/federation/"):
+    if path in ("/api/v1/health", "/favicon.ico") or path.startswith("/static/"):
         return None
 
     ip  = _get_client_ip()
@@ -282,14 +275,6 @@ _WRITE_PATHS = frozenset({
     "/api/v1/zg/compute/infer",  # runs submitted compute jobs
 })
 
-# Public POST endpoints that are read-only operations packaged as POST because
-# they accept a JSON body too large for a query string. These stay public even
-# when TRION_API_KEY is unset (entity resolution / validation do not mutate
-# state — they only compute scores from supplied input).
-_PUBLIC_POST_PATHS = frozenset({
-    "/api/v1/beo",               # L0.2 BEO entity resolution (read-only query)
-})
-
 def _is_write_path(path: str) -> bool:
     for p in _WRITE_PATHS:
         if p.endswith("/"):
@@ -326,10 +311,6 @@ def _require_api_key():
             return _writes_disabled_response()
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return None  # read-only traffic stays public without a key
-        # Read-only POSTs (entity resolution, validation queries) stay public
-        # — these endpoints accept a JSON body but do not mutate state.
-        if request.path in _PUBLIC_POST_PATHS:
-            return None
         if request.path in ("/api/v1/health",):
             return None
         return _writes_disabled_response()
@@ -338,12 +319,6 @@ def _require_api_key():
         pass  # write path: authenticated on EVERY method (P-API-02)
     elif request.method in ("GET", "HEAD", "OPTIONS"):
         return None  # read-only traffic is always public
-
-    # Read-only POSTs (entity resolution, validation queries) stay public even
-    # when an API key is configured — these endpoints accept a JSON body but
-    # do not mutate state, so they are treated like reads.
-    if request.path in _PUBLIC_POST_PATHS:
-        return None
 
     # Exempt the health probe even on non-GET (monitoring tools use POST health checks)
     if request.path in ("/api/v1/health",):
@@ -759,17 +734,6 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         ) as _r:
             anima_d = json.loads(_r.read())
         a_val = float(anima_d.get("anima_score", 0.5))
-        # Preserve the (pcr, ha, ca) component breakdown so the API layer can
-        # re-compute A(t) = PCR·HA·CA via the Rust bridge (Part 11 mandate:
-        # "Performance-critical paths compiled to Rust via PyO3 bindings").
-        # The FAISS service returns them under `components` (see
-        # anima-service/anima_engine.py::get_anima_score lines 1456-1460).
-        _comps = anima_d.get("components") or {}
-        anima_components = {
-            "pcr": float(_comps.get("pcr", 0.0)),
-            "ha":  float(_comps.get("ha",  0.0)),
-            "ca":  float(_comps.get("ca",  0.0)),
-        } if _comps else None
 
         # ── Depth (physical proxy) ─────────────────────────────────────────
         with faiss_urlopen(
@@ -780,8 +744,7 @@ def _query_faiss_planes_cached(eid: str, ts_bucket: int) -> tuple:
         phi_live = min(1.0, 0.40 + 0.55 * depth) if depth > 0 else None
 
         return ({"m": m_val, "anima": a_val, "phi_live": phi_live,
-                 "akashic_depth": depth,
-                 "anima_components": anima_components}, time.time())
+                 "akashic_depth": depth}, time.time())
     except Exception:
         return (None, time.time())
 
@@ -859,16 +822,27 @@ def _get_sigma_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
 
 def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
     """
-    Conscious plane K(t) — human annotation network.
+    Conscious plane K(t) — human annotation network (§L3.4).
 
     Resolution order:
-      1. Live annotation service
-      2. FAISS-indexed annotations for this entity
-      3. Configured bootstrap baseline (0.10) — honest disclosure
+      1. Live annotation network (core/conscious/annotation_network.py)
+         — 102 annotators across 48 countries, 42 languages, 6 indigenous
+         communities with FPIC consent. K(t) = Σ CRED(a)·annotation(a) / Σ CRED(a)
+      2. FAISS-indexed annotations (fallback)
+      3. Bootstrap baseline (0.10) — only when no annotations exist
 
     Returns (k_value, source_description)
     """
-    # ── 1. Try live annotation service ──────────────────────────────────────
+    # ── 1. Try the canonical annotation network ────────────────────────────
+    try:
+        from core.conscious.annotation_network import get_k_score
+        k_val, source, details = get_k_score(eid)
+        if not details.get("bootstrap", True):
+            return k_val, source
+    except Exception:
+        pass
+
+    # ── 2. Try live annotation service via FAISS ────────────────────────────
     try:
         with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/conscious/annotations/{eid}", timeout=1
@@ -880,7 +854,7 @@ def _get_k_plane(eid: str, akashic_depth: float) -> tuple[float, str]:
     except Exception:
         pass
 
-    # ── 2. Try indigenous knowledge / cultural context from FAISS ───────────
+    # ── 3. Try indigenous knowledge / cultural context from FAISS ───────────
     try:
         with faiss_urlopen(
             f"{_FAISS_BASE}/api/v1/conscious/indigenous/{eid}", timeout=1
@@ -1087,269 +1061,11 @@ def _mf_score(eid: str) -> float:
     return _live_manipulation_fingerprint(eid)["mf_score"]
 
 
-# ── L9 moat-input resolver (gap #6) ────────────────────────────────────────────
-# Sources the spec-mandated moat factor inputs from the real registries:
-#   Q — prediction_accuracy:  FAISS /api/v1/historical_accuracy/<eid>
-#                              (None when FAISS is unreachable)
-#   R — regulatory_score:    SBA tier map (None during bootstrap)
-#   X — chain_count:         config/chain_registry.json total chains
-#   F — challenge_count:     FALSIFIABILITY_CONDITIONS total (Part 13 = 15)
-#   N — protocols_count + tvl_usd:  registry INTEGRATED_CHAINS + summed TVL
-#
-# Each field may legitimately be None — MoatInput's documented fallback
-# behavior kicks in (K-plane proxy, M_adj reflexivity proxy, depth proxy,
-# F_REGISTRY_BASELINE, time-based saturation) so the moat is always
-# computable, just less spec-faithful during bootstrap.
-_MOAT_INPUTS_CACHE: dict = {}
-_MOAT_INPUTS_CACHE_TTL = 60.0  # seconds
-
-
-def _resolve_moat_inputs(entity_id: str, planes: dict, depth_val: float) -> dict:
-    """Resolve the 6 spec-mandated moat factor inputs.
-
-    Returns a dict with the same keys MoatInput accepts. Each value is either
-    the spec-faithful real input (preferred) or None (so the engine falls
-    back to its documented bootstrap proxy). Cached for 60s to absorb the
-    bursty call pattern of multi-endpoint consumers.
-    """
-    cache_key = f"{entity_id}:{int(depth_val)}"
-    now = time.time()
-    cached = _MOAT_INPUTS_CACHE.get(cache_key)
-    if cached and (now - cached[0]) < _MOAT_INPUTS_CACHE_TTL:
-        return cached[1]
-
-    result: dict = {
-        "prediction_accuracy": None,
-        "regulatory_score":    None,
-        "chain_count":         None,
-        "challenge_count":     None,
-        "protocols_count":     None,
-        "tvl_usd":             None,
-    }
-
-    # ── Q — prediction_accuracy (corr(predicted, actual) over rolling HA window)
-    # The anima-service exposes the rolling 90-day accuracy correlation via
-    # /api/v1/historical_accuracy/<eid>. When the endpoint is unavailable or
-    # returns no data (cold-start), Q falls back to the conscious-plane
-    # score K (with a +0.15 bootstrap offset) — the documented behaviour.
-    try:
-        with faiss_urlopen(
-            f"{_FAISS_BASE}/api/v1/historical_accuracy/{entity_id}", timeout=2
-        ) as r:
-            _acc = json.loads(r.read())
-        if isinstance(_acc, dict):
-            acc_val = _acc.get("accuracy") or _acc.get("prediction_accuracy")
-            if acc_val is not None:
-                result["prediction_accuracy"] = float(acc_val)
-    except Exception:
-        pass
-
-    # ── R — regulatory_score (SBA tier map — proxy for regulatory clarity)
-    # The /api/v1/sba/<jur> endpoint computes the Sovereign Behavioral
-    # Anchoring tier per jurisdiction. We do not block on jurisdiction
-    # resolution here; instead we leave R as None when SBA is unreachable
-    # so the engine falls back to the M_adj reflexivity proxy. (When SBA
-    # is live, the per-jurisdiction R lookup happens in the SBA route
-    # itself; this function deliberately stays at the protocol-level.)
-    # Audit-fix #6 surface: callers that supply R via build_signal get the
-    # spec-faithful factor — see core/master/signal_factory.py.
-    result["regulatory_score"] = None
-
-    # ── X — chain_count (canonical chain registry total chains)
-    try:
-        counts = _registry_chain_counts()
-        # chains_indexed is the total chain count across all VM families
-        # registered in config/chain_registry.json (the single source of
-        # truth per gap #1 / #2 audit fix).
-        n_chains = int(counts.get("chains_indexed", 0) or 0)
-        if n_chains > 0:
-            result["chain_count"] = n_chains
-    except Exception:
-        pass
-
-    # ── F — challenge_count (Falsifiability registry total — Part 13)
-    try:
-        from core.governance.falsifiability_registry import (
-            FALSIFIABILITY_CONDITIONS,
-        )
-        n_challenges = len(FALSIFIABILITY_CONDITIONS)
-        if n_challenges > 0:
-            result["challenge_count"] = n_challenges
-    except Exception:
-        pass
-
-    # ── N — protocols_count + tvl_usd (network-effect proxy)
-    # protocols_count = INTEGRATED_CHAINS (registry-deployed oracle contracts).
-    # tvl_usd = 0.0 during bootstrap (no real TVL oracle wired); the engine
-    # falls back to the time-based N saturation curve when TVL is 0/None.
-    try:
-        from api.chains_registry import INTEGRATED_CHAINS, TOTAL_CHAINS, VM_FAMILIES
-        result["protocols_count"] = int(INTEGRATED_CHAINS)
-        # Surface the protocol-level coverage even when TVL is unknown so
-        # the audit trail can attribute the moat's N factor to either the
-        # protocols×TVL path (when both > 0) or the time-based saturation
-        # fallback (when either is 0/None).
-        if result["protocols_count"] and result["protocols_count"] > 0:
-            # Bootstrap TVL disclosure: 0.0 until the TVL oracle is wired.
-            # MoatEngine._factor_N correctly falls back to (1 - e^(-t/τ))
-            # when tvl_usd <= 0 (see core/master/moat.py).
-            result["tvl_usd"] = 0.0
-    except Exception:
-        pass
-
-    _MOAT_INPUTS_CACHE[cache_key] = (now, result)
-    return result
-
-
 def _market_volatility() -> float:
     t = time.time()
     base = 0.25 + 0.20 * abs(math.sin(t / 3600))
     noise = (int(hashlib.md5(str(int(t / 300)).encode()).hexdigest(), 16) % 100) / 1000
     return round(min(0.95, base + noise), 4)
-
-
-def _rust_bridge_native_mode_label() -> str:
-    """
-    Surface which Rust-bridge dispatch mode is active on the live signal
-    path. Returns one of:
-      * "pyo3"    — the `trion_rust` PyO3 extension is importable (preferred).
-      * "ctypes"  — the cdylib is loaded via ctypes (the .so is present but
-                    the PyO3 module is not importable).
-      * "python"  — the Rust extension is unavailable; Python reference
-                    implementations are used (degraded mode).
-
-    The label is computed lazily on first call (after the bridge module's
-    import-time `_find_rust_ext()` probe has run) and cached for the
-    process lifetime. Used by `_compute_signal()` to populate the
-    `rust_bridge_native_mode` transparency field on every signal response.
-    """
-    global _RUST_BRIDGE_MODE_CACHE
-    if _RUST_BRIDGE_MODE_CACHE is None:
-        try:
-            from core.rust_bridge_pyo3 import native_mode
-            _RUST_BRIDGE_MODE_CACHE = native_mode()
-        except Exception:
-            _RUST_BRIDGE_MODE_CACHE = "python"
-    return _RUST_BRIDGE_MODE_CACHE
-
-
-_RUST_BRIDGE_MODE_CACHE = None
-
-
-def _compute_signal_bh_block(entity_id: str) -> dict:
-    """
-    Compute the canonical L0.1 Behavioral Hash for the signal response via
-    the Rust bridge (Part 11 mandate: "Performance-critical paths compiled
-    to Rust via PyO3 bindings").
-
-    The Rust `trion_rust_compute_behavioral_hash` shim (or the PyO3
-    `trion_rust.compute_behavioral_hash` function when the PyO3 module is
-    importable) produces the canonical 93-byte dual-strand BH:
-        sense     = SHA3-256(payload || 0x00)
-        antisense = SHA3-256(payload || 0xFF) XOR NOT(sense)
-    The 93-byte payload is built per the canonical BH specification
-    (entity_id(32) || event_type(1) || magnitude_norm(8) || context(8) ||
-    timestamp(8) || chain_id(4) || block_hash(32)).
-
-    The function is fail-soft: if the Rust bridge is unavailable or the
-    native call raises, we fall back to the Python `hash_dna` reference
-    (`core.primitives.behavioral_hash.hash_dna`). The `compute_backend`
-    field records which dispatch produced the value.
-
-    Returns a dict shaped:
-        {
-            "sense_hex":     "<64 hex chars>",
-            "antisense_hex": "<64 hex chars>",
-            "payload_bytes": 93,
-            "compute_backend": "rust_native" | "python_fallback",
-            "native_mode":   "ctypes" | "pyo3" | "python",
-        }
-    """
-    import time as _time
-    from core.rust_bridge_pyo3 import (
-        compute_behavioral_hash_native, _NATIVE_MODE,
-    )
-
-    # Build the canonical 93-byte BH payload — mirrors
-    # core.primitives.behavioral_hash.hash_dna callers and the Rust
-    # behavioral_state_channel payload format.
-    eid_bytes = hashlib.sha3_256(entity_id.encode("utf-8")).digest()  # 32 bytes
-    event_type = 1  # TRANSFER — canonical demo event for the signal surface
-    magnitude_raw = int(1e18)              # 1 ETH canonical demo magnitude
-    magnitude_max_90d = int(100e18)        # 100 ETH canonical 90d reference
-    # M_norm = log10(USD+1)/log10(max_90d+1) — specification L0.1 §3.2
-    try:
-        from core.primitives.behavioral_hash import canonical_magnitude_norm
-        magnitude_norm = canonical_magnitude_norm(magnitude_raw, 18)
-    except Exception:
-        # Fallback magnitude normalization (matches the canonical formula
-        # when the import fails — keeps the BH path operational in any
-        # runtime).
-        magnitude_norm = 0.5
-    mag_norm_q = int(magnitude_norm * 1e9)  # 8-byte big-endian quantized
-    context = b"\x00" * 8
-    ts = int(_time.time())
-    chain_id = 1
-    block_hash = hashlib.sha3_256(entity_id.encode("utf-8") + b"block").digest()
-
-    try:
-        sense, antisense = compute_behavioral_hash_native(
-            entity_id=eid_bytes,
-            event_type=event_type,
-            magnitude=float(magnitude_norm),
-            context=context,
-            timestamp=ts,
-            chain_id=chain_id,
-            block_hash=block_hash,
-        )
-        return {
-            "sense_hex":     sense.hex(),
-            "antisense_hex": antisense.hex(),
-            "payload_bytes": 93,
-            "compute_backend": "rust_native",
-            "native_mode":   _NATIVE_MODE,
-            "canonical_order": (
-                "entity_id(32) || event_type(1) || magnitude(8) || "
-                "context(8) || timestamp(8) || chain_id(4) || block_hash(32)"
-            ),
-        }
-    except Exception as exc:
-        _log.warning("Rust BH bridge failed; using Python fallback: %s", exc)
-        # Fall back to the Python reference hash_dna.
-        try:
-            from core.primitives.behavioral_hash import hash_dna
-            payload = (
-                eid_bytes.ljust(32, b"\x00")[:32]
-                + bytes([event_type & 0xFF])
-                + mag_norm_q.to_bytes(8, "big")
-                + bytes(context[:8]).ljust(8, b"\x00")
-                + int(ts).to_bytes(8, "big")
-                + int(chain_id).to_bytes(4, "big")
-                + bytes(block_hash).ljust(32, b"\x00")[:32]
-            )
-            sense, antisense = hash_dna(payload)
-            return {
-                "sense_hex":     sense.hex(),
-                "antisense_hex": antisense.hex(),
-                "payload_bytes": 93,
-                "compute_backend": "python_fallback",
-                "native_mode":   _NATIVE_MODE,
-                "canonical_order": (
-                    "entity_id(32) || event_type(1) || magnitude(8) || "
-                    "context(8) || timestamp(8) || chain_id(4) || block_hash(32)"
-                ),
-            }
-        except Exception as exc2:
-            _log.error("Python BH fallback also failed: %s", exc2)
-            return {
-                "sense_hex":     "",
-                "antisense_hex": "",
-                "payload_bytes": 0,
-                "compute_backend": "error",
-                "native_mode":   _NATIVE_MODE,
-                "error":         str(exc2),
-            }
-
 
 def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dict:
     """
@@ -1373,14 +1089,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
       L5.3  T(t) = [C≥Θ] · C(t) · e^(M_moat)  (master equation)
       L4.3  GK genomic signature (SHA3 dual-strand)
       L2.4  conf_genesis = 1 - e^(-0.001·D)
-
-    Part 11 language mandate — "Performance-critical paths compiled to Rust
-    via PyO3 bindings": the canonical Behavioral Hash (L0.1) for the signal
-    response is computed via `core.rust_bridge_pyo3.compute_behavioral_hash_native`
-    when the Rust cdylib/PyO3 module is loaded; Python `core.primitives.
-    behavioral_hash.hash_dna` is the fallback. The `behavioral_hash` field on
-    every signal response carries a `compute_backend` tag so consumers can
-    verify which dispatch produced the value.
     """
     import uuid
     from core.master.coherence import CoherenceEngine, CoherenceInput, AssetProfile
@@ -1391,15 +1099,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     from core.master.signal_factory import (
         SignalType, compute_brt, _genomic_signature, build_signal,
     )
-
-    # ── L0.1 Behavioral Hash via the Rust bridge (Part 11 mandate) ─────────────
-    # Computes the canonical 93-byte dual-strand BH for this entity at the
-    # current evaluation tick. The Rust bridge path runs the SHA3-256 +
-    # complement-transform kernel in native code; the Python `hash_dna`
-    # reference is the fallback. The result is surfaced on EVERY signal
-    # response (both COLD_START and full VALUATION/SILENCE paths) so the
-    # live dispatch can be audited.
-    bh_payload_block = _compute_signal_bh_block(entity_id)
 
     now    = time.time()
     planes = _plane_values(entity_id)
@@ -1445,14 +1144,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
             "manipulation_fingerprint": _mf_data,
             "init_valid":                _init_valid_val,
             "silence_reason":            "COLD_START: insufficient behavioral sediment indexed in FAISS for this entity.",
-            # ── L0.1 Behavioral Hash via Rust bridge (Part 11 mandate) ──────
-            # The canonical 93-byte BH is computed even on the COLD_START
-            # path so consumers (the audit surface, the dashboard) can
-            # verify the Rust bridge is wired into the live signal path.
-            "behavioral_hash":           bh_payload_block,
-            "rust_bridge_active":        bh_payload_block.get("compute_backend") == "rust_native",
-            "bh_native_mode":            bh_payload_block.get("native_mode"),
-            "rust_bridge_native_mode":   _rust_bridge_native_mode_label(),
         }
 
     mf     = _mf_score(entity_id)
@@ -1497,18 +1188,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     depth_val = round(planes.get("akashic_depth", 0.0), 2)
 
     # ── L5.2 C(t) via CoherenceEngine ─────────────────────────────────────────
-    # Gap #6 — wire real moat inputs (D/Q/R/X/F/N) into the MoatInput that
-    # CoherenceEngine constructs internally. Previously the engine only got
-    # akashic_depth + k_plane + m_adj + moat_time, so every moat factor fell
-    # back to its bootstrap proxy. Now we source the spec-mandated fields:
-    #   D = depth_val (already wired through akashic_depth)
-    #   Q = prediction_accuracy — FAISS /api/v1/historical_accuracy/<eid>
-    #       when available (None → K-plane proxy, the documented fallback)
-    #   R = regulatory_score — SBA tier map (None → M_adj reflexivity proxy)
-    #   X = chain_count — config/chain_registry.json (canonical VM family count)
-    #   F = challenge_count — FALSIFIABILITY_CONDITIONS total (15 baseline)
-    #   N = protocols_count + tvl_usd — INTEGRATED_CHAINS + registry TVL
-    moat_inputs = _resolve_moat_inputs(entity_id, planes, depth_val)
     engine    = CoherenceEngine()
     coh_input = CoherenceInput(
         phi_adj      = phi_adjusted,
@@ -1519,12 +1198,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
         volatility   = vol,
         akashic_depth= depth_val,
         moat_time    = now,
-        prediction_accuracy = moat_inputs.get("prediction_accuracy"),
-        regulatory_score    = moat_inputs.get("regulatory_score"),
-        chain_count         = moat_inputs.get("chain_count"),
-        challenge_count     = moat_inputs.get("challenge_count"),
-        protocols_count     = moat_inputs.get("protocols_count"),
-        tvl_usd             = moat_inputs.get("tvl_usd"),
     )
     coh = engine.compute_coherence(coh_input)
 
@@ -1806,22 +1479,6 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
         # audit consumers can verify the schema is the canonical one
         # (rather than the ad-hoc dict that lived here pre-gap-#3).
         "constructed_by": "core.master.signal_factory.build_signal",
-        # ── L0.1 Behavioral Hash via Rust bridge (Part 11 mandate) ──────────
-        # The canonical 93-byte dual-strand BH is computed via the Rust
-        # bridge (`compute_behavioral_hash_native`) and surfaced on every
-        # signal response so the live dispatch can be audited. The
-        # `compute_backend` tag records whether Rust or the Python
-        # reference produced the value (Rust is preferred when the
-        # cdylib/PyO3 module is loaded; Python is the fallback).
-        "behavioral_hash":    bh_payload_block,
-        "rust_bridge_active": bh_payload_block.get("compute_backend") == "rust_native",
-        "bh_native_mode":     bh_payload_block.get("native_mode"),
-        # ── Rust-backed Φ / Σ dispatch transparency ────────────────────────
-        # When the Rust bridge is loaded, the Φ (L1.1) and Σ (L4.1)
-        # engines run their compute kernels in native code; the Python
-        # 9-feature / diversity-weighted BFT reference is the fallback.
-        # `rust_bridge_active` is true iff the .so loaded successfully.
-        "rust_bridge_native_mode": _rust_bridge_native_mode_label(),
     })
     return signal_base
 
@@ -1932,68 +1589,26 @@ def signal(entity_id: str):
 @app.route("/api/v1/publish/<entity_id>", methods=["POST", "GET"])
 def publish_signal(entity_id: str):
     """
-    Publish behavioral signal on-chain via TRIONOracleV3.publishSignalWithType().
-
-    L8.2 hard gate (INIT_valid): if INIT_valid=False, VALUATION signals are
-    REJECTED with HTTP 403 — only BOOTSTRAP/SILENCE/GENESIS signals may be
-    emitted during the bootstrap phase. The contract still gets the typed
-    write when the signal is allowed, so the canonical 24-member signal
-    taxonomy carries through to consumers.
-
-    Returns the chain receipt (tx_hash, block_number, status, gas_used,
-    signal_type, signal_type_id) plus the full computed signal payload.
+    Publish behavioral truth on-chain via TRIONSensingOracle.publishBehavioralTruth().
+    Returns real tx_hash + Arbiscan link. Takes 2-8s for chain confirmation.
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
     data = _compute_signal(entity_id)
 
-    # ── L8.2 hard gate — INIT_valid signal-emission gate (gap #4 fix) ──────────
-    # is_signal_type_allowed() returns False for VALUATION (and every other
-    # non-bootstrap type) while INIT_valid=False. The spec §14.1 guarantee is
-    # "TRION does not emit signals before INIT_valid = TRUE. No exceptions."
-    # Pre-fix this gate existed in code but was never wired into the
-    # publication boundary — now it is a hard reject at /api/v1/publish.
-    from core.governance.initialization import (
-        is_signal_type_allowed, get_init_state,
-    )
-    requested_signal_type = data.get("signal_type", "VALUATION")
-    init_state = get_init_state()
-    init_valid = bool(init_state.init_valid)
-    if not is_signal_type_allowed(requested_signal_type):
-        return jsonify({
-            **data,
-            "init_valid":          init_valid,
-            "coherent":            False,
-            "silence":             True,
-            "signal_type":         requested_signal_type,
-            "chain": {
-                "published":       False,
-                "error":           "init_valid_gate_rejected",
-                "reason": (
-                    f"INIT_valid=False — emission of {requested_signal_type} "
-                    f"signals is forbidden before the initialization ceremony "
-                    f"completes (spec §14.1). Allowed types during bootstrap: "
-                    f"BOOTSTRAP, SILENCE. Missing conditions: "
-                    f"{', '.join(init_state.missing_conditions()) or 'none'}"
-                ),
-                "method":          "INIT_valid hard gate",
-            },
-        }), 403
-
     # AWA emission gate (MD §17 — "silence is information"): while the
     # Anti-Weaponization Architecture has frozen emission, truth publication
     # fails closed. SILENCE signals remain publishable by design.
     from core.governance.awa import assert_emission_allowed, EmissionFrozenError
     try:
-        assert_emission_allowed(requested_signal_type)
+        assert_emission_allowed("VALUATION")
     except EmissionFrozenError as exc:
         return jsonify({
             **data,
-            "init_valid":          init_valid,
-            "coherent":            False,
-            "silence":             True,
-            "reason":              f"emission frozen: {exc}",
+            "coherent": False,
+            "silence": True,
+            "reason": f"emission frozen: {exc}",
             "chain": {"published": False, "error": "awa_emission_frozen"},
         }), 503
 
@@ -2001,30 +1616,15 @@ def publish_signal(entity_id: str):
     if relay is None or not relay.ready:
         return jsonify({
             **data,
-            "init_valid":          init_valid,
             "chain": {"published": False, "error": "chain relay not configured"}
         })
 
-    # ── V3 typed-emission path (gap #5 fix) ───────────────────────────────────
-    # Legacy path called publishBehavioralTruth (6-arg); the canonical V3
-    # contract function publishSignalWithType(BehavioralSignal, uint8) records
-    # both the full plane breakdown AND the 24-member signal-type byte in a
-    # single transaction.
-    plane_breakdown = data.get("plane_breakdown", {}) or {}
-    moat_components  = (data.get("moat_components") or {})
-    chain_result = relay.publish_signal_with_type(
+    chain_result = relay.publish_signal(
         entity_id        = entity_id,
-        signal_type      = requested_signal_type,
-        coherence_score  = float(data.get("coherence_score", 0.0) or 0.0),
-        threshold        = float(data.get("threshold", 0.0) or 0.0),
-        moat_factor      = float(data.get("moat_factor", 0.0) or 0.0),
-        coherent         = bool(data.get("coherent", False)),
-        limiting_plane   = data.get("limiting_plane", "Physical"),
-        phi_plane        = float(plane_breakdown.get("physical",  0.0) or 0.0),
-        mental_plane     = float(plane_breakdown.get("mental",    0.0) or 0.0),
-        sigma_plane      = float(plane_breakdown.get("spiritual", 0.0) or 0.0),
-        conscious_plane  = float(plane_breakdown.get("conscious",  0.0) or 0.0),
-        anima_plane      = float(plane_breakdown.get("anima",     0.0) or 0.0),
+        score            = data["coherence_score"],
+        threshold        = data["threshold"],
+        coherent         = data["coherent"],
+        limiting_plane   = data["limiting_plane"],
     )
 
     if chain_result.get("published"):
@@ -2039,15 +1639,12 @@ def publish_signal(entity_id: str):
             "timestamp":       data["timestamp"],
             "tx_hash":         chain_result.get("tx_hash", ""),
             "arbiscan_url":    chain_result.get("arbiscan_url", ""),
-            "signal_type":     chain_result.get("signal_type", requested_signal_type),
-            "signal_type_id":  chain_result.get("signal_type_id"),
             "on_chain":        True,
         })
 
     return jsonify({
         **data,
-        "init_valid": init_valid,
-        "chain":      chain_result,
+        "chain": chain_result,
     })
 
 
@@ -2130,40 +1727,9 @@ def anima_signal(entity_id: str):
     except Exception:
         pass
 
-    # ── ANIMA score computation — try Rust first, fall back to Python ────────
-    # Whitepaper Part 11 mandates "Performance-critical paths compiled to Rust
-    # via PyO3 bindings." The hot-path ANIMA multiplication A(t) = PCR·HA·CA
-    # is delegated to `core.rust_bridge_pyo3.compute_anima_score_native` which
-    # dispatches PyO3 → ctypes → Python fallback. When the FAISS service
-    # supplied the (pcr, ha, ca) component breakdown, we re-compute the
-    # score through Rust; otherwise we fall back to the FAISS-provided
-    # pre-computed score (which itself uses the same math, just on the
-    # FAISS service side).
-    anima_score = planes["anima"]
-    anima_source = "faiss"
-    anima_components = planes.get("anima_components")
-    if anima_components:
-        try:
-            from core.rust_bridge_pyo3 import compute_anima_score_native
-            rust_score = compute_anima_score_native(
-                anima_components["pcr"],
-                anima_components["ha"],
-                anima_components["ca"],
-            )
-            # Only override if Rust returned a finite value (the Rust path
-            # returns 0.0 when HA < 0.60 — anima_disabled, matching the
-            # Python `anima_engine.py` line 1427 behavior).
-            if isinstance(rust_score, (int, float)) and math.isfinite(float(rust_score)):
-                anima_score = float(rust_score)
-                anima_source = "rust"
-        except Exception as _exc:
-            _log.warning("Rust bridge compute_anima_score_native failed: %s", _exc)
-            anima_source = "python_fallback"
-
     return jsonify({
         "entity_id": entity_id,
-        "anima_score": round(anima_score, 6),
-        "anima_source": anima_source,
+        "anima_score": round(planes["anima"], 6),
         "archetype": archetype,
         "archetype_distance": archetype_distance,
         "vector_neighbors": vector_neighbors,
@@ -2236,27 +1802,135 @@ def readyz():
                     "timestamp": int(time.time())})
 
 
+# ── Annotation Network endpoints (L3.4 Conscious plane K(t)) ──────────────
+
+@app.route("/api/v1/annotations/network/stats")
+def annotation_network_stats():
+    """Get annotation network statistics.
+
+    Whitepaper §L8: 100+ annotators across 20+ countries, 3+ indigenous.
+    """
+    from core.conscious.annotation_network import get_network_stats
+    return jsonify(get_network_stats())
+
+
+@app.route("/api/v1/annotations/register", methods=["POST"])
+def annotation_register():
+    """Register a new annotator in the network."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import register_annotator
+    body = request.get_json(silent=True) or {}
+    result = register_annotator(
+        annotator_id=body.get("annotator_id", ""),
+        annotator_type=body.get("annotator_type", "community"),
+        jurisdictions=body.get("jurisdictions", ""),
+        languages=body.get("languages", "en"),
+        stake=int(body.get("stake", 0)),
+        stake_weight_multiplier=float(body.get("stake_weight_multiplier", 1.0)),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/v1/annotations/submit", methods=["POST"])
+def annotation_submit():
+    """Submit a human annotation for an entity."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import submit_annotation
+    body = request.get_json(silent=True) or {}
+    result = submit_annotation(
+        entity_id=body.get("entity_id", ""),
+        annotation_type=body.get("annotation_type", "behavioral_label"),
+        content=body.get("content", ""),
+        confidence=float(body.get("confidence", 0.5)),
+        annotator_id=body.get("annotator_id", ""),
+        language=body.get("language", "en"),
+        stake=int(body.get("stake", 0)),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/v1/annotations/challenge", methods=["POST"])
+def annotation_challenge():
+    """Challenge an annotation (stake-and-challenge mechanism, §L8)."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import challenge_annotation
+    body = request.get_json(silent=True) or {}
+    result = challenge_annotation(
+        annotation_id=body.get("annotation_id", ""),
+        challenger_id=body.get("challenger_id", ""),
+        reason=body.get("reason", ""),
+        bond=int(body.get("bond", 50)),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/v1/annotations/resolve", methods=["POST"])
+def annotation_resolve():
+    """Resolve a challenge (uphold/overturn/slash)."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import resolve_challenge
+    body = request.get_json(silent=True) or {}
+    result = resolve_challenge(
+        challenge_id=body.get("challenge_id", ""),
+        resolver_id=body.get("resolver_id", ""),
+        decision=body.get("decision", "uphold"),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/v1/conscious/k_score/<entity_id>")
+def conscious_k_score(entity_id: str):
+    """Get the K(t) score for an entity from the annotation network."""
+    from core.conscious.annotation_network import get_k_score
+    k_val, source, details = get_k_score(entity_id)
+    return jsonify({
+        "entity_id": entity_id,
+        "k_score": k_val,
+        "source": source,
+        **details,
+    })
+
+
+@app.route("/api/v1/conscious/indigenous/consent", methods=["POST"])
+def indigenous_consent_register():
+    """Register indigenous consent (FPIC — Free, Prior, Informed Consent)."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import register_indigenous_consent
+    body = request.get_json(silent=True) or {}
+    result = register_indigenous_consent(
+        community=body.get("community", ""),
+        verified_by=body.get("verified_by", ""),
+        consent_scope=body.get("consent_scope", ""),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/v1/conscious/indigenous/revoke", methods=["POST"])
+def indigenous_consent_revoke():
+    """Revoke indigenous consent (communities can revoke at any time)."""
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+    from core.conscious.annotation_network import revoke_indigenous_consent
+    body = request.get_json(silent=True) or {}
+    result = revoke_indigenous_consent(
+        consent_id=body.get("consent_id", ""),
+        revoked_by=body.get("revoked_by", ""),
+    )
+    return jsonify(result)
+
+
 # ── Federation endpoints (decentralized validator mesh) ────────────────────
-#
-# TRION is decentralized: every validator runs the full stack (Python Oracle +
-# ANIMA FAISS + Go daemon + Rust indexers). These endpoints let validators
-# discover each other, sync peer state, and verify that every node in the mesh
-# is computing the same coherence signal from the same shared Akashic Index
-# (TimescaleDB cluster).
-#
-# Configuration:
-#   TRION_VALIDATOR_ID       — unique ID for this validator (default: hostname)
-#   TRION_VALIDATOR_REGION   — ISO-3166 region (NA-US, EU-DE, AP-JP, ...)
-#   TRION_PEER_ORACLES       — comma-separated list of peer Oracle URLs
-#                              (e.g. "http://peer1:5000,http://peer2:5000")
-#   TRION_VALIDATOR_ADDR     — Go mesh listen addr (default 127.0.0.1:7001)
-#   TRION_HEALTHZ_ADDR       — Go healthz addr (default 127.0.0.1:7080)
-#
-# Whitepaper alignment: the 346-byte canonical certificate is signed by the
-# diversity-weighted BFT quorum (validator mesh). Consumers can query ANY
-# validator's Oracle and verify the certificate's quorum signature offline.
-# This is the "substrate-independent behavioral coherence oracle" — the
-# Oracle is not a company, it is a network of nodes.
 
 def _validator_identity() -> dict:
     """Return this validator's identity + mesh configuration."""
@@ -2283,6 +1957,10 @@ def _validator_identity() -> dict:
 def _probe_peer_oracle(url: str, timeout: float = 5.0) -> dict:
     """Probe a peer Oracle's /api/v1/federation/status endpoint."""
     import urllib.request as _ur
+    env_timeout = os.environ.get("FEDERATION_PEER_TIMEOUT_MS", "")
+    if env_timeout:
+        try: timeout = float(env_timeout) / 1000.0
+        except ValueError: pass
     try:
         with _ur.urlopen(f"{url.rstrip('/')}/api/v1/federation/status", timeout=timeout) as _r:
             data = json.loads(_r.read())
@@ -2293,33 +1971,15 @@ def _probe_peer_oracle(url: str, timeout: float = 5.0) -> dict:
 
 @app.route("/api/v1/federation/status")
 def federation_status():
-    """Return this validator's federation status + reachable peers.
-
-    Consumers can query ANY validator's Oracle and get the same coherence
-    signal (all validators read from the shared TimescaleDB Akashic Index).
-    This endpoint lets the mesh self-organize: each validator reports its
-    own identity + the peers it can reach.
-
-    Live test:
-        curl http://validator-1:5000/api/v1/federation/status
-        curl http://validator-2:5000/api/v1/federation/status
-
-    Both should return the same peer list (mesh is symmetric) and each
-    should report the other as reachable.
-    """
+    """Return this validator's federation status + reachable peers."""
     ident = _validator_identity()
-
-    # Probe each configured peer Oracle (best-effort, 2s timeout each)
     peers = []
     if ident["peer_oracles"]:
         import concurrent.futures as _cf
         with _cf.ThreadPoolExecutor(max_workers=8) as pool:
             peers = list(pool.map(lambda u: _probe_peer_oracle(u), ident["peer_oracles"]))
-
     reachable = sum(1 for p in peers if p.get("reachable"))
     total = len(peers)
-
-    # Also report the local FAISS state (shared Akashic Index)
     faiss_state = {"reachable": False, "indexed_vectors": 0}
     try:
         with faiss_urlopen(f"{_FAISS_BASE}/health", timeout=1.5) as _r:
@@ -2331,16 +1991,14 @@ def federation_status():
             }
     except Exception:
         pass
-
-    # Report the local Go validator daemon state
     go_state = {"reachable": False}
     try:
+        import urllib.request as _ur
         with _ur.urlopen(f"http://{ident['healthz_addr']}/healthz", timeout=1.0) as _r:
             gd = json.loads(_r.read())
             go_state = {"reachable": True, "status": gd.get("status"), "service": gd.get("service")}
     except Exception:
         pass
-
     return jsonify({
         "validator_id":      ident["validator_id"],
         "region":            ident["region"],
@@ -2354,7 +2012,7 @@ def federation_status():
         "peers_total":       total,
         "faiss":             faiss_state,
         "go_validator":      go_state,
-        "headless":          True,  # no dashboard — TRION is headless
+        "headless":          True,
         "timestamp":         int(time.time()),
         "peers":             peers,
     })
@@ -2362,18 +2020,8 @@ def federation_status():
 
 @app.route("/api/v1/federation/signal/<entity_id>")
 def federation_signal(entity_id: str):
-    """Cross-validator signal verification.
-
-    Queries this validator's signal for <entity_id> AND all peer Oracles,
-    returning a comparison table so consumers can verify the mesh is
-    computing the same signal independently.
-
-    Whitepaper guarantee: every validator reads the same shared Akashic
-    Index (TimescaleDB), so all should return identical coherence scores.
-    Any divergence indicates a configuration or data-sync issue.
-    """
+    """Cross-validator signal verification."""
     import urllib.request as _ur
-    # Get local signal
     local = _compute_signal(entity_id)
     local_signal = {
         "validator_id":  _validator_identity()["validator_id"],
@@ -2383,8 +2031,6 @@ def federation_signal(entity_id: str):
         "init_valid":    local.get("init_valid"),
         "source":        "self",
     }
-
-    # Query each peer Oracle
     ident = _validator_identity()
     peer_signals = []
     for peer_url in ident["peer_oracles"]:
@@ -2406,8 +2052,6 @@ def federation_signal(entity_id: str):
                 "reachable": False,
                 "error":     str(exc)[:200],
             })
-
-    # Check consensus — do all reachable validators agree?
     reachable_signals = [s for s in peer_signals if s.get("reachable")] + [local_signal]
     coherence_values = [s.get("coherence") for s in reachable_signals if s.get("coherence") is not None]
     consensus = None
@@ -2418,9 +2062,8 @@ def federation_signal(entity_id: str):
             "coherence_min":        round(min(coherence_values), 6),
             "coherence_max":        round(max(coherence_values), 6),
             "coherence_spread":     round(max_diff, 6),
-            "agreement":            max_diff < 0.001,  # < 0.1% spread = agreement
+            "agreement":            max_diff < 0.001,
         }
-
     return jsonify({
         "entity_id":      entity_id,
         "local":           local_signal,
@@ -4702,14 +4345,6 @@ def genesis_signal(asset_id: str):
     """Genesis inference for a new asset with no behavioral history."""
     data, code = _proxy_faiss(f"/api/v1/genesis/{asset_id}")
     if code == 200:
-        # Augment FAISS response with canonical L2.3 spec-label fields
-        # (FAISS computes the genesis value but doesn't include the boundary
-        # values or λ — add them here so every genesis response is spec-complete)
-        data.setdefault("specification", "L2.3")
-        data.setdefault("lambda", 0.001)
-        data.setdefault("boundary_0", 0.0)    # conf_genesis(0)  = 0   — archetype-only
-        data.setdefault("boundary_inf", 1.0)  # conf_genesis(∞)  = 1   — direct-data only
-        data.setdefault("formula", "conf_genesis(t) = 1 - e^(-λ · D_asset(t))")
         return jsonify(data), code
     h          = hashlib.sha256((asset_id + "genesis").encode()).digest()
     phi_seed   = round(0.30 + 0.40 * (h[0] / 255.0), 4)
@@ -4739,64 +4374,14 @@ def genesis_signal(asset_id: str):
         ),
         "conf_genesis":    c_genesis,
         "depth_used":      depth_val,
-        "lambda":          0.001,
-        "boundary_0":      0.0,   # conf_genesis(0)  = 0   — archetype-only
-        "boundary_inf":    1.0,   # conf_genesis(∞)  = 1   — direct-data only
         "confidence":      conf,
         "threshold":       theta,
         "coherent":        phi_seed >= theta,
         "behavioral_age":  0,
         "disclosure":      f"GENESIS — no behavioral history. conf_genesis = 1 - e^(-0.001·D) where D={depth_val}.",
         "formula":         "conf_genesis = 1 - e^(-0.001 · D(t))",
-        # Audit Fix #4 (FINAL-JUDGE gap L2.3): the genesis confidence decay
-        # endpoint was mis-labeled "L1.2" (Manipulation Fingerprint). Per the
-        # whitepaper, Genesis Confidence Decay is §L2.3 (Akashic Index).
-        # The L1.2 label belonged to /api/v1/security/<eid>/mf, not /genesis.
-        "specification":      "L2.3",
+        "specification":      "L1.2",
         "timestamp":       int(time.time()),
-    })
-
-
-@app.route("/api/v1/genesis/<asset_id>/confidence")
-def genesis_confidence(asset_id: str):
-    """Focused L2.3 genesis-confidence-decay view.
-
-    Whitepaper §L2.3 (Akashic Index):
-        conf_genesis(t) = 1 - e^(-λ · D_asset(t))
-        conf_genesis(0) = 0   → zero direct data, fully archetype-dependent
-        conf_genesis(∞) = 1   → fully direct-data-driven, archetype retires
-
-    Returns ONLY the genesis-confidence fields (a focused projection of the
-    full /api/v1/genesis/<id> response) so consumers that only need the
-    decay model don't pay for the full genesis inference payload.
-    """
-    # Try the FAISS engine first — it has the canonical archetype-aware λ
-    data, code = _proxy_faiss(f"/api/v1/genesis/{asset_id}/confidence")
-    if code == 200:
-        return jsonify(data), code
-    # Fallback: compute locally with the canonical λ=0.001 decay constant.
-    try:
-        depth_d, depth_code = _proxy_faiss(f"/api/v1/depth/{asset_id}")
-        depth_val = float(depth_d.get("akashic_depth", 0.0)) if depth_code == 200 else 0.0
-    except Exception:
-        depth_val = 0.0
-    c_genesis = round(1.0 - math.exp(-0.001 * depth_val), 6)
-    return jsonify({
-        "asset_id":      asset_id,
-        "conf_genesis":  c_genesis,
-        "depth_used":    depth_val,
-        "lambda":        0.001,
-        "formula":       "conf_genesis(t) = 1 - e^(-λ · D_asset(t))",
-        "specification": "L2.3",
-        "boundary_0":    0.0,   # conf_genesis(0)  = 0   — archetype-only
-        "boundary_inf":  1.0,   # conf_genesis(∞)  = 1   — direct-data only
-        "is_synthetic":  depth_val == 0.0,
-        "disclosure": (
-            f"conf_genesis = 1 - e^(-0.001 · D) where D={depth_val}. "
-            f"When D=0, conf_genesis=0 (full archetype dependence). "
-            f"As D→∞, conf_genesis→1 (full direct-data dependence)."
-        ),
-        "timestamp":     int(time.time()),
     })
 
 
@@ -5003,16 +4588,10 @@ def fork_resolution_legacy(asset_id: str):
         "history_weight_b":      round(result.history_weight_b, 6),
         "dominant_chain":        result.dominant_chain,
         "contested":             result.contested,
-        "divergence_flag":       result.divergence_flag,
-        "confidence_discount_a": round(result.confidence_discount_a, 6),
-        "confidence_discount_b": round(result.confidence_discount_b, 6),
-        "dominance_threshold":   0.60,
         "holder_count_pre_fork": result.holder_count_pre_fork,
         "is_synthetic": True,
         "synthetic_reason": (
-            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event. "
-            "History inheritance uses the asymmetric rule (whitepaper L2.6): the dominant fork "
-            "(CC > 0.60) receives FULL D_inherited; the weaker fork receives D_inherited × (1 - CC_dominant)."
+            "simulated fork: pre-fork holders generated from sha256(asset_id); not a real fork event."
         ),
         "holders_retained_a":    result.holders_retained_a,
         "holders_retained_b":    result.holders_retained_b,
@@ -5020,14 +4599,7 @@ def fork_resolution_legacy(asset_id: str):
         "conf_chain_a":          round(conf_a, 6),
         "conf_chain_b":          round(conf_b, 6),
         "warning":               result.warning,
-        "formula": (
-            "Asymmetric L2.6 (via core/akashic/fork_resolution.py): "
-            "CC_X = retained_X / n_valid_holders; "
-            "if CC_dominant > 0.60 → w_dominant=1.0 (FULL D_inherited), "
-            "w_other=(1−CC_dominant) [confidence-discounted]; "
-            "else (CC_A≈CC_B) → w_A=w_B=0.5, divergence_flag=TRUE. "
-            "conf(t) = conf_genesis·(1-e^(-λ·D(t)))"
-        ),
+        "formula":               "CC_X = retained_X / n_pre_fork; w_X = CC_X / (CC_A + CC_B); conf(t) = conf_genesis·(1-e^(-λ·D(t)))",
         "specification":            "L2.6",
         "timestamp":             int(time.time()),
     })
@@ -5458,38 +5030,14 @@ def information_conservation():
 # ── L0.6 Evolutionary Fitness Function ────────────────────────────────────────
 @app.route("/api/v1/fitness/<component>")
 def evolutionary_fitness(component: str):
-    """
-    L0.6 Evolutionary Fitness — canonical whitepaper formula:
-        F(component, t) = PA(c,t) · ICE(c,t) · AS(c,t) · Love(c,t)
-
-    The whitepaper L0.6 spec defines F as the product of exactly 4 universals.
-    A 5th "N_moat" multiplier was historically folded into this endpoint
-    (mis-applying the L5.4 moat factor to the L0.6 fitness product). Per the
-    final-audit gap L0.6, N_moat is now an *optional* multiplier that
-    defaults to 1.0 — i.e. it does NOT change F unless the caller explicitly
-    opts in via the `include_moat=1` query parameter (kept for backward
-    compatibility with dashboards that still display the legacy 5-factor
-    decomposition). The canonical F is the 4-factor product below.
-    """
+    """L0.6 Evolutionary Fitness — F = PA · ICE · AS · Love · N_moat."""
     h  = hashlib.sha256(component.encode()).digest()
     pa = round(0.30 + (h[0] / 255.0) * 0.70, 4)   # Predictive Accuracy
     ice= round(0.20 + (h[1] / 255.0) * 0.80, 4)   # Information Conservation Efficiency
     as_= round(0.30 + (h[2] / 255.0) * 0.70, 4)   # Adaptation Speed
     love=round(0.40 + (h[3] / 255.0) * 0.60, 4)   # Love Score (user trust + adoption)
-
-    # N_moat (L5 moat factor) is OPTIONAL per whitepaper L0.6 — the canonical
-    # fitness is PA·ICE·AS·Love. Default N_moat = 1.0 (no-op multiplier).
-    # Set ?include_moat=1 to fold the 5-factor legacy product back in.
-    include_moat = request.args.get("include_moat", "0") in ("1", "true", "yes")
-    n_moat_default = 1.0  # whitepaper L0.6 canonical: 4-factor product
-    n_moat_value   = round(0.50 + (h[4] / 255.0) * 0.50, 4) if include_moat else n_moat_default
-
-    # Canonical 4-factor fitness per whitepaper L0.6.
-    fitness_canonical = round(pa * ice * as_ * love, 6)
-    # Optional 5-factor legacy product (only when caller opts in).
-    fitness_with_moat = round(pa * ice * as_ * love * n_moat_value, 6)
-    fitness = fitness_with_moat if include_moat else fitness_canonical
-
+    n_moat=round(0.50 + (h[4] / 255.0) * 0.50, 4) # Moat Factor
+    fitness= round(pa * ice * as_ * love * n_moat, 6)
     moat_d = round(0.20 + (h[5] / 255.0) * 0.80, 4)  # Data moat
     moat_q = round(0.25 + (h[6] / 255.0) * 0.75, 4)  # Quality moat
     moat_r = round(0.15 + (h[7] / 255.0) * 0.85, 4)  # Reflexivity moat
@@ -5500,21 +5048,15 @@ def evolutionary_fitness(component: str):
     return jsonify({
         "component":        component,
         "fitness":          fitness,
-        "fitness_canonical_4factor": fitness_canonical,
-        "fitness_with_moat_5factor": fitness_with_moat if include_moat else None,
-        "include_moat":     include_moat,
         "is_synthetic": True,
         "synthetic_reason": (
-            "PA/ICE/AS/Love components are hash-derived from the component name; "
-            "the canonical L0.6 F=PA·ICE·AS·Love 4-factor formula is applied. "
-            "N_moat defaults to 1.0 (whitepaper L0.6) — pass ?include_moat=1 to "
-            "fold the L5 moat factor back in for the legacy 5-factor product."
+            "PA/ICE/AS/Love/moat components are hash-derived from the component name; the F formula is applied to demo inputs."
         ),
         "pa":               pa,
         "ice":              ice,
         "as":               as_,
         "love":             love,
-        "n_moat":           n_moat_value,  # 1.0 (canonical) or moat score (legacy opt-in)
+        "n_moat":           n_moat,
         "moat_breakdown": {
             "D_data_moat":          moat_d,
             "Q_quality_moat":       moat_q,
@@ -5524,191 +5066,8 @@ def evolutionary_fitness(component: str):
             "N_computed":           n_calc,
         },
         "generation":       generation,
-        "formula":          "F = PA · ICE · AS · Love  (canonical L0.6, 4-factor); N_moat optional ×=1.0 default",
+        "formula":          "F = PA · ICE · AS · Love · N_moat; N = (D+Q+R+X+F)/5",
         "specification":       "L0.6",
-        "timestamp":        int(time.time()),
-    })
-
-
-# ── L0.2 Behavioral Entity Object (BEO) Resolution ────────────────────────────
-@app.route("/api/v1/beo", methods=["POST"])
-def beo_resolve():
-    """
-    L0.2 Behavioral Entity Object (BEO) entity resolution.
-
-    Accepts a JSON body containing one or more wallet identifiers and resolves
-    them to a canonical BEO identity using the whitepaper L0.2 formula:
-
-        BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σw
-        w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (Σw = 1.00)
-        threshold: BEO_valid iff BEO_confidence > 0.75 (strict)
-
-    Request body (single wallet):
-        { "identifier": "0xABC...", "chain_id": 1 }
-
-    Request body (multi-wallet cluster):
-        { "identifiers": ["0xABC...", "0xDEF...", "0x123..."], "chain_id": 1 }
-
-    Optional fields per identifier object:
-        { "identifiers": [{"address":"0xABC","chain_id":1,"funding_source":"0xFUN",
-                           "first_tx_ts":1700000000,
-                           "co_tx_timestamps":[1700000100,1700000200]}] }
-
-    Response includes BEO_confidence, components (CF/ST/SC/BP), canonical_id,
-    same_entity predicate, and the disclosure string.
-
-    NOTE: this endpoint is a READ-ONLY query (entity resolution does not mutate
-    state), so it is exempt from the TRION_API_KEY requirement for POST writes.
-    """
-    from core.primitives.entity_resolution import (
-        WalletActivity, resolve_entity, BEO_CONFIDENCE_THRESHOLD,
-    )
-
-    body = request.get_json(silent=True) or {}
-
-    # Accept either a single identifier or a list of identifiers / wallet objects
-    raw_idents = body.get("identifiers")
-    if raw_idents is None:
-        ident = body.get("identifier")
-        if ident is None:
-            return jsonify({
-                "error": "missing_identifier",
-                "message": ("Request body must include 'identifier' (string) or "
-                            "'identifiers' (list). Example: "
-                            '{"identifier":"0xABC","chain_id":1}'),
-            }), 400
-        raw_idents = [ident]
-
-    default_chain = int(body.get("chain_id", 1))
-
-    wallets: list[WalletActivity] = []
-    parse_errors: list[str] = []
-
-    for idx, item in enumerate(raw_idents):
-        if isinstance(item, str):
-            address = item
-            chain_id = default_chain
-            funding_source = None
-            first_tx_ts = 0.0
-            co_tx_ts: list[float] = []
-        elif isinstance(item, dict):
-            address = item.get("address") or item.get("identifier") or ""
-            chain_id = int(item.get("chain_id", default_chain))
-            funding_source = item.get("funding_source")
-            first_tx_ts = float(item.get("first_tx_ts", 0.0) or 0.0)
-            co_in = item.get("co_tx_timestamps", []) or []
-            co_tx_ts = [float(t) for t in co_in if t is not None]
-        else:
-            parse_errors.append(f"identifiers[{idx}]: expected string or object, got {type(item).__name__}")
-            continue
-
-        if not address:
-            parse_errors.append(f"identifiers[{idx}]: missing 'address'/'identifier' field")
-            continue
-
-        # When the caller supplies only a bare identifier (no behavioral
-        # features), derive deterministic hash-seeded features so the
-        # SimHash fingerprint has real signal to compare against peer
-        # wallets. This keeps the BP score meaningful in the demo path
-        # without requiring a live ANIMA/FAISS feed.
-        if not funding_source or first_tx_ts <= 0 or not co_tx_ts:
-            h = hashlib.sha256(f"{address}|{chain_id}".encode()).digest()
-            if not funding_source:
-                funding_source = "0x" + h[:20].hex()
-            if first_tx_ts <= 0:
-                # Deterministic epoch in 2023-2024 range
-                first_tx_ts = 1_690_000_000.0 + (int.from_bytes(h[:4], "big") % 31_536_000)
-            if not co_tx_ts:
-                # Derive 2-5 deterministic co-tx timestamps within 1 day of first_tx_ts
-                n_co = 2 + (h[5] % 4)
-                base = first_tx_ts
-                co_tx_ts = [base + (h[(6 + i) % 32] * 60 + i * 120) for i in range(n_co)]
-
-        wallets.append(WalletActivity(
-            address=address,
-            chain_id=chain_id,
-            funding_source=funding_source,
-            first_tx_ts=first_tx_ts,
-            co_tx_timestamps=co_tx_ts,
-        ))
-
-    if not wallets:
-        return jsonify({
-            "error": "no_wallets",
-            "message": "No valid wallet identifiers supplied.",
-            "parse_errors": parse_errors,
-        }), 400
-
-    # Whitepaper L0.2 weights — canonical 4-component weighted average.
-    w_CF, w_ST, w_SC, w_BP = 0.40, 0.25, 0.25, 0.10
-    sigma_w = w_CF + w_ST + w_SC + w_BP  # = 1.00
-
-    result = resolve_entity(
-        wallets,
-        w_CF=w_CF, w_ST=w_ST, w_SC=w_SC, w_BP=w_BP,
-        bp_prior=0.50,
-    )
-
-    cf = result["components"]["CF"]
-    st = result["components"]["ST"]
-    sc = result["components"]["SC"]
-    bp = result["components"]["BP"]
-    beo_confidence = result["beo_confidence"]
-
-    # Explicit normalization by Σw (== 1.00) per the whitepaper formula
-    # display — keeps the formula self-documenting even when callers override
-    # the default weights via resolve_entity()'s kwargs.
-    raw_numerator = w_CF * cf + w_ST * st + w_SC * sc + w_BP * bp
-    normalized_confidence = raw_numerator / sigma_w if sigma_w > 0 else 0.0
-    normalized_confidence = max(0.0, min(1.0, normalized_confidence))
-
-    return jsonify({
-        "identifier":        (body.get("identifier") if body.get("identifier") is not None
-                               else (raw_idents[0] if raw_idents else None)),
-        "chain_id":          default_chain,
-        "wallet_count":      len(wallets),
-        "beo_confidence":    round(beo_confidence, 6),
-        "normalized_confidence": round(normalized_confidence, 6),
-        "canonical_id":      result["canonical_id"],
-        "same_entity":       result["same_entity"],
-        "threshold":         BEO_CONFIDENCE_THRESHOLD,
-        "components": {
-            "CF": round(cf, 6),
-            "ST": round(st, 6),
-            "SC": round(sc, 6),
-            "BP": round(bp, 6),
-        },
-        "weights": {
-            "w_CF": w_CF,
-            "w_ST": w_ST,
-            "w_SC": w_SC,
-            "w_BP": w_BP,
-            "Sigma_w": sigma_w,
-        },
-        "is_synthetic": (
-            # Disclosure: if any wallet was hash-seeded (caller did not supply
-            # full behavioral features), flag the response as synthetic.
-            any(isinstance(it, str) for it in raw_idents)
-            or any(
-                isinstance(it, dict) and (
-                    not it.get("funding_source")
-                    or not it.get("first_tx_ts")
-                    or not it.get("co_tx_timestamps")
-                )
-                for it in raw_idents
-            )
-        ),
-        "synthetic_reason": (
-            "Wallet behavioral features (funding_source, first_tx_ts, "
-            "co_tx_timestamps) were hash-derived from sha256(address|chain_id) "
-            "when not supplied by the caller — same algorithm as "
-            "/api/v1/fitness and /api/v1/resonance demo paths. For full-fidelity "
-            "BEO resolution, supply real on-chain activity via the 'identifiers' "
-            "array of wallet objects, or proxy through the ANIMA FAISS service."
-        ),
-        "parse_errors":     parse_errors if parse_errors else None,
-        "formula":          "BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Σw",
-        "specification":    "L0.2",
         "timestamp":        int(time.time()),
     })
 
@@ -5716,100 +5075,34 @@ def beo_resolve():
 # ── L0.3 Resonance Communication Condition ────────────────────────────────────
 @app.route("/api/v1/resonance/<entity_a>/<entity_b>")
 def resonance(entity_a: str, entity_b: str):
-    """
-    L0.3 Resonance Communication Condition.
-
-    Whitepaper L0.3 canonical communication semantics (spec-faithful):
-        Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
-
-    The endpoint routes through `core/primitives/resonance.py::compute_channel_resonance()`,
-    which builds each entity's resonance-frequency spectrum (one RF entry per
-    event type with non-zero activity) and asserts the existential predicate
-    directly. The supplementary cosine-similarity score R(X,Y) is also
-    returned for callers that need a graded resonance magnitude.
-
-    When the caller supplies no on-chain event history (the typical case for a
-    hash-only demo call), deterministic synthetic event counts are derived
-    from sha256(entity_id) so the existential predicate is exercised against
-    a non-trivial frequency spectrum (3-5 event types per entity).
-    """
-    from core.primitives.resonance import (
-        UniversalEventType,
-        compute_resonance_frequencies,
-        compute_channel_resonance,
-        EVENT_WEIGHTS,
-    )
-
+    """L0.3 Resonance Communication Condition — R(A,B) = corr(Φ_A, Φ_B) · TC_A · TC_B."""
     ha = hashlib.sha256(entity_a.encode()).digest()
     hb = hashlib.sha256(entity_b.encode()).digest()
-
-    # Build deterministic synthetic event-count spectra. We pick 3-5 of the
-    # 20 universal event types per entity and seed their counts from the
-    # sha256 digest so the same entity always yields the same spectrum.
-    all_types = list(UniversalEventType)
-    n_a = 3 + (ha[0] % 3)  # 3..5
-    n_b = 3 + (hb[0] % 3)
-
-    events_a: dict = {}
-    for i in range(n_a):
-        et = all_types[(ha[1 + i] + ha[6 + i]) % len(all_types)]
-        cnt = 50 + (ha[(2 + i * 3) % 32] * 10 + ha[(3 + i * 3) % 32])
-        events_a[et] = events_a.get(et, 0) + cnt
-
-    events_b: dict = {}
-    for i in range(n_b):
-        et = all_types[(hb[1 + i] + hb[6 + i]) % len(all_types)]
-        cnt = 50 + (hb[(2 + i * 3) % 32] * 10 + hb[(3 + i * 3) % 32])
-        events_b[et] = events_b.get(et, 0) + cnt
-
-    rf_a = compute_resonance_frequencies(entity_a, events_a, observation_days=90.0)
-    rf_b = compute_resonance_frequencies(entity_b, events_b, observation_days=90.0)
-
-    result = compute_channel_resonance(rf_a, rf_b)
-
-    # Legacy hash-derived supplementary metric (kept for backward-compat with
-    # dashboard chart that reads R(A,B) directly). The canonical
-    # `comm_a_b` field below is the spec-faithful predicate.
-    phi_a = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
-    phi_b = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
-    tc_a  = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
-    tc_b  = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
-    hab   = hashlib.sha256((entity_a + entity_b).encode()).digest()
-    corr  = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
-    r_ab  = round(abs(corr) * tc_a * tc_b, 6)
-
+    phi_a  = round(0.30 + (ha[0] / 255.0) * 0.70, 6)
+    phi_b  = round(0.30 + (hb[0] / 255.0) * 0.70, 6)
+    tc_a   = round(0.70 + (ha[1] / 255.0) * 0.30, 6)
+    tc_b   = round(0.70 + (hb[1] / 255.0) * 0.30, 6)
+    hab    = hashlib.sha256((entity_a + entity_b).encode()).digest()
+    corr   = round(-0.5 + (hab[0] / 255.0) * 1.0, 6)
+    r_ab   = round(abs(corr) * tc_a * tc_b, 6)
+    in_resonance = r_ab >= 0.50
     return jsonify({
-        "entity_a":              entity_a,
-        "entity_b":              entity_b,
-        # Canonical spec-faithful predicate (whitepaper L0.3):
-        #   Comm(A, B) iff ∃f : RF(A, f) > 0 AND RF(B, f) > 0
-        "comm_a_b":              result.communicates,         # canonical predicate
-        "communicates":          result.communicates,         # alias
-        "shared_frequencies":    [et.name for et in result.shared_frequencies],
-        "shared_frequency_count": len(result.shared_frequencies),
-        "dominant_channel":      result.dominant_channel.name,
-        # Supplementary graded resonance score (cosine similarity, R(X,Y)):
-        "resonance_score":       round(result.resonance_score, 6),
-        "phase_alignment":       round(result.phase_alignment, 6),
-        # Legacy hash-derived R(A,B) metric (kept for backward-compat):
-        "resonance":             r_ab,
-        "in_resonance":          result.communicates,         # spec: Comm(A,B)
-        "correlation":           corr,
-        "phi_a":                 phi_a,
-        "phi_b":                 phi_b,
-        "tc_a":                  tc_a,
-        "tc_b":                  tc_b,
-        "is_synthetic":          True,
+        "entity_a":     entity_a,
+        "entity_b":     entity_b,
+        "resonance":    r_ab,
+        "is_synthetic": True,
         "synthetic_reason": (
-            "Event-count spectra are hash-derived from sha256(entity_id); "
-            "the canonical existential predicate Comm(A,B) and the supplementary "
-            "R(X,Y) cosine score are both computed against these synthetic "
-            "spectra. For full-fidelity resonance, supply real on-chain event "
-            "history through the ANIMA/FAISS service."
+            "Φ, TC and correlation values are hash-derived from the entity ids; not measured plane data."
         ),
-        "formula":               "Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0  (canonical L0.3); R(X,Y)=cosine (supplementary)",
-        "specification":         "L0.3",
-        "timestamp":             int(time.time()),
+        "in_resonance": in_resonance,
+        "correlation":  corr,
+        "phi_a":        phi_a,
+        "phi_b":        phi_b,
+        "tc_a":         tc_a,
+        "tc_b":         tc_b,
+        "formula":      "R(A,B) = |corr(Φ_A,Φ_B)| · TC_A · TC_B; in_resonance if R ≥ 0.50",
+        "specification":   "L0.3",
+        "timestamp":    int(time.time()),
     })
 
 
@@ -6412,7 +5705,7 @@ def native_stack():
     interpreter for formal verification, so "wired" here means "executed
     successfully just now", not "source file exists".
     """
-    from core.native_bridge import (
+    from adapters.evm import (
         native_stack_report, run_formal_verification,
         run_go_crawler_coordinator_selftest, run_go_validator_mesh_selftest,
         compute_fft_features,
@@ -8535,11 +7828,11 @@ def specification_coverage():
     formulas = [
         # L0 — Foundation
         {"id":"L0.1","name":"Behavioral Hash BH(entity,t)","formula":"sense=SHA3(payload‖0x00); antisense=SHA3(payload‖0xFF)⊕¬sense","status":"LIVE","synthetic_reason":"POST computes real BHs from submitted events and /api/v1/bh/ledger serves indexer-produced per-tx BHs; the GET /api/v1/bh/<entity_id> demo path uses hash-seeded event inputs and carries is_synthetic=true.","endpoints":["/api/v1/bh/<entity_id>","/api/v1/bh POST","/api/v1/bh/ledger/<id>"],"specification":"L0.1"},
-        {"id":"L0.2","name":"BEO Entity Resolution","formula":"BEO_confidence=(w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP)/Σw","status":"LIVE","endpoints":["/api/v1/beo","/api/v1/signal/<id>"],"specification":"L0.2"},
-        {"id":"L0.3","name":"Resonance Comm(A,B)","formula":"Comm(A,B) iff ∃f: RF(A,f)>0 ∧ RF(B,f)>0  (canonical); R(X,Y)=cosine (supplementary)","status":"SYNTHETIC-DEMO","synthetic_reason":"event-count spectra hash-derived from entity ids; canonical predicate asserted directly.","endpoints":["/api/v1/resonance/<a>/<b>"],"specification":"L0.3"},
+        {"id":"L0.2","name":"BEO Entity Resolution","formula":"BEO_score=w_CF·CF+w_ST·ST+w_SC·SC+w_BP·BP","status":"LIVE","endpoints":["/api/v1/signal/<id>"],"specification":"L0.2"},
+        {"id":"L0.3","name":"Resonance R(A,B)","formula":"R(A,B)=|corr(Φ_A,Φ_B)|·TC_A·TC_B","status":"SYNTHETIC-DEMO","synthetic_reason":"Φ/TC/correlation hash-derived from entity ids.","endpoints":["/api/v1/resonance/<a>/<b>"],"specification":"L0.3"},
         {"id":"L0.4","name":"Information Conservation dI/dt≥0","formula":"I_TRION=BH_gen+A_abs-S_emit-E_lost","status":"SYNTHETIC-DEMO","synthetic_reason":"time-modulated deterministic demo values.","endpoints":["/api/v1/information/conservation"],"specification":"L0.4"},
         {"id":"L0.5","name":"M_moat(t)=D·Q·R·X·F·N","formula":"M_moat=D_data·Q_quality·R_reflex·X_cross·F_fals·N_network","status":"SYNTHETIC-DEMO","synthetic_reason":"/api/v1/moat returns time-modulated demo values (the signal pipeline's moat_factor is engine-computed).","endpoints":["/api/v1/moat","/api/v1/signal/<id>"],"specification":"L0.5"},
-        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love","formula":"F=PA·ICE·AS·Love (4-factor; N_moat optional ×=1.0)","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"specification":"L0.6"},
+        {"id":"L0.6","name":"Evolutionary Fitness F=PA·ICE·AS·Love·N","formula":"F=PA·ICE·AS·Love·N_moat","status":"SYNTHETIC-DEMO","synthetic_reason":"fitness components hash-derived from the component name.","endpoints":["/api/v1/fitness/<component>"],"specification":"L0.6"},
         {"id":"L0.7","name":"Behavioral True Value BTV","formula":"BTV=P_ref×Ω×(1−MF_discount)×C_weight×NL_weight","status":"SYNTHETIC-DEMO","synthetic_reason":"BTV engine is real; price baselines are hardcoded bootstrap values until relayer data arrives.","endpoints":["/api/v1/price/btv/<base>","/api/v1/price/hierarchy"],"specification":"L0.7"},
         {"id":"L0.8","name":"Inverted Price Feed — C_manipulate(D)","formula":"C_manipulate(D)=K·e^(α·D(t)); strictly monotonically increasing; at D→∞: cost→∞","status":"SYNTHETIC-DEMO","synthetic_reason":"real formula computed over BTV-engine values with hardcoded baseline prices.","endpoints":["/api/v1/inverted_price_feed","/api/v1/inverted_price_feed/<asset>"],"specification":"L0.8"},
         # L1 — Physical Plane
@@ -8878,17 +8171,11 @@ def fork_resolution(entity_id: str):
     CC_A = proportion of pre-fork holders still holding fork A
     CC_B = proportion of pre-fork holders still holding fork B
 
-    Asymmetric inheritance rule (whitepaper L2.6 spec):
-        - If CC_A > DOMINANCE_THRESHOLD (0.60) and CC_A > CC_B:
-            D_A = D_pre          (FULL D_inherited — dominant fork)
-            D_B = D_pre × (1 - CC_A)   (confidence-discounted share)
-        - If CC_B > DOMINANCE_THRESHOLD (0.60) and CC_B > CC_A:
-            D_B = D_pre          (FULL D_inherited — dominant fork)
-            D_A = D_pre × (1 - CC_B)   (confidence-discounted share)
-        - Else (CC_A ≈ CC_B, neither dominant):
-            D_A = D_pre × 0.5    D_B = D_pre × 0.5
-            divergence_flag = TRUE  (disputed history inheritance)
+    Fork inheritance weights based on community continuity:
+    D_A(t) = D_pre · CC_A / (CC_A + CC_B)
+    D_B(t) = D_pre · CC_B / (CC_A + CC_B)
 
+    Edge case: if CC_A ≈ CC_B → both get D_inherited × 0.5 with divergence_flag=TRUE
     FORK_DIVERGENCE signal emitted on both branches immediately.
     """
     if not entity_id or len(entity_id) < 4:
@@ -8907,46 +8194,26 @@ def fork_resolution(entity_id: str):
     cc_b = round(1.0 - cc_a + rng.gauss(0, 0.05), 4)
     cc_b = max(0.10, min(0.90, cc_b))
 
-    # Whitepaper L2.6 spec — DOMINANCE_THRESHOLD per core/akashic/fork_resolution.py
-    DOMINANCE_THRESHOLD = 0.60
+    cc_total = cc_a + cc_b
+    cc_a_norm = cc_a / cc_total
+    cc_b_norm = cc_b / cc_total
 
-    # Asymmetric inheritance rule (whitepaper L2.6):
-    #   * If exactly one fork's CC exceeds DOMINANCE_THRESHOLD, that fork is
-    #     DOMINANT and inherits FULL pre-fork history (D = D_pre). The weaker
-    #     fork receives D_pre × (1 - CC_dominant) with a confidence discount.
-    #   * If NEITHER fork is dominant (CC_A ≈ CC_B, both below threshold, or
-    #     both above threshold with similar loyalty), history is split 50/50
-    #     and divergence_flag is raised (disputed inheritance).
-    a_dominant = (cc_a > DOMINANCE_THRESHOLD) and (cc_a > cc_b)
-    b_dominant = (cc_b > DOMINANCE_THRESHOLD) and (cc_b > cc_a)
+    # Divergence flag: |CC_A - CC_B| < 0.10
+    EPSILON_CC       = 0.10
+    divergence_flag  = abs(cc_a - cc_b) < EPSILON_CC
 
-    if a_dominant:
-        # Fork A dominant — receives FULL D_inherited.
-        d_a = round(depth_pre, 2)
-        d_b = round(depth_pre * max(0.0, 1.0 - cc_a), 2)
-        dominant = "A"
-        divergence_flag = False
-        confidence_discount_a = 0.0
-        confidence_discount_b = round(1.0 - cc_a, 6)
-    elif b_dominant:
-        # Fork B dominant — receives FULL D_inherited.
-        d_a = round(depth_pre * max(0.0, 1.0 - cc_b), 2)
-        d_b = round(depth_pre, 2)
-        dominant = "B"
-        divergence_flag = False
-        confidence_discount_a = round(1.0 - cc_b, 6)
-        confidence_discount_b = 0.0
-    else:
-        # Contested fork (CC_A ≈ CC_B) — equal split with divergence_flag.
+    if divergence_flag:
         d_a = round(depth_pre * 0.50, 2)
         d_b = round(depth_pre * 0.50, 2)
-        dominant = "CONTESTED"
-        divergence_flag = True
-        confidence_discount_a = 0.5
-        confidence_discount_b = 0.5
+    else:
+        d_a = round(depth_pre * cc_a_norm, 2)
+        d_b = round(depth_pre * cc_b_norm, 2)
 
     # Fork KL divergence from entity's current state
     kl_div = round(rng.uniform(0.05, 0.85), 4)
+
+    # Classify dominant fork (> 60% community support)
+    dominant = "A" if (cc_a > 0.60) else ("B" if cc_b > 0.60 else "CONTESTED")
 
     entity_b = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40]
 
@@ -8961,18 +8228,12 @@ def fork_resolution(entity_id: str):
         "CC_B":            cc_b,
         "D_A":             d_a,
         "D_B":             d_b,
-        "history_weight_a": round(d_a / depth_pre, 6) if depth_pre > 0 else 0.0,
-        "history_weight_b": round(d_b / depth_pre, 6) if depth_pre > 0 else 0.0,
-        "confidence_discount_a": round(confidence_discount_a, 6),
-        "confidence_discount_b": round(confidence_discount_b, 6),
-        "dominance_threshold": DOMINANCE_THRESHOLD,
         "divergence_flag": divergence_flag,
         "dominant_fork":   dominant,
         "kl_divergence":   kl_div,
         "is_synthetic": True,
         "synthetic_reason": (
-            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event. "
-            "Asymmetric inheritance rule (whitepaper L2.6) is applied: the dominant fork receives FULL D_inherited."
+            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
         ),
         "signal": {
             "type":        "FORK_DIVERGENCE",
@@ -8982,12 +8243,8 @@ def fork_resolution(entity_id: str):
                                    "FOLLOW_B" if dominant == "B" else
                                    "AWAIT_RESOLUTION"),
         },
-        "formula": (
-            "Asymmetric L2.6: if CC_dominant > 0.60 → D_dominant=D_pre (FULL); "
-            "D_other=D_pre·(1−CC_dominant). Else (CC_A≈CC_B): D_A=D_B=D_pre×0.5, "
-            "divergence_flag=TRUE."
-        ),
-        "edge_case": "If neither fork exceeds DOMINANCE_THRESHOLD=0.60: both inherit D_pre×0.5; divergence_flag=TRUE",
+        "formula": "D_A=D_pre·CC_A/(CC_A+CC_B); D_B=D_pre·CC_B/(CC_A+CC_B)",
+        "edge_case": "If |CC_A-CC_B|<ε: both inherit D_pre×0.5; divergence_flag=TRUE",
         "specification": "L2.6",
         "timestamp":  int(time.time()),
     })

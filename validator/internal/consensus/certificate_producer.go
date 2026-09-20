@@ -478,9 +478,9 @@ func (m *P2PMesh) RegisterSignature(sig []byte) {
         // mutated. The docstring above documents the production wiring.
 }
 
-// ── CertValidatorSet (renamed from ValidatorSet to avoid collision with engine.go's slice-based ValidatorSet) ────
+// ── ValidatorSet ────────────────────────────────────────────────────────────
 
-// CertValidatorEntry is one validator's contribution to the certificate quorum.
+// ValidatorEntry is one validator's contribution to the certificate quorum.
 // `Power` is the effective power s_j·d_j (stake × diversity weight) in
 // 1e6 fixed-point (matches the §2 total_effective_power scale).
 type CertValidatorEntry struct {
@@ -490,17 +490,15 @@ type CertValidatorEntry struct {
         Diversity    float64        // d_j (informational)
 }
 
-// CertValidatorSet is the registered set for a single validator_epoch (§2).
-// Used by VerifyCertificate for signature/quorum verification — distinct from
-// engine.go's slice-based live-consensus ValidatorSet to avoid type collision.
+// ValidatorSet is the registered set for a single validator_epoch (§2).
 type CertValidatorSet struct {
         Epoch        uint32
         Validators   map[string]*CertValidatorEntry // keyed by ID
-        TotalPower   uint64                          // Σ_j s_j·d_j, ×1e6
-        DConsensus   uint64                          // Σ plane at emission, ×1e6
+        TotalPower   uint64                     // Σ_j s_j·d_j, ×1e6
+        DConsensus   uint64                     // Σ plane at emission, ×1e6
 }
 
-// NewCertValidatorSet constructs a CertValidatorSet from a slice of entries,
+// NewValidatorSet constructs a ValidatorSet from a slice of entries,
 // computing TotalPower = Σ_j s_j·d_j.
 func NewCertValidatorSet(epoch uint32, entries []*CertValidatorEntry, dConsensus uint64) *CertValidatorSet {
         vs := &CertValidatorSet{
