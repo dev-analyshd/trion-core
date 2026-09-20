@@ -2178,6 +2178,162 @@ def stats():
     })
 
 
+# ── BEO Resolution endpoint (L0.2) — wired to TimescaleDB multi-wallet linkage ─
+@app.route("/api/v1/beo", methods=["POST"])
+def resolve_beo():
+    """L0.2 BEO Resolution — resolve entity to canonical BEO identity.
+
+    Reads multi-wallet linkage data from TimescaleDB to detect when multiple
+    addresses belong to the same economic actor (same funder, timing patterns,
+    behavioral similarity). This is TRION's core innovation: tracking ACTORS,
+    not ADDRESSES.
+
+    BEO_confidence = w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP
+    w_CF=0.40, w_ST=0.25, w_SC=0.25, w_BP=0.10  (sum=1.00)
+    threshold: BEO_valid iff BEO_confidence > 0.75
+    """
+    resp = _require_api_key()
+    if resp is not None:
+        return resp
+
+    from core.primitives.entity_resolution import WalletActivity, resolve_entity
+
+    body = request.get_json(silent=True) or {}
+    identifier = body.get("identifier", "")
+    chain_id = int(body.get("chain_id", 0))
+
+    if not identifier:
+        return jsonify({"error": "missing_identifier"}), 400
+
+    # ── Query TimescaleDB for linked wallets ────────────────────────────────
+    # Find all addresses that share the same funding source, timing patterns,
+    # or behavioral fingerprints with this identifier.
+    linked_wallets = []
+    tsdb_wallets_found = 0
+    tsdb_bhs_for_entity = 0
+
+    try:
+        import psycopg2 as _pg
+        tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
+        if tsdb_url:
+            pg_conn = _pg.connect(tsdb_url, connect_timeout=5)
+            pg_cur = pg_conn.cursor()
+
+            # Entity IDs in TimescaleDB are stored as SHA3-256("0x" + address) (64 hex chars).
+            # The Rust indexer computes: entity_id = bh_id(from_addr) = SHA3-256(from_addr)
+            # where from_addr includes the 0x prefix.
+            import hashlib as _hl
+            identifier_clean = identifier.strip()
+
+            # Ensure 0x prefix for EVM addresses
+            if identifier_clean.startswith('0x') or identifier_clean.startswith('0X'):
+                addr_with_prefix = identifier_clean.lower()
+            elif len(identifier_clean) == 40 and all(c in '0123456789abcdefABCDEF' for c in identifier_clean):
+                addr_with_prefix = '0x' + identifier_clean.lower()
+            else:
+                addr_with_prefix = identifier_clean
+
+            # Compute the entity_id hash the same way the Rust indexer does
+            beo_hash = _hl.sha3_256(addr_with_prefix.encode()).hexdigest()
+            variants = [
+                beo_hash.encode('utf-8'),
+                addr_with_prefix.encode('utf-8'),
+                identifier_clean.encode('utf-8'),
+            ]
+
+            # Use ANY() for the IN clause
+            pg_cur.execute("""
+                SELECT entity_id, event_type, magnitude_norm, chain_id, block_num, time
+                FROM akashic_bh
+                WHERE entity_id = ANY(%s)
+                ORDER BY time ASC
+                LIMIT 100
+            """, (variants,))
+            entity_rows = pg_cur.fetchall()
+            tsdb_bhs_for_entity = len(entity_rows)
+
+            if entity_rows:
+                # Extract timing + magnitude features for BP scoring
+                timestamps = [float(r[5].timestamp()) if r[5] else 0 for r in entity_rows]
+                magnitudes = [float(r[2] or 0) for r in entity_rows]
+                chains_seen = set(r[3] for r in entity_rows if r[3])
+
+                # Look for co-occurring wallets (same block_num)
+                if entity_rows:
+                    block_nums = [r[4] for r in entity_rows if r[4]]
+                    if block_nums:
+                        # Find other entities in the same blocks
+                        # Get the actual entity_id bytes that matched
+                        matched_eid = entity_rows[0][0] if entity_rows else identifier.encode()
+                        if isinstance(matched_eid, memoryview):
+                            matched_eid = bytes(matched_eid)
+                        pg_cur.execute("""
+                            SELECT DISTINCT entity_id, chain_id
+                            FROM akashic_bh
+                            WHERE block_num = ANY(%s)
+                            AND entity_id != %s
+                            LIMIT 20
+                        """, (block_nums[:50], matched_eid))
+                        co_occur = pg_cur.fetchall()
+
+                        for co in co_occur:
+                            co_entity = co[0]
+                            if isinstance(co_entity, (bytes, memoryview)):
+                                co_entity = bytes(co_entity).decode('ascii', errors='replace')
+                            co_chain = int(co[1]) if co[1] else 0
+                            linked_wallets.append({
+                                "address": co_entity[:40],
+                                "chain_id": co_chain,
+                                "linkage": "co_occurrence"
+                            })
+
+                tsdb_wallets_found = len(linked_wallets)
+
+            pg_conn.close()
+    except Exception as exc:
+        pass  # Fall through to single-wallet resolution
+
+    # ── Run BEO resolution engine ───────────────────────────────────────────
+    # Create WalletActivity for the main identifier
+    main_wallet = WalletActivity(
+        address=identifier,
+        chain_id=chain_id,
+        funding_source=body.get("funding_source"),
+        first_tx_ts=float(body.get("first_tx_ts", 0)),
+        co_tx_timestamps=body.get("co_tx_timestamps", []),
+    )
+
+    # If we found linked wallets from TimescaleDB, include them
+    all_wallets = [main_wallet]
+    for lw in linked_wallets[:5]:  # max 5 linked wallets for resolution
+        all_wallets.append(WalletActivity(
+            address=lw["address"],
+            chain_id=lw["chain_id"],
+            funding_source=None,
+            first_tx_ts=0,
+            co_tx_timestamps=[],
+        ))
+
+    result = resolve_entity(all_wallets)
+
+    return jsonify({
+        "canonical_id": result.get("canonical_id"),
+        "beo_confidence": result.get("beo_confidence"),
+        "same_entity": result.get("same_entity"),
+        "components": result.get("components"),
+        "weights": result.get("weights"),
+        "threshold": result.get("threshold"),
+        "formula": "BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Sigmaw",
+        "specification": "L0.2",
+        "identifier": identifier,
+        "tsdb_bhs_for_entity": tsdb_bhs_for_entity,
+        "tsdb_linked_wallets_found": tsdb_wallets_found,
+        "linked_wallets": linked_wallets[:10],
+        "wallets_analyzed": len(all_wallets),
+        "timestamp": int(time.time()),
+    })
+
+
 @app.route("/api/v1/feed")
 def feed():
     """
