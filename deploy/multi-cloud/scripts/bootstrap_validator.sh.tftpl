@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# =============================================================================
+# TRION Validator Bootstrap Script (Terraform template)
+# =============================================================================
+# This script runs on each validator instance at boot time (via cloud-init).
+# It installs the full TRION stack:
+#   - Python 3.12 + Oracle API + ANIMA FAISS engine
+#   - Rust indexers (1-2 VM families per validator)
+#   - Go validator daemon (DW-BFT mesh)
+#   - WireGuard P2P mesh
+#   - Shared TimescaleDB connection
+#
+# Template variables (filled by Terraform):
+#   ${validator_id}       — unique validator ID
+#   ${validator_region}   — ISO region code (NA-US, EU-DE, AP-JP, etc.)
+#   ${wireguard_ip}       — this validator's WireGuard IP (10.66.0.X)
+#   ${wireguard_port}     — WireGuard UDP port (51820)
+#   ${trion_repo_url}     — TRION GitHub repo
+#   ${trion_branch}       — branch to clone
+#   ${trion_api_key}      — Oracle API key
+#   ${faiss_api_key}      — ANIMA FAISS API key
+#   ${timescaledb_url}    — shared TimescaleDB URL
+#   ${indexer_families}   — space-separated Rust indexer families (e.g. "evm svm")
+# =============================================================================
+set -euo pipefail
+set -x  # Log every command for debugging
+
+echo "═══════════════════════════════════════════════════════════════════"
+echo "  TRION Validator Bootstrap — ${validator_id}"
+echo "  Region: ${validator_region}"
+echo "  WireGuard IP: ${wireguard_ip}"
+echo "  Indexers: ${indexer_families}"
+echo "═══════════════════════════════════════════════════════════════════"
+
+# ── 1. System packages ────────────────────────────────────────────────────────
+apt-get update -y
+apt-get install -y \
+  build-essential curl git python3 python3-pip python3-venv \
+  wireguard wireguard-tools \
+  ca-certificates gnupg lsb-release \
+  pkg-config libssl-dev libffi-dev \
+  postgresql-client \
+  htop jq
+
+# ── 2. Install Rust (for indexers + PyO3 bridge) ────────────────────────────────
+if ! command -v cargo &>/dev/null; then
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source "$HOME/.cargo/env"
+fi
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# ── 3. Install Go (for validator daemon) ────────────────────────────────────────
+GO_VERSION="1.22.5"
+if ! command -v go &>/dev/null; then
+  wget -q "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -O /tmp/go.tar.gz
+  tar -C /usr/local -xzf /tmp/go.tar.gz
+  rm /tmp/go.tar.gz
+  echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile
+  export PATH=$PATH:/usr/local/go/bin
+fi
+
+# ── 4. Clone TRION repository ──────────────────────────────────────────────────
+TRION_HOME="/opt/trion"
+git clone --branch ${trion_branch} ${trion_repo_url} "${TRION_HOME}" || \
+  git clone ${trion_repo_url} "${TRION_HOME}"
+cd "${TRION_HOME}"
+
+# ── 5. Python dependencies ──────────────────────────────────────────────────────
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install \
+  flask flask-socketio simple-websocket flask-cors \
+  feedparser vaderSentiment langdetect \
+  faiss-cpu pydantic fastapi uvicorn \
+  z3-solver web3 eth-account \
+  kyber-py dilithium-py pyspx \
+  psycopg2-binary numpy scipy scikit-learn
+
+# ── 6. Build Rust indexers + PyO3 bridge ──────────────────────────────────────
+cd "${TRION_HOME}/indexers"
+cargo build --release
+cd "${TRION_HOME}/rust"
+cargo build --release --features pyo3
+cd "${TRION_HOME}"
+
+# ── 7. Build Go validator ──────────────────────────────────────────────────────
+cd "${TRION_HOME}/validator"
+go build -o trion-validator ./cmd/trion-validator
+cd "${TRION_HOME}"
+
+# ── 8. WireGuard configuration ────────────────────────────────────────────────
+# The .conf file is pushed by deploy_all.sh after Terraform creates the instance.
+# For now, just ensure WireGuard is enabled.
+systemctl enable wg-quick@wg0 || true
+
+# ── 9. Environment configuration ────────────────────────────────────────────────
+cat > "${TRION_HOME}/validator.env" << EOF
+# ── TRION Validator Environment ────────────────────────────────────────────────
+TRION_VALIDATOR_ID=${validator_id}
+TRION_VALIDATOR_REGION=${validator_region}
+TRION_VALIDATOR_ADDR=0.0.0.0:7001
+TRION_HEALTHZ_ADDR=0.0.0.0:7080
+
+# ── API Keys ───────────────────────────────────────────────────────────────────
+TRION_API_KEY=${trion_api_key}
+FAISS_API_KEY=${faiss_api_key}
+
+# ── Database ──────────────────────────────────────────────────────────────────
+TIMESCALEDB_URL=${timescaledb_url}
+
+# ── Software Keys (no HSM) ────────────────────────────────────────────────────
+KMS_PROVIDER=env
+TRION_ALLOW_RAW_ENV_KEYS=1
+
+# ── FAISS ─────────────────────────────────────────────────────────────────────
+FAISS_SERVICE_URL=http://127.0.0.1:8001
+FAISS_PORT=8001
+
+# ── Indexer Config ────────────────────────────────────────────────────────────
+INDEXER_FAMILIES=${indexer_families}
+
+# ── Peer Oracles (federation mesh — filled by deploy_all.sh) ───────────────────
+# TRION_PEER_ORACLES=http://10.66.0.2:5000,http://10.66.0.3:5000,...
+EOF
+chmod 600 "${TRION_HOME}/validator.env"
+
+# ── 10. Create systemd services ────────────────────────────────────────────────
+# ANIMA FAISS service
+cat > /etc/systemd/system/trion-anima.service << EOF
+[Unit]
+Description=TRION ANIMA FAISS Engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${TRION_HOME}/anima-service
+EnvironmentFile=${TRION_HOME}/validator.env
+ExecStart=${TRION_HOME}/.venv/bin/python3 faiss_service.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Oracle API service
+cat > /etc/systemd/system/trion-oracle.service << EOF
+[Unit]
+Description=TRION Oracle API
+After=trion-anima.service
+Requires=trion-anima.service
+
+[Service]
+Type=simple
+WorkingDirectory=${TRION_HOME}
+EnvironmentFile=${TRION_HOME}/validator.env
+ExecStart=${TRION_HOME}/.venv/bin/python3 serve.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Go validator daemon
+cat > /etc/systemd/system/trion-validator.service << EOF
+[Unit]
+Description=TRION Go Validator Daemon
+After=trion-oracle.service
+Requires=trion-oracle.service
+
+[Service]
+Type=simple
+WorkingDirectory=${TRION_HOME}/validator
+EnvironmentFile=${TRION_HOME}/validator.env
+ExecStart=${TRION_HOME}/validator/trion-validator --addr=\${TRION_VALIDATOR_ADDR} --healthz=\${TRION_HEALTHZ_ADDR} --region=\${TRION_VALIDATOR_REGION}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Rust indexer service (one per family)
+for family in ${indexer_families}; do
+  cat > /etc/systemd/system/trion-indexer-${family}.service << EOF
+[Unit]
+Description=TRION Rust Indexer — ${family}
+After=trion-anima.service
+Requires=trion-anima.service
+
+[Service]
+Type=simple
+WorkingDirectory=${TRION_HOME}
+EnvironmentFile=${TRION_HOME}/validator.env
+ExecStart=${TRION_HOME}/indexers/target/release/trion-${family}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl enable trion-indexer-${family}
+done
+
+# ── 11. Start services ──────────────────────────────────────────────────────────
+systemctl daemon-reload
+systemctl enable trion-anima trion-oracle trion-validator
+systemctl start trion-anima
+sleep 5
+systemctl start trion-oracle
+sleep 5
+systemctl start trion-validator
+for family in ${indexer_families}; do
+  systemctl start trion-indexer-${family}
+done
+
+echo ""
+echo "═══════════════════════════════════════════════════════════════════"
+echo "  ✅ TRION Validator ${validator_id} — Bootstrap Complete"
+echo "  Region: ${validator_region}"
+echo "  WireGuard IP: ${wireguard_ip}"
+echo "  Indexers: ${indexer_families}"
+echo ""
+echo "  Services:"
+echo "    - trion-anima.service (FAISS on :8001)"
+echo "    - trion-oracle.service (Oracle API on :5000)"
+echo "    - trion-validator.service (Go DW-BFT on :7001 + :7080)"
+for family in ${indexer_families}; do
+  echo "    - trion-indexer-${family}.service"
+done
+echo ""
+echo "  Verify: curl http://localhost:5000/api/v1/health"
+echo "═══════════════════════════════════════════════════════════════════"
