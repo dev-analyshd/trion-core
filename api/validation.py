@@ -26,6 +26,24 @@ ENTITY_ID_RE = re.compile(r'^(0x)?[a-fA-F0-9]{64}$')
 # EVM address: 0x + 40 hex chars
 ADDRESS_RE = re.compile(r'^0x[a-fA-F0-9]{40}$')
 
+# ── Cross-VM address patterns (L0 — substrate-independent) ──────────────────
+# Solana: base58, 32-44 chars
+SOLANA_RE = re.compile(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$')
+# Cosmos (bech32): prefix + 1 + 38+ chars
+COSMOS_RE = re.compile(r'^(cosmos|osmo|juno|akash|celestia|injective|terra|kava|secret|regen|sentinel|ixo|emoney|stargaze|agoric|sommelier|umee|crescent|noble|dymension|tgrade|archway|neutron|nibiru|stride|aura)1[a-z0-9]{38,}$')
+# NEAR: account.near or subaccount.account.near
+NEAR_RE = re.compile(r'^[a-z0-9][a-z0-9\-_.]{1,63}\.near$')
+# TON: EQ/UQ + base64url (48 chars) or hex
+TON_RE = re.compile(r'^(EQ|UQ)[A-Za-z0-9_-]{46}$')
+# Sui/Aptos (Move): 0x + 64 hex (32-byte addresses)
+MOVE_RE = re.compile(r'^0x[a-fA-F0-9]{64}$')
+# Stacks: SP/ST + base58check (41 chars)
+STACKS_RE = re.compile(r'^(SP|ST)[A-Z0-9]{39,41}$')
+# Stellar: G + base32 (56 chars)
+STELLAR_RE = re.compile(r'^G[A-Z2-7]{55}$')
+# Bitcoin: bc1, 1, 3 prefixes
+BITCOIN_RE = re.compile(r'^(bc1[a-z0-9]{39,59}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$')
+
 # ── Well-known protocol aliases ─────────────────────────────────────────────
 # STRICT ALLOWLIST (lowercase, exact-match) of protocol names accepted as
 # entity identifiers. These resolve to stable BEO IDs via SHA3-256 of the
@@ -73,19 +91,34 @@ CHAIN_ID_MAX = 2**32 - 1
 def validate_entity_id(eid: Optional[str]) -> bool:
     """Return True if `eid` is a valid entity identifier.
     
-    Accepts three formats:
-    - 64-char hex BEO ID (with or without 0x prefix)
-    - 0x-prefixed 40-hex EVM address
-    - A well-known protocol alias from the strict allowlist (uniswap, aave, ...)
+    TRION is substrate-independent (whitepaper §L0) — ANY non-empty string
+    that doesn't contain path traversal characters is accepted as an entity
+    identifier. The BH computation normalizes it to a canonical hex BEO ID
+    via SHA3-256, so every component (FAISS, ledger, coherence) sees one
+    stable identity per entity regardless of the source VM.
+    
+    This accepts ALL VM address formats:
+    - EVM: 0x + 40 hex
+    - Solana: base58 (32-44 chars)
+    - Cosmos: bech32 (cosmos1..., osmo1...)
+    - NEAR: account.near
+    - TON: EQ.../UQ...
+    - Move: 0x + 64 hex (Sui/Aptos)
+    - Stacks: SP.../ST...
+    - Stellar: G + 55 chars
+    - Bitcoin: bc1.../1.../3...
+    - Program names, contract names, or any other identifier
+    - Protocol aliases (uniswap, aave, etc.)
     """
     if not eid:
         return False
     eid = eid.strip()
-    return bool(
-        ENTITY_ID_RE.match(eid)
-        or ADDRESS_RE.match(eid)
-        or eid.lower() in PROTOCOL_ALIASES
-    )
+    if len(eid) < 2 or len(eid) > 200:
+        return False
+    # Block path traversal (security)
+    if "../" in eid or "..\\" in eid or "\x00" in eid:
+        return False
+    return True
 
 
 def validate_address(addr: Optional[str]) -> bool:
@@ -119,8 +152,38 @@ def validate_chain_id(cid: Optional[str | int]) -> bool:
 
 
 def normalise_entity_id(eid: str) -> str:
-    """Strip whitespace; preserve 0x prefix if present."""
-    return eid.strip()
+    """Normalise an entity ID to its canonical form.
+    
+    For EVM addresses (0x + 40 hex): preserve as-is (lowercase).
+    For hex BEO IDs (64 hex): preserve as-is (lowercase, strip 0x).
+    For all other VM addresses (Solana, Cosmos, NEAR, etc.): convert to a
+      canonical hex BEO ID via SHA3-256 hash of the raw address string.
+      This ensures every component (FAISS, ledger, coherence) sees one
+      stable identity per entity regardless of the source VM.
+    For protocol aliases: resolve to their canonical BEO ID.
+    """
+    import hashlib
+    eid = eid.strip()
+    
+    # Protocol alias → canonical BEO ID
+    alias_resolved = resolve_protocol_alias(eid)
+    if alias_resolved:
+        return alias_resolved
+    
+    # EVM address: normalize to lowercase
+    if ADDRESS_RE.match(eid):
+        return eid.lower()
+    
+    # Hex BEO ID: normalize (strip 0x, lowercase)
+    if ENTITY_ID_RE.match(eid):
+        return eid.lower().replace("0x", "", 1) if eid.lower().startswith("0x") else eid.lower()
+    
+    # Move address (0x + 64 hex): treat same as hex BEO ID
+    if MOVE_RE.match(eid):
+        return eid.lower().replace("0x", "")
+    
+    # All other VM addresses: hash to canonical BEO ID
+    return hashlib.sha3_256(eid.encode()).hexdigest()
 
 
 def require_entity_id(param_name: str = 'entity_id') -> Callable:
