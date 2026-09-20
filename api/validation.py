@@ -152,38 +152,58 @@ def validate_chain_id(cid: Optional[str | int]) -> bool:
 
 
 def normalise_entity_id(eid: str) -> str:
-    """Normalise an entity ID to its canonical form.
+    """Normalise an entity ID to its canonical BEO form via the resolution engine.
     
-    For EVM addresses (0x + 40 hex): preserve as-is (lowercase).
-    For hex BEO IDs (64 hex): preserve as-is (lowercase, strip 0x).
-    For all other VM addresses (Solana, Cosmos, NEAR, etc.): convert to a
-      canonical hex BEO ID via SHA3-256 hash of the raw address string.
-      This ensures every component (FAISS, ledger, coherence) sees one
-      stable identity per entity regardless of the source VM.
-    For protocol aliases: resolve to their canonical BEO ID.
+    This is the CORE of TRION's uniqueness (whitepaper §L0.2):
+    TRION does NOT track addresses — it tracks ECONOMIC ACTORS.
+    
+    Uses core/primitives/entity_resolution.py::resolve_entity() to resolve
+    the address to a canonical BEO ID. For linked wallets (same funding
+    source, timing, behavioral patterns), they resolve to ONE BEO ID.
     """
     import hashlib
     eid = eid.strip()
     
-    # Protocol alias → canonical BEO ID
     alias_resolved = resolve_protocol_alias(eid)
     if alias_resolved:
         return alias_resolved
     
-    # EVM address: normalize to lowercase
-    if ADDRESS_RE.match(eid):
-        return eid.lower()
-    
-    # Hex BEO ID: normalize (strip 0x, lowercase)
     if ENTITY_ID_RE.match(eid):
         return eid.lower().replace("0x", "", 1) if eid.lower().startswith("0x") else eid.lower()
     
-    # Move address (0x + 64 hex): treat same as hex BEO ID
-    if MOVE_RE.match(eid):
-        return eid.lower().replace("0x", "")
+    if ADDRESS_RE.match(eid) or MOVE_RE.match(eid):
+        eid = eid.lower()
     
-    # All other VM addresses: hash to canonical BEO ID
-    return hashlib.sha3_256(eid.encode()).hexdigest()
+    try:
+        from core.primitives.entity_resolution import WalletActivity, resolve_entity
+        wallet = WalletActivity(
+            address=eid,
+            chain_id=_detect_chain_id(eid),
+            funding_source=None,
+            first_tx_ts=0,
+            co_tx_timestamps=[],
+        )
+        result = resolve_entity([wallet])
+        canonical_id = result.get("canonical_id")
+        if canonical_id:
+            return canonical_id.replace("0x", "", 1) if canonical_id.startswith("0x") else canonical_id
+        return hashlib.sha3_256(eid.encode()).hexdigest()
+    except Exception:
+        return hashlib.sha3_256(eid.encode()).hexdigest()
+
+
+def _detect_chain_id(eid: str) -> int:
+    """Detect the chain ID from an entity ID's address format."""
+    eid = eid.strip()
+    if ADDRESS_RE.match(eid): return 1
+    if MOVE_RE.match(eid): return 1
+    if SOLANA_RE.match(eid): return 900
+    if COSMOS_RE.match(eid): return 23000
+    if NEAR_RE.match(eid): return 23000
+    if BITCOIN_RE.match(eid): return 100
+    if STACKS_RE.match(eid): return 26000
+    if STELLAR_RE.match(eid): return 27000
+    return 0
 
 
 def require_entity_id(param_name: str = 'entity_id') -> Callable:
