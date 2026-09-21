@@ -3347,25 +3347,34 @@ def get_volatility(entity_id: str):
 def get_mental_confidence(entity_id: str):
     """
     L3.1 — Mental confidence M(t) ∈ [0,1].
-    specification: M(t) = 1 − (PI_t / PI_baseline)
 
-    PI_t is the within-entity prediction interval width — the standard deviation
-    of archetype-similarity scores across the last N behavioral vectors.  High
-    variance means the entity's trajectory is erratic and hard to model; low
-    variance means it is tightly archetype-consistent and predictable.
+    SPECIFICATION (spec/L3_mental_anima.md §L3.1):
+        M(t) = (1 - eta·O(t)) · (1 - gamma·PCL(t)) · B(t)
 
-    PI_baseline = 0.30 — at 30% spread or more, M(t) collapses to 0 (maximum
-    uncertainty; the oracle cannot form a confident mental model of this entity).
+    Where:
+        O(t)   — observer effect magnitude          (L3.2; Pearson corr between
+                 signal publication and behavioral change, clamped to [0, 1])
+        PCL(t) — predictive completeness limit       (L3.6; H(future) /
+                 (H(present) + H(future)); never reaches 1)
+        B(t)   — baseline empirical confidence       (L1/L2; derived from the
+                 archetype-similarity and prediction-interval width)
+        eta    — observer sensitivity               (default 0.5 per spec)
+        gamma  — predictive-debt sensitivity        (default 0.3 per spec)
 
-    Final M(t) = arch_sim · m_pi:
-      • arch_sim  — how well the entity matches its best archetype (L2.2 cosine)
-      • m_pi      — how stable that match has been over recent history (PI term)
-    Both factors must be high for M(t) to be high.  An entity that is similar to
-    an archetype but has been drifting wildly gets penalised by a wide PI.
+    The previous endpoint implementation returned `mental_m = arch_sim × m_pi`
+    (a 2-factor product ignoring the O(t) and PCL(t) dampening terms) and never
+    invoked the canonical `core/mental/confidence.py::compute_m_score`. This
+    commit delegates to the canonical function with all four spec terms (O, PCL,
+    B, eta, gamma) so the response surfaces each component individually and the
+    final M(t) honours the spec formula.
     """
-    PI_BASELINE    = 0.30   # std at which M_pi collapses to 0
+    from core.mental.confidence import compute_m_score
+
+    PI_BASELINE    = 0.30   # std at which B(t) collapses to 0
     HISTORY_WINDOW = 20     # look-back window for PI computation
     MIN_PI_RECORDS = 3      # minimum records needed for a meaningful std estimate
+    ETA            = 0.5    # spec L3.1 default observer sensitivity
+    GAMMA          = 0.3    # spec L3.1 default predictive-debt sensitivity
 
     beo_id = resolve_beo(entity_id)
     if not FAISS_AVAILABLE or index is None or index.ntotal == 0:
@@ -3378,9 +3387,18 @@ def get_mental_confidence(entity_id: str):
         query_vec = np.array(records[-1]["vector"], dtype="float32")
         arch_id, arch_sim = get_archetype(query_vec)
 
-        # ── Prediction-interval width ─────────────────────────────────────────
-        # Collect stored arch_sim values from recent records.  When a record was
-        # indexed without an arch_sim tag (pre-existing data), recompute it now.
+        # ── B(t) baseline empirical confidence ───────────────────────────────
+        # B(t) is composed of two factors that both contribute to baseline
+        # confidence in the entity's behavioural model:
+        #   (1) arch_sim — how strongly the entity matches its best archetype
+        #                  (L2.2 cosine similarity in [0, 1]).
+        #   (2) m_pi    — how stable that match has been over the recent
+        #                  HISTORY_WINDOW records (PI-based stability term).
+        #                  pi_t = std(recent arch_sim values); lower = more stable.
+        #                  m_pi = 1 - pi_t / PI_BASELINE (clamped to [0, 1]).
+        # B(t) = arch_sim × m_pi  (a high score requires BOTH archetype match
+        # AND trajectory stability — the legacy 2-factor product is preserved
+        # as the B(t) input to the spec formula).
         window = records[-HISTORY_WINDOW:]
         sim_history = []
         for r in window:
@@ -3399,24 +3417,70 @@ def get_mental_confidence(entity_id: str):
             pi_t = None
             m_pi = arch_sim
 
-        mental_m = arch_sim * m_pi
+        b_t = float(np.clip(arch_sim * m_pi, 0.0, 1.0))
     else:
         # No history — specification L3.1 neutral prior.
-        # M(t) = 1 − PI_t/PI_baseline.  With zero behavioral records, PI_t is
-        # undefined (no calibration exists).  The specification's genesis inference
-        # (L2.3) substitutes archetype-derived values for missing direct data;
-        # until we have a real behavioral vector to match, the neutral prior is
-        # M = 0.5 — the midpoint between full confidence and full uncertainty.
-        # Using a random seed vector gives near-zero arch_sim which would
-        # collapse M and drag coherence down falsely.  Neutral 0.5 is correct
-        # for an unseen entity whose quality is simply unknown.
+        # Without a real behavioral vector to compare, arch_sim and m_pi
+        # are undefined; B(t) falls back to the neutral 0.5 prior. O(t) and
+        # PCL(t) are still computed below from cross-entity aggregates so the
+        # response surfaces every spec term even for unseen entities.
         arch_id  = -1
         arch_sim = 0.5    # neutral — no real vector to compare
         pi_t     = None
         m_pi     = 1.0    # no instability measurement yet
-        mental_m = 0.5    # L3.1 neutral prior for unseen entities
+        b_t      = 0.5    # L3.1 neutral prior for unseen entities
 
+    # ── O(t) observer effect magnitude (L3.2) ─────────────────────────────────
+    # O(t) = |corr(signal_publication(t-1), behavioral_change(t))| clamped to [0, 1].
+    # Reuses the canonical compute_observer_effect(entity_id) helper that already
+    # implements the Pearson correlation between publication events and signed
+    # behavioral deltas with proper contrast-bucket sampling.
+    try:
+        oe_data = compute_observer_effect(entity_id)
+        o_t = float(oe_data.get("oe_factor", 0.0) or 0.0)
+    except Exception:
+        o_t = 0.0
+        oe_data = {"status": "oe_unavailable"}
+
+    # ── PCL(t) predictive completeness limit (L3.6) ───────────────────────────
+    # PCL(t) = H(future) / (H(present) + H(future)) — the spec formula.
+    # H(future) is proxied as the mean behavioral entropy across the most recent
+    # entity records (same proxy as /api/v1/predictive_completeness_limit).
+    # H(present) is the entropy of the current behavioral distribution.
+    # PCL is clamped to [0, 0.9999] — it can never reach 1 (perfect prediction
+    # is impossible; quantum + chaos impose a hard floor — see spec L3.6).
+    try:
+        all_entropies: list = []
+        for _eid, _records in entity_history.items():
+            if _records:
+                _vecs = np.array([r["vector"] for r in _records[-50:]], dtype="float32")
+                _ent = float(-np.sum(np.abs(_vecs) * np.log(np.abs(_vecs) + 1e-10)))
+                all_entropies.append(_ent)
+        h_future_proxy = float(np.mean(all_entropies)) if all_entropies else 1.0
+        # Present entropy: entropy of the entity's own most-recent record set
+        # (or h_future_proxy when the entity has no records — neutral prior).
+        if records:
+            _vecs_now = np.array([r["vector"] for r in records[-20:]], dtype="float32")
+            h_present = float(-np.sum(np.abs(_vecs_now) * np.log(np.abs(_vecs_now) + 1e-10)))
+        else:
+            h_present = h_future_proxy
+        # Spec L3.6 form: PCL = H(future) / (H(present) + H(future))
+        denom = h_present + h_future_proxy
+        if denom > 0:
+            pcl_t = h_future_proxy / denom
+        else:
+            pcl_t = 0.5
+        pcl_t = max(0.0, min(0.9999, pcl_t))
+    except Exception:
+        pcl_t = 0.0
+
+    # ── M(t) — delegate to canonical primitive ────────────────────────────────
+    mental_m = compute_m_score(o_t=o_t, pcl_t=pcl_t, b_t=b_t, eta=ETA, gamma=GAMMA)
     mental_m = float(np.clip(mental_m, 0.0, 1.0))
+
+    # Spec-derived multiplicative components (for transparency / debuggability)
+    oe_dampener   = round(1.0 - ETA   * o_t,   6)   # (1 - eta·O)
+    pcl_dampener  = round(1.0 - GAMMA * pcl_t, 6)    # (1 - gamma·PCL)
 
     # L1.4 — record mental plane observation for Transduction Integrity tracking
     record_ti_observation("mental_plane", mental_m)
@@ -3424,6 +3488,16 @@ def get_mental_confidence(entity_id: str):
     return {
         "entity_id":            entity_id,
         "mental_m":             round(mental_m, 6),
+        # ── spec L3.1 components ─────────────────────────────────────────────
+        "formula":              "M(t) = (1 - eta·O(t)) · (1 - gamma·PCL(t)) · B(t)",
+        "eta":                  ETA,
+        "gamma":                GAMMA,
+        "O_t":                  round(o_t,   6),    # observer effect magnitude (L3.2)
+        "PCL_t":                round(pcl_t, 6),    # predictive completeness limit (L3.6)
+        "B_t":                  round(b_t,   6),    # baseline empirical confidence (L1/L2)
+        "oe_dampener":          oe_dampener,         # (1 - eta·O)
+        "pcl_dampener":         pcl_dampener,        # (1 - gamma·PCL)
+        # ── L2.2 archetype + PI inputs to B(t) (kept for backward compat) ─────
         "arch_sim":             round(arch_sim, 6),
         "m_pi":                 round(m_pi, 6),
         "pi_t":                 round(pi_t, 6) if pi_t is not None else None,
@@ -3432,6 +3506,10 @@ def get_mental_confidence(entity_id: str):
         "archetype_id":         arch_id,
         "history_window":       len(records[-HISTORY_WINDOW:]) if records else 0,
         "indexed_vectors":      index.ntotal,
+        "oe_status":            oe_data.get("status") if isinstance(oe_data, dict) else "ok",
+        "oe_publication_count": oe_data.get("publication_count") if isinstance(oe_data, dict) else 0,
+        "primitive":            "core.mental.confidence.compute_m_score",
+        "specification":        "L3.1",
         "status":               "ok",
     }
 
