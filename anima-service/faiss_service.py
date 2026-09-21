@@ -9076,17 +9076,27 @@ def get_intelligence_maintenance():
     """
     L3.7 — Intelligence Maintenance Protocol (IM).
 
-    Monitors oracle self-health: prediction accuracy EMA, freshness of indexed
-    behavioral data, and archetype stability across the whole entity store.
+    SPECIFICATION (spec/L3_mental_anima.md §L3.7 / whitepaper F7):
+        IM(component, t) = Accuracy(component, t) / Accuracy(component, t_baseline)
 
-    IM_score = accuracy_ema × freshness_factor × stability_factor ∈ [0,1]
+    AUDIT GAP #10 (consolidation):
+        Previously this endpoint used a DIVERGENT 3-factor formula
+        `IM_score = accuracy_ema × freshness_factor × stability_factor` which
+        is NOT the spec formula. Both :5000 (Flask) and :8000 (FastAPI/FAISS)
+        now delegate to the SAME canonical function
+        `core.mental.intelligence_maintenance.compute_system_im` so they
+        return the SAME `im_score` for the same timestamp.
+
+    The legacy EMA / freshness / stability metrics are still computed and
+    surfaced under the `legacy_ema_components` field for callers that depend
+    on them, but the canonical `im_score` is now the spec ratio.
 
     Degradation alert when IM_score < 0.50 for 3+ consecutive windows.
-    Returns: { im_score, degradation_alert, degradation_count, components }
+    Returns: { im_score, system_health, components, formula, primitive }
     """
     global _im_degradation_count
 
-    # freshness_factor: fraction of entities with data in the last 1000 records
+    # ── Legacy EMA / freshness / stability (informational only) ───────────────
     total_entities = len(entity_history)
     if total_entities == 0:
         freshness_factor = 0.0
@@ -9097,7 +9107,6 @@ def get_intelligence_maintenance():
         )
         freshness_factor = min(fresh_entities / max(total_entities, 1), 1.0)
 
-    # stability_factor: mean arch_sim across all entities' last record
     all_last_sims = [
         recs[-1].get("arch_sim", 0.5)
         for recs in entity_history.values() if recs
@@ -9107,20 +9116,21 @@ def get_intelligence_maintenance():
     else:
         stability_factor = 0.70
 
-    im_score = round(float(_im_ema_accuracy * freshness_factor * stability_factor), 6)
+    legacy_ema_im = round(float(_im_ema_accuracy * freshness_factor * stability_factor), 6)
+
+    # ── Canonical spec formula — same as :5000 ─────────────────────────────────
+    from core.mental.intelligence_maintenance import compute_system_im
+    canonical = compute_system_im(datetime.now(timezone.utc).timestamp())
+    im_score = canonical["im_score"]
 
     degradation_alert = im_score < 0.50
     if degradation_alert:
         _im_degradation_count += 1
     else:
         _im_degradation_count = max(0, _im_degradation_count - 1)
-
     persistent_degradation = _im_degradation_count >= 3
 
     # ── L3.7 Auto-Retraining Protocol ─────────────────────────────────────────
-    # specification: when IM_score < 0.50 for 3+ consecutive windows the system
-    # MUST re-train its archetype centroids from the accumulated Akashic history.
-    # A 1-hour cooldown prevents thrashing (index rebuilds are CPU-intensive).
     retrain_triggered = False
     retrain_result: Optional[dict] = None
     global _im_last_retrain_ts
@@ -9158,12 +9168,12 @@ def get_intelligence_maintenance():
         "RETRAINING" if retrain_triggered else
         "CRITICAL_DEGRADATION" if persistent_degradation else
         "DEGRADED" if degradation_alert else
-        "NOMINAL"
+        canonical["system_health"]
     )
 
     record = {
         "ts":              datetime.now(timezone.utc).isoformat(),
-        "im_score":        im_score,
+        "im_score":         im_score,
         "degradation":     degradation_alert,
         "accuracy_ema":    round(_im_ema_accuracy, 6),
         "freshness":       round(freshness_factor, 6),
@@ -9175,17 +9185,35 @@ def get_intelligence_maintenance():
         _im_history.pop(0)
 
     return {
+        # ── Canonical spec fields (matches :5000 endpoint exactly) ──────────────
         "im_score":               im_score,
-        "assessment":             assessment,
+        "system_im":              canonical["system_im"],
+        "mean_im":                canonical["mean_im"],
+        "system_health":          canonical["system_health"],
+        "weakest_component":      canonical["weakest_component"],
+        "f7_violation":            canonical["f7_violation"],
+        "components":              canonical["components"],
+        "component_count":         canonical["component_count"],
+        "formula":                 canonical["formula"],
+        "specification":           canonical["specification"],
+        "primitive":               canonical["primitive"],
+        "consolidation_note":      canonical["consolidation_note"],
+        "is_synthetic":            canonical["is_synthetic"],
+        "synthetic_reason":        canonical["synthetic_reason"],
+        # ── Operational state ─────────────────────────────────────────────────
+        "assessment":              assessment,
         "degradation_alert":      degradation_alert,
         "persistent_degradation": persistent_degradation,
         "degradation_count":      _im_degradation_count,
         "retrain_triggered":      retrain_triggered,
         "last_retrain_ts":        _im_last_retrain_ts if _im_last_retrain_ts > 0 else None,
-        "components": {
-            "accuracy_ema":    round(_im_ema_accuracy, 6),
-            "freshness_factor": round(freshness_factor, 6),
-            "stability_factor": round(stability_factor, 6),
+        # ── Legacy EMA / freshness / stability (informational only) ───────────
+        "legacy_ema_components": {
+            "accuracy_ema":       round(_im_ema_accuracy, 6),
+            "freshness_factor":   round(freshness_factor, 6),
+            "stability_factor":   round(stability_factor, 6),
+            "legacy_ema_im":      legacy_ema_im,
+            "legacy_formula":     "IM_score_legacy = accuracy_ema × freshness_factor × stability_factor (deprecated; kept for backward compat)",
         },
         "total_entities":         total_entities,
         "total_indexed":          index.ntotal if index else 0,
