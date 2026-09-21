@@ -36,6 +36,18 @@
         "internalType": "uint64",
         "name": "deadline",
         "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
       }
     ],
     "name": "IntentRegistered",
@@ -48,6 +60,12 @@
         "indexed": true,
         "internalType": "bytes32",
         "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "entityId",
         "type": "bytes32"
       },
       {
@@ -83,6 +101,31 @@
       }
     ],
     "name": "RelayerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "entityId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "travelRuleProofHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "TravelRuleCompliant",
     "type": "event"
   },
   {
@@ -148,9 +191,29 @@
             "type": "uint16"
           },
           {
+            "internalType": "bytes",
+            "name": "chainPref",
+            "type": "bytes"
+          },
+          {
             "internalType": "uint8",
             "name": "privacy",
             "type": "uint8"
+          },
+          {
+            "internalType": "bytes12",
+            "name": "btcpVersion",
+            "type": "bytes12"
+          },
+          {
+            "internalType": "uint64",
+            "name": "nonce",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "travelRuleProof",
+            "type": "bytes32"
           },
           {
             "internalType": "enum BTCPIntent.Status",
@@ -282,9 +345,29 @@
         "type": "uint16"
       },
       {
+        "internalType": "bytes",
+        "name": "chainPref",
+        "type": "bytes"
+      },
+      {
         "internalType": "uint8",
         "name": "privacy",
         "type": "uint8"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "travelRuleProof",
+        "type": "bytes32"
       },
       {
         "internalType": "enum BTCPIntent.Status",
@@ -371,9 +454,29 @@
         "type": "uint16"
       },
       {
+        "internalType": "bytes",
+        "name": "chainPref",
+        "type": "bytes"
+      },
+      {
         "internalType": "uint8",
         "name": "privacy",
         "type": "uint8"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "travelRuleProof",
+        "type": "bytes32"
       }
     ],
     "name": "registerIntent",

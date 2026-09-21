@@ -23,7 +23,11 @@ contract BTCPIntent {
         uint128  maxTotalGas;     // USD equivalent across all chains
         uint8    minFinality;     // 0=FAST, 1=STANDARD, 2=SECURE
         uint16   minNLScore;      // liquidity health floor (×1000, default 300 = 0.30)
+        bytes    chainPref;       // §4.1 constraints.chain_pref: OPTIMAL | [chain_list] | SINGLE_CHAIN
         uint8    privacy;         // 0=PUBLIC, 1=ZK_CREDENTIAL, 2=INVISIBLE
+        bytes12  btcpVersion;     // §4.1 btcp_version: semver (bytes12) — §11 Fix 3 governance
+        uint64   nonce;           // §4.1 nonce: per-entity monotonic counter
+        bytes32  travelRuleProof; // §11 Fix 1: disclosure_hash (TRION stores hash only)
         Status   status;
         uint64   createdAt;
         address  submitter;
@@ -36,8 +40,19 @@ contract BTCPIntent {
     address public owner;
     address public relayer;
 
-    event IntentRegistered(bytes32 indexed intentHash, bytes32 indexed entityId, Action action, uint256 magnitude, uint64 deadline);
-    event IntentStatusUpdated(bytes32 indexed intentHash, Status oldStatus, Status newStatus);
+    // §12.4 BEO-continuity indexing: every event carries entityId. §11 Fix 3:
+    // btcp_version/nonce surface in IntentRegistered for Akashic indexing.
+    event IntentRegistered(
+        bytes32 indexed intentHash,
+        bytes32 indexed entityId,
+        Action   action,
+        uint256  magnitude,
+        uint64   deadline,
+        bytes12  btcpVersion,
+        uint64   nonce
+    );
+    event IntentStatusUpdated(bytes32 indexed intentHash, bytes32 indexed entityId, Status oldStatus, Status newStatus);
+    event TravelRuleCompliant(bytes32 indexed intentHash, bytes32 indexed entityId, bytes32 travelRuleProofHash);
     event RelayerUpdated(address indexed oldRelayer, address indexed newRelayer);
 
     modifier onlyOwner() { require(msg.sender == owner, "NOT_OWNER"); _; }
@@ -49,6 +64,7 @@ contract BTCPIntent {
     }
 
     /// @notice Register a new intent. Caller must be the entity owner or relayer.
+    /// @dev Spec §4.1 Intent Object + §11 Fix 1 (Travel Rule) + §11 Fix 3 (BTCP version).
     function registerIntent(
         bytes32 intentHash,
         bytes32 entityId,
@@ -60,7 +76,11 @@ contract BTCPIntent {
         uint128 maxTotalGas,
         uint8   minFinality,
         uint16  minNLScore,
-        uint8   privacy
+        bytes   calldata chainPref,
+        uint8   privacy,
+        bytes12 btcpVersion,
+        uint64  nonce,
+        bytes32 travelRuleProof
     ) external onlyRelayer returns (bool) {
         require(intents[intentHash].intentHash == bytes32(0), "INTENT_EXISTS");
         require(magnitude > 0, "ZERO_MAGNITUDE");
@@ -68,27 +88,37 @@ contract BTCPIntent {
         require(uint8(action) <= 4, "INVALID_ACTION");
         require(minFinality <= 2, "INVALID_FINALITY");
         require(privacy <= 2, "INVALID_PRIVACY");
+        require(nonce > 0, "ZERO_NONCE");              // §4.1 per-entity monotonic counter
+        require(btcpVersion != bytes12(0), "ZERO_VERSION"); // §11 Fix 3 governance version required
 
         intents[intentHash] = Intent({
-            intentHash:    intentHash,
-            entityId:      entityId,
-            action:        action,
-            assetIn:       assetIn,
-            assetOut:      assetOut,
-            magnitude:     magnitude,
-            deadline:      deadline,
-            maxTotalGas:   maxTotalGas,
-            minFinality:   minFinality,
-            minNLScore:    minNLScore,
-            privacy:       privacy,
-            status:        Status.PENDING,
-            createdAt:     uint64(block.timestamp),
-            submitter:     msg.sender
+            intentHash:       intentHash,
+            entityId:         entityId,
+            action:           action,
+            assetIn:          assetIn,
+            assetOut:         assetOut,
+            magnitude:        magnitude,
+            deadline:         deadline,
+            maxTotalGas:      maxTotalGas,
+            minFinality:      minFinality,
+            minNLScore:       minNLScore,
+            chainPref:        chainPref,
+            privacy:          privacy,
+            btcpVersion:      btcpVersion,
+            nonce:            nonce,
+            travelRuleProof:  travelRuleProof,
+            status:           Status.PENDING,
+            createdAt:        uint64(block.timestamp),
+            submitter:        msg.sender
         });
 
         intentList.push(intentHash);
         intentCount++;
-        emit IntentRegistered(intentHash, entityId, action, magnitude, deadline);
+        emit IntentRegistered(intentHash, entityId, action, magnitude, deadline, btcpVersion, nonce);
+        if (travelRuleProof != bytes32(0)) {
+            // §11 Fix 1 Step 4: TRION emits TRAVEL_RULE_COMPLIANT=TRUE when proof present.
+            emit TravelRuleCompliant(intentHash, entityId, travelRuleProof);
+        }
         return true;
     }
 
@@ -100,7 +130,7 @@ contract BTCPIntent {
         Status old = intent.status;
         require(_validTransition(old, newStatus), "INVALID_TRANSITION");
         intent.status = newStatus;
-        emit IntentStatusUpdated(intentHash, old, newStatus);
+        emit IntentStatusUpdated(intentHash, intent.entityId, old, newStatus);
         return true;
     }
 
