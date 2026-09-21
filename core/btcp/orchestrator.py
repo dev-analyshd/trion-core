@@ -18,6 +18,9 @@ import sys
 import json
 import time
 import hashlib
+import logging
+
+_log = logging.getLogger("btcp.orchestrator")
 import secrets
 import threading
 from dataclasses import dataclass, field, asdict
@@ -1018,6 +1021,9 @@ class BTCPOrchestrator:
         deadline_offset: int = 3600,
         behavioral_data: Optional[Dict[str, Any]] = None,
         iap_economics: Optional[Dict[str, Any]] = None,
+        auto_finalize: bool = True,
+        sovereign_actor: bool = False,
+        nation_id: Optional[str] = None,
     ) -> OrchestrationResult:
         """
         Create and orchestrate a complete BTCP route.
@@ -1042,6 +1048,23 @@ class BTCPOrchestrator:
         """
         start_time = time.perf_counter()
         errors = []
+        
+        # BTCP-FIX-INT (Gap 4): L8 SBA gate for sovereign actors
+        sovereign_risk_flag = False
+        sba_score = None
+        if sovereign_actor and nation_id:
+            try:
+                import urllib.request
+                url = f"http://127.0.0.1:5000/api/v1/sba/{nation_id}"
+                req = urllib.request.Request(url, headers={"X-API-Key": os.environ.get("TRION_API_KEY", "")})
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    sba_data = json.loads(resp.read().decode())
+                    sba_score = sba_data.get("sba")
+                    if sba_score is not None and sba_score < 0.40:
+                        sovereign_risk_flag = True
+                        errors.append(f"SOVEREIGN_RISK: SBA={sba_score:.4f} < 0.40 threshold for {nation_id}")
+            except Exception as e:
+                errors.append(f"SBA check failed for {nation_id}: {str(e)[:60]}")
         
         # Step 0 (P-PY-03, final red-team pass): REGISTRY MEMBERSHIP — both
         # route legs must exist in the canonical chain registry
@@ -1183,6 +1206,28 @@ class BTCPOrchestrator:
         if "iap_share" not in proofs and iap_economics:
             errors.append("IAP share proof was requested but not generated")
 
+        # ── BTCP-FIX-INT (Gap 1): write BH to akashic_bh (Step 6 Akashic Recording) ─
+        if auto_finalize:
+            self._write_btcp_bh_to_akashic(route)
+            # ── BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) ──
+            self._trigger_anima_reflexivity(route)
+
+        # ── BTCP-FIX-INT (Gap 5): L9 XSL score incorporated into route scoring ─
+        # The XSL (Cross-Species Liquidity) score is fetched and used as a
+        # multiplier on the btcp_score to reflect cross-chain liquidity health.
+        try:
+            import urllib.request
+            xsl_url = f"http://127.0.0.1:5000/api/v1/xsl/{route.intent.source_address}"
+            xsl_req = urllib.request.Request(xsl_url, headers={"X-API-Key": os.environ.get("TRION_API_KEY", "")})
+            with urllib.request.urlopen(xsl_req, timeout=3) as resp:
+                xsl_data = json.loads(resp.read().decode())
+                xsl_score = float(xsl_data.get("xsl_score", xsl_data.get("xsl", 0.5)))
+                # Blend XSL into btcp_score (70% original + 30% XSL)
+                route.btcp_score = round(0.7 * route.btcp_score + 0.3 * xsl_score, 6)
+                self._persist_route(route)
+        except Exception:
+            pass  # XSL unavailable, keep original btcp_score
+
         execution_time = (time.perf_counter() - start_time) * 1000
         
         success = len(errors) == 0
@@ -1195,6 +1240,56 @@ class BTCPOrchestrator:
             execution_time_ms=execution_time,
         )
     
+    def _write_btcp_bh_to_akashic(self, route: 'BTCPRoute') -> None:
+        """BTCP-FIX-INT (Gap 1): write a Behavioral Hash to TimescaleDB
+        akashic_bh when a BTCP route finalizes (spec §4.2 Step 6)."""
+        try:
+            import psycopg2 as _pg
+            tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
+            if not tsdb_url:
+                return
+            conn = _pg.connect(tsdb_url, connect_timeout=5)
+            cur = conn.cursor()
+            entity_id = hashlib.sha3_256(
+                route.intent.source_address.encode()
+            ).hexdigest()
+            execution_bh = hashlib.sha3_256(
+                f"{route.route_id}:{route.intent.intent_id}:{time.time()}".encode()
+            ).hexdigest()
+            cur.execute("""
+                INSERT INTO akashic_bh
+                    (entity_id, chain_id, event_type, event_type_name,
+                     magnitude, value_wei, timestamp, source, valid)
+                VALUES (%s, %s, 'BTCP_ROUTE_FINALIZED', 'BTCP_ROUTE_FINALIZED',
+                        %s, %s, %s, 'btcp_orchestrator', true)
+                ON CONFLICT DO NOTHING
+            """, (entity_id, route.intent.source_chain,
+                  float(route.intent.amount),
+                  route.intent.amount,
+                  int(time.time())))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            _log.warning("BTCP BH writeback failed: %s", str(e)[:80])
+
+    def _trigger_anima_reflexivity(self, route: 'BTCPRoute') -> None:
+        """BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) after
+        a BTCP route finalizes — measures self-fulfillment of the signal."""
+        try:
+            import urllib.request
+            entity_id = route.intent.source_address
+            anima_score = route.btcp_score
+            phi_before = 0.5  # bootstrap
+            url = (f"http://127.0.0.1:8000/api/v1/anima/reflexivity/"
+                   f"{entity_id}/publish?anima_score={anima_score}&phi_before={phi_before}")
+            req = urllib.request.Request(url, method="POST",
+                                         headers={"X-API-Key": "trion-audit-key"})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                pass  # fire and forget
+        except Exception:
+            pass  # ANIMA reflexivity is best-effort
+
     def _compute_btcp_score(self, route: 'BTCPRoute') -> float:
         """D2 FIX — compute BTCP_score per spec §4.2 Step 2.
 
