@@ -731,9 +731,12 @@ def test_inv017_external_cause_zero_penalty():
     # entity indicators alone → ENTITY_CAUSE
     assert fc.classify(False, False, False, False,
                        True, True, False, False) == "ENTITY_CAUSE"
-    # ambiguous: benefit of the doubt twice, third escalates
+    # ambiguous: first two occurrences return AMBIGUOUS (benefit of the
+    # doubt), third escalates to ENTITY_CAUSE. Aligned with Rust
+    # FailureCause::Ambiguous (BTCP-DEEP-3 found the prior Python returned
+    # EXTERNAL_CAUSE — diverged; BTCP-FIX2-RUST-VM unifies).
     assert fc.classify(False, False, False, False, False, False, False, False,
-                       prior_ambiguous_count=0) == "EXTERNAL_CAUSE"
+                       prior_ambiguous_count=0) == "AMBIGUOUS"
     assert fc.classify(False, False, False, False, False, False, False, False,
                        prior_ambiguous_count=2) == "ENTITY_CAUSE"
 

@@ -469,17 +469,69 @@ class TestFailureClassifier:
         result = fc.classify(False, False, False, False, True, True, False, False)
         assert result == "ENTITY_CAUSE"
 
-    def test_ambiguous_first_time_external_benefit(self):
+    def test_ambiguous_first_time_ambiguous(self):
+        # Spec §11 Fix 2 — first ambiguous occurrence returns AMBIGUOUS
+        # (aligned with Rust `FailureCause::Ambiguous`). The prior Python
+        # returned "EXTERNAL_CAUSE" for the ambiguous-benefit-of-doubt
+        # case, which diverged from Rust; both now return AMBIGUOUS.
         fc = FailureClassifier()
         result = fc.classify(False, False, False, False, False, False, False, False,
                              prior_ambiguous_count=0)
-        assert result == "EXTERNAL_CAUSE"
+        assert result == "AMBIGUOUS"
 
     def test_ambiguous_third_time_entity(self):
         fc = FailureClassifier()
         result = fc.classify(False, False, False, False, False, False, False, False,
                              prior_ambiguous_count=2)
         assert result == "ENTITY_CAUSE"
+
+    def test_any_single_external_indicator_sufficient(self):
+        # Spec §11 Fix 2 + BTCP-DEEP-3 fix — any single external indicator
+        # is sufficient (matches Rust OR logic, not the prior "count >= 2").
+        fc = FailureClassifier()
+        for kwargs in (
+            dict(chain_outage=True),
+            dict(nl_dropped_below_0_10=True),
+            dict(reorg_depth_exceeded=True),
+            dict(mf_spike=True),
+        ):
+            assert fc.classify(**kwargs) == "EXTERNAL_CAUSE"
+
+    def test_any_single_entity_indicator_sufficient(self):
+        # Spec §11 Fix 2 + BTCP-DEEP-3 fix — any single entity indicator
+        # is sufficient (matches Rust OR logic).
+        fc = FailureClassifier()
+        for kwargs in (
+            dict(invalid_proof=True),
+            dict(collateral_withdrawn=True),
+            dict(conflicting_intents=True),
+            dict(systematic_timeout=True),
+        ):
+            assert fc.classify(**kwargs) == "ENTITY_CAUSE"
+
+    def test_recommend_entity_choice(self):
+        # Spec §11 Fix 2 — WAIT/CANCEL/REROUTE mapping.
+        assert FailureClassifier.recommend_entity_choice("EXTERNAL_CAUSE") == "REROUTE"
+        assert FailureClassifier.recommend_entity_choice("ENTITY_CAUSE") == "CANCEL"
+        assert FailureClassifier.recommend_entity_choice("AMBIGUOUS") == "WAIT"
+
+    def test_classify_and_recommend_external(self):
+        fc = FailureClassifier()
+        result = fc.classify_and_recommend(
+            True, False, False, False, False, False, False, False)
+        assert result == {"cause": "EXTERNAL_CAUSE", "recommended_choice": "REROUTE"}
+
+    def test_classify_and_recommend_entity(self):
+        fc = FailureClassifier()
+        result = fc.classify_and_recommend(
+            False, False, False, False, True, False, False, False)
+        assert result == {"cause": "ENTITY_CAUSE", "recommended_choice": "CANCEL"}
+
+    def test_classify_and_recommend_ambiguous(self):
+        fc = FailureClassifier()
+        result = fc.classify_and_recommend(
+            False, False, False, False, False, False, False, False)
+        assert result == {"cause": "AMBIGUOUS", "recommended_choice": "WAIT"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

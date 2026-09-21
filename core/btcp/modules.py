@@ -1215,14 +1215,15 @@ class StateCapsuleBuilder:
 class FailureClassifier:
     """
     Module 2.11: Classifies route failures as EXTERNAL_CAUSE vs ENTITY_CAUSE.
+    Spec: BTCP Master §11 Fix 2 (lines 1940-1984).
 
-    EXTERNAL_CAUSE indicators:
+    EXTERNAL_CAUSE indicators (any single one is sufficient — matches Rust):
     - chain_outage(execution_chain) = TRUE at failure time
     - NL(execution_chain) dropped below 0.10 during execution
     - reorg_depth > safe_confirmation_count on anchor chain
     - MF_score spike on execution chain (external attack)
 
-    ENTITY_CAUSE indicators:
+    ENTITY_CAUSE indicators (any single one is sufficient — matches Rust):
     - Entity submitted invalid proof
     - Entity withdrew collateral before BTCP_ESCROW released
     - Entity submitted conflicting intents simultaneously
@@ -1230,11 +1231,61 @@ class FailureClassifier:
 
     Impact:
     - EXTERNAL_CAUSE: BEO impact = ZERO, entity not penalized
-    - ENTITY_CAUSE: graduated penalties
+    - ENTITY_CAUSE: graduated penalties (D(t) growth −10% for 30 days)
     - AMBIGUOUS: first two = EXTERNAL benefit of doubt; third within 90 days = ENTITY
+
+    Spec §11 Fix 2 "Entity choice: WAIT (auto-retry) | CANCEL (escrow
+    returns) | REROUTE (immediate)" — when a route fails the owning entity
+    picks how to proceed. `recommend_entity_choice()` maps each cause to a
+    recommended default (External → Reroute; Entity → Cancel; Ambiguous →
+    Wait). The entity may override.
     """
 
+    # Canonical cause string tags (match Rust FailureCause variants).
+    EXTERNAL_CAUSE = "EXTERNAL_CAUSE"
+    ENTITY_CAUSE = "ENTITY_CAUSE"
+    AMBIGUOUS = "AMBIGUOUS"
+
+    # Entity choice tags — exact spec §11 Fix 2 spelling.
+    CHOICE_WAIT = "WAIT"
+    CHOICE_CANCEL = "CANCEL"
+    CHOICE_REROUTE = "REROUTE"
+
+    def __init__(self) -> None:
+        # Stateful three-strike rule per BEO id.
+        self._ambiguous_counts: Dict[bytes, int] = {}
+        self._ambiguous_timestamps: Dict[bytes, List[int]] = {}
+
     def classify(
+        self,
+        chain_outage: bool = False,
+        nl_dropped_below_0_10: bool = False,
+        reorg_depth_exceeded: bool = False,
+        mf_spike: bool = False,
+        invalid_proof: bool = False,
+        collateral_withdrawn: bool = False,
+        conflicting_intents: bool = False,
+        systematic_timeout: bool = False,
+        prior_ambiguous_count: int = 0,
+    ) -> str:
+        # External cause indicators — any single one is sufficient (spec
+        # §11 Fix 2). Matches Rust's `chain_outage || nl_collapsed || …` OR
+        # logic; the prior Python "count >= 2" logic could disagree with
+        # Rust on identical inputs (single external + single entity
+        # indicator). Unified here.
+        if chain_outage or nl_dropped_below_0_10 or reorg_depth_exceeded or mf_spike:
+            return self.EXTERNAL_CAUSE
+
+        # Entity cause indicators — any single one is sufficient (spec §11 Fix 2).
+        if invalid_proof or collateral_withdrawn or conflicting_intents or systematic_timeout:
+            return self.ENTITY_CAUSE
+
+        # AMBIGUOUS: first two = EXTERNAL benefit of doubt; third within 90 days = ENTITY.
+        if prior_ambiguous_count >= 2:
+            return self.ENTITY_CAUSE
+        return self.AMBIGUOUS
+
+    def classify_and_recommend(
         self,
         chain_outage: bool,
         nl_dropped_below_0_10: bool,
@@ -1245,22 +1296,35 @@ class FailureClassifier:
         conflicting_intents: bool,
         systematic_timeout: bool,
         prior_ambiguous_count: int = 0,
-    ) -> str:
-        external_indicators = sum([chain_outage, nl_dropped_below_0_10, reorg_depth_exceeded, mf_spike])
-        entity_indicators = sum([invalid_proof, collateral_withdrawn, conflicting_intents, systematic_timeout])
+    ) -> Dict[str, str]:
+        """Spec §11 Fix 2 — return the classification + recommended entity
+        choice (WAIT / CANCEL / REROUTE)."""
+        cause = self.classify(
+            chain_outage, nl_dropped_below_0_10, reorg_depth_exceeded, mf_spike,
+            invalid_proof, collateral_withdrawn, conflicting_intents,
+            systematic_timeout, prior_ambiguous_count,
+        )
+        return {
+            "cause": cause,
+            "recommended_choice": self.recommend_entity_choice(cause),
+        }
 
-        if entity_indicators >= 2:
-            return "ENTITY_CAUSE"
-        if external_indicators >= 2:
-            return "EXTERNAL_CAUSE"
-        if external_indicators >= 1 and entity_indicators == 0:
-            return "EXTERNAL_CAUSE"
-        if entity_indicators >= 1 and external_indicators == 0:
-            return "ENTITY_CAUSE"
-        # AMBIGUOUS: first two = EXTERNAL benefit of doubt; third = ENTITY
-        if prior_ambiguous_count >= 2:
-            return "ENTITY_CAUSE"
-        return "EXTERNAL_CAUSE"  # benefit of doubt
+    @classmethod
+    def recommend_entity_choice(cls, cause: str) -> str:
+        """Spec §11 Fix 2 — map a FailureCause string to the recommended
+        entity action.
+
+        - EXTERNAL_CAUSE → REROUTE (chain-level fault; pick a different path now)
+        - ENTITY_CAUSE   → CANCEL  (entity at fault; escrow returns to entity)
+        - AMBIGUOUS      → WAIT    (benefit of the doubt; auto-retry)
+        """
+        if cause == cls.EXTERNAL_CAUSE:
+            return cls.CHOICE_REROUTE
+        if cause == cls.ENTITY_CAUSE:
+            return cls.CHOICE_CANCEL
+        # AMBIGUOUS (or any unknown value — fall back to the safest
+        # default, which is to auto-retry).
+        return cls.CHOICE_WAIT
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

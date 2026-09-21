@@ -552,14 +552,35 @@ def test_failure_classify_entity_cause(client):
 
 
 def test_failure_classify_ambiguous_escalation(client):
-    """No indicators + prior_ambiguous_count >= 2 → ENTITY (benefit of
-    doubt exhausted)."""
+    """Spec §11 Fix 2 — no indicators + prior_ambiguous_count >= 2 → ENTITY
+    (benefit of the doubt exhausted). Below the three-strike threshold the
+    classifier returns AMBIGUOUS (aligned with Rust's FailureCause::Ambiguous;
+    BTCP-DEEP-3 found the prior Python returned EXTERNAL_CAUSE, BTCP-FIX2-RUST-VM
+    unifies)."""
     r = client.post("/api/v1/btcp/failure_classify",
                     json={"prior_ambiguous_count": 2})
-    assert r.get_json()["classification"] == "ENTITY_CAUSE"
+    j = r.get_json()
+    assert j["classification"] == "ENTITY_CAUSE"
+    assert j["recommended_choice"] == "CANCEL"
     r = client.post("/api/v1/btcp/failure_classify",
                     json={"prior_ambiguous_count": 1})
-    assert r.get_json()["classification"] == "EXTERNAL_CAUSE"
+    j = r.get_json()
+    assert j["classification"] == "AMBIGUOUS"
+    assert j["recommended_choice"] == "WAIT"
+
+
+def test_failure_classify_returns_recommended_choice(client):
+    """Spec §11 Fix 2 — WAIT/CANCEL/REROUTE recommendation per cause."""
+    # External cause → REROUTE
+    r = client.post("/api/v1/btcp/failure_classify", json={"chain_outage": True})
+    j = r.get_json()
+    assert j["classification"] == "EXTERNAL_CAUSE"
+    assert j["recommended_choice"] == "REROUTE"
+    # Entity cause → CANCEL
+    r = client.post("/api/v1/btcp/failure_classify", json={"invalid_proof": True})
+    j = r.get_json()
+    assert j["classification"] == "ENTITY_CAUSE"
+    assert j["recommended_choice"] == "CANCEL"
 
 
 def test_failure_classify_validates_types(client):

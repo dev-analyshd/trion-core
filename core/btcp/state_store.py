@@ -366,6 +366,10 @@ _BTCP_TABLE_DDL = (
     # shadow_observations (BIGSERIAL id only); the operative mirror adds a
     # UNIQUE(event_hash) replay guard so a re-delivered observation source
     # cannot double-count in the confidence reconstruction.
+    #
+    # BTCP-FIX2-S59 (§8.1): `simulated` column mirrors schema.sql — TRUE for
+    # the placeholder collector (fabricated), FALSE for rows read from a real
+    # indexer / akashic_bh feed (real shadow observations).
     """
     CREATE TABLE IF NOT EXISTS shadow_observations (
         id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -377,7 +381,8 @@ _BTCP_TABLE_DDL = (
         diversity_factor        REAL    NOT NULL DEFAULT 1.0,
         shadow_bh               TEXT,
         block_num               INTEGER,
-        observed_at             REAL    NOT NULL
+        observed_at             REAL    NOT NULL,
+        simulated               INTEGER NOT NULL DEFAULT 1
     )
     """,
     """
@@ -1034,6 +1039,11 @@ class BtcpStateStore:
         UNIQUE(event_hash) mirror guard: a re-delivered observation source
         (indexer restart, duplicate feed) is a no-op instead of a second
         row that would double-count in the confidence reconstruction.
+
+        BTCP-FIX2-S59 (§8.1): caller may pass ``simulated=False`` (or
+        ``simulated=0``) to mark this row as a REAL observation read from
+        a live indexer / akashic_bh feed.  Default ``simulated=True``
+        preserves the existing placeholder-collector behavior.
         """
         row = {
             "observed_chain_id": int(observed_chain_id),
@@ -1043,6 +1053,15 @@ class BtcpStateStore:
             "observed_at": time.time(),
             **columns,
         }
+        # Normalize the simulated flag to the SQLite integer representation.
+        if "simulated" in row:
+            sim = row["simulated"]
+            if isinstance(sim, bool):
+                row["simulated"] = 1 if sim else 0
+            elif isinstance(sim, (int, float)):
+                row["simulated"] = 1 if int(sim) != 0 else 0
+            elif isinstance(sim, str):
+                row["simulated"] = 0 if sim.lower() in ("false", "0", "no", "real") else 1
         self._btcp_upsert("shadow_observations", row, ignore=True)
 
     def record_genesis_commitment(self, commitment_id: str, **columns: Any) -> None:

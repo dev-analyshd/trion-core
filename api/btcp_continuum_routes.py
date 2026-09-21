@@ -682,11 +682,14 @@ def btcp_escrow_state(escrow_id):
 
 @btcp_bp.route("/api/v1/btcp/failure_classify", methods=["POST"])
 def btcp_failure_classify():
-    """Failure classifier (Module 2.11) — EXTERNAL_CAUSE vs ENTITY_CAUSE.
+    """Failure classifier (Module 2.11, Spec §11 Fix 2) — EXTERNAL_CAUSE
+    vs ENTITY_CAUSE classification + recommended entity choice.
 
     All eight indicator fields are booleans (default false);
-    ``prior_ambiguous_count`` is an int (default 0). The classification and
-    the indicator echo are passed through from FailureClassifier.classify().
+    ``prior_ambiguous_count`` is an int (default 0). The classification,
+    the recommended entity choice (WAIT / CANCEL / REROUTE), and the
+    indicator echo are passed through from
+    ``FailureClassifier.classify_and_recommend()``.
     """
     from core.btcp.modules import FailureClassifier
     data = request.get_json(force=True, silent=True) or {}
@@ -704,19 +707,27 @@ def btcp_failure_classify():
         if isinstance(prior, bool) or not isinstance(prior, int):
             raise ValueError("prior_ambiguous_count must be an integer")
 
-        classification = FailureClassifier().classify(
+        verdict = FailureClassifier().classify_and_recommend(
             **indicators, prior_ambiguous_count=prior)
+        classification = verdict["cause"]
+        recommended_choice = verdict["recommended_choice"]
         return jsonify({
             "classification": classification,
+            "recommended_choice": recommended_choice,
             "indicators": indicators,
             "prior_ambiguous_count": prior,
             "policy": {
                 "EXTERNAL_CAUSE": "BEO impact = ZERO, entity not penalized",
-                "ENTITY_CAUSE": "graduated penalties",
+                "ENTITY_CAUSE": "graduated penalties (D(t) growth -10% for 30 days)",
                 "AMBIGUOUS": ("first two = EXTERNAL benefit of doubt; "
                               "third within 90 days = ENTITY"),
             },
-            "specification": "Module 2.11 — Failure Classifier",
+            "entity_choice": {
+                "WAIT": "auto-retry the route after a backoff window",
+                "CANCEL": "terminate the route; escrow returns funds",
+                "REROUTE": "pick a different path immediately",
+            },
+            "specification": "Module 2.11 / Spec §11 Fix 2 — Failure Classifier + Entity Choice",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400

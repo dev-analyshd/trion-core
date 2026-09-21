@@ -522,11 +522,17 @@ CREATE TABLE IF NOT EXISTS shadow_observations (
     diversity_factor        DOUBLE PRECISION NOT NULL DEFAULT 1.0,
     shadow_bh               BYTEA,                  -- computed shadow behavioral hash
     block_num               BIGINT,
-    observed_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    observed_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    -- §8.1 (BTCP-FIX2-S59): provenance disclosure — TRUE when the row was
+    -- fabricated by the placeholder collector (SIMULATED_SOURCE_CONFIDENCE),
+    -- FALSE when it was read from a real indexer / akashic_bh feed.
+    -- Downstream consumers MUST check this before trusting the source.
+    simulated               BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX IF NOT EXISTS idx_shadow_chain    ON shadow_observations (observed_chain_id, observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_shadow_conf     ON shadow_observations (observed_chain_id, confidence_weight DESC);
+CREATE INDEX IF NOT EXISTS idx_shadow_real     ON shadow_observations (simulated, observed_at DESC);
 
 -- ── Genesis Commitments ───────────────────────────────────────────────────────
 -- Null-state resolution: first behavior records for new entities/assets.

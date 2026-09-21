@@ -496,12 +496,60 @@ pub struct RouteFailure {
     pub timestamp: u64,
 }
 
-/// Failure cause classification
+/// Failure cause classification (spec §11 Fix 2)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureCause {
     External,
     Entity,
     Ambiguous,
+}
+
+/// Entity choice for failed-route recovery (spec §11 Fix 2 — "Entity choice:
+/// WAIT (auto-retry) | CANCEL (escrow returns) | REROUTE (immediate)").
+///
+/// When a route fails, the entity (BEO owner) decides how to proceed:
+/// - `Wait`     — auto-retry the same route after a backoff window. Used when
+///                the failure looks transient (External / first Ambiguous).
+/// - `Cancel`   — terminate the route and have the escrow return funds. Used
+///                when the entity is at fault (Entity) and retrying is unsafe.
+/// - `Reroute`  — pick a different path immediately. Used when the failure is
+///                external to the entity but the current path is bad.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntityChoice {
+    Wait,
+    Cancel,
+    Reroute,
+}
+
+impl EntityChoice {
+    /// Spec §11 Fix 2 string tag (matches Python mirror + JSON API surface).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EntityChoice::Wait => "WAIT",
+            EntityChoice::Cancel => "CANCEL",
+            EntityChoice::Reroute => "REROUTE",
+        }
+    }
+}
+
+impl std::fmt::Display for EntityChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Result of `FailureClassifier::classify_and_recommend_failure` —
+/// the classification + the recommended entity action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FailureClassification {
+    pub cause: FailureCause,
+    pub recommended_choice: EntityChoice,
+}
+
+impl FailureClassification {
+    pub fn new(cause: FailureCause, recommended_choice: EntityChoice) -> Self {
+        Self { cause, recommended_choice }
+    }
 }
 
 /// BLO status

@@ -1241,37 +1241,136 @@ class BTCPOrchestrator:
         )
     
     def _write_btcp_bh_to_akashic(self, route: 'BTCPRoute') -> None:
-        """BTCP-FIX-INT (Gap 1): write a Behavioral Hash to TimescaleDB
-        akashic_bh when a BTCP route finalizes (spec §4.2 Step 6)."""
+        """BTCP-FIX-INT (Gap 1, BTCP-FIX2-INT Fix 1): write a Behavioral
+        Hash to TimescaleDB ``akashic_bh`` when a BTCP route finalizes
+        (spec §4.2 Step 6).
+
+        BTCP-FIX2-INT Fix 1 — the original writer used the wrong column
+        set (``magnitude, value_wei, timestamp, source, valid`` — none of
+        which exist on the live ``akashic_bh`` hypertable), so every
+        INSERT silently failed with ``UndefinedColumn``. The fix:
+
+          * Uses the real schema columns
+            ``(time, gk_hash, prev_gk_hash, bh_id, antisense, entity_id,
+              event_type, magnitude_norm, entropy_delta, chain_id,
+              block_hash, block_num, context, event_type_name)``.
+          * Builds the BH via ``core.primitives.behavioral_hash.hash_dna``
+            (L0.1) so the written atom is a REAL dual-strand Hash_DNA —
+            ``sense = bh_id`` / ``antisense`` is the XOR-complemented
+            antisense strand — not a single SHA3-256.
+          * Sets ``entropy_delta > 0`` so the row CONTRIBUTES to the
+            ``akashic_depth`` view's ``raw_depth = SUM(magnitude × entropy)``
+            (BTCP-FIX2-INT Fix 6). Previously BTCP rows had
+            ``entropy_delta = 0`` and contributed zero to D(t).
+          * Uses the enum ``BTCP_ROUTE_FINALIZED`` (added to
+            ``behavioral_event_type`` in production) for ``event_type`` and
+            the matching text for ``event_type_name``.
+        """
         try:
             import psycopg2 as _pg
+            from psycopg2.extras import Json as _PgJson
+            from core.primitives.behavioral_hash import (
+                hash_dna as _hash_dna,
+                bytes_to_32 as _bytes_to_32,
+                canonical_magnitude_norm as _mag_norm,
+                EventType as _BHEventType,
+            )
             tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
             if not tsdb_url:
                 return
             conn = _pg.connect(tsdb_url, connect_timeout=5)
             cur = conn.cursor()
-            entity_id = hashlib.sha3_256(
-                route.intent.source_address.encode()
-            ).hexdigest()
-            execution_bh = hashlib.sha3_256(
-                f"{route.route_id}:{route.intent.intent_id}:{time.time()}".encode()
-            ).hexdigest()
+
+            # ── L0.1 Hash_DNA dual-strand construction ─────────────────────
+            # Build the canonical 93-byte BH payload (entity_id‖event_type‖
+            # magnitude_nano‖context‖timestamp‖chain_id‖block_hash) and run
+            # it through hash_dna(payload) to produce the (sense, antisense)
+            # dual-strand. The `sense` becomes `bh_id`; `antisense` is the
+            # XOR-complemented antisense strand. This makes the BTCP BH a
+            # genuine Akashic atom, cross-verifiable with the Rust indexers.
+            now_ts = int(time.time())
+            entity_32 = _bytes_to_32(
+                hashlib.sha3_256(route.intent.source_address.encode()).digest()
+            )
+            intent_32 = _bytes_to_32(
+                hashlib.sha3_256(route.intent.intent_id.encode()).digest()
+            )
+            block_32 = _bytes_to_32(
+                hashlib.sha3_256(route.route_id.encode()).digest()
+            )
+            # Canonical magnitude: deterministic log10 scale on the human
+            # amount (canonical_magnitude_norm(raw, decimals)). amount is
+            # an int in the smallest unit; treat as 18-decimals by default.
+            mag_raw = int(route.intent.amount) if route.intent.amount else 0
+            magnitude_norm = float(_mag_norm(mag_raw, 18))
+            # entropy_delta > 0 so the row contributes to akashic_depth
+            # raw_depth = SUM(magnitude × entropy) — see BTCP-FIX2-INT Fix 6.
+            # A route finalization carries one unit of behavioral entropy
+            # (bounded by the magnitude so a $0.01 route doesn't dominate).
+            entropy_delta = max(0.05, magnitude_norm * 0.5)
+            # akashic_bh.chain_id is a smallint (±32767). Some canonical
+            # chains (Arbitrum 42161, Optimism 10 — fine, but mainnet L1s
+            # like 42161 overflow). Wrap into the smallint range; the full
+            # chain id is preserved in context.chain_id_source/_dest so the
+            # original chain is recoverable for downstream queries.
+            chain_id_slot = int(route.intent.source_chain) & 0x7FFF
+
+            ctx = b'\x02\x00\x00\x00\x00\x00\x00\x00'  # venue=BRIDGE, L1
+            payload = (
+                entity_32                                          # 32 bytes
+                + int(_BHEventType.BRIDGE).to_bytes(1, 'big')     #  1 byte
+                + int(magnitude_norm * 1e9).to_bytes(8, 'big')     #  8 bytes
+                + ctx                                              #  8 bytes
+                + now_ts.to_bytes(8, 'big')                        #  8 bytes
+                + int(route.intent.source_chain).to_bytes(4, 'big')  # 4 bytes
+                + block_32                                         # 32 bytes
+            )
+            sense, antisense = _hash_dna(payload)
+
+            context_json = {
+                "source": "btcp_orchestrator",
+                "route_id": route.route_id,
+                "intent_id": route.intent.intent_id,
+                "chain_id_source": int(route.intent.source_chain),
+                "chain_id_dest": int(route.intent.dest_chain),
+                "btcp_score": float(route.btcp_score),
+                "route_type": route.route_type,
+                "intent_type": route.intent.intent_type,
+                "privacy_level": route.privacy_level.name,
+                "total_fee_usd": float(route.total_fee),
+                "fix_tag": "BTCP-FIX2-INT-Fix1",
+            }
+
             cur.execute("""
                 INSERT INTO akashic_bh
-                    (entity_id, chain_id, event_type, event_type_name,
-                     magnitude, value_wei, timestamp, source, valid)
-                VALUES (%s, %s, 'BTCP_ROUTE_FINALIZED', 'BTCP_ROUTE_FINALIZED',
-                        %s, %s, %s, 'btcp_orchestrator', true)
-                ON CONFLICT DO NOTHING
-            """, (entity_id, route.intent.source_chain,
-                  float(route.intent.amount),
-                  route.intent.amount,
-                  int(time.time())))
+                    (time, gk_hash, prev_gk_hash, bh_id, antisense,
+                     entity_id, event_type, magnitude_norm, entropy_delta,
+                     chain_id, block_hash, block_num, context,
+                     event_type_name)
+                VALUES (%s, %s, %s, %s, %s,
+                        %s, 'BTCP_ROUTE_FINALIZED', %s, %s,
+                        %s, %s, %s, %s,
+                        'BTCP_ROUTE_FINALIZED')
+                ON CONFLICT (time, bh_id) DO NOTHING
+            """, (
+                now_ts,                              # time
+                intent_32,                           # gk_hash (intent anchor)
+                b'\x00' * 32,                        # prev_gk_hash (bootstrap)
+                sense,                               # bh_id (Hash_DNA sense)
+                antisense,                           # antisense strand
+                entity_32,                           # entity_id (32-byte BEO)
+                float(magnitude_norm),               # magnitude_norm ∈ [0,1]
+                float(entropy_delta),                # entropy_delta > 0
+                chain_id_slot,                       # chain_id (smallint slot)
+                block_32,                            # block_hash
+                int(now_ts),                         # block_num
+                _PgJson(context_json),               # context (jsonb)
+            ))
             conn.commit()
             cur.close()
             conn.close()
         except Exception as e:
-            _log.warning("BTCP BH writeback failed: %s", str(e)[:80])
+            _log.warning("BTCP BH writeback failed: %s", str(e)[:200])
 
     def _trigger_anima_reflexivity(self, route: 'BTCPRoute') -> None:
         """BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) after

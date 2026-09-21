@@ -1,8 +1,20 @@
 //! btcp_failure_classifier.rs — EXTERNAL_CAUSE vs ENTITY_CAUSE classification
-//! Per BTCP Master Implementation Spec §Phase 2
+//! Per BTCP Master Implementation Spec §11 Fix 2 (spec L1940-1984)
 //!
 //! EXTERNAL_CAUSE: chain outage, NL collapse, reorg, MF spike → BEO impact = ZERO
-//! ENTITY_CAUSE: invalid proof, collateral withdrawal, conflicting intents → BEO penalty
+//! ENTITY_CAUSE: invalid proof, collateral withdrawal, conflicting intents,
+//!   systematic timeout → BEHAVIORAL_ANOMALY (D(t) growth −10% for 30 days).
+//! AMBIGUOUS: first two treated as External; third within 90 days → Entity.
+//!
+//! Spec §11 Fix 2 "Entity choice: WAIT (auto-retry) | CANCEL (escrow
+//! returns) | REROUTE (immediate)" — the entity that owns the failed
+//! route picks how to proceed. The classifier maps each `FailureCause`
+//! to a *recommended* `EntityChoice` so the relayer has a sane default
+//! while still allowing the entity to override:
+//!
+//!   External  → Reroute  (chain-level fault; pick a different path now)
+//!   Entity    → Cancel   (entity at fault; escrow returns)
+//!   Ambiguous → Wait     (benefit of the doubt; auto-retry)
 
 use crate::types::*;
 use crate::SAFE_CONFIRMATIONS;
@@ -42,12 +54,15 @@ impl FailureClassifier {
         systematic_timeout: bool,
         prior_ambiguous_count: u32,
     ) -> FailureCause {
-        // External cause indicators
+        // External cause indicators — any single one is sufficient (spec §11 Fix 2):
+        //   chain_outage || nl_collapsed || reorg_depth_exceeded || mf_spike
+        let _ = prior_ambiguous_count; // tracked inside self (stateful three-strike)
         if chain_outage || nl_collapsed || reorg_depth_exceeded || mf_spike {
             return FailureCause::External;
         }
 
-        // Entity cause indicators
+        // Entity cause indicators — any single one is sufficient (spec §11 Fix 2):
+        //   invalid_proof || collateral_withdrawn || conflicting_intents || systematic_timeout
         if invalid_proof || collateral_withdrawn || conflicting_intents || systematic_timeout {
             return FailureCause::Entity;
         }
@@ -62,6 +77,71 @@ impl FailureClassifier {
         } else {
             FailureCause::Ambiguous
         }
+    }
+
+    /// Spec §11 Fix 2 — "Entity choice: WAIT (auto-retry) | CANCEL (escrow
+    /// returns) | REROUTE (immediate)".
+    ///
+    /// Maps a `FailureCause` to the recommended entity action:
+    /// - `External`  → `Reroute` (chain-level fault; pick a different path now)
+    /// - `Entity`    → `Cancel`  (entity at fault; escrow returns to entity)
+    /// - `Ambiguous` → `Wait`    (benefit of the doubt; auto-retry)
+    ///
+    /// This is the *recommended* default — the owning entity may always
+    /// override (e.g., choose `Reroute` for an Entity cause if it has a
+    /// known good alternative).
+    pub fn recommend_entity_choice(cause: FailureCause) -> EntityChoice {
+        match cause {
+            FailureCause::External => EntityChoice::Reroute,
+            FailureCause::Entity => EntityChoice::Cancel,
+            FailureCause::Ambiguous => EntityChoice::Wait,
+        }
+    }
+
+    /// Spec §11 Fix 2 — `classify_and_recommend_failure(route_data) -> FailureClassification`.
+    ///
+    /// Returns the full classification (cause + recommended entity choice).
+    /// `route_data` is the bag of boolean failure indicators observed for
+    /// this route. The classifier is stateful across calls for the same
+    /// entity (three-strike Ambiguous → Entity rule).
+    pub fn classify_and_recommend_failure(
+        &mut self,
+        failure: &RouteFailure,
+        chain_outage: bool,
+        nl_collapsed: bool,
+        reorg_depth_exceeded: bool,
+        mf_spike: bool,
+        invalid_proof: bool,
+        collateral_withdrawn: bool,
+        conflicting_intents: bool,
+        systematic_timeout: bool,
+        prior_ambiguous_count: u32,
+    ) -> FailureClassification {
+        let cause = self.classify(
+            failure,
+            chain_outage,
+            nl_collapsed,
+            reorg_depth_exceeded,
+            mf_spike,
+            invalid_proof,
+            collateral_withdrawn,
+            conflicting_intents,
+            systematic_timeout,
+            prior_ambiguous_count,
+        );
+        let recommended_choice = Self::recommend_entity_choice(cause);
+        FailureClassification::new(cause, recommended_choice)
+    }
+
+    /// Convenience: classify + recommend with default parameters (no
+    /// observed indicators — exercises the Ambiguous three-strike path).
+    pub fn classify_and_recommend(
+        &mut self,
+        failure: &RouteFailure,
+    ) -> FailureClassification {
+        let cause = self.classify_failure(failure);
+        let recommended_choice = Self::recommend_entity_choice(cause);
+        FailureClassification::new(cause, recommended_choice)
     }
 
     /// Convenience: classify with default parameters
@@ -206,5 +286,102 @@ mod tests {
         let classifier = FailureClassifier::new();
         assert!(classifier.nl_dropped_below_critical(0.05));
         assert!(!classifier.nl_dropped_below_critical(0.50));
+    }
+
+    // ── Spec §11 Fix 2 — WAIT/CANCEL/REROUTE entity choice ──────────────────
+
+    #[test]
+    fn test_recommend_entity_choice_external_reroute() {
+        // External cause → recommend Reroute (chain-level fault; try a
+        // different path immediately).
+        assert_eq!(
+            FailureClassifier::recommend_entity_choice(FailureCause::External),
+            EntityChoice::Reroute
+        );
+    }
+
+    #[test]
+    fn test_recommend_entity_choice_entity_cancel() {
+        // Entity cause → recommend Cancel (entity at fault; escrow returns).
+        assert_eq!(
+            FailureClassifier::recommend_entity_choice(FailureCause::Entity),
+            EntityChoice::Cancel
+        );
+    }
+
+    #[test]
+    fn test_recommend_entity_choice_ambiguous_wait() {
+        // Ambiguous cause → recommend Wait (auto-retry, benefit of the doubt).
+        assert_eq!(
+            FailureClassifier::recommend_entity_choice(FailureCause::Ambiguous),
+            EntityChoice::Wait
+        );
+    }
+
+    #[test]
+    fn test_classify_and_recommend_external() {
+        let mut classifier = FailureClassifier::new();
+        let entity = H256::sha3(b"entity_ext");
+        let failure = create_failure(entity);
+
+        let result = classifier.classify_and_recommend_failure(
+            &failure, true, false, false, false, false, false, false, false, 0,
+        );
+        assert_eq!(result.cause, FailureCause::External);
+        assert_eq!(result.recommended_choice, EntityChoice::Reroute);
+    }
+
+    #[test]
+    fn test_classify_and_recommend_entity() {
+        let mut classifier = FailureClassifier::new();
+        let entity = H256::sha3(b"entity_ent");
+        let failure = create_failure(entity);
+
+        let result = classifier.classify_and_recommend_failure(
+            &failure, false, false, false, false, true, false, false, false, 0,
+        );
+        assert_eq!(result.cause, FailureCause::Entity);
+        assert_eq!(result.recommended_choice, EntityChoice::Cancel);
+    }
+
+    #[test]
+    fn test_classify_and_recommend_ambiguous_first_is_wait() {
+        let mut classifier = FailureClassifier::new();
+        let entity = H256::sha3(b"entity_amb");
+        let f1 = create_failure(entity);
+
+        // First Ambiguous occurrence → recommended Wait (auto-retry).
+        let r1 = classifier.classify_and_recommend(&f1);
+        assert_eq!(r1.cause, FailureCause::Ambiguous);
+        assert_eq!(r1.recommended_choice, EntityChoice::Wait);
+    }
+
+    #[test]
+    fn test_classify_and_recommend_ambiguous_third_becomes_entity_cancel() {
+        let mut classifier = FailureClassifier::new();
+        let entity = H256::sha3(b"entity_amb3");
+
+        // Three ambiguous failures within the 90-day window → third becomes
+        // Entity → recommended Cancel.
+        let f1 = create_failure(entity);
+        let f2 = create_failure(entity);
+        let f3 = create_failure(entity);
+        let _ = classifier.classify_and_recommend(&f1);
+        let _ = classifier.classify_and_recommend(&f2);
+        let r3 = classifier.classify_and_recommend(&f3);
+        assert_eq!(r3.cause, FailureCause::Entity);
+        assert_eq!(r3.recommended_choice, EntityChoice::Cancel);
+    }
+
+    #[test]
+    fn test_entity_choice_as_str_matches_spec_tags() {
+        // Spec §11 Fix 2 mandates the exact string tags WAIT / CANCEL / REROUTE.
+        assert_eq!(EntityChoice::Wait.as_str(), "WAIT");
+        assert_eq!(EntityChoice::Cancel.as_str(), "CANCEL");
+        assert_eq!(EntityChoice::Reroute.as_str(), "REROUTE");
+        // Display impl delegates to as_str.
+        assert_eq!(format!("{}", EntityChoice::Wait), "WAIT");
+        assert_eq!(format!("{}", EntityChoice::Cancel), "CANCEL");
+        assert_eq!(format!("{}", EntityChoice::Reroute), "REROUTE");
     }
 }
