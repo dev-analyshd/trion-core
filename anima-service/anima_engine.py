@@ -1855,6 +1855,26 @@ def _scheduled_bibl_feed():
         logger.debug("[ANIMA][SCHEDULER][BIBL] %s", e)
 
 
+# FIX-D (Gap 16): Biological Rhythm TSDB writer.
+# Per audit FINAL-VERDICT gap #16, biological_rhythm had 0 rows because the
+# BRT scheduler in anima-service/brt_scheduler.py existed but never persisted
+# computations to the TimescaleDB table. This task writes one row per 15-min
+# cycle, anchoring activity_score on real akashic_bh magnitude aggregates.
+def _scheduled_brt_persist():
+    """L6.2 Biological Rhythm — persist one row per 15-min cycle."""
+    try:
+        from core.extended.biological_rhythm_writer import persist_rhythm_row
+        import time as _time
+        result = persist_rhythm_row(_time.time())
+        if result.get("ok"):
+            row = result.get("row", {})
+            logger.info("[ANIMA][SCHEDULER][BRT] persisted %s/%s activity=%.4f",
+                        row.get("circadian_phase"), row.get("lunar_phase"),
+                        row.get("activity_score", 0.0))
+    except Exception as e:
+        logger.debug("[ANIMA][SCHEDULER][BRT] %s", e)
+
+
 def _start_scheduler():
     """Start the APScheduler background intelligence loop."""
     global _scheduler
@@ -1873,8 +1893,12 @@ def _start_scheduler():
     _scheduler.add_job(_scheduled_bibl_feed,           "interval",
                        minutes=5,                     id="trion_bibl_feed",
                        max_instances=1, coalesce=True)
+    # FIX-D (Gap 16): Biological rhythm row — every 15 minutes
+    _scheduler.add_job(_scheduled_brt_persist,         "interval",
+                       minutes=15,                    id="trion_brt_writer",
+                       max_instances=1, coalesce=True)
     _scheduler.start()
-    logger.info("[ANIMA] Scheduler started — crawl every %dm, HA verify every %dh, IM every %dh, BIBL feed every 5m",
+    logger.info("[ANIMA] Scheduler started — crawl every %dm, HA verify every %dh, IM every %dh, BIBL feed every 5m, BRT persist every 15m",
                 CRAWL_CYCLE_MINUTES, OUTCOME_VERIFY_HOURS, IM_CHECK_INTERVAL_H)
 
 
