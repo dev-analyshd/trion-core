@@ -46,6 +46,7 @@ SQLite persistence (entity state survives restarts)
 import asyncio
 import hmac
 import os
+import sys
 import math
 import hashlib
 import logging
@@ -53,6 +54,19 @@ import sqlite3
 import json
 import threading
 from collections import defaultdict, deque
+
+# ── Path bootstrap ────────────────────────────────────────────────────────────
+# The FAISS service is normally launched from the `anima-service/` cwd (uvicorn
+# `faiss_service:app`). The canonical TRION `core.*` modules live one level up
+# in the project root. Add the project root to sys.path so that the spec-faithful
+# helpers (`core.akashic.archetype`, `core.akashic.depth`, `core.akashic.genesis`
+# etc.) import cleanly. This is also what unblocks the L2.2 hardcoded archetype
+# fallback, which previously failed with `No module named 'core'` when cwd was
+# `anima-service/` (see AUDIT-L2 gap (c)/(d) — `/stats` reported `archetypes: 0`
+# despite 64 rows in `archetype_library` and a 64-centroid .npy file in repo root).
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 # Global SQLite write serialization lock.
 # 12+ concurrent indexers + relayers all write to STATE_DB_PATH; even with
@@ -133,12 +147,25 @@ except Exception as _depth_import_err:  # pragma: no cover — keep service aliv
 
 DIMENSION      = 128
 def _resolve_path(env_key: str, filenames: list) -> str:
-    """Resolve a file path: env override → first existing filename → first fallback."""
+    """Resolve a file path: env override → first existing filename → first fallback.
+
+    Looks in the current working directory, the project root, and `anima-service/`
+    relative to the project root, so a service launched from `anima-service/`
+    can still discover artefacts written at the repo root (e.g. the 64-centroid
+    `akashic_archetype_centroids.npy` produced by K-means training).
+    """
     if env_key in os.environ:
         return os.environ[env_key]
+    search_dirs = [os.getcwd(), _PROJECT_ROOT, os.path.join(_PROJECT_ROOT, "anima-service")]
     for fn in filenames:
+        # absolute / cwd-relative
         if os.path.exists(fn):
             return fn
+        # project-root / anima-service-relative
+        for d in search_dirs:
+            cand = os.path.join(d, fn)
+            if os.path.exists(cand):
+                return cand
     return filenames[0]
 
 INDEX_PATH     = _resolve_path("FAISS_INDEX_PATH",     ["akashic_faiss.index", "anima-service/akashic_faiss.index"])
@@ -654,6 +681,60 @@ def _load_hardcoded_archetype_fallback():
         )
 
 _load_hardcoded_archetype_fallback()
+
+
+# ── L2.2  TimescaleDB archetype_library fallback ───────────────────────────────
+# Final safety net: if neither the .npy centroids file nor the hardcoded
+# archetypes loaded (e.g. cold-boot with no trained index on disk and the
+# `core.akashic.archetype` import failed for some reason), hydrate the
+# centroids directly from the TimescaleDB `archetype_library` table. The table
+# holds the 64 K-means centroids persisted by train_archetypes() / the
+# production indexer; restoring them at startup guarantees /stats reports
+# `archetypes > 0` and get_archetype() produces real cosine similarities.
+def _load_archetypes_from_timescaledb():
+    """Hydrate the global `centroids` from the TimescaleDB `archetype_library`
+    table when nothing else has populated them. No-op if centroids are already
+    loaded or TimescaleDB is unreachable."""
+    global centroids
+    if centroids is not None and len(centroids) > 0:
+        return
+    if not _PSYCOPG2_AVAILABLE or not _TSDB_URL:
+        logger.info("[L2.2] TSDB archetype loader skipped — psycopg2=%s, url_set=%s",
+                    _PSYCOPG2_AVAILABLE, bool(_TSDB_URL))
+        return
+    try:
+        conn = psycopg2.connect(_TSDB_URL)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT archetype_id, centroid
+            FROM archetype_library
+            WHERE centroid IS NOT NULL
+            ORDER BY archetype_id ASC
+        """)
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            logger.warning("[L2.2] archetype_library table is empty — no centroids to load")
+            return
+        # centroid column is a Postgres ARRAY[float8]; coerce to float32 ndarray
+        mats = []
+        for arch_id, centroid in rows:
+            if centroid is None or len(centroid) != DIMENSION:
+                continue
+            mats.append(np.asarray(centroid, dtype="float32"))
+        if not mats:
+            logger.warning("[L2.2] archetype_library returned %d rows but 0 valid centroids", len(rows))
+            return
+        centroids = np.stack(mats, axis=0)
+        logger.info(
+            "[L2.2] Loaded %d archetype centroids from TimescaleDB archetype_library — "
+            "get_archetype() is now functional.",
+            len(centroids),
+        )
+    except Exception as _e:
+        logger.warning("[L2.2] Could not load archetypes from TimescaleDB: %s", _e)
+
+_load_archetypes_from_timescaledb()
 
 
 # ── SQLite Persistence ─────────────────────────────────────────────────────────
