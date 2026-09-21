@@ -1802,39 +1802,12 @@ def readyz():
                     "timestamp": int(time.time())})
 
 
-# ── BEO Resolution endpoint (L0.2) ─────────────────────────────────────────
-@app.route("/api/v1/beo", methods=["POST"])
-def resolve_beo():
-    """L0.2 BEO Resolution — resolve entity to canonical BEO identity."""
-    resp = _require_api_key()
-    if resp is not None:
-        return resp
-    from core.primitives.entity_resolution import WalletActivity, resolve_entity
-    body = request.get_json(silent=True) or {}
-    identifier = body.get("identifier", "")
-    chain_id = int(body.get("chain_id", 0))
-    if not identifier:
-        return jsonify({"error": "missing_identifier"}), 400
-    wallet = WalletActivity(
-        address=identifier,
-        chain_id=chain_id,
-        funding_source=body.get("funding_source"),
-        first_tx_ts=float(body.get("first_tx_ts", 0)),
-        co_tx_timestamps=body.get("co_tx_timestamps", []),
-    )
-    result = resolve_entity([wallet])
-    return jsonify({
-        "canonical_id": result.get("canonical_id"),
-        "beo_confidence": result.get("beo_confidence"),
-        "same_entity": result.get("same_entity"),
-        "components": result.get("components"),
-        "weights": result.get("weights"),
-        "threshold": result.get("threshold"),
-        "formula": "BEO_confidence = (w_CF·CF + w_ST·ST + w_SC·SC + w_BP·BP) / Sigmaw",
-        "specification": "L0.2",
-        "identifier": identifier,
-        "timestamp": int(time.time()),
-    })
+# ── BEO Resolution endpoint (L0.2) — DUPLICATE removed; canonical impl at line ~2182
+# (wired to TimescaleDB multi-wallet linkage). The earlier simple version below was
+# overwriting the endpoint function name. Kept commented for history.
+# @app.route("/api/v1/beo", methods=["POST"])
+# def resolve_beo():
+#     ... (see canonical TimescaleDB-wired impl below)
 
 
 def _api_key_not_configured_response():
@@ -6399,7 +6372,7 @@ def bh_ledger_stats():
             "GROUP BY event_type_name ORDER BY COUNT(*) DESC"
         ).fetchall()
         recent = conn.execute(
-            "SELECT tx_hash, chain_label, event_type_name, sense_hex, ts "
+            "SELECT tx_hash, chain_label, event_type_name, sense_hash, ts "
             "FROM bh_ledger ORDER BY ts DESC LIMIT 5"
         ).fetchall()
         conn.close()

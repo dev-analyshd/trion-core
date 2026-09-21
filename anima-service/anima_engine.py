@@ -1606,7 +1606,13 @@ def record_phi_update(entity_id: str, phi_current: float, ts: float):
 
 
 def get_reflexivity_report(entity_id: str) -> Dict:
-    """Public API: get full reflexivity report for an entity."""
+    """Public API: get full reflexivity report for an entity.
+
+    FIX (AUDIT-L3): resolve entity_id → beo_id so the lookup matches the
+    rows stored by record_signal_publication (which now stores beo_id).
+    """
+    beo_id = _resolve_beo(entity_id)
+    lookup_id = beo_id or entity_id
     now_ts = datetime.now(timezone.utc).timestamp()
     cutoff = now_ts - 30 * 86400
     with _db_lock:
@@ -1616,16 +1622,17 @@ def get_reflexivity_report(entity_id: str) -> Dict:
             FROM anima_reflexivity
             WHERE entity_id = ? AND recorded_at > ?
             ORDER BY recorded_at DESC LIMIT 100
-        """, (entity_id, cutoff)).fetchall()
+        """, (lookup_id, cutoff)).fetchall()
         conn.close()
 
     if not rows:
-        return {"entity_id": entity_id, "reflexivity": 0.0, "samples": 0,
+        return {"entity_id": entity_id, "beo_id": beo_id, "reflexivity": 0.0, "samples": 0,
                 "status": "no_data", "warning": "No signal publications recorded yet"}
 
     reflexivity = float(np.mean([r["reflexivity"] for r in rows]))
     return {
         "entity_id":    entity_id,
+        "beo_id":       beo_id,
         "reflexivity":  round(reflexivity, 6),
         "a_dampening":  round(REFLEXIVITY_BETA * reflexivity, 6),
         "samples":      len(rows),

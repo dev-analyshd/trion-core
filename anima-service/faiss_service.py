@@ -5106,14 +5106,21 @@ def anima_record_signal_publication(entity_id: str, anima_score: float, phi_befo
     Called by oracle/relayer on each signal publication.
     phi_before = entity Φ(t) at time of publication.
 
+    FIX (AUDIT-L3): resolve entity_id → beo_id here too, so the publication
+    row matches the phi_update row (which also resolves to beo_id). Previously
+    publish stored raw entity_id while phi_update stored beo_id → the lookup
+    `eid == entity_id` never matched → reflexivity pipeline was inert.
+
     NOTE: deliberately NOT named `record_signal_publication` — that name is
     the L3.2 Observer-Effect tracker defined above; a same-named route here
     previously shadowed it and silently broke OE tracking (the
     /observer_effect/{id}/record_publication route was calling THIS function
     with mismatched positional args).
     """
-    _anima.record_signal_publication(entity_id, anima_score, phi_before)
-    return {"status": "ok", "entity_id": entity_id, "anima_score": anima_score}
+    beo_id = resolve_beo(entity_id)
+    _anima.record_signal_publication(beo_id, anima_score, phi_before)
+    return {"status": "ok", "entity_id": entity_id, "beo_id": beo_id,
+            "anima_score": anima_score}
 
 
 @app.post("/api/v1/anima/reflexivity/{entity_id}/phi_update")
