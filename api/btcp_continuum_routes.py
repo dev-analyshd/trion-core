@@ -976,6 +976,60 @@ def btcp_shadow_observations():
 # ── §8.2 Ultra-Light Node block-header processing (BTCP-FIX2-S59) ─────────────
 
 
+@btcp_bp.route("/api/v1/btcp/ultra_light_node", methods=["POST"])
+def btcp_ultra_light_node():
+    """§8.2 Ultra-Light Node — block-header processing + PoW verification.
+
+    Body:
+      header_hex   str  — 160-char hex of the 80-byte Bitcoin block header
+                          (LE wire format, same byte order as on the wire).
+                          Required.
+      chain_id     int  — the hostile chain this header belongs to
+                          (default 0).
+
+    Returns:
+      The parsed header fields (version, prev_block, merkle_root,
+      timestamp, bits, nonce), the double-SHA256 ``block_hash_hex`` (display
+      order), the decoded 256-bit ``target``, the ``pow_valid`` boolean, and
+      the stored row id (the header is persisted to ``ultra_light_headers``
+      in TimescaleDB; idempotent on ``block_hash``).
+
+    Spec §8.2: "Hostile chains publish block headers regardless: block hash,
+    Merkle root, timestamp, validator signatures.  TRION processes ~80
+    bytes per block — trivial cost, zero permission required."
+    """
+    from core.btcp.ultra_light_node import (
+        process_block_header,
+        fetch_recent_headers,
+        ULTRA_LIGHT_NODE_BYTES_PER_BLOCK,
+    )
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        header_hex = data.get("header_hex")
+        if not header_hex:
+            raise ValueError(
+                "header_hex is required (160-char hex of the 80-byte "
+                "Bitcoin block header — LE wire format, spec §8.2)"
+            )
+        header_hex = str(header_hex).removeprefix("0x").strip()
+        chain_id = int(data.get("chain_id", 0))
+        result = process_block_header(header_hex, chain_id=chain_id)
+
+        # Include recent stored headers for context (so callers can see the
+        # chain rhythm / fork detection — spec §8.2 secondary outputs).
+        recent = fetch_recent_headers(chain_id, limit=5) if data.get(
+            "include_recent", True
+        ) else []
+        return jsonify({
+            **result,
+            "bytes_per_block": ULTRA_LIGHT_NODE_BYTES_PER_BLOCK,
+            "recent_headers": recent,
+            "specification": "§8.2 Ultra-Light Node (BTCP-FIX2-S59) — block-header PoW verify",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @btcp_bp.route("/api/v1/btcp/sybil", methods=["POST"])
 def btcp_sybil():
     """Sybil resistance layers (Module 2.18, Fix 5).
