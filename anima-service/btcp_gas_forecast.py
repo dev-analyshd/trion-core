@@ -114,6 +114,26 @@ def _query_gas_used_last_30d(db_path: str) -> Tuple[list, float, float]:
         return [], 0.0, 0.0
 
 
+def _query_gas_ts_last_30d(db_path: str) -> list[float]:
+    """Return the list of `ts` values for gas-bearing bh_ledger rows over the
+    last 30 days (BTCP-FIX2-INT Fix 2 — feeds ``derive_brt_phase`` so the gas
+    forecast can carry BRT/circadian correlation info)."""
+    window_start = time.time() - GAS_99TH_WINDOW_DAYS * 86400
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2.0)
+        cur = conn.cursor()
+        rows = cur.execute(
+            "SELECT ts FROM bh_ledger "
+            "WHERE gas_used IS NOT NULL AND gas_used > 0 AND ts IS NOT NULL AND ts >= ? "
+            "ORDER BY ts ASC",
+            (window_start,),
+        ).fetchall()
+        conn.close()
+        return [float(r[0]) for r in rows if r[0] is not None]
+    except Exception:
+        return []
+
+
 def compute_gas_99th_percentile(force_refresh: bool = False) -> dict:
     """Compute the rolling 30-day empirical 99th percentile of gas costs.
 
@@ -239,6 +259,16 @@ def forecast_gas(
     discloses the source ("empirical_30d" | "fallback_hardcoded"), the
     sample count, and the conversion note so callers can distinguish a
     real empirical denominator from the legacy 200.0 fallback.
+
+    BTCP-FIX2-INT Fix 2 — wire BRT into the gas forecast. The response now
+    carries `brt_phase` (circadian/ultradian/peak_hour/quiet_hour/strength/
+    data_source) and `deferred_recommendation` (None|"DEFERRED"|"NOW"). When
+    BRT detects a circadian trough near the current hour (quiet_hour within
+    ±2h of now) AND circadian_strength ≥ 0.15 (CONJECTURE floor for the
+    gas-circadian correlation per spec §5), the forecast marks the route as
+    DEFERRED so the router can route it via the spec §4.2 Step 2 DEFERRED
+    RouteType (priority 6) instead of executing immediately at suboptimal
+    gas. Spec ref: §5 BRT Scheduler, §5.8 Water Following the Gradient.
     """
     profile = CHAIN_GAS_PROFILES.get(chain_id, {"mean": 5.0, "std": 3.0, "min": 0.5, "p99": 30.0})
 
@@ -254,6 +284,74 @@ def forecast_gas(
     p99_meta      = compute_gas_99th_percentile()
     p99_usd       = p99_meta["value"]
     normalize_gas = max(0.0, 1.0 - mean_usd / max(p99_usd, 1e-9))
+
+    # ── BTCP-FIX2-INT Fix 2: derive BRT phase from observed tx timestamps ──
+    # Spec §5.8 "Water Following the Gradient": non-urgent intents should
+    # defer to a predicted optimal window when BRT detects a circadian
+    # trough. The BRT scheduler is the gas-circadian correlation primitive
+    # (spec §5 line 1566 — `derive_brt_phase`); prior to this fix
+    # `btcp_gas_forecast.py` ignored BRT entirely (BTCP-DEEP-5 #6).
+    brt_phase_info = None
+    deferred_recommendation = "NOW"
+    defer_reason = "no BRT data yet (cold start)"
+    try:
+        from brt_scheduler import derive_brt_phase  # local import for isolation
+        db_path = _default_bh_ledger_path()
+        tx_ts = _query_gas_ts_last_30d(db_path)
+        brt = derive_brt_phase(tx_ts)
+        brt_phase_info = {
+            "circadian_phase":    round(brt.circadian_phase, 4),
+            "ultradian_phase":    round(brt.ultradian_phase, 4),
+            "circadian_strength": round(brt.circadian_strength, 4),
+            "ultradian_strength": round(brt.ultradian_strength, 4),
+            "lunar_phase":        round(brt.lunar_phase, 4),
+            "seasonal_phase":     round(brt.seasonal_phase, 4),
+            "data_source":        brt.data_source,  # OBSERVED | CLOCK_FALLBACK
+            "observation_count":  brt.observation_count,
+            "peak_hour_utc":      brt.peak_hour,
+            "quiet_hour_utc":     brt.quiet_hour,
+        }
+        # BRT gas-circadian correlation is a CONJECTURE (spec §1, F14
+        # falsifiability). Deploy-time we use a conservative trigger:
+        # only recommend DEFERRED when the observed signal is strong
+        # enough to plausibly predict a cheaper upcoming window, AND the
+        # current hour is within ±2h of the BRT-detected quiet hour.
+        now_hour = int((time.time() % 86400) // 3600) % 24
+        quiet_hour = brt.quiet_hour
+        hours_to_quiet = (quiet_hour - now_hour) % 24
+        # Window of ±2h around the quiet_hour (closest quiet window).
+        near_quiet_window = (
+            hours_to_quiet <= 2 or hours_to_quiet >= 22
+        )
+        # Circadian strength floor: 0.15 == brt_scheduler's own threshold
+        # for "OBSERVED" vs CLOCK_FALLBACK confidence.
+        strong_enough = (
+            brt.data_source == "OBSERVED"
+            and brt.circadian_strength >= 0.15
+        )
+        if strong_enough and near_quiet_window:
+            deferred_recommendation = "DEFERRED"
+            defer_reason = (
+                f"BRT circadian trough near now_hour={now_hour} UTC "
+                f"(quiet_hour={quiet_hour}, strength={brt.circadian_strength:.3f}); "
+                f"spec §5.8 predicts cheaper gas in the next window."
+            )
+        elif strong_enough:
+            deferred_recommendation = "NOW"
+            defer_reason = (
+                f"BRT strong (strength={brt.circadian_strength:.3f}) "
+                f"but next quiet hour {hours_to_quiet}h away — execute now."
+            )
+        else:
+            deferred_recommendation = "NOW"
+            defer_reason = (
+                f"BRT signal weak (data_source={brt.data_source}, "
+                f"strength={brt.circadian_strength:.3f}) — spec §5 marks "
+                f"gas-circadian correlation as CONJECTURE (F14); executing now."
+            )
+    except Exception as e:
+        defer_reason = f"BRT derivation unavailable: {type(e).__name__}: {str(e)[:60]}"
+        deferred_recommendation = "NOW"
 
     return {
         "chain_id":       chain_id,
@@ -272,6 +370,12 @@ def forecast_gas(
         "gas_99th_conversion_note": p99_meta["conversion_note"],
         "gas_99th_cached_at":   round(p99_meta["computed_at"], 3),
         "gas_99th_ttl_seconds": GAS_99TH_TTL_SECONDS,
+        # BTCP-FIX2-INT Fix 2 — BRT phase + deferred route recommendation
+        # (spec §5 BRT Scheduler + §5.8 Water Following the Gradient).
+        "brt_phase":                 brt_phase_info,
+        "deferred_recommendation":   deferred_recommendation,  # "NOW" | "DEFERRED"
+        "defer_reason":              defer_reason,
+        "brt_correlation_status":    "CONJECTURE (F14 — validate over 90-day sample)",
     }
 
 
