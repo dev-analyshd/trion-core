@@ -176,3 +176,11 @@ akashic/elder_wisdom.db
 # BTCP persistent state (12-b)
 db/
 btcp_state.db
+
+# Coq build artifacts (compiled by coqc)
+formal/coq/*.vo
+formal/coq/*.glob
+formal/coq/*.vok
+formal/coq/*.vos
+formal/coq/.nra.cache
+formal/coq/.TRIONTheorems.aux
