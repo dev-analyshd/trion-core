@@ -601,7 +601,9 @@ def test_version_defaults_and_compatibility(client):
     j = r.get_json()
     assert j["compatible"] is True  # 1.0.0 >= 1.0.0
     assert j["verifier_version"]["parsed"] == [1, 0, 0]
-    assert j["adapter_version_bonus"] == 0.03
+    # Spec §11 Fix 3 — ADAPTER_VERSION_BONUS unified with Rust's multiplicative
+    # 1.1 (10% preference), was Python's additive 0.03 before BTCP-FIX2-RUST-VM.
+    assert j["adapter_version_bonus"] == 1.1
 
     r = client.get("/api/v1/btcp/version?verifier_version=1.9.9&min_version=2.0.0")
     assert r.get_json()["compatible"] is False

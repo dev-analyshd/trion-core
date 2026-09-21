@@ -1269,6 +1269,7 @@ class BTCPOrchestrator:
         try:
             import psycopg2 as _pg
             from psycopg2.extras import Json as _PgJson
+            from datetime import datetime, timezone as _tz
             from core.primitives.behavioral_hash import (
                 hash_dna as _hash_dna,
                 bytes_to_32 as _bytes_to_32,
@@ -1289,6 +1290,7 @@ class BTCPOrchestrator:
             # XOR-complemented antisense strand. This makes the BTCP BH a
             # genuine Akashic atom, cross-verifiable with the Rust indexers.
             now_ts = int(time.time())
+            now_dt = datetime.fromtimestamp(now_ts, tz=_tz.utc)
             entity_32 = _bytes_to_32(
                 hashlib.sha3_256(route.intent.source_address.encode()).digest()
             )
@@ -1353,7 +1355,7 @@ class BTCPOrchestrator:
                         'BTCP_ROUTE_FINALIZED')
                 ON CONFLICT (time, bh_id) DO NOTHING
             """, (
-                now_ts,                              # time
+                now_dt,                              # time (timestamptz)
                 intent_32,                           # gk_hash (intent anchor)
                 b'\x00' * 32,                        # prev_gk_hash (bootstrap)
                 sense,                               # bh_id (Hash_DNA sense)

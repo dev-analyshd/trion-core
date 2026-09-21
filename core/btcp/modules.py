@@ -1459,7 +1459,7 @@ class FinalityNormalizer:
 class VersionHandler:
     """
     Module 2.16: Semver compatibility, min_verifier_version routing,
-    adapter version bonus incentives.
+    adapter version bonus incentives. Spec: BTCP Master §11 Fix 3.
 
     Compatibility Rules:
     - route_valid = verifier_version >= min_verifier_version
@@ -1467,9 +1467,18 @@ class VersionHandler:
     - Minor (v2.0→v2.1): non-breaking, new features optional
     - Patch: always backward compatible
     - ADAPTER_VERSION_BONUS: routing preference for latest adapters
+      (multiplicative 1.1× bonus — unified with Rust per BTCP-DEEP-3 fix).
+
+    The prior Python mirror used an additive +3% (0.03) constant. Spec
+    §11 Fix 3 says "routing preference" — a multiplier on the BTCP
+    routing score, not an additive boost. BTCP-FIX2-RUST-VM unifies on
+    Rust's 1.1 (10% multiplicative) so identical inputs yield identical
+    outputs across both implementations.
     """
 
-    ADAPTER_VERSION_BONUS = 0.03  # +3% bonus to BTCP_score for latest version
+    # Multiplicative routing-preference bonus for chains running the
+    # latest adapter version. Matches Rust `ADAPTER_VERSION_BONUS = 1.1`.
+    ADAPTER_VERSION_BONUS = 1.1  # 1.1× routing preference (10% boost)
 
     def parse_semver(self, version: str) -> Tuple[int, int, int]:
         parts = version.split(".")
@@ -1483,6 +1492,14 @@ class VersionHandler:
     def is_breaking_change(self, old_version: str, new_version: str) -> bool:
         """Major version change = breaking."""
         return self.parse_semver(new_version)[0] > self.parse_semver(old_version)[0]
+
+    def adapter_version_bonus(self) -> float:
+        """Multiplicative routing-preference bonus for latest-adapter chains.
+
+        Apply as `btcp_score_with_bonus = btcp_score * ADAPTER_VERSION_BONUS`
+        for routes selecting the latest adapter. Unified with Rust.
+        """
+        return self.ADAPTER_VERSION_BONUS
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

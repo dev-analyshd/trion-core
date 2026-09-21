@@ -589,6 +589,14 @@ class TestVersionHandler:
         assert vh.is_breaking_change("1.0.0", "2.0.0")
         assert not vh.is_breaking_change("2.0.0", "2.1.0")
 
+    def test_adapter_version_bonus_unified_with_rust(self):
+        # Spec §11 Fix 3 + BTCP-DEEP-3 fix — ADAPTER_VERSION_BONUS is now
+        # 1.1 (multiplicative 10%) in both Rust and Python; was 0.03
+        # (additive +3%) in Python only. BTCP-FIX2-RUST-VM unifies.
+        vh = VersionHandler()
+        assert vh.ADAPTER_VERSION_BONUS == 1.1
+        assert vh.adapter_version_bonus() == 1.1
+
 
 class TestValidatorFeeCalculator:
     def test_rarity_factor(self):
