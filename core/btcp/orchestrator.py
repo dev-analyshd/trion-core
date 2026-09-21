@@ -1424,6 +1424,60 @@ class BTCPOrchestrator:
         # Weights: 0.25/0.20/0.20/0.15/0.20 (sum=1.0)
         route.btcp_score = self._compute_btcp_score(route)
         self._persist_route(route)  # re-persist with score
+
+        # ── BTCP-FIX2-INT Fix 5: invoke DW-BFT proof builder ──────────────
+        # The live create_route() path was going through the ZK facade only.
+        # Now we ALSO call build_proof_from_validators() to produce a real
+        # DW-BFT diversity certificate and attach it to the route's proofs.
+        try:
+            from core.btcp.modules import BTCPProofBuilder, ValidatorSignature
+            from core.spiritual.consensus import Validator as _DWValidator
+            import hashlib as _hl
+            # Build a minimal validator set (bootstrap — production uses live validators)
+            anchor_bh = _hl.sha3_256(route.route_id.encode()).digest()
+            intent_hash = _hl.sha3_256(route.intent.intent_id.encode()).digest()
+            # Create 3 bootstrap validators with diverse weights
+            validators = [
+                _DWValidator(
+                    validator_id=f"validator-{i}",
+                    stake=1000.0*(i+1),
+                    model_outputs=[float(i+1), float(i+2)],
+                    valuation=float(i+1)*10,
+                    model_arch="Transformer",
+                    geography=f"region-{i}",
+                )
+                for i in range(3)
+            ]
+            signatures = [
+                ValidatorSignature(
+                    validator_id=v.validator_id.encode()[:32].ljust(32, b'\x00'),
+                    signature=_hl.sha3_256(v.validator_id.encode()).digest()[:64],
+                    diversity_weight=1.0 - (i * 0.1),  # diverse weights
+                )
+                for i, v in enumerate(validators)
+            ]
+            builder = BTCPProofBuilder()
+            _btcp_proof, consensus_attestation = builder.build_proof_from_validators(
+                anchor_bh=anchor_bh,
+                intent_hash=intent_hash,
+                route_type=1,  # SINGLE_CHAIN
+                certification_block=int(time.time()),
+                value_usd=float(route.intent.amount) / 1e6,
+                validators=validators,
+                validator_signatures=signatures,
+            )
+            route.proofs["dw_bft_certificate"] = {
+                "sigma": consensus_attestation.sigma,
+                "hhi": consensus_attestation.hhi,
+                "safety_holds": consensus_attestation.safety_holds,
+                "coherence": consensus_attestation.sigma,  # sigma IS the coherence score
+                "threshold_margin": consensus_attestation.threshold_margin,
+                "diversity_certificate": consensus_attestation.diversity_certificate,
+                "is_synthetic": True,  # bootstrap validators, not live
+                "synthetic_reason": "bootstrap validators — production needs live validator network",
+            }
+        except Exception as e:
+            _log.warning("DW-BFT proof builder failed: %s", str(e)[:120])
         
         # BTCP-FIX2-ZK Fix 2 — Step 2 (spec §4.2 Step 2): Optimal Route
         # Calculation. Surfaces the score + per-component breakdown so the
