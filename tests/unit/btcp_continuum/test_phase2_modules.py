@@ -609,6 +609,26 @@ class TestValidatorFeeCalculator:
         assert vfc.compute_btcp_route_reward(100.0, is_anchor=True) == 60.0
         assert vfc.compute_btcp_route_reward(100.0, is_anchor=False) == 40.0
 
+    def test_btcp_route_fee_rate_unified_with_rust(self):
+        # Spec §11 Fix 4 + BTCP-DEEP-3 fix — Python mirror previously missed
+        # the BTCP_ROUTE_FEE_RATE constant. BTCP-FIX2-RUST-VM adds it and
+        # unifies with Rust `pub const BTCP_ROUTE_FEE_RATE: f64 = 0.001;`.
+        assert ValidatorFeeCalculator.BTCP_ROUTE_FEE_RATE == 0.001
+
+    def test_compute_btcp_route_fee(self):
+        # Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+        vfc = ValidatorFeeCalculator()
+        # 0.1% of 10,000 = 10.0 (matches Rust `certified_route_value * 0.001`)
+        assert vfc.compute_btcp_route_fee(10_000.0) == 10.0
+        assert vfc.compute_btcp_route_fee(0.0) == 0.0
+        # 0.1% of 1.0 = 0.001 — the atomic fee unit
+        assert vfc.compute_btcp_route_fee(1.0) == 0.001
+
+    def test_compute_btcp_route_fee_rejects_negative(self):
+        vfc = ValidatorFeeCalculator()
+        with pytest.raises(ValueError):
+            vfc.compute_btcp_route_fee(-1.0)
+
     def test_coverage_bonus(self):
         vfc = ValidatorFeeCalculator()
         bonus = vfc.compute_coverage_bonus(

@@ -54,6 +54,7 @@ _groth16_commitments = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
 if _groth16_commitments not in sys.path:
     sys.path.insert(0, _groth16_commitments)
 
+_HASH_DNA_HELPERS = None
 try:
     from zk.groth16.commitments.hash_dna import (
         hash_dna,
@@ -72,43 +73,91 @@ try:
     )
     _HAS_COMMITMENTS = True
 except ImportError:
-    # Pure-python fallback so the facade still works if the commitments
-    # module is unavailable (e.g. path issues). Mirrors hash_dna.py.
-    _HAS_COMMITMENTS = False
-    HASH_LEN = 32
-
-    def _sha3_256(data: bytes) -> bytes:
-        return hashlib.sha3_256(data).digest()
-
-    def _complement_transform(b: bytes) -> bytes:
-        return bytes(~x & 0xFF for x in b)
-
-    def _xor(a: bytes, b: bytes) -> bytes:
-        return bytes(x ^ y for x, y in zip(a, b))
-
-    def _concat(fields: List[bytes]) -> bytes:
-        out = bytearray()
-        for f in fields:
-            if not isinstance(f, (bytes, bytearray)):
-                raise TypeError(f"hash_dna: field must be bytes, got {type(f).__name__}")
-            out.extend(f)
-        return bytes(out)
-
-    def hash_dna_dual(fields: List[bytes]) -> Tuple[bytes, bytes]:
-        payload = _concat(fields)
-        sense = _sha3_256(payload + b"\x00")
-        sha3_ff = _sha3_256(payload + b"\xff")
-        antisense = _xor(sha3_ff, _complement_transform(sense))
-        return sense, antisense
-
-    def verify_dual_strand(sense: bytes, antisense: bytes, payload: bytes) -> bool:
-        if len(sense) != HASH_LEN or len(antisense) != HASH_LEN:
-            return False
-        expected = _xor(
-            _sha3_256(payload + b"\xff"),
-            _complement_transform(sense),
+    # The package path import failed — try direct module import
+    # (the _groth16_commitments path was inserted above).
+    try:
+        from hash_dna import (  # type: ignore
+            hash_dna,
+            hash_dna_dual,
+            verify_dual_strand,
+            behavioral_hash,
+            public_commitment,
+            intent_hash,
+            birp_anchor,
+            disclosure_hash,
+            _concat,
+            _sha3_256,
+            _complement_transform,
+            _xor,
+            HASH_LEN,
         )
-        return antisense == expected
+        _HAS_COMMITMENTS = True
+    except ImportError:
+        # Pure-python fallback so the facade still works if the commitments
+        # module is unavailable (e.g. path issues). Mirrors hash_dna.py.
+        _HAS_COMMITMENTS = False
+        HASH_LEN = 32
+
+        def _sha3_256(data: bytes) -> bytes:
+            return hashlib.sha3_256(data).digest()
+
+        def _complement_transform(b: bytes) -> bytes:
+            return bytes(~x & 0xFF for x in b)
+
+        def _xor(a: bytes, b: bytes) -> bytes:
+            return bytes(x ^ y for x, y in zip(a, b))
+
+        def _concat(fields: List[bytes]) -> bytes:
+            out = bytearray()
+            for f in fields:
+                if not isinstance(f, (bytes, bytearray)):
+                    raise TypeError(f"hash_dna: field must be bytes, got {type(f).__name__}")
+                out.extend(f)
+            return bytes(out)
+
+        def hash_dna(fields: List[bytes]) -> bytes:
+            payload = _concat(fields)
+            return _sha3_256(payload + b"\x00")
+
+        def hash_dna_dual(fields: List[bytes]) -> Tuple[bytes, bytes]:
+            payload = _concat(fields)
+            sense = _sha3_256(payload + b"\x00")
+            sha3_ff = _sha3_256(payload + b"\xff")
+            antisense = _xor(sha3_ff, _complement_transform(sense))
+            return sense, antisense
+
+        def verify_dual_strand(sense: bytes, antisense: bytes, payload: bytes) -> bool:
+            if len(sense) != HASH_LEN or len(antisense) != HASH_LEN:
+                return False
+            expected = _xor(
+                _sha3_256(payload + b"\xff"),
+                _complement_transform(sense),
+            )
+            return antisense == expected
+
+        # BTCP §5.6 Phase 1: H_intent = Hash_DNA(intent_details || nonce || entity_id)
+        def intent_hash(intent_details: bytes, random_nonce: bytes, entity_id: bytes) -> bytes:
+            return hash_dna([intent_details, random_nonce, entity_id])
+
+        # BTCP §7.1: behavioral_hash = Hash_DNA(behavior_input || behavior_nonce)
+        def behavioral_hash(behavior_input: bytes, behavior_nonce: bytes) -> bytes:
+            return hash_dna([behavior_input, behavior_nonce])
+
+        # BTCP §7.1: public_commitment = Hash(behavioral_hash) — SHA3-256 wrapper
+        def public_commitment(b_hash: bytes) -> bytes:
+            if len(b_hash) != HASH_LEN:
+                raise ValueError(f"expected 32-byte behavioral_hash, got {len(b_hash)}")
+            return _sha3_256(b_hash)
+
+        # BTCP Fix 1 Step 3: disclosure_hash = Hash_DNA(disclosure_input)
+        def disclosure_hash(disclosure_input: bytes) -> bytes:
+            return hash_dna([disclosure_input])
+
+        # WP-Mar §16: BIRP anchor (used by S5 — minimal pure-python form)
+        def birp_anchor(beo_baseline: bytes, hash_dna_code: bytes,
+                       enrollment_ts: int, behavioral_entropy_seed: bytes) -> bytes:
+            ts_bytes = int(enrollment_ts).to_bytes(8, "big", signed=False)
+            return hash_dna([beo_baseline, hash_dna_code, ts_bytes, behavioral_entropy_seed])
 
 
 try:

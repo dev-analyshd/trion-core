@@ -1508,7 +1508,7 @@ class VersionHandler:
 
 class ValidatorFeeCalculator:
     """
-    Module 2.17: Validator fee structure per Fix 4.
+    Module 2.17: Validator fee structure per Spec §11 Fix 4 (lines 2027-2052).
 
     total_reward(validator_j, period_T) =
           BASE_SIGNAL_REWARD(j, T)
@@ -1520,19 +1520,38 @@ class ValidatorFeeCalculator:
         BASE_RATE × rarity_factor(c) × volume_factor(c,T) × uptime_factor(j,c,T)
     ]
 
-    rarity_factor(c) = 1 / (validators_covering_c / total_validators)
+    rarity_factor(c) = total_validators / validators_covering_chain
+        (chain covered by 5% of validators → rarity = 20)
 
-    BTCP_ROUTE_REWARD: split 60% anchor chain validators / 40% execution chain validators
+    BTCP_ROUTE_REWARD = Σ_routes route.value × BTCP_ROUTE_FEE_RATE
+        with BTCP_ROUTE_FEE_RATE = 0.001 (0.1%)
+        60% to anchor chain validators / 40% to execution chain validators
+
+    Constants unified with Rust `rust/src/validator_fee_calculator.rs`:
+    BTCP_ROUTE_FEE_RATE, BASE_RATE, BTCP_ROUTE_SPLIT_ANCHOR,
+    BTCP_ROUTE_SPLIT_EXEC all mirror the Rust pub const values exactly
+    so identical inputs yield identical outputs in both implementations
+    (BTCP-DEEP-3 found the Python mirror missing BTCP_ROUTE_FEE_RATE;
+    BTCP-FIX2-RUST-VM adds it).
     """
 
     BASE_RATE = 100.0  # base reward rate per chain
     BTCP_ROUTE_SPLIT_ANCHOR = 0.60
     BTCP_ROUTE_SPLIT_EXEC = 0.40
+    # Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+    # 0.1% of certified route value, split 60/40 anchor/execution. Unified
+    # with Rust `validator_fee_calculator.rs::BTCP_ROUTE_FEE_RATE = 0.001`.
+    BTCP_ROUTE_FEE_RATE = 0.001
 
     def compute_rarity_factor(
         self, validators_covering_chain: int, total_validators: int,
     ) -> float:
-        """rarity_factor = 1 / (validators_covering / total_validators)."""
+        """rarity_factor = total_validators / validators_covering_chain.
+
+        Chain covered by 5% of validators → rarity = 20. Returns +inf for
+        uncovered chains (matches Rust's `total_validators as f64 / 0`
+        divergence — callers must filter out zero-coverage chains).
+        """
         if validators_covering_chain <= 0:
             return float('inf')
         return total_validators / validators_covering_chain
@@ -1553,6 +1572,19 @@ class ValidatorFeeCalculator:
             uptime = uptime_per_chain.get(c, 0.0)
             bonus += self.BASE_RATE * rarity * volume * uptime
         return bonus
+
+    def compute_btcp_route_fee(self, route_value: float) -> float:
+        """Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+
+        Returns the raw route fee for a single certified route. The 60/40
+        anchor/execution split is applied downstream by
+        `compute_btcp_route_reward(total_route_reward, is_anchor)`.
+        Unified with Rust `ValidatorFeeCalculator::btcp_route_reward` (which
+        uses `certified_route_value * BTCP_ROUTE_FEE_RATE`).
+        """
+        if route_value < 0:
+            raise ValueError("route_value must be non-negative")
+        return route_value * self.BTCP_ROUTE_FEE_RATE
 
     def compute_btcp_route_reward(
         self, total_route_reward: float, is_anchor: bool,

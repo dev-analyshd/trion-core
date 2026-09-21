@@ -818,6 +818,10 @@ def btcp_validator_fee():
             volume_per_chain, uptime_per_chain)
         out = {
             "base_rate": ValidatorFeeCalculator.BASE_RATE,
+            # Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+            # Exposed so callers can verify the Rust/Python constant is unified
+            # (BTCP-FIX2-RUST-VM added the Python mirror).
+            "btcp_route_fee_rate": ValidatorFeeCalculator.BTCP_ROUTE_FEE_RATE,
             "chains_covered": chains,
             "rarity_factors": {
                 str(c): calc.compute_rarity_factor(
@@ -828,7 +832,29 @@ def btcp_validator_fee():
             "total_validators": total_validators,
             "specification": "Module 2.17 — Validator Fee Calculator (Fix 4)",
         }
-        if data.get("total_route_reward") is not None:
+        # Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+        # When `certified_route_value` (the Σ route.value across the validator's
+        # certified routes in the period) is supplied, compute the raw route
+        # fee and the 60/40 anchor/exec split.
+        if data.get("certified_route_value") is not None:
+            certified_route_value = float(data.get("certified_route_value"))
+            if certified_route_value < 0:
+                raise ValueError("certified_route_value must be non-negative")
+            raw_fee = calc.compute_btcp_route_fee(certified_route_value)
+            out["btcp_route_reward"] = {
+                "certified_route_value": certified_route_value,
+                "fee_rate": ValidatorFeeCalculator.BTCP_ROUTE_FEE_RATE,
+                "raw_fee": raw_fee,
+                "anchor_share": ValidatorFeeCalculator.BTCP_ROUTE_SPLIT_ANCHOR,
+                "execution_share": ValidatorFeeCalculator.BTCP_ROUTE_SPLIT_EXEC,
+                "anchor_validators": calc.compute_btcp_route_reward(
+                    raw_fee, True),
+                "execution_validators": calc.compute_btcp_route_reward(
+                    raw_fee, False),
+            }
+        # Back-compat: accept the old `total_route_reward` field as a
+        # pre-split reward amount (still 60/40 split, no fee computation).
+        elif data.get("total_route_reward") is not None:
             total_route_reward = float(data.get("total_route_reward"))
             out["btcp_route_reward"] = {
                 "total": total_route_reward,

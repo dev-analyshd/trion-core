@@ -176,34 +176,40 @@ def collect_real_shadow_sources(
         # REAL shadow sources: akashic_bh rows that did NOT become a
         # published signal (context->>'source' IS NULL) within the lookback.
         if integrated_chains:
-            chain_filter = (
-                "AND chain_id = ANY(%s)"
-            )
+            chain_filter = "AND chain_id = ANY(%s)"
             params: Tuple[Any, ...] = (lookback_hours, list(integrated_chains))
         else:
             chain_filter = "AND chain_id <> %s"
             params = (lookback_hours, hostile_chain_id)
 
-        # Use a per-chain row_number window so one noisy chain cannot
-        # flood the shadow — keep at most `limit_per_chain` per source.
+        # NOTE on query shape — the audit env's akashic_bh has ~890k rows
+        # and an index on (time DESC).  A `ROW_NUMBER() OVER (PARTITION BY
+        # chain_id ORDER BY time DESC)` window function would seq-scan the
+        # whole partition; instead we take the most-recent `limit` real
+        # shadow rows (still capped via the Python-side per-chain slicing
+        # below) so the planner uses the time index.
         sql = f"""
-            WITH ranked AS (
-                SELECT
-                    time, chain_id, event_type, bh_id, block_num,
-                    ROW_NUMBER() OVER (PARTITION BY chain_id ORDER BY time DESC) AS rn
-                FROM akashic_bh
-                WHERE time > NOW() - (INTERVAL '%s hours')
-                  AND (context->>'source') IS NULL
-                  {chain_filter}
-            )
             SELECT time, chain_id, event_type, bh_id, block_num
-            FROM ranked
-            WHERE rn <= %s
+            FROM akashic_bh
+            WHERE time > NOW() - (INTERVAL '%s hours')
+              AND (context->>'source') IS NULL
+              {chain_filter}
             ORDER BY time DESC
             LIMIT 500
         """
-        cur.execute(sql, params + (limit_per_chain,))
+        cur.execute(sql, params)
         rows = cur.fetchall()
+
+        # Per-chain cap so one noisy source chain cannot dominate the shadow.
+        per_chain: Dict[int, int] = {}
+        filtered_rows = []
+        for row in rows:
+            cid = row[1]
+            if per_chain.get(cid, 0) >= limit_per_chain:
+                continue
+            per_chain[cid] = per_chain.get(cid, 0) + 1
+            filtered_rows.append(row)
+        rows = filtered_rows
 
         # diversity_factor per spec = 1.0 / number of distinct source chains
         # observing (a single chain's view is high-diversity when many

@@ -690,6 +690,41 @@ def test_validator_fee_validates_input(client):
     assert "chains_covered" in r.get_json()["error"]
 
 
+def test_validator_fee_exposes_btcp_route_fee_rate(client):
+    """Spec §11 Fix 4 + BTCP-FIX2-RUST-VM — Python mirror now exposes the
+    BTCP_ROUTE_FEE_RATE = 0.001 constant (unified with Rust)."""
+    r = client.post("/api/v1/btcp/validator_fee", json=_FEE_PAYLOAD)
+    assert r.status_code == 200
+    assert r.get_json()["btcp_route_fee_rate"] == 0.001
+
+
+def test_validator_fee_certified_route_value(client):
+    """Spec §11 Fix 4 — `btcp_route_reward = Σ route.value × BTCP_ROUTE_FEE_RATE`.
+
+    Supplying `certified_route_value` (Σ route.value across the validator's
+    certified routes in the period) returns the raw_fee (×0.001) + the
+    60/40 anchor/exec split applied to the raw_fee. Verifies Rust/Python
+    fee-rate parity: certified_route_value=10000 → raw_fee=10, anchor=6,
+    exec=4 (Rust computes identical outputs)."""
+    r = client.post("/api/v1/btcp/validator_fee",
+                    json=dict(_FEE_PAYLOAD, certified_route_value=10_000.0))
+    assert r.status_code == 200
+    j = r.get_json()
+    reward = j["btcp_route_reward"]
+    assert reward["certified_route_value"] == 10_000.0
+    assert reward["fee_rate"] == 0.001
+    assert reward["raw_fee"] == pytest.approx(10.0)
+    assert reward["anchor_validators"] == pytest.approx(6.0)  # 60% of 10
+    assert reward["execution_validators"] == pytest.approx(4.0)  # 40% of 10
+
+
+def test_validator_fee_rejects_negative_route_value(client):
+    r = client.post("/api/v1/btcp/validator_fee",
+                    json=dict(_FEE_PAYLOAD, certified_route_value=-1.0))
+    assert r.status_code == 400
+    assert "non-negative" in r.get_json()["error"]
+
+
 # ── Gap #3: POST /api/v1/btcp/sybil ──────────────────────────────────────────
 
 def test_sybil_all_five_layers(client):
