@@ -282,6 +282,7 @@ class PrivateBIBLProtocol:
         self._validator_private_keys: Dict[bytes, bytes] = {}  # validator_id → key share
         self._threshold: int = 3  # 3-of-5 threshold decryption
         self._total_validators: int = 5
+        self._last_key_source: str = "none"  # disclosure: which key path was used
 
     def set_aggregate_public_key(self, pubkey: bytes) -> None:
         """Set the TRION aggregate public key (threshold BLS or similar)."""
@@ -291,6 +292,28 @@ class PrivateBIBLProtocol:
         """Register a validator's threshold key share."""
         self._validator_private_keys[validator_id] = key_share
 
+    def _derive_entity_key(self, entity_id: Optional[bytes]) -> Optional[bytes]:
+        """
+        Derive a per-entity symmetric key from the entity's BEO id.
+
+        Per BTCP Master Spec §7.1 (Dark Field Principle), each entity must
+        have a *unique* encryption key so that one entity's payload cannot be
+        decrypted by re-using another entity's key material. The derivation
+        is SHA3-256 over a domain-separation tag plus the entity_id (BEO id).
+
+        NOTE: This is still XOR — a stream-cipher placeholder. XOR is NOT a
+        secure AEAD and offers no integrity, no nonce-reuse resistance, and
+        no forward secrecy. Production must replace this with a real
+        authenticated-encryption scheme (AES-GCM or ChaCha20-Poly1305) backed
+        by a proper KMS / threshold BLS key schedule. The derivation below
+        removes the prior shared hardcoded demo key
+        (b"TRION_AGGREGATE_KEY_DEMO") and gives each entity a distinct
+        key, but the cipher itself remains a deliberately-labelled stub.
+        """
+        if entity_id is None:
+            return None
+        return hashlib.sha3_256(b"TRION_BIBL_PRIV_V1" + entity_id).digest()
+
     def encrypt_payload(
         self,
         asset_in: bytes,
@@ -298,19 +321,37 @@ class PrivateBIBLProtocol:
         value: float,
         max_gas: float,
         min_nl_score: float,
+        entity_id: Optional[bytes] = None,
     ) -> bytes:
         """
         Phase 2: Encrypt private execution parameters.
 
-        In production, this uses threshold homomorphic encryption (BLS or Paillier).
-        Here we use a simplified symmetric encryption for demonstration —
-        the actual cryptographic implementation would use a proper threshold scheme.
+        Per spec §7.1 Dark Field Principle, the key MUST be unique per
+        entity. We derive it from the entity's BEO id (SHA3-256) when no
+        threshold aggregate public key has been distributed yet.
+
+        Cipher disclosure: XOR-with-derived-key is a *placeholder* for the
+        production scheme — real Private BIBL must use threshold
+        homomorphic encryption (Paillier/BLS) for Phase 3 + an AEAD
+        (AES-GCM / ChaCha20-Poly1305) at rest, with key material managed by
+        a KMS. XOR is retained here ONLY to keep the Python reference path
+        runnable end-to-end without a deployed KMS; it is NOT secure
+        against a determined adversary.
         """
-        if self._aggregate_public_key is None:
-            # Fallback: simple XOR with derived key (NOT cryptographically secure)
-            derived_key = hashlib.sha3_256(b"TRION_AGGREGATE_KEY_DEMO").digest()
-        else:
+        if self._aggregate_public_key is not None:
             derived_key = self._aggregate_public_key
+            key_source = "aggregate_public_key"
+        else:
+            derived_key = self._derive_entity_key(entity_id)
+            if derived_key is None:
+                raise ValueError(
+                    "encrypt_payload requires either an aggregate public key "
+                    "(set_aggregate_public_key) or an entity_id to derive a "
+                    "per-entity key. Refusing to encrypt with the legacy "
+                    "hardcoded demo key (Gap D5 fix — spec §7.1 Dark Field)."
+                )
+            key_source = "entity_beo_id_sha3_256"
+        self._last_key_source = key_source
 
         plaintext = (
             asset_in + asset_out +
@@ -318,7 +359,7 @@ class PrivateBIBLProtocol:
             int(max_gas).to_bytes(32, "big") +
             int(min_nl_score * 1e6).to_bytes(32, "big")
         )
-        # XOR encrypt (demo only — production would use threshold Paillier/BLS)
+        # XOR encrypt — PLACEHOLDER for AEAD (see method docstring).
         encrypted = bytes(p ^ derived_key[i % len(derived_key)] for i, p in enumerate(plaintext))
         return encrypted
 
@@ -326,20 +367,34 @@ class PrivateBIBLProtocol:
         self,
         encrypted: bytes,
         validator_shares: List[bytes],
+        entity_id: Optional[bytes] = None,
     ) -> Tuple[bytes, bytes, float, float, float]:
         """
         Phase 4: Threshold-decrypt the payload at execution block.
 
         Requires `threshold` validator shares to decrypt.
         Returns (asset_in, asset_out, value, max_gas, min_nl_score).
+
+        The same key derivation rule as encrypt_payload applies — either an
+        aggregate public key (production threshold BLS) or the per-entity
+        BEO-id-derived key (reference path). The legacy hardcoded
+        b"TRION_AGGREGATE_KEY_DEMO" fallback was removed (Gap D5).
         """
         if len(validator_shares) < self._threshold:
             raise ValueError(
                 f"Insufficient validator shares: {len(validator_shares)} < {self._threshold}"
             )
 
-        # Demo: use the same derived key (production would combine threshold shares)
-        derived_key = self._aggregate_public_key or hashlib.sha3_256(b"TRION_AGGREGATE_KEY_DEMO").digest()
+        if self._aggregate_public_key is not None:
+            derived_key = self._aggregate_public_key
+        else:
+            derived_key = self._derive_entity_key(entity_id)
+            if derived_key is None:
+                raise ValueError(
+                    "decrypt_payload requires either an aggregate public key "
+                    "or the entity_id used at encryption time (Gap D5 fix)."
+                )
+        # XOR decrypt — PLACEHOLDER for AEAD (same disclosure as encrypt).
         decrypted = bytes(c ^ derived_key[i % len(derived_key)] for i, c in enumerate(encrypted))
 
         asset_in = decrypted[:32]
@@ -437,29 +492,56 @@ if __name__ == "__main__":
     assert lo <= gas <= hi
     print(f"✓ Gas forecast: ${gas:.2f} (CI: ${lo:.2f}-${hi:.2f})")
 
-    # Test 4: Private BIBL Protocol
+    # Test 4: Private BIBL Protocol (Gap D5 fix — per-entity BEO-id key derivation)
     proto = PrivateBIBLProtocol()
-    proto.set_aggregate_public_key(hashlib.sha3_256(b"DEMO_KEY").digest())
+    # NOTE: aggregate public key is intentionally NOT set so the per-entity
+    # derivation path is exercised (the legacy hardcoded demo key path is gone).
+    entity_a = b"\x01" * 32  # entity A BEO id
+    entity_b = b"\x02" * 32  # entity B BEO id — distinct key
 
-    # Phase 2: Encrypt
+    # Phase 2: Encrypt with entity A's BEO-id-derived key
     encrypted = proto.encrypt_payload(
         asset_in=b"\xAA" * 32,
         asset_out=b"\xBB" * 32,
         value=1000.0,
         max_gas=50.0,
         min_nl_score=0.30,
+        entity_id=entity_a,
     )
-    print(f"✓ Encrypted payload: {len(encrypted)} bytes")
+    assert proto._last_key_source == "entity_beo_id_sha3_256"
+    print(f"✓ Encrypted payload: {len(encrypted)} bytes (key_source={proto._last_key_source})")
 
-    # Phase 4: Decrypt with threshold shares
+    # Each entity must get a distinct ciphertext for the same plaintext —
+    # otherwise the demo key would still be shared across entities.
+    encrypted_b = proto.encrypt_payload(
+        asset_in=b"\xAA" * 32,
+        asset_out=b"\xBB" * 32,
+        value=1000.0,
+        max_gas=50.0,
+        min_nl_score=0.30,
+        entity_id=entity_b,
+    )
+    assert encrypted != encrypted_b, "per-entity keys must differ (Gap D5 core requirement)"
+    print(f"✓ Distinct ciphertexts for entity A vs B (per-entity key derivation works)")
+
+    # Phase 4: Decrypt with threshold shares + same entity_id
     shares = [b"share1", b"share2", b"share3"]  # 3-of-5 threshold
-    asset_in, asset_out, value, max_gas, min_nl = proto.decrypt_payload(encrypted, shares)
+    asset_in, asset_out, value, max_gas, min_nl = proto.decrypt_payload(encrypted, shares, entity_id=entity_a)
     assert asset_in == b"\xAA" * 32
     assert asset_out == b"\xBB" * 32
     assert value == 1000.0
     assert max_gas == 50.0
     assert abs(min_nl - 0.30) < 1e-6
-    print(f"✓ Decrypted: value={value}, max_gas={max_gas}, min_nl={min_nl}")
+    print(f"✓ Decrypted with entity-derived key: value={value}, max_gas={max_gas}, min_nl={min_nl}")
+
+    # Encryption without an entity_id AND without an aggregate key must now
+    # refuse — the legacy hardcoded demo key path was removed (Gap D5).
+    try:
+        proto.encrypt_payload(b"\xAA" * 32, b"\xBB" * 32, 1.0, 1.0, 0.5)
+        raise AssertionError("expected ValueError for missing entity_id + missing aggregate key")
+    except ValueError as e:
+        assert "Dark Field" in str(e) or "entity_id" in str(e)
+    print(f"✓ Refuses encryption without per-entity key (legacy hardcoded demo key removed)")
 
     # Phase 3: Magnitude bucket classification
     assert proto.classify_magnitude_bucket(100, 100) == "MEDIUM"

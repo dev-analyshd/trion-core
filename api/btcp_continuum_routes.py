@@ -932,15 +932,23 @@ def btcp_private_bibl():
     data = request.get_json(force=True, silent=True) or {}
     try:
         proto = PrivateBIBLProtocol()
-        proto.set_aggregate_public_key(hashlib.sha3_256(b"TRION_AGGREGATE_KEY").digest())
+        # Gap D5: per-entity BEO-id-derived key (spec §7.1 Dark Field).
+        # The aggregate public key is no longer blindly set to a derived
+        # constant — we let the per-entity derivation path run by default
+        # unless the caller explicitly supplies an aggregate pubkey hex.
+        agg_pub_hex = data.get("aggregate_public_key_hex")
+        if agg_pub_hex:
+            proto.set_aggregate_public_key(bytes.fromhex(agg_pub_hex))
+        entity_id = bytes.fromhex(data.get("entity_id_hex", "01" * 32))
 
-        # Phase 2: Encrypt
+        # Phase 2: Encrypt (per-entity BEO-id-derived key per §7.1 Dark Field)
         encrypted = proto.encrypt_payload(
             asset_in=bytes.fromhex(data.get("asset_in_hex", "aa" * 32)),
             asset_out=bytes.fromhex(data.get("asset_out_hex", "bb" * 32)),
             value=float(data.get("value", 1000.0)),
             max_gas=float(data.get("max_gas", 50.0)),
             min_nl_score=float(data.get("min_nl_score", 0.30)),
+            entity_id=entity_id,
         )
 
         # Phase 3: Private score (using magnitude bucket)
@@ -957,7 +965,7 @@ def btcp_private_bibl():
         )
 
         # Phase 4: Decrypt at execution (requires 3-of-5 threshold shares)
-        decrypted = proto.decrypt_payload(encrypted, [b"s1", b"s2", b"s3"])
+        decrypted = proto.decrypt_payload(encrypted, [b"s1", b"s2", b"s3"], entity_id=entity_id)
 
         return jsonify({
             "encrypted_payload_hex": encrypted.hex(),
@@ -971,7 +979,16 @@ def btcp_private_bibl():
                 "max_gas": decrypted[3],
                 "min_nl_score": decrypted[4],
             },
-            "specification": "Gap 9 Resolution",
+            "encryption": {
+                "key_source": proto._last_key_source,
+                "cipher": "XOR (placeholder for AEAD — spec §7.1 Dark Field)",
+                "disclosure": (
+                    "Per-entity BEO-id-derived key (SHA3-256). XOR is a "
+                    "deliberate placeholder; production must use AES-GCM / "
+                    "ChaCha20-Poly1305 + a KMS / threshold BLS key schedule."
+                ),
+            },
+            "specification": "Gap 9 Resolution + Gap D5 fix (Dark Field key derivation)",
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
