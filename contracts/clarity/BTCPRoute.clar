@@ -1,13 +1,16 @@
 ;; BTCPRoute.clar - BTCP route registry linking anchor_bh -> execution_bh (chain-agnostic).
 
-;; Route type enum
-(define-constant ROUTE-NETTING u0)
+;; Route type enum — spec §4.1 canonical RouteType:
+;;   0=SingleChain, 1=Split, 2=Netting, 3=Parallel,
+;;   4=MultiHop,   5=Deferred, 6=BITP
+;; (Replaces prior {NETTING,SPLIT,IAP,BSC,BLO,OOA,DIRECT} which deviated from spec.)
+(define-constant ROUTE-SINGLE-CHAIN u0)
 (define-constant ROUTE-SPLIT u1)
-(define-constant ROUTE-IAP u2)
-(define-constant ROUTE-BSC u3)
-(define-constant ROUTE-BLO u4)
-(define-constant ROUTE-OOA u5)
-(define-constant ROUTE-DIRECT u6)
+(define-constant ROUTE-NETTING u2)
+(define-constant ROUTE-PARALLEL u3)
+(define-constant ROUTE-MULTI-HOP u4)
+(define-constant ROUTE-DEFERRED u5)
+(define-constant ROUTE-BITP u6)
 
 (define-map routes
   { route-id: (buff 32) }
@@ -23,7 +26,7 @@
                               (anchor-chain uint) (execution-chain uint) (entity-id (buff 32))
                               (route-type uint))
   (begin
-    (asserts! (<= route-type ROUTE-DIRECT) (err u404))
+    (asserts! (<= route-type ROUTE-BITP) (err u404))
     (asserts! (is-none (map-get? routes { route-id: route-id })) (err u404))
     (map-set routes
       { route-id: route-id }
