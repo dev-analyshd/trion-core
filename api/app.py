@@ -2184,6 +2184,9 @@ def resolve_beo():
     linked_wallets = []
     tsdb_wallets_found = 0
     tsdb_bhs_for_entity = 0
+    tsdb_matched_variant = None
+    tsdb_lookup_error = None
+    beo_cluster = None
 
     try:
         import psycopg2 as _pg
@@ -2192,27 +2195,71 @@ def resolve_beo():
             pg_conn = _pg.connect(tsdb_url, connect_timeout=5)
             pg_cur = pg_conn.cursor()
 
-            # Entity IDs in TimescaleDB are stored as SHA3-256("0x" + address) (64 hex chars).
-            # The Rust indexer computes: entity_id = bh_id(from_addr) = SHA3-256(from_addr)
-            # where from_addr includes the 0x prefix.
+            # ── FIX-A (L0.2 Gap 1): entity_id encoding parity with Rust indexer ──
+            # Rust indexer (indexers/crates/trion-common/src/hash_dna.rs::bh_id):
+            #     entity_id = sha3_256(normalise(from_addr)).hexdigest()
+            # where normalise() lowercases + ensures 0x prefix for EVM addresses.
+            # Stored in akashic_bh.entity_id (bytea) as 64 ASCII bytes of the hex hash
+            # (NOT 32 binary bytes, NOT the raw address).
+            #
+            # The prior implementation only ever tried ONE effective variant for
+            # real EVM addresses (beo_hash ASCII bytes), which matched the indexer
+            # but failed silently when the caller passed:
+            #   (a) the entity_id hash itself (with or without 0x prefix), and
+            #   (b) the raw address without 0x prefix (some RPCs normalize differently).
+            # The audit's failing case (top TimescaleDB entity hash passed as
+            # identifier) was variant (a) — endpoint double-hashed it instead of
+            # matching it directly.
             import hashlib as _hl
             identifier_clean = identifier.strip()
+            _hex_chars = set('0123456789abcdefABCDEF')
 
-            # Ensure 0x prefix for EVM addresses
-            if identifier_clean.startswith('0x') or identifier_clean.startswith('0X'):
-                addr_with_prefix = identifier_clean.lower()
-            elif len(identifier_clean) == 40 and all(c in '0123456789abcdefABCDEF' for c in identifier_clean):
-                addr_with_prefix = '0x' + identifier_clean.lower()
+            # Normalize EVM-style address to lowercased 0x-prefixed form
+            if identifier_clean.lower().startswith('0x'):
+                _core_hex = identifier_clean[2:]
+                if len(_core_hex) == 40 and all(c in _hex_chars for c in _core_hex):
+                    addr_with_prefix = '0x' + _core_hex.lower()  # canonical EVM
+                else:
+                    addr_with_prefix = identifier_clean.lower()  # non-EVM 0x-prefixed
+            elif len(identifier_clean) == 40 and all(c in _hex_chars for c in identifier_clean):
+                addr_with_prefix = '0x' + identifier_clean.lower()  # bare 40-hex EVM
             else:
-                addr_with_prefix = identifier_clean
+                addr_with_prefix = identifier_clean  # non-EVM (Solana, NEAR, etc.)
 
-            # Compute the entity_id hash the same way the Rust indexer does
-            beo_hash = _hl.sha3_256(addr_with_prefix.encode()).hexdigest()
-            variants = [
-                beo_hash.encode('utf-8'),
-                addr_with_prefix.encode('utf-8'),
-                identifier_clean.encode('utf-8'),
-            ]
+            # Primary hash form: matches what the Rust indexer stores
+            beo_hash = _hl.sha3_256(addr_with_prefix.encode('utf-8')).hexdigest()
+
+            variants = set()
+            # (1) Primary: 64 ASCII bytes of sha3_256("0x"+addr.lower()) — the Rust
+            #     indexer's canonical entity_id encoding.
+            variants.add(beo_hash.encode('utf-8'))
+            # (2) The address itself (in case some chain stored the raw addr).
+            variants.add(addr_with_prefix.encode('utf-8'))
+            # (3) The original identifier (preserves case for non-EVM chains).
+            variants.add(identifier_clean.encode('utf-8'))
+
+            # (4) FIX-A Gap 1: if the identifier IS itself a 64-char hex hash
+            #     (i.e., the caller already knows the entity_id from prior BH
+            #     lookup), match it directly. This is the case the audit caught:
+            #     user passes "0xf96803f0e182..." (the stored hash) and the
+            #     endpoint was double-hashing it instead of matching it.
+            _hex_core = identifier_clean[2:] if identifier_clean.lower().startswith('0x') else identifier_clean
+            if len(_hex_core) == 64 and all(c in _hex_chars for c in _hex_core):
+                _hash_lower = _hex_core.lower()
+                # Direct match — bare 64-char hash (the way akashic_bh stores it)
+                variants.add(_hash_lower.encode('utf-8'))
+                # 0x-prefixed form
+                variants.add(('0x' + _hash_lower).encode('utf-8'))
+                # Defensive: in case some indexer stored sha3_256(hash) double-hash
+                _double = _hl.sha3_256(_hash_lower.encode('utf-8')).hexdigest()
+                variants.add(_double.encode('utf-8'))
+
+            # (5) Defensive: also try the no-0x variant for EVM addresses (in
+            #     case any chain's indexer normalised differently).
+            if addr_with_prefix.lower().startswith('0x') and len(addr_with_prefix) == 42:
+                variants.add(addr_with_prefix[2:].encode('utf-8'))
+
+            variants_list = list(variants)
 
             # Use ANY() for the IN clause
             pg_cur.execute("""
@@ -2221,9 +2268,16 @@ def resolve_beo():
                 WHERE entity_id = ANY(%s)
                 ORDER BY time ASC
                 LIMIT 100
-            """, (variants,))
+            """, (variants_list,))
             entity_rows = pg_cur.fetchall()
             tsdb_bhs_for_entity = len(entity_rows)
+            tsdb_matched_variant = None
+            if entity_rows:
+                _matched = entity_rows[0][0]
+                if isinstance(_matched, memoryview):
+                    _matched = bytes(_matched)
+                if isinstance(_matched, (bytes, bytearray)):
+                    tsdb_matched_variant = _matched.decode('ascii', errors='replace')
 
             if entity_rows:
                 # Extract timing + magnitude features for BP scoring
@@ -2262,8 +2316,42 @@ def resolve_beo():
 
                 tsdb_wallets_found = len(linked_wallets)
 
+            # ── FIX-A Gap 1: also consult beo_registry for canonical cluster ──
+            # The beo_registry table stores 50 known BEO clusters with their
+            # raw_addresses lists. If our identifier matches a known cluster's
+            # entity_id (canonical hash) or appears in any cluster's
+            # raw_addresses, surface the cluster's confidence + archetype.
+            beo_cluster = None
+            try:
+                pg_cur.execute("""
+                    SELECT entity_id, raw_addresses, cluster_confidence,
+                           archetype_id, akashic_depth, first_seen, last_seen
+                    FROM beo_registry
+                    WHERE entity_id = ANY(%s)
+                       OR %s = ANY(raw_addresses)
+                       OR %s = ANY(raw_addresses)
+                    LIMIT 1
+                """, (variants_list, addr_with_prefix, identifier_clean))
+                br = pg_cur.fetchone()
+                if br:
+                    br_eid = br[0]
+                    if isinstance(br_eid, (bytes, memoryview)):
+                        br_eid = bytes(br_eid).decode('ascii', errors='replace')
+                    beo_cluster = {
+                        "canonical_entity_id": br_eid,
+                        "raw_addresses": list(br[1] or []),
+                        "cluster_confidence": float(br[2]) if br[2] is not None else None,
+                        "archetype_id": int(br[3]) if br[3] is not None else None,
+                        "akashic_depth": float(br[4]) if br[4] is not None else None,
+                        "first_seen": br[5].isoformat() if br[5] else None,
+                        "last_seen": br[6].isoformat() if br[6] else None,
+                    }
+            except Exception:
+                pass
+
             pg_conn.close()
     except Exception as exc:
+        tsdb_lookup_error = str(exc)[:200]
         pass  # Fall through to single-wallet resolution
 
     # ── Run BEO resolution engine ───────────────────────────────────────────
@@ -2301,6 +2389,9 @@ def resolve_beo():
         "identifier": identifier,
         "tsdb_bhs_for_entity": tsdb_bhs_for_entity,
         "tsdb_linked_wallets_found": tsdb_wallets_found,
+        "tsdb_matched_variant": tsdb_matched_variant,
+        "tsdb_lookup_error": tsdb_lookup_error,
+        "beo_cluster": beo_cluster,
         "linked_wallets": linked_wallets[:10],
         "wallets_analyzed": len(all_wallets),
         "timestamp": int(time.time()),
