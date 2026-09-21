@@ -3,17 +3,44 @@ btcp_gas_forecast.py — BTCP Gas Forecasting Module
 Predicts gas costs across chains for BTCP_score computation.
 Uses EWMA + ARIMA-lite for short-horizon forecasting.
 normalize_gas = 1 - forecast_mean_usd / 99th_percentile_gas
-Spec: BTCP Master Implementation Spec §4.2 Step 1 (BIBL), §Gap J
+Spec: BTCP Master Implementation Spec §4.2 Step 1 (BIBL), §4.2 Step 5
+      (Gas Sharing Protocol), §5 BRT Scheduler (line 1566) — gas forecast
+      formula. §11 Gap J (TRION token gas utility).
 """
 
 import math
+import os
+import sqlite3
 import statistics
-from typing import Optional
+import threading
+import time
+from typing import Optional, Tuple
 
 # ─── Configuration ────────────────────────────────────────────────────────────
-GAS_99TH_PERCENTILE = 200.0   # USD — calibrate from 90-day empirical sample
+# Gap D8 fix: GAS_99TH_PERCENTILE is no longer a hardcoded 200.0 constant.
+# It is computed as the empirical 99th percentile of recent gas costs over a
+# rolling 30-day window, cached with a 1-hour TTL. The 200.0 below is the
+# LAST-RESORT FALLBACK used only when the bh_ledger has no usable data — see
+# compute_gas_99th_percentile(). Spec ref: §4.2 Step 5 / §5 BRT Scheduler.
+GAS_99TH_PERCENTILE_FALLBACK = 200.0   # USD — last-resort fallback only
 EWMA_ALPHA          = 0.2     # smoothing factor for EWMA
 VOLATILITY_WINDOW   = 24      # hours
+GAS_99TH_TTL_SECONDS = 3600   # 1-hour cache TTL (spec §5: rolling 30-day sample)
+GAS_99TH_WINDOW_DAYS = 30     # spec: "rolling 30-day empirical sample"
+
+# ─── Gas-unit → USD conversion (Gap D8 honest disclosure) ────────────────────
+# bh_ledger.gas_used is in raw EVM gas units (e.g. 21 000 for a simple
+# transfer, ~3 000 000 for a DEX swap). To express the 99th percentile in
+# USD per the spec formula (normalize_gas = 1 - mean_usd / p99_usd), we
+# multiply gas_used by an assumed gas price in USD per gas unit.
+#
+# The default assumes Ethereum mainnet at ~30 gwei × ~$3 000/ETH ≈ 9e-5
+# USD per gas unit. This is a CONSERVATIVE FIXED ASSUMPTION, NOT a live
+# oracle feed — there is no gas-price oracle in the current stack. When
+# a proper gas-price feed is wired in, this factor should be replaced
+# with the chain's live gas-price oracle × the chain's native-token USD
+# price (per spec §4.2 Step 5 Gas Sharing Protocol).
+ASSUMED_GAS_PRICE_USD_PER_UNIT = 9e-5
 
 # ─── Per-chain gas profiles (baseline fallback) ───────────────────────────────
 CHAIN_GAS_PROFILES = {
@@ -26,6 +53,143 @@ CHAIN_GAS_PROFILES = {
     43114:  {"mean": 0.10, "std": 0.05, "min": 0.03, "p99": 1.00},   # Avalanche
     421614: {"mean": 0.01, "std": 0.005,"min": 0.001,"p99": 0.05},   # Arb Sepolia
 }
+
+
+# ─── Rolling 30-day 99th-percentile computation (Gap D8) ─────────────────────
+_GAS_99TH_CACHE_LOCK = threading.Lock()
+_GAS_99TH_CACHE: Optional[dict] = None  # {"value": float, "source": str,
+                                         #  "sample_count": int, "computed_at": float,
+                                         #  "window_seconds": int, "ts_span_seconds": float}
+
+
+def _default_bh_ledger_path() -> str:
+    """Locate bh_ledger.db (the L0 Akashic behavioral-hash ledger).
+
+    Search order:
+      1. $TRION_BH_LEDGER_DB (explicit override)
+      2. <repo_root>/bh_ledger.db
+      3. <repo_root>/anima-service/bh_ledger.db
+    Returns the first path that exists, or the repo-root path as a default
+    (the caller will then fall back gracefully when the file is absent).
+    """
+    env = os.environ.get("TRION_BH_LEDGER_DB")
+    if env and os.path.exists(env):
+        return env
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(here)  # anima-service/.. = repo root
+    candidates = [
+        os.path.join(repo_root, "bh_ledger.db"),
+        os.path.join(here, "bh_ledger.db"),  # anima-service/bh_ledger.db
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return candidates[0]  # default path; query will fail and fall back
+
+
+def _query_gas_used_last_30d(db_path: str) -> Tuple[list, float, float]:
+    """Return (gas_used_values, min_ts, max_ts) for the last 30 days.
+
+    The bh_ledger table has columns gas_used (int) and ts (float Unix seconds).
+    Returns empty list on any DB error.
+    """
+    window_start = time.time() - GAS_99TH_WINDOW_DAYS * 86400
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2.0)
+        cur = conn.cursor()
+        rows = cur.execute(
+            "SELECT gas_used, ts FROM bh_ledger "
+            "WHERE gas_used IS NOT NULL AND gas_used > 0 AND ts >= ? "
+            "ORDER BY ts ASC",
+            (window_start,),
+        ).fetchall()
+        if not rows:
+            conn.close()
+            return [], 0.0, 0.0
+        gas_used = [r[0] for r in rows]
+        ts_values = [r[1] for r in rows]
+        conn.close()
+        return gas_used, float(min(ts_values)), float(max(ts_values))
+    except Exception:
+        return [], 0.0, 0.0
+
+
+def compute_gas_99th_percentile(force_refresh: bool = False) -> dict:
+    """Compute the rolling 30-day empirical 99th percentile of gas costs.
+
+    Returns a dict with:
+      value            — float, the 99th percentile in USD
+      source           — str: "empirical_30d" | "fallback_hardcoded"
+      sample_count     — int, number of bh_ledger rows used
+      computed_at      — float, Unix timestamp of cache fill
+      window_seconds   — int, 30 days = 2 592 000
+      ts_span_seconds  — float, actual span of the source data
+      conversion_note  — str, disclosure of gas_used → USD conversion
+
+    Spec ref: §4.2 Step 5 (Gas Sharing Protocol), §5 BRT Scheduler (the
+    gas correlation formula's normalization denominator). The spec says
+    GAS_99TH_PERCENTILE = "rolling 30-day 99th percentile" — that is exactly
+    what this computes. Cache TTL is 1 hour (GAS_99TH_TTL_SECONDS).
+
+    Fallback: if the bh_ledger has no usable rows for the last 30 days
+    (e.g. cold start, DB unavailable), returns 200.0 USD with
+    source="fallback_hardcoded" and a clear disclosure note.
+    """
+    global _GAS_99TH_CACHE
+    now = time.time()
+    with _GAS_99TH_CACHE_LOCK:
+        if (_GAS_99TH_CACHE is not None
+                and not force_refresh
+                and (now - _GAS_99TH_CACHE["computed_at"]) < GAS_99TH_TTL_SECONDS):
+            return dict(_GAS_99TH_CACHE)
+
+    db_path = _default_bh_ledger_path()
+    gas_used, ts_min, ts_max = _query_gas_used_last_30d(db_path)
+    if len(gas_used) >= 2:
+        gas_usd = sorted(g * ASSUMED_GAS_PRICE_USD_PER_UNIT for g in gas_used)
+        # 99th percentile via nearest-rank method (inclusive)
+        idx = max(0, min(len(gas_usd) - 1,
+                         int(math.ceil(0.99 * len(gas_usd))) - 1))
+        p99 = float(gas_usd[idx])
+        result = {
+            "value": p99,
+            "source": "empirical_30d",
+            "sample_count": len(gas_usd),
+            "computed_at": now,
+            "window_seconds": GAS_99TH_WINDOW_DAYS * 86400,
+            "ts_span_seconds": max(0.0, ts_max - ts_min),
+            "conversion_note": (
+                "gas_used (raw EVM units) × ASSUMED_GAS_PRICE_USD_PER_UNIT="
+                f"{ASSUMED_GAS_PRICE_USD_PER_UNIT:.2e} USD/unit (Ethereum "
+                "mainnet ~30 gwei × ~$3000/ETH). NOT a live oracle feed — "
+                "replace with chain gas-price oracle × native-token USD price "
+                "when available (spec §4.2 Step 5 Gas Sharing Protocol)."
+            ),
+        }
+    else:
+        # Honest fallback: no usable bh_ledger data
+        result = {
+            "value": GAS_99TH_PERCENTILE_FALLBACK,
+            "source": "fallback_hardcoded",
+            "sample_count": 0,
+            "computed_at": now,
+            "window_seconds": GAS_99TH_WINDOW_DAYS * 86400,
+            "ts_span_seconds": 0.0,
+            "conversion_note": (
+                f"FALLBACK: GAS_99TH_PERCENTILE={GAS_99TH_PERCENTILE_FALLBACK} "
+                "USD used because bh_ledger has no usable rows in the last 30 "
+                "days. This is the legacy hardcoded value — kept only as a "
+                "cold-start fallback (Gap D8)."
+            ),
+        }
+    with _GAS_99TH_CACHE_LOCK:
+        _GAS_99TH_CACHE = dict(result)
+    return dict(result)
+
+
+def get_gas_99th_percentile() -> float:
+    """Convenience accessor returning just the 99th-percentile value."""
+    return compute_gas_99th_percentile()["value"]
 
 
 # ─── EWMA gas estimate ────────────────────────────────────────────────────────
@@ -69,6 +233,12 @@ def forecast_gas(
     """
     Forecast gas for a specific chain.
     Returns mean_usd, ci95_low, ci95_high, normalize_gas component.
+
+    Gap D8 fix: GAS_99TH_PERCENTILE is computed at runtime from the rolling
+    30-day empirical sample (compute_gas_99th_percentile). The response now
+    discloses the source ("empirical_30d" | "fallback_hardcoded"), the
+    sample count, and the conversion note so callers can distinguish a
+    real empirical denominator from the legacy 200.0 fallback.
     """
     profile = CHAIN_GAS_PROFILES.get(chain_id, {"mean": 5.0, "std": 3.0, "min": 0.5, "p99": 30.0})
 
@@ -81,7 +251,9 @@ def forecast_gas(
         vol      = profile["std"] / max(profile["mean"], 1e-6)
 
     low, high     = ci95(mean_usd, vol)
-    normalize_gas = max(0.0, 1.0 - mean_usd / GAS_99TH_PERCENTILE)
+    p99_meta      = compute_gas_99th_percentile()
+    p99_usd       = p99_meta["value"]
+    normalize_gas = max(0.0, 1.0 - mean_usd / max(p99_usd, 1e-9))
 
     return {
         "chain_id":       chain_id,
@@ -90,7 +262,16 @@ def forecast_gas(
         "ci95_high":      round(high, 6),
         "volatility":     round(vol, 4),
         "normalize_gas":  round(normalize_gas, 6),  # ← used in BTCP_score formula
-        "above_threshold": normalize_gas > 0.5,     # chains with very high gas penalized
+        "above_threshold": normalize_gas > 0.5,    # chains with very high gas penalized
+        # Gap D8 disclosures:
+        "gas_99th_percentile":   round(p99_usd, 6),
+        "gas_99th_source":       p99_meta["source"],
+        "gas_99th_sample_count": p99_meta["sample_count"],
+        "gas_99th_window_seconds": p99_meta["window_seconds"],
+        "gas_99th_ts_span_seconds": round(p99_meta["ts_span_seconds"], 3),
+        "gas_99th_conversion_note": p99_meta["conversion_note"],
+        "gas_99th_cached_at":   round(p99_meta["computed_at"], 3),
+        "gas_99th_ttl_seconds": GAS_99TH_TTL_SECONDS,
     }
 
 
@@ -142,6 +323,11 @@ def compute_gas_savings(
 if __name__ == "__main__":
     import json
 
+    print("=== Gap D8: rolling 30-day empirical 99th-percentile ===")
+    p99 = compute_gas_99th_percentile()
+    print(json.dumps(p99, indent=2))
+    print()
+
     # Test with simulated Arbitrum gas history
     arb_history = [0.07, 0.09, 0.06, 0.08, 0.10, 0.07, 0.08]
     result = forecast_gas(42161, arb_history)
@@ -149,3 +335,9 @@ if __name__ == "__main__":
 
     savings = compute_gas_savings(result["mean_usd"])
     print(f"Gas savings vs bridge: {json.dumps(savings, indent=2)}")
+
+    # Cache check: second call must hit the 1h cache (same computed_at)
+    p99_2 = compute_gas_99th_percentile()
+    assert p99_2["computed_at"] == p99["computed_at"], "cache must hit on 2nd call"
+    print("\n✓ 1-hour TTL cache verified (computed_at unchanged on 2nd call)")
+    print(f"✓ source={p99['source']} value={p99['value']:.6f} sample_count={p99['sample_count']}")

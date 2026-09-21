@@ -44,9 +44,19 @@ sync in both directions):
 """
 
 from flask import Blueprint, jsonify, request
+import sys
 import time
 import hashlib
 import os
+
+# Ensure anima-service/ is importable so endpoints can do
+# `from btcp_gas_forecast import forecast_gas` etc. (Gap D8 endpoint).
+_ANIMA_SERVICE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "anima-service",
+)
+if _ANIMA_SERVICE_PATH not in sys.path:
+    sys.path.insert(0, _ANIMA_SERVICE_PATH)
 
 btcp_bp = Blueprint("btcp_continuum", __name__)
 
@@ -899,6 +909,41 @@ def btcp_sybil():
 
 
 # ── Phase 3: Integration & Private BIBL ────────────────────────────────────────
+
+# ── BTCP Dispute Resolution (Gap D6 — 72h runtime enforcement) ────────────────
+
+# ── BTCP Gas Forecast (Gap D8 — rolling 30-day 99th percentile) ──────────────
+
+@btcp_bp.route("/api/v1/btcp/gas-forecast/<int:chain_id>")
+def btcp_gas_forecast(chain_id: int):
+    """BTCP gas forecast for a chain — Gap D8 disclosure endpoint.
+
+    Computes the rolling 30-day empirical 99th percentile of gas costs from
+    bh_ledger.gas_used (cached 1 hour), uses it as the denominator of the
+    normalize_gas formula, and discloses the source ("empirical_30d" or
+    "fallback_hardcoded"), sample count, conversion assumption, and cache
+    TTL. Spec ref: §4.2 Step 5 (Gas Sharing Protocol), §5 BRT Scheduler.
+    """
+    from btcp_gas_forecast import forecast_gas, compute_gas_99th_percentile
+    history_param = request.args.get("history")
+    history = None
+    if history_param:
+        try:
+            history = [float(x) for x in history_param.split(",") if x.strip()]
+        except ValueError:
+            return jsonify({"error": "history must be comma-separated floats"}), 400
+    result = forecast_gas(chain_id, history)
+    result["gas_99th_meta"] = compute_gas_99th_percentile()
+    result["specification"] = "Gap D8 — rolling 30-day empirical 99th percentile"
+    return jsonify(result)
+
+
+@btcp_bp.route("/api/v1/btcp/gas-99th")
+def btcp_gas_99th():
+    """Standalone accessor for the rolling 30-day empirical 99th percentile."""
+    from btcp_gas_forecast import compute_gas_99th_percentile
+    return jsonify(compute_gas_99th_percentile())
+
 
 # ── BTCP Dispute Resolution (Gap D6 — 72h runtime enforcement) ────────────────
 
@@ -1796,6 +1841,20 @@ def btcp_orchestrate():
         # above is preserved for backwards compatibility (existing
         # consumers that read steps["1_validate_addresses"], etc.).
         spec_steps = dict(getattr(result, "step_results", {}) or {})
+        # The 6 spec-mandated steps. Additional derived steps (e.g.
+        # 2b_xsl_liquidity_factor, 2c_sba_sovereign_risk) may be present
+        # for credit/penalty multipliers — they don't replace the spec
+        # pipeline, they extend it. We assert all 6 spec steps are present.
+        _SPEC_SIX_STEPS = (
+            "1_bibl_analysis",
+            "2_btcp_score",
+            "3_cross_chain_proof",
+            "4_vm_translation",
+            "5_iap_gas_sharing",
+            "6_akashic_recording",
+        )
+        _missing_spec_steps = [s for s in _SPEC_SIX_STEPS if s not in spec_steps]
+        _extra_steps = [s for s in spec_steps if s not in _SPEC_SIX_STEPS]
 
         return jsonify({
             "success": result.success,
@@ -1806,16 +1865,19 @@ def btcp_orchestrate():
             "six_step_pipeline": {
                 "step_count_expected": 6,
                 "step_count_executed": len(spec_steps),
-                "all_six_steps_wired": len(spec_steps) == 6,
-                "step_order": [
-                    "1_bibl_analysis",
-                    "2_btcp_score",
-                    "3_cross_chain_proof",
-                    "4_vm_translation",
-                    "5_iap_gas_sharing",
-                    "6_akashic_recording",
-                ],
+                "all_six_steps_wired": len(_missing_spec_steps) == 0,
+                "missing_spec_steps": _missing_spec_steps,
+                "extra_derived_steps": _extra_steps,
+                "step_order": list(_SPEC_SIX_STEPS),
                 "spec_reference": "BTCP Master Spec §4.2 Six-Step Execution Sequence",
+                "note": (
+                    f"Spec §4.2 six-step pipeline present: "
+                    f"{6 - len(_missing_spec_steps)}/6 spec steps "
+                    f"({', '.join(_SPEC_SIX_STEPS)}). "
+                    f"Extra derived steps (e.g. XSL/SBA multipliers from "
+                    f"BTCP-FIX-INT) extend the pipeline; they do NOT replace "
+                    f"the spec steps."
+                ),
             },
             "route": route.to_dict() if route else None,
             "proofs": (route.proofs if route else None) or {},
