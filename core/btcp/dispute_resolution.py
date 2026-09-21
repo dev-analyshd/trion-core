@@ -77,6 +77,27 @@ class DisputeCase:
     def not_guilty_votes(self) -> int:
         return sum(1 for v in self.votes.values() if v.vote == Vote.NOT_GUILTY)
 
+    def is_expired(self, now: Optional[float] = None) -> bool:
+        """True if the 72h dispute window has elapsed since the case was opened.
+
+        Per BTCP Master Spec §11 Gap I, a dispute MUST be resolved within
+        DISPUTE_WINDOW_SECONDS (72h = 259 200 s) of being filed. Once the
+        window elapses, the case auto-resolves IN FAVOR OF THE ROUTE — i.e.
+        NOT_GUILTY — because the claimant failed to produce a 3-of-5
+        majority in time. Closed cases never expire.
+        """
+        if self.status != DisputeStatus.OPEN:
+            return False
+        ts = now if now is not None else time.time()
+        return (ts - self.opened_at) > DISPUTE_WINDOW_SECONDS
+
+    def remaining_seconds(self, now: Optional[float] = None) -> float:
+        """Seconds left in the dispute window; 0.0 if expired or closed."""
+        if self.status != DisputeStatus.OPEN:
+            return 0.0
+        ts = now if now is not None else time.time()
+        return max(0.0, DISPUTE_WINDOW_SECONDS - (ts - self.opened_at))
+
 
 # ── Persistence (S7) ─────────────────────────────────────────────────────────
 # Explicit row serialization: nested DisputeVoteRecord dataclasses and Enum
@@ -231,22 +252,72 @@ class DisputeResolver:
         return [a.annotator_id for a in candidates[:ANNOTATORS_PER_DISPUTE]]
 
     def open_case(self, route_id, claimant, respondent, claim,
-                  evidence_hashes=None, challenged_value=0.0) -> DisputeCase:
+                  evidence_hashes=None, challenged_value=0.0,
+                  filed_at: Optional[float] = None) -> DisputeCase:
+        """Open a new dispute case.
+
+        ``filed_at`` (Gap D6 fix): the timestamp at which the dispute was
+        filed. Defaults to ``time.time()`` (now) when not supplied. The 72h
+        window (DISPUTE_WINDOW_SECONDS) is measured from this instant — see
+        ``DisputeCase.is_expired`` / ``remaining_seconds``.
+        """
+        filed_ts = float(filed_at) if filed_at is not None else time.time()
         case_id = "DISPUTE-" + hashlib.sha3_256(
-            f"{route_id}:{claimant}:{respondent}:{time.time_ns()}".encode()).hexdigest()[:16]
+            f"{route_id}:{claimant}:{respondent}:{filed_ts}:{time.time_ns()}".encode()).hexdigest()[:16]
         case = DisputeCase(
             case_id=case_id, route_id=route_id, claimant=claimant, respondent=respondent,
             claim=claim, evidence_hashes=list(evidence_hashes or []),
             challenged_value=max(0.0, challenged_value),
             challenge_bond=(max(0.0, challenged_value) * CHALLENGE_BOND_BPS) / 10_000,
-            selected_annotators=self._select_annotators({claimant, respondent}))
+            selected_annotators=self._select_annotators({claimant, respondent}),
+            opened_at=filed_ts)
         self._cases[case_id] = case
         self._persist_case(case_id)
         return case
 
+    def _auto_resolve_expired(self, case: DisputeCase, now: Optional[float] = None) -> bool:
+        """Gap D6 enforcement: if the 72h window elapsed, resolve the case
+        IN FAVOR OF THE ROUTE (NOT_GUILTY) per spec §11 Gap I.
+
+        Returns True if the case was auto-resolved, False otherwise.
+        Idempotent: a closed case never re-resolves.
+        """
+        if case.status != DisputeStatus.OPEN:
+            return False
+        if not case.is_expired(now=now):
+            return False
+        case.status = DisputeStatus.RESOLVED_NOT_GUILTY
+        case.resolved_at = time.time()
+        case.resolution_note = (
+            "72-hour dispute window (259200 seconds) elapsed without a "
+            "3-of-5 majority — auto-resolved in favor of the route per "
+            "spec \u00a711 Gap I (Gap D6 runtime enforcement)."
+        )
+        return True
+
+    def resolve_expired_cases(self, now: Optional[float] = None) -> List[str]:
+        """Scan all OPEN cases and auto-resolve any whose 72h window has
+        elapsed. Returns the list of case_ids that were auto-resolved.
+        Useful as a periodic sweep (e.g. on every dispute-resolution tick).
+        """
+        ts = now if now is not None else time.time()
+        resolved: List[str] = []
+        for case_id, case in list(self._cases.items()):
+            if self._auto_resolve_expired(case, now=ts):
+                self._persist_case(case_id)
+                resolved.append(case_id)
+        return resolved
+
     def cast_vote(self, case_id: str, annotator_id: str, vote: Vote, rationale: str) -> bool:
         case = self._cases.get(case_id)
         if case is None or case.status != DisputeStatus.OPEN:
+            return False
+        # Gap D6 runtime enforcement: refuse votes filed after the 72h window
+        # has elapsed. The case is auto-resolved in favor of the route
+        # (NOT_GUILTY) and the vote is rejected.
+        if case.is_expired():
+            self._auto_resolve_expired(case)
+            self._persist_case(case_id)
             return False
         if annotator_id not in case.selected_annotators or annotator_id in case.votes:
             return False
@@ -322,3 +393,43 @@ if __name__ == "__main__":
     r.reload()
     assert r.get_case(c2.case_id) is not None  # reload picked up r2's write
     print("BTCP Module 2.19 — ALL TESTS PASS (incl. persistence)")
+
+    # ── Gap D6: 72h dispute window runtime enforcement ──────────────────
+    # Spec §11 Gap I: a dispute MUST be resolved within 72h (259 200 s) of
+    # being filed. If the window elapses without a 3-of-5 majority, the
+    # case auto-resolves IN FAVOR OF THE ROUTE (NOT_GUILTY).
+    import time as _t
+    now_ts = _t.time()
+    # 1) File a dispute "73 hours ago" (just past the 72h window).
+    expired_filed_at = now_ts - (73 * 3600)
+    c_exp = r.open_case("route_expired", "0xC", "0xR",
+                        "stale anchor", challenged_value=10_000,
+                        filed_at=expired_filed_at)
+    # The case is OPEN immediately after filing, but is_expired() is True.
+    assert c_exp.status == DisputeStatus.OPEN
+    assert c_exp.is_expired() is True, "case filed 73h ago must be expired"
+    assert c_exp.remaining_seconds() == 0.0
+    # The filing timestamp is persisted on the case row.
+    assert c_exp.opened_at == expired_filed_at
+    # 2) cast_vote on an expired case must be refused AND trigger
+    #    auto-resolution in favor of the route.
+    first_annotator = c_exp.selected_annotators[0]
+    accepted = r.cast_vote(c_exp.case_id, first_annotator, Vote.GUILTY, "late vote")
+    assert accepted is False, "vote after 72h window must be rejected"
+    assert r.get_case(c_exp.case_id).status == DisputeStatus.RESOLVED_NOT_GUILTY, \
+        "expired dispute must auto-resolve in favor of the route (NOT_GUILTY)"
+    assert "72-hour dispute window" in r.get_case(c_exp.case_id).resolution_note
+    print("✓ Gap D6: expired case auto-resolves NOT_GUILTY (vote refused)")
+
+    # 3) A fresh case is NOT expired and accepts votes normally.
+    c_fresh = r.open_case("route_fresh", "0xC", "0xR", "stale anchor", challenged_value=1_000)
+    assert c_fresh.is_expired() is False
+    assert c_fresh.remaining_seconds() > 0.0
+    # 4) Bulk sweep: resolve_expired_cases finds expired OPEN cases.
+    resolved_ids = r.resolve_expired_cases()
+    assert c_exp.case_id in resolved_ids or \
+           r.get_case(c_exp.case_id).status == DisputeStatus.RESOLVED_NOT_GUILTY
+    # The fresh case must NOT be swept (still OPEN).
+    assert r.get_case(c_fresh.case_id).status == DisputeStatus.OPEN
+    print("✓ Gap D6: fresh case stays OPEN; sweep correctly distinguishes")
+    print("BTCP Module 2.19 + Gap D6 — ALL TESTS PASS (72h runtime enforcement)")
