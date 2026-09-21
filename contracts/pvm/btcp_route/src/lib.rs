@@ -52,7 +52,16 @@ mod btcp_route {
         pub lock_timestamp: u64,
         pub timeout_seconds: u64,
         pub state: EscrowState,
+        /// On-chain coherence flag — set to true ONLY by `verify_coherence`
+        /// when the relayer-submitted `coherence_score` clears the
+        /// MIN_COHERENCE_SCORE (550 = 0.55 × 1000) floor.
+        /// Previously this was a relayer-set boolean (C-02 audit regression);
+        /// BTCP-FIX2-RUST-VM ties it to an on-chain threshold check.
         pub coherence_verified: bool,
+        /// Coherence score submitted by the relayer, stored on-chain for
+        /// audit. Units: thousandths (×1000). Range [0, 1000].
+        /// 550 == 0.55 (spec master-equation §3 / §11 Fix 4 floor).
+        pub coherence_score: u32,
         pub parent_route_id: Hash, // 0 = no parent (for cascade revert)
         pub finalized: bool,
     }
@@ -61,6 +70,12 @@ mod btcp_route {
     const EMERGENCY_ESCAPE_SECONDS: u64 = 7 * 24 * 60 * 60;
     /// 24h PENDING_AKASHIC recovery window (E1)
     const AKASHIC_RECOVERY_SECONDS: u64 = 24 * 60 * 60;
+    /// Spec §3 (master equation) — `C(t) ≥ Θ(t)` with the floor Θ_floor =
+    /// 0.55. Stored as `coherence_score: u32` in thousandths so the
+    /// contract can compare against `MIN_COHERENCE_SCORE = 550` without
+    /// floating-point. The relayer submits the score; the contract
+    /// enforces the threshold on-chain (BTCP-FIX2-RUST-VM C-02 fix).
+    const MIN_COHERENCE_SCORE: u32 = 550;
 
     #[ink(storage)]
     pub struct BtcpRoute {
@@ -118,6 +133,7 @@ mod btcp_route {
                     timeout_seconds,
                     state: EscrowState::Holding,
                     coherence_verified: false,
+                    coherence_score: 0,
                     parent_route_id,
                     finalized: false,
                 },
@@ -125,12 +141,37 @@ mod btcp_route {
             self.route_count = self.route_count.saturating_add(1);
         }
 
-        /// Mark the route's coherence as verified (relayer only).
+        /// Verify route coherence on-chain against the 0.55 floor
+        /// (spec §3 master-equation + BTCP-FIX2-RUST-VM C-02 fix).
+        ///
+        /// The relayer submits the coherence_score (in thousandths, ×1000
+        /// — i.e., `score = (coherence * 1000) as u32`). The contract
+        /// enforces:
+        ///   1. score <= 1000 (sanity bound)
+        ///   2. score >= MIN_COHERENCE_SCORE (550 = 0.55 floor)
+        ///
+        /// If the threshold is met, the on-chain `coherence_verified` flag
+        /// is set to true and `coherence_score` is recorded for audit. If
+        /// the threshold is NOT met, the contract reverts with
+        /// `COHERENCE_BELOW_FLOOR` — the route stays in HOLDING and may
+        /// only be released once a later `verify_coherence` call submits
+        /// a passing score, or revert via timeout / emergency escape.
+        ///
+        /// This replaces the prior relayer-set boolean (`coherence_verified
+        /// = true` on any relayer call) which was flagged as the C-02
+        /// audit regression — the Move twin fixed it; PVM now matches.
         #[ink(message)]
-        pub fn verify_coherence(&mut self, route_id: Hash) {
+        pub fn verify_coherence(&mut self, route_id: Hash, coherence_score: u32) {
             let caller = Self::env().caller();
             assert!(self.is_relayer_or_admin(caller), "NOT_RELAYER");
+            assert!(coherence_score <= 1000, "COHERENCE_SCORE_OUT_OF_RANGE");
+            assert!(
+                coherence_score >= MIN_COHERENCE_SCORE,
+                "COHERENCE_BELOW_FLOOR"
+            );
+
             let mut route = self.routes.get(route_id).expect("ROUTE_NOT_FOUND");
+            route.coherence_score = coherence_score;
             route.coherence_verified = true;
             self.routes.insert(route_id, &route);
         }
@@ -328,10 +369,21 @@ mod btcp_route {
     mod tests {
         use super::*;
 
-        #[ink::test]
-        fn register_and_release_works() {
+        /// Helper — fund the test caller + set transferred_value so the
+        /// payable `register_route` sees a non-zero amount. Without this
+        /// the test environment returns 0 for `transferred_value()` and
+        /// `register_route` panics with `ZERO_AMOUNT` (pre-existing gap;
+        /// the prior test never ran in CI).
+        fn fund_and_set_value(amount: Balance) {
             let accounts = ink::env::test::default_accounts::<Environment>();
             ink::env::test::set_caller::<Environment>(accounts.alice);
+            ink::env::test::set_value_transferred::<Environment>(amount);
+        }
+
+        #[ink::test]
+        fn register_and_release_works() {
+            fund_and_set_value(1000);
+            let accounts = ink::env::test::default_accounts::<Environment>();
 
             let mut contract = BtcpRoute::new();
             let route_id = [1u8; 32].into();
@@ -346,6 +398,146 @@ mod btcp_route {
                 [0u8; 32].into(),
             );
             assert_eq!(contract.route_count(), 1);
+        }
+
+        /// BTCP-FIX2-RUST-VM C-02 fix — `verify_coherence` now enforces the
+        /// on-chain 0.55 floor (coherence_score × 1000 ≥ 550). A score
+        /// below the floor reverts; a score at/above the floor sets
+        /// coherence_verified = true and records the score for audit.
+        #[ink::test]
+        fn verify_coherence_rejects_below_floor() {
+            use std::panic::{self, AssertUnwindSafe};
+            fund_and_set_value(1000);
+            let accounts = ink::env::test::default_accounts::<Environment>();
+
+            let mut contract = BtcpRoute::new();
+            let route_id = [1u8; 32].into();
+            contract.register_route(
+                route_id,
+                [2u8; 32].into(),
+                [3u8; 32].into(),
+                accounts.alice,
+                accounts.bob,
+                1000,
+                3600,
+                [0u8; 32].into(),
+            );
+
+            // Score 549 (0.549) — below the 0.55 floor — must revert.
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                contract.verify_coherence(route_id, 549);
+            }));
+            assert!(result.is_err(), "score 549 must revert below floor");
+
+            // Route stays Holding, coherence_verified still false.
+            let route = contract.get_route(route_id).expect("ROUTE_NOT_FOUND");
+            assert_eq!(route.state, EscrowState::Holding);
+            assert!(!route.coherence_verified);
+            assert_eq!(route.coherence_score, 0);
+        }
+
+        #[ink::test]
+        fn verify_coherence_accepts_at_and_above_floor() {
+            fund_and_set_value(1000);
+            let accounts = ink::env::test::default_accounts::<Environment>();
+
+            let mut contract = BtcpRoute::new();
+            let route_id = [1u8; 32].into();
+            contract.register_route(
+                route_id,
+                [2u8; 32].into(),
+                [3u8; 32].into(),
+                accounts.alice,
+                accounts.bob,
+                1000,
+                3600,
+                [0u8; 32].into(),
+            );
+
+            // Score exactly 550 (0.55) — at the floor — must pass.
+            contract.verify_coherence(route_id, 550);
+            let route = contract.get_route(route_id).expect("ROUTE_NOT_FOUND");
+            assert!(route.coherence_verified);
+            assert_eq!(route.coherence_score, 550);
+
+            // Score 1000 (1.0) — above floor — must also pass.
+            fund_and_set_value(1000);
+            let route_id_hi = [2u8; 32].into();
+            contract.register_route(
+                route_id_hi,
+                [3u8; 32].into(),
+                [4u8; 32].into(),
+                accounts.alice,
+                accounts.bob,
+                1000,
+                3600,
+                [0u8; 32].into(),
+            );
+            contract.verify_coherence(route_id_hi, 1000);
+            let route_hi = contract.get_route(route_id_hi).expect("ROUTE_NOT_FOUND");
+            assert!(route_hi.coherence_verified);
+            assert_eq!(route_hi.coherence_score, 1000);
+        }
+
+        #[ink::test]
+        fn verify_coherence_rejects_out_of_range_score() {
+            use std::panic::{self, AssertUnwindSafe};
+            fund_and_set_value(1000);
+            let accounts = ink::env::test::default_accounts::<Environment>();
+
+            let mut contract = BtcpRoute::new();
+            let route_id = [1u8; 32].into();
+            contract.register_route(
+                route_id,
+                [2u8; 32].into(),
+                [3u8; 32].into(),
+                accounts.alice,
+                accounts.bob,
+                1000,
+                3600,
+                [0u8; 32].into(),
+            );
+
+            // Score 1001 — out of the [0, 1000] sanity range — must revert.
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                contract.verify_coherence(route_id, 1001);
+            }));
+            assert!(result.is_err(), "score 1001 must revert out of range");
+        }
+
+        #[ink::test]
+        fn release_escrow_blocked_until_coherence_passes_floor() {
+            use std::panic::{self, AssertUnwindSafe};
+            fund_and_set_value(1000);
+            let accounts = ink::env::test::default_accounts::<Environment>();
+
+            let mut contract = BtcpRoute::new();
+            let route_id = [1u8; 32].into();
+            contract.register_route(
+                route_id,
+                [2u8; 32].into(),
+                [3u8; 32].into(),
+                accounts.alice,
+                accounts.bob,
+                1000,
+                3600,
+                [0u8; 32].into(),
+            );
+
+            // Release before coherence verified must revert.
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                contract.release_escrow(route_id);
+            }));
+            assert!(result.is_err(), "release before coherence must revert");
+
+            // Pass coherence at exactly the 0.55 floor.
+            contract.verify_coherence(route_id, 550);
+
+            // Now release should succeed (transfers amount to destination).
+            contract.release_escrow(route_id);
+            let route = contract.get_route(route_id).expect("ROUTE_NOT_FOUND");
+            assert_eq!(route.state, EscrowState::Released);
+            assert!(route.finalized);
         }
     }
 }

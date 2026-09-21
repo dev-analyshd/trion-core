@@ -326,7 +326,9 @@ def fetch_recent_shadow_observations(
                    encode(event_hash::bytea, 'hex') AS event_hash_hex,
                    confidence_weight, diversity_factor,
                    encode(shadow_bh::bytea, 'hex') AS shadow_bh_hex,
-                   block_num, observed_at, simulated
+                   block_num,
+                   EXTRACT(EPOCH FROM observed_at) AS observed_at_unix,
+                   simulated
             FROM shadow_observations
             {where}
             ORDER BY observed_at DESC
@@ -334,7 +336,16 @@ def fetch_recent_shadow_observations(
         """
         cur.execute(sql, params + [int(limit)])
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
+        rows = []
+        for r in cur.fetchall():
+            row = dict(zip(cols, r))
+            # Serialize datetime → unix float for JSON; psycopg2 returns
+            # tz-aware datetime which isn't JSON-serializable by default.
+            if row.get("observed_at_unix") is not None:
+                row["observed_at_unix"] = float(row["observed_at_unix"])
+            # bool → bool (psycopg2 returns Python bool for boolean cols).
+            rows.append(row)
+        return rows
     finally:
         conn.close()
 

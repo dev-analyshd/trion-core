@@ -26,6 +26,9 @@ sync in both directions):
   /api/v1/btcp/sybil                (POST) sybil resistance layers (2.18)
   /api/v1/btcp/orchestrate          (POST) full BTCPOrchestrator 6-step run
   /api/v1/btcp/private_bibl         (POST) private BIBL protocol
+  /api/v1/btcp/shadow_observations  (GET, POST) §8.1 shadow obs (BTCP-FIX2-S59)
+  /api/v1/btcp/ultra_light_node     (POST) §8.2 block-header PoW verify (BTCP-FIX2-S59)
+  /api/v1/btcp/rejoin               (POST) §8.4 3-phase rejoin mechanism (BTCP-FIX2-S59)
   /api/v1/btcp/integration_status   (GET)  anima-service integration status
   /api/v1/btcp/pipeline_status      (GET)  full pipeline status overview
   /api/v1/btcp/mainnet_bootstrap    (GET)  phased rollout status
@@ -868,6 +871,109 @@ def btcp_validator_fee():
         return jsonify(out)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+# ── §8.1 Shadow Observation (BTCP-FIX2-S59 — wire real akashic_bh data) ───────
+
+@btcp_bp.route("/api/v1/btcp/shadow_observations", methods=["GET", "POST"])
+def btcp_shadow_observations():
+    """§8.1 Shadow Observation Protocol — real (non-simulated) sources.
+
+    GET:  return the most-recent real (simulated=FALSE) shadow observations
+          for the requested hostile chain (query param ``hostile_chain_id``;
+          default 99999 — an unintegrated/hostile chain id for the audit
+          environment that has no live hostile-chain indexer).
+    POST: collect fresh real shadow sources from the ``akashic_bh`` live
+          feed (events TRION observed but did NOT emit as published signals —
+          i.e. ``context->>'source' IS NULL``), persist them to the
+          ``shadow_observations`` table with ``simulated=FALSE``, and
+          return the summary + up-to-25 most-recent real rows.
+
+    Body (POST, all optional):
+      hostile_chain_id   int — the chain being shadowed (default 99999)
+      lookback_hours     int — collector lookback window (default 168 = 7d)
+      limit_per_chain    int — cap per source chain (default 25)
+      integrated_chains  list[int] — restrict source chains (default = all)
+    """
+    from core.btcp.shadow_observer import (
+        shadow_observation_summary,
+        fetch_recent_shadow_observations,
+    )
+    if request.method == "GET":
+        hostile = request.args.get("hostile_chain_id", type=int) or 99999
+        only_real = request.args.get("only_real", "1") not in ("0", "false", "False")
+        limit = request.args.get("limit", type=int) or 25
+        try:
+            recent = fetch_recent_shadow_observations(
+                hostile_chain_id=hostile,
+                only_real=only_real,
+                limit=limit,
+            )
+            return jsonify({
+                "hostile_chain_id": hostile,
+                "only_real": only_real,
+                "count": len(recent),
+                "simulated": False,
+                "recent_observations": recent,
+                "specification": "§8.1 Shadow Observation (BTCP-FIX2-S59) — live akashic_bh",
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    # POST — collect + persist real sources from akashic_bh.
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        hostile = int(data.get("hostile_chain_id", 99999))
+        lookback = int(data.get("lookback_hours", 168))
+        limit_per_chain = int(data.get("limit_per_chain", 25))
+        integrated = data.get("integrated_chains")
+        if integrated is not None and not isinstance(integrated, list):
+            raise ValueError("integrated_chains must be a list of ints")
+        if integrated:
+            integrated = [int(c) for c in integrated]
+
+        # Inline the collect+persist+summary cycle so we can pass the
+        # integrated_chains filter through (shadow_observation_summary
+        # uses the defaults).
+        from core.btcp.shadow_observer import (
+            collect_real_shadow_sources,
+            persist_real_shadow_observations,
+        )
+        sources = collect_real_shadow_sources(
+            hostile_chain_id=hostile,
+            integrated_chains=integrated,
+            lookback_hours=lookback,
+            limit_per_chain=limit_per_chain,
+        )
+        inserted = persist_real_shadow_observations(sources)
+        recent = fetch_recent_shadow_observations(
+            hostile_chain_id=hostile, only_real=True, limit=25,
+        )
+        mean_conf = (
+            sum(s.confidence_weight for s in sources) / len(sources)
+            if sources else 0.0
+        )
+        diversity = sources[0].diversity_factor if sources else 0.0
+        shadow_bh_hex = sources[0].shadow_bh.hex() if sources else ""
+        return jsonify({
+            "hostile_chain_id":   hostile,
+            "lookback_hours":     lookback,
+            "limit_per_chain":    limit_per_chain,
+            "integrated_chains":  integrated,
+            "source_count":       len(sources),
+            "new_rows_inserted":  inserted,
+            "mean_confidence":    round(mean_conf, 4),
+            "diversity_factor":   round(diversity, 4),
+            "shadow_bh_hex":      shadow_bh_hex,
+            "simulated":          False,
+            "recent_real_observations": recent,
+            "specification":      "§8.1 Shadow Observation (BTCP-FIX2-S59) — live akashic_bh",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# ── §8.2 Ultra-Light Node block-header processing (BTCP-FIX2-S59) ─────────────
 
 
 @btcp_bp.route("/api/v1/btcp/sybil", methods=["POST"])

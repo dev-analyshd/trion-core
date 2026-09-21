@@ -974,6 +974,25 @@ class BtcpStateStore:
         }
         self._btcp_upsert("btcp_route_rewards", row, ignore=True)
 
+    def route_reward_exists(self, epoch: int, validator_address: str,
+                            route_id: Optional[str]) -> bool:
+        """Return True if a btcp_route_rewards row already exists for this
+        (epoch, validator_address, route_id) triple.
+
+        Used by ``BTCPOrchestrator._record_token_economics`` (BTCP-FIX2-INT
+        Fix 3) to skip the TimescaleDB ``trion_token_economics`` increment
+        when the SQLite reward row is already there — keeps the per-epoch
+        aggregator in sync without double-counting replays.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM btcp_route_rewards "
+                "WHERE epoch = ? AND validator_address = ? AND route_id = ? "
+                "LIMIT 1",
+                (int(epoch), str(validator_address), route_id),
+            ).fetchone()
+            return row is not None
+
     def record_version(self, chain_id: int,
                        adapter_version: str = BTCP_ADAPTER_VERSION,
                        min_verifier_version: str = "1.0.0",

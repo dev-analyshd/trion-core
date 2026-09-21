@@ -53,6 +53,15 @@ impl ShadowObserver {
     /// `simulated: true` and carries the placeholder confidence
     /// `SIMULATED_SOURCE_CONFIDENCE`; real production data must be
     /// supplied by indexer integration (TODO).
+    ///
+    /// BTCP-FIX2-S59 (§8.1): the REAL production path lives in the Python
+    /// `core/btcp/shadow_observer.py::collect_real_shadow_sources`
+    /// which queries the TimescaleDB `akashic_bh` table for events TRION
+    /// observed but did NOT emit as published signals (rows whose
+    /// `context->>'source' IS NULL`).  Those rows are persisted with
+    /// `simulated = false`.  This Rust stub remains the offline reference
+    /// path for the unit tests; both paths share the same `compute_shadow_bh`
+    /// construction below so the weighted-BH algorithm has parity.
     pub fn collect_shadow_sources(
         &self,
         hostile_chain: ChainId,
@@ -79,6 +88,31 @@ impl ShadowObserver {
         }
 
         sources
+    }
+
+    /// BTCP-FIX2-S59 (§8.1): accept pre-collected REAL shadow sources
+    /// (read from a live indexer / akashic_bh feed by the caller) and
+    /// wrap them in `ShadowSource` with `simulated = false`.  This lets
+    /// downstream consumers (rejoin_hostile_chain, compute_shadow_bh)
+    /// operate on real data without re-fabricating sources.
+    ///
+    /// The Python `core/btcp/shadow_observer.py::collect_real_shadow_sources`
+    /// is the production implementation; this Rust entry point exists so
+    /// the in-process Rust callers (when wired) can ingest the same feed.
+    pub fn collect_shadow_sources_real<I>(&self, real_sources: I) -> Vec<ShadowSource>
+    where
+        I: IntoIterator<Item = (H256, f64, f64, ChainId)>,
+    {
+        real_sources
+            .into_iter()
+            .map(|(event_hash, confidence_weight, diversity_factor, source_chain)| ShadowSource {
+                event_hash,
+                confidence_weight,
+                diversity_factor,
+                source_chain,
+                simulated: false, // REAL data — caller read from a live feed
+            })
+            .collect()
     }
 
     /// Compute shadow BH from weighted sources
@@ -255,6 +289,32 @@ mod tests {
             assert!(source.simulated, "simulated sources must be flagged");
             assert_eq!(source.confidence_weight, SIMULATED_SOURCE_CONFIDENCE);
         }
+    }
+
+    #[test]
+    fn test_collect_shadow_sources_real_marks_not_simulated() {
+        // BTCP-FIX2-S59 (§8.1): real sources ingested via the new entry
+        // point must be flagged `simulated: false`.  The Python path
+        // (core/btcp/shadow_observer.py::collect_real_shadow_sources)
+        // is the production collector; this exercises the Rust-side
+        // wrapper that downstream Rust consumers use to ingest the same
+        // real feed.
+        let observer = ShadowObserver::new();
+        let real_sources = vec![
+            (H256::sha3(b"real_event_1"), 0.7, 0.5, 1u64),
+            (H256::sha3(b"real_event_2"), 0.8, 0.5, 42161u64),
+            (H256::sha3(b"real_event_3"), 0.6, 0.5, 10u64),
+        ];
+        let sources = observer.collect_shadow_sources_real(real_sources);
+
+        assert_eq!(sources.len(), 3);
+        for source in &sources {
+            assert!(!source.simulated, "real sources must NOT be flagged");
+        }
+        // compute_shadow_bh works on real sources too — same algorithm.
+        let (bh, conf) = observer.compute_shadow_bh(&sources);
+        assert_ne!(bh, H256::zero());
+        assert!(conf > 0.0);
     }
 
     #[test]
