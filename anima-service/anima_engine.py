@@ -1837,6 +1837,24 @@ def _scheduled_im_check():
         logger.debug("[ANIMA][SCHEDULER][IM] %s", e)
 
 
+# FIX-D (Gap 14): BIBL mempool feed simulator.
+# Per the audit (worklog FINAL-VERDICT gap #14), bibl_observations had 0 rows
+# because no live mempool feed was wired to call BIBLPatternStore.record_observation.
+# This scheduled task pulls recent akashic_bh transactions, classifies them
+# into BIBL archetypes, and records observations every 5 minutes.
+def _scheduled_bibl_feed():
+    """BIBL Pattern Library — pull akashic_bh mempool features every 5 min."""
+    try:
+        from core.akashic.bibl_feed import BIBLFeedSimulator
+        sim = BIBLFeedSimulator(window_minutes=15)
+        result = sim.tick()
+        if result.get("observations_recorded", 0) > 0:
+            logger.info("[ANIMA][SCHEDULER][BIBL] recorded %d obs across %d chains",
+                        result["observations_recorded"], result["chains_observed"])
+    except Exception as e:
+        logger.debug("[ANIMA][SCHEDULER][BIBL] %s", e)
+
+
 def _start_scheduler():
     """Start the APScheduler background intelligence loop."""
     global _scheduler
@@ -1851,8 +1869,12 @@ def _start_scheduler():
                        hours=OUTCOME_VERIFY_HOURS,    id="anima_outcome_verify")
     _scheduler.add_job(_scheduled_im_check,           "interval",
                        hours=IM_CHECK_INTERVAL_H,     id="anima_im_check")
+    # FIX-D (Gap 14): BIBL mempool feed — every 5 minutes
+    _scheduler.add_job(_scheduled_bibl_feed,           "interval",
+                       minutes=5,                     id="trion_bibl_feed",
+                       max_instances=1, coalesce=True)
     _scheduler.start()
-    logger.info("[ANIMA] Scheduler started — crawl every %dm, HA verify every %dh, IM every %dh",
+    logger.info("[ANIMA] Scheduler started — crawl every %dm, HA verify every %dh, IM every %dh, BIBL feed every 5m",
                 CRAWL_CYCLE_MINUTES, OUTCOME_VERIFY_HOURS, IM_CHECK_INTERVAL_H)
 
 
