@@ -1030,6 +1030,60 @@ def btcp_ultra_light_node():
         return jsonify({"error": str(e)}), 400
 
 
+# ── §8.4 Rejoin Mechanism (BTCP-FIX2-S59 — 3-phase hostile-chain rejoin) ──────
+
+
+@btcp_bp.route("/api/v1/btcp/rejoin", methods=["POST"])
+def btcp_rejoin():
+    """§8.4 Rejoin Mechanism — 3-phase hostile-chain rejoin.
+
+    Body (all optional):
+      hostile_chain_id   int  — the (formerly hostile) chain requesting
+                                 rejoin (default 99999).
+      num_total_chains   int  — total integrated chains AFTER rejoin;
+                                 used for the N(N-1)/2 bridge-pair formula
+                                 (default 10).
+      collect_real       bool — when True (default), Phase 1 collects fresh
+                                 real shadow sources from akashic_bh.
+      lookback_hours     int  — collector lookback window (default 168 = 7d).
+      limit_per_chain    int  — cap per source chain (default 25).
+
+    Returns:
+      RejoinResult with the three PhaseOutcome objects + the overall
+      success flag (ALL three phases must pass for ``success=true``).
+
+    Spec §8.4:
+      Phase 1 — Shadow history becomes Genesis baseline (D(t) starts
+                 from shadow, not zero).  Gate: mean confidence ≥ 0.5.
+      Phase 2 — Native Channel 6 observation begins (confidence climbs
+                 fast — shadow foundation already exists).
+      Phase 3 — Full BTCP integration — N(N-1)/2 new bridge pairs
+                 eliminated instantly.  "Bone heals stronger at the break point."
+    """
+    from core.btcp.rejoin import rejoin_hostile_chain
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        hostile = int(data.get("hostile_chain_id", 99999))
+        num_total = int(data.get("num_total_chains", 10))
+        collect_real = bool(data.get("collect_real", True))
+        lookback = int(data.get("lookback_hours", 168))
+        limit_per_chain = int(data.get("limit_per_chain", 25))
+
+        result = rejoin_hostile_chain(
+            hostile_chain_id=hostile,
+            num_total_chains=num_total,
+            collect_real=collect_real,
+            lookback_hours=lookback,
+            limit_per_chain=limit_per_chain,
+        )
+        return jsonify({
+            **result.to_dict(),
+            "specification": "§8.4 Rejoin Mechanism (BTCP-FIX2-S59) — 3-phase hostile-chain rejoin",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @btcp_bp.route("/api/v1/btcp/sybil", methods=["POST"])
 def btcp_sybil():
     """Sybil resistance layers (Module 2.18, Fix 5).
