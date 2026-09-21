@@ -14,9 +14,14 @@ contract BTCPRoute {
         uint64  anchorChain;      // source chain ID
         uint64  executionChain;   // target chain ID
         bytes32 entityId;         // BEO identifier
-        uint256 gasSavedVsBridge; // estimated gas saved vs traditional bridge
+        uint256 gasSavedVsBridge;        // §4.2 Step 6: gas saved vs traditional bridge
+        uint256 gasSavedVsSingleChain;   // §4.2 Step 6: gas saved vs single-chain equivalent
         uint256 beoContinuity;    // ×1e6 — continuity score
         uint256 ccCoherence;      // ×1e6 — cross-chain coherence
+        bytes12 btcpVersion;      // §4.2 Step 3 / §11 Fix 3: protocol version
+        uint256 featureFlags;     // §4.2 Step 3 / §11 Fix 3: bitfield (ZK_TRAVEL_RULE, SENSING_ORACLE, …)
+        bytes12 minVerifierVer;   // §4.2 Step 3 / §11 Fix 3: min compatible verifier semver
+        bytes32 travelRuleProof;  // §4.2 Step 6 / §11 Fix 1: disclosure_hash (0 = no proof)
         uint8   routeType;        // 0=SingleChain, 1=Split, 2=Netting, 3=Parallel, 4=MultiHop, 5=Deferred, 6=BITP
         bool    isVerified;
         uint256 createdAt;
@@ -30,8 +35,33 @@ contract BTCPRoute {
     address public owner;
     address public relayer;
 
-    event RoutePublished(bytes32 indexed routeId, bytes32 indexed intentHash, bytes32 anchorBH, uint64 anchorChain, uint64 executionChain, uint8 routeType);
-    event RouteFinalized(bytes32 indexed routeId, bytes32 executionBH, uint256 gasSaved, uint256 beoContinuity, uint256 ccCoherence);
+    // §12.4 BEO-continuity indexing: every event carries indexed entityId so
+    // Akashic can query routes by entity at the log level. §11 Fix 3 fields
+    // (btcpVersion / featureFlags / minVerifierVer) surface in RoutePublished;
+    // §4.2 Step 6 fields (gasSavedVsSingleChain / travelRuleProof) surface in
+    // RouteFinalized.
+    event RoutePublished(
+        bytes32 indexed routeId,
+        bytes32 indexed intentHash,
+        bytes32 indexed entityId,
+        bytes32 anchorBH,
+        uint64  anchorChain,
+        uint64  executionChain,
+        uint8   routeType,
+        bytes12 btcpVersion,
+        uint256 featureFlags,
+        bytes12 minVerifierVer
+    );
+    event RouteFinalized(
+        bytes32 indexed routeId,
+        bytes32 indexed entityId,
+        bytes32 executionBH,
+        uint256 gasSavedVsBridge,
+        uint256 gasSavedVsSingleChain,
+        uint256 beoContinuity,
+        uint256 ccCoherence,
+        bytes32 travelRuleProof
+    );
     event RelayerUpdated(address indexed oldRelayer, address indexed newRelayer);
 
     modifier onlyOwner() { require(msg.sender == owner, "NOT_OWNER"); _; }
@@ -42,7 +72,10 @@ contract BTCPRoute {
         relayer = msg.sender;
     }
 
-    /// @notice Publish a new BTCP route with anchor BH.
+    /// @notice Publish a new BTCP route with anchor BH (§4.2 Step 3).
+    /// @dev btcp_version / feature_flags / min_verifier_ver travel with the
+    ///      proof object from Step 3 — recorded at publish time so verifiers can
+    ///      gate on §11 Fix 3 compatibility before execution.
     function publishRoute(
         bytes32 routeId,
         bytes32 intentHash,
@@ -50,42 +83,57 @@ contract BTCPRoute {
         uint64  anchorChain,
         uint64  executionChain,
         bytes32 entityId,
-        uint8   routeType
+        uint8   routeType,
+        bytes12 btcpVersion,
+        uint256 featureFlags,
+        bytes12 minVerifierVer
     ) external onlyRelayer returns (bool) {
         require(routes[routeId].routeId == bytes32(0), "ROUTE_EXISTS");
         require(anchorBH != bytes32(0), "ZERO_ANCHOR");
         require(routeType <= 6, "INVALID_TYPE");
+        require(btcpVersion != bytes12(0), "ZERO_VERSION"); // §11 Fix 3: version required at publish
 
         routes[routeId] = Route({
-            routeId:            routeId,
-            intentHash:         intentHash,
-            anchorBH:           anchorBH,
-            executionBH:        bytes32(0),
-            anchorChain:        anchorChain,
-            executionChain:     executionChain,
-            entityId:           entityId,
-            gasSavedVsBridge:   0,
-            beoContinuity:      0,
-            ccCoherence:        0,
-            routeType:          routeType,
-            isVerified:         false,
-            createdAt:          block.timestamp,
-            finalizedAt:        0
+            routeId:                routeId,
+            intentHash:             intentHash,
+            anchorBH:               anchorBH,
+            executionBH:            bytes32(0),
+            anchorChain:            anchorChain,
+            executionChain:         executionChain,
+            entityId:               entityId,
+            gasSavedVsBridge:       0,
+            gasSavedVsSingleChain:  0,
+            beoContinuity:          0,
+            ccCoherence:            0,
+            btcpVersion:            btcpVersion,
+            featureFlags:          featureFlags,
+            minVerifierVer:         minVerifierVer,
+            travelRuleProof:        bytes32(0),
+            routeType:              routeType,
+            isVerified:             false,
+            createdAt:              block.timestamp,
+            finalizedAt:            0
         });
 
         routeList.push(routeId);
         routeCount++;
-        emit RoutePublished(routeId, intentHash, anchorBH, anchorChain, executionChain, routeType);
+        emit RoutePublished(routeId, intentHash, entityId, anchorBH, anchorChain, executionChain,
+                            routeType, btcpVersion, featureFlags, minVerifierVer);
         return true;
     }
 
-    /// @notice Finalize a route with execution BH and savings data.
+    /// @notice Finalize a route with execution BH and savings data (§4.2 Step 6).
+    /// @dev gas_saved_vs_single_chain + travel_rule_proof are surfaced here per
+    ///      §4.2 Step 6 BTCPRouteSignal. travel_rule_proof may be bytes32(0) when
+    ///      §11 Fix 1 chameleon mode = LOW (proof optional).
     function finalizeRoute(
         bytes32 routeId,
         bytes32 executionBH,
         uint256 gasSavedVsBridge,
+        uint256 gasSavedVsSingleChain,
         uint256 beoContinuity,
-        uint256 ccCoherence
+        uint256 ccCoherence,
+        bytes32 travelRuleProof
     ) external onlyRelayer returns (bool) {
         Route storage route = routes[routeId];
         require(route.routeId != bytes32(0), "ROUTE_NOT_FOUND");
@@ -95,12 +143,15 @@ contract BTCPRoute {
 
         route.executionBH = executionBH;
         route.gasSavedVsBridge = gasSavedVsBridge;
+        route.gasSavedVsSingleChain = gasSavedVsSingleChain;
         route.beoContinuity = beoContinuity;
         route.ccCoherence = ccCoherence;
+        route.travelRuleProof = travelRuleProof;
         route.isVerified = true;
         route.finalizedAt = block.timestamp;
 
-        emit RouteFinalized(routeId, executionBH, gasSavedVsBridge, beoContinuity, ccCoherence);
+        emit RouteFinalized(routeId, route.entityId, executionBH, gasSavedVsBridge,
+                            gasSavedVsSingleChain, beoContinuity, ccCoherence, travelRuleProof);
         return true;
     }
 

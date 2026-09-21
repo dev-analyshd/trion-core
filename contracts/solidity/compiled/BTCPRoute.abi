@@ -33,6 +33,12 @@
         "type": "bytes32"
       },
       {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "entityId",
+        "type": "bytes32"
+      },
+      {
         "indexed": false,
         "internalType": "bytes32",
         "name": "executionBH",
@@ -41,7 +47,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "gasSaved",
+        "name": "gasSavedVsBridge",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasSavedVsSingleChain",
         "type": "uint256"
       },
       {
@@ -55,6 +67,12 @@
         "internalType": "uint256",
         "name": "ccCoherence",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "travelRuleProof",
+        "type": "bytes32"
       }
     ],
     "name": "RouteFinalized",
@@ -73,6 +91,12 @@
         "indexed": true,
         "internalType": "bytes32",
         "name": "intentHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "entityId",
         "type": "bytes32"
       },
       {
@@ -98,6 +122,24 @@
         "internalType": "uint8",
         "name": "routeType",
         "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "featureFlags",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes12",
+        "name": "minVerifierVer",
+        "type": "bytes12"
       }
     ],
     "name": "RoutePublished",
@@ -122,6 +164,11 @@
       },
       {
         "internalType": "uint256",
+        "name": "gasSavedVsSingleChain",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "beoContinuity",
         "type": "uint256"
       },
@@ -129,6 +176,11 @@
         "internalType": "uint256",
         "name": "ccCoherence",
         "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "travelRuleProof",
+        "type": "bytes32"
       }
     ],
     "name": "finalizeRoute",
@@ -196,6 +248,11 @@
           },
           {
             "internalType": "uint256",
+            "name": "gasSavedVsSingleChain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "beoContinuity",
             "type": "uint256"
           },
@@ -203,6 +260,26 @@
             "internalType": "uint256",
             "name": "ccCoherence",
             "type": "uint256"
+          },
+          {
+            "internalType": "bytes12",
+            "name": "btcpVersion",
+            "type": "bytes12"
+          },
+          {
+            "internalType": "uint256",
+            "name": "featureFlags",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes12",
+            "name": "minVerifierVer",
+            "type": "bytes12"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "travelRuleProof",
+            "type": "bytes32"
           },
           {
             "internalType": "uint8",
@@ -295,6 +372,21 @@
         "internalType": "uint8",
         "name": "routeType",
         "type": "uint8"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "internalType": "uint256",
+        "name": "featureFlags",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "minVerifierVer",
+        "type": "bytes12"
       }
     ],
     "name": "publishRoute",
@@ -405,6 +497,11 @@
       },
       {
         "internalType": "uint256",
+        "name": "gasSavedVsSingleChain",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "beoContinuity",
         "type": "uint256"
       },
@@ -412,6 +509,26 @@
         "internalType": "uint256",
         "name": "ccCoherence",
         "type": "uint256"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "btcpVersion",
+        "type": "bytes12"
+      },
+      {
+        "internalType": "uint256",
+        "name": "featureFlags",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes12",
+        "name": "minVerifierVer",
+        "type": "bytes12"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "travelRuleProof",
+        "type": "bytes32"
       },
       {
         "internalType": "uint8",
