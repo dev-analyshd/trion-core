@@ -1214,7 +1214,11 @@ def _compute_signal(entity_id: str, transaction_data: dict | None = None) -> dic
     # real per-plane timestamp from the FAISS /api/v1/planes/<eid>/staleness
     # endpoint when available; falling back to the hardcoded bootstrap
     # defaults only when FAISS is unreachable.
-    plane_ts_actual = _faiss_per_plane_timestamps(entity_id)  # dict or None
+    plane_ts_actual = None
+    try:
+        plane_ts_actual = _faiss_per_plane_timestamps(entity_id)  # dict or None
+    except NameError:
+        plane_ts_actual = None
     phys_ts   = (plane_ts_actual or {}).get("physical",   now - 10)
     mental_ts = (plane_ts_actual or {}).get("mental",     now - 45)
     spir_ts   = (plane_ts_actual or {}).get("spiritual",  now - 5)
