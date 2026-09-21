@@ -752,16 +752,17 @@ export type BTCPRouteType =
 
 export type BTCPScoreTier = 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
 
-/** 7 manipulation fingerprint types per GAP 3 §6.2 */
+/** 7 manipulation fingerprint types per spec L1.2 (FIX-E Gap 19 canonical).
+ *  Matches the spec taxonomy emitted by core/physical/manipulation_detector.py
+ *  and enforced by the CHECK constraint on mf_evidence_log.manipulation_type. */
 export type MFType =
-    | 'CLEAN'
-    | 'SANDWICH'
     | 'WASH_TRADING'
-    | 'ORACLE_MANIPULATION'
-    | 'LAYERING'
-    | 'BEHAVIORAL_SPOOFING'
-    | 'CROSS_PROTOCOL_COORDINATION'
-    | 'STATISTICAL_ANOMALY';
+    | 'COORDINATED_PUMP'
+    | 'ORACLE_ATTACK_ATTEMPT'
+    | 'SYBIL_LIQUIDITY'
+    | 'GOVERNANCE_CAPTURE'
+    | 'MEV_EXTRACTION_SUSTAINED'
+    | 'FAKE_VOLUME_PROTOCOL';
 
 export type MFScoreLevel = 'CLEAN' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -792,23 +793,23 @@ export interface BTCPRouteData {
 }
 
 export interface MFEvidence {
-    sandwich_score:     number;
-    wash_score:         number;
-    oracle_score:       number;
-    layering_score:     number;
-    spoofing_score:     number;
-    cross_proto_score:  number;
-    stat_anomaly_score: number;
+    wash_trading_score:              number;
+    coordinated_pump_score:          number;
+    oracle_attack_attempt_score:     number;
+    sybil_liquidity_score:           number;
+    governance_capture_score:        number;
+    mev_extraction_sustained_score:  number;
+    fake_volume_protocol_score:      number;
 }
 
 export interface MFBreakdown {
-    total_score:    number;
-    dominant_type:  MFType;
-    level:          MFScoreLevel;
-    evidence:       MFEvidence;
-    alerts:         MFAlert[];
-    hhi:            number;   // counterparty HHI (A5)
-    d_effective:    number;   // 1 - HHI
+    total_score:        number;
+    manipulation_type:  MFType;
+    level:              MFScoreLevel;
+    evidence:           MFEvidence;
+    alerts:             MFAlert[];
+    hhi:                number;   // counterparty HHI (A5)
+    d_effective:        number;   // 1 - HHI
 }
 
 export interface MFAlert {

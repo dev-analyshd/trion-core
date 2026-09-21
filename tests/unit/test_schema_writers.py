@@ -175,7 +175,14 @@ def test_none_markers_honestly_have_no_writer():
 
 
 def test_the_audited_deploy_only_set_is_exact():
-    """The NONE set is pinned — adding/removing a table needs this update."""
+    """The NONE set is pinned — adding/removing a table needs this update.
+
+    FIX-E (Gap 19): mf_evidence_log moved from NONE → WRITTEN (new writer at
+    core/physical/manipulation_detector.py::write_mf_evidence).
+    Gap 13: slashing_log + validator_coverage also moved NONE → WRITTEN
+    (writers at core/governance/db_writers.py — schema markers updated).
+    Gap 14/15: merkle_roots moved NONE → WRITTEN (writer at
+    core/akashic/merkle_writer.py — schema marker updated)."""
     none_tables = sorted(t for t, m in parse_schema() if m.startswith("NONE"))
     assert none_tables == [
         "akashic_cold",
@@ -186,20 +193,21 @@ def test_the_audited_deploy_only_set_is_exact():
         "genesis_bootstrap_progress",
         "intent_pool_participants",
         "intent_pools",
-        "merkle_roots",
-        "mf_evidence_log",
         "ooa_chain_confidence",
         "resurrection_log",
         "sanctions_registry",
-        "slashing_log",
         "source_credibility",
         "trion_token_economics",
-        "validator_coverage",
     ]
 
 
 def test_the_written_set_is_exact():
-    """The WRITTEN set is pinned: 12 operative SQLite mirrors + 5 tsdb tables."""
+    """The WRITTEN set is pinned: 12 operative SQLite mirrors + 9 tsdb tables.
+
+    FIX-E (Gap 19): mf_evidence_log added (writer: core/physical/manipulation_detector.py).
+    Gap 13: slashing_log + validator_coverage added (writers: core/governance/db_writers.py).
+    Gap 14/15: merkle_roots added (writer: core/akashic/merkle_writer.py).
+    """
     written = sorted(
         t for t, m in parse_schema() if not m.startswith("NONE"))
     assert written == [
@@ -219,8 +227,12 @@ def test_the_written_set_is_exact():
         "btcp_version_registry",
         "genesis_commitments",
         "genesis_confidence_log",
+        "merkle_roots",
+        "mf_evidence_log",
         "shadow_observations",
+        "slashing_log",
         "trajectory_anomaly_log",
+        "validator_coverage",
     ]
 
 

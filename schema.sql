@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS akashic_cold (
 
 -- ── Merkle Proof System ───────────────────────────────────────────────────────
 -- Daily Merkle roots for O(log N) verifiable history reconstruction.
--- operative-writer: NONE — deploy-only DDL (operative daily merkle roots persist in the anima-service SQLite merkle_state table, _db_persist_merkle)
+-- operative-writer: INSERT in core/akashic/merkle_writer.py (daily merkle root persistence)
 CREATE TABLE IF NOT EXISTS merkle_roots (
     date                DATE             NOT NULL PRIMARY KEY,
     root_hash           BYTEA            NOT NULL,
@@ -254,7 +254,7 @@ CREATE TABLE IF NOT EXISTS source_credibility (
 );
 
 -- ── L4.9 Slashing Audit Trail ─────────────────────────────────────────────────
--- operative-writer: NONE — deploy-only DDL (dispute→slash wiring remains open; no INSERT path in-tree)
+-- operative-writer: INSERT in core/governance/db_writers.py (Gap 13: seed_validator_coverage + record_slashing)
 CREATE TABLE IF NOT EXISTS slashing_log (
     time                TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
     validator_id        BYTEA            NOT NULL,
@@ -658,7 +658,7 @@ CREATE TABLE IF NOT EXISTS trion_token_economics (
 
 -- ── Validator Coverage Tracking (C1/C2) ───────────────────────────────────────
 -- Tracks per-validator coverage state for dynamic min_validators and emergency bonus.
--- operative-writer: NONE — deploy-only DDL (core/btcp/modules.py ValidatorFeeCalculator computes bonuses; per-validator coverage bookkeeping not persisted)
+-- operative-writer: INSERT in core/governance/db_writers.py (Gap 13: seed_validator_coverage)
 CREATE TABLE IF NOT EXISTS validator_coverage (
     validator_address   TEXT         NOT NULL,
     chain_id            BIGINT       NOT NULL,
@@ -698,7 +698,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_msg_nonce_unique ON btcp_cross_chain_messa
 
 -- ── Manipulation Fingerprint Evidence Log (GAP 3) ─────────────────────────────
 -- Stores per-analysis MF evidence for audit, appeals, and ML training.
--- operative-writer: NONE — deploy-only DDL (core/manipulation/btcp_mf_detector.py compute_mf_score returns results in memory; no store wiring — candidate follow-up wave)
+-- FIX-E (Gap 19): taxonomy now matches spec L1.2 (7 manipulation types):
+--   WASH_TRADING, COORDINATED_PUMP, ORACLE_ATTACK_ATTEMPT, SYBIL_LIQUIDITY,
+--   GOVERNANCE_CAPTURE, MEV_EXTRACTION_SUSTAINED, FAKE_VOLUME_PROTOCOL.
+-- Per-type score columns are renamed to spec names; the `dominant_type` column
+-- is renamed to `manipulation_type` with a CHECK constraint enforcing the 7
+-- spec types. Writer: core/physical/manipulation_detector.py::write_mf_evidence.
+-- operative-writer: INSERT in core/physical/manipulation_detector.py
 CREATE TABLE IF NOT EXISTS mf_evidence_log (
     id                  BIGSERIAL    PRIMARY KEY,
     entity_id           BYTEA        NOT NULL,
@@ -706,16 +712,26 @@ CREATE TABLE IF NOT EXISTS mf_evidence_log (
     intent_hash         BYTEA,
     -- Composite score
     mf_score_total      DOUBLE PRECISION NOT NULL,
-    dominant_type       TEXT         NOT NULL, -- Clean | Sandwich | WashTrading | ...
+    manipulation_type   TEXT         NOT NULL CHECK (
+        manipulation_type IN (
+            'WASH_TRADING',
+            'COORDINATED_PUMP',
+            'ORACLE_ATTACK_ATTEMPT',
+            'SYBIL_LIQUIDITY',
+            'GOVERNANCE_CAPTURE',
+            'MEV_EXTRACTION_SUSTAINED',
+            'FAKE_VOLUME_PROTOCOL'
+        )
+    ),
     alert_count         INTEGER      NOT NULL DEFAULT 0,
-    -- Per-type scores
-    sandwich_score      DOUBLE PRECISION NOT NULL DEFAULT 0,
-    wash_score          DOUBLE PRECISION NOT NULL DEFAULT 0,
-    oracle_score        DOUBLE PRECISION NOT NULL DEFAULT 0,
-    layering_score      DOUBLE PRECISION NOT NULL DEFAULT 0,
-    spoofing_score      DOUBLE PRECISION NOT NULL DEFAULT 0,
-    cross_proto_score   DOUBLE PRECISION NOT NULL DEFAULT 0,
-    stat_anomaly_score  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    -- Per-type scores (spec L1.2 taxonomy)
+    wash_trading_score              DOUBLE PRECISION NOT NULL DEFAULT 0,
+    coordinated_pump_score          DOUBLE PRECISION NOT NULL DEFAULT 0,
+    oracle_attack_attempt_score     DOUBLE PRECISION NOT NULL DEFAULT 0,
+    sybil_liquidity_score           DOUBLE PRECISION NOT NULL DEFAULT 0,
+    governance_capture_score        DOUBLE PRECISION NOT NULL DEFAULT 0,
+    mev_extraction_sustained_score  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    fake_volume_protocol_score      DOUBLE PRECISION NOT NULL DEFAULT 0,
     -- Context
     hhi_counterparty    DOUBLE PRECISION,    -- A5: counterparty HHI
     d_effective         DOUBLE PRECISION,    -- 1 - HHI
@@ -726,7 +742,7 @@ CREATE TABLE IF NOT EXISTS mf_evidence_log (
 SELECT create_hypertable('mf_evidence_log', 'analyzed_at', if_not_exists => TRUE);
 CREATE INDEX IF NOT EXISTS idx_mf_entity   ON mf_evidence_log (entity_id, analyzed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mf_score    ON mf_evidence_log (mf_score_total DESC, analyzed_at DESC);
-CREATE INDEX IF NOT EXISTS idx_mf_type     ON mf_evidence_log (dominant_type, analyzed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mf_type     ON mf_evidence_log (manipulation_type, analyzed_at DESC);
 
 -- ── Sanctions Oracle (J1) ─────────────────────────────────────────────────────
 -- AWA-protected OFAC/EU/UN sanctions list. Append-only audit trail.

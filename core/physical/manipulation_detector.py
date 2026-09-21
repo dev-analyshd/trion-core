@@ -414,6 +414,180 @@ def apply_mf_discount(phi_raw: float, mf_score: float) -> float:
     return max(0.0, phi_raw * (1.0 - mf_score))
 
 
+# ── FIX-E (Gap 19): spec taxonomy writer for mf_evidence_log ────────────────────
+# The 7 canonical spec L1.2 manipulation types. Stored verbatim in the
+# `manipulation_type` column of mf_evidence_log (schema.sql enforces a CHECK
+# constraint against this exact set). The previous CEX-style taxonomy
+# (sandwich/layering/spoofing/cross_proto/stat_anomaly) has been retired.
+SPEC_MF_TYPES = frozenset({
+    "WASH_TRADING",
+    "COORDINATED_PUMP",
+    "ORACLE_ATTACK_ATTEMPT",
+    "SYBIL_LIQUIDITY",
+    "GOVERNANCE_CAPTURE",
+    "MEV_EXTRACTION_SUSTAINED",
+    "FAKE_VOLUME_PROTOCOL",
+})
+
+# Mapping from internal pattern_type (emitted by the detect_* functions above)
+# to spec L1.2 manipulation_type values. Internal pattern_type names already
+# match the spec for 6 of 7 types; MEV_EXTRACTION_SUSTAINED is the canonical
+# spec name (no remapping needed).
+_PATTERN_TO_SPEC = {
+    "WASH_TRADING":            "WASH_TRADING",
+    "COORDINATED_PUMP":        "COORDINATED_PUMP",
+    "ORACLE_ATTACK_ATTEMPT":   "ORACLE_ATTACK_ATTEMPT",
+    "SYBIL_LIQUIDITY":         "SYBIL_LIQUIDITY",
+    "GOVERNANCE_CAPTURE":      "GOVERNANCE_CAPTURE",
+    "MEV_EXTRACTION_SUSTAINED":"MEV_EXTRACTION_SUSTAINED",
+    "FAKE_VOLUME_PROTOCOL":    "FAKE_VOLUME_PROTOCOL",
+}
+
+
+def _normalize_manipulation_type(pattern_type: Optional[str]) -> str:
+    """Map an internal pattern_type to the canonical spec manipulation_type."""
+    if pattern_type is None:
+        return "WASH_TRADING"  # safe default for evidence records with no
+                                # detected pattern (defensive — should not occur
+                                # in production since dominant_type is NOT NULL)
+    return _PATTERN_TO_SPEC.get(pattern_type, pattern_type)
+
+
+def write_mf_evidence(
+    conn,
+    entity_id: bytes,
+    chain_id: int,
+    mf_results: List[MFResult],
+    aggregate: Optional[dict] = None,
+    *,
+    intent_hash: Optional[bytes] = None,
+    hhi_counterparty: Optional[float] = None,
+    blocked_routing: bool = False,
+):
+    """
+    Persist a per-analysis MF evidence record to mf_evidence_log using the
+    spec L1.2 taxonomy (7 manipulation types).
+
+    Parameters
+    ----------
+    conn : psycopg2 / sqlite3 connection (or anything with cursor() context)
+    entity_id : 32-byte BEO entity_id (raw bytes — schema column is BYTEA)
+    chain_id : numeric chain_id (per akashic_bh.chain_id)
+    mf_results : list of MFResult objects produced by detect_* functions
+    aggregate : optional output of compute_mf_score(mf_results); if provided,
+                its `mf_score` and `primary_type` populate `mf_score_total`
+                and `manipulation_type` respectively. If None, this function
+                calls compute_mf_score itself.
+    intent_hash : optional 32-byte intent hash (BTCP route linkage)
+    hhi_counterparty : optional counterparty HHI (A5); d_effective is computed
+                       as (1 - hhi_counterparty) when this is supplied
+    blocked_routing : whether BTCP routing was blocked for this entity
+
+    Returns
+    -------
+    int — the inserted row id (cursor.lastrowid)
+
+    FIX-E (Gap 19): replaces the previous deploy-only DDL pattern (the schema
+    audit had `mf_evidence_log` in the NONE set, meaning no in-tree writer).
+    This function is the canonical writer; schema.sql's operative-writer
+    marker now points here.
+    """
+    if aggregate is None:
+        aggregate = compute_mf_score(mf_results)
+
+    mf_score_total = float(aggregate.get("mf_score", 0.0))
+    primary_type   = _normalize_manipulation_type(aggregate.get("primary_type"))
+    if primary_type not in SPEC_MF_TYPES:
+        # Defensive: if compute_mf_score returned an unmapped type (e.g. None
+        # when no patterns detected), fall back to WASH_TRADING which is the
+        # canonical TYPE 1 in spec L1.2. This satisfies the NOT NULL +
+        # CHECK constraint on the column without silently dropping evidence.
+        primary_type = "WASH_TRADING"
+
+    # Per-type scores from each MFResult (default 0 when detector was not run).
+    scores = {t: 0.0 for t in SPEC_MF_TYPES}
+    for r in mf_results:
+        spec_type = _normalize_manipulation_type(r.pattern_type)
+        if spec_type in scores:
+            scores[spec_type] = float(r.mf_score)
+
+    alert_count = sum(1 for r in mf_results if r.detected)
+    d_effective = (1.0 - hhi_counterparty) if hhi_counterparty is not None else None
+
+    sql = """
+        INSERT INTO mf_evidence_log (
+            entity_id, chain_id, intent_hash,
+            mf_score_total, manipulation_type, alert_count,
+            wash_trading_score, coordinated_pump_score,
+            oracle_attack_attempt_score, sybil_liquidity_score,
+            governance_capture_score, mev_extraction_sustained_score,
+            fake_volume_protocol_score,
+            hhi_counterparty, d_effective, blocked_routing
+        ) VALUES (
+            %s, %s, %s,
+            %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s
+        ) RETURNING id
+    """
+    params = (
+        entity_id, chain_id, intent_hash,
+        mf_score_total, primary_type, alert_count,
+        scores["WASH_TRADING"], scores["COORDINATED_PUMP"],
+        scores["ORACLE_ATTACK_ATTEMPT"], scores["SYBIL_LIQUIDITY"],
+        scores["GOVERNANCE_CAPTURE"], scores["MEV_EXTRACTION_SUSTAINED"],
+        scores["FAKE_VOLUME_PROTOCOL"],
+        hhi_counterparty, d_effective, blocked_routing,
+    )
+    cur = conn.cursor()
+    try:
+        cur.execute(sql, params)
+        # psycopg2 returns the row via RETURNING; sqlite3 exposes lastrowid.
+        row = cur.fetchone() if cur.description else None
+        conn.commit()
+        if row is not None:
+            return int(row[0])
+        return int(getattr(cur, "lastrowid", 0) or 0)
+    finally:
+        cur.close()
+
+
+# ── FIX-E (Gap 19): migration helper for legacy CEX-style rows ────────────────
+# CEX-style → spec taxonomy mapping used by the migration SQL. Documents the
+# mapping decision: where the legacy per-type score had no direct spec
+# counterpart, the closest semantic match was chosen.
+#
+#   legacy CEX column        → spec column
+#   ---------------------------------------------------
+#   wash_score               → wash_trading_score          (direct match)
+#   oracle_score             → oracle_attack_attempt_score (direct match)
+#   cross_proto_score        → mev_extraction_sustained_score
+#                              (cross-protocol MEV is the closest match)
+#   layering_score           → sybil_liquidity_score
+#                              (layering requires sybil-like multi-account
+#                               coordination; both touch funding concentration)
+#   spoofing_score           → coordinated_pump_score
+#                              (spoofing = coordinated fake orders to push
+#                               price; maps to coordinated pump)
+#   stat_anomaly_score       → fake_volume_protocol_score
+#                              (statistical anomaly = entropy anomaly =
+#                               fake volume signal)
+#   sandwich_score           → (no direct spec counterpart — dropped)
+#                              sandwich attacks are MEV; the closest spec type
+#                              is MEV_EXTRACTION_SUSTAINED, but score data is
+#                              preserved in mev_extraction_sustained_score via
+#                              cross_proto_score mapping above. Sandwich data
+#                              is NOT migrated to avoid double-counting.
+LEGACY_CEX_TO_SPEC = {
+    "wash_score":          "wash_trading_score",
+    "oracle_score":        "oracle_attack_attempt_score",
+    "cross_proto_score":   "mev_extraction_sustained_score",
+    "layering_score":      "sybil_liquidity_score",
+    "spoofing_score":      "coordinated_pump_score",
+    "stat_anomaly_score":  "fake_volume_protocol_score",
+}
+
+
 if __name__ == "__main__":
     r1 = detect_oracle_attack(0.22, 5)
     r2 = detect_wash_trading(0.75, 3)
