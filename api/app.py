@@ -5925,30 +5925,56 @@ def dormancy_taxonomy(entity_id: str):
 # ── L1.4 Transduction Integrity ───────────────────────────────────────────────
 @app.route("/api/v1/transduction/<sensor_id>")
 def transduction_integrity(sensor_id: str):
-    """L1.4 Transduction Integrity — TI(sensor, t) = signal fidelity from raw chain data to plane value."""
+    """L1.4 Transduction Integrity.
+
+    Canonical spec formula (core/physical/temporal_coherence.py::
+
+        TI(sensor, t) = Calibration(s,t) · Drift_correction(s,t) · Cross_verification(s,t)
+
+    Any zero component → TI = 0 → sensor excluded from Φ computation.
+    """
+    from core.physical.temporal_coherence import (
+        compute_transduction_integrity, SensorCalibration,
+    )
+
+    # Bootstrap sensor calibration values are derived deterministically from
+    # the sensor_id hash. At mainnet these are populated by the physical
+    # sensor/HSM calibration pipeline (Channels 1-3). All three components
+    # are clamped to [0, 1] by the canonical function before multiplying.
     h = hashlib.sha256(sensor_id.encode()).digest()
-    raw_signal      = round(0.10 + (h[0] / 255.0) * 0.90, 6)
-    noise_floor     = round(0.01 + (h[1] / 255.0) * 0.15, 6)
-    calibration_err = round((h[2] / 255.0) * 0.05, 6)
-    latency_ms      = int(50 + (h[3] / 255.0) * 450)
-    ti              = round(max(0.0, (raw_signal - noise_floor - calibration_err)
-                                    / max(raw_signal, 0.001)
-                                    * (1.0 - min(1.0, latency_ms / 5000.0))), 6)
+    calibration     = round(0.60 + (h[0] / 255.0) * 0.40, 6)   # [0.60, 1.00]
+    drift_correction = round(0.60 + (h[1] / 255.0) * 0.40, 6)  # [0.60, 1.00]
+    cross_verification = round(0.50 + (h[2] / 255.0) * 0.50, 6)  # [0.50, 1.00]
+
+    sensor = SensorCalibration(
+        sensor_id          = sensor_id,
+        calibration_score   = calibration,
+        drift_correction    = drift_correction,
+        cross_verification  = cross_verification,
+        bootstrap_mode      = True,
+    )
+    ti_result = compute_transduction_integrity(sensor)
+    ti = round(ti_result.ti, 6)
+
     return jsonify({
-        "sensor_id":          sensor_id,
+        "sensor_id":             sensor_id,
         "transduction_integrity": ti,
-        "is_synthetic": True,
+        "calibration":           round(ti_result.calibration, 6),
+        "drift_correction":       round(ti_result.drift, 6),
+        "cross_verification":     round(ti_result.cross, 6),
+        "excluded_from_phi":      ti_result.excluded,
+        "reason":                 ti_result.reason,
+        "is_synthetic":           True,
         "synthetic_reason": (
-            "raw signal, noise floor, calibration error and latency are hash-derived from sensor_id; the TI formula is applied to demo inputs."
+            "Calibration/Drift/CrossVerification components are hash-derived from "
+            "sensor_id (bootstrap mode); at mainnet these are populated by the "
+            "physical HSM + GPS sensor calibration pipeline (Channels 1-3)."
         ),
-        "raw_signal":         raw_signal,
-        "noise_floor":        noise_floor,
-        "calibration_error":  calibration_err,
-        "latency_ms":         latency_ms,
-        "integrity_ok":       ti >= 0.70,
-        "formula":            "TI = (S - noise - calib_err) / S · (1 - latency/max_latency)",
-        "specification":         "L1.4",
-        "timestamp":          int(time.time()),
+        "integrity_ok":           ti >= 0.70,
+        "formula":                 "TI = Calibration · Drift_correction · Cross_verification",
+        "specification":           "L1.4",
+        "canonical_function":     "core.physical.temporal_coherence.compute_transduction_integrity",
+        "timestamp":              int(time.time()),
     })
 
 
