@@ -3636,18 +3636,17 @@ def _init_falsifiability_sample_counts():
     """
     Wire live BH-ledger row counts into falsifiability sample_size fields at startup.
 
-    AUDIT-3 G1 fix: aligned with WP2 §20 canonical F1-F15 mapping (see
-    core/governance/falsifiability_registry.py). Only F1 (manipulation
-    resistance) and F13 (manipulation fingerprint FP rate) directly consume
-    BH-ledger counts under WP2 §20. The previously-wired F7 (Source
-    credibility) and F15 (Cross-chain rank stability) conditions are no
-    longer in the registry under those IDs — F7 is now "component
-    degradation 24h detection (IM Protocol)" and F15 is now
-    "REGULATORY_BEHAVIORAL 24-month advance warning (CONJECTURE)".
+    FIX-E (Gap 18) — registry now mirrors Whitepaper Part 13 canonical F1-F15.
+    Only F1 (Manipulation resistance) directly consumes BH-ledger counts:
+    the BH corpus is the ground-truth dataset against which a documented
+    successful manipulation would have to be observed.
+    Other conditions (F2 consensus safety, F3 ANIMA improves, F4 quantum,
+    F5 convergence, F6 genesis, F7 IM, F8 HHI, F9 BC, F10 XSL, F11 SBA,
+    F12 ANIMA calibration, F13 Entity Resolution, F14 Observer Effect,
+    F15 Silence) draw sample sizes from their own test corpora — see the
+    notes/status_source fields per condition in the registry module.
 
     F1  — Manipulation resistance: sample = total BH observations available
-    F13 — Manipulation fingerprint FP rate: sample = total BH observations
-          (clean-history audit dataset still required)
     Non-fatal: silently skips if bh_ledger.db is unavailable.
     """
     if not _falsifiability_ok:
@@ -3664,17 +3663,12 @@ def _init_falsifiability_sample_counts():
         _entities = _conn.execute("SELECT COUNT(DISTINCT entity_id) FROM bh_ledger").fetchone()[0]
         _conn.close()
         if _total > 0:
-            # F1 — Manipulation resistance (WP2 §20): BH observations available for ground-truth audit
+            # F1 — Manipulation resistance (Part 13 F1): BH observations available for ground-truth audit
             update_condition_status(
                 "F1", "MONITORING", _total,
-                f"BH ledger: {_total:,} behavioral observations accumulated. "
-                "Oracle attack ground-truth dataset still required for documented-manipulation test."
-            )
-            # F13 — Manipulation fingerprint FP rate (WP2 §20): clean-history audit dataset
-            update_condition_status(
-                "F13", "MONITORING", _total,
-                f"BH ledger: {_total:,} observations across {_entities:,} entities. "
-                "Verified-clean audit dataset still required to bound FP rate < 2%."
+                f"BH ledger: {_total:,} behavioral observations accumulated across "
+                f"{_entities:,} entities. Oracle attack ground-truth dataset still required "
+                "for documented-manipulation test (Part 13 F1)."
             )
     except Exception:
         pass
@@ -3693,6 +3687,18 @@ try:
     _sba_ok = True
 except Exception as _e:
     _sba_ok = False
+
+# FIX-G (Live Data Feeds): real IMF DataMapper + World Bank WGI feeds for SBA.
+try:
+    from core.physical.imf_feed import fetch_sba_components as _imf_sba
+    _imf_feed_ok = True
+except Exception as _e:  # pragma: no cover — import never raises in practice
+    _imf_feed_ok = False
+try:
+    from core.physical.worldbank_feed import fetch_sba_components as _wb_sba
+    _wb_feed_ok = True
+except Exception as _e:  # pragma: no cover — import never raises in practice
+    _wb_feed_ok = False
 
 try:
     from core.extended import compute_xsl_full, CrossChainBehavior as _XSLChain
@@ -3723,6 +3729,16 @@ try:
     _slashing_ok = True
 except Exception as _e:
     _slashing_ok = False
+
+# FIX-D (Gap 13): Wire slashing_log INSERT path. The audit (worklog FINAL-
+# VERDICT gap #13) classified validator_coverage + slashing_log as deploy-only
+# DDL with NO writers. `record_slashing` is called from the /api/v1/governance/
+# slashing/file endpoint after engine.file_accusation() returns a case_id.
+try:
+    from core.governance.db_writers import record_slashing as _record_slashing
+    _slashing_log_ok = True
+except Exception as _e:
+    _slashing_log_ok = False
 
 try:
     from core.governance.intelligence_maintenance import (
@@ -3842,7 +3858,13 @@ def governance_falsifiability():
     """
     F1–F15: All 15 falsifiability conditions that would invalidate the TRION model.
     Returns full registry with status, test metrics, and notes.
-    Also injects live BH-ledger count from FAISS for F3/F9 context.
+    Also injects live BH-ledger count from FAISS for F1 (manipulation-resistance
+    ground-truth corpus) context.
+
+    FIX-E (Gap 18): the registry now mirrors Whitepaper Part 13 "Complete
+    Falsifiability Table" verbatim. The previous WP2 §20 mapping (which
+    elevated BRT-gas-correlation to F14 and REGULATORY_BEHAVIORAL-24-month
+    to F15 as CONJECTUREs) has been retired.
     """
     if not _falsifiability_ok:
         return jsonify({"error": "falsifiability module unavailable"}), 503
@@ -3876,8 +3898,7 @@ def governance_falsifiability():
             "faiss_vectors":     live_vector_count,
             "tracked_entities":  live_entities,
             "note": (
-                "Live BH count informs F3 (C(t) underperformance accumulation), "
-                "F9 (information conservation operations), and F15 (rank stability corpus). "
+                "Live BH count informs F1 (manipulation-resistance ground-truth corpus). "
                 "Conditions with sample_size=0 are accumulating data — not failures."
             ),
         },
@@ -3952,51 +3973,141 @@ def bootstrap_status():
 def sba_signal(nation_id: str):
     """
     L8.1: Sovereign Behavioral Assessment.
-    SBA(nation) = 0.25·E + 0.25·I + 0.20·S + 0.15·G + 0.15·C
-    Compares stated sovereign behavior to onchain observable signals.
+    SBA(nation) = 0.30·E + 0.25·I + 0.20·S + 0.15·G + 0.10·C
+
+    FIX-G (Live Data Feeds): SBA now consumes real external sovereign data:
+      - IMF DataMapper  → E_economic_regularity, C_currency_alignment, I_institutional_integrity
+      - World Bank WGI   → G_geopolitical_coherence, S_signaling_credibility
+
+    Each feed caches for 5 minutes (TTL) and falls back to honestly-disclosed
+    synthetic values when its upstream API is unreachable. The response always
+    carries `is_synthetic` (true/false) and `synthetic_reason` disclosing
+    exactly which feeds fell back. Provenance: per-component evidence with
+    raw IMF/WB values and the year fetched, plus the full indicator panel in
+    `live_feed_provenance`.
     """
     if not _sba_ok:
         return jsonify({"error": "SBA module unavailable"}), 503
 
-    import hashlib as _hl
-    h = _hl.sha3_256(nation_id.encode()).digest()
+    # ── 1. Fetch live IMF + World Bank components (5-min cached) ───────────
+    imf = _imf_sba(nation_id) if _imf_feed_ok else None
+    wb  = _wb_sba(nation_id)  if _wb_feed_ok  else None
 
-    def _seed(offset: int, low: float = 0.3, high: float = 0.9) -> float:
-        return round(low + (high - low) * (h[offset % len(h)] / 255.0), 4)
+    # If a feed module import failed at startup, treat as synthetic with reason.
+    if imf is None:
+        imf_synthetic = True
+        imf_reason = "IMF feed module unavailable (import failed at startup)"
+        imf_components = {}
+        imf_indicators = {}
+        imf_sources_ok, imf_sources_failed = [], []
+    else:
+        imf_synthetic = bool(imf.get("is_synthetic"))
+        imf_reason = imf.get("synthetic_reason", "")
+        imf_components = imf.get("components", {})
+        imf_indicators = imf.get("indicators", {})
+        imf_sources_ok = imf.get("sources_ok", [])
+        imf_sources_failed = imf.get("sources_failed", [])
 
-    # ── Map the synthetic hash-derived nation profile onto the canonical
-    # sba_from_raw_data signature.  Audit Fix #6: the previous call passed
-    # mismatched kwargs (gdp_stated, signal_accuracy, geopolitical_entropy,
-    # stablecoin_flow_bias, …) that do not exist on sba_from_raw_data,
-    # producing a TypeError and a 500 on every /api/v1/sba/<nation_id> hit.
-    cross_border_capital_flow = [_seed(i, 0.01, 0.05) for i in range(5)]   # E axis
-    gov_wallet_consistency_90d = [_seed(i + 5, 0.55, 0.95) for i in range(5)]  # G axis
-    policy_alignment_scores   = [_seed(i + 10, 0.50, 0.95) for i in range(5)]  # I axis
-    trade_balance_trend        = round(-0.20 + 0.60 * (h[15] / 255.0), 4)  # ∈ [-0.20, +0.40]
-    stablecoin_adoption        = _seed(16, 0.25, 0.80)                     # E axis
-    nl_domestic_defi           = _seed(17, 0.30, 0.80)                     # S axis
-    ep_domestic_protocols      = _seed(18, 0.20, 0.75)                     # S axis
-    citizen_wallet_activity    = _seed(19, 0.30, 0.80)                     # S axis
-    foreign_capital_inflow     = round(0.5e6 + 4.5e6 * (h[20] / 255.0), 2)  # C axis
-    foreign_capital_outflow    = round(0.4e6 + 3.0e6 * (h[21] / 255.0), 2)  # C axis
+    if wb is None:
+        wb_synthetic = True
+        wb_reason = "World Bank feed module unavailable (import failed at startup)"
+        wb_components = {}
+        wb_indicators = {}
+        wb_sources_ok, wb_sources_failed = [], []
+    else:
+        wb_synthetic = bool(wb.get("is_synthetic"))
+        wb_reason = wb.get("synthetic_reason", "")
+        wb_components = wb.get("components", {})
+        wb_indicators = wb.get("indicators", {})
+        wb_sources_ok = wb.get("sources_ok", [])
+        wb_sources_failed = wb.get("sources_failed", [])
 
-    result = sba_from_raw_data(
-        nation_id                  = nation_id,
-        cross_border_capital_flow  = cross_border_capital_flow,
-        trade_balance_trend        = trade_balance_trend,
-        stablecoin_adoption         = stablecoin_adoption,
-        policy_alignment_scores    = policy_alignment_scores,
-        nl_domestic_defi           = nl_domestic_defi,
-        ep_domestic_protocols      = ep_domestic_protocols,
-        citizen_wallet_activity    = citizen_wallet_activity,
-        gov_wallet_consistency_90d = gov_wallet_consistency_90d,
-        foreign_capital_inflow     = foreign_capital_inflow,
-        foreign_capital_outflow    = foreign_capital_outflow,
+    # ── 2. Pull per-component scores (with neutral 0.5 fallback per feed) ─
+    e_score = imf_components.get("E_economic_regularity", {}).get("score", 0.5)
+    c_score = imf_components.get("C_currency_alignment",  {}).get("score", 0.5)
+    i_score = imf_components.get("I_institutional_integrity", {}).get("score", 0.5)
+    g_score = wb_components.get("G_geopolitical_coherence", {}).get("score", 0.5)
+    s_score = wb_components.get("S_signaling_credibility",  {}).get("score", 0.5)
+
+    # ── 3. Compute canonical SBA via the spec formula engine ──────────────
+    data_sources_provenance: List[str] = []
+    if imf_sources_ok:
+        data_sources_provenance.append(
+            f"imf-datamapper://{'|'.join(imf_sources_ok)}/country={nation_id}"
+        )
+    if wb_sources_ok:
+        data_sources_provenance.append(
+            f"worldbank-wgi://{'|'.join(wb_sources_ok)}/country={nation_id}"
+        )
+    if not data_sources_provenance:
+        data_sources_provenance = [
+            "fallback://hash-derived-synthetic (IMF and WB both unreachable)"
+        ]
+
+    result = compute_sba(
+        nation_id               = nation_id,
+        e_score                 = e_score,
+        i_score                 = i_score,
+        s_score                 = s_score,
+        g_score                 = g_score,
+        c_score                 = c_score,
+        cultural_context_vector = {"nation_id": nation_id},
+        data_sources            = data_sources_provenance,
     )
-    result["is_synthetic"] = True
-    result["synthetic_reason"] = ("SBA formula engine is real; inputs (GDP, policy alignment, "
-                                   "signal accuracy) are deterministic hash-derived demo values, not sovereign data feeds.")
-    result["f10_note"] = "F10: SBA validation requires 90-day credit spread alignment data. Currently MONITORING."
+
+    # ── 4. Live-feed honest disclosure ────────────────────────────────────
+    # is_synthetic is TRUE only when BOTH feeds fell back. Partial feeds
+    # (one OK, one failed) are flagged via partial_synthetic_feeds so the
+    # caller knows real data was used where available.
+    fully_synthetic = imf_synthetic and wb_synthetic
+    partial_synthetic = (not fully_synthetic) and (imf_synthetic or wb_synthetic)
+
+    reasons: List[str] = []
+    if imf_synthetic and imf_reason:
+        reasons.append(f"IMF: {imf_reason}")
+    if wb_synthetic and wb_reason:
+        reasons.append(f"WorldBank: {wb_reason}")
+    synthetic_reason = " | ".join(reasons) if reasons else (
+        "All 5 SBA components computed from real IMF DataMapper + World Bank WGI live data."
+    )
+
+    result["is_synthetic"] = fully_synthetic
+    result["partial_synthetic"] = partial_synthetic
+    result["synthetic_reason"] = synthetic_reason
+    result["feed_status"] = {
+        "imf": {
+            "is_synthetic":     imf_synthetic,
+            "sources_ok":       imf_sources_ok,
+            "sources_failed":   imf_sources_failed,
+        },
+        "worldbank": {
+            "is_synthetic":     wb_synthetic,
+            "sources_ok":       wb_sources_ok,
+            "sources_failed":   wb_sources_failed,
+        },
+    }
+    # Per-component evidence: raw IMF/WB values, latest year, formula applied
+    result["component_evidence"] = {
+        "E_economic_regularity":     imf_components.get("E_economic_regularity", {}).get("evidence", {}),
+        "I_institutional_integrity": imf_components.get("I_institutional_integrity", {}).get("evidence", {}),
+        "C_currency_alignment":      imf_components.get("C_currency_alignment", {}).get("evidence", {}),
+        "G_geopolitical_coherence": wb_components.get("G_geopolitical_coherence", {}).get("evidence", {}),
+        "S_signaling_credibility":  wb_components.get("S_signaling_credibility",  {}).get("evidence", {}),
+    }
+    result["live_feed_provenance"] = {
+        "imf":       imf_indicators,
+        "worldbank": wb_indicators,
+        "fetched_at": {
+            "imf":       imf.get("fetched_at") if imf else None,
+            "worldbank": wb.get("fetched_at")  if wb  else None,
+        },
+        "cache_ttl_seconds": 300,
+    }
+    result["f10_note"] = (
+        "F10: SBA now backed by real IMF + World Bank WGI data (FIX-G). "
+        "90-day credit spread alignment still MONITORING — that requires "
+        "sovereign CDS / bond-yield time-series not yet wired."
+    )
     result["timestamp"] = int(time.time())
     return jsonify(result)
 
@@ -4288,6 +4399,45 @@ def slashing_file():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
+    # FIX-D (Gap 13): Wire slashing_log INSERT path. Per the audit (worklog
+    # FINAL-VERDICT gap #13), `slashing_log` was a deploy-only DDL table with
+    # no in-tree writer. Now: every filed accusation persists a row in the
+    # TimescaleDB audit-trail hypertable. The slash_amount is 0 here (Step 1
+    # is "evidence only" — actual stake slashing happens at Step 6); the
+    # event is recorded so the audit trail is complete end-to-end.
+    slash_log_result = None
+    if _slashing_log_ok:
+        try:
+            # Synthesize the validator_id bytes from the accused string.
+            # At mainnet this is the validator's BEO_ID (32-byte SHA3-256
+            # of the canonical address); we use SHA3-256 here as the
+            # canonical BEO normalisation (see core/akashic/beo_resolver).
+            _v_id = hashlib.sha3_256(accused.encode()).digest()
+            _r_by = hashlib.sha3_256(accuser.encode()).digest()
+            _gk   = hashlib.sha3_256(
+                f"gk:{case.case_id}:{int(time.time())}".encode()
+            ).digest()
+            slash_log_result = _record_slashing(
+                validator_id       = _v_id,
+                slash_reason       = cond.value,
+                slash_amount_wei   = 0,           # Step 1 = evidence only
+                dispute_evidence   = {
+                    "case_id":              case.case_id,
+                    "accuser_id":           accuser,
+                    "accused_id":           accused,
+                    "total_eligible_stake": stake,
+                    "evidence_deadline":    int(case.evidence_deadline),
+                    "step":                 1,
+                    "evidence_only":        True,
+                    "provenance":           "caller_declared_unauthenticated",
+                },
+                resolved_by        = _r_by,
+                gk_hash_at_slash   = _gk,
+                case_id            = case.case_id,
+            )
+        except Exception as _e:
+            slash_log_result = {"ok": False, "reason": str(_e)}
+
     return jsonify({
         "case_id":           case.case_id,
         "accused_id":        accused,
@@ -4297,6 +4447,7 @@ def slashing_file():
         "evidence_deadline": int(case.evidence_deadline),
         "next_step":         "Submit evidence within 48h, then call /api/v1/governance/slashing/case/<case_id>",
         "evidence_only":     True,
+        "slash_log":         slash_log_result,
         "provenance": {
             "accuser_id":             "caller_declared_unauthenticated",
             "total_eligible_stake":   "caller_declared_unverified",
@@ -8549,91 +8700,246 @@ def convergence_theorem(entity_id: str):
 
 
 # ── L2.6 Fork Resolution Protocol ────────────────────────────────────────────
+@app.route("/api/v1/fork_resolution", methods=["POST"])
+def fork_resolution_post():
+    """
+    L2.6 Fork Resolution Protocol — POST canonical asymmetric-dominance rule.
+
+    specification L2.6 — History inheritance:
+        CC_A = proportion of pre-fork holders still holding fork A
+        CC_B = proportion of pre-fork holders still holding fork B
+
+        If CC_A > DOMINANCE_THRESHOLD (0.60) AND CC_A > CC_B:
+            w_A = 1.0                       (full D_inherited)
+            w_B = 1.0 - CC_A                (confidence-discounted share)
+        If CC_B > DOMINANCE_THRESHOLD (0.60) AND CC_B > CC_A:
+            w_B = 1.0
+            w_A = 1.0 - CC_B
+        If neither dominant (CC_A ≈ CC_B):
+            w_A = w_B = 0.5
+            divergence_flag = True          (disputed history inheritance)
+
+    This delegates to the canonical core.akashic.fork_resolution implementation
+    used by the FAISS service on port 8000 — removing the legacy ratio-based
+    split (D_A = D_pre · CC_A / (CC_A + CC_B)) that previously diverged from
+    the spec on this port.
+    """
+    from core.akashic.fork_resolution import (
+        DOMINANCE_THRESHOLD, ForkProfile, PreForkHolder, compute_fork_resolution,
+    )
+
+    body = request.get_json(silent=True) or {}
+    entity_a = (body.get("entity_a") or "").strip()
+    entity_b = (body.get("entity_b") or "").strip()
+    if not entity_a or not entity_b:
+        return jsonify({
+            "error": "entity_a and entity_b are required",
+            "specification": "L2.6",
+        }), 400
+
+    cc_a = body.get("cc_a")
+    cc_b = body.get("cc_b")
+
+    # If CC values are provided, route through the canonical compute_fork_resolution
+    # which enforces the asymmetric dominance rule with DOMINANCE_THRESHOLD=0.60.
+    if cc_a is not None and cc_b is not None:
+        try:
+            cc_a = float(cc_a)
+            cc_b = float(cc_b)
+        except (TypeError, ValueError):
+            return jsonify({"error": "cc_a and cc_b must be numeric"}), 400
+        if not (0.0 <= cc_a <= 1.0) or not (0.0 <= cc_b <= 1.0):
+            return jsonify({"error": "cc_a and cc_b must be in [0,1]"}), 400
+
+        # Synthesise a minimal holder profile that yields the requested CC_A/CC_B.
+        # compute_fork_resolution classifies a holder as "retained on chain X"
+        # if post_fork_X >= balance_threshold × pre_fork_balance (default 10%).
+        # n=100 holders, cc_a·n hold chain A only, cc_b·n hold chain B only,
+        # remainder hold neither.
+        n = 100
+        n_a = int(round(cc_a * n))
+        n_b = int(round(cc_b * n))
+        holders = []
+        for i in range(n_a):
+            holders.append(PreForkHolder(f"h_a_{i}", 100.0, 100.0, 0.0))
+        for i in range(n_b):
+            holders.append(PreForkHolder(f"h_b_{i}", 100.0, 0.0, 100.0))
+        for i in range(n - n_a - n_b):
+            holders.append(PreForkHolder(f"h_x_{i}", 100.0, 0.0, 0.0))
+
+        profile = ForkProfile(
+            fork_id           = f"fork_{entity_a}_{entity_b}",
+            chain_a_id        = entity_a,
+            chain_b_id        = entity_b,
+            fork_block        = 0,
+            fork_timestamp    = time.time(),
+            pre_fork_holders  = holders,
+            description       = f"Canonical L2.6 fork resolution for {entity_a} vs {entity_b}",
+        )
+        result = compute_fork_resolution(profile)
+        return jsonify({
+            "entity_a":              entity_a,
+            "entity_b":              entity_b,
+            "cc_a":                  round(result.cc_a, 6),
+            "cc_b":                  round(result.cc_b, 6),
+            "history_weight_a":      round(result.history_weight_a, 6),
+            "history_weight_b":      round(result.history_weight_b, 6),
+            "confidence_discount_a": round(result.confidence_discount_a, 6),
+            "confidence_discount_b": round(result.confidence_discount_b, 6),
+            "dominant_chain":        result.dominant_chain,
+            "divergence_flag":       result.divergence_flag,
+            "contested":             result.contested,
+            "holders_retained_a":    result.holders_retained_a,
+            "holders_retained_b":    result.holders_retained_b,
+            "holders_split":         result.holders_split,
+            "holder_count_pre_fork": result.holder_count_pre_fork,
+            "signal_type":           result.signal_type,
+            "canonical_branch":      result.dominant_chain if not result.divergence_flag else "DIVERGENT",
+            "depth_inheritance":      {
+                "entity_a": round(result.history_weight_a, 6),
+                "entity_b": round(result.history_weight_b, 6),
+            },
+            "resolution_method":     "holder_continuity",
+            "dominance_threshold":    DOMINANCE_THRESHOLD,
+            "warning":                result.warning,
+            "formula":                "If CC_X > 0.60 AND CC_X > CC_Y: w_X=1.0, w_Y=1-CC_X; else w_A=w_B=0.5, divergence_flag=True",
+            "canonical_function":     "core.akashic.fork_resolution.compute_fork_resolution",
+            "specification":          "L2.6",
+            "timestamp":              int(time.time()),
+        })
+
+    # No CC values supplied — fallback to depth comparison (mirrors port 8000).
+    try:
+        depth_d_a, _ = _proxy_faiss(f"/api/v1/depth/{entity_a}")
+        depth_a = float(depth_d_a.get("akashic_depth", 0.0)) if isinstance(depth_d_a, dict) else 0.0
+    except Exception:
+        depth_a = 0.0
+    try:
+        depth_d_b, _ = _proxy_faiss(f"/api/v1/depth/{entity_b}")
+        depth_b = float(depth_d_b.get("akashic_depth", 0.0)) if isinstance(depth_d_b, dict) else 0.0
+    except Exception:
+        depth_b = 0.0
+    if depth_a == depth_b == 0.0:
+        winner = "INDETERMINATE"
+    elif depth_a >= depth_b:
+        winner = entity_a
+    else:
+        winner = entity_b
+    return jsonify({
+        "entity_a":           entity_a,
+        "entity_b":           entity_b,
+        "depth_a":             round(depth_a, 6),
+        "depth_b":             round(depth_b, 6),
+        "canonical_branch":   winner,
+        "depth_inheritance":  {"entity_a": 1.0, "entity_b": 1.0},
+        "divergence_flag":    False,
+        "resolution_method": "depth_comparison",
+        "dominance_threshold": DOMINANCE_THRESHOLD,
+        "formula":             "depth_a vs depth_b (CC values not supplied)",
+        "canonical_function": "core.akashic.fork_resolution.compute_fork_resolution",
+        "specification":      "L2.6",
+        "timestamp":          int(time.time()),
+    })
+
+
 @app.route("/api/v1/fork_resolution/<entity_id>")
 def fork_resolution(entity_id: str):
     """
-    L2.6 Fork Resolution Protocol
+    L2.6 Fork Resolution Protocol (legacy GET path — entity_id synthesises a fork).
 
-    At fork_block: both forks inherit identical pre-fork Akashic history.
-    CC_A = proportion of pre-fork holders still holding fork A
-    CC_B = proportion of pre-fork holders still holding fork B
+    specification L2.6 — Asymmetric dominance inheritance rule:
+        If CC_A > DOMINANCE_THRESHOLD (0.60) AND CC_A > CC_B:
+            w_A = 1.0                       (full D_inherited)
+            w_B = 1.0 - CC_A                (confidence-discounted share)
+        If CC_B > DOMINANCE_THRESHOLD (0.60) AND CC_B > CC_A:
+            w_B = 1.0
+            w_A = 1.0 - CC_B
+        Else (CC_A ≈ CC_B):
+            w_A = w_B = 0.5
+            divergence_flag = True          (disputed history inheritance)
 
-    Fork inheritance weights based on community continuity:
-    D_A(t) = D_pre · CC_A / (CC_A + CC_B)
-    D_B(t) = D_pre · CC_B / (CC_A + CC_B)
-
-    Edge case: if CC_A ≈ CC_B → both get D_inherited × 0.5 with divergence_flag=TRUE
-    FORK_DIVERGENCE signal emitted on both branches immediately.
+    Delegates to the canonical core.akashic.fork_resolution.compute_fork_resolution
+    (the same function used by the FAISS service on port 8000). Previously this
+    endpoint used the ratio formula D_A = D_pre · CC_A / (CC_A + CC_B), which
+    violates the spec's asymmetric dominance rule (AUDIT-L2 L2.6 gap).
     """
     if not entity_id or len(entity_id) < 4:
         return jsonify({"error": "invalid entity_id"}), 400
 
-    import random
-    h   = hashlib.sha3_256(entity_id.encode()).digest()
-    rng = random.Random(int.from_bytes(h[:4], "big"))
+    from core.akashic.fork_resolution import (
+        DOMINANCE_THRESHOLD, ForkProfile, PreForkHolder, compute_fork_resolution,
+    )
 
-    depth_pre   = round(5000.0 + 2000.0 * (h[0] / 255.0), 2)
-    fork_block  = int(1e7 + (h[1] / 255.0) * 5e7)
-    current_block = fork_block + int((h[2] / 255.0) * 500000)
+    h = hashlib.sha3_256(entity_id.encode()).digest()
 
-    # CC_A and CC_B — community continuity fractions
-    cc_a = round(rng.uniform(0.30, 0.85), 4)
-    cc_b = round(1.0 - cc_a + rng.gauss(0, 0.05), 4)
-    cc_b = max(0.10, min(0.90, cc_b))
+    # Synthesise a holder profile whose CC_A / CC_B are derived deterministically
+    # from entity_id. n=100 holders; holder i retains chain A if frac_a(i) > 0.5
+    # (else chain B). frac_a(i) is driven by hash bytes so CC_A varies across
+    # the [0.10, 0.90] range as a function of entity_id.
+    n_holders = 100
+    target_cc_a = 0.20 + (h[0] / 255.0) * 0.60   # [0.20, 0.80]
+    n_a = int(round(target_cc_a * n_holders))
+    holders = []
+    for i in range(n_holders):
+        pre = 100.0
+        if i < n_a:
+            holders.append(PreForkHolder(f"h_{entity_id}_{i}", pre, pre * 0.95, pre * 0.05))
+        else:
+            holders.append(PreForkHolder(f"h_{entity_id}_{i}", pre, pre * 0.05, pre * 0.95))
 
-    cc_total = cc_a + cc_b
-    cc_a_norm = cc_a / cc_total
-    cc_b_norm = cc_b / cc_total
+    profile = ForkProfile(
+        fork_id           = f"fork_{entity_id}",
+        chain_a_id        = entity_id,
+        chain_b_id        = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40],
+        fork_block        = int(1e7 + (h[1] / 255.0) * 5e7),
+        fork_timestamp    = time.time(),
+        pre_fork_holders  = holders,
+        description       = f"Synthetic L2.6 fork for {entity_id}",
+    )
+    result = compute_fork_resolution(profile)
 
-    # Divergence flag: |CC_A - CC_B| < 0.10
-    EPSILON_CC       = 0.10
-    divergence_flag  = abs(cc_a - cc_b) < EPSILON_CC
-
-    if divergence_flag:
-        d_a = round(depth_pre * 0.50, 2)
-        d_b = round(depth_pre * 0.50, 2)
-    else:
-        d_a = round(depth_pre * cc_a_norm, 2)
-        d_b = round(depth_pre * cc_b_norm, 2)
-
-    # Fork KL divergence from entity's current state
-    kl_div = round(rng.uniform(0.05, 0.85), 4)
-
-    # Classify dominant fork (> 60% community support)
-    dominant = "A" if (cc_a > 0.60) else ("B" if cc_b > 0.60 else "CONTESTED")
-
-    entity_b = "0x" + hashlib.sha3_256((entity_id + "_fork_b").encode()).hexdigest()[:40]
+    depth_pre = round(5000.0 + 2000.0 * (h[0] / 255.0), 2)
+    d_a = round(depth_pre * result.history_weight_a, 2)
+    d_b = round(depth_pre * result.history_weight_b, 2)
 
     return jsonify({
-        "entity_id":       entity_id,
-        "fork_a":          entity_id,
-        "fork_b":          entity_b,
-        "fork_block":      fork_block,
-        "blocks_since_fork": current_block - fork_block,
-        "D_pre_fork":      depth_pre,
-        "CC_A":            cc_a,
-        "CC_B":            cc_b,
-        "D_A":             d_a,
-        "D_B":             d_b,
-        "divergence_flag": divergence_flag,
-        "dominant_fork":   dominant,
-        "kl_divergence":   kl_div,
-        "is_synthetic": True,
+        "entity_id":              entity_id,
+        "fork_a":                 result.chain_a_id,
+        "fork_b":                 result.chain_b_id,
+        "fork_block":             profile.fork_block,
+        "blocks_since_fork":     int((h[2] / 255.0) * 500000),
+        "D_pre_fork":             depth_pre,
+        "CC_A":                   round(result.cc_a, 6),
+        "CC_B":                   round(result.cc_b, 6),
+        "history_weight_a":      round(result.history_weight_a, 6),
+        "history_weight_b":      round(result.history_weight_b, 6),
+        "D_A":                    d_a,
+        "D_B":                    d_b,
+        "divergence_flag":       result.divergence_flag,
+        "dominant_fork":          result.dominant_chain,
+        "confidence_discount_a": round(result.confidence_discount_a, 6),
+        "confidence_discount_b": round(result.confidence_discount_b, 6),
+        "is_synthetic":          True,
         "synthetic_reason": (
-            "simulated fork: CC_A/CC_B, fork block and KL divergence are RNG-seeded from sha3-256(entity_id); not a real fork event."
+            "simulated fork: pre-fork holder profile RNG-seeded from sha3-256(entity_id); "
+            "CC_A/CC_B and inheritance weights computed by the canonical "
+            "core.akashic.fork_resolution.compute_fork_resolution (DOMINANCE_THRESHOLD=0.60)."
         ),
         "signal": {
-            "type":        "FORK_DIVERGENCE",
-            "fork_a_signal": round(d_a / depth_pre, 4),
-            "fork_b_signal": round(d_b / depth_pre, 4),
-            "recommended_action": ("FOLLOW_A" if dominant == "A" else
-                                   "FOLLOW_B" if dominant == "B" else
+            "type":                result.signal_type,
+            "fork_a_signal":       round(result.history_weight_a, 4),
+            "fork_b_signal":       round(result.history_weight_b, 4),
+            "recommended_action": ("FOLLOW_A" if result.dominant_chain == result.chain_a_id and not result.divergence_flag else
+                                   "FOLLOW_B" if result.dominant_chain == result.chain_b_id and not result.divergence_flag else
                                    "AWAIT_RESOLUTION"),
         },
-        "formula": "D_A=D_pre·CC_A/(CC_A+CC_B); D_B=D_pre·CC_B/(CC_A+CC_B)",
-        "edge_case": "If |CC_A-CC_B|<ε: both inherit D_pre×0.5; divergence_flag=TRUE",
-        "specification": "L2.6",
-        "timestamp":  int(time.time()),
+        "formula":                "If CC_X > 0.60 AND CC_X > CC_Y: w_X=1.0, w_Y=1-CC_X; else w_A=w_B=0.5, divergence_flag=True",
+        "canonical_function":     "core.akashic.fork_resolution.compute_fork_resolution",
+        "dominance_threshold":    DOMINANCE_THRESHOLD,
+        "edge_case":              "If neither CC > DOMINANCE_THRESHOLD: both inherit D_pre×0.5; divergence_flag=TRUE",
+        "warning":                result.warning,
+        "specification":          "L2.6",
+        "timestamp":              int(time.time()),
     })
 
 
