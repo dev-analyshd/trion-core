@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS merkle_roots (
 
 -- ── L6.2 Biological Rhythm Memory ────────────────────────────────────────────
 -- Correlates market behavior with Circadian / Lunar / Seasonal phases.
--- operative-writer: NONE — deploy-only DDL (faiss_service serves in-memory /api/v1/biological_rhythm; no persistence)
+-- operative-writer: INSERT in core/extended/biological_rhythm_writer.py (Gap 16: biological rhythm writer)
 CREATE TABLE IF NOT EXISTS biological_rhythm (
     time                TIMESTAMPTZ      NOT NULL,
     circadian_phase     TEXT             NOT NULL, -- DAWN/MORNING/AFTERNOON/EVENING/NIGHT

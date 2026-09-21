@@ -182,14 +182,15 @@ def test_the_audited_deploy_only_set_is_exact():
     Gap 13: slashing_log + validator_coverage also moved NONE → WRITTEN
     (writers at core/governance/db_writers.py — schema markers updated).
     Gap 14/15: merkle_roots moved NONE → WRITTEN (writer at
-    core/akashic/merkle_writer.py — schema marker updated)."""
+    core/akashic/merkle_writer.py — schema marker updated).
+    Gap 16: biological_rhythm moved NONE → WRITTEN (writer at
+    core/extended/biological_rhythm_writer.py — schema marker updated)."""
     none_tables = sorted(t for t, m in parse_schema() if m.startswith("NONE"))
     assert none_tables == [
         "akashic_cold",
         "akashic_warm",
         "archetype_library",
         "behavioral_state_channels",
-        "biological_rhythm",
         "genesis_bootstrap_progress",
         "intent_pool_participants",
         "intent_pools",
@@ -202,11 +203,12 @@ def test_the_audited_deploy_only_set_is_exact():
 
 
 def test_the_written_set_is_exact():
-    """The WRITTEN set is pinned: 12 operative SQLite mirrors + 9 tsdb tables.
+    """The WRITTEN set is pinned: 12 operative SQLite mirrors + 10 tsdb tables.
 
     FIX-E (Gap 19): mf_evidence_log added (writer: core/physical/manipulation_detector.py).
     Gap 13: slashing_log + validator_coverage added (writers: core/governance/db_writers.py).
     Gap 14/15: merkle_roots added (writer: core/akashic/merkle_writer.py).
+    Gap 16: biological_rhythm added (writer: core/extended/biological_rhythm_writer.py).
     """
     written = sorted(
         t for t, m in parse_schema() if not m.startswith("NONE"))
@@ -215,6 +217,7 @@ def test_the_written_set_is_exact():
         "akashic_vectors",
         "behavioral_events",
         "beo_registry",
+        "biological_rhythm",
         "bitp_clipboard",
         "blo_orders",
         "btcp_certificate_conflicts",

@@ -1,6 +1,6 @@
 """Self-verification monitor auth + env resolution (SEC-01 companion).
 
-The reflexive self-verification monitor (core/physical/transduction_integrity.py,
+The reflexive self-verification monitor (core/physical/self_verification.py,
 exposed by api/self_verification_routes.py) talks to the FAISS ANIMA service:
 
   * its GETs (/api/v1/transduction_integrity, /fitness) and the
@@ -18,6 +18,12 @@ exposed by api/self_verification_routes.py) talks to the FAISS ANIMA service:
     deployment setting FAISS_SERVICE_URL silently left the monitor on the
     default host.
 
+FIX-E (Gap 17b): the module was previously misnamed
+core/physical/transduction_integrity.py (containing self_verification
+content). The rename to core/physical/self_verification.py is reflected
+in the import below; the test assertions are unchanged because the
+public API (helper functions and their signatures) is preserved.
+
 Run: pytest tests/unit/test_self_verification_auth.py -q
 """
 import importlib
@@ -27,7 +33,7 @@ os.environ.setdefault("TRION_STREAMER_INPROCESS", "0")
 
 import pytest  # noqa: E402 — env must be set before the api imports
 
-import core.physical.transduction_integrity as ti  # noqa: E402
+import core.physical.self_verification as ti  # noqa: E402  (FIX-E Gap 17b: renamed from transduction_integrity)
 
 _KEY_VARS = ("FAISS_API_KEY", "FAISS_SERVICE_API_KEY", "TRION_API_KEY")
 

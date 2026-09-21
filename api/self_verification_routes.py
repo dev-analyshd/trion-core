@@ -24,7 +24,12 @@ FAISS_URL = os.environ.get(
 )
 
 try:
-    from core.physical.transduction_integrity import (
+    # FIX-E (Gap 17b): the reflexive self-verification module was previously
+    # misnamed as `core.physical.transduction_integrity`. That filename is
+    # now the canonical L1.4 Transduction Integrity module (re-exporting
+    # compute_transduction_integrity from temporal_coherence). The actual
+    # self-verification code lives in core.physical.self_verification.
+    from core.physical.self_verification import (
         start_self_verification_monitor,
         get_self_status,
         run_self_verification_cycle,
