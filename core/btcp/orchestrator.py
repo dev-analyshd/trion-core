@@ -1197,15 +1197,15 @@ class BTCPOrchestrator:
         sba_score = None
         if sovereign_actor and nation_id:
             try:
-                import urllib.request
-                url = f"http://127.0.0.1:5000/api/v1/sba/{nation_id}"
-                req = urllib.request.Request(url, headers={"X-API-Key": os.environ.get("TRION_API_KEY", "")})
-                with urllib.request.urlopen(req, timeout=5) as resp:
-                    sba_data = json.loads(resp.read().decode())
-                    sba_score = sba_data.get("sba")
-                    if sba_score is not None and sba_score < 0.40:
-                        sovereign_risk_flag = True
-                        errors.append(f"SOVEREIGN_RISK: SBA={sba_score:.4f} < 0.40 threshold for {nation_id}")
+                # BTCP-FIX2-INT Fix 4: call the SBA module directly (not via
+                # HTTP) to avoid the self-referential timeout when the Oracle
+                # is handling this request. Uses the World Bank feed module.
+                from core.physical.worldbank_feed import compute_sba_components as _sba
+                sba_result = _sba(nation_id)
+                sba_score = sba_result.get("sba_score")
+                if sba_score is not None and sba_score < 0.40:
+                    sovereign_risk_flag = True
+                    errors.append(f"SOVEREIGN_RISK: SBA={sba_score:.4f} < 0.40 threshold for {nation_id}")
             except Exception as e:
                 errors.append(f"SBA check failed for {nation_id}: {str(e)[:60]}")
         
@@ -1472,6 +1472,8 @@ class BTCPOrchestrator:
             self._write_btcp_bh_to_akashic(route)
             # ── BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) ──
             self._trigger_anima_reflexivity(route)
+            # ── BTCP-FIX2-INT Fix 3: write token economics (§15.2 revenue) ──
+            self._write_token_economics(route)
             # BTCP-FIX2-INT Fix 3 — `auto_finalize=true` should actually
             # finalize the route: transition PROOFS_GENERATED → COMPLETED
             # so that _record_route_status fires (validator pool payout +
@@ -1658,6 +1660,39 @@ class BTCPOrchestrator:
             conn.close()
         except Exception as e:
             _log.warning("BTCP BH writeback failed: %s", str(e)[:200])
+
+    def _write_token_economics(self, route: 'BTCPRoute') -> None:
+        """BTCP-FIX2-INT Fix 3: write BTCP route reward to TimescaleDB
+        trion_token_economics table. Increments routes_this_epoch and
+        rewarded_routes so the BTCP fee revenue flows into the TRION
+        token economics loop (§15.2 revenue model)."""
+        try:
+            import psycopg2 as _pg
+            from datetime import datetime, timezone as _tz
+            tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
+            if not tsdb_url:
+                return
+            conn = _pg.connect(tsdb_url, connect_timeout=5)
+            cur = conn.cursor()
+            now_dt = datetime.now(_tz.utc)
+            # Increment routes_this_epoch and rewarded_routes for the current epoch
+            cur.execute("""
+                UPDATE trion_token_economics
+                SET routes_this_epoch = routes_this_epoch + 1,
+                    rewarded_routes = rewarded_routes + %s,
+                    avg_btcp_score = (avg_btcp_score * routes_this_epoch + %s) / (routes_this_epoch + 1),
+                    recorded_at = %s
+                WHERE epoch = (SELECT MAX(epoch) FROM trion_token_economics)
+            """, (
+                float(route.intent.amount) * 0.001,  # 0.1% fee = BTCP_ROUTE_FEE_RATE
+                float(route.btcp_score),
+                now_dt,
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            _log.warning("Token economics writeback failed: %s", str(e)[:200])
 
     def _trigger_anima_reflexivity(self, route: 'BTCPRoute') -> None:
         """BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) after
