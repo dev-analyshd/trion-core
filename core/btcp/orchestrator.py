@@ -157,6 +157,11 @@ class OrchestrationResult:
     proofs_generated: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     execution_time_ms: float = 0.0
+    # BTCP-FIX2-ZK Fix 2 — per-step results keyed by the spec's 6-step IDs
+    # (1_bibl_analysis, 2_btcp_score, 3_cross_chain_proof, 4_vm_translation,
+    # 5_iap_gas_sharing, 6_akashic_recording). Surfaced in the API response
+    # via /api/v1/btcp/orchestrate's spec_steps dict.
+    step_results: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -165,6 +170,7 @@ class OrchestrationResult:
             "proofs_generated": self.proofs_generated,
             "errors": self.errors,
             "execution_time_ms": round(self.execution_time_ms, 2),
+            "step_results": dict(self.step_results),
         }
 
 
@@ -994,27 +1000,50 @@ class BTCPOrchestrator:
                 total_reward, is_anchor=True)
             exec_leg = _FEE_CALCULATOR.compute_btcp_route_reward(
                 total_reward, is_anchor=False)
+            # Idempotency probe BEFORE the SQLite write: route_reward_exists
+            # returns True if the (epoch, pool, route_id) row is already
+            # there. The fresh-write flag drives the TimescaleDB
+            # trion_token_economics increment below (BTCP-FIX2-INT Fix 3)
+            # so a supervisor-replayed route finalization does not
+            # double-count the per-epoch aggregate.
+            anchor_pool = f"anchor_pool:{intent.source_chain}"
+            exec_pool   = f"execution_pool:{intent.dest_chain}"
+            anchor_existed = False
+            exec_existed   = False
+            try:
+                anchor_existed = self._store.route_reward_exists(
+                    epoch, anchor_pool, route.route_id,
+                )
+                exec_existed = self._store.route_reward_exists(
+                    epoch, exec_pool, route.route_id,
+                )
+            except Exception:
+                pass  # older store without the helper — treat as fresh
             self._store.record_route_reward(
-                epoch, f"anchor_pool:{intent.source_chain}",
+                epoch, anchor_pool,
                 route.route_id, anchor_leg,
             )
             self._store.record_route_reward(
-                epoch, f"execution_pool:{intent.dest_chain}",
+                epoch, exec_pool,
                 route.route_id, exec_leg,
             )
-            # BTCP-FIX2-INT Fix 3 — also write the route reward through to the
-            # TimescaleDB trion_token_economics table (per-epoch aggregator).
-            # Previously this table was `operative-writer: NONE` (schema.sql
-            # line 635) — SQLite was the only path (BTCP-DEEP-5 connection
-            #14). Now each finalized BTCP route increments routes_this_epoch,
-            # intents_this_epoch, and adds the route reward to
-            # rewarded_routes + rewarded_validators for the current epoch.
-            self._record_token_economics(
-                route=route, epoch=epoch,
-                total_reward=total_reward,
-                anchor_leg=anchor_leg, exec_leg=exec_leg,
-                now=now,
-            )
+            # BTCP-FIX2-INT Fix 3 — also write the route reward through to
+            # the TimescaleDB trion_token_economics table (per-epoch
+            # aggregator). Previously this table was `operative-writer:
+            # NONE` (schema.sql line 635) — SQLite was the only path
+            # (BTCP-DEEP-5 connection #14). Now each freshly-finalized BTCP
+            # route increments routes_this_epoch, intents_this_epoch, and
+            # adds the route reward to rewarded_routes + rewarded_validators
+            # for the current epoch. Replays (anchor_existed and
+            # exec_existed) skip the increment — SQLite already had the
+            # row, so we must not double-count.
+            if not (anchor_existed and exec_existed):
+                self._record_token_economics(
+                    route=route, epoch=epoch,
+                    total_reward=total_reward,
+                    anchor_leg=anchor_leg, exec_leg=exec_leg,
+                    now=now,
+                )
 
     def _record_token_economics(
         self,
@@ -1038,45 +1067,16 @@ class BTCPOrchestrator:
         table had `operative-writer: NONE` — every finalized route paid
         SQLite only, leaving the TRION token-economics aggregator stale.
 
-        Idempotency: this is an UPSERT — ``ON CONFLICT (epoch) DO UPDATE``
-        increments the per-epoch counters and rewrites ``recorded_at``.
-        Replaying the same finalized route is safe because the SQLite
-        ``record_route_reward`` above is itself idempotent per
-        (epoch, pool, route), so callers that replay the route will see
-        the SQLite write succeed but should NOT double-count the
-        TimescaleDB aggregate. To enforce this, the writer checks whether
-        the SQLite reward row already exists for this (epoch, route_id)
-        and skips the TimescaleDB increment when it does.
+        Idempotency: ``_record_route_status`` checks
+        ``route_reward_exists`` BEFORE calling this writer, so a
+        supervisor-replayed route finalization skips this call entirely.
+        Inside this method the UPSERT is ``ON CONFLICT (epoch) DO UPDATE``
+        that increments the per-epoch counters and rewrites ``recorded_at``.
         """
         try:
             import psycopg2 as _pg
             tsdb_url = os.environ.get("TIMESCALEDB_URL", "")
             if not tsdb_url:
-                return
-            # Idempotency: skip if this route's reward already landed in
-            # SQLite for this epoch (record_route_reward is idempotent per
-            # (epoch, pool, route); a no-op there means we already counted
-            # this route's contribution into trion_token_economics).
-            try:
-                anchor_already = self._store.route_reward_exists(
-                    epoch, f"anchor_pool:{route.intent.source_chain}",
-                    route.route_id,
-                )
-                exec_already = self._store.route_reward_exists(
-                    epoch, f"execution_pool:{route.intent.dest_chain}",
-                    route.route_id,
-                )
-            except Exception:
-                # Older store without the helper — be idempotent by
-                # routing the increment through a route-id set check in
-                # the context jsonb instead (see comment below).
-                anchor_already = False
-                exec_already = False
-            if anchor_already and exec_already:
-                _log.debug(
-                    "token_economics: route %s already counted for epoch %d — skipping",
-                    route.route_id, epoch,
-                )
                 return
 
             # Epoch window: UTC day [epoch_start_ts, epoch_end_ts). The
@@ -1237,6 +1237,68 @@ class BTCPOrchestrator:
             if not self.gateway.validate_chain_address(dest_address, dest_chain):
                 errors.append(f"Invalid dest address for chain {dest_chain}")
         
+        # BTCP-FIX2-ZK Fix 2 — Step 1 (cont.): BIBL analyze_intent (spec §4.2 Step 1).
+        # The spec mandates that the Behavioral Inter-Block Layer activate in
+        # the inter-block window to read all integrated chains simultaneously
+        # and produce a BIBLAnalysis (nl_score, gas_forecast, cc_coherence,
+        # beo_state, mf_score, block_capacity, finality_dist) per chain.
+        # Previously Step 1 was address validation only — now it ALSO runs
+        # the BIBL analysis and surfaces the result + classification in
+        # step_results["1_bibl_analysis"] so the API response includes a
+        # real BIBL analysis result (not just the address-validation echo).
+        step_results: Dict[str, Any] = {}
+        bibl_analysis = None
+        try:
+            # Construct a lightweight intent proxy for the BIBL analyzer
+            # (the BTCPIntent is not yet created at this point in the flow
+            # — the BIBL analysis runs BEFORE Step 2's intent creation per
+            # spec §4.2 Step 1 ordering). Duck-typed: BIBL only reads
+            # source_chain, dest_chain, source_address, amount, intent_type.
+            class _BiblIntentProxy:
+                pass
+            proxy = _BiblIntentProxy()
+            proxy.source_chain = source_chain
+            proxy.dest_chain = dest_chain
+            proxy.source_address = source_address
+            proxy.dest_address = dest_address
+            proxy.amount = amount
+            proxy.asset = asset
+            proxy.intent_type = intent_type
+            proxy.deadline = int(time.time()) + deadline_offset
+            proxy.nonce = 0  # not yet assigned; BIBL doesn't depend on nonce
+            
+            from core.btcp.bibl_engine import analyze_intent as _bibl_analyze_intent
+            bibl_analysis = _bibl_analyze_intent(proxy, behavioral_data)
+            step_results["1_bibl_analysis"] = {
+                "status": "executed",
+                "classification": bibl_analysis.classification,
+                "risk_score": round(bibl_analysis.risk_score, 6),
+                "reasons": list(bibl_analysis.reasons),
+                "pattern_match": bibl_analysis.pattern_match,
+                "chain_analysis": {
+                    str(k): v for k, v in bibl_analysis.chain_analysis.items()
+                },
+                "behavioral_signals": dict(bibl_analysis.behavioral_signals),
+                "beo_binding": bibl_analysis.beo_binding,
+                "intent_hash": bibl_analysis.intent_hash,
+                "entity_id": bibl_analysis.entity_id,
+                "spec": "BTCP Master Spec §4.2 Step 1 — BIBL analyze_intent",
+            }
+            # If the BIBL classifies the intent as BLOCKED, surface as an
+            # error so the route does not silently proceed. SUSPICIOUS is
+            # surfaced as a warning (route proceeds; consumer decides).
+            if bibl_analysis.classification == "BLOCKED":
+                errors.append(
+                    f"BIBL analyze_intent BLOCKED the intent (risk_score="
+                    f"{bibl_analysis.risk_score:.2f}): "
+                    f"{'; '.join(bibl_analysis.reasons[:2])}")
+        except Exception as e:
+            step_results["1_bibl_analysis"] = {
+                "status": "failed",
+                "error": f"BIBL analyze_intent raised: {str(e)[:120]}",
+                "spec": "BTCP Master Spec §4.2 Step 1 — BIBL analyze_intent",
+            }
+        
         # Step 2: Create intent
         # INV-008/INV-014: the id mixes the caller's immutable parameters
         # with a random session tag and a process-global monotonic sequence —
@@ -1280,6 +1342,16 @@ class BTCPOrchestrator:
             dest_encoded = ""
             errors.append(f"Dest encoding failed: {str(e)[:80]}")
         
+        # BTCP-FIX2-ZK Fix 2 — Step 4 (spec §4.2 Step 4): VM Translation.
+        step_results["4_vm_translation"] = {
+            "status": "executed",
+            "source_vm": source_vm.name,
+            "dest_vm": dest_vm.name,
+            "source_encoded": bool(source_encoded),
+            "dest_encoded": bool(dest_encoded),
+            "spec": "BTCP Master Spec §4.2 Step 4 — VM Translation Layer",
+        }
+        
         # Step 4: Estimate gas
         try:
             source_gas = self.gateway.estimate_chain_gas(intent, source_chain)
@@ -1313,6 +1385,20 @@ class BTCPOrchestrator:
             proof_names = []
             errors.append(f"Proof generation failed: {str(e)[:80]}")
         
+        # BTCP-FIX2-ZK Fix 2 — Step 3 (spec §4.2 Step 3): Cross-Chain Proof
+        # Construction. The orchestrator produces a per-circuit proof set
+        # (intent_commitment, complementarity, travel_rule,
+        # behavioral_credential, iap_share) — each is a transparent SHA3
+        # commitment (Fix 1) over the witness payload.
+        step_results["3_cross_chain_proof"] = {
+            "status": "executed" if proofs else "deferred",
+            "circuits": list(proofs.keys()) if proofs else [],
+            "proof_count": len(proofs),
+            "proof_type": "transparent_sha3" if proofs else "none",
+            "is_zk": False,  # honest disclosure (Fix 1)
+            "spec": "BTCP Master Spec §4.2 Step 3 — Cross-Chain Proof Construction",
+        }
+        
         # Step 6: Create and track route
         route = BTCPRoute(
             route_id=f"route_{intent_id}",
@@ -1338,6 +1424,23 @@ class BTCPOrchestrator:
         # Weights: 0.25/0.20/0.20/0.15/0.20 (sum=1.0)
         route.btcp_score = self._compute_btcp_score(route)
         self._persist_route(route)  # re-persist with score
+        
+        # BTCP-FIX2-ZK Fix 2 — Step 2 (spec §4.2 Step 2): Optimal Route
+        # Calculation. Surfaces the score + per-component breakdown so the
+        # API response can show which components are real vs bootstrap
+        # (Fix 3 will further enrich this with is_synthetic flags).
+        try:
+            score_breakdown = getattr(route, "_btcp_score_breakdown", {}) or {}
+        except Exception:
+            score_breakdown = {}
+        step_results["2_btcp_score"] = {
+            "status": "executed",
+            "btcp_score": route.btcp_score,
+            "formula": "[0.25·NL + 0.20·norm_gas + 0.20·finality + 0.15·CC + 0.20·BEO] × (1 − MF)",
+            "weights": {"W_NL": 0.25, "W_GAS": 0.20, "W_FIN": 0.20, "W_COH": 0.15, "W_BEO": 0.20},
+            "components": score_breakdown,
+            "spec": "BTCP Master Spec §4.2 Step 2 — Optimal Route Calculation",
+        }
 
         # BTCP gap #7: step 6 is the execution/recording phase — the route's
         # akashic execution records land in the schema.sql btcp_* tables
@@ -1349,11 +1452,49 @@ class BTCPOrchestrator:
         if "iap_share" not in proofs and iap_economics:
             errors.append("IAP share proof was requested but not generated")
 
+        # BTCP-FIX2-ZK Fix 2 — Step 5 (spec §4.2 Step 5): IAP Gas Sharing.
+        # The IAP share proof is generated inside Step 3's proof set; this
+        # step_result surfaces whether it landed + the witness provenance.
+        iap_proof = proofs.get("iap_share") if proofs else None
+        step_results["5_iap_gas_sharing"] = {
+            "status": ("executed" if isinstance(iap_proof, dict)
+                       and iap_proof.get("proof_data") else "deferred"),
+            "iap_economics_supplied": bool(iap_economics),
+            "witness_source": (iap_proof.get("witness_source")
+                               if isinstance(iap_proof, dict) else None),
+            "soundness_check": (iap_proof.get("public_inputs", {}).get(
+                "iap_share_soundness_check") if isinstance(iap_proof, dict) else None),
+            "spec": "BTCP Master Spec §4.2 Step 5 — Gas Sharing Protocol / IAP",
+        }
+
         # ── BTCP-FIX-INT (Gap 1): write BH to akashic_bh (Step 6 Akashic Recording) ─
         if auto_finalize:
             self._write_btcp_bh_to_akashic(route)
             # ── BTCP-FIX-INT (Gap 3): trigger ANIMA reflexivity (L3.5) ──
             self._trigger_anima_reflexivity(route)
+            # BTCP-FIX2-INT Fix 3 — `auto_finalize=true` should actually
+            # finalize the route: transition PROOFS_GENERATED → COMPLETED
+            # so that _record_route_status fires (validator pool payout +
+            # trion_token_economics writeback to TimescaleDB). Previously
+            # auto_finalize only wrote the akashic_bh atom and skipped the
+            # reward / token-economics recording entirely — so the
+            # trion_token_economics table was never written to from the live
+            # orchestration path (BTCP-DEEP-5 connection #14 root cause).
+            if route.status != RouteStatus.COMPLETED:
+                self.update_route_status(route.route_id, RouteStatus.COMPLETED)
+
+        # BTCP-FIX2-ZK Fix 2 — Step 6 (spec §4.2 Step 6): Finalization and
+        # Akashic Recording. The _write_btcp_bh_to_akashic call above
+        # performs the BH writeback (TimescaleDB when TIMESCALEDB_URL is
+        # set; SQLite fallback otherwise — both append-only).
+        step_results["6_akashic_recording"] = {
+            "status": "executed" if auto_finalize else "deferred",
+            "auto_finalize": auto_finalize,
+            "route_id": route.route_id,
+            "anchor_chain": route.intent.source_chain if route.intent else None,
+            "execution_chain": route.intent.dest_chain if route.intent else None,
+            "spec": "BTCP Master Spec §4.2 Step 6 — Finalization and Akashic Recording",
+        }
 
         # ── BTCP-FIX-INT (Gap 5): L9 XSL score incorporated into route scoring ─
         # The XSL (Cross-Species Liquidity) score is fetched and used as a
@@ -1381,6 +1522,7 @@ class BTCPOrchestrator:
             proofs_generated=proof_names,
             errors=errors,
             execution_time_ms=execution_time,
+            step_results=step_results,
         )
     
     def _write_btcp_bh_to_akashic(self, route: 'BTCPRoute') -> None:
