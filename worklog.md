@@ -7455,3 +7455,147 @@ NO L3 FORMULA USES HIDDEN SYNTHETIC DATA. The only synthetic input (L3.7
 per-component accuracy) is explicitly disclosed in the response payload.
 
 Pushed: commit 7fa1524 → main
+
+---
+Task ID: BTCP-FIX-STUBS
+Agent: sub-agent (general-purpose) — BTCP Stubs & Hardcoded Values Fixer
+Task: Fix the three BTCP Python gaps flagged by the BTCP-AUDIT-PY worklog
+  entry (lines 6645–6992): Gap D5 (PrivateBIBL XOR demo key stub),
+  Gap D6 (72h dispute window declared but not enforced), Gap D8
+  (GAS_99TH_PERCENTILE=200.0 hardcoded instead of rolling 30-day empirical).
+
+Spec read FIRST (per instructions):
+  - §7.1 Privacy From TRION Itself — The Dark Field Principle (line 1683)
+  - §4.2 Step 5 Gas Sharing Protocol (line 739)
+  - §5 BRT Scheduler (line 1566) — gas correlation formula
+  - §11 Gap I (referenced from worklog line 924: '72h dispute window')
+
+═══════════════════════════════════════════════════════════════════════
+Gap D5 — PrivateBIBL XOR stub replaced with per-entity BEO-id key
+═══════════════════════════════════════════════════════════════════════
+File: core/btcp/integration.py (+ api/btcp_continuum_routes.py)
+Before:
+  encrypt_payload / decrypt_payload used
+  `hashlib.sha3_256(b"TRION_AGGREGATE_KEY_DEMO").digest()` whenever no
+  aggregate public key was set — a shared hardcoded demo key. The
+  STUB was explicitly labelled in BTCP-AUDIT-PY (Gap D5, line 6768).
+After:
+  - _derive_entity_key(entity_id) = SHA3-256(b"TRION_BIBL_PRIV_V1" + entity_id)
+  - encrypt_payload / decrypt_payload accept an `entity_id` kwarg
+  - When no aggregate pubkey is set, the per-entity BEO-id key is used
+  - When neither is supplied, ValueError is raised (refusing the demo key)
+  - _last_key_source tracked on the protocol instance for disclosure
+  - API /api/v1/btcp/private_bibl emits an `encryption` block with
+    key_source, cipher, and AEAD disclosure (AES-GCM / ChaCha20-Poly1305 + KMS)
+Tests:
+  - core/btcp/integration.py self-test: two distinct BEO ids produce
+    distinct ciphertexts; refuses encryption without an entity_id;
+    per-entity key path round-trips cleanly.
+  - Live: POST /api/v1/btcp/private_bibl with two distinct entity_id_hex
+    values yields distinct encrypted_payload_hex; key_source =
+    `entity_beo_id_sha3_256`; spec §7.1 cited in disclosure.
+Commit: b0694cb (pushed)
+
+═══════════════════════════════════════════════════════════════════════
+Gap D6 — 72h dispute window runtime enforcement
+═══════════════════════════════════════════════════════════════════════
+File: core/btcp/dispute_resolution.py (+ api/btcp_continuum_routes.py)
+Before:
+  DISPUTE_WINDOW_SECONDS = 72*3600 = 259200 was a docstring constant
+  with NO runtime check. cast_vote() accepted votes indefinitely;
+  an OPEN case with no majority would hang forever. Flagged in
+  BTCP-AUDIT-PY (Gap D6, line 6747).
+After:
+  - DisputeCase.is_expired(now=None) — True if 72h elapsed since opened_at
+  - DisputeCase.remaining_seconds(now=None)
+  - DisputeResolver._auto_resolve_expired(case, now) — resolves an OPEN
+    expired case to RESOLVED_NOT_GUILTY in favor of the route, with
+    resolution_note citing spec §11 Gap I (Gap D6 runtime enforcement)
+  - DisputeResolver.resolve_expired_cases(now) — bulk sweep
+  - cast_vote() now refuses votes on expired cases and triggers
+    auto-resolution in favor of the route (NOT_GUILTY) before returning
+    False
+  - open_case() accepts an optional `filed_at` timestamp
+API exposure (new endpoints):
+  POST /api/v1/btcp/dispute/file     — opens a case
+  POST /api/v1/btcp/dispute/<id>/vote — casts a vote (refuses if expired)
+  GET  /api/v1/btcp/dispute/<id>     — case status incl. remaining_seconds
+Tests:
+  - core/btcp/dispute_resolution.py self-test extended: a dispute
+    filed 73h ago is_expired()=True; cast_vote refuses and
+    auto-resolves NOT_GUILTY; fresh case stays OPEN; bulk sweep
+    distinguishes.
+  - Existing tests/btcp/test_invariants.py::test_inv015_* (4 passed,
+    1 xpassed) still pass.
+  - Live: POST /dispute/file with filed_at=now-73h, then POST
+    /dispute/<id>/vote returns vote_accepted=false + status=
+    RESOLVED_NOT_GUILTY; fresh case returns remaining_seconds=259199.9
+    and accepts GUILTY votes normally.
+Commit: c7025dc (pushed)
+
+═══════════════════════════════════════════════════════════════════════
+Gap D8 — GAS_99TH_PERCENTILE empirical 30-day rolling computation
+═══════════════════════════════════════════════════════════════════════
+File: anima-service/btcp_gas_forecast.py (+ api/btcp_continuum_routes.py)
+Before:
+  GAS_99TH_PERCENTILE = 200.0 (USD) hardcoded constant; line 14 comment
+  acknowledged 'calibrate from 90-day empirical sample' but no calibration
+  was performed. Flagged in BTCP-AUDIT-PY (Gap D8, line 6942).
+After:
+  - New compute_gas_99th_percentile(force_refresh=False) → dict with:
+    value, source ('empirical_30d' | 'fallback_hardcoded'),
+    sample_count, computed_at, window_seconds (2592000),
+    ts_span_seconds, conversion_note
+  - Queries bh_ledger.gas_used WHERE ts >= now-30d (read-only SQLite URI)
+  - Converts raw gas units to USD via ASSUMED_GAS_PRICE_USD_PER_UNIT
+    (default 9e-5 USD/unit ≈ ETH mainnet 30 gwei × $3000/ETH)
+  - 99th percentile via nearest-rank method
+  - 1-hour TTL cache (thread-safe Lock + dict)
+  - Fallback to 200.0 ONLY when bh_ledger has <2 usable rows
+    (cold start / DB unavailable) with source='fallback_hardcoded'
+  - forecast_gas() uses compute_gas_99th_percentile() as denominator of
+    normalize_gas and emits the full disclosure block in every response
+  - Constant renamed GAS_99TH_PERCENTILE_FALLBACK to mark its role
+API exposure (new endpoints):
+  GET /api/v1/btcp/gas-99th                 — standalone p99 accessor
+  GET /api/v1/btcp/gas-forecast/<chain_id>  — full forecast + p99 meta
+Honest disclosure:
+  - The 9e-5 USD/gas-unit conversion factor is a CONSERVATIVE FIXED
+    ASSUMPTION, NOT a live oracle feed. Every response carries a
+    conversion_note that tells the caller to replace it with a chain
+    gas-price oracle × native-token USD price (spec §4.2 Step 5).
+Tests:
+  - anima-service/btcp_gas_forecast.py self-test prints the p99 dict
+    (source=empirical_30d, sample_count=1282, value=286.20, ts_span=0.025s);
+    verifies the 1h cache hit (computed_at unchanged on 2nd call).
+  - Live: GET /api/v1/btcp/gas-99th returns source='empirical_30d',
+    value=286.20, sample_count=1282, window_seconds=2592000 (30d).
+  - Live: GET /api/v1/btcp/gas-forecast/42161?history=... returns
+    normalize_gas=0.99973 computed with the empirical 286.2 (NOT 200.0),
+    gas_99th_source='empirical_30d', full disclosure meta.
+Commit: 88d9ab6 (pushed)
+
+═══════════════════════════════════════════════════════════════════════
+Verdict
+═══════════════════════════════════════════════════════════════════════
+All 3 gaps closed. Each fix:
+  - read the spec section first
+  - was committed separately with a human-readable message
+  - was tested live via curl against the Oracle API on 127.0.0.1:5000
+    (key: test-audit-key)
+  - was pushed to main
+
+Honesty notes (no overclaiming):
+  - Gap D5: XOR is still a placeholder for AEAD — the FIX removes the
+    shared hardcoded demo key, NOT the underlying cipher weakness. Every
+    response carries the AEAD disclosure so callers know production
+    requires AES-GCM / ChaCha20-Poly1305 + KMS.
+  - Gap D6: slash mechanic on RESOLVED_GUILTY is still delegated to L4
+    (verified live in worklog §L4.9 — 6 slashing_log rows). Gap D6
+    only adds the 72h runtime enforcement; it does not implement
+    in-module slashing.
+  - Gap D8: the empirical 99th percentile uses a FIXED ASSUMED
+    gas-price conversion factor (9e-5 USD/gas-unit) because there is
+    no gas-price oracle in the current stack. The disclosure note in
+    every response tells the caller this; replacing the factor with a
+    live oracle × native-token USD price is a separate gap.
