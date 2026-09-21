@@ -1,0 +1,2677 @@
+{
+  "start_ts": 1789944028.446594,
+  "use_cases": [
+    {
+      "id": 1,
+      "domain": "Finance",
+      "title": "Behavioral Flash Crash Predictor",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        8,
+        3
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype\": \"Explorer\", \"bootstrap_phase\": true, \"calibration_note\": \"Insufficient behavioral sediment for coherence evaluation. TRION requires observed on-chain activity indexed in FAISS before pub"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"categories\": [\"behavioral\", \"structural\", \"economic\", \"governance\"], \"count\": 20, \"patterns\": [{\"category\": \"structural\", \"description\": \"External call before state update allows recursive re-entry "
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "domain": "Finance",
+      "title": "Insurance Premium Behavioral Engine",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        5
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype\": \"Explorer\", \"bootstrap_phase\": true, \"calibration_note\": \"Insufficient behavioral sediment for coherence evaluation. TRION requires observed on-chain activity indexed in FAISS before pub"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype_id\": \"ARCH_10\", \"archetype_name\": \"Dormant Contract\", \"crispr_template\": \"Evaluate for resurrection: check if code is still valuable. Consider migration.\", \"description\": \"Low or zero acti"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "domain": "Governance",
+      "title": "On-Chain Voter Behavioral Verification",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        2,
+        7
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"bootstrap_planes\": [\"spiritual\", \"conscious\", \"anima\"], \"coherence\": 0.33, \"entity_id\": \"0x28C6c06298d514Db089934071355E5743bf21d60\", \"limiting_plane\": \"conscious\", \"planes\": {\"anima\": {\"active\": fa"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"active_days\": 0.0, \"avg_coherence\": 0.0, \"credit_score\": 0.05, \"cross_chain_consistency\": 0.5, \"dispute_count\": 0, \"entity_id\": \"0x28C6c06298d514Db089934071355E5743bf21d60\", \"governance_votes\": 0, \""
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "domain": "Governance",
+      "title": "UN Sanctions Behavioral Monitoring",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        5
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"address\": \"0x28C6c06298d514Db089934071355E5743bf21d60\", \"archetype\": \"Flash Exploit\", \"archetype_distance\": 0.4639, \"attestation_hash\": \"527ab2168d7d1fa5d92ce17e87e2182b8938a244d2727bc668956c7f7cf8b"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype_id\": \"ARCH_10\", \"archetype_name\": \"Dormant Contract\", \"crispr_template\": \"Evaluate for resurrection: check if code is still valuable. Consider migration.\", \"description\": \"Low or zero acti"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "domain": "Healthcare",
+      "title": "Clinical Trial Behavioral Integrity",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        6,
+        5
+      ],
+      "response_snippets": [
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 thermodynamics unavailable\"}"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"avg_drift\": 0.0, \"baseline_stability\": 1.0, \"drift_trend\": \"stable\", \"entity_id\": \"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\", \"environmental_events\": 0, \"epigenetic_age\": 0.0, \"heritable_changes\":"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "domain": "Healthcare",
+      "title": "Pharma Supply Chain Behavioral Auth",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        7,
+        6
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype\": \"Explorer\", \"bootstrap_phase\": true, \"calibration_note\": \"Insufficient behavioral sediment for coherence evaluation. TRION requires observed on-chain activity indexed in FAISS before pub"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"avg_drift\": 0.0, \"baseline_stability\": 1.0, \"drift_trend\": \"stable\", \"entity_id\": \"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\", \"environmental_events\": 0, \"epigenetic_age\": 0.0, \"heritable_changes\":"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "domain": "Environment",
+      "title": "Carbon Credit Behavioral Verification",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        1,
+        5
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"chain_count\": 4, \"chain_ids\": [\"ethereum\", \"arbitrum\", \"base\", \"optimism\"], \"components\": {\"FS_functional_similarity\": 0.9392, \"RR_reciprocal_recognition\": 0.668, \"TP_protocol_friction\": 0.039, \"TV_"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype_id\": \"ARCH_10\", \"archetype_name\": \"Dormant Contract\", \"crispr_template\": \"Evaluate for resurrection: check if code is still valuable. Consider migration.\", \"description\": \"Low or zero acti"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "domain": "Environment",
+      "title": "Behavioral Deforestation Financial Tracking",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        6
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"address\": \"0x5B14a5b0f7b1d3d2c5a8f9e1b4c7d0a3f6e9b2c5\", \"archetype\": \"Flash Exploit\", \"archetype_distance\": 0.4639, \"attestation_hash\": \"e6882b1409ff1f51dc4c618a3ae2b128da41557458914db8bddb2b60241c1"
+        },
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0x5B14a5b0f7b1d3d2c5a8f9e1b4c7d0a3f6e9b2c5\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 thermodynamics unavailable\"}"
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "domain": "Education",
+      "title": "Behavioral Academic Credential Verification",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        6,
+        7
+      ],
+      "response_snippets": [
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 UBL unavailable\"}"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"active_days\": 0.0, \"avg_coherence\": 0.0, \"credit_score\": 0.05, \"cross_chain_consistency\": 0.5, \"dispute_count\": 0, \"entity_id\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\", \"governance_votes\": 0, \""
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "domain": "Education",
+      "title": "Research Data Behavioral Integrity",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        6
+      ],
+      "response_snippets": [
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 thermodynamics unavailable\"}"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"avg_drift\": 0.0, \"baseline_stability\": 1.0, \"drift_trend\": \"stable\", \"entity_id\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\", \"environmental_events\": 0, \"epigenetic_age\": 0.0, \"heritable_changes\":"
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "domain": "Humanitarian",
+      "title": "Stateless Person Behavioral Passport",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        2
+      ],
+      "response_snippets": [
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 UBL unavailable\"}"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"bootstrap_planes\": [\"spiritual\", \"conscious\", \"anima\"], \"coherence\": 0.33, \"entity_id\": \"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\", \"limiting_plane\": \"conscious\", \"planes\": {\"anima\": {\"active\": fa"
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "domain": "Humanitarian",
+      "title": "Behavioral Refugee Integration Assessment",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        1,
+        1
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"appeal_mechanism\": \"akashic://sdp/appeal_resolution.v1\", \"behavioral_risk\": false, \"components\": {\"C_currency_alignment\": 0.4152, \"E_economic_regularity\": 0.2262, \"G_geopolitical_coherence\": 0.6582,"
+        },
+        {
+          "status": 400,
+          "ok": false,
+          "snippet": "{\"error\":\"invalid_entity_id\",\"message\":\"entity_id must be a 64-character hex BEO ID or a 0x-prefixed 40-character EVM address\",\"received\":\"NG\"}\n"
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "domain": "AI",
+      "title": "AI Agent Behavioral Certification",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 1,
+      "latencies_ms": [
+        1
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"allowed\": true, \"behavioral_stamp\": \"ab04dbc5bae1e81f\", \"blocked_by\": null, \"coherence_score\": 0.32, \"confidence\": 0.635, \"constraints\": [], \"fitness_delta\": 0.0064, \"outcome\": \"ALLOWED\", \"processin"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "domain": "AI",
+      "title": "Behavioral Turing Test for Financial Actors",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        8,
+        1
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype\": \"Explorer\", \"bootstrap_phase\": true, \"calibration_note\": \"Insufficient behavioral sediment for coherence evaluation. TRION requires observed on-chain activity indexed in FAISS before pub"
+        },
+        {
+          "status": 404,
+          "ok": false,
+          "snippet": "{\"detail\":\"Not Found\"}"
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "domain": "Science",
+      "title": "Behavioral Archaeology Digital Culture",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        4,
+        8
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"bootstrap_phase\": true, \"cold_start\": true, \"entity_id\": \"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045\", \"mortality_risk\": null, \"note\": \"No behavioral sediment in FAISS yet \\u2014 lifecycle is at BIR"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype_id\": \"ARCH_10\", \"archetype_name\": \"Dormant Contract\", \"crispr_template\": \"Evaluate for resurrection: check if code is still valuable. Consider migration.\", \"description\": \"Low or zero acti"
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "domain": "Science",
+      "title": "Behavioral Quantum Computing Verification",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        5,
+        1
+      ],
+      "response_snippets": [
+        {
+          "status": 202,
+          "ok": true,
+          "snippet": "{\"entity_id\": \"0x28C6c06298d514Db089934071355E5743bf21d60\", \"error\": \"cold_start\", \"note\": \"No behavioral sediment in FAISS yet \\u2014 thermodynamics unavailable\"}"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"delta_k_bits\": -4.0, \"delta_k_max\": 8.0, \"entity_id\": \"0x28C6c06298d514Db089934071355E5743bf21d60\", \"formula\": \"K(GK,t) K(GK,t-1) + DeltaK_max; DeltaK_max = log2(block_entropy_bits)\", \"halted\": fals"
+        }
+      ]
+    },
+    {
+      "id": 80,
+      "domain": "Culture",
+      "title": "Behavioral Art Provenance",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        12,
+        7
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype_id\": \"ARCH_10\", \"archetype_name\": \"Dormant Contract\", \"crispr_template\": \"Evaluate for resurrection: check if code is still valuable. Consider migration.\", \"description\": \"Low or zero acti"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"avg_drift\": 0.0, \"baseline_stability\": 1.0, \"drift_trend\": \"stable\", \"entity_id\": \"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\", \"environmental_events\": 0, \"epigenetic_age\": 0.0, \"heritable_changes\":"
+        }
+      ]
+    },
+    {
+      "id": 82,
+      "domain": "Culture",
+      "title": "Behavioral Sports Betting Integrity",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        8,
+        4
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"archetype\": \"Explorer\", \"bootstrap_phase\": true, \"calibration_note\": \"Insufficient behavioral sediment for coherence evaluation. TRION requires observed on-chain activity indexed in FAISS before pub"
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"address\": \"0x5B14a5b0f7b1d3d2c5a8f9e1b4c7d0a3f6e9b2c5\", \"archetype\": \"Flash Exploit\", \"archetype_distance\": 0.4639, \"attestation_hash\": \"e6882b1409ff1f51dc4c618a3ae2b128da41557458914db8bddb2b60241c1"
+        }
+      ]
+    },
+    {
+      "id": 88,
+      "domain": "Infrastructure",
+      "title": "Smart City Behavioral Resource Allocation",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        1,
+        0
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"appeal_mechanism\": \"akashic://sdp/appeal_resolution.v1\", \"behavioral_risk\": false, \"components\": {\"C_currency_alignment\": 0.6419, \"E_economic_regularity\": 0.2136, \"G_geopolitical_coherence\": 0.7784,"
+        },
+        {
+          "status": 400,
+          "ok": false,
+          "snippet": "{\"error\":\"invalid_entity_id\",\"message\":\"entity_id must be a 64-character hex BEO ID or a 0x-prefixed 40-character EVM address\",\"received\":\"US\"}\n"
+        }
+      ]
+    },
+    {
+      "id": 94,
+      "domain": "Infrastructure",
+      "title": "Behavioral Critical Infrastructure Protection",
+      "passed": true,
+      "error": "",
+      "endpoints_hit": 2,
+      "latencies_ms": [
+        2,
+        8
+      ],
+      "response_snippets": [
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"bootstrap_weight\": 0.804286, \"cc_score\": 1.0, \"disclosure\": \"Security Score=0.0000 [CRITICAL] LSS=1.0000 PQC=0.0000 CC=1.0000. Bootstrap_weight=0.8043 effective_Security=0.8043. PQC=0.0000 NIST-L3. "
+        },
+        {
+          "status": 200,
+          "ok": true,
+          "snippet": "{\"bootstrap_planes\": [\"spiritual\", \"conscious\", \"anima\"], \"coherence\": 0.33, \"entity_id\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\", \"limiting_plane\": \"conscious\", \"planes\": {\"anima\": {\"active\": fa"
+        }
+      ]
+    }
+  ],
+  "revenue_streams": [
+    {
+      "stream": "Signal consumption fees",
+      "endpoint": "/api/v1/revenue/signal-consumption",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 1.9,
+      "latency_ms_max": 22,
+      "revenue_min_usd": 101.0,
+      "revenue_max_usd": 20199.0,
+      "revenue_avg_usd": 6780.92,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "tvl_usd": 100000,
+            "calls_per_month": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": "MICRO",
+            "burn_usd": 0.0
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "tvl_usd": 5000000,
+            "calls_per_month": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 119.0,
+            "tier": "SMALL",
+            "burn_usd": 0.119
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "tvl_usd": 50000000,
+            "calls_per_month": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1099.0,
+            "tier": "MID",
+            "burn_usd": 1.099
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "tvl_usd": 500000000,
+            "calls_per_month": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 5499.0,
+            "tier": "LARGE",
+            "burn_usd": 5.499
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "tvl_usd": 5000000000,
+            "calls_per_month": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 19999.2,
+            "tier": "WHALE",
+            "burn_usd": 19.9992
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "tvl_usd": 100000,
+            "calls_per_month": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": "MICRO",
+            "burn_usd": 0.0
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "tvl_usd": 5000000,
+            "calls_per_month": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 22,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 299.0,
+            "tier": "SMALL",
+            "burn_usd": 0.299
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "tvl_usd": 50000000,
+            "calls_per_month": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1999.0,
+            "tier": "MID",
+            "burn_usd": 1.999
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "tvl_usd": 500000000,
+            "calls_per_month": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 4999.5,
+            "tier": "LARGE",
+            "burn_usd": 4.9995
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "tvl_usd": 5000000000,
+            "calls_per_month": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 20001.0,
+            "tier": "WHALE",
+            "burn_usd": 20.001
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "tvl_usd": 100000,
+            "calls_per_month": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": "MICRO",
+            "burn_usd": 0.0
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "tvl_usd": 5000000,
+            "calls_per_month": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2099.0,
+            "tier": "SMALL",
+            "burn_usd": 2.099
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "tvl_usd": 50000000,
+            "calls_per_month": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1000.0,
+            "tier": "MID",
+            "burn_usd": 1.0
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "tvl_usd": 500000000,
+            "calls_per_month": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 5004.0,
+            "tier": "LARGE",
+            "burn_usd": 5.004
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "tvl_usd": 5000000000,
+            "calls_per_month": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 20019.0,
+            "tier": "WHALE",
+            "burn_usd": 20.019
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "tvl_usd": 100000,
+            "calls_per_month": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 7,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": "MICRO",
+            "burn_usd": 0.0
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "tvl_usd": 5000000,
+            "calls_per_month": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 101.0,
+            "tier": "SMALL",
+            "burn_usd": 0.101
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "tvl_usd": 50000000,
+            "calls_per_month": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1009.0,
+            "tier": "MID",
+            "burn_usd": 1.009
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "tvl_usd": 500000000,
+            "calls_per_month": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 5049.0,
+            "tier": "LARGE",
+            "burn_usd": 5.049
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "tvl_usd": 5000000000,
+            "calls_per_month": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 20199.0,
+            "tier": "WHALE",
+            "burn_usd": 20.199
+          },
+          "error": ""
+        }
+      ]
+    },
+    {
+      "stream": "Genesis Inference premium",
+      "endpoint": "/api/v1/revenue/genesis-inference",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 1735.3,
+      "latency_ms_max": 1812,
+      "revenue_min_usd": 0,
+      "revenue_max_usd": 0,
+      "revenue_avg_usd": 0,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "asset": "TOKEN_0",
+            "block_age": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1672,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "asset": "TOKEN_1",
+            "block_age": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1657,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "asset": "TOKEN_2",
+            "block_age": 100
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1793,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "asset": "TOKEN_3",
+            "block_age": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1730,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "asset": "TOKEN_4",
+            "block_age": 5000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1751,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "asset": "TOKEN_5",
+            "block_age": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1649,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "asset": "TOKEN_6",
+            "block_age": 50000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1685,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "asset": "TOKEN_7",
+            "block_age": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1662,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "asset": "TOKEN_8",
+            "block_age": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1764,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "asset": "TOKEN_9",
+            "block_age": 100
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1779,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "asset": "TOKEN_10",
+            "block_age": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1775,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "asset": "TOKEN_11",
+            "block_age": 5000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1685,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "asset": "TOKEN_12",
+            "block_age": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1812,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "asset": "TOKEN_13",
+            "block_age": 50000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1777,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "asset": "TOKEN_14",
+            "block_age": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1755,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "asset": "TOKEN_15",
+            "block_age": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1764,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "asset": "TOKEN_16",
+            "block_age": 100
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1743,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "asset": "TOKEN_17",
+            "block_age": 1000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1747,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "asset": "TOKEN_18",
+            "block_age": 5000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1750,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "asset": "TOKEN_19",
+            "block_age": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1756,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": null,
+            "tier": null,
+            "burn_usd": null
+          },
+          "error": ""
+        }
+      ]
+    },
+    {
+      "stream": "ANIMA intelligence subscriptions",
+      "endpoint": "/api/v1/revenue/anima-subscription",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 0.6,
+      "latency_ms_max": 2,
+      "revenue_min_usd": 2000,
+      "revenue_max_usd": 1080000,
+      "revenue_avg_usd": 242200,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "plan": "PRO",
+            "seats": 2
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 24000,
+            "tier": null,
+            "burn_usd": 24.0
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 3
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 180000,
+            "tier": null,
+            "burn_usd": 180.0
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 4
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 8000,
+            "tier": null,
+            "burn_usd": 8.0
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "plan": "PRO",
+            "seats": 5
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 60000,
+            "tier": null,
+            "burn_usd": 60.0
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 6
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 360000,
+            "tier": null,
+            "burn_usd": 360.0
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 7
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 14000,
+            "tier": null,
+            "burn_usd": 14.0
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "plan": "PRO",
+            "seats": 8
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 96000,
+            "tier": null,
+            "burn_usd": 96.0
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 9
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 540000,
+            "tier": null,
+            "burn_usd": 540.0
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 2,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 20000,
+            "tier": null,
+            "burn_usd": 20.0
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "plan": "PRO",
+            "seats": 11
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 132000,
+            "tier": null,
+            "burn_usd": 132.0
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 12
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 720000,
+            "tier": null,
+            "burn_usd": 720.0
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 13
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 26000,
+            "tier": null,
+            "burn_usd": 26.0
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "plan": "PRO",
+            "seats": 14
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 168000,
+            "tier": null,
+            "burn_usd": 168.0
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 15
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 900000,
+            "tier": null,
+            "burn_usd": 900.0
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 16
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 32000,
+            "tier": null,
+            "burn_usd": 32.0
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "plan": "PRO",
+            "seats": 17
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 204000,
+            "tier": null,
+            "burn_usd": 204.0
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "plan": "INSTITUTIONAL",
+            "seats": 18
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1080000,
+            "tier": null,
+            "burn_usd": 1080.0
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "plan": "RESEARCH",
+            "seats": 19
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 38000,
+            "tier": null,
+            "burn_usd": 38.0
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "plan": "PRO",
+            "seats": 20
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 240000,
+            "tier": null,
+            "burn_usd": 240.0
+          },
+          "error": ""
+        }
+      ]
+    },
+    {
+      "stream": "Regulatory API",
+      "endpoint": "/api/v1/revenue/regulatory-api",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 0.1,
+      "latency_ms_max": 1,
+      "revenue_min_usd": 750.0,
+      "revenue_max_usd": 228000.0,
+      "revenue_avg_usd": 54687.5,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "customer_type": "GOV_TRANSPARENT",
+            "nations_monitored": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 750.0,
+            "tier": "PUBLIC_GOOD",
+            "burn_usd": 0.75
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "customer_type": "GOV_OPAQUE",
+            "nations_monitored": 2
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 10000.0,
+            "tier": "STANDARD_GOV",
+            "burn_usd": 10.0
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "customer_type": "COMMERCIAL",
+            "nations_monitored": 3
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 36000.0,
+            "tier": "COMMERCIAL_PREMIUM",
+            "burn_usd": 36.0
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "customer_type": "RESEARCH",
+            "nations_monitored": 4
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 10000.0,
+            "tier": "ACADEMIC",
+            "burn_usd": 10.0
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "customer_type": "GOV_TRANSPARENT",
+            "nations_monitored": 5
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 3750.0,
+            "tier": "PUBLIC_GOOD",
+            "burn_usd": 3.75
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "customer_type": "GOV_OPAQUE",
+            "nations_monitored": 6
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 30000.0,
+            "tier": "STANDARD_GOV",
+            "burn_usd": 30.0
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "customer_type": "COMMERCIAL",
+            "nations_monitored": 7
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 84000.0,
+            "tier": "COMMERCIAL_PREMIUM",
+            "burn_usd": 84.0
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "customer_type": "RESEARCH",
+            "nations_monitored": 8
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 20000.0,
+            "tier": "ACADEMIC",
+            "burn_usd": 20.0
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "customer_type": "GOV_TRANSPARENT",
+            "nations_monitored": 9
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 6750.0,
+            "tier": "PUBLIC_GOOD",
+            "burn_usd": 6.75
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "customer_type": "GOV_OPAQUE",
+            "nations_monitored": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 50000.0,
+            "tier": "STANDARD_GOV",
+            "burn_usd": 50.0
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "customer_type": "COMMERCIAL",
+            "nations_monitored": 11
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 132000.0,
+            "tier": "COMMERCIAL_PREMIUM",
+            "burn_usd": 132.0
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "customer_type": "RESEARCH",
+            "nations_monitored": 12
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 30000.0,
+            "tier": "ACADEMIC",
+            "burn_usd": 30.0
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "customer_type": "GOV_TRANSPARENT",
+            "nations_monitored": 13
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 9750.0,
+            "tier": "PUBLIC_GOOD",
+            "burn_usd": 9.75
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "customer_type": "GOV_OPAQUE",
+            "nations_monitored": 14
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 70000.0,
+            "tier": "STANDARD_GOV",
+            "burn_usd": 70.0
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "customer_type": "COMMERCIAL",
+            "nations_monitored": 15
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 180000.0,
+            "tier": "COMMERCIAL_PREMIUM",
+            "burn_usd": 180.0
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "customer_type": "RESEARCH",
+            "nations_monitored": 16
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 40000.0,
+            "tier": "ACADEMIC",
+            "burn_usd": 40.0
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "customer_type": "GOV_TRANSPARENT",
+            "nations_monitored": 17
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 12750.0,
+            "tier": "PUBLIC_GOOD",
+            "burn_usd": 12.75
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "customer_type": "GOV_OPAQUE",
+            "nations_monitored": 18
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 90000.0,
+            "tier": "STANDARD_GOV",
+            "burn_usd": 90.0
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "customer_type": "COMMERCIAL",
+            "nations_monitored": 19
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 228000.0,
+            "tier": "COMMERCIAL_PREMIUM",
+            "burn_usd": 228.0
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "customer_type": "RESEARCH",
+            "nations_monitored": 20
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 50000.0,
+            "tier": "ACADEMIC",
+            "burn_usd": 50.0
+          },
+          "error": ""
+        }
+      ]
+    },
+    {
+      "stream": "Behavioral data market",
+      "endpoint": "/api/v1/revenue/data-market",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 0.1,
+      "latency_ms_max": 1,
+      "revenue_min_usd": 200,
+      "revenue_max_usd": 26000.0,
+      "revenue_avg_usd": 4085.0,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 200,
+            "tier": null,
+            "burn_usd": 0.2
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 1,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 10000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 600.0,
+            "tier": null,
+            "burn_usd": 0.6
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 200,
+            "tier": null,
+            "burn_usd": 0.2
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 10000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 26000.0,
+            "tier": null,
+            "burn_usd": 26.0
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 200,
+            "tier": null,
+            "burn_usd": 0.2
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 3500.0,
+            "tier": null,
+            "burn_usd": 3.5
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 10000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 6000.0,
+            "tier": null,
+            "burn_usd": 6.0
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 200,
+            "tier": null,
+            "burn_usd": 0.2
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 10000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 600.0,
+            "tier": null,
+            "burn_usd": 0.6
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 10000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "buyer_type": "GOV",
+            "rows_requested": 100000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2000,
+            "tier": null,
+            "burn_usd": 2.0
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "buyer_type": "ACADEMIC",
+            "rows_requested": 1000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 200,
+            "tier": null,
+            "burn_usd": 0.2
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "buyer_type": "COMMERCIAL",
+            "rows_requested": 10000000
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 26000.0,
+            "tier": null,
+            "burn_usd": 26.0
+          },
+          "error": ""
+        }
+      ]
+    },
+    {
+      "stream": "Developer ecosystem",
+      "endpoint": "/api/v1/revenue/developer-ecosystem",
+      "iterations": 20,
+      "passed": 20,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "latency_ms_avg": 0.1,
+      "latency_ms_max": 2,
+      "revenue_min_usd": 499,
+      "revenue_max_usd": 750000,
+      "revenue_avg_usd": 166873.75,
+      "iterations_detail": [
+        {
+          "i": 0,
+          "params": {
+            "product": "SDK_LICENSE",
+            "quantity": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 499,
+            "tier": null,
+            "burn_usd": 0.499
+          },
+          "error": ""
+        },
+        {
+          "i": 1,
+          "params": {
+            "product": "INTEGRATION_CERT",
+            "quantity": 2
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 30000,
+            "tier": null,
+            "burn_usd": 30.0
+          },
+          "error": ""
+        },
+        {
+          "i": 2,
+          "params": {
+            "product": "VALIDATOR_TOOLING",
+            "quantity": 3
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 75000,
+            "tier": null,
+            "burn_usd": 75.0
+          },
+          "error": ""
+        },
+        {
+          "i": 3,
+          "params": {
+            "product": "ENTERPRISE_SDK",
+            "quantity": 4
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 300000,
+            "tier": null,
+            "burn_usd": 300.0
+          },
+          "error": ""
+        },
+        {
+          "i": 4,
+          "params": {
+            "product": "SDK_LICENSE",
+            "quantity": 5
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 2495,
+            "tier": null,
+            "burn_usd": 2.495
+          },
+          "error": ""
+        },
+        {
+          "i": 5,
+          "params": {
+            "product": "INTEGRATION_CERT",
+            "quantity": 6
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 90000,
+            "tier": null,
+            "burn_usd": 90.0
+          },
+          "error": ""
+        },
+        {
+          "i": 6,
+          "params": {
+            "product": "VALIDATOR_TOOLING",
+            "quantity": 7
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 175000,
+            "tier": null,
+            "burn_usd": 175.0
+          },
+          "error": ""
+        },
+        {
+          "i": 7,
+          "params": {
+            "product": "ENTERPRISE_SDK",
+            "quantity": 8
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 600000,
+            "tier": null,
+            "burn_usd": 600.0
+          },
+          "error": ""
+        },
+        {
+          "i": 8,
+          "params": {
+            "product": "SDK_LICENSE",
+            "quantity": 9
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 4491,
+            "tier": null,
+            "burn_usd": 4.491
+          },
+          "error": ""
+        },
+        {
+          "i": 9,
+          "params": {
+            "product": "INTEGRATION_CERT",
+            "quantity": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 150000,
+            "tier": null,
+            "burn_usd": 150.0
+          },
+          "error": ""
+        },
+        {
+          "i": 10,
+          "params": {
+            "product": "VALIDATOR_TOOLING",
+            "quantity": 1
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 25000,
+            "tier": null,
+            "burn_usd": 25.0
+          },
+          "error": ""
+        },
+        {
+          "i": 11,
+          "params": {
+            "product": "ENTERPRISE_SDK",
+            "quantity": 2
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 150000,
+            "tier": null,
+            "burn_usd": 150.0
+          },
+          "error": ""
+        },
+        {
+          "i": 12,
+          "params": {
+            "product": "SDK_LICENSE",
+            "quantity": 3
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 1497,
+            "tier": null,
+            "burn_usd": 1.497
+          },
+          "error": ""
+        },
+        {
+          "i": 13,
+          "params": {
+            "product": "INTEGRATION_CERT",
+            "quantity": 4
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 2,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 60000,
+            "tier": null,
+            "burn_usd": 60.0
+          },
+          "error": ""
+        },
+        {
+          "i": 14,
+          "params": {
+            "product": "VALIDATOR_TOOLING",
+            "quantity": 5
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 125000,
+            "tier": null,
+            "burn_usd": 125.0
+          },
+          "error": ""
+        },
+        {
+          "i": 15,
+          "params": {
+            "product": "ENTERPRISE_SDK",
+            "quantity": 6
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 450000,
+            "tier": null,
+            "burn_usd": 450.0
+          },
+          "error": ""
+        },
+        {
+          "i": 16,
+          "params": {
+            "product": "SDK_LICENSE",
+            "quantity": 7
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 3493,
+            "tier": null,
+            "burn_usd": 3.493
+          },
+          "error": ""
+        },
+        {
+          "i": 17,
+          "params": {
+            "product": "INTEGRATION_CERT",
+            "quantity": 8
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 120000,
+            "tier": null,
+            "burn_usd": 120.0
+          },
+          "error": ""
+        },
+        {
+          "i": 18,
+          "params": {
+            "product": "VALIDATOR_TOOLING",
+            "quantity": 9
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 225000,
+            "tier": null,
+            "burn_usd": 225.0
+          },
+          "error": ""
+        },
+        {
+          "i": 19,
+          "params": {
+            "product": "ENTERPRISE_SDK",
+            "quantity": 10
+          },
+          "ok": true,
+          "passed": true,
+          "ms": 0,
+          "status": 200,
+          "pricing": {
+            "monthly_total_usd": 750000,
+            "tier": null,
+            "burn_usd": 750.0
+          },
+          "error": ""
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "use_cases_total": 20,
+    "use_cases_passed": 20,
+    "use_cases_pass_rate": 100.0,
+    "revenue_tests_total": 120,
+    "revenue_tests_passed": 120,
+    "revenue_tests_pass_rate": 100.0,
+    "revenue_streams_operational": 6,
+    "revenue_streams_partial": 0,
+    "revenue_streams_failed": 0,
+    "end_ts": 1789944063.5081265,
+    "duration_s": 35.1
+  },
+  "aggregate_revenue": {
+    "akashic_grounding": {
+      "akashic_bh": 893499,
+      "akashic_depth": 203180,
+      "akashic_vectors": 303421,
+      "archetype_library": 64,
+      "beo_registry": 50,
+      "genesis_confidence_log": 50,
+      "ts": 1789944023.4931357,
+      "validator_coverage": 15
+    },
+    "arr_usd": 19942500.0,
+    "burn_per_month_usd": 1661.88,
+    "public_good_pool_monthly_usd": 249281.25,
+    "streams": {
+      "anima_subscription": {
+        "monthly_usd": 340000,
+        "stream": 3
+      },
+      "data_market": {
+        "monthly_usd": 30000,
+        "stream": 5
+      },
+      "developer_ecosystem": {
+        "monthly_usd": 824500,
+        "stream": 6
+      },
+      "genesis_inference": {
+        "monthly_usd": 75000,
+        "stream": 2
+      },
+      "regulatory_api": {
+        "monthly_usd": 337500.0,
+        "stream": 4
+      },
+      "signal_consumption": {
+        "monthly_usd": 54875,
+        "stream": 1
+      }
+    },
+    "timestamp": "2026-09-20T22:41:03.507560+00:00",
+    "token_economics": {
+      "burn_fraction_per_use": 0.001,
+      "deflationary": true,
+      "inflation_mechanism": "NONE",
+      "public_good_fraction": 0.15,
+      "total_supply": 1000000000,
+      "unknown_budget_fraction": 0.1
+    },
+    "total_mrr_usd": 1661875.0,
+    "unknown_unknown_reserve_monthly_usd": 166187.5,
+    "whitepaper_section": "15.2"
+  }
+}
