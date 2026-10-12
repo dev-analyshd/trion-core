@@ -1,0 +1,14 @@
+[package]
+name = "trion"
+version = "1.0.0"
+edition = "2024.beta"
+license = "MIT"
+authors = ["TRION Protocol"]
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "testnet-v1.38.3"
+
+[addresses]
+trion = "0x0"
