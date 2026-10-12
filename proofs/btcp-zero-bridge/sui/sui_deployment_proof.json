@@ -1,86 +1,60 @@
 {
   "network": "sui-local-testnet",
-  "deployer": "0xca021a410df18d867534142e47bfd4c678ce400cccb27640875ae83fafc6a63a",
-  "deployer_mnemonic": "defy wrist resemble skin party asthma own brown horse expire spin disorder",
-  "package_id": "0x1f0c0546fa20af392c99d1521c6ad784bfa428023811711643859eb665773782",
+  "deployer": "0xc894df82394f033593f22f48b28323701aa9bb43696d2e3c536a69c35c561335",
+  "deployer_mnemonic": "diamond critic inform spoon inner appear poet valve danger mad toe click",
+  "package_id": "0x5dfde9f505fcdc8285970f18d17b7705aa451e0d8cb65acc24a2ab90dbaa4b24",
   "version": 1,
   "modules": [
-    "ai_agent_safety",
-    "beo_attestation",
-    "btc_spv_verifier",
-    "btcp_escrow",
-    "btcp_intent",
-    "btcp_route",
-    "liquidity_ocean",
-    "oracle",
-    "pre_execution_firewall"
+    "ai_agent_safety", "beo_attestation", "btc_spv_verifier", "btcp_escrow",
+    "btcp_intent", "btcp_route", "liquidity_ocean", "oracle", "pre_execution_firewall"
   ],
   "total_modules": 9,
   "total_lines": 1457,
   "sui_cli_version": "1.38.3",
   "framework_rev": "testnet-v1.38.3",
-  "deployment_timestamp": "2026-10-12T16:30:00Z",
+  "publish_status": "SUCCESS",
+  "publish_digest": "Published on local testnet",
   "tests": {
-    "beo_attestation": {
-      "function": "attest_beo",
-      "status": "PASS",
-      "args": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0x6 (Clock)"],
-      "result": "BEO identity attested on Sui — balance change confirmed"
-    },
-    "btcp_route": {
-      "function": "register_route",
-      "status": "PASS",
-      "args": ["route_001 (hex)", "intent_hash_001 (hex)", "entity_id (hex)", "anchor_bh (32 bytes)", "execution_bh (32 bytes)", "source_vm=2", "dest_vm=2", "btcp_score=750000", "gas_saved=50000", "beo_continuity=800000", "cc_coherence=750000", "0x6 (Clock)"],
-      "result": "BTCP route registered — assets_bridged=false (zero-bridge invariant)"
-    },
-    "ai_agent_safety": {
-      "function": "register_agent",
-      "status": "PASS",
-      "args": ["agent001 (hex)", "entity_id (hex)", "pa=900000", "ice=850000", "as=950000", "love=1000000", "0x6 (Clock)"],
-      "result": "AI agent registered — F=PA·ICE·AS·Love computed, Love Protocol active"
-    },
-    "liquidity_ocean": {
-      "function": "commit_liquidity",
-      "status": "PASS",
-      "args": ["entity_id (hex)", "route_001 (hex)", "source_chain=1", "USDC", "amount=1000000", "cost=800000", "time=900000", "beo_health=850000", "0x6 (Clock)"],
-      "result": "Liquidity committed — ocean_score computed"
-    },
-    "btcp_intent": {
-      "function": "register_intent",
-      "status": "INCONCLUSIVE",
-      "note": "Function has 18 parameters — argument serialization issue with empty hex 0x for travel_rule_proof"
-    }
+    "beo_attestation": { "status": "BLOCKED", "reason": "Validator OOM after publish — local testnet has only 4GB RAM, no swap. Contract compiled, deployed, and package confirmed on-chain before validator died." },
+    "btcp_route": { "status": "BLOCKED", "reason": "Validator OOM — contract deployed, not testable in this environment" },
+    "ai_agent_safety": { "status": "BLOCKED", "reason": "Validator OOM — contract deployed, not testable in this environment" },
+    "liquidity_ocean": { "status": "BLOCKED", "reason": "Validator OOM — contract deployed, not testable in this environment" },
+    "btcp_intent": { "status": "BLOCKED", "reason": "Validator OOM — contract deployed, not testable in this environment" },
+    "oracle": { "status": "BLOCKED", "reason": "Validator OOM — contract deployed, not testable in this environment" }
   },
   "test_summary": {
-    "passed": 4,
-    "inconclusive": 1,
+    "passed": 0,
+    "blocked": 6,
     "failed": 0,
-    "pass_rate": "80% (4/5)"
+    "note": "All 9 contracts successfully COMPILED (sui move build exit 0) and PUBLISHED to local testnet. Tests could not run because the local Sui validator (sui start) uses ~2.5GB RAM and the sandbox has only 4GB total with no swap — the validator gets OOM-killed after the publish transaction completes. The contracts are confirmed deployed (PackageID captured). Tests need either: (1) a machine with 8GB+ RAM to run local validator, or (2) SUI testnet/devnet faucet funding (the devnet faucet API is deprecated — requires newer Sui CLI v1.81.1+ for gRPC support)."
   },
-  "spec_compliance": {
-    "zero_bridge_invariant": "ENFORCED — assets_bridged=false in btcp_route.register_route",
-    "coherence_threshold": "ENFORCED — 0.55 floor in btcp_escrow and btcp_route",
-    "beo_identity_continuity": "VERIFIED — SHA3-256(normalize(address)) in beo_attestation",
-    "love_protocol_kill_switch": "VERIFIED — F=PA·ICE·AS·Love, Love=0→F=0 in ai_agent_safety",
-    "liquidity_ocean_formula": "VERIFIED — ocean_score=cost×time×beo_health in liquidity_ocean",
-    "btc_spv_verifier": "DEPLOYED — Merkle proof verification, genesis tip submission",
-    "pre_execution_firewall": "DEPLOYED — CRISPR exploit signature matching",
-    "oracle_master_equation": "DEPLOYED — T(t)=[C≥Θ]·C·e^(M_moat), SILENCE emission"
+  "build_verification": {
+    "sui_move_build": "EXIT 0 — SUCCESS (9 modules compiled, 0 errors, warnings only)",
+    "sui_move_test": "EXIT 0 — SUCCESS (0 tests, build verified)",
+    "sui_client_publish": "SUCCESS — PackageID captured"
   },
-  "what_this_delivers_to_sui": [
-    "BTCP Zero-Bridge: non-custodial Bitcoin liquidity (complements Hashi)",
-    "BEO: substrate-independent AI agent identity (for Agent Payments)",
-    "Liquidity Ocean: cross-chain liquidity for Sui DeFi",
-    "AI Agent Safety: Love Protocol mathematical kill switch",
-    "Pre-Execution Firewall: CRISPR exploit defense (126 signatures)",
-    "BTC SPV: Bitcoin light client verification on Sui",
-    "Oracle: behavioral truth oracle with 0.55 coherence threshold"
+  "what_works": [
+    "All 9 Sui Move contracts compile successfully (sui move build exit 0)",
+    "All 9 modules published to Sui local testnet (PackageID captured)",
+    "BEO Attestation: contract compiled, deployed, ready to test",
+    "BTCP Route: contract compiled, deployed, ready to test",
+    "AI Agent Safety: contract compiled, deployed, ready to test",
+    "Liquidity Ocean: contract compiled, deployed, ready to test",
+    "BTCP Intent: contract compiled, deployed, ready to test",
+    "Oracle: contract compiled, deployed, ready to test",
+    "BTC SPV Verifier: contract compiled, deployed, shared object initialized",
+    "BTCP Escrow: contract compiled, deployed",
+    "Pre-Execution Firewall: contract compiled, deployed, shared object initialized"
   ],
-  "honest_limitations": [
-    "Deployed on local testnet (not public devnet — JSON-RPC deprecated on public fullnodes)",
-    "BTCP Intent test inconclusive (argument serialization issue, not a contract bug)",
-    "Oracle publish_signal not tested (requires OracleAdmin object lookup)",
-    "BTC SPV Verifier not tested (requires Bitcoin block header data)",
-    "Pre-Execution Firewall not tested (requires exploit signature data)"
+  "what_blocks_testing": [
+    "Local Sui validator OOM: only 4GB RAM, validator needs ~2.5GB, gets killed after publish",
+    "Public devnet faucet API deprecated: Sui CLI v1.38.3 uses JSON-RPC which is deprecated on public fullnodes",
+    "Need Sui CLI v1.81.1+ for gRPC/GraphQL support (couldn't install — 1GB binary, disk space limited)",
+    "User's devnet faucet funding went to a different address than our generated wallets"
+  ],
+  "how_to_complete_testing": [
+    "Option A: Run on a machine with 8GB+ RAM — local validator will survive publish+test",
+    "Option B: Install Sui CLI v1.81.1+ (supports gRPC) and get testnet SUI from faucet",
+    "Option C: Use Sui TypeScript SDK v2.x (supports GraphQL) with a funded wallet"
   ]
 }
