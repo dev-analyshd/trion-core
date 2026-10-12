@@ -1,0 +1,59 @@
+{
+  "test": "BTC ↔ Sui Bidirectional Zero-Bridge",
+  "network": "Sui Devnet + Bitcoin Testnet",
+  "date": "2026-10-12",
+  "sui_package": "0x57a69a8eebfd1bffd2b4274d1effd5444ff1bd97c86a59b6d6ba90b6baf8540e",
+  "sui_deployer": "0x7446f447774cff36e8d413f638e9ba93d8204bfac926ae8e8e1f29ab01f262bc",
+  "btc_address": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+  "btc_balance_before": 466230,
+  "btc_balance_after": 466230,
+  "zero_bridge_invariant": "PASS — BTC never moved, only behavioral identity crossed",
+  "btc_utxo": {
+    "txid": "62bfe73fab5ac18c64794493d3713c5eb3e92b839df401befecd68162ee1fcf7",
+    "block_height": 5128449,
+    "block_hash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4",
+    "amount_sats": 304527,
+    "confirmed": true
+  },
+  "beo_identity": {
+    "btc_beo": "0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee",
+    "sui_beo": "0x7446f447774cff36e8d413f638e9ba93d8204bfac926ae8e8e1f29ab01f262bc",
+    "formula": "SHA3-256(normalize(address)) — same on all VMs"
+  },
+  "btc_to_sui_steps": [
+    { "step": 1, "name": "Fetch BTC block header", "status": "PASS", "block_hash": "00000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f4" },
+    { "step": 2, "name": "Compute BEO identity", "status": "PASS", "beo": "0x3c5ba58f8335bff03c3c57b978ba0fa3bf7d28ed2880683cfdcf25dc463d70ee" },
+    { "step": 3, "name": "Attest BEO on Sui", "status": "PASS", "tx_digest": "HMvUviaXYkmFWNQ2XBjNe77DGKqdBx1pDuMVmsXsBQBN" },
+    { "step": 4, "name": "Register BTCP Route (BTC→Sui)", "status": "PASS", "tx_digest": "AgvqXkJ3dVmUXTMGaW6jAYnsJsERikdfjuTpUaXmn8Ka" },
+    { "step": 5, "name": "Register BTCP Intent (BTC→Sui)", "status": "PASS", "tx_digest": "Fmk8KS5YFQJzLhp1bLTQDwxdS9gHXLDZYVuQ7ViYN15j" },
+    { "step": 6, "name": "Commit Liquidity (BTC→Sui)", "status": "PASS", "tx_digest": "6fbPZLVmKKQrtPVZTccBbVs1goGNFu7Qs5wiuc4B1NJn" },
+    { "step": 7, "name": "Register AI Agent (BTC verifier)", "status": "PASS", "tx_digest": "9nZ8V37HiPDeLVymekV6ibc897qq7RUSzMEYvWweyhPK" },
+    { "step": 8, "name": "Oracle: publish signal (BTC entity)", "status": "PASS", "tx_digest": "CxG2AHvz5SYD8RHHhWgaLDKqiCb3bUxEBmNcisZEjoQo" },
+    { "step": 16, "name": "Finalize BTCP Intent (BTC→Sui)", "status": "PASS", "tx_digest": "5A6eAYTPtH9NkTpWuuMtQEuzSRwRtM9tmQHfz5Vamjtv" },
+    { "step": 17, "name": "Finalize BTCP Route (BTC→Sui)", "status": "PASS", "tx_digest": "GetPT5B8DXy4pMUGEK2XSZCgCxUKx28wdHD6VtqGLBnF" },
+    { "step": 18, "name": "Settle Liquidity (BTC→Sui)", "status": "PASS", "tx_digest": "CGgPgNxBXhsbqF2D21ur842wKcgYzdPQs1GiqKJVgxKA" }
+  ],
+  "sui_to_btc_steps": [
+    { "step": 9, "name": "Register BTCP Route (Sui→BTC)", "status": "PASS", "tx_digest": "3Bf8cQ8r4bJRoK2rQJMBGxLN3XiJwcJ1L1cLhTzVbYxN" },
+    { "step": 10, "name": "Register BTCP Intent (Sui→BTC)", "status": "PASS", "tx_digest": "BycrQLFM69Gu3pPRF9MEU41Ukv3A9GG48j3iocJiWrmX" },
+    { "step": 11, "name": "Commit Liquidity (Sui→BTC)", "status": "PASS", "tx_digest": "Ftoxjkq7PcYU6mDn5CMqgjNvqVwDM1YLJacKAkDVuBod" },
+    { "step": 12, "name": "Register AI Agent (Sui side)", "status": "PASS", "tx_digest": "8KTz2GMjKd1LKStMk3jwyzi4xfLbN3FuKcPsnu3pFCaf" },
+    { "step": 13, "name": "Oracle: publish signal (Sui entity)", "status": "PASS", "tx_digest": "9mjrfkR8QhPXhZCqQQ13EXLo5G8fRHt5bkCbtWWm2UXM" },
+    { "step": 18b, "name": "Settle Liquidity (Sui→BTC)", "status": "PASS", "tx_digest": "BaJ2vMFHtxpMqcy3F5emC2PaPsbpCa23rJbZkZeQgGoz" }
+  ],
+  "ai_agent_safety_tests": [
+    { "step": 14, "name": "Kill AI Agent (Love=0)", "status": "PASS", "tx_digest": "HgMusaKTbLJPGL87f9zPymGAk9zwZ4AJC1jnpgFZiuXk", "result": "Agent killed — Love Protocol kill switch activated" },
+    { "step": 15, "name": "Register bad agent (Love=0 at registration)", "status": "PASS", "tx_digest": "Bna5AnjFEZxZVcuTAWUutUhidq5PG8Wq4ZCABCw3U4Au", "result": "Agent registered with killed=true — refused entry" }
+  ],
+  "total_onchain_transactions": 17,
+  "total_sui_objects_created": 21,
+  "contracts_tested": ["beo_attestation", "btcp_route", "btcp_intent", "liquidity_ocean", "ai_agent_safety", "oracle"],
+  "contracts_deployed_but_not_separately_tested": ["btcp_escrow", "btc_spv_verifier", "pre_execution_firewall"],
+  "test_summary": {
+    "total_steps": 17,
+    "passed": 17,
+    "failed": 0,
+    "pass_rate": "100%",
+    "zero_bridge_invariant": "PASS — 466,230 sats BTC remained on Bitcoin testnet throughout all 17 transactions"
+  }
+}
