@@ -12,12 +12,13 @@ const {
   bufferCV,
   getAddressFromPrivateKey,
   PostConditionMode,
+  TransactionVersion,
 } = txPkg;
 import netPkg from '@stacks/network';
-const { STACKS_TESTNET, createNetwork } = netPkg;
+const { StacksTestnet } = netPkg;
 
 export const API = 'https://api.testnet.hiro.so';
-export const network = createNetwork(STACKS_TESTNET);
+export const network = new StacksTestnet({ url: API });
 
 /**
  * sleep(ms) — Promise-based delay.
@@ -99,7 +100,7 @@ export async function sendContractCall({
   fee = 100000,
   postConditionMode = PostConditionMode.Allow,
 }) {
-  const senderAddr = getAddressFromPrivateKey(senderKey, 'testnet');
+  const senderAddr = getAddressFromPrivateKey(senderKey, TransactionVersion.Testnet);
   const nonce = await getNonce(senderAddr);
   const tx = await makeContractCall({
     contractAddress,
@@ -112,7 +113,7 @@ export async function sendContractCall({
     nonce: BigInt(nonce),
     postConditionMode,
   });
-  const resp = await broadcastTransaction({ transaction: tx, network });
+  const resp = await broadcastTransaction(tx, network);
   if (!resp || !resp.txid) {
     return {
       ok: false,
@@ -161,4 +162,4 @@ export function randomBuff32() {
   return `0x${crypto.randomBytes(32).toString('hex')}`;
 }
 
-export { getAddressFromPrivateKey };
+export { getAddressFromPrivateKey, TransactionVersion };

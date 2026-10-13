@@ -30,7 +30,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import txPkg from '@stacks/transactions';
-const { makeContractDeploy, broadcastTransaction, getAddressFromPrivateKey } = txPkg;
+const { makeContractDeploy, broadcastTransaction, getAddressFromPrivateKey, TransactionVersion } = txPkg;
 
 import { API, network, getNonce, getBalance, waitForTx, sleep } from './lib/helpers.mjs';
 
@@ -50,7 +50,7 @@ const PROOFS_FILE =
   process.env.PROOFS_FILE ||
   path.resolve(REPO_ROOT, 'proofs', 'btcp-zero-bridge', 'stacks', 'v3-deployments.json');
 
-const DEPLOYER_ADDR = getAddressFromPrivateKey(DEPLOYER_KEY, 'testnet');
+const DEPLOYER_ADDR = getAddressFromPrivateKey(DEPLOYER_KEY, TransactionVersion.Testnet);
 
 // ----------------------------------------------------------------------------- contracts
 const CONTRACTS = [
@@ -67,7 +67,29 @@ const CONTRACTS = [
 ];
 
 // ----------------------------------------------------------------------------- deploy
+async function isAlreadyDeployed(name) {
+  const url = `${API}/v2/contracts/source/${DEPLOYER_ADDR}/${name}?proof=0`;
+  try {
+    const r = await fetch(url);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function deployContract(name, source) {
+  // Skip if already deployed (idempotent re-runs).
+  const already = await isAlreadyDeployed(name);
+  if (already) {
+    console.log(`  [skip] ${name} already deployed at ${DEPLOYER_ADDR}.${name}`);
+    return {
+      name,
+      contractId: `${DEPLOYER_ADDR}.${name}`,
+      status: 'deployed',
+      blockHeight: null,
+      skipped: true,
+    };
+  }
   const nonce = await getNonce(DEPLOYER_ADDR);
   console.log(`  [nonce=${nonce}] deploying ${name} (${source.length} bytes)...`);
   try {
@@ -79,7 +101,7 @@ async function deployContract(name, source) {
       fee: FEE,
       nonce: BigInt(nonce),
     });
-    const resp = await broadcastTransaction({ transaction: tx, network });
+    const resp = await broadcastTransaction(tx, network);
     if (!resp || !resp.txid) {
       const err = resp ? JSON.stringify(resp).slice(0, 200) : 'no broadcast response';
       console.log(`    ✗ broadcast_failed: ${err}`);
@@ -191,5 +213,11 @@ async function main() {
 
 main().catch(e => {
   console.error('FATAL:', e);
+  console.error(e.stack);
   process.exit(1);
+});
+
+// Catch unhandled promise rejections so the script logs + continues.
+process.on('unhandledRejection', (reason) => {
+  console.error('WARN: unhandledRejection:', reason);
 });
