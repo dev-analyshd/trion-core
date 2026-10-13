@@ -1,5 +1,6 @@
 ;; BTCPIntent.clar - BTCP intent registry (chain-agnostic).
-;; Stores cross-chain intents with a 7-status lifecycle.
+;; FIX: Added 6 missing §4.1 fields to map schema + register-intent params
+;; FIX: Aligned status enum with Solidity (EXPIRED=5, RESURRECTED=6)
 
 ;; Action enum
 (define-constant ACTION-SWAP u0)
@@ -8,39 +9,68 @@
 (define-constant ACTION-STAKE u3)
 (define-constant ACTION-BORROW u4)
 
-;; Status enum
+;; Status enum — ALIGNED with Solidity (EXPIRED=5, RESURRECTED=6)
 (define-constant STATUS-PENDING u0)
 (define-constant STATUS-ROUTING u1)
 (define-constant STATUS-EXECUTING u2)
 (define-constant STATUS-COMPLETED u3)
 (define-constant STATUS-FAILED u4)
-(define-constant STATUS-RESURRECTED u5)
-(define-constant STATUS-EXPIRED u6)
+(define-constant STATUS-EXPIRED u5)
+(define-constant STATUS-RESURRECTED u6)
 
+;; Privacy enum
+(define-constant PRIVACY-PUBLIC u0)
+(define-constant PRIVACY-ZK-CREDENTIAL u1)
+(define-constant PRIVACY-INVISIBLE u2)
+
+;; Chain preference enum
+(define-constant CHAIN-PREF-OPTIMAL u0)
+(define-constant CHAIN-PREF-SINGLE-CHAIN u1)
+(define-constant CHAIN-PREF-LIST u2)
+
+;; Finality enum
+(define-constant FINALITY-FAST u0)
+(define-constant FINALITY-STANDARD u1)
+(define-constant FINALITY-SECURE u2)
+
+;; FIX: Map schema now includes all 6 §4.1 fields
 (define-map intents
   { intent-hash: (buff 32) }
   { entity-id: (buff 32), action: uint, asset-in: (buff 32), asset-out: (buff 32),
     magnitude: uint, source-chain: uint, dest-chain: uint, deadline: uint,
-    max-gas-usd: uint, min-nl-score: uint, status: uint, created: uint, submitter: principal }
+    max-gas-usd: uint, min-nl-score: uint,
+    min-finality: uint, chain-pref: uint, privacy: uint,
+    btcp-version: uint, nonce: uint, travel-rule-proof: (buff 32),
+    status: uint, created: uint, submitter: principal }
 )
 
 (define-data-var owner principal tx-sender)
 
+;; FIX: register-intent now accepts all §4.1 fields
 (define-public (register-intent (intent-hash (buff 32)) (entity-id (buff 32)) (action uint)
                                 (asset-in (buff 32)) (asset-out (buff 32)) (magnitude uint)
                                 (source-chain uint) (dest-chain uint) (deadline uint)
-                                (max-gas-usd uint) (min-nl-score uint))
+                                (max-gas-usd uint) (min-nl-score uint)
+                                (min-finality uint) (chain-pref uint) (privacy uint)
+                                (btcp-version uint) (nonce uint) (travel-rule-proof (buff 32)))
   (begin
     (asserts! (<= action ACTION-BORROW) (err u300))
     (asserts! (> magnitude u0) (err u301))
+    (asserts! (> nonce u0) (err u306))
+    (asserts! (<= privacy PRIVACY-INVISIBLE) (err u307))
+    (asserts! (<= chain-pref CHAIN-PREF-LIST) (err u308))
+    (asserts! (<= min-finality FINALITY-SECURE) (err u309))
     (asserts! (is-none (map-get? intents { intent-hash: intent-hash })) (err u305))
     (map-set intents
       { intent-hash: intent-hash }
       { entity-id: entity-id, action: action, asset-in: asset-in, asset-out: asset-out,
         magnitude: magnitude, source-chain: source-chain, dest-chain: dest-chain,
         deadline: deadline, max-gas-usd: max-gas-usd, min-nl-score: min-nl-score,
+        min-finality: min-finality, chain-pref: chain-pref, privacy: privacy,
+        btcp-version: btcp-version, nonce: nonce, travel-rule-proof: travel-rule-proof,
         status: STATUS-PENDING, created: tenure-height, submitter: tx-sender }
     )
+    (print { event: "intent-registered", intent-hash: intent-hash })
     (ok true)
   )
 )
@@ -65,9 +95,13 @@
           asset-out: (get asset-out i), magnitude: (get magnitude i),
           source-chain: (get source-chain i), dest-chain: (get dest-chain i),
           deadline: (get deadline i), max-gas-usd: (get max-gas-usd i),
-          min-nl-score: (get min-nl-score i), status: new-status,
+          min-nl-score: (get min-nl-score i), min-finality: (get min-finality i),
+          chain-pref: (get chain-pref i), privacy: (get privacy i),
+          btcp-version: (get btcp-version i), nonce: (get nonce i),
+          travel-rule-proof: (get travel-rule-proof i), status: new-status,
           created: (get created i), submitter: (get submitter i) }
       )
+      (print { event: "intent-status-updated", intent-hash: intent-hash, new-status: new-status })
       (ok true)
     )
   )
@@ -78,16 +112,3 @@
 )
 
 (define-read-only (get-owner) (var-get owner))
-
-;; FIX: Added missing §4.1 fields (min-finality, chain-pref, privacy, btcp-version, nonce, travel-rule-proof)
-;; These are stored alongside the existing fields when register-intent is called with extended params.
-;; The existing register-intent function is backward-compatible — new fields default to u0/empty.
-(define-constant PRIVACY-PUBLIC u0)
-(define-constant PRIVACY-ZK-CREDENTIAL u1)
-(define-constant PRIVACY-INVISIBLE u2)
-(define-constant CHAIN-PREF-OPTIMAL u0)
-(define-constant CHAIN-PREF-SINGLE-CHAIN u1)
-(define-constant CHAIN-PREF-LIST u2)
-(define-constant FINALITY-FAST u0)
-(define-constant FINALITY-STANDARD u1)
-(define-constant FINALITY-SECURE u2)

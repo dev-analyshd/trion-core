@@ -3,6 +3,7 @@
 (define-constant ERR-ALREADY-FILED (err u701))
 (define-constant ERR-AWA-FROZEN (err u702))
 (define-constant ERR-INVALID-TIER (err u703))
+(define-constant ERR-PROOF-MISSING (err u704))
 (define-constant TIER-LOW u0)
 (define-constant TIER-MEDIUM u1)
 (define-constant TIER-HIGH u2)
