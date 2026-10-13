@@ -1,0 +1,581 @@
+{
+  "timestamp": "2026-10-13T10:41:34.756Z",
+  "summary": {
+    "total": 50,
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "txsBroadcast": 0,
+    "positive": {
+      "total": 40,
+      "passed": 40
+    },
+    "negative": {
+      "total": 10,
+      "passed": 10
+    }
+  },
+  "deployer": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z",
+  "validators": {
+    "v1": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z",
+    "v2": "ST1EADMNMWNX920YE5Y4RKHW1JNXRR4ZKAFZRTG4C",
+    "v3": "ST32QFP3A5DCEC8AZTC464B20CR3SQ9D8TKYE0N9V"
+  },
+  "contractSuffix": "v4",
+  "realBtcTip": {
+    "blockHashBE": "0000000000e63b6d00759c1f249321292ae551f9bddc66d4d2fbc2d23d416559",
+    "height": 5158575
+  },
+  "tests": [
+    {
+      "id": 1,
+      "name": "btcspvverifier-v4.submit-genesis-tip (fake PoW)",
+      "contract": "BTCSPVVerifier",
+      "status": "failed",
+      "txId": "0x65850bf647a0f1774805d1f92e18ddd48edbf7aedfc49bf592a3fbb8c2180536",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 2,
+      "name": "btcspvverifier-v4.submit-genesis-tip (real PoW)",
+      "contract": "BTCSPVVerifier",
+      "status": "success",
+      "txId": "0xb5bd06ba726520c43212ab5aa2a2cb8645aec5e1af7d80a567c46c968cb8873c",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 3,
+      "name": "btcspvverifier-v4.renounce-genesis-ability",
+      "contract": "BTCSPVVerifier",
+      "status": "success",
+      "txId": "0x4eeb4b1fedd685d93ea8cc5466e55d167dbbe8946db8b9d7e8c668862ce5ddcf",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 4,
+      "name": "btcpversionregistry-v4.register-adapter V1 v=100 (too low)",
+      "contract": "BTCPVersionRegistry",
+      "status": "failed",
+      "txId": "0x0f621487196591db49545474ede8de00426e8016ce15e6e79d14cf70805d233c",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 5,
+      "name": "btcpversionregistry-v4.register-adapter V2 v=200",
+      "contract": "BTCPVersionRegistry",
+      "status": "success",
+      "txId": "0x5c8420d506c39fcc92a42d0ecc7350969b89172922e26a5b272fadecfb8e3a42",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 6,
+      "name": "btcpversionregistry-v4.register-adapter V2 v=200 (duplicate)",
+      "contract": "BTCPVersionRegistry",
+      "status": "failed",
+      "txId": "0x42a2c1c8e15781628966e46967f1d590687ba089469db25051b87aa50a29509d",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 7,
+      "name": "travelrulecompliance-v4.file-travel-rule-proof entity1 tier=LOW",
+      "contract": "TravelRuleCompliance",
+      "status": "success",
+      "txId": "0xc8f3b45c1db03e9a1377316fef3e77cb955501db7e2c207d89ed43806cb21a22",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 8,
+      "name": "travelrulecompliance-v4.file-travel-rule-proof entity2 tier=CRITICAL",
+      "contract": "TravelRuleCompliance",
+      "status": "success",
+      "txId": "0xbf350f91a37d3b6c3e2da88a5e9fd09a49825b24a3975b0b4df2a2f454cb4a49",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 9,
+      "name": "travelrulecompliance-v4.file-travel-rule-proof entity1 (dup)",
+      "contract": "TravelRuleCompliance",
+      "status": "failed",
+      "txId": "0x7da093dba292c46763d334884308be1b297a224880229f862f30e8f5120b6f23",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 10,
+      "name": "travelrulecompliance-v4.clear-awa-freeze",
+      "contract": "TravelRuleCompliance",
+      "status": "success",
+      "txId": "0x37011884eef15326cae731bc527b04467f041cafa946e2ae71e5778582ffb7ec",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 11,
+      "name": "genesiscommitment-v4.sponsored-genesis bond=999999 (low)",
+      "contract": "GenesisCommitment",
+      "status": "failed",
+      "txId": "0x6069b098994013a33b83dd729a507e4f7e05679fddea5ba9546d8a000269f3ab",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 12,
+      "name": "genesiscommitment-v4.sponsored-genesis bond=1000000",
+      "contract": "GenesisCommitment",
+      "status": "success",
+      "txId": "0xdf5ebbb01b9c99eccd2a32041d48d3230b2dfbf59135a694a54e7f3cc8e06786",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 13,
+      "name": "genesiscommitment-v4.organic-genesis entity4",
+      "contract": "GenesisCommitment",
+      "status": "success",
+      "txId": "0x89ba80664ddfe27d32a89bd52a53c3b45a49a2e2c056ab6471cc05ef9e1e66fe",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 14,
+      "name": "genesiscommitment-v4.organic-genesis entity4 (dup)",
+      "contract": "GenesisCommitment",
+      "status": "failed",
+      "txId": "0xfb0fd06bf1141c835a698c154792ae2231920239d294f5cfff1b5fbb2240a775",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 15,
+      "name": "btcpintent-v4.register-intent #1 action=0 1->2",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0x3c614568cd6f157a84e1e670d0e359e2825f407a5a6b7ffe6d208a1f59591ea3",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 16,
+      "name": "btcpintent-v4.register-intent #2 action=1 2->3",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0x3507f11a17b080d4c88f6f2cbe5a581ec2ef1b929a629be231c04c730dc36383",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 17,
+      "name": "btcpintent-v4.register-intent #3 action=2 3->4",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0x0ca7049afa5524c5e7ada51b5b93168050e815d0a614907a9e3250d02fefea73",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 18,
+      "name": "btcpintent-v4.register-intent #4 action=3 4->5",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0xf57c58cff25c2cc9471d419c456acbea810215578e55a71765ab00578ab65363",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 19,
+      "name": "btcpintent-v4.register-intent #5 action=4 5->6",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0x84f7dfcbb04e7e00c1d4de20bdcee62685c87b46ccc8e959201c21dab45a9fce",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 20,
+      "name": "btcpintent-v4.register-intent #6 action=0 6->7",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0xa43e015a9753b7bedb2461dee165811396aa58200e6dd77a0a5b74bd85ccca95",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 21,
+      "name": "btcpintent-v4.register-intent #7 action=1 7->1",
+      "contract": "BTCPIntent",
+      "status": "success",
+      "txId": "0xeedc4d7390ff1f4eeb739721f0b757b663bcfa46f7b06ffa0be4cf99617a3f11",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 22,
+      "name": "btcproute-v4.register-route #1",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0x16eaf7a158ba0c3e14bf02cadae84c12087f87edc78b38064abff2ff8f3f9779",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 23,
+      "name": "btcproute-v4.register-route #2",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0x98a0cde01c1f0f34063e97a56bdcfa725d9ccbc498c37882faf981b9e24fe620",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 24,
+      "name": "btcproute-v4.register-route #3",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0xa630abf413b9f57604a244c79952b807439ee6933045f904962e1199829cc475",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 25,
+      "name": "btcproute-v4.register-route #4",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0x260fa03bf44194e955be2c67c8a4aea257cd9218dcb53a82e9f5450588c4d634",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 26,
+      "name": "btcproute-v4.register-route #5",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0xc162cd77a3f829a1788b8fd17556ef0352bcac6bce6c8be11a316a8a1bf31ae8",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 27,
+      "name": "btcproute-v4.finalize-route #1 cc=600000",
+      "contract": "BTCPRoute",
+      "status": "success",
+      "txId": "0x826edc794e188229ebb407f396f7503d7ac0fe0714fabe1f86216b93de6c8572",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 28,
+      "name": "btcproute-v4.finalize-route #2 cc=100000 (below floor)",
+      "contract": "BTCPRoute",
+      "status": "failed",
+      "txId": "0x5cf3be8f17062762eb5dca4f9986e0d6073a755c805535bd8b93cebfbb6a839c",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 29,
+      "name": "btcpescrow-v4.add-validator V1",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0x1be56f64645f6061b480576df27b58b1801082c8e8174473d45a7416a0f61bf4",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 30,
+      "name": "btcpescrow-v4.add-validator V2",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0x826a1096adc90fbafc1c26d6aaa73f108993750c881c535a1938c009341d2606",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 31,
+      "name": "btcpescrow-v4.add-validator V3",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0xff5158230187f093445a6b013c907fe2d0153f0860469e47c2a30b683a5e66e4",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 32,
+      "name": "btcpescrow-v4.lock-escrow #1",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0xde7d2b6eb1834a022513e6127be1333f71839648bb5e51795a01fd600814603a",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 33,
+      "name": "btcpescrow-v4.submit-attestation V1 escrow-1 cc=600000",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0xeb11805cd44a4155fefb55ad9cba0ca62b09a9bbb507e82417a0fbdb9109ffee",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 34,
+      "name": "btcpescrow-v4.submit-attestation V2 escrow-1 cc=700000 (mismatched)",
+      "contract": "BTCPEscrow",
+      "status": "success",
+      "txId": "0xd3a252be34f140a6333757cba02ce0b0268427188e3dab176d6abeacb6e58865",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 35,
+      "name": "btcpescrow-v4.release-escrow escrow-1 (disputed)",
+      "contract": "BTCPEscrow",
+      "status": "failed",
+      "txId": "0x576182f071a842f43fea8f6d604f3d8abcc31cecd37c95d8bf1aaf0cae43b3af",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 36,
+      "name": "liquidityocean-v4.commit-liquidity #1 cost=800000/700000/600000",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0x3680b270c7545c20ab4f75ff32ef1700f4815e8264789624d94e5a230ddb0262",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 37,
+      "name": "liquidityocean-v4.commit-liquidity #2 cost=900000/850000/750000",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0xafd592348f573a92b0b83d4fcf38a6fec1d9b42698fcaec3c61a7e9b1d1d6ecc",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 38,
+      "name": "liquidityocean-v4.commit-liquidity #3 cost=600000/500000/400000",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0x01b75b9c5a9302cc5fdc80f0b5b69992580e37d52472fbc2b3685cc22ec01f25",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 39,
+      "name": "liquidityocean-v4.commit-liquidity #4 cost=1000000/1000000/1000000",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0xc38e49278331f415690081291c36e830fee64b32f4d8ace90a5b68938aa2af0b",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 40,
+      "name": "liquidityocean-v4.settle-commitment #1 cc=600000",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0xca1a78f6921754ea9c860311da20722f2fe3074dfee316505615b5f3feb8e8b4",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 41,
+      "name": "liquidityocean-v4.revert-commitment #2",
+      "contract": "LiquidityOcean",
+      "status": "success",
+      "txId": "0xc7dfd1a6f6156c2e23a232b8b3ff8bdd42b3349a05dd689facd1a815b0e006f4",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 42,
+      "name": "liquidityocean-v4.commit-liquidity min-coherence=2000000 (too high)",
+      "contract": "LiquidityOcean",
+      "status": "failed",
+      "txId": "0xf361a83b4cf3fe9181eb5c5ded7098167a13a77b68511cebb3c1a925e10f73f7",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    },
+    {
+      "id": 43,
+      "name": "behaviorallimitorder-v4.place-order BUY",
+      "contract": "BehavioralLimitOrder",
+      "status": "success",
+      "txId": "0xefcc43975ea056a66a15c0ec960535a0255f3c1febf609f441083c5a9be63892",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 44,
+      "name": "behaviorallimitorder-v4.place-order SELL",
+      "contract": "BehavioralLimitOrder",
+      "status": "success",
+      "txId": "0xa18c236b4259b66c1912a62947cc1c2e7c75b6130d1ca832ec85c6e2e43fc67c",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 45,
+      "name": "behaviorallimitorder-v4.fill-order BUY partial",
+      "contract": "BehavioralLimitOrder",
+      "status": "success",
+      "txId": "0x3abbea89ad1ea48d26e1a620608da996818933bcb76fcfa667051c78541940ab",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 46,
+      "name": "behaviorallimitorder-v4.cancel-order SELL",
+      "contract": "BehavioralLimitOrder",
+      "status": "success",
+      "txId": "0xca1d8e5a7bbc59f5fb687af28435b8958fafa9bc2e989a99876122eb98b4d52b",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 47,
+      "name": "triontesttoken-v4.transfer 1000 to V2",
+      "contract": "trion-test-token",
+      "status": "success",
+      "txId": "0xecb2f08472f976bf586b8d7000842610e9627c60efc2514559412942aba566fe",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 48,
+      "name": "triontesttoken-v4.mint 5000 to V3 (owner)",
+      "contract": "trion-test-token",
+      "status": "success",
+      "txId": "0x3c06916b0515ae2cf3e793b8a8615f74fbd1440454f6f6a242314374666222ec",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 49,
+      "name": "triontesttoken-v4.faucet-drip from V2",
+      "contract": "trion-test-token",
+      "status": "success",
+      "txId": "0x0fdf3e57346f573d83d2656dc4378ca4ffe2383ee3013d827836534c84526b2e",
+      "error": null,
+      "expected": "success",
+      "actual": "success",
+      "pass": true
+    },
+    {
+      "id": 50,
+      "name": "triontesttoken-v4.faucet-drip from V2 (cooldown)",
+      "contract": "trion-test-token",
+      "status": "failed",
+      "txId": "0xe9e5ff2034635b47356b3c0469479e2b177a1d8119506167a2fed59f615377cd",
+      "error": "abort_by_response",
+      "expected": "failed",
+      "actual": "failed",
+      "pass": true
+    }
+  ]
+}

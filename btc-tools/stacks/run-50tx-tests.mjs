@@ -24,7 +24,7 @@
  * Positive tests (expected to SUCCESS):
  *   tests 2, 3, 5, 7, 8, 10, 12, 13, 15-27, 29-34, 36-41, 43-49  → 40 positive scenarios.
  *
- * Output: /home/z/my-project/trion-core/proofs/btcp-zero-bridge/stacks/v3-50tx-results.json
+ * Output: /home/z/my-project/trion-core/proofs/btcp-zero-bridge/stacks/v4-50tx-results.json
  *
  * Usage:
  *   node run-50tx-tests.mjs
@@ -109,7 +109,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const RESULTS_FILE = path.resolve(
-  REPO_ROOT, 'proofs', 'btcp-zero-bridge', 'stacks', 'v3-50tx-results.json'
+  REPO_ROOT, 'proofs', 'btcp-zero-bridge', 'stacks', 'v4-50tx-results.json'
 );
 
 // ------------------------------------------------------------ results accumulator
