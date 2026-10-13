@@ -76,14 +76,14 @@ const CHAIN_ID_STACKS = 104;
 
 // Contract identifiers (deployer prefix reused across all -v4 contracts)
 const C = {
-  BTCLOCK:        { addr: DEPLOYER_ADDR, name: `btcplock-v4` },
-  BTCPINTENT:     { addr: DEPLOYER_ADDR, name: `btcpintent-v4` },
-  BTCPROUTE:      { addr: DEPLOYER_ADDR, name: `btcproute-v4` },
-  BTCPESCROW:     { addr: DEPLOYER_ADDR, name: `btcpescrow-v4` },
-  LIQUIDITYOCEAN: { addr: DEPLOYER_ADDR, name: `liquidityocean-v4` },
-  BTCPLEND:       { addr: DEPLOYER_ADDR, name: `btcplend-v4` },
-  BTCPSWAP:       { addr: DEPLOYER_ADDR, name: `btcpswap-v4` },
-  TRIONTESTTOKEN: { addr: DEPLOYER_ADDR, name: `triontesttoken-v4` },
+  BTCLOCK:        { contractAddress: DEPLOYER_ADDR, contractName: `btcplock-v4` },
+  BTCPINTENT:     { contractAddress: DEPLOYER_ADDR, contractName: `btcpintent-v4` },
+  BTCPROUTE:      { contractAddress: DEPLOYER_ADDR, contractName: `btcproute-v4` },
+  BTCPESCROW:     { contractAddress: DEPLOYER_ADDR, contractName: `btcpescrow-v4` },
+  LIQUIDITYOCEAN: { contractAddress: DEPLOYER_ADDR, contractName: `liquidityocean-v4` },
+  BTCPLEND:       { contractAddress: DEPLOYER_ADDR, contractName: `btcplend-v4` },
+  BTCPSWAP:       { contractAddress: DEPLOYER_ADDR, contractName: `btcpswap-v4` },
+  TRIONTESTTOKEN: { contractAddress: DEPLOYER_ADDR, contractName: `triontesttoken-v4` },
 };
 
 // Paths
@@ -145,12 +145,15 @@ async function fetchJson(url) {
  */
 async function getBtcAnchors(n) {
   const out = [];
+  const seenTxids = new Set();
   // Try mempool.space first
   try {
     const txs = await fetchJson(`${MEMPOOL_API}/address/${BTC_TESTNET_ADDR}/txs`);
     if (Array.isArray(txs)) {
       for (const t of txs) {
         if (out.length >= n) break;
+        if (seenTxids.has(t.txid)) continue;
+        seenTxids.add(t.txid);
         const status = t.status || {};
         const bh = status.block_hash;
         const bt = status.block_time;
@@ -173,10 +176,11 @@ async function getBtcAnchors(n) {
   }
 
   // If still short, try the prior-session anchor's block.
-  if (out.length < n) {
+  if (out.length < n && !seenTxids.has(PRIOR_SESSION_ANCHOR_TXID)) {
     try {
       const tx = await fetchJson(`${MEMPOOL_API}/tx/${PRIOR_SESSION_ANCHOR_TXID}`);
       if (tx && tx.status && tx.status.block_hash) {
+        seenTxids.add(PRIOR_SESSION_ANCHOR_TXID);
         out.push({
           txid: tx.txid,
           blockHash: tx.status.block_hash,
@@ -400,17 +404,23 @@ async function phaseB(btcAnchors) {
         ...C.BTCPINTENT,
         functionName: 'register-intent',
         functionArgs: [
-          buffCV(intentHashes[i]),              // intent-hash (buff 32)
-          buffCV(entityIds[i]),                 // entity-id (buff 32)
-          uintCV(i % 5),                        // action (0-4: SWAP/TRANSFER/LIQUIDITY/STAKE/BORROW)
-          buffCV(ASSET_BTC),                     // asset-in (buff 32)
-          buffCV(ASSET_TTRION),                  // asset-out (buff 32)
-          uintCV(1_000_000 * (i + 1)),           // magnitude
-          uintCV(CHAIN_ID_BTC),                   // source-chain
-          uintCV(CHAIN_ID_STACKS),               // dest-chain
-          uintCV(1_000_000),                      // deadline (far future)
-          uintCV(50),                             // max-gas-usd
-          uintCV(300),                            // min-nl-score (0.30 × 1000)
+          buffCV(intentHashes[i]),              // 1. intent-hash (buff 32)
+          buffCV(entityIds[i]),                 // 2. entity-id (buff 32)
+          uintCV(i % 5),                        // 3. action (0-4: SWAP/TRANSFER/LIQUIDITY/STAKE/BORROW)
+          buffCV(ASSET_BTC),                     // 4. asset-in (buff 32)
+          buffCV(ASSET_TTRION),                  // 5. asset-out (buff 32)
+          uintCV(1_000_000 * (i + 1)),           // 6. magnitude
+          uintCV(CHAIN_ID_BTC),                   // 7. source-chain
+          uintCV(CHAIN_ID_STACKS),               // 8. dest-chain
+          uintCV(1_000_000),                      // 9. deadline (far future)
+          uintCV(50),                             // 10. max-gas-usd
+          uintCV(300),                            // 11. min-nl-score (0.30 × 1000)
+          uintCV(1),                              // 12. min-finality (FINALITY-FAST=0, STANDARD=1)
+          uintCV(0),                              // 13. chain-pref (CHAIN-PREF-OPTIMAL=0)
+          uintCV(0),                              // 14. privacy (PRIVACY-PUBLIC=0)
+          uintCV(210),                            // 15. btcp-version
+          uintCV(i + 1),                          // 16. nonce (must be > 0)
+          buffCV(hashStr(`trp-${RUN_SALT}-${i}`)), // 17. travel-rule-proof (buff 32)
         ],
         senderKey: DEPLOYER_KEY,
         fee: FEE,
@@ -429,13 +439,15 @@ async function phaseB(btcAnchors) {
         ...C.BTCPROUTE,
         functionName: 'register-route',
         functionArgs: [
-          buffCV(routeHashes[i]),              // route-id (buff 32)
-          buffCV(intentHashes[i]),              // intent-hash (buff 32)
-          buffCV(anchor.anchorBH),              // anchor-bh (buff 32) — BTC anchor
-          uintCV(CHAIN_ID_BTC),                  // anchor-chain
-          uintCV(CHAIN_ID_STACKS),               // execution-chain
-          buffCV(entityIds[i]),                  // entity-id (buff 32)
-          uintCV(5),                              // route-type = ROUTE-OOA
+          buffCV(routeHashes[i]),              // 1. route-id (buff 32)
+          buffCV(intentHashes[i]),              // 2. intent-hash (buff 32)
+          buffCV(anchor.anchorBH),              // 3. anchor-bh (buff 32) — BTC anchor
+          uintCV(CHAIN_ID_BTC),                  // 4. anchor-chain
+          uintCV(CHAIN_ID_STACKS),               // 5. execution-chain
+          buffCV(entityIds[i]),                  // 6. entity-id (buff 32)
+          uintCV(5),                              // 7. route-type = ROUTE-DEFERRED
+          buffCV(hashStr(`consensus-${RUN_SALT}-${i}`)), // 8. consensus-proof (buff 32)
+          buffCV(hashStr(`trp-${RUN_SALT}-${i}`)),     // 9. travel-rule-proof (buff 32)
         ],
         senderKey: DEPLOYER_KEY,
         fee: FEE,
@@ -700,28 +712,26 @@ async function phaseD(btcAnchors, ctx) {
       ...C.BTCPESCROW,
       functionName: 'submit-attestation',
       functionArgs: [
-        buffCV(routeHashes[0]),                    // route-id (buff 32) — NOT escrow-id!
-        uintCV(coherence),                         // coherence (must match escrow.min-coherence)
+        buffCV(escrowId),                          // escrow-id (buff 32) — keyed by escrow-id per C7 fix
+        uintCV(coherence),                         // coherence
         buffCV(executionBH),                        // execution-bh (buff 32)
-        uintCV(nowSec),                            // attestation-time (Unix seconds)
       ],
       senderKey: DEPLOYER_KEY,
       fee: FEE,
     }),
   });
 
-  // Test 32: submit-attestation (V2, route-1, 600000, exec-bh, time) — second attestation, same values → count=2, !disputed.
+  // Test 32: submit-attestation (V2, escrow-1, 600000, exec-bh) — second attestation, same values → count=2.
   await runTest({
-    id: 32, phase: 'D', name: 'submit-attestation V2 (route-1)',
+    id: 32, phase: 'D', name: 'submit-attestation V2 (escrow-1)',
     contract: 'btcpescrow-v4', fn: 'submit-attestation', expected: 'success',
     call: () => sendContractCall({
       ...C.BTCPESCROW,
       functionName: 'submit-attestation',
       functionArgs: [
-        buffCV(routeHashes[0]),
+        buffCV(escrowId),                          // escrow-id (buff 32)
         uintCV(coherence),
         buffCV(executionBH),
-        uintCV(nowSec),
       ],
       senderKey: V2_KEY,
       fee: FEE,
@@ -744,13 +754,16 @@ async function phaseD(btcAnchors, ctx) {
       ...C.LIQUIDITYOCEAN,
       functionName: 'commit-liquidity',
       functionArgs: [
-        buffCV(commitmentId),                       // commitment-id (buff 32)
-        buffCV(hashStr(`entity-${RUN_SALT}-0`)),    // entity-id (buff 32)
-        buffCV(routeHashes[0]),                     // route-id (buff 32)
-        buffCV(hashStr('tTRION')),                  // asset (buff 32)
-        uintCV(500),                                 // amount
-        uintCV(550000),                              // min-coherence (<= 1e6)
-        uintCV(expiry),                              // expiry (> tenure-height)
+        buffCV(commitmentId),                       // 1. commitment-id (buff 32)
+        buffCV(hashStr(`entity-${RUN_SALT}-0`)),    // 2. entity-id (buff 32)
+        buffCV(routeHashes[0]),                     // 3. route-id (buff 32)
+        buffCV(hashStr('tTRION')),                  // 4. asset (buff 32)
+        uintCV(500),                                 // 5. amount
+        uintCV(550000),                              // 6. min-coherence (<= 1e6)
+        uintCV(expiry),                              // 7. expiry (> burn-block-height)
+        uintCV(800000),                              // 8. cost-score
+        uintCV(700000),                              // 9. time-score
+        uintCV(600000),                              // 10. beo-health
       ],
       senderKey: DEPLOYER_KEY,
       fee: FEE,
@@ -782,7 +795,6 @@ async function phaseE(btcAnchors, ctxD) {
         buffCV(escrowId),                          // escrow-id (buff 32)
         buffCV(executionBH),                        // execution-bh (buff 32)
         uintCV(coherence),                          // coherence (uint)
-        uintCV(Math.floor(Date.now() / 1000)),     // current-time (uint, Unix seconds)
       ],
       senderKey: DEPLOYER_KEY,
       fee: FEE,
@@ -930,5 +942,19 @@ async function main() {
 main().catch(e => {
   console.error('FATAL:', e.message);
   console.error(e.stack);
+  // Save whatever we have so we can resume.
+  try { saveResults(); } catch (_) {}
   process.exit(1);
+});
+
+// Catch unhandled rejections so the script logs + continues.
+process.on('unhandledRejection', (reason) => {
+  console.error('WARN: unhandledRejection:', reason);
+});
+
+// Save partial results on SIGINT so we can resume after Ctrl-C.
+process.on('SIGINT', () => {
+  console.error('\nSIGINT: saving partial results...');
+  try { saveResults(); } catch (_) {}
+  process.exit(130);
 });
