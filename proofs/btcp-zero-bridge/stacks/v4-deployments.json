@@ -1,0 +1,72 @@
+[
+  {
+    "name": "btcspvverifier-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcspvverifier-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpversionregistry-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpversionregistry-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "travelrulecompliance-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.travelrulecompliance-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "genesiscommitment-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.genesiscommitment-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpintent-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpintent-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcproute-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcproute-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpescrow-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpescrow-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "liquidityocean-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.liquidityocean-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "behaviorallimitorder-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.behaviorallimitorder-v4",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "triontesttoken-v4",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.triontesttoken-v4",
+    "txId": "0xa1cbcbb13ad173248c5f2a6e1be7a39845f8ccbfc93e12b156301d09729dfffb",
+    "status": "deployed",
+    "blockHeight": 713550
+  }
+]
