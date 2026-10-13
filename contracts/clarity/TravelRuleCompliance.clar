@@ -1,4 +1,4 @@
-;; TravelRuleCompliance.clar - §11 Fix 1: FATF Travel Rule, 4 tiers, AWA freeze
+;; TravelRuleCompliance.clar - S11 Fix 1: FATF Travel Rule, 4 tiers, AWA freeze
 (define-constant ERR-NOT-OWNER (err u700))
 (define-constant ERR-ALREADY-FILED (err u701))
 (define-constant ERR-AWA-FROZEN (err u702))

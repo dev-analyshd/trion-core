@@ -1,6 +1,6 @@
-;; GenesisCommitment.clar - §9 Sponsored Genesis, stake_bond, identity genesis
+;; GenesisCommitment.clar - S9 Sponsored Genesis, stake_bond, identity genesis
 ;; 3 pathways: SPONSORED, ORGANIC, INSTITUTIONAL
-;; 5-layer sybil resistance (§9.3)
+;; 5-layer sybil resistance (S9.3)
 (define-constant ERR-NOT-OWNER (err u600))
 (define-constant ERR-ALREADY-GENESIS (err u601))
 (define-constant ERR-INSUFFICIENT-BOND (err u602))

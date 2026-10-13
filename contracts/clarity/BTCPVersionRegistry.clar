@@ -1,4 +1,4 @@
-;; BTCPVersionRegistry.clar - §11 Fix 3: protocol-version gate
+;; BTCPVersionRegistry.clar - S11 Fix 3: protocol-version gate
 (define-constant ERR-NOT-OWNER (err u800))
 (define-constant ERR-ALREADY-REGISTERED (err u801))
 (define-constant ERR-VERSION-TOO-LOW (err u802))

@@ -1,5 +1,5 @@
 ;; BTCPIntent.clar - BTCP intent registry (chain-agnostic).
-;; FIX: Added 6 missing §4.1 fields to map schema + register-intent params
+;; FIX: Added 6 missing S4.1 fields to map schema + register-intent params
 ;; FIX: Aligned status enum with Solidity (EXPIRED=5, RESURRECTED=6)
 
 ;; Action enum
@@ -33,7 +33,7 @@
 (define-constant FINALITY-STANDARD u1)
 (define-constant FINALITY-SECURE u2)
 
-;; FIX: Map schema now includes all 6 §4.1 fields
+;; FIX: Map schema now includes all 6 S4.1 fields
 (define-map intents
   { intent-hash: (buff 32) }
   { entity-id: (buff 32), action: uint, asset-in: (buff 32), asset-out: (buff 32),
@@ -46,7 +46,7 @@
 
 (define-data-var owner principal tx-sender)
 
-;; FIX: register-intent now accepts all §4.1 fields
+;; FIX: register-intent now accepts all S4.1 fields
 (define-public (register-intent (intent-hash (buff 32)) (entity-id (buff 32)) (action uint)
                                 (asset-in (buff 32)) (asset-out (buff 32)) (magnitude uint)
                                 (source-chain uint) (dest-chain uint) (deadline uint)

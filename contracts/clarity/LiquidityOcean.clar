@@ -1,5 +1,5 @@
 ;; LiquidityOcean.clar - liquidity commitment registry (chain-agnostic).
-;; FIX: Added ocean_score formula (§6.1): ocean_score = (cost × time × beo) / 1e12
+;; FIX: Added ocean_score formula (S6.1): ocean_score = (cost x time x beo) / 1e12
 ;; FIX: Added MIN-COHERENCE-FLOOR on settlement
 
 (define-constant STATUS-PENDING u0)
