@@ -1,0 +1,19 @@
+{
+  "name": "trion-stacks-tools",
+  "version": "1.0.0",
+  "description": "Stacks testnet deployment + verification tooling for TRION Clarity contracts (BTCP Zero-Bridge v3 pipeline)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node deploy-all-v3.mjs",
+    "deploy:v3": "node deploy-all-v3.mjs"
+  },
+  "dependencies": {
+    "@stacks/transactions": "^6.16.1",
+    "@stacks/network": "^6.16.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
