@@ -20,7 +20,7 @@
 (define-data-var spv-verifier principal tx-sender)
 (define-data-var owner principal tx-sender)
 
-(define-private (compute-min-quorum) (let ((vc (var-get validator-count))) (if (< vc MIN-QUORUM) MIN-QUORUM (max MIN-QUORUM (+ u1 (/ (* vc u2) u3))))))
+(define-private (compute-min-quorum) (let ((vc (var-get validator-count))) (if (< vc MIN-QUORUM) MIN-QUORUM (let ((cand (+ u1 (/ (* vc u2) u3)))) (if (> MIN-QUORUM cand) MIN-QUORUM cand)))))
 (define-private (is-validator-internal (v principal)) (is-some (map-get? validators { addr: v })))
 
 (define-public (add-validator (v principal)) (begin (asserts! (is-eq tx-sender (var-get owner)) (err u209)) (asserts! (< (var-get validator-count) u20) (err u210)) (asserts! (is-none (map-get? validators { addr: v })) (err u107)) (map-set validators { addr: v } { active: true }) (var-set validator-count (+ u1 (var-get validator-count))) (var-set quorum-required (compute-min-quorum)) (ok true)))
