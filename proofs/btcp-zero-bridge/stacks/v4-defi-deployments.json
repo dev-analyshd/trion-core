@@ -1,0 +1,19 @@
+[
+  {
+    "name": "btcplend-v4",
+    "txId": "0xdb06d0d44fd009b16852eb995f05e292832b73b234fc1860bc1f359ca508b445",
+    "status": "deployed",
+    "blockHeight": 717318
+  },
+  {
+    "name": "btcpswap-v4",
+    "txId": "0x49a115102df7497b3bf898ae1ca47421c7c3369c829f88606da55b1626030108",
+    "status": "deployed",
+    "blockHeight": 717320
+  },
+  {
+    "name": "btcplock-v4",
+    "status": "deployed",
+    "skipped": true
+  }
+]
