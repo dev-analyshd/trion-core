@@ -1,0 +1,221 @@
+{
+  "test": "BTCP ZeroBridge cross-VM behavioral consistency",
+  "task_id": "8",
+  "timestamp_utc": "2026-10-13T10:43:06.513Z",
+  "run_salt": "1791888130815",
+  "config": {
+    "stacks_deployer": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z",
+    "stacks_suffix": "v4",
+    "stacks_contracts": {
+      "btcp_intent": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpintent-v4",
+      "btcp_route": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcproute-v4",
+      "liquidity_ocean": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.liquidityocean-v4"
+    },
+    "sui_package": "0x57a69a8eebfd1bffd2b4274d1effd5444ff1bd97c86a59b6d6ba90b6baf8540e",
+    "sui_cli": "/home/z/.cargo/bin/sui",
+    "sui_active_env": "devnet",
+    "sui_active_addr": "0x7446f447774cff36e8d413f638e9ba93d8204bfac926ae8e8e1f29ab01f262bc",
+    "sui_balance_sui": 9.65,
+    "sui_live": true,
+    "btc_testnet_addr": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+    "chain_id_stacks": 104,
+    "chain_id_sui": 83
+  },
+  "canonical_payload": {
+    "intent_hash": "0xfad94b4e56477848e2c61706299ca1d81a82df43790f0468a6b61543de6a4417",
+    "route_id": "0xfd921d596fc4bbdef9ba50bfbc2ca250e7a2a9cfd26024148e6f76a053585a37",
+    "commitment_id": "0x12ca82012989904e254f440980a90a4f456298837565345dca0f833e84767827",
+    "btc_anchor_addr": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks"
+  },
+  "hash_dna": {
+    "sense": "0x2067f7c7fe6fcc37e88aefe069d59fe9fda7bdbc633826215aa32a9da0c49941",
+    "antisense": "0x443642bc5c61e005df1eefd32d96dabce64b4dabfa1128e1851b928a26c17c5e",
+    "sense_match_recompute": true,
+    "formula": "sense = SHA3-256(payload ‖ 0x00); antisense = SHA3-256(payload ‖ 0xFF) XOR NOT(sense)"
+  },
+  "steps": [
+    {
+      "step": 1,
+      "vm": "STACKS",
+      "action": "register-intent",
+      "tx_id": "0x8ab8ea35f91df62fc85b2e2e8cd99bc398a8b8bb21ac8d804e5a213bc339ceac",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "tx_status": "success",
+        "block_height": 713661
+      }
+    },
+    {
+      "step": 2,
+      "vm": "SUI",
+      "action": "register_intent",
+      "tx_id": "7PUnMp7UCEiAFsLwcS3CgA91XAgzjPLNnzmvLQ5r1qJZ",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "status": "Success",
+        "created_count": 9
+      }
+    },
+    {
+      "step": 3,
+      "vm": "STACKS",
+      "action": "register-route",
+      "tx_id": "0xaf93d70747450e5a4b97af8a473e3b94892fa8c3b2296c94ad71d2539cd5f9b3",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "tx_status": "success",
+        "block_height": 713663
+      }
+    },
+    {
+      "step": 4,
+      "vm": "SUI",
+      "action": "register_route",
+      "tx_id": "2P87HZEEH6oZPQ8BcXjv1dQB5RuhrGyeUaxcG9nC81oP",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "status": "Success",
+        "created_count": 9
+      }
+    },
+    {
+      "step": 5,
+      "vm": "STACKS",
+      "action": "finalize-route",
+      "tx_id": "0x8d10b23f347aa3bc2b520bfc8e89b90e81bbf4cb362c296966ab0dbbc3fd9559",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "tx_status": "success",
+        "block_height": 713666
+      }
+    },
+    {
+      "step": 6,
+      "vm": "SUI",
+      "action": "finalize_route",
+      "tx_id": null,
+      "ok": false,
+      "simulated": false,
+      "error": "Command failed: /home/z/.cargo/bin/sui client call --package 0x57a69a8eebfd1bffd2b4274d1effd5444ff1bd97c86a59b6d6ba90b6baf8540e --module btcp_route --function finalize_route --args 0x1a20acaa2653212b71c707d130f9b3aa31871b4fef55d068d6b7682efbc41406 0x6 --gas-budget 10000000",
+      "info": {
+        "status": "exception",
+        "created_count": 0
+      }
+    },
+    {
+      "step": 7,
+      "vm": "STACKS",
+      "action": "commit-liquidity",
+      "tx_id": "0xf0653af28dcce9931764374a212f65b83a4bcbb9871d543db84171100f49d224",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "tx_status": "success",
+        "block_height": 713668
+      }
+    },
+    {
+      "step": 8,
+      "vm": "SUI",
+      "action": "commit_liquidity",
+      "tx_id": "2ASp2CXwi463pnAxJVGL4L26e9wwGeLfyBEmCnr1NW36",
+      "ok": true,
+      "simulated": false,
+      "error": null,
+      "info": {
+        "status": "Success",
+        "created_count": 9
+      }
+    }
+  ],
+  "summary": {
+    "steps_passed": 7,
+    "steps_total": 8,
+    "stacks_steps_passed": 4,
+    "stacks_steps_total": 4,
+    "sui_steps_passed": 3,
+    "sui_steps_total": 4,
+    "bh_consistent": true,
+    "cross_vm_coherent": false,
+    "zero_bridge_invariant": "HELD — no assets moved between Stacks and Sui; only behavioral identity crossed"
+  },
+  "akashic_index_record": {
+    "record_type": "cross_vm_bh_linkage",
+    "canonical_payload_sha3_256": "0x8a2d3a5cc017fe497d57f2fa97203029fd3ef1b5e80885a38b16193cdb2d7918",
+    "intent_hash": "0xfad94b4e56477848e2c61706299ca1d81a82df43790f0468a6b61543de6a4417",
+    "route_id": "0xfd921d596fc4bbdef9ba50bfbc2ca250e7a2a9cfd26024148e6f76a053585a37",
+    "commitment_id": "0x12ca82012989904e254f440980a90a4f456298837565345dca0f833e84767827",
+    "sense_bh": "0x2067f7c7fe6fcc37e88aefe069d59fe9fda7bdbc633826215aa32a9da0c49941",
+    "antisense_bh": "0x443642bc5c61e005df1eefd32d96dabce64b4dabfa1128e1851b928a26c17c5e",
+    "stacks_chain_id": 104,
+    "sui_chain_id": 83,
+    "stacks_txs": [
+      {
+        "step": 1,
+        "action": "register-intent",
+        "tx_id": "0x8ab8ea35f91df62fc85b2e2e8cd99bc398a8b8bb21ac8d804e5a213bc339ceac",
+        "ok": true
+      },
+      {
+        "step": 3,
+        "action": "register-route",
+        "tx_id": "0xaf93d70747450e5a4b97af8a473e3b94892fa8c3b2296c94ad71d2539cd5f9b3",
+        "ok": true
+      },
+      {
+        "step": 5,
+        "action": "finalize-route",
+        "tx_id": "0x8d10b23f347aa3bc2b520bfc8e89b90e81bbf4cb362c296966ab0dbbc3fd9559",
+        "ok": true
+      },
+      {
+        "step": 7,
+        "action": "commit-liquidity",
+        "tx_id": "0xf0653af28dcce9931764374a212f65b83a4bcbb9871d543db84171100f49d224",
+        "ok": true
+      }
+    ],
+    "sui_txs": [
+      {
+        "step": 2,
+        "action": "register_intent",
+        "digest": "7PUnMp7UCEiAFsLwcS3CgA91XAgzjPLNnzmvLQ5r1qJZ",
+        "ok": true,
+        "simulated": false
+      },
+      {
+        "step": 4,
+        "action": "register_route",
+        "digest": "2P87HZEEH6oZPQ8BcXjv1dQB5RuhrGyeUaxcG9nC81oP",
+        "ok": true,
+        "simulated": false
+      },
+      {
+        "step": 6,
+        "action": "finalize_route",
+        "digest": null,
+        "ok": false,
+        "simulated": false
+      },
+      {
+        "step": 8,
+        "action": "commit_liquidity",
+        "digest": "2ASp2CXwi463pnAxJVGL4L26e9wwGeLfyBEmCnr1NW36",
+        "ok": true,
+        "simulated": false
+      }
+    ],
+    "zero_bridge_invariant_held": true
+  }
+}
