@@ -35,7 +35,8 @@
   (begin (asserts! (is-validator-internal tx-sender) (err u206)) (asserts! (is-none (map-get? has-attested { escrow-id: escrow-id, validator: tx-sender })) (err u207)) (map-set has-attested { escrow-id: escrow-id, validator: tx-sender } { value: true })
     (let ((existing (map-get? attestations { escrow-id: escrow-id })))
       (if (is-none existing) (map-set attestations { escrow-id: escrow-id } { coherence: coherence, execution-bh: execution-bh, count: u1, last-height: burn-block-height, disputed: false })
-        (let ((att (unwrap-panic existing))) (if (and (is-eq coherence (get coherence att)) (is-eq execution-bh (get execution-bh att))) (map-set attestations { escrow-id: escrow-id } { coherence: (get coherence att), execution-bh: (get execution-bh att), count: (+ u1 (get count att)), last-height: burn-block-height, disputed: false }) (map-set attestations { escrow-id: escrow-id } { coherence: (get coherence att), execution-bh: (get execution-bh att), count: (get count att), last-height: burn-block-height, disputed: true }))))))
+        (let ((att (unwrap-panic existing))) (if (and (is-eq coherence (get coherence att)) (is-eq execution-bh (get execution-bh att))) (map-set attestations { escrow-id: escrow-id } { coherence: (get coherence att), execution-bh: (get execution-bh att), count: (+ u1 (get count att)), last-height: burn-block-height, disputed: false }) (map-set attestations { escrow-id: escrow-id } { coherence: (get coherence att), execution-bh: (get execution-bh att), count: (get count att), last-height: burn-block-height, disputed: true })))))
+
     (print { event: "attestation-submitted", escrow-id: escrow-id }) (ok true)))
 
 (define-public (release-escrow (escrow-id (buff 32)) (execution-bh (buff 32)) (coherence uint))
