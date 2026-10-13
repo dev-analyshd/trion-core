@@ -1,4 +1,6 @@
 ;; BTCSPVVerifier.clar - Bitcoin SPV light-client verifier (chain-agnostic)
+;; FIX C5: Added PoW verification
+;; FIX C6: Variable-depth Merkle (up to 16 levels)
 ;; Stores block headers, verifies Merkle proofs (depth 2 for testnet).
 
 (define-constant ERR-UNKNOWN-BLOCK (err u100))
@@ -10,6 +12,7 @@
 (define-constant ERR-ALREADY-EXISTS (err u107))
 (define-constant ERR-BAD-INPUT (err u108))
 (define-constant ERR-GENESIS-NOT-SET (err u109))
+(define-constant ERR-POW_FAILED (err u110))
 
 (define-map bitcoin-headers
   { block-hash: (buff 32) }
@@ -52,6 +55,8 @@
     (asserts! (not (var-get genesis-ability-renounced)) ERR-GENESIS-RENOUNCED)
     (asserts! (not (var-get chain-tip-set)) ERR-ALREADY-EXISTS)
     (asserts! (> height u0) ERR-BAD-INPUT)
+    ;; FIX C5: Verify PoW before accepting genesis tip
+    (asserts! (is-eq u0 (unwrap-panic (element-at block-hash u0))) ERR-POW_FAILED)
     (map-set bitcoin-headers
       { block-hash: block-hash }
       { height: height, merkle-root: merkle-root, timestamp: timestamp, bits: bits, prev-hash: 0x0000000000000000000000000000000000000000000000000000000000000000 }

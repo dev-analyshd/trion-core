@@ -245,7 +245,7 @@ contract BTCPEscrow {
         uint256 minCoherence
     ) internal view {
         if (trionOracle == address(0)) {
-            return; // trusted-relayer mode (documented dev-only opt-out)
+            revert("ORACLE_NOT_BOUND_FAIL_CLOSED"); // FIX C8: fail-closed
         }
         (
             bytes32 anchorBH,

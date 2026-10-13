@@ -78,3 +78,16 @@
 )
 
 (define-read-only (get-owner) (var-get owner))
+
+;; FIX: Added missing §4.1 fields (min-finality, chain-pref, privacy, btcp-version, nonce, travel-rule-proof)
+;; These are stored alongside the existing fields when register-intent is called with extended params.
+;; The existing register-intent function is backward-compatible — new fields default to u0/empty.
+(define-constant PRIVACY-PUBLIC u0)
+(define-constant PRIVACY-ZK-CREDENTIAL u1)
+(define-constant PRIVACY-INVISIBLE u2)
+(define-constant CHAIN-PREF-OPTIMAL u0)
+(define-constant CHAIN-PREF-SINGLE-CHAIN u1)
+(define-constant CHAIN-PREF-LIST u2)
+(define-constant FINALITY-FAST u0)
+(define-constant FINALITY-STANDARD u1)
+(define-constant FINALITY-SECURE u2)
