@@ -1,0 +1,72 @@
+[
+  {
+    "name": "btcspvverifier-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcspvverifier-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpversionregistry-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpversionregistry-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "travelrulecompliance-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.travelrulecompliance-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "genesiscommitment-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.genesiscommitment-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpintent-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpintent-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcproute-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcproute-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "btcpescrow-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcpescrow-v3",
+    "txId": "0xb11b92456aa9f43c60419b1d7bda0516249c1ae23719ab45de673b8f9122c1aa",
+    "status": "deployed",
+    "blockHeight": 713202
+  },
+  {
+    "name": "liquidityocean-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.liquidityocean-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "behaviorallimitorder-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.behaviorallimitorder-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  },
+  {
+    "name": "triontesttoken-v3",
+    "contractId": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.triontesttoken-v3",
+    "status": "deployed",
+    "blockHeight": null,
+    "skipped": true
+  }
+]
