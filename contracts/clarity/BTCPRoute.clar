@@ -37,7 +37,7 @@
         execution-bh: 0x0000000000000000000000000000000000000000000000000000000000000000,
         anchor-chain: anchor-chain, execution-chain: execution-chain, entity-id: entity-id,
         gas-saved: u0, beo-continuity: u0, cc-coherence: u0,
-        route-type: route-type, verified: false, created: tenure-height,
+        route-type: route-type, verified: false, created: burn-block-height,
         finalized: u0, registrar: tx-sender,
         consensus-proof: consensus-proof, travel-rule-proof: travel-rule-proof }
     )
@@ -64,7 +64,7 @@
           entity-id: (get entity-id r), gas-saved: gas-saved,
           beo-continuity: beo-continuity, cc-coherence: cc-coherence,
           route-type: (get route-type r), verified: true,
-          created: (get created r), finalized: tenure-height, registrar: (get registrar r),
+          created: (get created r), finalized: burn-block-height, registrar: (get registrar r),
           consensus-proof: (get consensus-proof r), travel-rule-proof: (get travel-rule-proof r) }
       )
       (print { event: "route-finalized", route-id: route-id, cc-coherence: cc-coherence })

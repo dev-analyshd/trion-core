@@ -1,5 +1,5 @@
 ;; trion-test-token.clar - SIP-010 fungible test token for BTCP escrow + LiquidityOcean flows.
-;; Ticker: tTRION  ·  Decimals: 6  ·  Initial supply: 1,000,000,000 tTRION (10^15 micro-tTRION).
+;; Ticker: tTRION  -  Decimals: 6  -  Initial supply: 1,000,000,000 tTRION (10^15 micro-tTRION).
 ;; Owner-mintable / burnable + rate-limited faucet-drip for test setups.
 
 (define-fungible-token ttrion)

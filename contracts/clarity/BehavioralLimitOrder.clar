@@ -30,7 +30,7 @@
       { order-id: order-id }
       { entity-id: entity-id, route-id: route-id, side: side, asset: asset,
         amount: amount, price: price, match-quality-score: u0, filled: u0,
-        status: STATUS-PENDING, created: tenure-height, owner: tx-sender }
+        status: STATUS-PENDING, created: burn-block-height, owner: tx-sender }
     )
     (ok true)
   )

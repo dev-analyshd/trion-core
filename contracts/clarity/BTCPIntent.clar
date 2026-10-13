@@ -9,7 +9,7 @@
 (define-constant ACTION-STAKE u3)
 (define-constant ACTION-BORROW u4)
 
-;; Status enum — ALIGNED with Solidity (EXPIRED=5, RESURRECTED=6)
+;; Status enum -- ALIGNED with Solidity (EXPIRED=5, RESURRECTED=6)
 (define-constant STATUS-PENDING u0)
 (define-constant STATUS-ROUTING u1)
 (define-constant STATUS-EXECUTING u2)
@@ -68,7 +68,7 @@
         deadline: deadline, max-gas-usd: max-gas-usd, min-nl-score: min-nl-score,
         min-finality: min-finality, chain-pref: chain-pref, privacy: privacy,
         btcp-version: btcp-version, nonce: nonce, travel-rule-proof: travel-rule-proof,
-        status: STATUS-PENDING, created: tenure-height, submitter: tx-sender }
+        status: STATUS-PENDING, created: burn-block-height, submitter: tx-sender }
     )
     (print { event: "intent-registered", intent-hash: intent-hash })
     (ok true)
