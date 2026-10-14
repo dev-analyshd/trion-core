@@ -811,23 +811,27 @@ function cmdVerify(args) {
 
 // ---------- dispatch ----------
 const argv = process.argv.slice(2);
-if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') {
-  printHelp();
-  process.exit(0);
-}
-
-const cmd = argv[0];
-const rest = parseArgs(argv.slice(1));
-
-switch (cmd) {
-  case 'create':            cmdCreate(rest); break;
-  case 'reveal-preimage':   cmdRevealPreimage(rest); break;
-  case 'refund':            cmdRefund(rest); break;
-  case 'derive-sense':      cmdDeriveSense(rest); break;
-  case 'build-payload':     cmdBuildPayload(rest); break;
-  case 'verify':            cmdVerify(rest); break;
-  default:
-    console.error(`unknown command: ${cmd}`);
+// CLI entry point — only runs when this file is the entry point, not when imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const argv = process.argv.slice(2);
+  if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') {
     printHelp();
-    process.exit(1);
+    process.exit(0);
+  }
+
+  const cmd = argv[0];
+  const rest = parseArgs(argv.slice(1));
+
+  switch (cmd) {
+    case 'create':            cmdCreate(rest); break;
+    case 'reveal-preimage':   cmdRevealPreimage(rest); break;
+    case 'refund':            cmdRefund(rest); break;
+    case 'derive-sense':      cmdDeriveSense(rest); break;
+    case 'build-payload':     cmdBuildPayload(rest); break;
+    case 'verify':            cmdVerify(rest); break;
+    default:
+      console.error(`unknown command: ${cmd}`);
+      printHelp();
+      process.exit(1);
+  }
 }

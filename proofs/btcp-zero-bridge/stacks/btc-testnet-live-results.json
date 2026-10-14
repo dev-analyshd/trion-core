@@ -1,0 +1,14 @@
+{
+  "step": "csv-refund-spend",
+  "status": "broadcast_success",
+  "fundingTxid": "688222635d1c86cae125ba4cf33b660b4d686e11ef15107a3547f7e724ab15d2",
+  "spendTxid": "cd1c1bf68139c2f879d631da73842c9368288b420ca72837f292b9bda5573d8d",
+  "sendAmount": 127310,
+  "fee": 1000,
+  "vaultAddress": "tb1pw2y72nypsgpd0wpcc0skugy6f6y9pyn9sxu549042t7ex39y3ztqpfr2cm",
+  "borrowerAddress": "tb1qylhdd4xd9sxh3e8z2z5zgvvaxfhf7rh9t2vucz",
+  "csvBlocks": 6,
+  "explorerUrl": "https://mempool.space/testnet/tx/cd1c1bf68139c2f879d631da73842c9368288b420ca72837f292b9bda5573d8d",
+  "timestamp": "2026-10-14T16:00:47.804Z",
+  "description": "Real Bitcoin testnet transaction spending a TRION Coherence Vault UTXO via the CSV refund script path."
+}
