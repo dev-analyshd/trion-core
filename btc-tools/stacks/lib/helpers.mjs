@@ -1,18 +1,6 @@
-/**
- * lib/helpers.mjs — Shared Stacks testnet helpers for TRION deploys + verification.
- *
- * ESM only. Depends on @stacks/transactions v7.x and @stacks/network v7.x.
- * All HTTP calls target the Hiro testnet API (https://api.testnet.hiro.so).
- */
 import * as crypto from 'crypto';
 import txPkg from '@stacks/transactions';
-const {
-  makeContractCall,
-  broadcastTransaction,
-  bufferCV,
-  getAddressFromPrivateKey: _getAddr,
-  PostConditionMode,
-} = txPkg;
+const { makeContractCall, broadcastTransaction, bufferCV, getAddressFromPrivateKey: _getAddr, PostConditionMode } = txPkg;
 import netPkg from '@stacks/network';
 const { STACKS_TESTNET } = netPkg;
 
@@ -23,9 +11,7 @@ export function getAddressFromPrivateKey(privateKey, network = 'testnet') {
   return _getAddr(privateKey, network);
 }
 
-export function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
+export function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 export async function getNonce(addr) {
   const r = await fetch(`${API}/v2/accounts/${addr}?proof=0`);
@@ -57,32 +43,12 @@ export async function waitForTx(txId, maxMs = 180000) {
   return { ok: false, error: 'timeout' };
 }
 
-export async function sendContractCall({
-  contractAddress,
-  contractName,
-  functionName,
-  functionArgs,
-  senderKey,
-  fee = 100000,
-  postConditionMode = PostConditionMode.Allow,
-}) {
+export async function sendContractCall({ contractAddress, contractName, functionName, functionArgs, senderKey, fee = 100000, postConditionMode = PostConditionMode.Allow }) {
   const senderAddr = getAddressFromPrivateKey(senderKey, 'testnet');
   const nonce = await getNonce(senderAddr);
-  const tx = await makeContractCall({
-    contractAddress,
-    contractName,
-    functionName,
-    functionArgs,
-    senderKey,
-    network,
-    fee,
-    nonce: BigInt(nonce),
-    postConditionMode,
-  });
+  const tx = await makeContractCall({ contractAddress, contractName, functionName, functionArgs, senderKey, network, fee, nonce: BigInt(nonce), postConditionMode });
   const resp = await broadcastTransaction({ transaction: tx, network });
-  if (!resp || !resp.txid) {
-    return { ok: false, error: resp ? JSON.stringify(resp).slice(0, 200) : 'no broadcast response' };
-  }
+  if (!resp || !resp.txid) return { ok: false, error: resp ? JSON.stringify(resp).slice(0, 200) : 'no broadcast response' };
   const txId = `0x${resp.txid}`;
   const result = await waitForTx(txId);
   return { ok: !!result.ok, txId, info: result.info, error: result.error };
@@ -92,11 +58,7 @@ export function buffCV(hexStr) {
   const raw = hexStr == null ? '' : String(hexStr);
   const hex = raw.startsWith('0x') ? raw.slice(2) : raw;
   const bytes = Buffer.from(hex, 'hex');
-  if (bytes.length < 32) {
-    const padded = Buffer.alloc(32);
-    bytes.copy(padded, 32 - bytes.length);
-    return bufferCV(padded);
-  }
+  if (bytes.length < 32) { const padded = Buffer.alloc(32); bytes.copy(padded, 32 - bytes.length); return bufferCV(padded); }
   return bufferCV(bytes);
 }
 
@@ -105,6 +67,4 @@ export function hashStr(str) {
   return `0x${h}`;
 }
 
-export function randomBuff32() {
-  return `0x${crypto.randomBytes(32).toString('hex')}`;
-}
+export function randomBuff32() { return `0x${crypto.randomBytes(32).toString('hex')}`; }

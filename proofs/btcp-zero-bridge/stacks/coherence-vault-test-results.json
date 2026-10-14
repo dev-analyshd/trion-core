@@ -1,0 +1,139 @@
+{
+  "schema": "trion-coherence-vault-test/v1",
+  "startedAt": "2026-10-14T09:15:36.162Z",
+  "contract": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.trioncoherencevault-v4",
+  "deployer": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z",
+  "phases": {
+    "A": {
+      "vaultAddress": "tb1paztyrht0rup84zkx6443wdxym9eh33j6m5dhw0tqvkqdqdgx78jqucqryk",
+      "vaultOutputScript": "5120e89641dd6f1f027a8ac6d56b1734c4d97378c65add1b773d606580d03506f1e4",
+      "releaseScript": "a820ff8a249339bd8685a361a432ba68bb32a3ad7ba171080d119c73c390665c796b87",
+      "refundScript": "56b27520333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46aac",
+      "internalPubkey": "333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46a",
+      "borrowerPubkey": "03333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46a",
+      "committedAnchorBH": "ff8a249339bd8685a361a432ba68bb32a3ad7ba171080d119c73c390665c796b",
+      "csvBlocks": 6,
+      "sats": 100000,
+      "lenderAddress": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+      "simUtxo": {
+        "txid": "273c6c75240de221163be7ed4a997296815432e7a6c89efab704c10148c706af",
+        "vout": 0
+      },
+      "vaultStateFile": "btc-tools/vault/vault-state-test.json",
+      "releasePsbtB64": "cHNidP8BAFICAAAAAa8Gx0gBwQS3+p7IpucyVIGWcplK7ec7FiHiDSR1bDwnAAAAAAD9////AVSCAQAAAAAAFgAUo3RUkMYzm2H4OcbMQaq0dSQMX2UAAAAAAAEBK6CGAQAAAAAAIlEg6JZB3W8fAnqKxtVrFzTE2XN4xlrdG3c9YGWA0DUG8eRCFcEzP7OmK7FWbDPTBE+3tQnCI7CoXueFnJO7FFztEFnUahgSLMQptURCEE/817JwIToGccMo3fPSTxLmJnW+iuHbJKgg/4okkzm9hoWjYaQyumi7MqOte6FxCA0RnHPDkGZceWuHwAAA",
+      "refundPsbtB64": "cHNidP8BAF4CAAAAAa8Gx0gBwQS3+p7IpucyVIGWcplK7ec7FiHiDSR1bDwnAAAAAAAGAAAAAVSCAQAAAAAAIlEgSl28W2oDiIsAw9B4PkRs/4BSjcrJMjGRwbqd+nR6anUAAAAAAAEBK6CGAQAAAAAAIlEg6JZB3W8fAnqKxtVrFzTE2XN4xlrdG3c9YGWA0DUG8eRBFDM/s6YrsVZsM9MET7e1CcIjsKhe54Wck7sUXO0QWdRqGBIsxCm1REIQT/zXsnAhOgZxwyjd89JPEuYmdb6K4dtASgoAnPk8zJE7g5vFDr7HImdp0JSCGmhFJXAjGJBrr4PHJjoDRRRLFeQOlP/3ShNbVIEVb/eBUA3SVJITvK3GRkIVwTM/s6YrsVZsM9MET7e1CcIjsKhe54Wck7sUXO0QWdRqu2/Lh4wBeh88mPoAiFoTKdKJuWOniCALx/gtWXD/zKYmVrJ1IDM/s6YrsVZsM9MET7e1CcIjsKhe54Wck7sUXO0QWdRqrMAAAA==",
+      "registerVaultTx": "0x34019cb90a3eefa95c4381395a1f90f94706e495f55af1986c0ad1c8f303ec0e",
+      "registerBlock": 723086,
+      "vaultId": "b3ee2d8cfd275b361d0becf9a705eb672c97b98f3894bd00a886199ced4404ab",
+      "burnBlockHeightBefore": 27257
+    },
+    "B": {
+      "publishPreimageTx": "0xcc477879349827ed69b4d7e1f9e0e10277c9c60be7d3a21f126898da895a9c75",
+      "publishBlock": 723088,
+      "releaseEventFound": true,
+      "isReleaseTriggeredRepr": "(ok true)",
+      "committedAnchorBhRepr": "(ok 0x66663861323439333339626438363835613336316134333262613638626233326133616437626131373130383064313139633733633339303636356337393662…(64 bytes))",
+      "verifyPreimageRepr": "(ok true)"
+    },
+    "C": {
+      "simUtxo": {
+        "txid": "273c6c75240de221163be7ed4a997296815432e7a6c89efab704c10148c706af",
+        "vout": 0
+      },
+      "refundTxid": "f8f0be8ea92bf65d986481938130b4bd8a804927da278aba0cf013b8be3d184f",
+      "refundTxHex": "02000000000101af06c74801c104b7fa9ec8a6e73254819672994aede73b1621e20d24756c3c270000000000060000000154820100000000002251204a5dbc5b6a03888b00c3d0783e446cff80528dcac9323191c1ba9dfa747a6a7503404a0a009cf93ccc913b839bc50ebec7226769d094821a684525702318906baf83c7263a0345144b15e40e94fff74a135b5481156ff781500dd2549213bcadc6462556b27520333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46aac41c1333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46abb6fcb878c017a1f3c98fa00885a1329d289b963a788200bc7f82d5970ffcca600000000",
+      "refundTxLen": 266,
+      "inputSequence": "0x00000006",
+      "csvDisabled": false,
+      "csvType": "blocks",
+      "csvValue": 6,
+      "csvExpected": 6,
+      "csvMatches": true,
+      "refundAddress": "tb1pffwmckm2qwygkqxr6puru3rvl7q99rw2eyerrywph2wl5ar6df6s0sstzr",
+      "refundAmount": 98900,
+      "refundFee": 1100,
+      "refundTxValid": true,
+      "refundVaultCallTxId": "0x48fecd337a938ae3fe78b8b4b6e57756e90aecfda5dd4357fd4f106e849b4d12",
+      "refundVaultCallResult": "(err u708)"
+    }
+  },
+  "steps": [
+    {
+      "step": "A1",
+      "ok": true,
+      "borrowerWif": "cSzwU1Z8UeNdZ1RVgvhxiq8Lrw3PbEjdVazqNbioF147ojDL4kH5",
+      "borrowerPubkey": "03333fb3a62bb1566c33d3044fb7b509c223b0a85ee7859c93bb145ced1059d46a",
+      "lenderAddr": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks"
+    },
+    {
+      "step": "A2",
+      "ok": true,
+      "txid": "ef1b03eaeb3e0cd10ec9173f7d6a22742d717b8d0c2c8595c004e84a3712b7a9",
+      "blockHash": "000000009221cce635f631cb496216a1ff356cf0d1a2e4f31f5d7ce5a61f902a",
+      "blockHeight": 5128575,
+      "blockTime": 1788796577,
+      "amountSats": 161703
+    },
+    {
+      "step": "A3",
+      "ok": true,
+      "payloadHex": "99e709f06091d6c2f7ea66c8ac269cf65916664d3154bb6b5eb55e2971457e57000000931169dfc6000000000000000000000000006a9edea100000064000000009221cce635f631cb496216a1ff356cf0d1a2e4f31f5d7ce5a61f902a",
+      "payloadLen": 93,
+      "fields": {
+        "entityId": "99e709f06091d6c2f7ea66c8ac269cf65916664d3154bb6b5eb55e2971457e57",
+        "eventType": 0,
+        "magnitudeNano": "161703000000000",
+        "context": "0",
+        "timestamp": "1788796577",
+        "chainId": 100,
+        "blockHash": "000000009221cce635f631cb496216a1ff356cf0d1a2e4f31f5d7ce5a61f902a"
+      }
+    },
+    {
+      "step": "A4",
+      "ok": true,
+      "anchorBH": "ff8a249339bd8685a361a432ba68bb32a3ad7ba171080d119c73c390665c796b"
+    },
+    {
+      "step": "A5",
+      "ok": true,
+      "vaultAddress": "tb1paztyrht0rup84zkx6443wdxym9eh33j6m5dhw0tqvkqdqdgx78jqucqryk"
+    },
+    {
+      "step": "A6",
+      "ok": true,
+      "txId": "0x34019cb90a3eefa95c4381395a1f90f94706e495f55af1986c0ad1c8f303ec0e",
+      "block": 723086,
+      "vaultStateRepr": "(ok u0)"
+    },
+    {
+      "step": "B1",
+      "ok": true,
+      "txId": "0xcc477879349827ed69b4d7e1f9e0e10277c9c60be7d3a21f126898da895a9c75",
+      "block": 723088
+    },
+    {
+      "step": "B2",
+      "ok": true,
+      "eventFound": true,
+      "isReleaseTriggeredRepr": "(ok true)",
+      "verifyPreimageRepr": "(ok true)"
+    },
+    {
+      "step": "C1",
+      "ok": true,
+      "refundHexFile": "btc-tools/vault/refund-tx-test.hex"
+    },
+    {
+      "step": "C2",
+      "ok": true,
+      "refundTxid": "f8f0be8ea92bf65d986481938130b4bd8a804927da278aba0cf013b8be3d184f",
+      "csvMatches": true,
+      "refundAddressMatches": true
+    }
+  ],
+  "completedAt": "2026-10-14T09:16:24.030Z",
+  "success": true,
+  "stepCount": 10,
+  "stepsPassed": 10
+}

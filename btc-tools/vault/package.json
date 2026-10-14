@@ -1,0 +1,18 @@
+{
+  "name": "trion-coherence-vault",
+  "version": "1.0.0",
+  "description": "TRION Coherence Vault — HashDNA preimage-triggered BTC lock (no committee)",
+  "type": "module",
+  "main": "coherence-vault.js",
+  "scripts": {
+    "test": "node coherence-vault.js create --help"
+  },
+  "keywords": ["bitcoin", "taproot", "trion", "coherence", "hashdna", "htlc"],
+  "author": "TRION Phase 2/3 Implementer",
+  "license": "ISC",
+  "dependencies": {
+    "bitcoinjs-lib": "^7.0.4",
+    "ecpair": "^3.0.2",
+    "tiny-secp256k1": "^2.2.4"
+  }
+}
