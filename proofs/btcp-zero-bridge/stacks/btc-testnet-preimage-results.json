@@ -1,0 +1,27 @@
+{
+  "step": "preimage-reveal-spend",
+  "status": "broadcast_success",
+  "confirmed": true,
+  "blockHeight": 5158940,
+  "fundingTxid": "18959005d213716354037e2d38394ba132aef581ea766a77423026645508820b",
+  "fundingVout": 0,
+  "fundingAmount": 183933,
+  "spendTxid": "a2c26048d477243b094798a29d405eadf27567ff3c0e77585fb6e986df58bcdc",
+  "sendAmount": 182933,
+  "fee": 1000,
+  "vaultAddress": "tb1pprg5qda5xa36armrgf8s97ewgrlxe5ncvytvdzmc73t9t0lutwmqauekgs",
+  "lenderAddress": "tb1q5d69fyxxxwdkr7pecmxyr245w5jqchm9zptkks",
+  "committedAnchorBH": "d93f341d6370c737b2c2f09ed88f7949fcdc87593440972a422c34a8bbbf92a2",
+  "payloadHex": "cc8aa95abbc7965be22cccc07b10c79520df838d00000114f737a8d600000000006a9dada70000006400000000000001a9562ec7227605f68ea1baf77dfa37d6794fcd55bca4a509f400000000000000",
+  "payloadLength": 80,
+  "releaseScript": "168,32,217,63,52,29,99,112,199,55,178,194,240,158,216,143,121,73,252,220,135,89,52,64,151,42,66,44,52,168,187,191,146,162,135",
+  "releaseControlBlock": "c10a2e7b9279494c9c3419f0731fb2a069fab4dfa033fbd4b69c5d71e8aecfd9735c04d09e5fe171aa045537d23052d27615f45dd9a08e82f5df22de8965f74a02",
+  "explorerUrl": "https://mempool.space/testnet/tx/a2c26048d477243b094798a29d405eadf27567ff3c0e77585fb6e986df58bcdc",
+  "witness": {
+    "payload": "80 bytes",
+    "script": "35 bytes",
+    "controlBlock": "65 bytes"
+  },
+  "timestamp": "2026-10-14T17:23:30.059Z",
+  "description": "REAL Bitcoin testnet transaction spending a TRION Coherence Vault UTXO via the PREIMAGE-REVEAL script path. The 80-byte HashDNA payload is the SOLE authorization — no signature, no committee, no multisig. This is the novel cryptographic primitive: the Deterministic Behavioral Preimage."
+}
