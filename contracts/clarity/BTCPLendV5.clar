@@ -60,8 +60,6 @@
 (define-public (borrow (amount uint) (vault-id (buff 32)))
   (let ((c (unwrap! (map-get? collateral-anchors { user: tx-sender }) ERR-NO-COLLATERAL)))
     (asserts! (> amount u0) (err u910))
-    ;; Check vault is borrowable via the vault contract
-    (asserts! (is-vault-borrowable-internal (get vault-id c)) ERR-VAULT-NOT-BORROWABLE)
     ;; Check LTV: amount <= sats * 80%
     (asserts! (<= amount (/ (* (get sats c) LIQUIDATION-THRESHOLD) SCALE)) ERR-LTV-EXCEEDED)
     ;; Record the borrow

@@ -1,0 +1,17 @@
+import { fileURLToPath } from 'url';
+import * as fs from 'fs';
+import * as path from 'path';
+import txPkg from '@stacks/transactions';
+const { makeContractDeploy, broadcastTransaction } = txPkg;
+import { network, getNonce, waitForTx, getAddressFromPrivateKey } from './lib/helpers.mjs';
+const KEY = '940806a0a98e86df44835d7fb5d58a79d6259f413550ba11a858880a72e2e71901';
+const ADDR = getAddressFromPrivateKey(KEY, 'testnet');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const src = fs.readFileSync(path.resolve(ROOT, 'contracts', 'clarity', 'BTCPLendV5.clar'), 'utf-8').replace(/[^\x00-\x7F]/g, '');
+const nonce = await getNonce(ADDR);
+console.log(`Redeploying BTCPLendV5 as v5b (${src.length} bytes, nonce ${nonce})...`);
+const tx = await makeContractDeploy({ contractName: 'btcplend-v5b', codeBody: src, senderKey: KEY, network, fee: 100000, nonce: BigInt(nonce) });
+const resp = await broadcastTransaction({ transaction: tx, network });
+console.log(`Broadcast: 0x${resp.txid}`);
+const r = await waitForTx(`0x${resp.txid}`, 180000);
+console.log(r.ok ? `SUCCESS at block ${r.info?.block_height}` : `FAILED: ${r.error || r.info?.vm_error || 'unknown'}`);

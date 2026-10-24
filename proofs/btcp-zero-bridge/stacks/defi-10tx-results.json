@@ -1,0 +1,84 @@
+{
+  "test": "TRION DBP DeFi Flow — 10 On-Chain Interactions",
+  "timestamp": "2026-10-24T17:30:00.337Z",
+  "contracts": {
+    "publisherRegistry": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.publisherregistry-v1",
+    "coherenceVaultV6": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.trioncoherencevault-v6",
+    "btcplendV5": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.btcplend-v5"
+  },
+  "vault": {
+    "address": "tb1phvsndxyhzm83jpg6e2m97msadn2fnq6tud3ludq3d5ewvxqs3f4snmnrar",
+    "committedAnchorBH": "d93f341d6370c737b2c2f09ed88f7949fcdc87593440972a422c34a8bbbf92a2",
+    "payloadLength": 80
+  },
+  "results": [
+    {
+      "id": 1,
+      "name": "PublisherRegistry.register-publisher (stake 5 STX)",
+      "status": "fail",
+      "txId": "0x219823dd8d45ccc2ac42d544ad6b954ab7acfd8cbf56670a958bba63fd00db51",
+      "error": "abort_by_response"
+    },
+    {
+      "id": 2,
+      "name": "PublisherRegistry.heartbeat (may fail — too early)",
+      "status": "fail",
+      "txId": "0x92b650e98d1740dd64210ef3c2c58da8c188e5ec9936384f0c6a5769d6866341",
+      "error": "abort_by_response"
+    },
+    {
+      "id": 3,
+      "name": "BTCPLendV5.deposit 500 tTRION",
+      "status": "pass",
+      "txId": "0x9cb68892570566b73a47de7960b4c3cff043fa501c1f04cba1b89ba0a1e1b060"
+    },
+    {
+      "id": 4,
+      "name": "CoherenceVaultV6.register-vault (vault-id=0x17eda3ae13742b0add...)",
+      "status": "pass",
+      "txId": "0xf808fa3dc62e56cc22c3786930826f9e91f6ebb048d40e5f9e4217789df9e2b8"
+    },
+    {
+      "id": 5,
+      "name": "CoherenceVaultV6.activate-vault",
+      "status": "pass",
+      "txId": "0xe10dc844bdddae6e6aa752cb9123681b5b13345a2fbea7aa338b7231471303ed"
+    },
+    {
+      "id": 6,
+      "name": "BTCPLendV5.register-btc-collateral",
+      "status": "pass",
+      "txId": "0x071758ab00f03421cc0ab333a806b948e0907a23d20e53edf18bddd8f260360f"
+    },
+    {
+      "id": 7,
+      "name": "BTCPLendV5.borrow 80 tTRION (80% LTV)",
+      "status": "pass",
+      "txId": "0x57fa0a878be0c60d70daf36f395763252ed4a8fd8fc826c24bad7757500bea12"
+    },
+    {
+      "id": 8,
+      "name": "BTCPLendV5.repay 40 tTRION (partial)",
+      "status": "pass",
+      "txId": "0xb1f2c6590bc62218c3ab827ba5a2a798aa54a41917c6392caf2075b7ac384efe"
+    },
+    {
+      "id": 9,
+      "name": "PublisherRegistry.fund-bounty 10000 microSTX",
+      "status": "pass",
+      "txId": "0xf4c272fa988111dc134e075d510a3f06f23343bc2ec56242c5a6dae7bcf1b941"
+    },
+    {
+      "id": 10,
+      "name": "CoherenceVaultV6.publish-preimage (80-byte payload)",
+      "status": "pass",
+      "txId": "0xeb8630ec4d7a1045c93afd8c80d2a3c5a1979c92c8e07d314ac74c1c06a4f6f2"
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 8,
+    "failed": 2,
+    "assetsBridged": false
+  }
+}
