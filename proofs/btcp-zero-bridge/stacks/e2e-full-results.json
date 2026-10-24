@@ -1,0 +1,43 @@
+{
+  "test": "TRION Coherence Vault E2E (BTC testnet + Stacks testnet)",
+  "timestamp": "2026-10-24T11:37:21.249Z",
+  "vault": {
+    "address": "tb1phvsndxyhzm83jpg6e2m97msadn2fnq6tud3ludq3d5ewvxqs3f4snmnrar",
+    "committedAnchorBH": "d93f341d6370c737b2c2f09ed88f7949fcdc87593440972a422c34a8bbbf92a2",
+    "payloadLength": 80
+  },
+  "bitcoin": {
+    "fundingTxid": "36172ef4b754ea80e2a533406368a3c1f4db3c6611dfe3a7ea2d88cb926836c4",
+    "fundingVout": 1,
+    "fundingAmount": 158148,
+    "fundingConfirmed": true,
+    "fundingBlock": 5197629,
+    "spendTxid": "edd5aa4a568e9974a4373038d6ee5270723d80c0770879113090e7e79fbf8f44",
+    "spendAmount": 157148,
+    "fee": 1000,
+    "spendConfirmed": true,
+    "spendBlock": 5197632,
+    "spendType": "preimage-reveal (NO SIGNATURE — 80-byte HashDNA payload is the SOLE authorization)",
+    "explorerUrl": "https://mempool.space/testnet/tx/edd5aa4a568e9974a4373038d6ee5270723d80c0770879113090e7e79fbf8f44",
+    "witness": {
+      "item0": "80-byte HashDNA preimage (NOT a signature)",
+      "item1": "35-byte OP_SHA256 <hash> OP_EQUAL",
+      "item2": "65-byte controlBlock"
+    }
+  },
+  "stacks": {
+    "contract": "ST969AZNDX2P7N1YJ0DNVGC8QEKT388DBMXGHR9Z.trioncoherencevault-v5",
+    "registerVaultTx": "0xfa20c5fd411f34726a2f6f2f8809810a079b8e85d5f6df3000afed25ac089608",
+    "registerVaultOk": true,
+    "publishPreimageTx": "0x785093d5bd1abe65f3e356ba0aa3145f90914711a55aca596e8beb05fc3688ef",
+    "publishPreimageOk": true
+  },
+  "summary": {
+    "btcFundingConfirmed": true,
+    "btcPreimageSpendConfirmed": true,
+    "stacksRegisterOk": true,
+    "stacksPublishOk": true,
+    "assetsBridged": false,
+    "novelPrimitiveProven": true
+  }
+}
