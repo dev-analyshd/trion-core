@@ -1,0 +1,84 @@
+{
+  "test": "Atomic Liquidation Flow",
+  "timestamp": "2026-10-25T10:06:06.874Z",
+  "results": [
+    {
+      "id": 0,
+      "name": "CoherenceGate.add-publisher (authorize deployer)",
+      "status": "pass",
+      "txId": "0x585a8a10a25c2dfef6394e0f60b3de63acc033c77e48b2a3f5706b719166b5b3"
+    },
+    {
+      "id": 1,
+      "name": "CoherenceGate.publish-coherence-score (C=0.85, V=0.2)",
+      "status": "pass",
+      "txId": "0xbfef95480e29a5506d3028dbb685b04010639e017bf5c9ba94bed2f9fc22c3bd"
+    },
+    {
+      "id": 2,
+      "name": "CoherenceGate.gate-liquidation (check C(t) >= threshold)",
+      "status": "pass",
+      "txId": "0xb2d7695e8565c986981b42ed77b934e6b5d262ff372da9ebf8f6bd916062a825"
+    },
+    {
+      "id": 3,
+      "name": "CoherenceVaultV6.register-vault",
+      "status": "pass",
+      "txId": "0xf7f1a00c47d11d44babac207baa0c77cf9be8252e64cacf381f2c97b4a090137"
+    },
+    {
+      "id": 4,
+      "name": "CoherenceVaultV6.activate-vault",
+      "status": "pass",
+      "txId": "0x9a5eb72eb25f3a5976512822c5156d175a0d245cb543e5223b05bc02c9f3b5f2"
+    },
+    {
+      "id": 5,
+      "name": "BTCPLendV5b.deposit 1000 tTRION",
+      "status": "pass",
+      "txId": "0xcf447ccee50d3ed1821f8f610d7f506488457c7f26ef072710251dbff4bfeb30"
+    },
+    {
+      "id": 6,
+      "name": "BTCPLendV5b.register-btc-collateral (sats=100)",
+      "status": "pass",
+      "txId": "0x6cb61a96e6aef89ef50a112e0df0983f1f53bed13c8a671e585c5f9a8ffd7d0b"
+    },
+    {
+      "id": 7,
+      "name": "BTCPLendV5b.borrow 80 tTRION (max LTV)",
+      "status": "pass",
+      "txId": "0xb8309e60ca34c4066b821d2a2cd1b84f121f31ef7aba097dc312177de4cafb23"
+    },
+    {
+      "id": 8,
+      "name": "BTCPLendV5b.borrow 11 more (total=91 > 90 LTV)",
+      "status": "pass",
+      "txId": "0x552e52d834fb832b0d8ef65d73e4fe314c863a2609b5f4abe884a4bf29e4ec12"
+    },
+    {
+      "id": 9,
+      "name": "BTCPLendV5b.liquidate (LTV > 90% -> mark-liquidating)",
+      "status": "pass",
+      "txId": "0xa572bc13748ceb31d3a2957ed1d50c7b1e132f242eadf3b6f1756a0b0378689d"
+    },
+    {
+      "id": 10,
+      "name": "CoherenceVaultV6.publish-preimage (80-byte payload)",
+      "status": "pass",
+      "txId": "0x7571cbee4a41c9d6ff0b9bacb774478faad0c34487fd738914db1cdbbc0e341a"
+    },
+    {
+      "id": 11,
+      "name": "CoherenceVaultV6.mark-liquidated",
+      "status": "pass",
+      "txId": "0xf5fdda0757efda8e9ab131a3bc814cd6416a2f0674862eb5c57c28858259732d"
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "assetsBridged": false
+  }
+}
