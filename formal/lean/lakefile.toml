@@ -1,0 +1,10 @@
+name = "trion_proofs"
+version = "0.1.0"
+defaultTargets = ["trion_proofs"]
+
+[[lean_lib]]
+name = "TrionProofs"
+
+[[lean_exe]]
+name = "trion_proofs"
+root = "Main"

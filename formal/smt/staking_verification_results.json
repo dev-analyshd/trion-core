@@ -1,5 +1,9 @@
 {
+<<<<<<< Updated upstream
   "timestamp": "2026-09-19T17:10:28.473664+00:00",
+=======
+  "timestamp": "2026-09-20T18:50:47.384902+00:00",
+>>>>>>> Stashed changes
   "tool": "Z3 SMT Solver",
   "z3_version": "5.1.0",
   "contract": "contracts/vyper/TRIONStaking.vy",

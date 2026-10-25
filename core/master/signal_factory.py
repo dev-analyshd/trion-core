@@ -886,6 +886,7 @@ def build_signal(
     # crispr_screening = {matched: bool, signatures: [...], library_size: int}
     # to the returned signal dict. When omitted, no screening is performed
     # and the field is absent — never fabricated.
+<<<<<<< Updated upstream
     #
     # The transaction_data field serves BOTH the innate immune check
     # (innate_check expects bytes — built from the canonical transaction
@@ -894,6 +895,9 @@ def build_signal(
     # Callers may pass either form; build_signal encodes bytes from the
     # dict when the innate check needs them.
     transaction_data:     Optional[dict] = None,
+=======
+    transaction_data:     Optional[bytes] = None,
+>>>>>>> Stashed changes
 ) -> dict:
     """
     Build a complete TRIONSignal object with all specification-mandated fields.
